@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchMatchupShowcaseList,
   unpublishMatchupShowcase,
@@ -47,6 +48,7 @@ export default function LandingMatchupBoardAdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [items, setItems] = useState<MatchupShowcaseCard[]>([]);
   const [loading, setLoading] = useState(false);
@@ -114,7 +116,13 @@ export default function LandingMatchupBoardAdminPage() {
   }, [reload]);
 
   const handleUnpublish = useCallback(async (card: MatchupShowcaseCard) => {
-    if (!window.confirm(`"${card.title}" 게시를 비공개로 전환하시겠습니까?\n(일반인에게 숨겨지지만 데이터는 보존됩니다.)`)) return;
+    const ok = await confirm({
+      title: "비공개로 전환",
+      message: `"${card.title}" 게시를 비공개로 전환하시겠습니까?\n(일반인에게 숨겨지지만 데이터는 보존됩니다.)`,
+      confirmText: "비공개",
+      cancelText: "취소",
+    });
+    if (!ok) return;
     try {
       await unpublishMatchupShowcase(card.id);
       feedback.success("비공개로 전환했습니다.");
@@ -123,25 +131,30 @@ export default function LandingMatchupBoardAdminPage() {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       feedback.error(typeof detail === "string" ? detail : "처리 실패");
     }
-  }, [reload]);
+  }, [confirm, reload]);
 
   const handleCopyShareLink = useCallback(async (card: MatchupShowcaseCard) => {
     // 학원장 spec (박철T 2026-05-13): 매치업 게시물 단일 외부 공개 URL 카톡 공유.
     // /landing/matchup-board/<id> — 비로그인 OK (PUBLISHED + window 안만).
     const absolute = `${window.location.origin}/landing/matchup-board/${card.id}`;
-    let copied = false;
     try {
       await navigator.clipboard.writeText(absolute);
-      copied = true;
+      feedback.success("학생용 링크를 복사했습니다. 카톡에 붙여넣으면 학생들이 PDF만 봅니다.");
     } catch {
-      window.prompt("학생용 공유 링크 (복사해서 카톡으로 보내세요)", absolute);
+      // clipboard 권한 거부 / 비-https — 링크를 메시지에 박아 사용자가 직접 선택해 복사.
+      feedback.info(`복사 실패. 직접 선택해 복사하세요:\n${absolute}`);
     }
-    if (copied) feedback.success("학생용 링크를 복사했습니다. 카톡에 붙여넣으면 학생들이 PDF만 봅니다.");
-    else feedback.info("학생용 링크가 위 입력창에 표시되었습니다.");
   }, []);
 
   const handleDelete = useCallback(async (card: MatchupShowcaseCard) => {
-    if (!window.confirm(`"${card.title}" 게시물을 삭제하시겠습니까?\n(게시판에서 사라지며 일반인에게 노출되지 않습니다.)`)) return;
+    const ok = await confirm({
+      title: "게시물 삭제",
+      message: `"${card.title}" 게시물을 삭제하시겠습니까?\n(게시판에서 사라지며 일반인에게 노출되지 않습니다.)`,
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteMatchupShowcase(card.id);
       feedback.success("삭제했습니다.");
@@ -150,7 +163,7 @@ export default function LandingMatchupBoardAdminPage() {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       feedback.error(typeof detail === "string" ? detail : "삭제 실패");
     }
-  }, [reload]);
+  }, [confirm, reload]);
 
   // useAuth hydrate 시점 race 방어 — isLoading 중에는 redirect 금지.
   // 직전 결함: race 시 학원장 진입에도 /login 으로 튕김.

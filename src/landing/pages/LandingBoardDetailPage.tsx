@@ -9,6 +9,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { fetchLandingPublic } from "../api";
 import EmbeddedHitReportCards from "../components/EmbeddedHitReportCards";
 import ReportButton from "../components/ReportButton";
@@ -52,6 +53,7 @@ function BrandMark({ name }: { name: string }) {
 export default function LandingBoardDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { isAuthenticated, user } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
@@ -165,8 +167,14 @@ export default function LandingBoardDetailPage() {
   };
 
   const onDeleteReply = async (replyId: number) => {
-    // TODO: useConfirm SSOT 로 변환 (별 cycle)
-    if (!window.confirm("댓글을 삭제하시겠어요?")) return;
+    const ok = await confirm({
+      title: "댓글 삭제",
+      message: "댓글을 삭제하시겠어요?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteReply(replyId);
       loadReplies();
@@ -194,8 +202,14 @@ export default function LandingBoardDetailPage() {
 
   const onDeletePost = async () => {
     if (!post) return;
-    // TODO: useConfirm SSOT 로 변환 (별 cycle)
-    if (!window.confirm("이 글을 삭제하시겠어요?")) return;
+    const ok = await confirm({
+      title: "게시글 삭제",
+      message: "이 글을 삭제하시겠어요?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteBoardPost(post.id);
       navigate("/landing/board", { replace: true });

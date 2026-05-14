@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useEffect } from "react";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
@@ -51,6 +52,7 @@ function BrandMark({ name }: { name: string }) {
 export default function LandingCommunityWritePage() {
   const { boardType } = useParams<{ boardType: string }>();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { isAuthenticated, user } = useAuth();
   const isValid = VALID.includes(boardType as BoardType);
   const initialBoard = (isValid ? (boardType as BoardType) : "board");
@@ -80,27 +82,37 @@ export default function LandingCommunityWritePage() {
 
   // mount: draft 있으면 복구 prompt
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(draftKey);
-      if (!raw) return;
-      const draft = JSON.parse(raw) as { title?: string; content?: string; board?: BoardType; savedAt?: number };
-      // 7일 이상된 draft는 자동 폐기
-      if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
-        window.localStorage.removeItem(draftKey);
-        return;
-      }
-      const hasBody = (draft.title?.trim() || draft.content?.trim());
-      if (!hasBody) return;
-      const yes = window.confirm(`작성 중이던 글이 있어요. 이어 작성할까요?\n\n제목: ${(draft.title || "(없음)").slice(0, 40)}\n저장: ${new Date(draft.savedAt).toLocaleString()}`);
-      if (yes) {
-        if (draft.title) setTitle(draft.title);
-        if (draft.content) setContent(draft.content);
-        if (draft.board && VALID.includes(draft.board)) setSelectedBoard(draft.board);
-        setDraftRestored(true);
-      } else {
-        window.localStorage.removeItem(draftKey);
-      }
-    } catch { /* ignore */ }
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = window.localStorage.getItem(draftKey);
+        if (!raw) return;
+        const draft = JSON.parse(raw) as { title?: string; content?: string; board?: BoardType; savedAt?: number };
+        // 7일 이상된 draft는 자동 폐기
+        if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
+          window.localStorage.removeItem(draftKey);
+          return;
+        }
+        const hasBody = (draft.title?.trim() || draft.content?.trim());
+        if (!hasBody) return;
+        const yes = await confirm({
+          title: "작성 중이던 글 복구",
+          message: `작성 중이던 글이 있어요. 이어 작성할까요?\n\n제목: ${(draft.title || "(없음)").slice(0, 40)}\n저장: ${new Date(draft.savedAt).toLocaleString()}`,
+          confirmText: "이어 작성",
+          cancelText: "버리기",
+        });
+        if (cancelled) return;
+        if (yes) {
+          if (draft.title) setTitle(draft.title);
+          if (draft.content) setContent(draft.content);
+          if (draft.board && VALID.includes(draft.board)) setSelectedBoard(draft.board);
+          setDraftRestored(true);
+        } else {
+          window.localStorage.removeItem(draftKey);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -8,6 +8,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { fetchLandingPublic } from "../api";
 import ReportButton from "../components/ReportButton";
 import { setLandingMeta } from "../utils/seoMeta";
@@ -50,6 +51,7 @@ function BrandMark({ name }: { name: string }) {
 export default function LandingReviewDetailPage() {
   const { reviewId } = useParams<{ reviewId: string }>();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { isAuthenticated, user } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
@@ -179,8 +181,14 @@ export default function LandingReviewDetailPage() {
 
   const onDeleteReview = async () => {
     if (!review) return;
-    // TODO: useConfirm SSOT (별 cycle)
-    if (!window.confirm("이 후기를 삭제하시겠어요?")) return;
+    const ok = await confirm({
+      title: "후기 삭제",
+      message: "이 후기를 삭제하시겠어요?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteReview(review.id);
       navigate("/landing/reviews", { replace: true });
@@ -196,8 +204,14 @@ export default function LandingReviewDetailPage() {
   };
 
   const onDeleteReply = async (replyId: number) => {
-    // TODO: useConfirm SSOT (별 cycle)
-    if (!window.confirm("댓글을 삭제하시겠어요?")) return;
+    const ok = await confirm({
+      title: "댓글 삭제",
+      message: "댓글을 삭제하시겠어요?",
+      confirmText: "삭제",
+      cancelText: "취소",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteReply(replyId);
       loadReplies();
