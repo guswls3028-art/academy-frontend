@@ -129,8 +129,19 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     }
 
     const scoreDetail = buildScoreDetail(row, meta, { passLabel: labels.pass, failLabel: labels.fail });
+    // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
+    // raw 변수 잔존 가능. substituteScoreVars 가 학생이름2/학생이름3/시험성적 까지 처리하니 callback 통과.
+    const sid = row.student_id;
+    const recomputePerStudentVars = sid != null
+      ? (currentBody: string) => ({
+          [sid]: {
+            학생이름: row.student_name || "",
+            _body_subst: substituteScoreVars(currentBody, row, meta, reportOptions),
+          },
+        })
+      : undefined;
     openSendMessageModal({
-      studentIds: row.student_id != null ? [row.student_id] : [],
+      studentIds: sid != null ? [sid] : [],
       recipientLabel: `${row.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,
@@ -139,6 +150,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
         차시명: sessionTitle,
         시험성적: scoreDetail,
       },
+      recomputePerStudentVars,
     });
   }, [row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
 
