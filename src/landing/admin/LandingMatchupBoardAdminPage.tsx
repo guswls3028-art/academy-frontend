@@ -21,12 +21,13 @@ import {
   fetchMatchupShowcaseList,
   publishMatchupShowcase,
   publishMatchupShowcaseUpload,
-  updateMatchupShowcase,
   unpublishMatchupShowcase,
   deleteMatchupShowcase,
   type MatchupShowcaseCard,
   type MatchupShowcaseStatus,
 } from "../api/matchupShowcase";
+import EditShowcaseModal from "./matchup_board/EditShowcaseModal";
+import { formatDate, inputDatetimeLocalToISO } from "./matchup_board/helpers";
 
 type PublishMode = "existing" | "upload";
 
@@ -47,41 +48,8 @@ function StatusBadge({ status, expired }: { status: MatchupShowcaseStatus; expir
   );
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${y}.${m}.${day} ${hh}:${mm}`;
-  } catch {
-    return iso;
-  }
-}
-
-function isoToInputDatetimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return "";
-  }
-}
-
-function inputDatetimeLocalToISO(local: string): string | null {
-  if (!local || local.trim() === "") return null;
-  // input type=datetime-local 은 "YYYY-MM-DDTHH:MM" — local timezone 가정. Date constructor 가 local로 해석.
-  const d = new Date(local);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
+// 형식 변환 헬퍼는 matchup_board/helpers.ts 로 분리 (P1 audit step 2026-05-14).
+// EditShowcaseModal 도 같은 helper 재사용.
 
 interface PublishFormState {
   hit_report_id: number | null;
@@ -122,11 +90,9 @@ export default function LandingMatchupBoardAdminPage() {
   // ?compose=upload query param 자동 진입 — 매치업 콘솔에서 "PDF 업로드 게시" 1클릭 deep link.
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // edit 모달
+  // edit 모달 — EditShowcaseModal 컴포넌트 분리 (P1 audit 2026-05-14).
+  // form/submit state 는 모달 안 own state, main page는 card 참조만.
   const [editing, setEditing] = useState<MatchupShowcaseCard | null>(null);
-  const [editForm, setEditForm] = useState<{ title: string; description: string; published_at: string; published_until: string; status: MatchupShowcaseStatus }>({
-    title: "", description: "", published_at: "", published_until: "", status: "published",
-  });
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -246,36 +212,12 @@ export default function LandingMatchupBoardAdminPage() {
 
   const openEdit = useCallback((card: MatchupShowcaseCard) => {
     setEditing(card);
-    setEditForm({
-      title: card.title,
-      description: card.description,
-      published_at: isoToInputDatetimeLocal(card.published_at),
-      published_until: isoToInputDatetimeLocal(card.published_until),
-      status: card.status,
-    });
   }, []);
 
-  const submitEdit = useCallback(async () => {
-    if (!editing) return;
-    setSubmitting(true);
-    try {
-      await updateMatchupShowcase(editing.id, {
-        title: editForm.title.trim() || undefined,
-        description: editForm.description,
-        published_at: inputDatetimeLocalToISO(editForm.published_at),
-        published_until: inputDatetimeLocalToISO(editForm.published_until),
-        status: editForm.status,
-      });
-      feedback.success("저장되었습니다.");
-      setEditing(null);
-      await reload();
-    } catch (e) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      feedback.error(typeof detail === "string" ? detail : "저장 실패");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [editing, editForm, reload]);
+  const handleEditSaved = useCallback(async () => {
+    setEditing(null);
+    await reload();
+  }, [reload]);
 
   const handleUnpublish = useCallback(async (card: MatchupShowcaseCard) => {
     if (!window.confirm(`"${card.title}" 게시를 비공개로 전환하시겠습니까?\n(일반인에게 숨겨지지만 데이터는 보존됩니다.)`)) return;
@@ -667,70 +609,13 @@ export default function LandingMatchupBoardAdminPage() {
         </div>
       )}
 
-      {/* Edit 모달 */}
+      {/* Edit 모달 — 분리된 컴포넌트 (P1 audit 2026-05-14) */}
       {editing && (
-        <div
-          onClick={() => !submitting && setEditing(null)}
-          style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,12,22,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 100%)", maxHeight: "90vh", background: "#fff", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>게시물 수정</h3>
-              <button type="button" onClick={() => setEditing(null)} disabled={submitting} aria-label="닫기"
-                style={{ width: 30, height: 30, borderRadius: 6, background: "transparent", border: "1px solid #cbd5e1", cursor: "pointer", color: "#475569", fontSize: 16, lineHeight: 1 }}
-              >×</button>
-            </div>
-            <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
-              <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>
-                스냅샷 PDF는 변경 안 됨 (게시 시점 그대로). 제목/코멘트/공개 기간/상태만 수정.
-              </p>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>제목</label>
-              <input type="text" value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", marginBottom: 12, fontSize: 14, fontFamily: "inherit" }}
-              />
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>코멘트</label>
-              <textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-                rows={3}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", marginBottom: 12, fontSize: 14, fontFamily: "inherit", resize: "vertical" }}
-              />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>공개 시작</label>
-                  <input type="datetime-local" value={editForm.published_at} onChange={(e) => setEditForm((f) => ({ ...f, published_at: e.target.value }))}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>공개 종료</label>
-                  <input type="datetime-local" value={editForm.published_until} onChange={(e) => setEditForm((f) => ({ ...f, published_until: e.target.value }))}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
-                  />
-                </div>
-              </div>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>상태</label>
-              <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value as MatchupShowcaseStatus }))}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, fontFamily: "inherit", background: "#fff" }}
-              >
-                <option value="published">공개</option>
-                <option value="hidden">비공개</option>
-                <option value="draft">초안</option>
-              </select>
-            </div>
-            <div style={{ padding: "12px 20px", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button type="button" onClick={() => setEditing(null)} disabled={submitting}
-                style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              >취소</button>
-              <button type="button" onClick={submitEdit} disabled={submitting}
-                style={{
-                  padding: "10px 18px", borderRadius: 10, border: "none",
-                  background: "linear-gradient(135deg, #D4A04C 0%, #B8862F 100%)",
-                  color: "#0A0E1A", fontSize: 13, fontWeight: 700,
-                  cursor: submitting ? "wait" : "pointer", opacity: submitting ? 0.6 : 1,
-                }}
-              >{submitting ? "저장 중…" : "저장"}</button>
-            </div>
-          </div>
-        </div>
+        <EditShowcaseModal
+          card={editing}
+          onClose={() => setEditing(null)}
+          onSaved={handleEditSaved}
+        />
       )}
     </div>
   );
