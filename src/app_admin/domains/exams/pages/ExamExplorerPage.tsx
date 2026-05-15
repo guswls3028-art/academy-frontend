@@ -6,13 +6,14 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { FilePlus, ClipboardList, FileCheck } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
-import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
+import { fetchAllSessions, fetchLectures, sortSessionsByDateDesc, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
 import { fetchExams } from "../api/exams.api";
+import { buildAssessmentSearch } from "@admin/domains/sessions/utils/assessmentQueryParams";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ExamExplorer.module.css";
 
@@ -36,20 +37,24 @@ export default function ExamExplorerPage() {
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const sessionQueries = useQueries({
-    queries: lectures.map((lec) => ({
-      queryKey: ["lecture-sessions", lec.id],
-      queryFn: () => fetchSessions(lec.id),
-      enabled: lectures.length > 0,
-    })),
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["lecture-sessions-all"],
+    queryFn: fetchAllSessions,
+    staleTime: 60_000,
   });
 
   const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
-    return lectures.map((lec, i) => {
-      const sessions = (sessionQueries[i]?.data as Session[] | undefined) ?? [];
+    const sessionsByLecture = new Map<number, Session[]>();
+    for (const session of allSessions) {
+      const bucket = sessionsByLecture.get(session.lecture) ?? [];
+      bucket.push(session);
+      sessionsByLecture.set(session.lecture, bucket);
+    }
+    return lectures.map((lec) => {
+      const sessions = sessionsByLecture.get(lec.id) ?? [];
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
-  }, [lectures, sessionQueries]);
+  }, [lectures, allSessions]);
 
   // 첫 진입 시 첫 번째 차시 자동 선택
   useEffect(() => {
@@ -125,7 +130,7 @@ export default function ExamExplorerPage() {
             <span className={panelStyles.treeNavTitle}>강의 · 차시</span>
           </div>
           <div className={panelStyles.treeScroll}>
-            {lecturesLoading ? (
+            {lecturesLoading || sessionsLoading ? (
               <div className={panelStyles.placeholder}>
                 <p className={panelStyles.placeholderTitle}>불러오는 중…</p>
               </div>
@@ -176,7 +181,7 @@ export default function ExamExplorerPage() {
               <p className={panelStyles.placeholderTitle}>시험 목록 불러오는 중…</p>
             </div>
           ) : exams.length === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+            <div className="flex min-h-[200px] items-center justify-center">
               <EmptyState
                 scope="panel"
                 tone="empty"
@@ -229,7 +234,7 @@ export default function ExamExplorerPage() {
                       onClick={() =>
                         selectedSession &&
                         navigate(
-                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams?exam_id=${e.id}`
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
                         )
                       }
                     >

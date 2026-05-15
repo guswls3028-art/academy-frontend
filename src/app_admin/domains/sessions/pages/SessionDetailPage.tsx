@@ -12,7 +12,7 @@
 // ------------------------------------------------------------
 
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
@@ -21,18 +21,13 @@ import EnrollStudentModal from "@admin/domains/lectures/components/EnrollStudent
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import SessionEnrollModal from "@admin/domains/lectures/components/SessionEnrollModal";
 import SessionVideosTab from "@admin/domains/lectures/components/SessionVideosTab";
-import {
-  fetchSessionEnrollments,
-  bulkCreateSessionEnrollments,
-} from "@admin/domains/lectures/api/enrollments";
-import { fetchSessions } from "@admin/domains/lectures/api/sessions";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { EmptyState } from "@/shared/ui/ds";
 
 import SessionAssessmentSidePanel
   from "../components/SessionAssessmentSidePanel";
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
+import { readAssessmentItemId } from "../utils/assessmentQueryParams";
 
 /* ================= 기존 페이지 재사용 ================= */
 import SessionAttendancePage from "@admin/domains/lectures/pages/attendance/SessionAttendancePage";
@@ -64,13 +59,11 @@ export default function SessionDetailPage() {
   const sId = Number(sessionId);
 
   const examId = useMemo(() => {
-    const v = Number(searchParams.get("examId"));
-    return Number.isFinite(v) && v > 0 ? v : null;
+    return readAssessmentItemId(searchParams, "exam");
   }, [searchParams]);
 
   const homeworkId = useMemo(() => {
-    const v = Number(searchParams.get("homeworkId"));
-    return Number.isFinite(v) && v > 0 ? v : null;
+    return readAssessmentItemId(searchParams, "homework");
   }, [searchParams]);
 
   /* 탭 상태: pathname 기준 (훅 개수 일정 유지 위해 모든 훅을 early return 위에 배치) */
@@ -97,59 +90,6 @@ export default function SessionDetailPage() {
     queryKey: ["session", sId],
     queryFn: () => fetchSession(sId),
     enabled: Number.isFinite(sId),
-  });
-
-  const { data: sessionEnrollments = [] } = useQuery({
-    queryKey: ["session-enrollments", sId],
-    queryFn: () => fetchSessionEnrollments(sId),
-    enabled: Number.isFinite(sId),
-  });
-
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["lecture-sessions", lecId],
-    queryFn: () => fetchSessions(lecId),
-    enabled: Number.isFinite(lecId),
-  });
-
-  const currentOrder = session?.order ?? 0;
-  const sortedSessions = useMemo(
-    () => [...sessions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [sessions]
-  );
-  const prevSession = useMemo(() => {
-    const idx = sortedSessions.findIndex((s) => s.id === sId);
-    if (idx <= 0) return null;
-    // 보강 세션은 건너뛰고 가장 가까운 정규 차시를 찾음 (SessionEnrollModal과 동일 로직)
-    for (let i = idx - 1; i >= 0; i--) {
-      if (!(sortedSessions[i] as { title?: string }).title?.includes?.("보강")) return sortedSessions[i];
-    }
-    return sortedSessions[idx - 1]; // 전부 보강이면 직전 세션 사용
-  }, [sortedSessions, sId]);
-
-  const copyFromPrevMutation = useMutation({
-    mutationFn: async () => {
-      if (!prevSession) throw new Error("직전 차시가 없습니다.");
-      const prevList = await fetchSessionEnrollments(prevSession.id);
-      const alreadyIds = new Set(sessionEnrollments.map((se) => se.enrollment));
-      const toAdd = prevList
-        .map((se) => se.enrollment)
-        .filter((eid) => !alreadyIds.has(eid));
-      if (toAdd.length === 0) return { added: 0 };
-      await bulkCreateSessionEnrollments(sId, toAdd);
-      return { added: toAdd.length };
-    },
-    onSuccess: (result) => {
-      invalidateSession();
-      qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
-      if (result && "added" in result && result.added > 0) {
-        feedback.success(`직전 차시에서 ${result.added}명을 가져왔습니다.`);
-      } else if (result && "added" in result && result.added === 0) {
-        feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
-      }
-    },
-    onError: (e) => {
-      feedback.error(e instanceof Error ? e.message : "가져오기 실패");
-    },
   });
 
   const invalidateSession = () => {

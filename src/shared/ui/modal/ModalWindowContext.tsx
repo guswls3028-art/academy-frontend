@@ -1,6 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 // PATH: src/shared/ui/modal/ModalWindowContext.tsx
 // 최소화된 모달 상태 관리 Context
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 export type MinimizedModal = {
   id: string;
@@ -45,11 +46,19 @@ export function ModalWindowProvider({
   }, []);
 
   const remove = useCallback((id: string) => {
-    setModals((prev) => prev.filter((m) => m.id !== id));
+    setModals((prev) => {
+      if (!prev.some((m) => m.id === id)) return prev;
+      return prev.filter((m) => m.id !== id);
+    });
   }, []);
 
+  const value = useMemo(
+    () => ({ modals, minimize, restore, remove }),
+    [modals, minimize, restore, remove],
+  );
+
   return (
-    <ModalWindowCtx.Provider value={{ modals, minimize, restore, remove }}>
+    <ModalWindowCtx.Provider value={value}>
       {children}
     </ModalWindowCtx.Provider>
   );

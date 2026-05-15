@@ -8,7 +8,6 @@ import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { default as AppLayout } from "@admin/layout/AppLayout";
-import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
 
 function AdminRouteFallback() {
   return (
@@ -35,7 +34,7 @@ const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout
 const StudentsHomePage = lazy(() => import("@admin/domains/students/pages/StudentsHomePage"));
 // StudentsRequestsPage: 동적 import 시 청크 fetch 실패(404) 방지를 위해 정적 import (#310 동일 대응)
 import StudentsRequestsPage from "@admin/domains/students/pages/StudentsRequestsPage";
-const StudentsDetailOverlay = lazy(() => import("@admin/domains/students/overlays/StudentsDetailOverlay"));
+import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
 
 /* ================= Lazy: Lectures ================= */
 const LecturesLayout = lazy(() => import("@admin/domains/lectures/LecturesLayout"));
@@ -46,9 +45,8 @@ const LectureSessionsPage = lazy(() => import("@admin/domains/lectures/pages/ses
 const SectionManagementPage = lazy(() => import("@admin/domains/lectures/pages/sections/SectionManagementPage"));
 
 /* ================= Lazy: Sessions ================= */
-// SessionLayout, SessionDetailPage: 동적 import 시 청크 fetch 실패(#310) 방지를 위해 정적 import
-import SessionLayout from "@admin/domains/sessions/SessionLayout";
-import SessionDetailPage from "@admin/domains/sessions/pages/SessionDetailPage";
+const SessionLayout = lazy(() => import("@admin/domains/sessions/SessionLayout"));
+const SessionDetailPage = lazy(() => import("@admin/domains/sessions/pages/SessionDetailPage"));
 
 /* ================= Lazy: Video ================= */
 const VideoDetailPage = lazy(() => import("@admin/domains/videos/pages/VideoDetailPage"));
@@ -163,7 +161,7 @@ export default function AdminRouter() {
         </Route>
 
         {/* 학생 상세 (Overlay / Layout 밖) */}
-        <Route path="students/:studentId" element={wrapLazy(StudentsDetailOverlay)} />
+        <Route path="students/:studentId" element={<Suspense fallback={<AdminRouteFallback />}><StudentsDetailOverlay /></Suspense>} />
 
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
         <Route path="lectures" element={wrapLazy(LecturesLayout)}>
@@ -183,19 +181,15 @@ export default function AdminRouter() {
         {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
-          element={
-            <SendMessageModalProvider>
-              <SessionLayout />
-            </SendMessageModalProvider>
-          }
+          element={wrapLazy(SessionLayout)}
         >
           <Route index element={<Navigate to="attendance" replace />} />
-          <Route path="attendance" element={<SessionDetailPage />} />
-          <Route path="scores" element={<SessionDetailPage />} />
-          <Route path="exams" element={<SessionDetailPage />} />
-          <Route path="assignments" element={<SessionDetailPage />} />
-          <Route path="videos" element={<SessionDetailPage />} />
-          <Route path="clinic" element={<SessionDetailPage />} />
+          <Route path="attendance" element={wrapLazy(SessionDetailPage)} />
+          <Route path="scores" element={wrapLazy(SessionDetailPage)} />
+          <Route path="exams" element={wrapLazy(SessionDetailPage)} />
+          <Route path="assignments" element={wrapLazy(SessionDetailPage)} />
+          <Route path="videos" element={wrapLazy(SessionDetailPage)} />
+          <Route path="clinic" element={wrapLazy(SessionDetailPage)} />
           <Route path="videos/:videoId" element={wrapLazy(VideoDetailPage)} />
         </Route>
 

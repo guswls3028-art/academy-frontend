@@ -3,6 +3,7 @@
 
 import { ReactNode } from "react";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import styles from "./DomainListToolbar.module.css";
 
 type DomainListToolbarProps = {
   /** 좌측 총계 표시 (예: "총 12명", "총 5개") */
@@ -29,36 +30,25 @@ export default function DomainListToolbar({
   if (isMobile) {
     return (
       <div className="domain-list-toolbar flex flex-col gap-2">
-        {/* 총계 + 액션 버튼 */}
-        <div className="flex items-center justify-between gap-2">
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: "var(--color-text-primary)",
-            }}
-          >
+        <div className="flex flex-col gap-2">
+          <span className={styles.totalMobile}>
             {totalLabel}
           </span>
-          {primaryAction}
+          <div className={styles.mobileActionScroller}>
+            {primaryAction}
+          </div>
         </div>
         {/* 검색 풀와이드 */}
-        <div style={{ width: "100%" }}>{searchSlot}</div>
+        <div className={styles.fullWidth}>{searchSlot}</div>
         {/* 필터 */}
         {filterSlot && (
-          <div className="flex items-center gap-2" style={{ overflowX: "auto" }}>
+          <div className={`flex items-center gap-2 ${styles.horizontalScroller}`}>
             {filterSlot}
           </div>
         )}
         {/* 선택 바 */}
         {belowSlot && (
-          <div
-            style={{
-              overflowX: "auto",
-              WebkitOverflowScrolling: "touch",
-              paddingBottom: 2,
-            }}
-          >
+          <div className={styles.mobileBelowScroller}>
             {belowSlot}
           </div>
         )}
@@ -69,16 +59,7 @@ export default function DomainListToolbar({
   return (
     <div className="domain-list-toolbar flex flex-col gap-3">
     <div className="flex flex-wrap items-center gap-3">
-      <span
-        style={{
-          fontSize: 15,
-          fontWeight: 700,
-          color: "var(--color-text-primary)",
-          paddingRight: 12,
-          borderRight: "1px solid var(--color-border-divider)",
-          marginRight: 4,
-        }}
-      >
+      <span className={styles.totalDesktop}>
         {totalLabel}
       </span>
       {searchSlot}

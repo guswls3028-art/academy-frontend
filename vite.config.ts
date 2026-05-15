@@ -53,23 +53,45 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const normalized = id.replace(/\\/g, "/");
           if (id.includes("node_modules")) {
             // React + react-router는 반드시 같은 청크에 (createContext 등 의존)
             if (
-              id.includes("react-dom") ||
-              id.includes("react/") ||
-              id.includes("react/jsx") ||
-              id.includes("react-router")
+              normalized.includes("/node_modules/react/") ||
+              normalized.includes("/node_modules/react-dom/") ||
+              normalized.includes("/node_modules/react-router/") ||
+              normalized.includes("/node_modules/react-router-dom/") ||
+              normalized.includes("/node_modules/scheduler/") ||
+              normalized.includes("react/jsx")
             ) {
               return "vendor-core";
             }
-            if (id.includes("@tanstack/react-query")) return "vendor-query";
+            if (normalized.includes("@tanstack/react-query")) return "vendor-query";
+            if (
+              normalized.includes("/antd/") ||
+              normalized.includes("@ant-design/") ||
+              normalized.includes("/rc-") ||
+              normalized.includes("@rc-component/")
+            ) return "vendor-antd";
+            if (normalized.includes("lucide-react") || normalized.includes("react-icons")) return "vendor-icons";
+            if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
+            if (normalized.includes("/xlsx/")) return "vendor-xlsx";
+            if (normalized.includes("pdfjs-dist") || normalized.includes("pdf-lib")) return "vendor-pdf";
+            if (normalized.includes("hls.js")) return "vendor-hls";
+            if (
+              normalized.includes("@tiptap/") ||
+              normalized.includes("/prosemirror-") ||
+              normalized.includes("dompurify")
+            ) return "vendor-editor";
+            if (normalized.includes("heic2any")) return "vendor-heic";
+            if (normalized.includes("@sentry/")) return "vendor-observability";
+            if (normalized.includes("axios") || normalized.includes("dayjs")) return "vendor-utils";
           }
           // 테넌트 레지스트리: 앱 초기화 시 hostname→tenant 매핑 필수 — 메인 entry와 동일 청크
-          if (id.includes("shared/tenant")) {
+          if (normalized.includes("shared/tenant")) {
             return "index";
           }
-          if (id.includes("/app_student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
+          if (normalized.includes("/app_student/") && (normalized.includes("VideoPlayerPage") || normalized.includes("playback/player/"))) {
             return "student-video-player";
           }
           return undefined;

@@ -10,6 +10,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { SCORE_TEMPLATE_SLOT_LIMIT } from "../constants/scoreTemplateSlots";
 
 export type ScoreReportOptions = {
   lectureName?: string;
@@ -217,7 +218,7 @@ export function generateScoreReport(
  * - #{강의명} → lectureName
  * - #{차시명} → sessionTitle
  * - #{날짜} → 오늘 날짜
- * - #{시험N} → exams[N-1].block.score (N=1~10)
+ * - #{시험N} → exams[N-1].block.score (N=1~20)
  * - #{시험N만점} → exams[N-1] max_score
  * - #{시험N명} → exams[N-1].title
  * - #{과제N} → homeworks[N-1].block.score
@@ -244,8 +245,8 @@ export function substituteScoreVars(
   vars["차시명"] = options.sessionTitle || (row as SessionScoreRow & { session_title?: string }).session_title || "";
   vars["날짜"] = formatDate(options.date);
 
-  // 시험/과제 슬롯 10개 미리 초기화 (미사용 슬롯에 #{시험6} 등이 원문 노출되지 않게)
-  for (let n = 1; n <= 10; n++) {
+  // 시험/과제 슬롯 미리 초기화 (미사용 슬롯에 #{시험6} 등이 원문 노출되지 않게)
+  for (let n = 1; n <= SCORE_TEMPLATE_SLOT_LIMIT; n++) {
     vars[`시험${n}`] = "-"; vars[`시험${n}만점`] = "-"; vars[`시험${n}명`] = "";
     vars[`과제${n}`] = "-"; vars[`과제${n}만점`] = "-"; vars[`과제${n}명`] = "";
   }
@@ -359,9 +360,11 @@ export function substituteScoreVars(
     return vars[varName] !== undefined ? vars[varName] : match;
   });
 
-  // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": -/") 줄 정리
+  // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": /") 줄 정리.
+  // 과거 양식에 지원 범위를 넘는 시험/과제 번호 변수가 남아도 알림톡 편지지에 그대로 노출되지 않게 제거한다.
   result = result
-    .replace(/^[^\n]*: *-\/-\s*$/gm, "")  // "시험명: -/-" 패턴 줄 삭제
+    .replace(/#\{(?:시험|과제)\d+(?:명|만점)?\}/g, "")
+    .replace(/^[^\n]*:\s*-?\s*\/\s*-?\s*$/gm, "")  // "시험명: -/-", "시험명: /" 패턴 줄 삭제
     .replace(/^- *: *-\s*$/gm, "")         // "- : -" 패턴 줄 삭제
     .replace(/^\s*$/gm, "")                // 빈 줄 제거
     .replace(/\n{3,}/g, "\n\n")            // 연속 빈 줄 → 최대 1줄

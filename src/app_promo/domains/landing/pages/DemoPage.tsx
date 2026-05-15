@@ -1,6 +1,7 @@
 // PATH: src/app_promo/domains/landing/pages/DemoPage.tsx
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
 
 const INTEREST_OPTIONS = [
   "학생 관리",
@@ -13,6 +14,9 @@ const INTEREST_OPTIONS = [
 
 export default function DemoPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [website, setWebsite] = useState("");
   const [form, setForm] = useState({
     name: "",
     academy_name: "",
@@ -35,10 +39,29 @@ export default function DemoPage() {
         : [...prev.interests, item],
     }));
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: POST /api/v1/promo/demo/ 연동
-    setSubmitted(true);
+    if (pending) return;
+    setError(null);
+    setPending(true);
+    try {
+      await submitPromoDemoLead({
+        name: form.name,
+        academyName: form.academy_name,
+        phone: form.phone,
+        email: form.email,
+        studentCount: form.student_count,
+        currentWorkflow: form.current_workflow,
+        interests: form.interests,
+        message: form.message,
+        website,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(getPromoLeadErrorMessage(err));
+    } finally {
+      setPending(false);
+    }
   };
 
   if (submitted) {
@@ -80,12 +103,24 @@ export default function DemoPage() {
       <section className="py-16">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-5">
+            <input
+              type="text"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="absolute left-[-9999px] h-px w-px opacity-0"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">이름 *</label>
                 <input
                   type="text"
                   required
+                  maxLength={50}
+                  disabled={pending}
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -97,6 +132,8 @@ export default function DemoPage() {
                 <input
                   type="text"
                   required
+                  maxLength={80}
+                  disabled={pending}
                   value={form.academy_name}
                   onChange={(e) => update("academy_name", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -111,6 +148,8 @@ export default function DemoPage() {
                 <input
                   type="tel"
                   required
+                  maxLength={20}
+                  disabled={pending}
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -121,6 +160,8 @@ export default function DemoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">이메일</label>
                 <input
                   type="email"
+                  maxLength={120}
+                  disabled={pending}
                   value={form.email}
                   onChange={(e) => update("email", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -134,6 +175,8 @@ export default function DemoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">학생 수</label>
                 <input
                   type="text"
+                  maxLength={40}
+                  disabled={pending}
                   value={form.student_count}
                   onChange={(e) => update("student_count", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -144,6 +187,8 @@ export default function DemoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">현재 운영 방식</label>
                 <input
                   type="text"
+                  maxLength={120}
+                  disabled={pending}
                   value={form.current_workflow}
                   onChange={(e) => update("current_workflow", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -159,6 +204,7 @@ export default function DemoPage() {
                   <button
                     key={opt}
                     type="button"
+                    disabled={pending}
                     onClick={() => toggleInterest(opt)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
                       form.interests.includes(opt)
@@ -176,6 +222,8 @@ export default function DemoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">요청 사항</label>
               <textarea
                 rows={4}
+                maxLength={1500}
+                disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm resize-none"
@@ -183,11 +231,18 @@ export default function DemoPage() {
               />
             </div>
 
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors text-sm"
+              disabled={pending}
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-wait transition-colors text-sm"
             >
-              데모 요청하기
+              {pending ? "전송 중..." : "데모 요청하기"}
             </button>
           </form>
         </div>

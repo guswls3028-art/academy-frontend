@@ -9,7 +9,7 @@
  */
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -32,8 +32,8 @@ import {
 import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import {
+  fetchAllSessions,
   fetchLectures,
-  fetchSessions,
   sortSessionsByDateDesc,
   type Lecture,
   type Session,
@@ -119,22 +119,25 @@ export default function VideoTreeView() {
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const sessionQueries = useQueries({
-    queries: lectures.map((lec) => ({
-      queryKey: ["lecture-sessions-videos", lec.id],
-      queryFn: () => fetchSessions(lec.id),
-      enabled: lectures.length > 0,
-    })),
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["lecture-sessions-all"],
+    queryFn: fetchAllSessions,
+    staleTime: 60_000,
   });
 
   const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
+    const sessionsByLecture = new Map<number, Session[]>();
+    for (const session of allSessions) {
+      const bucket = sessionsByLecture.get(session.lecture) ?? [];
+      bucket.push(session);
+      sessionsByLecture.set(session.lecture, bucket);
+    }
     const filteredLectures = lectures.filter((lec) => !lec.is_system);
-    return filteredLectures.map((lec, i) => {
-      const originalIndex = lectures.indexOf(lec);
-      const sessions = (sessionQueries[originalIndex]?.data as Session[] | undefined) ?? [];
+    return filteredLectures.map((lec) => {
+      const sessions = sessionsByLecture.get(lec.id) ?? [];
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
-  }, [lectures, sessionQueries]);
+  }, [lectures, allSessions]);
 
   const {
     data: publicSession,
@@ -209,7 +212,6 @@ export default function VideoTreeView() {
       ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
       : sessionVideosLoading;
 
-  const sessionsLoading = sessionQueries.some((q) => q.isLoading);
   const isLoading = lecturesLoading || sessionsLoading;
 
   const selectedSession = useMemo(() => {
@@ -392,7 +394,7 @@ export default function VideoTreeView() {
                 </p>
               </div>
             ) : selectedFolderId === "public" && publicSessionError ? (
-              <div className={panelStyles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
+              <div className={`${panelStyles.placeholder} ${styles.errorPlaceholder}`}>
                 <p className={panelStyles.placeholderTitle}>전체공개영상 영역을 불러오지 못했습니다</p>
                 <p className={panelStyles.placeholderDesc}>
                   같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
@@ -404,8 +406,7 @@ export default function VideoTreeView() {
               </div>
             ) : videos.length === 0 ? (
               <div
-                className={selectedFolderId === "public" ? styles.emptyStateWrapper : ""}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}
+                className={`flex min-h-[200px] items-center justify-center ${selectedFolderId === "public" ? styles.emptyStateWrapper : ""}`}
               >
                 <EmptyState
                   scope="panel"

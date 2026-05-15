@@ -97,11 +97,11 @@ export default function BugReportButton() {
         disabled: !description.trim(),
       }}
       onOk={handleSubmit}
-      destroyOnClose
+      destroyOnHidden
       width={480}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <Text type="secondary" style={{ fontSize: 13 }}>
+      <div className="flex flex-col gap-2">
+        <Text type="secondary" className="text-[13px]">
           어떤 문제가 있는지 알려주세요. 현재 화면·브라우저 정보가 자동 첨부됩니다.
         </Text>
         <TextArea
@@ -114,7 +114,7 @@ export default function BugReportButton() {
         />
         <Text
           type="secondary"
-          style={{ fontSize: 12, textAlign: "right", marginTop: -4 }}
+          className="-mt-1 text-right text-xs"
         >
           {description.length} / 1,000
         </Text>

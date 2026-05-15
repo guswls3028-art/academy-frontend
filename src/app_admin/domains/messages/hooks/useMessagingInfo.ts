@@ -12,26 +12,10 @@ import {
 
 const KEY = ["messaging", "info"] as const;
 
-/** 백엔드 미구현 시 UI 확인용 목 데이터 */
-const MOCK_INFO: TenantMessagingInfo = {
-  kakao_pfid: null,
-  messaging_sender: null,
-  sms_allowed: false,
-  channel_source: "system_default",
-};
-
 export function useMessagingInfo() {
   const q = useQuery({
     queryKey: KEY,
-    queryFn: async () => {
-      try {
-        return await fetchMessagingInfo();
-      } catch (e: unknown) {
-        const status = (e as { response?: { status?: number } })?.response?.status;
-        if (status === 404) return MOCK_INFO;
-        throw e;
-      }
-    },
+    queryFn: fetchMessagingInfo,
     staleTime: 60 * 1000,
   });
   return q;

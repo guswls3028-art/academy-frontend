@@ -23,6 +23,29 @@ import { reorderSession } from "../api/reorderSession";
 
 /** P0-5 (2026-05-13): 도움 안내 카드 dismiss 키. 학원장(브라우저)별 영속. */
 const HELP_DISMISS_KEY = "scores-tab-help-dismissed-v1";
+const HANGUL_SYLLABLE_START = 0xac00;
+const HANGUL_SYLLABLE_END = 0xd7a3;
+const HANGUL_INITIALS = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+
+function normalizeStudentSearch(value: string): string {
+  return value.replace(/\s+/g, "").toLowerCase();
+}
+
+function toHangulInitials(value: string): string {
+  return Array.from(value).map((char) => {
+    const code = char.charCodeAt(0);
+    if (code < HANGUL_SYLLABLE_START || code > HANGUL_SYLLABLE_END) return char;
+    return HANGUL_INITIALS[Math.floor((code - HANGUL_SYLLABLE_START) / 588)] ?? char;
+  }).join("");
+}
+
+function matchesStudentSearch(studentName: string, rawQuery: string): boolean {
+  const query = normalizeStudentSearch(rawQuery);
+  if (!query) return true;
+  const name = normalizeStudentSearch(studentName);
+  const initials = normalizeStudentSearch(toHangulInitials(studentName));
+  return name.includes(query) || initials.includes(query);
+}
 
 type Props = {
   sessionId: number;
@@ -58,6 +81,9 @@ type ScoreCellRef =
   | { type: "exam"; examId: number; sub: "item"; questionId: number }
   | { type: "exam"; examId: number; sub: "subjective" }
   | { type: "homework"; homeworkId: number };
+
+const EMPTY_EXAM_COLS: SessionScoreMeta["exams"] = [];
+const EMPTY_HOMEWORK_COLS: SessionScoreMeta["homeworks"] = [];
 
 type FocusScoreCell = {
   enrollmentId: number;
@@ -190,12 +216,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     } catch {
       feedback.error("출결 변경에 실패했습니다.");
     }
-  }, [attendanceIdMap, qc, sessionId, lectureId]);
+  }, [attendanceIdMap, confirm, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
     if (!search.trim()) return allRows;
-    const q = search.trim().toLowerCase();
-    return allRows.filter((r) => (r.student_name ?? "").toLowerCase().includes(q));
+    const q = search.trim();
+    return allRows.filter((r) => matchesStudentSearch(r.student_name ?? "", q));
   }, [allRows, search]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
@@ -208,8 +234,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const [selectedColIndex, setSelectedColIndex] = useState<number>(0); // editable columns index
   const prevEditModeRef = useRef(false);
 
-  const examCols = meta?.exams ?? [];
-  const homeworkCols = meta?.homeworks ?? [];
+  const examCols = meta?.exams ?? EMPTY_EXAM_COLS;
+  const homeworkCols = meta?.homeworks ?? EMPTY_HOMEWORK_COLS;
   const editableCols = useMemo((): ScoreCellRef[] => {
     const list: ScoreCellRef[] = [];
     if (isEditMode) {

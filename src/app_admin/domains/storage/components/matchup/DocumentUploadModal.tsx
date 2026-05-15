@@ -13,7 +13,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Upload, X, Image as ImageIcon, FileText, AlertCircle, GripVertical } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { filesToPdf, isImage, isPdf, isHeic } from "./filesToPdf";
+import { filesToPdf, isImage, isPdf, isHeic, convertHeicToJpeg } from "./filesToPdf";
 import type { MergeProgress } from "./filesToPdf";
 import {
   type MatchupSourceType, intentToSourceType, suggestSourceType,
@@ -366,7 +366,6 @@ export default function DocumentUploadModal({
           const e = entries[i];
           let file = e.file;
           if (isHeic(file)) {
-            const { convertHeicToJpeg } = await import("./filesToPdf");
             file = await convertHeicToJpeg(file);
           }
           // 이미지(png/jpg)도 PDF로 변환해서 backend 분리 파이프라인이 일관 처리

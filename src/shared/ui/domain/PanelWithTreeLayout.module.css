@@ -295,3 +295,113 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+@media (max-width: 1023px) {
+  .root {
+    min-height: 0;
+    border-radius: var(--radius-lg, 12px);
+    overflow: visible;
+  }
+
+  .header {
+    padding: var(--space-4);
+  }
+
+  .header > div {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: var(--space-3);
+  }
+
+  .header > div > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .body {
+    flex-direction: column;
+  }
+
+  .tree {
+    width: 100%;
+    min-width: 0;
+    max-height: min(42dvh, 360px);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .treeScroll {
+    max-height: calc(min(42dvh, 360px) - 42px);
+  }
+
+  .content,
+  .gridWrap {
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    padding: var(--space-4);
+  }
+
+  .contentInner {
+    max-width: none;
+  }
+
+  .contentCard {
+    padding: var(--space-4);
+  }
+
+  .contentCardHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .contentCardHeader > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .placeholder {
+    min-height: 220px;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .placeholderSteps {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 639px) {
+  .header,
+  .toolbar,
+  .content,
+  .gridWrap {
+    padding: var(--space-3);
+  }
+
+  .tree {
+    max-height: min(38dvh, 300px);
+  }
+
+  .treeScroll {
+    max-height: calc(min(38dvh, 300px) - 42px);
+  }
+
+  .treeNavHeader {
+    padding: var(--space-2) var(--space-3);
+  }
+}

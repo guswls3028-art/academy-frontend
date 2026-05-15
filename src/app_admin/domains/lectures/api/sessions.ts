@@ -44,8 +44,7 @@ export async function fetchLectures(params?: {
   search?: string;
 }): Promise<Lecture[]> {
   const res = await api.get("/lectures/lectures/", { params });
-  const data = res.data;
-  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+  return unpackList<Lecture>(res.data);
 }
 
 // ----------------------------------------
@@ -127,13 +126,24 @@ export function sortSessionsByDateDesc<T extends { date?: string | null }>(sessi
 // ----------------------------------------
 // SESSION 목록 가져오기 (lecture 기준)
 // ----------------------------------------
+function unpackList<T>(data: unknown): T[] {
+  if (data && typeof data === "object" && Array.isArray((data as { results?: unknown }).results)) {
+    return (data as { results: T[] }).results;
+  }
+  return Array.isArray(data) ? data as T[] : [];
+}
+
+export async function fetchAllSessions(): Promise<Session[]> {
+  const res = await api.get("/lectures/sessions/");
+  return unpackList<Session>(res.data);
+}
+
 export async function fetchSessions(lectureId: number): Promise<Session[]> {
   if (lectureId == null || !Number.isFinite(lectureId)) {
     return [];
   }
   const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
-  const data = res.data;
-  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+  return unpackList<Session>(res.data);
 }
 
 // ----------------------------------------

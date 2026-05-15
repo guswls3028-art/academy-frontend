@@ -1,11 +1,15 @@
 // PATH: src/app_promo/domains/landing/pages/ContactPage.tsx
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
 
 const INQUIRY_TYPES = ["가격 문의", "데모 요청", "도입 상담", "기능 문의", "제휴 문의"];
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [website, setWebsite] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -19,10 +23,28 @@ export default function ContactPage() {
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: POST /api/v1/promo/contact/ 연동
-    setSubmitted(true);
+    if (pending) return;
+    setError(null);
+    setPending(true);
+    try {
+      await submitPromoContactLead({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        academyName: form.academy_name,
+        studentCount: form.student_count,
+        inquiryType: form.inquiry_type,
+        message: form.message,
+        website,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(getPromoLeadErrorMessage(err));
+    } finally {
+      setPending(false);
+    }
   };
 
   if (submitted) {
@@ -61,12 +83,24 @@ export default function ContactPage() {
       <section className="py-16">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-5">
+            <input
+              type="text"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="absolute left-[-9999px] h-px w-px opacity-0"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">이름 *</label>
                 <input
                   type="text"
                   required
+                  maxLength={50}
+                  disabled={pending}
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -78,6 +112,8 @@ export default function ContactPage() {
                 <input
                   type="tel"
                   required
+                  maxLength={20}
+                  disabled={pending}
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -91,6 +127,8 @@ export default function ContactPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">이메일</label>
                 <input
                   type="email"
+                  maxLength={120}
+                  disabled={pending}
                   value={form.email}
                   onChange={(e) => update("email", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -101,6 +139,8 @@ export default function ContactPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">학원명</label>
                 <input
                   type="text"
+                  maxLength={80}
+                  disabled={pending}
                   value={form.academy_name}
                   onChange={(e) => update("academy_name", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -114,6 +154,8 @@ export default function ContactPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">학생 수</label>
                 <input
                   type="text"
+                  maxLength={40}
+                  disabled={pending}
                   value={form.student_count}
                   onChange={(e) => update("student_count", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
@@ -124,6 +166,7 @@ export default function ContactPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">문의 유형 *</label>
                 <select
                   required
+                  disabled={pending}
                   value={form.inquiry_type}
                   onChange={(e) => update("inquiry_type", e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm bg-white"
@@ -140,6 +183,8 @@ export default function ContactPage() {
               <textarea
                 required
                 rows={5}
+                maxLength={1500}
+                disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm resize-none"
@@ -147,11 +192,18 @@ export default function ContactPage() {
               />
             </div>
 
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors text-sm"
+              disabled={pending}
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-wait transition-colors text-sm"
             >
-              문의 보내기
+              {pending ? "전송 중..." : "문의 보내기"}
             </button>
           </form>
         </div>

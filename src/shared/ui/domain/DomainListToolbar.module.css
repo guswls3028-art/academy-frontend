@@ -1,0 +1,35 @@
+.totalMobile {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.totalDesktop {
+  margin-right: 4px;
+  padding-right: 12px;
+  border-right: 1px solid var(--color-border-divider);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.horizontalScroller,
+.mobileActionScroller,
+.mobileBelowScroller {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobileActionScroller {
+  margin-inline: calc(-1 * var(--space-3));
+  padding-inline: var(--space-3);
+  padding-bottom: 2px;
+}
+
+.mobileBelowScroller {
+  padding-bottom: 2px;
+}

@@ -1,18 +1,18 @@
 /**
  * PATH: src/app_admin/domains/results/components/ResultsTreeView.tsx
  *
- * 강의·차시 트리 진입 화면 (보조 진입점)
- * — KPI 인박스(기본)에서 「강의별 탐색」 토글 시 노출
+ * 강의·차시 트리 진입 화면 (성적 핵심 진입점)
+ * — 사이드바 「성적」 및 KPI 인박스의 「강의별 탐색」 탭에서 노출
  */
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { BarChart2 } from "lucide-react";
 import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
 import LectureSessionTree from "@admin/domains/exams/components/LectureSessionTree";
 import {
+  fetchAllSessions,
   fetchLectures,
-  fetchSessions,
   sortSessionsByDateDesc,
   type Lecture,
   type Session,
@@ -31,20 +31,24 @@ export default function ResultsTreeView() {
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const sessionQueries = useQueries({
-    queries: lectures.map((lec) => ({
-      queryKey: ["lecture-sessions-results", lec.id],
-      queryFn: () => fetchSessions(lec.id),
-      enabled: lectures.length > 0,
-    })),
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["lecture-sessions-all"],
+    queryFn: fetchAllSessions,
+    staleTime: 60_000,
   });
 
   const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
-    return lectures.map((lec, i) => {
-      const sessions = (sessionQueries[i]?.data as Session[] | undefined) ?? [];
+    const sessionsByLecture = new Map<number, Session[]>();
+    for (const session of allSessions) {
+      const bucket = sessionsByLecture.get(session.lecture) ?? [];
+      bucket.push(session);
+      sessionsByLecture.set(session.lecture, bucket);
+    }
+    return lectures.map((lec) => {
+      const sessions = sessionsByLecture.get(lec.id) ?? [];
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
-  }, [lectures, sessionQueries]);
+  }, [lectures, allSessions]);
 
   useEffect(() => {
     if (selectedSessionId === null && lecturesWithSessions.length > 0) {
@@ -97,7 +101,6 @@ export default function ResultsTreeView() {
     }
   };
 
-  const sessionsLoading = sessionQueries.some((q) => q.isLoading);
   const isLoading = lecturesLoading || sessionsLoading;
 
   return (
@@ -153,7 +156,7 @@ export default function ResultsTreeView() {
                 }
                 title="이 차시 성적 관리"
               >
-                <BarChart2 size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
+                <BarChart2 size={32} className="text-[var(--color-primary)]" aria-hidden />
                 <span className={styles.itemLabel}>성적 보기</span>
                 <span className={styles.itemMeta}>
                   {selectedSession.lecture.title || selectedSession.lecture.name} ·{" "}

@@ -28,6 +28,28 @@
   [data-app="admin"] .min-h-full > div:nth-child(2) {
     padding: var(--space-3) !important;
   }
+
+  [data-app="admin"] .domain-header__tabs-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  [data-app="admin"] .domain-header__tabs-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  [data-app="admin"] .domain-header__tabs-wrap .ds-tabs {
+    flex-wrap: nowrap;
+    min-width: max-content;
+  }
+
+  [data-app="admin"] .domain-header__tabs-wrap .ds-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
 
 /* ========================================

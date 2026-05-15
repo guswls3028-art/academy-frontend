@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import type { AxiosError } from "axios";
 import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
@@ -13,6 +14,11 @@ type UploadItem = {
   file: File;
   status: "ready" | "uploading" | "done" | "fail";
   message?: string;
+};
+
+type UploadErrorPayload = {
+  detail?: unknown;
+  rejection_code?: string;
 };
 
 function humanizeBytes(bytes: number) {
@@ -30,7 +36,7 @@ function humanizeBytes(bytes: number) {
 /**
  * AdminOmrBatchUploadBox
  * - OMR 다건 업로드, FileUploadZone(드래그 or 클릭) SSOT 디자인 사용
- * - 서버: POST /submissions/exams/{examId}/omr/batch/
+ * - 서버: POST /submissions/submissions/exams/{examId}/omr/batch/
  */
 export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -94,20 +100,21 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
           prev.map((x, idx) => (idx === i ? { ...x, status: "done", message: "등록됨" } : x))
         );
         successCount++;
-      } catch (e: any) {
-        const status = e?.response?.status;
-        const data = e?.response?.data;
+      } catch (e: unknown) {
+        const err = e as AxiosError<UploadErrorPayload>;
+        const status = err.response?.status;
+        const data = err.response?.data;
         const detail = data?.detail;
         const rejectionCode = data?.rejection_code;
 
-        if (status === 404 || status === 501) {
+        if (status === 404) {
           setItems((prev) =>
             prev.map((x, idx) =>
-              idx === i ? { ...x, status: "fail", message: "API 미연결(404/501)" } : x
+              idx === i ? { ...x, status: "fail", message: "시험 또는 업로드 경로 확인 필요" } : x
             )
           );
           setNotice(
-            "다건 업로드 API가 아직 연결되지 않았습니다(404/501). 백엔드에 batch endpoint를 연결하면 바로 활성화됩니다."
+            "OMR 다건 업로드 경로를 찾지 못했습니다(404). 시험 ID와 배포된 백엔드 라우트를 확인해 주세요."
           );
           break;
         }
@@ -175,9 +182,9 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
               <thead>
                 <tr>
                   <th>파일</th>
-                  <th style={{ width: 120 }}>크기</th>
-                  <th style={{ width: 140 }}>상태</th>
-                  <th style={{ width: 100 }}>삭제</th>
+                  <th className="w-[120px]">크기</th>
+                  <th className="w-[140px]">상태</th>
+                  <th className="w-[100px]">삭제</th>
                 </tr>
               </thead>
               <tbody>
@@ -205,7 +212,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
         ) : null}
 
         <div className="text-xs text-[var(--text-muted)]">
-          ※ batch API가 없으면 404/501 시 UI가 안내만 표시합니다.
+          ※ 업로드 후 서버가 식별·답안 추출·채점 작업을 순차 처리합니다.
         </div>
       </div>
     </>

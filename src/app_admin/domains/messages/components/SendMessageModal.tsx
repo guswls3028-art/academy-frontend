@@ -48,6 +48,7 @@ import {
   getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
+import { lintAlimtalkTemplateQuality } from "../utils/templateQuality";
 import "../styles/templateEditor.css";
 
 // ─── Types ───
@@ -219,12 +220,26 @@ export default function SendMessageModal({
     .filter((v) => v.status === "missing")
     .map((v) => v.name);
   const hasMissingVars = missingVarNames.length > 0;
+  const qualityIssues = useMemo(() => {
+    if (!body.trim()) return [];
+    return lintAlimtalkTemplateQuality({
+      body,
+      renderedBody: body,
+      blockCategory,
+      templateCategory: selectedTemplate?.category,
+      templateName: selectedTemplate?.name,
+      extraVars: alimtalkExtraVars,
+    });
+  }, [body, blockCategory, selectedTemplate, alimtalkExtraVars]);
+  const qualityBlockers = qualityIssues.filter((issue) => issue.severity === "blocker");
+  const hasQualityBlockers = qualityBlockers.length > 0;
 
   const canSend = (() => {
     if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
     if (!selectedTemplate && !alimtalkFreeForm) return false;
     if (!body.trim()) return false;
     if (hasMissingVars) return false;
+    if (hasQualityBlockers) return false;
     return true;
   })();
 
@@ -542,6 +557,7 @@ export default function SendMessageModal({
       const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
       return `미입력 변수: ${list} — 본문/변수 팔레트에서 채워 주세요`;
     }
+    if (hasQualityBlockers) return qualityBlockers[0]?.title ?? "양식 품질 확인 필요";
     return null;
   })();
 
@@ -704,6 +720,21 @@ export default function SendMessageModal({
                       <span className="send-modal__var-value">
                         {v.status === "auto" ? "자동" : v.status === "provided" ? (v.value ? `"${v.value}"` : "제공됨") : "미제공"}
                       </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {qualityIssues.length > 0 && (
+                <div className="send-modal__quality-status">
+                  <div className="send-modal__quality-title">
+                    <AlertTriangle size={ICON.xs} />
+                    발송 전 확인
+                  </div>
+                  {qualityIssues.map((issue) => (
+                    <div key={issue.id} className="send-modal__quality-row" data-severity={issue.severity}>
+                      <span className="send-modal__quality-row-title">{issue.title}</span>
+                      <span className="send-modal__quality-row-detail">{issue.detail}</span>
                     </div>
                   ))}
                 </div>
@@ -941,6 +972,16 @@ export default function SendMessageModal({
                     의 첫 학생 _body_subst 라 backend 자동 치환 변수가 실 데이터로 표시됨. */}
                 {previewLetterBody.slice(0, 200)}{previewLetterBody.length > 200 ? "…" : ""}
               </div>
+              {qualityIssues.length > 0 && (
+                <div className="send-modal__confirm-quality">
+                  {qualityIssues.map((issue) => (
+                    <div key={issue.id} className="send-modal__confirm-quality-row" data-severity={issue.severity}>
+                      <AlertTriangle size={ICON.xs} />
+                      <span>{issue.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="send-modal__confirm-actions">
               <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">

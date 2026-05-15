@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useSessionParams } from "../hooks/useSessionParams";
+import { readAssessmentItemId } from "../utils/assessmentQueryParams";
 
 import AdminExamDetail from "@admin/domains/exams/components/AdminExamDetail";
 import AdminHomeworkDetail from "@admin/domains/homework/components/AdminHomeworkDetail";
@@ -18,20 +19,16 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
   const { sessionId } = useSessionParams();
   const [searchParams] = useSearchParams();
 
-  const queryKey = mode === "exam" ? "examId" : "homeworkId";
-
   const activeId = useMemo(() => {
-    const v = Number(searchParams.get(queryKey));
-    return Number.isFinite(v) ? v : null;
-  }, [searchParams, queryKey]);
+    return readAssessmentItemId(searchParams, mode);
+  }, [searchParams, mode]);
 
   const titleLabel = mode === "exam" ? "시험" : "과제";
 
   if (!sessionId) {
     return (
       <div
-        className="text-sm"
-        style={{ color: "var(--color-error)" }}
+        className="text-sm text-[var(--color-error)]"
       >
         잘못된 sessionId
       </div>
@@ -43,14 +40,12 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
       {!activeId ? (
         <div className="flex h-[240px] flex-col items-center justify-center text-center">
           <div
-            className="text-sm font-medium"
-            style={{ color: "var(--color-text-primary)" }}
+            className="text-sm font-medium text-[var(--color-text-primary)]"
           >
             선택된 {titleLabel}이 없습니다
           </div>
           <div
-            className="mt-1 text-xs"
-            style={{ color: "var(--color-text-muted)" }}
+            className="mt-1 text-xs text-[var(--color-text-muted)]"
           >
             좌측 패널에서 {titleLabel}을 선택하세요
           </div>

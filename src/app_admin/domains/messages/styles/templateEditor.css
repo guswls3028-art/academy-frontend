@@ -275,6 +275,11 @@
   letter-spacing: -0.2px;
 }
 
+.template-editor__block-tag--compact {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
 .template-editor__block-tag:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -324,6 +329,132 @@
   background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
   color: var(--color-success, #16a34a);
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-student,
+.template-editor__block-tag--grades-site,
+.template-editor__block-tag--grades-default {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-lecture {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-exam {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 14%, var(--color-bg-surface));
+  color: var(--color-error, #dc2626);
+  border-color: color-mix(in srgb, var(--color-error, #ef4444) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-homework {
+  background: color-mix(in srgb, var(--color-warning, #eab308) 15%, var(--color-bg-surface));
+  color: var(--color-warning, #ca8a04);
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 36%, transparent);
+}
+
+.template-editor__block-tag--grades-summary {
+  background: color-mix(in srgb, var(--color-info, #0ea5e9) 14%, var(--color-bg-surface));
+  color: var(--color-info, #0284c7);
+  border-color: color-mix(in srgb, var(--color-info, #0ea5e9) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-exam.template-editor__block-tag--n1,
+.template-editor__block-tag--grades-homework.template-editor__block-tag--n1 {
+  filter: saturate(1.08);
+}
+
+.template-editor__block-tag--grades-exam.template-editor__block-tag--n2,
+.template-editor__block-tag--grades-homework.template-editor__block-tag--n2 {
+  filter: saturate(0.92);
+}
+
+.grades-block-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grades-block-panel__tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.grades-block-panel__tag-row--tight {
+  gap: 3px;
+}
+
+.grades-block-panel__group-label {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.grades-block-panel__group-label--flush {
+  margin-top: 0;
+}
+
+.grades-block-panel__add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grades-block-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 1.5px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.grades-block-panel__add-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+
+.grades-block-panel__add-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.grades-block-panel__hint {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.grades-block-panel__toggle {
+  padding: 6px 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grades-block-panel__individual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
 }
 
 /* 제목(알림톡) 슬롯 — 탭 전환해도 높이 고정 */
@@ -638,6 +769,52 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.send-modal__quality-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border-divider);
+}
+
+.send-modal__quality-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.send-modal__quality-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-warning, #eab308) 30%, transparent);
+  background: color-mix(in srgb, var(--color-warning, #eab308) 8%, var(--color-bg-surface));
+}
+
+.send-modal__quality-row[data-severity="blocker"] {
+  border-color: color-mix(in srgb, var(--color-danger, #ef4444) 35%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 8%, var(--color-bg-surface));
+}
+
+.send-modal__quality-row-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.send-modal__quality-row-detail {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 /* ── 우측: 양식 바 ── */
@@ -1244,6 +1421,30 @@
   word-break: break-word;
 }
 
+.send-modal__confirm-quality {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.send-modal__confirm-quality-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-warning, #eab308) 8%, var(--color-bg-surface));
+  color: var(--color-status-warning, #d97706);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.send-modal__confirm-quality-row[data-severity="blocker"] {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 8%, var(--color-bg-surface));
+  color: var(--color-danger, #dc2626);
+}
+
 .send-modal__confirm-actions {
   display: flex;
   gap: 10px;
@@ -1274,6 +1475,177 @@
   font-size: 15px;
   padding: 10px 28px;
   font-weight: 700;
+}
+
+@media (max-width: 1023px) {
+  .send-message-modal.ant-modal {
+    top: 0 !important;
+    margin: 0 auto !important;
+    padding-bottom: 0 !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+
+  .send-message-modal .ant-modal-content {
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .send-message-modal .admin-modal__inner {
+    height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .send-message-modal .modal-body {
+    padding: var(--space-3);
+    overflow-y: auto;
+  }
+
+  .send-modal__layout {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .send-modal__left,
+  .send-modal__right {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .send-modal__card {
+    padding: var(--space-3);
+  }
+
+  .send-modal__tpl-bar {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: var(--space-3);
+  }
+
+  .send-modal__tpl-bar-label {
+    flex-basis: calc(100% - 34px);
+  }
+
+  .send-modal__tpl-bar-save {
+    flex-wrap: wrap;
+    border-right: 0;
+    border-top: 1px dashed var(--color-border-divider);
+    margin-right: 0;
+    padding: var(--space-2) 0 0;
+    width: 100%;
+  }
+
+  .send-modal__tpl-bar > .ds-button {
+    margin-left: auto;
+  }
+
+  .send-modal__save-form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .send-modal__editor {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .send-modal__editor-textarea {
+    min-height: 260px;
+  }
+
+  .send-modal__var-palette {
+    width: 100%;
+    max-height: 260px;
+  }
+
+  .send-modal__var-palette-toggle {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .template-preview-kakao {
+    max-width: 100%;
+  }
+
+  .send-message-modal .modal-footer {
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .send-message-modal .modal-footer > div:first-child {
+    display: none;
+  }
+
+  .send-message-modal .modal-footer > div:last-child {
+    display: flex !important;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .send-modal__footer-right {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .send-modal__footer-warn {
+    order: -1;
+    width: 100%;
+    max-width: none;
+    margin-right: 0;
+    text-align: left;
+  }
+
+  .send-modal__send-btn {
+    flex: 1 1 190px;
+    min-width: 0;
+    padding: 10px 14px;
+  }
+
+  .send-modal__send-btn,
+  .send-modal__send-btn .ds-button__label {
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .send-modal__send-btn {
+    min-height: 52px !important;
+    height: auto !important;
+    font-size: 13px;
+  }
+
+  .send-modal__send-btn .ds-button__label {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .send-modal__confirm-card {
+    max-width: calc(100% - 24px);
+    padding: 22px 18px;
+  }
+
+  .send-modal__confirm-actions {
+    flex-direction: column-reverse;
+  }
+}
+
+@media (max-width: 639px) {
+  .send-message-modal .modal-header {
+    padding: var(--space-4) 58px var(--space-3) var(--space-4);
+  }
+
+  .send-modal__recipient-targets {
+    flex-wrap: wrap;
+  }
+
+  .send-modal__title {
+    flex-wrap: wrap;
+  }
 }
 
 /* ----- 템플릿 카드 그리드 ----- */
@@ -1771,4 +2143,91 @@
   font-size: 13px;
   color: var(--color-text-muted);
   line-height: 1.6;
+}
+
+@media (max-width: 1023px) {
+  .tpl-picker-modal.ant-modal {
+    top: 0 !important;
+    margin: 0 auto !important;
+    padding-bottom: 0 !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+
+  .tpl-picker-modal .ant-modal-content {
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .tpl-picker-modal .admin-modal__inner {
+    height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .tpl-picker-modal .modal-body {
+    padding: var(--space-3);
+    overflow-y: auto;
+  }
+
+  .tpl-picker__layout {
+    flex-direction: column;
+    gap: var(--space-3);
+    height: auto;
+  }
+
+  .tpl-picker__left,
+  .tpl-picker__right {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tpl-picker__right {
+    border-left: 0;
+    border-top: 1px solid var(--color-border-divider);
+    padding: var(--space-3) 0 0;
+  }
+
+  .tpl-picker__sync-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tpl-picker__list {
+    max-height: 360px;
+    flex: 0 0 auto;
+  }
+
+  .tpl-picker__empty {
+    margin: var(--space-2) 0;
+    padding: var(--space-4);
+    border: 1px dashed var(--color-border-divider);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-surface);
+    position: relative;
+    z-index: 1;
+  }
+
+  .tpl-picker__preview-card {
+    max-height: 320px;
+    flex: 0 0 auto;
+  }
+
+  .tpl-picker__preview-actions {
+    flex-direction: column;
+  }
+
+  .tpl-picker-modal .modal-footer {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tpl-picker-modal .modal-footer > div:last-child {
+    width: 100%;
+    display: flex !important;
+  }
+
+  .tpl-picker-modal .modal-footer .ds-button {
+    width: 100%;
+  }
 }

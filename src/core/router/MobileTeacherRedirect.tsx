@@ -1,8 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * MobileTeacherRedirect — 모바일 디바이스 + staff 역할 → /teacher 자동 리다이렉트
  *
  * /admin 라우트 진입 시 감싸는 가드 컴포넌트.
- * - 모바일(≤1023px) + owner/admin/teacher/staff → /teacher로 리다이렉트
+ * - 모바일(≤1023px) + owner/admin/teacher/staff의 /admin 홈 진입 → /teacher로 리다이렉트
+ * - 성적/시험/차시/메시지 등 명시적 관리자 딥링크는 모바일에서도 유지
  * - localStorage "teacher:preferAdmin" = "1" 이면 리다이렉트 건너뜀 (수동 전환)
  * - PWA standalone 모드에서는 리다이렉트 하지 않음 (이미 teacher 앱 또는 의도적 admin 접근)
  */
@@ -13,6 +15,11 @@ import { resolveTenantCodeString } from "@/shared/tenant";
 const MOBILE_QUERY = "(max-width: 1023px)";
 
 const STAFF_ROLES = ["owner", "admin", "teacher", "staff"];
+
+function shouldRedirectAdminHomeToTeacher(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  return normalized === "/admin" || normalized === "/admin/dashboard";
+}
 
 function getPreferAdminKey(): string {
   return `teacher:preferAdmin:${resolveTenantCodeString()}`;
@@ -25,9 +32,10 @@ function isMobileViewport(): boolean {
 
 function isStandaloneMode(): boolean {
   if (typeof window === "undefined") return false;
+  const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean };
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as any).standalone === true
+    navigatorWithStandalone.standalone === true
   );
 }
 
@@ -49,9 +57,10 @@ export default function MobileTeacherRedirect() {
     !isStandaloneMode() &&
     !prefersAdmin() &&
     user?.tenantRole &&
+    shouldRedirectAdminHomeToTeacher(location.pathname) &&
     STAFF_ROLES.includes(user.tenantRole)
   ) {
-    // /admin/xxx → /teacher 홈으로 (admin의 세부 경로를 teacher에 매핑하지 않음)
+    // 모바일 기본 홈은 선생님 앱으로 유지하되, 사용자가 명시한 관리자 작업 경로는 보존한다.
     return <Navigate to="/teacher" replace />;
   }
 

@@ -2,6 +2,7 @@
 // 카테고리별 삽입 블록 — 실제 services.py 런타임 치환 변수와 1:1 매칭
 
 import React from "react";
+import { SCORE_TEMPLATE_SLOT_LIMIT } from "@admin/domains/scores/constants/scoreTemplateSlots";
 
 /** 현재 테넌트 사이트 URL (미리보기용) */
 function getTenantSiteUrl(): string {
@@ -83,19 +84,19 @@ const B = {
 
 // ─── 카테고리별 블록 조합 ───
 
-/** SMS 수동 발송에서 실제 치환 가능한 공통 변수만 */
-const COMMON_SMS: TemplateBlock[] = [B.student_name, B.site_link];
+/** 수동 메시지 발송에서 실제 치환 가능한 공통 변수만 */
+const COMMON_MESSAGE: TemplateBlock[] = [B.student_name, B.site_link];
 
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
-  student:    [...COMMON_SMS],
-  signup:     [...COMMON_SMS, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
-  attendance: [...COMMON_SMS, B.lecture_name, B.session_name, B.lecture_date, B.lecture_time],
-  lecture:    [...COMMON_SMS, B.lecture_name, B.session_name],
-  exam:       [...COMMON_SMS, B.lecture_name, B.session_name, B.exam_name, B.score],
-  assignment: [...COMMON_SMS, B.lecture_name, B.session_name, B.assignment_name, B.score],
+  student:    [...COMMON_MESSAGE],
+  signup:     [...COMMON_MESSAGE, B.student_id, B.student_password, B.parent_id, B.parent_password, B.pw_notice],
+  attendance: [...COMMON_MESSAGE, B.lecture_name, B.session_name, B.lecture_date, B.lecture_time],
+  lecture:    [...COMMON_MESSAGE, B.lecture_name, B.session_name],
+  exam:       [...COMMON_MESSAGE, B.lecture_name, B.session_name, B.exam_name, B.score],
+  assignment: [...COMMON_MESSAGE, B.lecture_name, B.session_name, B.assignment_name, B.score],
   grades:     [
     // ── 공통 ──
-    ...COMMON_SMS, B.lecture_name, B.session_name,
+    ...COMMON_MESSAGE, B.lecture_name, B.session_name,
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
     { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
@@ -120,10 +121,10 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 기타 ──
     B.exam_score, B.assignment_score, B.clinic_result,
   ],
-  clinic:     [...COMMON_SMS, B.clinic_name, B.clinic_place, B.clinic_date, B.clinic_time, B.clinic_result, B.arrival_time],
-  payment:    [...COMMON_SMS],
-  notice:     [...COMMON_SMS],
-  community:  [...COMMON_SMS, B.post_title, B.answer_summary, B.counsel_type],
+  clinic:     [...COMMON_MESSAGE, B.clinic_name, B.clinic_place, B.clinic_date, B.clinic_time, B.clinic_result, B.arrival_time],
+  payment:    [...COMMON_MESSAGE],
+  notice:     [...COMMON_MESSAGE],
+  community:  [...COMMON_MESSAGE, B.post_title, B.answer_summary, B.counsel_type],
   staff:      [B.staff_name, B.site_link],
 };
 
@@ -146,8 +147,8 @@ export type TemplateCategory =
 
 /** "default" (사용자) 카테고리는 어디서든 쓸 수 있는 공통 블록만 제공 */
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
-  if (category === "default") return [...COMMON_SMS];
-  return CATEGORY_BLOCKS[category] ?? [...COMMON_SMS];
+  if (category === "default") return [...COMMON_MESSAGE];
+  return CATEGORY_BLOCKS[category] ?? [...COMMON_MESSAGE];
 }
 
 // ─── 미리보기 치환 ───
@@ -325,7 +326,7 @@ export function renderPreviewBadges(text: string): React.ReactNode[] {
 // "미입력 변수: #{시험1명}, #{시험1}, ... 정신병 걸리겠다" — 학원장 양식에 박힌 sub-var가 missing 으로
 // 잘못 표시되던 결함 fix.
 const SCORE_SUB_VARS: string[] = [];
-for (let n = 1; n <= 20; n++) {
+for (let n = 1; n <= SCORE_TEMPLATE_SLOT_LIMIT; n++) {
   SCORE_SUB_VARS.push(`시험${n}`, `시험${n}명`, `시험${n}만점`, `과제${n}`, `과제${n}명`, `과제${n}만점`);
 }
 
