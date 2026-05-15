@@ -1,5 +1,73 @@
 /* 시험 헤더 — 템플릿 저장됨 드롭다운 */
 
+.assessment-detail-header__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.assessment-detail-header__title {
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.assessment-detail-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.assessment-template-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .assessment-detail-header__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-2);
+  }
+
+  .assessment-detail-header__title {
+    font-size: 15px;
+  }
+
+  .assessment-detail-header__actions {
+    min-width: 0;
+  }
+
+  .assessment-template-button {
+    min-height: 32px;
+    padding-inline: var(--space-2);
+    font-size: 12px;
+  }
+
+  .assessment-template-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .assessment-detail-header__desc {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 360px) {
+  .assessment-detail-header__top {
+    grid-template-columns: 1fr;
+  }
+
+  .assessment-detail-header__actions {
+    justify-content: flex-start;
+  }
+}
+
 .exam-header-template-dropdown-item {
   display: block;
   width: 100%;

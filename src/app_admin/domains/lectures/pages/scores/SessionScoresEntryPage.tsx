@@ -39,6 +39,7 @@ import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintP
 import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import "./SessionScoresEntryPage.css";
 
 type Props = {
@@ -52,6 +53,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const isMobile = useIsMobile();
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -312,6 +314,8 @@ export default function SessionScoresEntryPage(_props: Props) {
   };
 
   const hasSelection = selectedEnrollmentIds.length > 0;
+  const showSelectionActions = hasSelection || !isMobile;
+  const dimSelectionBar = !hasSelection && !isMobile;
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
@@ -319,165 +323,175 @@ export default function SessionScoresEntryPage(_props: Props) {
   // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
   // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
-    <div className="flex flex-col gap-2">
+    <div className="scores-selection-bar">
       <div
-        className="flex flex-wrap items-center gap-3 pl-1"
-        style={{ opacity: hasSelection ? 1 : 0.62, transition: "opacity 0.15s" }}
+        className="scores-selection-bar__row"
+        style={{ opacity: dimSelectionBar ? 0.62 : 1, transition: "opacity 0.15s" }}
       >
-        <span
-          className="text-[13px] font-semibold whitespace-nowrap"
-          style={{ color: hasSelection ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
-        >
-          {`${selectedEnrollmentIds.length}명 선택됨`}
-        </span>
+        {showSelectionActions && (
+          <span
+            className="text-[13px] font-semibold whitespace-nowrap"
+            style={{ color: hasSelection ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
+          >
+            {`${selectedEnrollmentIds.length}명 선택됨`}
+          </span>
+        )}
 
         {/* ── 그룹 1: primary 액션 ── */}
         {/*
           "메시지 발송"(SMS path) 버튼 제거 (2026-05-12) — 학원장 임근혁 보고:
           "메세지 발송기능 프로그램에서 그냥 지워". 알림톡 발송은 "수업결과 알림톡 발송" 단일 경로.
         */}
-        <Button
-          intent="primary"
-          size="sm"
-          onClick={async () => {
-            const rows = data?.rows ?? [];
-            const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-            const meta = data?.meta ?? null;
-            // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
-            const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
-            const session = qc.getQueryData<{ title?: string }>(["session-detail", numericSessionId]);
-            const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
-            const sessionTitle = meta?.session_title ?? session?.title ?? "";
-            const reportOptions = { lectureName, sessionTitle };
+        {showSelectionActions && (
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={async () => {
+              const rows = data?.rows ?? [];
+              const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
+              const meta = data?.meta ?? null;
+              // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
+              const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
+              const session = qc.getQueryData<{ title?: string }>(["session-detail", numericSessionId]);
+              const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+              const sessionTitle = meta?.session_title ?? session?.title ?? "";
+              const reportOptions = { lectureName, sessionTitle };
 
-            let initialBody: string | undefined;
-            let scoreDetail = "";
+              let initialBody: string | undefined;
+              let scoreDetail = "";
 
-            try {
-              const templates = await fetchMessageTemplates("grades");
-              const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-              const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-              const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-              const chosenTpl = userDefault ?? userWithScoreVars;
+              try {
+                const templates = await fetchMessageTemplates("grades");
+                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
+                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+                const chosenTpl = userDefault ?? userWithScoreVars;
 
-              // 학원장 임근혁 보고(2026-05-12 23:50):
-              // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-              // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-              initialBody = chosenTpl
-                ? chosenTpl.body
-                : buildGenericScoreTemplate(reportOptions);
-              scoreDetail = buildScoreDetail(selectedRows[0], meta);
-            } catch {
-              // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
-              initialBody = buildGenericScoreTemplate(reportOptions);
-              scoreDetail = buildScoreDetail(selectedRows[0], meta);
-            }
-
-            // SSOT (2026-05-14): 학생별 변수 재계산 callback.
-            // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
-            // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
-            // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
-            const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
-              const result: Record<number, Record<string, string>> = {};
-              for (const sRow of selectedRows) {
-                if (sRow.student_id == null) continue;
-                result[sRow.student_id] = {
-                  시험성적: buildScoreDetail(sRow, meta),
-                  학생이름: sRow.student_name || "",
-                  _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
-                };
+                // 학원장 임근혁 보고(2026-05-12 23:50):
+                // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
+                // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
+                initialBody = chosenTpl
+                  ? chosenTpl.body
+                  : buildGenericScoreTemplate(reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+              } catch {
+                // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
+                initialBody = buildGenericScoreTemplate(reportOptions);
+                scoreDetail = buildScoreDetail(selectedRows[0], meta);
               }
-              return result;
-            };
 
-            openSendMessageModal({
-              studentIds: selectedStudentIds,
-              recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
-              blockCategory: "grades",
-              initialBody,
-              alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
-              recomputePerStudentVars,
-            });
-          }}
-          disabled={selectedEnrollmentIds.length === 0}
-        >
-          수업결과 알림톡 발송
-        </Button>
+              // SSOT (2026-05-14): 학생별 변수 재계산 callback.
+              // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
+              // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
+              // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
+              const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
+                const result: Record<number, Record<string, string>> = {};
+                for (const sRow of selectedRows) {
+                  if (sRow.student_id == null) continue;
+                  result[sRow.student_id] = {
+                    시험성적: buildScoreDetail(sRow, meta),
+                    학생이름: sRow.student_name || "",
+                    _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
+                  };
+                }
+                return result;
+              };
+
+              openSendMessageModal({
+                studentIds: selectedStudentIds,
+                recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
+                blockCategory: "grades",
+                initialBody,
+                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+                recomputePerStudentVars,
+              });
+            }}
+            disabled={selectedEnrollmentIds.length === 0}
+          >
+            수업결과 알림톡 발송
+          </Button>
+        )}
 
         {/* ── 디바이더 ── */}
-        <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+        {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
 
         {/* ── 그룹 2: secondary 액션 ──
             2026-05-13 학원장 호소 fix: 편집 모드 아닐 때 모달 진입 후 빨간 안내 = 짜증.
             진입 자체를 편집 모드 ON + 선택 ≥1 일 때만 가능하도록 disabled + tooltip. */}
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => setShowBulkScoreModal(true)}
-          disabled={selectedEnrollmentIds.length === 0 || !isEditMode}
-          title={!isEditMode ? "편집 모드를 켠 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
-        >
-          성적 일괄 변경
-        </Button>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={async () => {
-            const rows = data?.rows ?? [];
-            const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-            if (selected.length === 0) {
-              feedback.info("선택한 학생이 없습니다.");
-              return;
-            }
-            const metaExams = data?.meta?.exams ?? [];
-            const metaHomeworks = data?.meta?.homeworks ?? [];
-            const headers = ["이름"];
-            metaExams.forEach((e) => headers.push(`${e.title ?? "시험"} (점수)`));
-            metaHomeworks.forEach((h) => headers.push(`${h.title ?? "과제"} (점수)`));
+        {showSelectionActions && (
+          <>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => setShowBulkScoreModal(true)}
+              disabled={selectedEnrollmentIds.length === 0 || !isEditMode}
+              title={!isEditMode ? "편집 모드를 켠 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
+            >
+              성적 일괄 변경
+            </Button>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={async () => {
+                const rows = data?.rows ?? [];
+                const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
+                if (selected.length === 0) {
+                  feedback.info("선택한 학생이 없습니다.");
+                  return;
+                }
+                const metaExams = data?.meta?.exams ?? [];
+                const metaHomeworks = data?.meta?.homeworks ?? [];
+                const headers = ["이름"];
+                metaExams.forEach((e) => headers.push(`${e.title ?? "시험"} (점수)`));
+                metaHomeworks.forEach((h) => headers.push(`${h.title ?? "과제"} (점수)`));
 
-            const csvRows = [headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(",")];
-            for (const row of selected) {
-              const cells: string[] = [row.student_name ?? ""];
-              // Match by exam_id/homework_id to ensure column alignment with headers
-              for (const metaExam of metaExams) {
-                const entry = (row.exams ?? []).find((e) => e.exam_id === metaExam.exam_id);
-                cells.push(entry?.block.score != null ? String(entry.block.score) : "");
-              }
-              for (const metaHw of metaHomeworks) {
-                const entry = (row.homeworks ?? []).find((h) => h.homework_id === metaHw.homework_id);
-                cells.push(entry?.block.score != null ? String(entry.block.score) : "");
-              }
-              csvRows.push(cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
-            }
+                const csvRows = [headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(",")];
+                for (const row of selected) {
+                  const cells: string[] = [row.student_name ?? ""];
+                  // Match by exam_id/homework_id to ensure column alignment with headers
+                  for (const metaExam of metaExams) {
+                    const entry = (row.exams ?? []).find((e) => e.exam_id === metaExam.exam_id);
+                    cells.push(entry?.block.score != null ? String(entry.block.score) : "");
+                  }
+                  for (const metaHw of metaHomeworks) {
+                    const entry = (row.homeworks ?? []).find((h) => h.homework_id === metaHw.homework_id);
+                    cells.push(entry?.block.score != null ? String(entry.block.score) : "");
+                  }
+                  csvRows.push(cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
+                }
 
-            const bom = "\uFEFF";
-            const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8" });
-            const { downloadBlob } = await import("@/shared/utils/safeDownload");
-            downloadBlob(blob, `성적_${selected.length}명.csv`);
-            feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
-          }}
-          disabled={selectedEnrollmentIds.length === 0}
-        >
-          엑셀 다운로드
-        </Button>
+                const bom = "\uFEFF";
+                const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8" });
+                const { downloadBlob } = await import("@/shared/utils/safeDownload");
+                downloadBlob(blob, `성적_${selected.length}명.csv`);
+                feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
+              }}
+              disabled={selectedEnrollmentIds.length === 0}
+            >
+              엑셀 다운로드
+            </Button>
+          </>
+        )}
 
         {/* 2026-05-13: 선택 해제는 액션 그룹 바로 옆에. 우측 끝 flex spacer 폐기.
             평상시 0명일 때도 노출되며 disabled. */}
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={() => setSelectedEnrollmentIds([])}
-          disabled={!hasSelection}
-        >
-          선택 해제
-        </Button>
+        {showSelectionActions && (
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={() => setSelectedEnrollmentIds([])}
+            disabled={!hasSelection}
+          >
+            선택 해제
+          </Button>
+        )}
 
         {/* 우측 컨텍스트 옵션 — 모드별 분기:
             · 비-편집: 표시 옵션 toggle (펼침시 inline expand)
             · 편집: 시험 합산/주관식 + 과제 켜짐/꺼짐 (별도 row 폐기, 4-layer stack → 3-layer) */}
         {!isEditMode && hasExamsOrHomeworks && (
           <>
-            <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+            {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
             <button
               type="button"
               onClick={() => setViewOptionsExpanded((v) => !v)}
@@ -497,7 +511,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         )}
         {isEditMode && (
           <>
-            <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+            {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
             <div className="scores-view-filter-section">
               <span className="scores-view-filter-label">시험</span>
               <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
@@ -518,7 +532,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
       {!isEditMode && hasExamsOrHomeworks && (viewOptionsExpanded || hasNonDefaultViewOptions) && (
-        <div className="flex flex-wrap items-center gap-3 pl-1 pt-1">
+        <div className="scores-selection-bar__options">
           <div className="scores-view-filter-section">
             <span className="scores-view-filter-label">보기</span>
             <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
@@ -557,7 +571,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   }
 
   const primaryAction = (
-    <div className="flex items-center gap-2">
+    <div className="scores-primary-actions">
       {/* ── 그룹 1: 핵심 액션 ──
           P1-3 (2026-05-13): 편집 모드 ON 일 때만 primary 강조. 비편집 상태에선 secondary
           톤으로 두어 학원장이 "이걸 눌렀을 때 뭔가가 저장된다"는 오해를 줄임. */}
@@ -587,7 +601,7 @@ export default function SessionScoresEntryPage(_props: Props) {
       </Button>
 
       {/* ── 구분선 ── */}
-      <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+      <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />
 
       {/* ── 그룹 2: 추가 ── */}
       <Button
@@ -608,7 +622,7 @@ export default function SessionScoresEntryPage(_props: Props) {
       </Button>
 
       {/* ── 구분선 ── */}
-      <span className="h-5 w-px bg-[var(--color-border-divider)]" aria-hidden="true" />
+      <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />
 
       {/* ── 그룹 3: 관리 ── */}
       <Button
@@ -713,16 +727,16 @@ export default function SessionScoresEntryPage(_props: Props) {
             placeholder="이름 검색 (초성 검색 가능)"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            style={{ maxWidth: 360 }}
+            style={{ maxWidth: isMobile ? "none" : 360, width: "100%" }}
             aria-label="학생 이름 검색"
           />
         }
         filterSlot={null}
         primaryAction={
-          <div className="flex items-center gap-2">
+          <div className="scores-toolbar-actions">
             {primaryAction}
             {isEditMode && (
-              <span className="text-xs text-[var(--color-text-muted)]">
+              <span className="scores-draft-status text-xs text-[var(--color-text-muted)]">
                 {draft.draftStatus === "saving" && "임시저장 중..."}
                 {draft.draftStatus === "saved" && draft.lastSavedAt != null &&
                   `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`}

@@ -238,6 +238,69 @@
   white-space: nowrap;
 }
 
+.scores-selection-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scores-selection-bar__row,
+.scores-selection-bar__options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-left: var(--space-1);
+}
+
+.scores-selection-bar__options {
+  padding-top: var(--space-1);
+}
+
+.scores-toolbar-actions,
+.scores-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scores-draft-status {
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .scores-selection-bar__row,
+  .scores-selection-bar__options {
+    gap: var(--space-2);
+    padding-left: 0;
+  }
+
+  .scores-toolbar-actions,
+  .scores-primary-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .scores-action-divider {
+    display: none;
+  }
+
+  .scores-draft-status {
+    width: 100%;
+  }
+
+  .scores-display-segment {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .scores-display-segment__btn {
+    min-width: 64px;
+    padding: 0 var(--space-3);
+    white-space: nowrap;
+  }
+}
+
 .scores-view-filter-divider {
   width: 1px;
   height: 20px;

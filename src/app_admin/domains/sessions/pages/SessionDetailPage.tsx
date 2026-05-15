@@ -136,11 +136,12 @@ export default function SessionDetailPage() {
         <SessionBlock lectureId={lecId} currentSessionId={sId} />
       )}
 
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {showAssessmentPanel && (
           <SessionAssessmentSidePanel
             lectureId={lecId}
             sessionId={sId}
+            activeKind={activeTab === "assignments" ? "homework" : "exam"}
             openCreateExam={openCreateExam}
             onCloseCreateExam={() => setOpenCreateExam(false)}
             onOpenCreateExam={() => setOpenCreateExam(true)}
@@ -149,7 +150,7 @@ export default function SessionDetailPage() {
             onOpenCreateHomework={() => setOpenCreateHomework(true)}
           />
         )}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 w-full lg:flex-1">
           {activeTab === "attendance" && (
             <SessionAttendancePage
               sessionId={sId}

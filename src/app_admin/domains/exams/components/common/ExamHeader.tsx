@@ -13,7 +13,7 @@ import "./ExamHeader.css";
  * 2026-05-13 학원장 결정: 시험 단위 status(OPEN/CLOSED) UI 폐기. 학생별 Achievement SSOT 통합.
  * → 진행 중/마감 뱃지 + 종료하기 버튼 + statusMut mutation 제거.
  */
-export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam; sessionId?: number | null }) {
+export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -32,8 +32,9 @@ export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam
       setTemplateName("");
       feedback.success("템플릿으로 저장했습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "템플릿 저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      feedback.error(detail ?? "템플릿 저장에 실패했습니다.");
     },
   });
 
@@ -53,23 +54,24 @@ export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam
   };
 
   return (
-    <div className="space-y-2 rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_8%,var(--color-bg-surface))]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="assessment-detail-header assessment-detail-header--exam space-y-2 rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_8%,var(--color-bg-surface))]">
+      <div className="assessment-detail-header__top">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{exam.title}</h2>
+            <h2 className="assessment-detail-header__title text-lg font-semibold">{exam.title}</h2>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="assessment-detail-header__actions">
           {canSaveAsTemplate && (
             <Button
               type="button"
               intent="secondary"
-              size="xl"
+              size="sm"
               onClick={() => setTemplateModalOpen(true)}
               disabled={saveAsTemplateMut.isPending}
-              leftIcon={<FiSave size={18} />}
+              className="assessment-template-button"
+              leftIcon={<FiSave size={16} />}
             >
               템플릿으로 저장
             </Button>
@@ -79,10 +81,11 @@ export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam
               <Button
                 type="button"
                 intent="secondary"
-                size="xl"
+                size="sm"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
+                className="assessment-template-button"
                 rightIcon={<FiChevronDown size={16} />}
               >
                 템플릿으로 저장됨
@@ -125,7 +128,7 @@ export default function ExamHeader({ exam, sessionId: _sessionId }: { exam: Exam
       </div>
 
       {canSaveAsTemplate && (
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="assessment-detail-header__desc text-sm text-[var(--text-muted)]">
           시험을 템플릿으로 저장하면 다른 강의에서 동일 시험을 불러와 사용할 수 있고, 서로 다른 강의의 통계를 합산해 볼 수 있습니다.
         </p>
       )}

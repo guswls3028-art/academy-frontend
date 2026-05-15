@@ -19,10 +19,12 @@ import {
   buildAssessmentSearch,
   readAssessmentItemId,
 } from "../utils/assessmentQueryParams";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 type Props = {
   lectureId: number;
   sessionId: number;
+  activeKind?: AssessmentKind;
   openCreateExam?: boolean;
   onCloseCreateExam?: () => void;
   onOpenCreateExam?: () => void;
@@ -36,6 +38,8 @@ type HomeworkItem = {
   title: string;
   status?: "DRAFT" | "OPEN" | "CLOSED";
 };
+
+type AssessmentKind = "exam" | "homework";
 
 /* ------------------------------------------------------------------ */
 /*  Inline styles (CSS-in-JS) — uses design tokens only               */
@@ -168,6 +172,7 @@ const S = {
 export default function SessionAssessmentSidePanel({
   lectureId,
   sessionId,
+  activeKind,
   openCreateExam: openCreateExamProp,
   onCloseCreateExam,
   onOpenCreateExam,
@@ -179,6 +184,7 @@ export default function SessionAssessmentSidePanel({
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const isMobile = useIsMobile();
   const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
   const openCreateExam = openCreateExamProp ?? openCreateExamLocal;
   const setOpenCreateExam = onOpenCreateExam ?? (() => setOpenCreateExamLocal(true));
@@ -255,6 +261,36 @@ export default function SessionAssessmentSidePanel({
   });
 
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+  const resolvedActiveKind: AssessmentKind =
+    activeKind ?? (location.pathname.includes("/assignments") ? "homework" : "exam");
+
+  const asideStyle = useMemo<CSSProperties>(() => {
+    if (!isMobile) return S.aside;
+    return {
+      ...S.aside,
+      width: "100%",
+      maxWidth: "100%",
+      maxHeight: "none",
+      position: "static",
+      top: "auto",
+      overflowY: "visible",
+      gap: "var(--space-3)",
+    };
+  }, [isMobile]);
+
+  const getSectionStyle = (kind: AssessmentKind): CSSProperties => ({
+    ...S.section,
+    order: kind === resolvedActiveKind ? 1 : 2,
+  });
+
+  const getItemListStyle = (kind: AssessmentKind): CSSProperties => {
+    if (!isMobile) return S.itemList;
+    return {
+      ...S.itemList,
+      maxHeight: kind === resolvedActiveKind ? 188 : 112,
+      overflowY: "auto",
+    };
+  };
 
   // Auto-select first exam/homework when entering tab with no selection
   useEffect(() => {
@@ -300,7 +336,7 @@ export default function SessionAssessmentSidePanel({
   // 학생별 진행 상태(Achievement)가 SSOT — 학원장이 시험 전체를 닫을 일이 없음.
 
   return (
-    <aside style={S.aside}>
+    <aside style={asideStyle}>
       {/* ── Bundle apply button ── */}
       <button
         type="button"
@@ -314,7 +350,7 @@ export default function SessionAssessmentSidePanel({
       </button>
 
       {/* ── Exams Section ── */}
-      <section style={S.section}>
+      <section style={getSectionStyle("exam")}>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-[0.55]">
@@ -328,7 +364,7 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={S.itemList}>
+        <div style={getItemListStyle("exam")}>
           {examsLoading && <EmptyState>불러오는 중...</EmptyState>}
           {!examsLoading && examsError && <EmptyState>시험 목록을 불러오지 못했습니다</EmptyState>}
           {!examsLoading && !examsError && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
@@ -352,7 +388,7 @@ export default function SessionAssessmentSidePanel({
       </section>
 
       {/* ── Homework Section ── */}
-      <section style={S.section}>
+      <section style={getSectionStyle("homework")}>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-[0.55]">
@@ -366,7 +402,7 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={S.itemList}>
+        <div style={getItemListStyle("homework")}>
           {hwLoading && <EmptyState>불러오는 중...</EmptyState>}
           {!hwLoading && hwError && <EmptyState>과제 목록을 불러오지 못했습니다</EmptyState>}
           {!hwLoading && !hwError && homeworks.length === 0 && <EmptyState>등록된 과제가 없습니다</EmptyState>}

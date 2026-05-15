@@ -61,25 +61,25 @@ export default function HomeworkHeader({ homework }: Props) {
   const bannerBg = { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" };
 
   return (
-    <div className={`space-y-2 ${bannerClass}`} style={bannerBg}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`assessment-detail-header assessment-detail-header--homework space-y-2 ${bannerClass}`} style={bannerBg}>
+      <div className="assessment-detail-header__top">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h2 className="assessment-detail-header__title text-lg font-semibold text-[var(--text-primary)]">
             {homework.title}
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="assessment-detail-header__actions">
           {canSaveAsTemplate && (
             <Button
               type="button"
               intent="secondary"
-              size="xl"
+              size="sm"
               onClick={() => setTemplateModalOpen(true)}
               disabled={saveAsTemplateMut.isPending}
-              className="flex items-center gap-2"
+              className="assessment-template-button"
             >
-              <FiSave className="shrink-0" size={22} aria-hidden />
+              <FiSave className="shrink-0" size={16} aria-hidden />
               템플릿으로 저장
             </Button>
           )}
@@ -88,9 +88,9 @@ export default function HomeworkHeader({ homework }: Props) {
               <Button
                 type="button"
                 intent="secondary"
-                size="xl"
+                size="sm"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
-                className="flex items-center gap-2"
+                className="assessment-template-button"
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
               >
@@ -121,7 +121,7 @@ export default function HomeworkHeader({ homework }: Props) {
       </div>
 
       {canSaveAsTemplate && (
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="assessment-detail-header__desc text-sm text-[var(--text-muted)]">
           과제를 템플릿으로 저장하면 다른 강의에서 동일 과제를 불러와 사용할 수 있고, 서로 다른 강의의 통계를 합산해 볼 수 있습니다.
         </p>
       )}
