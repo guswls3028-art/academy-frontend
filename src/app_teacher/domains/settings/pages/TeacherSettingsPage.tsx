@@ -1,8 +1,9 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/settings/pages/TeacherSettingsPage.tsx
 // 설정 — 프로필 편집 + 비밀번호 변경 + 테마 선택 + 푸시 알림 + PWA
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ICON } from "@/shared/ui/ds";
+import { useTheme } from "@/shared/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
@@ -12,8 +13,7 @@ import {
   ChevronLeft, User, Lock, Sun, Moon, Palette, Bell, Smartphone,
   Eye, EyeOff, Check, Pencil, Save, X,
 } from "@teacher/shared/ui/Icons";
-import { THEMES, type ThemeKey, type ThemeMeta, isThemeKey } from "@admin/domains/settings/constants/themes";
-import { applyThemeToDom, loadThemeFromStorage } from "@admin/domains/settings/theme/themeRuntime";
+import { THEMES, type ThemeMeta } from "@admin/domains/settings/constants/themes";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 /* ─── API ─── */
@@ -47,15 +47,11 @@ const ROLE_LABELS: Record<string, string> = {
 
 type ThemeGroup = { id: string; label: string; icon: React.ReactNode; themes: ThemeMeta[] };
 
-function safeThemeFromDom(): ThemeKey {
-  const v = String(document.documentElement.getAttribute("data-theme") || "").trim();
-  return isThemeKey(v) ? (v as ThemeKey) : "modern-white";
-}
-
 /* ─── Main ─── */
 export default function TeacherSettingsPage() {
   const navigate = useNavigate();
   const { user, refreshMe } = useAuth();
+  const { theme: currentTheme } = useTheme();
   const { canInstall, isInstalled, promptInstall } = useA2HS();
   const push = usePushSubscription();
 
@@ -102,17 +98,6 @@ export default function TeacherSettingsPage() {
   const pwValid = oldPw.length >= 1 && newPw.length >= 8 && newPw === newPwConfirm;
 
   /* Theme */
-  const initialTheme = useMemo(() => {
-    const stored = loadThemeFromStorage();
-    if (stored && isThemeKey(stored)) return stored;
-    return safeThemeFromDom();
-  }, []);
-  const [currentTheme, setCurrentTheme] = useState<ThemeKey>(initialTheme);
-
-  useEffect(() => {
-    applyThemeToDom(currentTheme);
-  }, [currentTheme]);
-
   const themeGroups: ThemeGroup[] = useMemo(() => [
     {
       id: "WHITE", label: "라이트",

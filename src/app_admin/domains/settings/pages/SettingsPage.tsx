@@ -1,37 +1,18 @@
+/* eslint-disable no-restricted-syntax -- legacy settings panel uses tokenized inline styles; this change only centralizes theme state. */
 // PATH: src/app_admin/domains/settings/pages/SettingsPage.tsx
 // 설정 > 시스템 설정 탭 콘텐츠 (SettingsLayout에서 사용)
-import { useEffect, useMemo, useState } from "react";
-
 import { Section, Panel } from "@/shared/ui/ds";
+import { useTheme } from "@/shared/contexts/ThemeContext";
 
 import ThemeGrid from "../components/ThemeGrid";
-import { THEMES, type ThemeKey, isThemeKey } from "../constants/themes";
-import {
-  applyThemeToDom,
-  loadThemeFromStorage,
-} from "../theme/themeRuntime";
+import { THEMES } from "../constants/themes";
 
 // ✅ preview tokens (SSOT)
 import "@/styles/design-system/colors/preview-theme.css";
 import "@/styles/design-system/colors/preview-scope.css";
 
-function safeThemeFromDom(): ThemeKey {
-  const v = String(document.documentElement.getAttribute("data-theme") || "").trim();
-  return isThemeKey(v) ? (v as ThemeKey) : "modern-white";
-}
-
 export default function SettingsPage() {
-  const initialTheme: ThemeKey = useMemo(() => {
-    const stored = loadThemeFromStorage();
-    if (stored && isThemeKey(stored)) return stored;
-    return safeThemeFromDom();
-  }, []);
-
-  const [currentTheme, setCurrentTheme] = useState<ThemeKey>(initialTheme);
-
-  useEffect(() => {
-    applyThemeToDom(currentTheme);
-  }, [currentTheme]);
+  const { theme: currentTheme, setTheme } = useTheme();
 
   return (
     <Section>
@@ -78,10 +59,7 @@ export default function SettingsPage() {
               themes={THEMES}
               currentTheme={currentTheme}
               previewTheme={currentTheme}
-              onSelect={(k) => {
-                setCurrentTheme(k);
-                applyThemeToDom(k);
-              }}
+              onSelect={setTheme}
             />
           </div>
         </Panel>

@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { HitReportPublicCard, HitReportShowcaseItem, HeroCarouselItem } from "../types";
-import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
+import { fetchPublicHitReportsCached, normalizeHitReportIds } from "../api/hitReports";
 
 const AUTOPLAY_MS = 5000;
 
@@ -102,12 +102,14 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
 
   // hit_report fetch
   const hitIds = useMemo(() => (
-    sourceItems
-      .filter((it) => it.kind === "hit_report")
-      .map((it) => it.report_id)
-      .filter((n): n is number => Number.isFinite(n))
+    normalizeHitReportIds(
+      sourceItems
+        .filter((it) => it.kind === "hit_report")
+        .map((it) => it.report_id)
+        .filter((n): n is number => Number.isFinite(n)),
+    )
   ), [sourceItems]);
-  const idsKey = hitReportIdsKey(hitIds);
+  const idsKey = hitIds.join(",");
 
   useEffect(() => {
     if (!hitIds.length) { setHitCards([]); return; }

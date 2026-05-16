@@ -1,17 +1,6 @@
 // PATH: src/shared/ui/ds/index.ts
 
 /* ===============================
- * DS GLOBAL STYLES — design-system에서 단일 로드 (src/styles/design-system/)
- * =============================== */
-import "@/styles/design-system/ds/input.css";
-import "@/styles/design-system/ds/action-bar.css";
-import "@/styles/design-system/ds/panel.css";
-import "@/styles/design-system/ds/card-modal-style.css";
-import "@/styles/design-system/ds/page.css";
-import "@/styles/design-system/ds/page-header.css";
-import "@/styles/design-system/ds/list-page.css";
-
-/* ===============================
  * DS COMPONENT EXPORTS
  * =============================== */
 export { default as Page } from "./Page";

@@ -1,5 +1,5 @@
+/* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
-import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -10,7 +10,6 @@ import { TeacherViewProvider } from "./TeacherViewContext";
 import { WorkboxProvider } from "@/shared/ui/layout/WorkboxContext";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { FeedbackBridge } from "@/shared/ui/feedback";
-import { ThemeProvider } from "@/shared/contexts/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@admin/domains/notice/context/NoticeContext";
 import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
@@ -121,7 +120,6 @@ function AppLayoutContent() {
 export default function AppLayout() {
   return (
     <TeacherViewProvider>
-      <ThemeProvider>
       <ProgramProvider>
         <NoticeProvider>
           <ConfigProvider
@@ -187,7 +185,6 @@ export default function AppLayout() {
           </ConfigProvider>
         </NoticeProvider>
       </ProgramProvider>
-    </ThemeProvider>
     </TeacherViewProvider>
   );
 }

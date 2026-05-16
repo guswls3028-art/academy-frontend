@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { HitReportPublicCard } from "../types";
-import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
+import { fetchPublicHitReportsCached, normalizeHitReportIds } from "../api/hitReports";
 
 interface Props {
   reportIds: number[];
@@ -22,7 +22,7 @@ type EmbeddedHitReportCard = HitReportPublicCard & {
 
 export default function EmbeddedHitReportCards({ reportIds, theme = "dark" }: Props) {
   const [reports, setReports] = useState<EmbeddedHitReportCard[] | null>(null);
-  const idsKey = hitReportIdsKey(reportIds || []);
+  const idsKey = normalizeHitReportIds(reportIds || []).join(",");
 
   useEffect(() => {
     const ids = idsKey ? idsKey.split(",").map((n) => Number(n)).filter((n) => Number.isFinite(n)) : [];

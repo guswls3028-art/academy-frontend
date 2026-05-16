@@ -11,7 +11,7 @@ import { scrollToLandingSection } from "../utils/scrollToSection";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
-import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
+import { fetchPublicHitReportsCached, hitReportIdsKey, normalizeHitReportIds } from "../api/hitReports";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -860,7 +860,7 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
   const canManage = staffRole !== null; // owner/admin/teacher 모두 카드에 액션 노출
   const navigate = useNavigate();
 
-  const cardIdsKey = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n)).slice().sort((a, b) => a - b).join(",");
+  const cardIdsKey = normalizeHitReportIds((items || []).map((it) => it.report_id)).join(",");
   useEffect(() => {
     const ids = cardIdsKey ? cardIdsKey.split(",").map((n) => Number(n)).filter((n) => Number.isFinite(n)) : [];
     if (!ids.length) {

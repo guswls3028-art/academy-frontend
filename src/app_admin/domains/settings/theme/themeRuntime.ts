@@ -22,7 +22,9 @@ function migrateThemeKey(raw: string): ThemeKey | null {
   if (isThemeKey(raw)) return raw;
   const migrated = LEGACY_KEY_MAP[raw];
   if (migrated) {
-    try { localStorage.setItem(STORAGE_KEY, migrated); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, migrated); } catch {
+      // localStorage can be unavailable in private or embedded contexts.
+    }
     return migrated;
   }
   return null;
@@ -32,7 +34,10 @@ export function applyThemeToDom(theme: ThemeKey) {
   document.documentElement.setAttribute("data-theme", theme);
   try {
     localStorage.setItem(STORAGE_KEY, theme);
-  } catch {}
+  } catch {
+    // localStorage can be unavailable in private or embedded contexts.
+  }
+  window.dispatchEvent(new CustomEvent("themechange", { detail: { theme } }));
 }
 
 export function loadThemeFromStorage(): ThemeKey | null {

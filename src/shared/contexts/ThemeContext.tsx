@@ -1,9 +1,14 @@
+/* eslint-disable react-refresh/only-export-components -- theme hook and provider share one context boundary. */
 // PATH: src/shared/contexts/ThemeContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   type ThemeKey,
   isThemeKey,
 } from "@admin/domains/settings/constants/themes";
+import {
+  applyThemeToDom,
+  loadThemeFromStorage as loadRuntimeThemeFromStorage,
+} from "@admin/domains/settings/theme/themeRuntime";
 
 type ThemeContextState = {
   theme: ThemeKey;
@@ -12,40 +17,25 @@ type ThemeContextState = {
 
 const ThemeContext = createContext<ThemeContextState | null>(null);
 
-const STORAGE_KEY = "hakwonplus:theme";
-
-/** Renamed theme key migration (구 key → 신 key) */
-const LEGACY_KEY_MAP: Record<string, ThemeKey> = {
-  "ivory-office": "mocha-office",
-  "youtube-studio": "graphite-studio",
-  "terminal-neon": "deep-ocean",
-};
-
 function loadThemeFromStorage(): ThemeKey {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v && isThemeKey(v)) return v;
-    if (v && LEGACY_KEY_MAP[v]) {
-      const migrated = LEGACY_KEY_MAP[v];
-      try { localStorage.setItem(STORAGE_KEY, migrated); } catch {}
-      return migrated;
-    }
-  } catch {
-    // ignore
-  }
-  return "modern-white";
+  return loadRuntimeThemeFromStorage() ?? "modern-white";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeKey>(loadThemeFromStorage);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      // ignore
-    }
+    const listener = (event: Event) => {
+      const next = (event as CustomEvent<{ theme?: unknown }>).detail?.theme;
+      if (typeof next !== "string" || !isThemeKey(next)) return;
+      setThemeState((prev) => (prev === next ? prev : next));
+    };
+    window.addEventListener("themechange", listener);
+    return () => window.removeEventListener("themechange", listener);
+  }, []);
+
+  useEffect(() => {
+    applyThemeToDom(theme);
   }, [theme]);
 
   function setTheme(key: ThemeKey) {

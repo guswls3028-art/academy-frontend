@@ -1,15 +1,13 @@
+/* eslint-disable no-restricted-syntax -- legacy teacher theme cards use tokenized inline styles; this change only centralizes theme state. */
 // PATH: src/app_teacher/domains/settings/pages/AppearancePage.tsx
 // 외관(테마) — 테마 12종 선택. 데스크톱 applyThemeToDom 재사용.
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
+import { useTheme } from "@/shared/contexts/ThemeContext";
 import {
   THEMES,
-  type ThemeKey,
   type ThemeGroup,
-  isThemeKey,
 } from "@admin/domains/settings/constants/themes";
-import { applyThemeToDom } from "@admin/domains/settings/theme/themeRuntime";
 
 const GROUP_LABEL: Record<ThemeGroup, string> = {
   WHITE: "라이트",
@@ -17,25 +15,11 @@ const GROUP_LABEL: Record<ThemeGroup, string> = {
   BRAND: "브랜드",
 };
 
-function currentFromDom(): ThemeKey {
-  const v = String(document.documentElement.getAttribute("data-theme") || "").trim();
-  return isThemeKey(v) ? (v as ThemeKey) : "modern-white";
-}
-
 export default function AppearancePage() {
   const navigate = useNavigate();
-  const [current, setCurrent] = useState<ThemeKey>(currentFromDom());
+  const { theme: current, setTheme } = useTheme();
 
-  useEffect(() => {
-    const listener = () => setCurrent(currentFromDom());
-    window.addEventListener("themechange", listener);
-    return () => window.removeEventListener("themechange", listener);
-  }, []);
-
-  const select = (key: ThemeKey) => {
-    applyThemeToDom(key);
-    setCurrent(key);
-  };
+  const select = setTheme;
 
   const grouped = (["WHITE", "DARK", "BRAND"] as ThemeGroup[]).map((g) => ({
     group: g,

@@ -1,11 +1,12 @@
+/* eslint-disable no-restricted-syntax -- legacy theme preview layout uses tokenized inline styles; this change only centralizes theme state. */
 // PATH: src/app_admin/domains/settings/pages/AppearancePage.tsx
 // 설정 > 테마 — 그룹 헤더 프리미엄 UI (인터페이스 밀도 옵션 제거)
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { FiSun, FiMoon, FiStar } from "react-icons/fi";
 
-import { THEMES, type ThemeKey, type ThemeMeta, isThemeKey } from "../constants/themes";
-import { applyThemeToDom, loadThemeFromStorage } from "../theme/themeRuntime";
+import { useTheme } from "@/shared/contexts/ThemeContext";
+import { THEMES, type ThemeKey, type ThemeMeta } from "../constants/themes";
 import ThemeCard from "../components/ThemeCard";
 
 import "@/styles/design-system/colors/preview-theme.css";
@@ -20,11 +21,6 @@ type GroupConfig = {
   icon: React.ElementType;
   themes: ThemeMeta[];
 };
-
-function safeThemeFromDom(): ThemeKey {
-  const v = String(document.documentElement.getAttribute("data-theme") || "").trim();
-  return isThemeKey(v) ? (v as ThemeKey) : "modern-white";
-}
 
 // ── Theme group section ──────────────────────────────────────────────────────
 function ThemeGroupSection({
@@ -96,17 +92,7 @@ function ThemeGroupSection({
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function AppearancePage() {
-  const initialTheme: ThemeKey = useMemo(() => {
-    const stored = loadThemeFromStorage();
-    if (stored && isThemeKey(stored)) return stored;
-    return safeThemeFromDom();
-  }, []);
-
-  const [currentTheme, setCurrentTheme] = useState<ThemeKey>(initialTheme);
-
-  useEffect(() => {
-    applyThemeToDom(currentTheme);
-  }, [currentTheme]);
+  const { theme: currentTheme, setTheme } = useTheme();
 
   const groups: GroupConfig[] = useMemo(
     () => [
@@ -136,8 +122,7 @@ export default function AppearancePage() {
   );
 
   const handleSelect = (key: ThemeKey) => {
-    setCurrentTheme(key);
-    applyThemeToDom(key);
+    setTheme(key);
   };
 
   return (

@@ -9,45 +9,45 @@
 /* ========== 1. Color palette ========== */
 :root {
   /* Light Mode (기본) - Premium SaaS Surface System */
-  --stu-bg: #f8fafc; /* surface-0: 페이지 배경 */
-  --stu-surface: #ffffff; /* surface-1: 섹션 배경 */
-  --stu-surface-soft: #f1f5f9; /* surface-2: 패널/중첩 배경 */
+  --stu-bg: var(--color-bg-canvas, #f8fafc); /* surface-0: 페이지 배경 */
+  --stu-surface: var(--color-bg-surface, #ffffff); /* surface-1: 섹션 배경 */
+  --stu-surface-soft: var(--color-bg-surface-hover, #f1f5f9); /* surface-2: 패널/중첩 배경 */
   
   /* Surface 레이어 명시적 정의 */
-  --stu-surface-0: #f8fafc;
-  --stu-surface-1: #ffffff;
-  --stu-surface-2: #f1f5f9;
+  --stu-surface-0: var(--stu-bg);
+  --stu-surface-1: var(--stu-surface);
+  --stu-surface-2: var(--stu-surface-soft);
   
-  --stu-border: rgba(17, 17, 17, 0.08);
-  --stu-border-subtle: rgba(17, 17, 17, 0.06);
-  --stu-border-normal: rgba(17, 17, 17, 0.08);
-  --stu-border-strong: rgba(17, 17, 17, 0.12);
+  --stu-border: var(--color-border-divider, rgba(17, 17, 17, 0.08));
+  --stu-border-subtle: var(--color-border-subtle, rgba(17, 17, 17, 0.06));
+  --stu-border-normal: var(--color-border-divider, rgba(17, 17, 17, 0.08));
+  --stu-border-strong: var(--color-border-strong, rgba(17, 17, 17, 0.12));
 
   /* Light Mode 텍스트 색상 (어두운 색상) */
-  --stu-text: rgba(17, 17, 17, 0.95);
-  --stu-text-muted: rgba(17, 17, 17, 0.65);
-  --stu-text-subtle: rgba(17, 17, 17, 0.45);
+  --stu-text: var(--color-text-primary, rgba(17, 17, 17, 0.95));
+  --stu-text-muted: var(--color-text-muted, rgba(17, 17, 17, 0.65));
+  --stu-text-subtle: var(--color-text-disabled, rgba(17, 17, 17, 0.45));
 
-  --stu-primary: #3b82f6;
-  --stu-primary-hover: #2563eb;
-  --stu-primary-contrast: #fff;
+  --stu-primary: var(--color-brand-primary, #3b82f6);
+  --stu-primary-hover: var(--color-brand-primary-hover, #2563eb);
+  --stu-primary-contrast: var(--color-text-inverse, #fff);
   --stu-glow-primary: 0 0 20px rgba(59, 130, 246, 0.35);
 
-  --stu-success: #22c55e;
+  --stu-success: var(--color-success, #22c55e);
   --stu-success-bg: rgba(34, 197, 94, 0.15);
   --stu-success-border: rgba(34, 197, 94, 0.4);
-  --stu-success-text: #22c55e;
+  --stu-success-text: var(--color-success, #22c55e);
 
-  --stu-warn: #f59e0b;
+  --stu-warn: var(--color-warning, #f59e0b);
   --stu-warn-bg: rgba(245, 158, 11, 0.15);
   --stu-warn-border: rgba(245, 158, 11, 0.4);
-  --stu-warn-text: #f59e0b;
+  --stu-warn-text: var(--color-warning, #f59e0b);
 
-  --stu-danger: #ef4444;
-  --stu-danger-hover: #dc2626;
+  --stu-danger: var(--color-danger, #ef4444);
+  --stu-danger-hover: var(--color-danger-hover, #dc2626);
   --stu-danger-bg: rgba(239, 68, 68, 0.15);
   --stu-danger-border: rgba(239, 68, 68, 0.4);
-  --stu-danger-text: #ef4444;
+  --stu-danger-text: var(--color-danger, #ef4444);
 
   /* 헤더/탭바 (테넌트별 오버라이드용) */
   /* 프리미엄: 진짜 Glass Header (blur가 보이도록 opacity 낮춤) */
