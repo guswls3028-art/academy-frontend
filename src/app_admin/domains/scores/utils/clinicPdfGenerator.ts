@@ -71,8 +71,8 @@ export const BASE_STYLE = `
     letter-spacing: 0; border: 2px solid #111; border-bottom: none;
   }
   .section-header.both { background: #111; color: #fff; }
-  .section-header.exam { background: #e5e5e5; color: #111; }
-  .section-header.hw { background: #fff; color: #111; }
+  .section-header.exam { background: #eeeeee; color: #111; }
+  .section-header.hw { background: #d8d8d8; color: #111; }
   .section-header .cnt {
     font-weight: 700; font-size: 11px; opacity: 1;
     margin-left: 4px;
@@ -92,44 +92,54 @@ export const BASE_STYLE = `
 
   /* 1명/줄 (15명 이하) */
   .name-row.single {
+    display: flex; align-items: center; gap: 6px;
     padding: 8px 12px;
     font-size: 18px; font-weight: 700;
     color: #111;
     line-height: 1.4; white-space: nowrap;
-    text-align: center;
+    text-align: left;
   }
 
   /* 2명/줄 (16명 이상) */
   .name-cell {
     flex: 1;
+    display: flex; align-items: center; gap: 6px;
     padding: 6px 8px;
     font-size: 16px; font-weight: 700;
     color: #111;
     line-height: 1.4;
     white-space: nowrap;
+    text-align: left;
+  }
+  .name-text {
+    flex: 1; min-width: 0;
     text-align: center;
+    overflow: hidden; text-overflow: ellipsis;
   }
 
   .checkbox {
-    color: #111; margin-right: 6px;
+    flex: 0 0 auto;
+    color: #111; margin-right: 0;
     font-weight: 400;
   }
   .highlight { background: #ededed !important; }
-  .star { color: #111; font-size: 16px; font-weight: 900; }
+  .star { flex: 0 0 auto; color: #111; font-size: 16px; font-weight: 900; }
   .manual-name {
-    background: #efefef !important;
-    box-shadow: inset 4px 0 0 #111;
+    background: #f3f3f3 !important;
+    box-shadow: inset 3px 0 0 #111;
   }
   .manual-mark {
-    display: inline-block;
-    margin-left: 5px;
-    padding: 1px 4px;
+    flex: 0 0 auto;
+    min-width: 22px;
+    padding: 1px 3px;
     border: 1px solid #111;
-    border-radius: 3px;
-    font-size: 9px;
-    font-weight: 900;
-    line-height: 1.1;
-    vertical-align: middle;
+    border-radius: 2px;
+    background: #fff;
+    color: #111;
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
   }
   .empty-item {
     display: flex; align-items: center; justify-content: center;
@@ -320,13 +330,13 @@ export function formatName(name: string): string {
 function buildNameCell(s: ClinicStudent): string {
   const cls = s.almostPassed ? ' class="name-cell highlight"' : ' class="name-cell"';
   const star = s.almostPassed ? ' <span class="star">★</span>' : "";
-  return `<div${cls}><span class="checkbox">☐</span>${formatName(s.name)}${star}</div>`;
+  return `<div${cls}><span class="checkbox">☐</span><span class="name-text">${formatName(s.name)}</span>${star}</div>`;
 }
 
 function buildNameSingle(s: ClinicStudent): string {
   const cls = s.almostPassed ? ' class="name-row single highlight"' : ' class="name-row single"';
   const star = s.almostPassed ? ' <span class="star">★</span>' : "";
-  return `<div${cls}><span class="checkbox">☐</span>${formatName(s.name)}${star}</div>`;
+  return `<div${cls}><span class="checkbox">☐</span><span class="name-text">${formatName(s.name)}</span>${star}</div>`;
 }
 
 /** 15명 이하: 1명/줄 큰글씨, 16명 이상: 2명/줄 */

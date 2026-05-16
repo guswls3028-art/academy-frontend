@@ -36,6 +36,7 @@ function stripNameCellText(text: string): string {
   return text
     .replace(/[☐□]/g, "")
     .replace(/\[수동\]/g, "")
+    .replace(/\s*수동\s*$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -62,12 +63,12 @@ function findNameCategory(lists: Record<ClinicCategory, string[]>, name: string)
 function buildNameSingle(name: string, manualNames: Set<string>): string {
   const formatted = formatName(name);
   const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">[수동]</span>' : ""}</div>`;
+  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
 }
 function buildNameCell(name: string, manualNames: Set<string>): string {
   const formatted = formatName(name);
   const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">[수동]</span>' : ""}</div>`;
+  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
 }
 function buildNameItems(names: string[], manualNames: Set<string>): string {
   if (names.length <= 15) return names.map((name) => buildNameSingle(name, manualNames)).join("\n");
@@ -93,7 +94,7 @@ function buildEditableHtml(p: {
   const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
   const manualCount = p.both.concat(p.examOnly, p.hwOnly).filter((name) => manualNameSet.has(name.trim())).length;
   const tipText = manualCount > 0
-    ? "아래 학생들은 클리닉 수업 대상입니다. [수동] 표시는 선생님이 재량으로 지정한 대상입니다."
+    ? "아래 학생들은 클리닉 수업 대상입니다. 수동 표시는 선생님이 재량으로 지정한 대상입니다."
     : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
 
   const scheduleContent = p.schedule
@@ -140,11 +141,11 @@ function buildEditableHtml(p: {
 
 function buildPdfNameSingle(name: string, manualNames: Set<string>): string {
   const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">[수동]</span>' : ""}</div>`;
+  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
 }
 function buildPdfNameCell(name: string, manualNames: Set<string>): string {
   const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">[수동]</span>' : ""}</div>`;
+  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
 }
 function buildPdfNameItems(names: string[], manualNames: Set<string>): string {
   if (names.length <= 15) return names.map((name) => buildPdfNameSingle(name, manualNames)).join("\n");
@@ -169,7 +170,7 @@ function buildPdfHtml(p: {
   const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
   const manualCount = p.both.concat(p.examOnly, p.hwOnly).filter((name) => manualNameSet.has(name.trim())).length;
   const tipText = manualCount > 0
-    ? "아래 학생들은 클리닉 수업 대상입니다. [수동] 표시는 선생님이 재량으로 지정한 대상입니다."
+    ? "아래 학생들은 클리닉 수업 대상입니다. 수동 표시는 선생님이 재량으로 지정한 대상입니다."
     : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
   const sub = [p.lectureTitle, p.sessionTitle].filter(Boolean).map(escapeHtml).join(" &nbsp;|&nbsp; ");
 
@@ -252,7 +253,7 @@ export default function ClinicPrintoutPage() {
         if (cells.length > 0) {
           const names: string[] = [];
           cells.forEach((cell) => {
-            const t = stripNameCellText(cell.textContent || "");
+            const t = stripNameCellText(cell.querySelector(".name-text")?.textContent || cell.textContent || "");
             if (t) names.push(t);
           });
           return names;
@@ -302,7 +303,7 @@ export default function ClinicPrintoutPage() {
       if (cells.length > 0) {
         const names: string[] = [];
         cells.forEach((cell) => {
-          const t = stripNameCellText(cell.textContent || "");
+          const t = stripNameCellText(cell.querySelector(".name-text")?.textContent || cell.textContent || "");
           if (t) names.push(t);
         });
         return names;
@@ -516,7 +517,7 @@ export default function ClinicPrintoutPage() {
 
       {/* ── 우측: 데이터 입력 패널 ── */}
       <div
-        className="sticky top-4 max-h-[calc(100vh-160px)] w-[340px] flex-shrink-0 self-start overflow-y-auto pr-0.5 flex flex-col gap-3"
+        className="w-[340px] flex-shrink-0 self-start flex flex-col gap-3"
       >
         <section className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 flex flex-col gap-3">
           <div className="text-sm font-semibold text-[var(--text-primary)]">데이터 붙여넣기</div>
