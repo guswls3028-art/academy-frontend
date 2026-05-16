@@ -1,4 +1,3 @@
-// PATH: C:\academyfront\src\student\domains\video\api\video.ts
 import api from "@student/shared/api/student.api";
 import type { AccessMode } from "@admin/domains/videos/types/access-mode";
 

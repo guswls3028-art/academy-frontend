@@ -74,6 +74,20 @@ type EnrollmentLite = {
   status?: string;
 };
 
+type CellKey = string; // `${classId|'U'}__${clinicId|'U'}`
+
+const cellKey = (c: number | null, k: number | null): CellKey =>
+  `${c ?? "U"}__${k ?? "U"}`;
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
+
 export default function SectionManagementPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
@@ -176,7 +190,7 @@ export default function SectionManagementPage() {
       }
     },
     onSuccess: () => { invalidate(); feedback.success("학생을 이동했습니다."); },
-    onError: (e: any) => feedback.error(e?.message || "이동 실패"),
+    onError: (e: unknown) => feedback.error(errorMessage(e, "이동 실패")),
   });
 
   const deleteAssignmentMut = useMutation({
@@ -208,6 +222,18 @@ export default function SectionManagementPage() {
   const totalStudents = enrollments.length;
   const classAssignedCount = enrollments.filter((e) => assignmentByEnrollment.get(e.id)?.class_section != null).length;
   const clinicAssignedCount = enrollments.filter((e) => assignmentByEnrollment.get(e.id)?.clinic_section != null).length;
+
+  const matrix = useMemo(() => {
+    const m = new Map<CellKey, EnrollmentLite[]>();
+    for (const e of enrollments) {
+      const a = assignmentByEnrollment.get(e.id);
+      const key = cellKey(a?.class_section ?? null, a?.clinic_section ?? null);
+      const arr = m.get(key) ?? [];
+      arr.push(e);
+      m.set(key, arr);
+    }
+    return m;
+  }, [enrollments, assignmentByEnrollment]);
 
   // ===== Access gate =====
   if (!sectionMode) {
@@ -299,22 +325,6 @@ export default function SectionManagementPage() {
     if (editId) updateMut.mutate({ id: editId, data: payload });
     else createMut.mutate(payload);
   };
-
-  // ===== Cell build: (classSectionId or null, clinicSectionId or null) → EnrollmentLite[] =====
-  type CellKey = string; // `${classId|'U'}__${clinicId|'U'}`
-  const cellKey = (c: number | null, k: number | null): CellKey =>
-    `${c ?? "U"}__${k ?? "U"}`;
-  const matrix = useMemo(() => {
-    const m = new Map<CellKey, EnrollmentLite[]>();
-    for (const e of enrollments) {
-      const a = assignmentByEnrollment.get(e.id);
-      const key = cellKey(a?.class_section ?? null, a?.clinic_section ?? null);
-      const arr = m.get(key) ?? [];
-      arr.push(e);
-      m.set(key, arr);
-    }
-    return m;
-  }, [enrollments, assignmentByEnrollment]);
 
   const breadcrumbs = [
     { label: "강의", to: "/admin/lectures" },
@@ -466,9 +476,7 @@ export default function SectionManagementPage() {
               classSections={classSections}
               clinicSections={showClinic ? clinicSections : []}
               matrix={matrix}
-              sections={sections}
-              assignments={assignments}
-              enrollments={enrollments}
+              assignmentByEnrollment={assignmentByEnrollment}
               onMove={(enrollmentId, classId, clinicId) =>
                 upsertAssignmentMut.mutate({ enrollmentId, classSectionId: classId, clinicSectionId: clinicId })
               }
@@ -608,15 +616,13 @@ function SectionListCard({
 }
 
 function MatrixGrid({
-  classSections, clinicSections, matrix, sections, assignments, enrollments,
+  classSections, clinicSections, matrix, assignmentByEnrollment,
   onMove, onClearAssignment, showClinic, busy,
 }: {
   classSections: Section[];
   clinicSections: Section[];
   matrix: Map<string, EnrollmentLite[]>;
-  sections: Section[];
-  assignments: SectionAssignment[];
-  enrollments: EnrollmentLite[];
+  assignmentByEnrollment: Map<number, SectionAssignment>;
   onMove: (enrollmentId: number, classId: number | null, clinicId: number | null) => void;
   onClearAssignment: (enrollmentId: number) => void;
   showClinic: boolean;
@@ -632,12 +638,6 @@ function MatrixGrid({
 
   const getCell = (classSec: Section | null, clinicSec: Section | null) =>
     matrix.get(`${classSec?.id ?? "U"}__${clinicSec?.id ?? "U"}`) ?? [];
-
-  const assignmentByEnrollment = useMemo(() => {
-    const m = new Map<number, SectionAssignment>();
-    for (const a of assignments) m.set(a.enrollment, a);
-    return m;
-  }, [assignments]);
 
   return (
     <div className="overflow-x-auto">

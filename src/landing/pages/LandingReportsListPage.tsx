@@ -8,12 +8,12 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
+import { fetchPublicHitReportsCached } from "../api/hitReports";
 
 // Reports 페이지 nav 톤(PremiumDark 시그니처) — LandingNavBar tokens.
 const REPORTS_NAV_TOKENS: NavBarTokens = {
@@ -55,8 +55,8 @@ export default function LandingReportsListPage() {
     const ids = ((hit.items as HitReportShowcaseItem[] | undefined) || [])
       .map((it) => it.report_id).filter((n) => Number.isFinite(n));
     if (!ids.length) { setReports([]); return; }
-    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => setReports(Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : []))
+    fetchPublicHitReportsCached(ids)
+      .then((list) => setReports(list))
       .catch(() => setError(true));
   }, [landing]);
 
@@ -348,4 +348,3 @@ function SortChip({ on, onClick, gold, textPrimary, textSecondary, children }: {
     >{children}</button>
   );
 }
-

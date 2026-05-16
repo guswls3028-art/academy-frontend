@@ -7,23 +7,30 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { HitReportPublicCard } from "../types";
+import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
 
 interface Props {
   reportIds: number[];
   theme?: "dark" | "light";
 }
 
+type EmbeddedHitReportCard = HitReportPublicCard & {
+  title?: string;
+  author_name?: string;
+};
+
 export default function EmbeddedHitReportCards({ reportIds, theme = "dark" }: Props) {
-  const [reports, setReports] = useState<HitReportPublicCard[] | null>(null);
+  const [reports, setReports] = useState<EmbeddedHitReportCard[] | null>(null);
+  const idsKey = hitReportIdsKey(reportIds || []);
 
   useEffect(() => {
-    if (!reportIds || reportIds.length === 0) { setReports([]); return; }
-    api.get("/matchup/landing/public/", { params: { ids: reportIds.join(",") }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => setReports(Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : []))
+    const ids = idsKey ? idsKey.split(",").map((n) => Number(n)).filter((n) => Number.isFinite(n)) : [];
+    if (!ids.length) { setReports([]); return; }
+    fetchPublicHitReportsCached(ids)
+      .then((list) => setReports(list))
       .catch(() => setReports([]));
-  }, [reportIds.join(",")]);
+  }, [idsKey]);
 
   if (!reportIds || reportIds.length === 0) return null;
 
@@ -45,7 +52,7 @@ export default function EmbeddedHitReportCards({ reportIds, theme = "dark" }: Pr
         <div style={{ padding: 12, color: textSecondary, fontSize: 13 }}>표시할 적중보고서가 없습니다.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
-          {reports.map((r: any) => (
+          {reports.map((r) => (
             <Link key={r.id} to={`/landing/reports/${r.id}`} data-testid={`embedded-hit-report-${r.id}`}
               style={{
                 display: "flex", flexDirection: "column", gap: 6,

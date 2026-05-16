@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
-function safeStr(v: any) {
+function safeStr(v: unknown) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
@@ -18,20 +18,12 @@ export default function LectureLayout() {
   const navigate = useNavigate();
   const { sectionMode } = useSectionMode();
   const lectureIdNum = Number(lectureId);
-  if (!Number.isFinite(lectureIdNum)) {
-    return (
-      <DomainLayout title="강의" description="잘못된 강의 ID">
-        <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>
-          잘못된 강의 ID
-        </div>
-      </DomainLayout>
-    );
-  }
+  const hasValidLectureId = Number.isFinite(lectureIdNum);
 
   const { data: lecture, isLoading } = useQuery({
-    queryKey: ["lecture", lectureIdNum],
+    queryKey: ["lecture", hasValidLectureId ? lectureIdNum : null],
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
-    enabled: Number.isFinite(lectureIdNum),
+    enabled: hasValidLectureId,
   });
 
   const title = isLoading ? "강의 불러오는 중…" : safeStr(lecture?.title) || "강의";
@@ -65,6 +57,16 @@ export default function LectureLayout() {
       반 편성
     </Button>
   ) : undefined;
+
+  if (!hasValidLectureId) {
+    return (
+      <DomainLayout title="강의" description="잘못된 강의 ID">
+        <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>
+          잘못된 강의 ID
+        </div>
+      </DomainLayout>
+    );
+  }
 
   return (
     <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions}>

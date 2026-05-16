@@ -850,12 +850,34 @@ export type HitReportDraftResponse = {
   selected_problem_meta: HitReportSelectedMeta[];
 };
 
+export type HitReportPinsResponse = {
+  report: HitReport;
+  entries: Array<{
+    id: number;
+    exam_problem_id: number;
+    selected_problem_ids: number[];
+    comment: string;
+    order: number;
+    excluded: boolean;
+  }>;
+};
+
 export async function fetchHitReportDraft(
   docId: number,
 ): Promise<HitReportDraftResponse> {
   const { data } = await api.get<HitReportDraftResponse>(
     `/matchup/documents/${docId}/hit-report-draft/`,
     { timeout: 120_000 },
+  );
+  return data;
+}
+
+export async function fetchHitReportPins(
+  docId: number,
+): Promise<HitReportPinsResponse> {
+  const { data } = await api.get<HitReportPinsResponse>(
+    `/matchup/documents/${docId}/hit-report-draft/`,
+    { params: { mode: "pins" }, timeout: 20_000 },
   );
   return data;
 }

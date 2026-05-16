@@ -19,6 +19,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import { setLandingMeta } from "../utils/seoMeta";
+import { fetchPublicHitReportsCached } from "../api/hitReports";
 
 const SHARE_NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -96,9 +97,9 @@ export default function LandingShareReportPage() {
     }
     // legacy: ids만 있고 카드 없음 → 별도 fetch (점진적 deprecate).
     if (!meta.other_report_ids?.length) { setOthers([]); return; }
-    const ids = meta.other_report_ids.slice(0, 6).join(",");
-    api.get<{ reports: OtherCard[] }>(`/matchup/landing/public/`, { params: { ids }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => setOthers(Array.isArray(r.data?.reports) ? r.data.reports : []))
+    const ids = meta.other_report_ids.slice(0, 6);
+    fetchPublicHitReportsCached(ids)
+      .then((reports) => setOthers(reports))
       .catch(() => setOthers([]));
   }, [meta]);
 
@@ -371,4 +372,3 @@ export default function LandingShareReportPage() {
     </div>
   );
 }
-

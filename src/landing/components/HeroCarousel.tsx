@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { HitReportPublicCard, HitReportShowcaseItem, HeroCarouselItem } from "../types";
+import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
 
 const AUTOPLAY_MS = 5000;
 
@@ -106,16 +107,13 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
       .map((it) => it.report_id)
       .filter((n): n is number => Number.isFinite(n))
   ), [sourceItems]);
-  const idsKey = hitIds.slice().sort((a, b) => a - b).join(",");
+  const idsKey = hitReportIdsKey(hitIds);
 
   useEffect(() => {
     if (!hitIds.length) { setHitCards([]); return; }
     setHitCards(null); setError(false);
-    api.get("/matchup/landing/public/", { params: { ids: idsKey }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => {
-        const list: HitReportPublicCard[] = Array.isArray(r?.data?.reports) ? r.data.reports : [];
-        setHitCards(list);
-      })
+    fetchPublicHitReportsCached(hitIds)
+      .then((list) => setHitCards(list))
       .catch(() => { setError(true); setHitCards([]); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);

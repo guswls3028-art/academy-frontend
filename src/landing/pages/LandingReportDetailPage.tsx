@@ -7,7 +7,6 @@
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
@@ -18,6 +17,7 @@ import PdfPageStack from "../components/PdfPageStack";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { fetchReviewsList, fetchReviewsSummary, type PublicReview, type ReviewsSummary } from "../api/publicCommunity";
+import { fetchPublicHitReportsCached } from "../api/hitReports";
 
 // 적중보고서 상세 nav 톤(PremiumDark 시그니처) — List 페이지와 동일.
 const DETAIL_NAV_TOKENS: NavBarTokens = {
@@ -58,9 +58,8 @@ export default function LandingReportDetailPage() {
     const ids = ((hit.items as HitReportShowcaseItem[] | undefined) || [])
       .map((it) => it.report_id).filter((n) => Number.isFinite(n));
     if (!ids.length) { setError(true); return; }
-    api.get("/matchup/landing/public/", { params: { ids: ids.join(",") }, skipAuth: true } as ApiRequestConfig)
-      .then((r) => {
-        const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
+    fetchPublicHitReportsCached(ids)
+      .then((reports) => {
         const target = reports.find((c) => String(c.id) === String(reportId));
         if (!target) { setError(true); return; }
         setReport(target);
@@ -389,4 +388,3 @@ function RelatedReviewsBlock({ textPrimary, textSecondary, cardBg, cardBorder, b
     </section>
   );
 }
-

@@ -19,7 +19,7 @@ import {
   updateMatchupDocument,
   renameMatchupCategory,
   assignMatchupCategory,
-  fetchHitReportDraft,
+  fetchHitReportPins,
   upsertHitReportEntries,
   reanalyzeMatchupDocument,
   bulkDeleteMatchupProblems,
@@ -370,7 +370,8 @@ export default function MatchupPage() {
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
   const selectedDocIntent = selectedDoc ? getDocumentIntent(selectedDoc) : "reference";
 
-  // 시험지(test) doc 진입 시 적중 보고서 draft 자동 로드 → pinnedIds Set 구성.
+  // 시험지(test) doc 진입 시 적중 보고서 pin 요약만 자동 로드 → pinnedIds Set 구성.
+  // 전체 후보 검색은 편집기 진입 시에만 실행해 문서 선택/매치업 화면 첫 로드를 가볍게 유지.
   // 사용자가 매치업 작업 중에 후보를 찜해두면 적중 보고서 작성기 진입 시 자동 선택된 상태로 표시.
   useEffect(() => {
     if (!selectedDocId || selectedDocIntent !== "test") {
@@ -379,14 +380,14 @@ export default function MatchupPage() {
       return;
     }
     let cancelled = false;
-    fetchHitReportDraft(selectedDocId)
+    fetchHitReportPins(selectedDocId)
       .then((data) => {
         if (cancelled) return;
         setHitReportId(data.report.id);
         const map: Record<number, Set<number>> = {};
-        for (const ep of data.exam_problems) {
-          if (ep.entry?.selected_problem_ids?.length) {
-            map[ep.id] = new Set(ep.entry.selected_problem_ids);
+        for (const entry of data.entries) {
+          if (entry.selected_problem_ids?.length) {
+            map[entry.exam_problem_id] = new Set(entry.selected_problem_ids);
           }
         }
         setPinsByExamPid(map);

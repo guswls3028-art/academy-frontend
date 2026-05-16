@@ -7,7 +7,7 @@ from pathlib import Path
 # CONFIG
 # ============================
 
-FRONTEND_ROOT = Path(r"C:\academyfront\src")
+FRONTEND_ROOT = Path(__file__).resolve().parents[1] / "src"
 OUT_DIR = Path("ai_dumps_frontend")
 
 INCLUDE_EXTS = {
@@ -76,17 +76,11 @@ def main():
         if not item.is_dir() or item.name in EXCLUDE_DIRS:
             continue
 
-        # ✅ features 는 내부 폴더 단위로 분해
-        if item.name == "features":
+        # 큰 앱 도메인은 내부 폴더 단위로 분해
+        if item.name in {"app_admin", "app_student", "app_teacher"}:
             for sub in item.iterdir():
                 if sub.is_dir() and sub.name not in EXCLUDE_DIRS:
-                    dump_folder(sub, prefix="features")
-
-        # ✅ student 도 내부 폴더 단위로 분해
-        elif item.name == "student":
-            for sub in item.iterdir():
-                if sub.is_dir() and sub.name not in EXCLUDE_DIRS:
-                    dump_folder(sub, prefix="student")
+                    dump_folder(sub, prefix=item.name)
 
         else:
             dump_folder(item)

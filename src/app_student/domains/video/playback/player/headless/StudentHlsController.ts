@@ -8,6 +8,8 @@ import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 
+const ignoreBestEffortError = () => undefined;
+
 export type EventType =
   | "VISIBILITY_HIDDEN"
   | "VISIBILITY_VISIBLE"
@@ -52,21 +54,27 @@ async function postHeartbeat(token: string) {
   if (token.startsWith("student-")) return;
   try {
     await studentApi.post(`/media/playback/heartbeat/`, { token });
-  } catch {}
+  } catch {
+    ignoreBestEffortError();
+  }
 }
 
 async function postRefresh(token: string) {
   if (token.startsWith("student-")) return;
   try {
     await studentApi.post(`/media/playback/refresh/`, { token });
-  } catch {}
+  } catch {
+    ignoreBestEffortError();
+  }
 }
 
 async function postEnd(token: string) {
   if (token.startsWith("student-")) return;
   try {
     await studentApi.post(`/media/playback/end/`, { token });
-  } catch {}
+  } catch {
+    ignoreBestEffortError();
+  }
 }
 
 async function postEvents(
@@ -83,7 +91,9 @@ async function postEvents(
       enrollment_id: enrollmentId,
       events: events.map((e) => ({ type: e.type, occurred_at: e.occurred_at, payload: e.payload || {} })),
     });
-  } catch {}
+  } catch {
+    ignoreBestEffortError();
+  }
 }
 
 export interface QualityLevel {
@@ -183,7 +193,9 @@ export class StudentHlsController {
     this.listeners.forEach((fn) => {
       try {
         fn(s);
-      } catch {}
+      } catch {
+        ignoreBestEffortError();
+      }
     });
   }
 
@@ -210,15 +222,19 @@ export class StudentHlsController {
   play() {
     if (this.disposed || !this.el) return;
     try {
-      this.el.play().catch(() => {});
-    } catch {}
+      this.el.play().catch(ignoreBestEffortError);
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   pause() {
     if (this.disposed || !this.el) return;
     try {
       this.el.pause();
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   seek(t: number) {
@@ -227,7 +243,9 @@ export class StudentHlsController {
     const safe = clamp(t, 0, Math.max(0, d));
     try {
       this.el.currentTime = safe;
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   setRate(r: number) {
@@ -237,7 +255,9 @@ export class StudentHlsController {
     if (speedLocked) {
       try {
         this.el.playbackRate = 1;
-      } catch {}
+      } catch {
+        ignoreBestEffortError();
+      }
       this.guard(() => this.setState({ rate: 1, toast: { text: "배속 변경이 제한되어 있습니다.", kind: "warn" } }));
       this.queueEvent("SPEED_CHANGE_ATTEMPT", { attempted: r, enforced: 1 });
       return;
@@ -245,7 +265,9 @@ export class StudentHlsController {
     const rr = clamp(r, 0.25, maxRate);
     try {
       this.el.playbackRate = rr;
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
     this.guard(() => this.setState({ rate: rr }));
   }
 
@@ -256,7 +278,9 @@ export class StudentHlsController {
     try {
       this.el.volume = vv;
       this.el.muted = vv <= 0.0001;
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   setMuted(m: boolean) {
@@ -264,7 +288,9 @@ export class StudentHlsController {
     this.setState({ muted: m });
     try {
       this.el.muted = m;
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   showToast(text: string, kind?: "info" | "warn" | "danger") {
@@ -302,7 +328,9 @@ export class StudentHlsController {
       this.setState({ currentQuality: index });
       const label = this.state.qualities.find((q) => q.index === index)?.label || (index === -1 ? "Auto" : `${index}`);
       this.showToast(`화질: ${label}`, "info");
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   private publishQualities() {
@@ -438,7 +466,7 @@ export class StudentHlsController {
         this.queueEvent("VISIBILITY_VISIBLE", { hidden: false });
         if (monitoringEnabled) {
           const token = this.tokenRef;
-          if (token) postRefresh(token).catch(() => {});
+          if (token) postRefresh(token).catch(ignoreBestEffortError);
         }
       }
     };
@@ -502,7 +530,9 @@ export class StudentHlsController {
 
     try {
       el.pause();
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
     el.src = "";
 
     let url = this.opts.playUrl || "";
@@ -584,7 +614,9 @@ export class StudentHlsController {
               details: data?.details || "",
               type: data?.type || "",
             });
-          } catch {}
+          } catch {
+            ignoreBestEffortError();
+          }
 
           if (!data?.fatal) return;
           if (this.disposed) return;
@@ -664,7 +696,11 @@ export class StudentHlsController {
         if (safePos > 1) {
           this.seekGuardRef.initialSeekActive = true;
           this.maxWatchedRef = Math.max(this.maxWatchedRef, safePos);
-          try { el.currentTime = safePos; } catch {}
+          try {
+            el.currentTime = safePos;
+          } catch {
+            ignoreBestEffortError();
+          }
           // onSeeking 이벤트가 동기적으로 발생하므로 즉시 해제해도 안전
           // 다만 비동기 발생 가능성 대비 짧은 타이머
           setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
@@ -676,7 +712,6 @@ export class StudentHlsController {
       if (this.disposed) return;
       const t = Number(el.currentTime || 0);
       this.setState({ current: t });
-      const prev = this.lastTimeRef;
       this.lastTimeRef = t;
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
@@ -694,7 +729,9 @@ export class StudentHlsController {
         if (Math.abs(r - 1) > 0.001) {
           try {
             el.playbackRate = 1;
-          } catch {}
+          } catch {
+            ignoreBestEffortError();
+          }
           this.setState({ toast: { text: "배속 변경이 제한되어 있습니다.", kind: "warn" } });
           this.queueEvent("SPEED_CHANGE_ATTEMPT", { attempted: r, enforced: 1 });
         }
@@ -703,7 +740,9 @@ export class StudentHlsController {
       if (r > maxRate + 0.0001) {
         try {
           el.playbackRate = maxRate;
-        } catch {}
+        } catch {
+          ignoreBestEffortError();
+        }
         this.setState({ toast: { text: `최대 배속은 ${maxRate}x 입니다.`, kind: "warn" } });
         this.queueEvent("SPEED_CHANGE_ATTEMPT", { attempted: r, enforced: maxRate });
       }
@@ -725,7 +764,9 @@ export class StudentHlsController {
         guard.blocking = true;
         try {
           el.currentTime = maxWatched;
-        } catch {}
+        } catch {
+          ignoreBestEffortError();
+        }
         guard.blocking = false;
         if (now - guard.lastWarnAt > 900) {
           guard.lastWarnAt = now;
@@ -739,7 +780,9 @@ export class StudentHlsController {
         guard.blocking = true;
         try {
           el.currentTime = allowedMax;
-        } catch {}
+        } catch {
+          ignoreBestEffortError();
+        }
         guard.blocking = false;
         if (now - guard.lastWarnAt > 900) {
           guard.lastWarnAt = now;
@@ -777,7 +820,9 @@ export class StudentHlsController {
     try {
       if (speedLocked) el.playbackRate = 1;
       if (maxRate < 1) el.playbackRate = 1;
-    } catch {}
+    } catch {
+      ignoreBestEffortError();
+    }
   }
 
   dispose(): void {
@@ -803,17 +848,21 @@ export class StudentHlsController {
     if (this.hls && typeof this.hls.destroy === "function") {
       try {
         this.hls.destroy();
-      } catch {}
+      } catch {
+        ignoreBestEffortError();
+      }
       this.hls = null;
     }
 
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     if (monitoringEnabled) {
       const token = this.tokenRef;
-      if (token) postEnd(token).catch(() => {});
+      if (token) postEnd(token).catch(ignoreBestEffortError);
       try {
         this.flushEvents();
-      } catch {}
+      } catch {
+        ignoreBestEffortError();
+      }
     }
 
     this.flushProgress(true);

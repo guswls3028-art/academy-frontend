@@ -2,7 +2,7 @@
 // 공통 렌더링 유틸. 모든 템플릿에서 사용.
 //
 // 랜딩 템플릿 도메인 — inline style 면제 + 기존 시그니처 호환 (color/borderColor 등 일부 unused 파라미터).
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, react-refresh/only-export-components, react-hooks/exhaustive-deps */
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, react-refresh/only-export-components */
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect, useRef } from "react";
@@ -11,6 +11,7 @@ import { scrollToLandingSection } from "../utils/scrollToSection";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import { fetchPublicHitReportsCached, hitReportIdsKey } from "../api/hitReports";
 
 /** 아이콘 매핑 (SVG 인라인) */
 const ICON_MAP: Record<string, string> = {
@@ -803,42 +804,19 @@ export function TestimonialSubmitForm({ accent, dark = false }: { accent: string
  * 데이터: 학원장이 picker에 박은 보고서들의 누적 적중률 + 보고서 수.
  * 학원장 입력 X — picker 변경 시 자동 갱신.
  *
- * Module-level cache: 같은 ids로 여러 컴포넌트가 호출해도 fetch 1회만 실행
- * (HitReportCards + InstructorCard가 동일 ids 공유하는 케이스 최적화).
+ * Module-level cache: 같은 ids로 여러 컴포넌트가 호출해도 fetch 1회만 실행.
  */
-const _hitReportsCache = new Map<string, HitReportPublicCard[]>();
-const _hitReportsInflight = new Map<string, Promise<HitReportPublicCard[]>>();
-
-function fetchHitReportsCached(ids: number[]): Promise<HitReportPublicCard[]> {
-  const key = ids.slice().sort((a, b) => a - b).join(",");
-  if (_hitReportsCache.has(key)) return Promise.resolve(_hitReportsCache.get(key)!);
-  if (_hitReportsInflight.has(key)) return _hitReportsInflight.get(key)!;
-  const p = api.get("/matchup/landing/public/", { params: { ids: key }, skipAuth: true } as ApiRequestConfig)
-    .then((r) => {
-      const reports = Array.isArray(r?.data?.reports) ? r.data.reports as HitReportPublicCard[] : [];
-      _hitReportsCache.set(key, reports);
-      _hitReportsInflight.delete(key);
-      return reports;
-    })
-    .catch((e) => {
-      _hitReportsInflight.delete(key);
-      throw e;
-    });
-  _hitReportsInflight.set(key, p);
-  return p;
-}
-
 export function useTenantHitStats(reportIds: number[]): { reportCount: number; avgHitRatePct: number } | null {
   const [stats, setStats] = useState<{ reportCount: number; avgHitRatePct: number } | null>(null);
-  const idsKey = reportIds.slice().sort((a, b) => a - b).join(",");
+  const idsKey = hitReportIdsKey(reportIds);
 
   useEffect(() => {
-    const ids = (reportIds || []).filter((n) => Number.isFinite(n));
+    const ids = idsKey ? idsKey.split(",").map((n) => Number(n)).filter((n) => Number.isFinite(n)) : [];
     if (!ids.length) {
       setStats({ reportCount: 0, avgHitRatePct: 0 });
       return;
     }
-    fetchHitReportsCached(ids)
+    fetchPublicHitReportsCached(ids)
       .then((reports) => {
         if (!reports.length) { setStats({ reportCount: 0, avgHitRatePct: 0 }); return; }
         const totalHit = reports.reduce((s, c) => s + (c.hit_count || 0), 0);
@@ -884,13 +862,13 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
 
   const cardIdsKey = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n)).slice().sort((a, b) => a - b).join(",");
   useEffect(() => {
-    const ids = (items || []).map((it) => it.report_id).filter((n) => Number.isFinite(n));
+    const ids = cardIdsKey ? cardIdsKey.split(",").map((n) => Number(n)).filter((n) => Number.isFinite(n)) : [];
     if (!ids.length) {
       setCards([]);
       return;
     }
     // 캐시 활용 — 같은 ids 다른 컴포넌트(InstructorCard 등)와 fetch 공유.
-    fetchHitReportsCached(ids)
+    fetchPublicHitReportsCached(ids)
       .then((reports) => setCards(reports))
       .catch(() => setError(true));
   }, [cardIdsKey]);
