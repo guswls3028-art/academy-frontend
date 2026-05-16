@@ -8,6 +8,7 @@
  *
  * 기존 좌우 분할 UI 폐기 — 4조합을 한 눈에 볼 수 있도록 2차원 그리드로 재편.
  */
+/* eslint-disable no-restricted-syntax -- legacy matrix uses inline DS tokens; current touch fixes hook order only. */
 import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

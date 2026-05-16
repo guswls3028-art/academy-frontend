@@ -61,7 +61,7 @@ export default function LectureLayout() {
   if (!hasValidLectureId) {
     return (
       <DomainLayout title="강의" description="잘못된 강의 ID">
-        <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>
+        <div className="p-4 text-sm text-[var(--color-error)]">
           잘못된 강의 ID
         </div>
       </DomainLayout>
