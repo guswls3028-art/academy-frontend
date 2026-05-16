@@ -14,7 +14,7 @@ export const BASE_STYLE = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
-    color: #0f172a; background: #fff;
+    color: #111; background: #fff;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .page {
@@ -26,39 +26,39 @@ export const BASE_STYLE = `
   /* ── Header: Premium brand feel ── */
   .header {
     text-align: center; margin-bottom: 10px;
-    padding: 12px 0 10px; border-bottom: 4px solid #0f172a;
-    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    padding: 12px 0 10px; border-top: 2px solid #111; border-bottom: 4px solid #111;
+    background: #fff;
   }
   .header .badge {
-    display: inline-block; background: #0f172a; color: #fff;
+    display: inline-block; background: #111; color: #fff;
     font-size: 8px; font-weight: 800; padding: 3px 14px;
-    border-radius: 20px; letter-spacing: 2.5px; margin-bottom: 6px;
+    border-radius: 20px; letter-spacing: 0; margin-bottom: 6px;
     text-transform: uppercase;
   }
   .header h1 {
-    font-size: 26px; font-weight: 900; color: #0f172a;
-    margin-bottom: 3px; letter-spacing: -0.5px;
+    font-size: 26px; font-weight: 900; color: #111;
+    margin-bottom: 3px; letter-spacing: 0;
   }
   .header .sub {
-    font-size: 12px; color: #475569; font-weight: 600;
-    letter-spacing: 0.3px;
+    font-size: 12px; color: #404040; font-weight: 600;
+    letter-spacing: 0;
   }
 
   /* ── Tip box ── */
   .tip-box {
-    background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-    border: 1.5px solid #eab308; border-radius: 8px;
+    background: #fff;
+    border: 1.5px solid #111; border-radius: 6px;
     padding: 8px 14px; margin-bottom: 10px;
     display: flex; align-items: center; gap: 10px;
   }
   .tip-box .icon {
     flex-shrink: 0; width: 22px; height: 22px;
-    background: #eab308; border-radius: 50%;
+    background: #111; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 12px; font-weight: 900;
   }
   .tip-box .text {
-    font-size: 11px; color: #713f12; line-height: 1.5; font-weight: 600;
+    font-size: 11px; color: #111; line-height: 1.5; font-weight: 600;
   }
 
   /* ── Name columns: max visibility ── */
@@ -66,35 +66,35 @@ export const BASE_STYLE = `
   .col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
   .section-header {
-    text-align: center; padding: 8px 0; border-radius: 10px 10px 0 0;
-    color: #fff; font-size: 13px; font-weight: 800;
-    letter-spacing: 0.5px;
+    text-align: center; padding: 8px 0; border-radius: 6px 6px 0 0;
+    color: #111; font-size: 13px; font-weight: 900;
+    letter-spacing: 0; border: 2px solid #111; border-bottom: none;
   }
-  .section-header.both { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
-  .section-header.exam { background: linear-gradient(135deg, #ef4444, #dc2626); }
-  .section-header.hw { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+  .section-header.both { background: #111; color: #fff; }
+  .section-header.exam { background: #e5e5e5; color: #111; }
+  .section-header.hw { background: #fff; color: #111; }
   .section-header .cnt {
-    font-weight: 500; font-size: 11px; opacity: 0.9;
+    font-weight: 700; font-size: 11px; opacity: 1;
     margin-left: 4px;
   }
 
   .name-list {
-    flex: 1; border: 2px solid #e2e8f0; border-top: none;
-    border-radius: 0 0 10px 10px; padding: 3px 0;
+    flex: 1; border: 2px solid #111; border-top: none;
+    border-radius: 0 0 6px 6px; padding: 3px 0;
   }
 
   /* ── Name rows ── */
   .name-row {
-    display: flex; border-bottom: 1px solid #f1f5f9;
+    display: flex; border-bottom: 1px solid #d4d4d4;
   }
   .name-row:last-child { border-bottom: none; }
-  .name-row:nth-child(even) { background: #f8fafc; }
+  .name-row:nth-child(even) { background: #f5f5f5; }
 
   /* 1명/줄 (15명 이하) */
   .name-row.single {
     padding: 8px 12px;
     font-size: 18px; font-weight: 700;
-    color: #0f172a;
+    color: #111;
     line-height: 1.4; white-space: nowrap;
     text-align: center;
   }
@@ -104,53 +104,68 @@ export const BASE_STYLE = `
     flex: 1;
     padding: 6px 8px;
     font-size: 16px; font-weight: 700;
-    color: #0f172a;
+    color: #111;
     line-height: 1.4;
     white-space: nowrap;
     text-align: center;
   }
 
   .checkbox {
-    color: #94a3b8; margin-right: 6px;
+    color: #111; margin-right: 6px;
     font-weight: 400;
   }
-  .highlight { background: #fefce8 !important; }
-  .star { color: #eab308; font-size: 16px; font-weight: 900; }
+  .highlight { background: #ededed !important; }
+  .star { color: #111; font-size: 16px; font-weight: 900; }
+  .manual-name {
+    background: #efefef !important;
+    box-shadow: inset 4px 0 0 #111;
+  }
+  .manual-mark {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 1px 4px;
+    border: 1px solid #111;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.1;
+    vertical-align: middle;
+  }
   .empty-item {
     display: flex; align-items: center; justify-content: center;
     padding: 7px 8px;
-    color: #94a3b8; font-size: 14px; font-weight: 500;
+    color: #737373; font-size: 14px; font-weight: 500;
   }
 
   /* ── Schedule box ── */
   .schedule-box {
     margin-top: 10px; padding: 10px 16px;
-    border: 2px solid #0f172a; border-radius: 10px;
-    background: linear-gradient(180deg, #f8fafc, #fff);
+    border: 2px solid #111; border-radius: 6px;
+    background: #fff;
   }
   .schedule-title {
-    font-size: 12px; font-weight: 800; color: #0f172a;
-    margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase;
+    font-size: 12px; font-weight: 900; color: #111;
+    margin-bottom: 4px; letter-spacing: 0; text-transform: uppercase;
   }
   .schedule-content {
-    font-size: 14px; color: #0f172a; line-height: 1.7; font-weight: 600;
+    font-size: 14px; color: #111; line-height: 1.7; font-weight: 600;
   }
   .schedule-empty {
-    font-size: 12px; color: #94a3b8; font-style: italic;
+    font-size: 12px; color: #737373; font-style: italic;
   }
 
   /* ── Footer: clean & professional ── */
   .footer {
     margin-top: 10px; padding-top: 8px;
-    border-top: 4px solid #0f172a;
+    border-top: 4px solid #111;
     display: flex; justify-content: space-between; align-items: flex-end;
   }
   .footer-left {
-    font-size: 11px; color: #475569; line-height: 1.6; font-weight: 500;
+    font-size: 11px; color: #404040; line-height: 1.6; font-weight: 500;
   }
   .footer-right {
     text-align: right; font-size: 12px; font-weight: 700;
-    color: #0f172a; letter-spacing: 0.3px;
+    color: #111; letter-spacing: 0;
   }
 
   @media print {
