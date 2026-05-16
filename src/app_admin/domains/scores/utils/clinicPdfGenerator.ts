@@ -124,22 +124,10 @@ export const BASE_STYLE = `
   }
   .highlight { background: #ededed !important; }
   .star { flex: 0 0 auto; color: #111; font-size: 16px; font-weight: 900; }
+  /* 수동 지정 학생 — 텍스트 딱지 없이 옅은 음영만. 학생에게 비노출, 선생님 식별용 */
   .manual-name {
-    background: #f3f3f3 !important;
-    box-shadow: inset 3px 0 0 #111;
-  }
-  .manual-mark {
-    flex: 0 0 auto;
-    min-width: 22px;
-    padding: 1px 3px;
-    border: 1px solid #111;
-    border-radius: 2px;
-    background: #fff;
-    color: #111;
-    font-size: 8px;
-    font-weight: 800;
-    line-height: 1.2;
-    text-align: center;
+    background: #f4f4f5 !important;
+    box-shadow: inset 2px 0 0 rgba(0, 0, 0, 0.16);
   }
   .empty-item {
     display: flex; align-items: center; justify-content: center;

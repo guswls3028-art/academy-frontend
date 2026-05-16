@@ -60,15 +60,16 @@ function findNameCategory(lists: Record<ClinicCategory, string[]>, name: string)
 
 // ── 이름 목록 HTML 빌드 (clinicPdfGenerator 내부 함수와 동일) ──
 
+// 수동 지정 학생은 텍스트 딱지 대신 manual-name 음영만 부여 — 학생에게 노출 X, 선생님 식별용
 function buildNameSingle(name: string, manualNames: Set<string>): string {
   const formatted = formatName(name);
   const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
+  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span></div>`;
 }
 function buildNameCell(name: string, manualNames: Set<string>): string {
   const formatted = formatName(name);
   const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
+  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span></div>`;
 }
 function buildNameItems(names: string[], manualNames: Set<string>): string {
   if (names.length <= 15) return names.map((name) => buildNameSingle(name, manualNames)).join("\n");
@@ -92,10 +93,8 @@ function buildEditableHtml(p: {
 }): string {
   const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
   const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
-  const manualCount = p.both.concat(p.examOnly, p.hwOnly).filter((name) => manualNameSet.has(name.trim())).length;
-  const tipText = manualCount > 0
-    ? "아래 학생들은 클리닉 수업 대상입니다. 수동 표시는 선생님이 재량으로 지정한 대상입니다."
-    : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
+  // 수동 지정 여부는 학생에게 노출하지 않음 — 음영만으로 선생님이 식별
+  const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
 
   const scheduleContent = p.schedule
     ? `<div class="schedule-content" contenteditable="true" data-field="schedule">${escapeHtml(p.schedule).replace(/\n/g, "<br>")}</div>`
@@ -131,7 +130,7 @@ function buildEditableHtml(p: {
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
   <div class="footer">
-    <div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 <span contenteditable="true" data-field="totalPresent">${p.totalPresent ?? clinicTotal}</span>명${manualCount > 0 ? ` / 수동 지정 ${manualCount}명` : ""}</div>
+    <div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 <span contenteditable="true" data-field="totalPresent">${p.totalPresent ?? clinicTotal}</span>명</div>
     <div class="footer-right"><span contenteditable="true" data-field="date">${escapeHtml(p.date)}</span></div>
   </div>
 </div></body></html>`;
@@ -141,11 +140,11 @@ function buildEditableHtml(p: {
 
 function buildPdfNameSingle(name: string, manualNames: Set<string>): string {
   const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
+  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span></div>`;
 }
 function buildPdfNameCell(name: string, manualNames: Set<string>): string {
   const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span>${manual ? '<span class="manual-mark">수동</span>' : ""}</div>`;
+  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span></div>`;
 }
 function buildPdfNameItems(names: string[], manualNames: Set<string>): string {
   if (names.length <= 15) return names.map((name) => buildPdfNameSingle(name, manualNames)).join("\n");
@@ -168,10 +167,8 @@ function buildPdfHtml(p: {
 }): string {
   const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
   const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
-  const manualCount = p.both.concat(p.examOnly, p.hwOnly).filter((name) => manualNameSet.has(name.trim())).length;
-  const tipText = manualCount > 0
-    ? "아래 학생들은 클리닉 수업 대상입니다. 수동 표시는 선생님이 재량으로 지정한 대상입니다."
-    : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
+  // 수동 지정 여부는 학생에게 노출하지 않음 — 음영만으로 선생님이 식별
+  const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
   const sub = [p.lectureTitle, p.sessionTitle].filter(Boolean).map(escapeHtml).join(" &nbsp;|&nbsp; ");
 
   const scheduleContent = p.schedule
@@ -189,7 +186,7 @@ function buildPdfHtml(p: {
     <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${p.hwOnly.length > 0 ? buildPdfNameItems(p.hwOnly, manualNameSet) : emptyCell()}</div></div>
   </div>
   <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
-  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent ?? clinicTotal}명${manualCount > 0 ? ` / 수동 지정 ${manualCount}명` : ""}</div><div class="footer-right">${escapeHtml(p.date)}</div></div>
+  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent ?? clinicTotal}명</div><div class="footer-right">${escapeHtml(p.date)}</div></div>
 </div></body></html>`;
 }
 
