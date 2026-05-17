@@ -13,10 +13,12 @@ export type ParsedClinicData = {
 
 const ATTENDANCE = ["현장", "온라인", "조퇴", "결석", "보강", "미정", "지각", "영상", "출튀", "자료", "부재", "퇴원"];
 const SCORE_RE = /^(\d+(?:\.\d+)?)점$/;
-const PCT_RE = /^(\d+)%$/;
-const STATUS_VALS = ["진행중", "완료", "미완료", "-"];
-const INCOMPLETE_STATUS_VALS = new Set(["진행중", "미완료"]);
+const PCT_RE = /^(\d+(?:\.\d+)?)%$/;
+const STATUS_VALS = ["진행", "진행중", "완료", "미완료", "-"];
+const INCOMPLETE_STATUS_VALS = new Set(["진행", "진행중", "미완료"]);
 const NAME_RE = /^[가-힣]{2,5}[A-Za-z0-9]?$/;
+const RETRY_COUNT_RE = /^\+\d+$/;
+const PRESENT_ATTENDANCE = new Set(["현장", "지각", "조퇴"]);
 
 /** 미제출/미응시 — 유효한 성적 값으로 인식해야 함 (이전엔 인식 못해 파싱 중단됨) */
 const SPECIAL_VALS = ["미제출", "미응시"];
@@ -26,7 +28,8 @@ const isSpecialVal = (v: string) => SPECIAL_VALS.includes(v);
 const UI_NOISE = new Set([
   "숨김", "공개", "전체", "현장", "영상", "부재", "미정", "검색어",
   "이름", "출석", "날짜", "강의", "학생", "클리닉", "상담", "공지",
-  "메시지", "관리자", "완료", "진행중", "미완료", "질의응답",
+  "메시지", "관리자", "완료", "진행", "진행중", "미완료", "질의응답",
+  "New", "동시 정렬 기능",
 ]);
 
 /** 텍스트에서 탭 구분 행 → 라인별로 전개 */
@@ -75,7 +78,7 @@ function tryCategoryFormat(lines: string[]): ParsedClinicData | null {
   };
 }
 
-type Assessment = { isExam: boolean; isHw: boolean; status: string };
+type Assessment = { isExam: boolean; isHw: boolean; isDash: boolean; status: string };
 
 function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   // ── 메타데이터 추출 ──
@@ -108,12 +111,13 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
 
     const attendance = lines[i];
 
-    // 이미 파싱된 학생의 이름이면 스킵 (중복 방지)
-    if (rawStudents.some((s) => s.name === name)) continue;
-
     const assessments: RawAssessment[] = [];
     let j = i + 1;
     while (j + 1 < lines.length) {
+      if (RETRY_COUNT_RE.test(lines[j])) {
+        j++;
+        continue;
+      }
       const val = lines[j];
       const st = lines[j + 1];
       const isScore = SCORE_RE.test(val);
@@ -149,12 +153,13 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
     attendance: rs.attendance,
     assessments: rs.assessments.map((a, idx) => {
       // 실제 점수가 있으면 그대로 사용
-      if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, status: a.status };
+      if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, isDash: false, status: a.status };
       // "-" 또는 "미제출"/"미응시"인 경우 컬럼 타입으로 보정
       const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
       // 미제출/미응시는 무조건 "진행중"(미통과)으로 판정
-      const effectiveStatus = a.isSpecial ? "진행중" : a.status;
-      return { isExam: ct === "exam", isHw: ct === "hw", status: effectiveStatus };
+      // "-"는 해당 행/열에 적용할 데이터가 없다는 뜻이라 "진행"이 붙어도 미통과로 보지 않는다.
+      const effectiveStatus = a.isSpecial ? "진행중" : a.isDash ? "-" : a.status;
+      return { isExam: ct === "exam", isHw: ct === "hw", isDash: a.isDash, status: effectiveStatus };
     }),
   }));
 
@@ -165,16 +170,16 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   let presentCount = 0;
 
   for (const s of students) {
-    if (s.attendance !== "현장" && s.attendance !== "지각") continue;
+    if (!PRESENT_ATTENDANCE.has(s.attendance)) continue;
     presentCount++;
 
     // 미입력 학생 제외: 모든 항목이 대시+대시("-"/"-")면 안 온 학생
     const allDashDash = s.assessments.length > 0 &&
-      s.assessments.every((a) => a.status === "-");
+      s.assessments.every((a) => a.isDash || a.status === "-");
     if (allDashDash) continue;
 
-    const examFailed = s.assessments.some((a) => a.isExam && INCOMPLETE_STATUS_VALS.has(a.status));
-    const hwFailed = s.assessments.some((a) => a.isHw && INCOMPLETE_STATUS_VALS.has(a.status));
+    const examFailed = s.assessments.some((a) => !a.isDash && a.isExam && INCOMPLETE_STATUS_VALS.has(a.status));
+    const hwFailed = s.assessments.some((a) => !a.isDash && a.isHw && INCOMPLETE_STATUS_VALS.has(a.status));
 
     if (examFailed && hwFailed) both.push(s.name);
     else if (examFailed) examOnly.push(s.name);
