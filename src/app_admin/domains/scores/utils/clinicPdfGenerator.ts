@@ -92,29 +92,35 @@ export const BASE_STYLE = `
 
   /* 1명/줄 (15명 이하) */
   .name-row.single {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: flex-start; gap: 6px;
     padding: 8px 12px;
     font-size: 18px; font-weight: 700;
     color: #111;
-    line-height: 1.4; white-space: nowrap;
+    line-height: 1.4; white-space: normal;
     text-align: left;
   }
 
   /* 2명/줄 (16명 이상) */
   .name-cell {
     flex: 1;
-    display: flex; align-items: center; gap: 6px;
+    min-width: 0;
+    display: flex; align-items: flex-start; gap: 6px;
     padding: 6px 8px;
     font-size: 16px; font-weight: 700;
     color: #111;
     line-height: 1.4;
-    white-space: nowrap;
+    white-space: normal;
     text-align: left;
   }
   .name-text {
-    flex: 1; min-width: 0;
+    flex: 1 1 auto; min-width: 0;
     text-align: center;
-    overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .checkbox {

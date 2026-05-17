@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "./helpers/auth";
+import { installLocalAuthApiStubs, installTenantOneInitScript } from "./helpers/localAuthApiStubs";
 
 const TS = Date.now();
 
 test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () => {
   test("single column: 수동 텍스트 딱지 없음 + 옅은 음영만", async ({ page }) => {
+    await installLocalAuthApiStubs(page);
+    await installTenantOneInitScript(page);
     await loginViaUI(page, "admin");
     await page.goto(`${getBaseUrl("admin")}/admin/tools/clinic`, { waitUntil: "load" });
 
@@ -45,6 +48,8 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
   });
 
   test("2-column(>15): 딱지 제거로 줄바꿈 깨짐 없음", async ({ page }) => {
+    await installLocalAuthApiStubs(page);
+    await installTenantOneInitScript(page);
     await loginViaUI(page, "admin");
     await page.goto(`${getBaseUrl("admin")}/admin/tools/clinic`, { waitUntil: "load" });
 
