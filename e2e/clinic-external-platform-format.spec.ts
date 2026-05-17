@@ -375,5 +375,19 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
     await expect(frame.locator(".columns")).not.toContainText("강민채");
     await expect(frame.locator('[data-field="both"]')).toContainText("안수빈");
     await expect(frame.locator('[data-field="hwOnly"]')).toContainText("권유나");
+
+    await mkdir("e2e-out", { recursive: true });
+    await frame.locator(".page").screenshot({ path: `e2e-out/clinic-external-format-target-label-${TS}.png` });
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 90_000 }),
+      page.getByRole("button", { name: "PDF 다운로드" }).click(),
+    ]);
+    const pdfPath = path.resolve("e2e-out", `clinic-external-format-target-label-${TS}.pdf`);
+    await download.saveAs(pdfPath);
+
+    const pdf = await readFile(pdfPath);
+    expect(pdf.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(20_000);
   });
 });
