@@ -151,14 +151,15 @@ export default function VideoPlayerPage() {
       return { video: null, boot: null, loadError: "재생 정보 형식이 올바르지 않습니다." };
     }
 
-    const v: VideoMetaLite & { session_id?: number; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
+    const sessionIdValue = vd.session_id == null ? null : Number(vd.session_id);
+    const v: VideoMetaLite & { session_id?: number | null; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
       id: Number(vd.id),
       title: String(vd.title ?? "영상"),
       duration: vd.duration == null ? null : Number(vd.duration),
       status: String(vd.status ?? ""),
       thumbnail_url: vd.thumbnail_url ?? null,
       hls_url: playbackData.hls_url ?? null,
-      session_id: Number(vd.session_id),
+      session_id: Number.isFinite(sessionIdValue) ? sessionIdValue : null,
       last_position: vd.last_position ?? 0,
       view_count: vd.view_count ?? 0,
       like_count: vd.like_count ?? 0,

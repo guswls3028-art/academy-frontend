@@ -43,7 +43,7 @@ export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
 
 export type StudentVideoListItem = {
   id: number;
-  session_id: number;
+  session_id: number | null;
   title: string;
   status: string;
   thumbnail_url?: string | null;
