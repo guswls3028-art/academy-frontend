@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { mkdir, readFile } from "fs/promises";
 import path from "path";
 import { getBaseUrl, loginViaUI } from "./helpers/auth";
@@ -13,7 +13,7 @@ function createE2eJwt(): string {
   return `e30.${payload}.e2e`;
 }
 
-async function installClinicToolLocalApiFallbacks(page: Parameters<typeof installLocalAuthApiStubs>[0], access: string) {
+async function installClinicToolLocalApiFallbacks(page: Page, access: string) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     if (request.method() === "OPTIONS") {
@@ -85,6 +85,31 @@ async function installClinicToolLocalApiFallbacks(page: Parameters<typeof instal
     const emptyListPayload = { count: 0, next: null, previous: null, results: [] };
     await route.fulfill({ status: 200, contentType: "application/json", json: emptyListPayload });
   });
+}
+
+async function openClinicTool(page: Page) {
+  const baseUrl = getBaseUrl("admin");
+  const isLocal = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl);
+  const localAccessToken = createE2eJwt();
+
+  await installLocalAuthApiStubs(page);
+  await installTenantOneInitScript(page);
+  if (isLocal) {
+    await installClinicToolLocalApiFallbacks(page, localAccessToken);
+    await page.addInitScript((access) => {
+      localStorage.setItem("access", access);
+      localStorage.setItem("refresh", "e2e-local-refresh");
+      localStorage.setItem("tenant_code", "hakwonplus");
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+    }, localAccessToken);
+  } else {
+    await loginViaUI(page, "admin");
+  }
+
+  await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
+  await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await expect(page.locator("#clinic-paste-ta")).toBeEditable({ timeout: 15_000 });
 }
 
 const EXTERNAL_PLATFORM_PASTE = `강의
@@ -264,30 +289,38 @@ const EXTERNAL_PLATFORM_PASTE = `강의
 New
 동시 정렬 기능`;
 
+const EXTERNAL_PLATFORM_PASTE_WITH_TARGET_LABEL = EXTERNAL_PLATFORM_PASTE
+  .replace(
+    `전체
+10명
+현장
+7명
+지각
+1명
+영상
+1명
+조퇴
+1명`,
+    `전체
+75명
+현장
+69명
+영상
+5명
+조퇴
+1명`,
+  )
+  .replace(
+    `검색어 입력 (초성 검색 가능)
+이름`,
+    `검색어 입력 (초성 검색 가능)
+75명을 대상으로
+이름`,
+  );
+
 test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", () => {
   test("진행/+1 형식과 동명이인을 파싱하고 실제 PDF를 내려받는다", async ({ page }) => {
-    const baseUrl = getBaseUrl("admin");
-    const isLocal = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl);
-    const localAccessToken = createE2eJwt();
-
-    await installLocalAuthApiStubs(page);
-    await installTenantOneInitScript(page);
-    if (isLocal) {
-      await installClinicToolLocalApiFallbacks(page, localAccessToken);
-      await page.addInitScript((access) => {
-        localStorage.setItem("access", access);
-        localStorage.setItem("refresh", "e2e-local-refresh");
-        localStorage.setItem("tenant_code", "hakwonplus");
-        sessionStorage.setItem("tenantCode", "hakwonplus");
-      }, localAccessToken);
-    } else {
-      await loginViaUI(page, "admin");
-    }
-
-    await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
-    await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-    await expect(page.locator("#clinic-paste-ta")).toBeEditable({ timeout: 15_000 });
+    await openClinicTool(page);
 
     await page.locator("#clinic-paste-ta").fill(EXTERNAL_PLATFORM_PASTE);
     await page.getByRole("button", { name: "생성", exact: true }).click();
@@ -325,5 +358,22 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
     const pdf = await readFile(pdfPath);
     expect(pdf.subarray(0, 5).toString("utf8")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(20_000);
+  });
+
+  test("75명을 대상으로 안내문과 헤더 출석 합계를 함께 처리한다", async ({ page }) => {
+    await openClinicTool(page);
+
+    await page.locator("#clinic-paste-ta").fill(EXTERNAL_PLATFORM_PASTE_WITH_TARGET_LABEL);
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+
+    const frame = page.frameLocator("#cprev");
+    await expect(frame.locator(".section-header.both")).toContainText("(5명)", { timeout: 8000 });
+    await expect(frame.locator(".section-header.exam")).toContainText("(0명)");
+    await expect(frame.locator(".section-header.hw")).toContainText("(3명)");
+    await expect(frame.locator(".footer-left")).toContainText("클리닉 대상 8명 / 전체 출석 70명");
+    await expect(frame.locator(".columns")).not.toContainText("75명을 대상으로");
+    await expect(frame.locator(".columns")).not.toContainText("강민채");
+    await expect(frame.locator('[data-field="both"]')).toContainText("안수빈");
+    await expect(frame.locator('[data-field="hwOnly"]')).toContainText("권유나");
   });
 });

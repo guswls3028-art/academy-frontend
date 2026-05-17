@@ -31,6 +31,7 @@ const UI_NOISE = new Set([
   "메시지", "관리자", "완료", "진행", "진행중", "미완료", "질의응답",
   "New", "동시 정렬 기능",
 ]);
+const isUiNoise = (v: string) => UI_NOISE.has(v) || /^\d+명을 대상으로$/.test(v);
 
 /** 텍스트에서 탭 구분 행 → 라인별로 전개 */
 function expandTabs(text: string): string[] {
@@ -47,6 +48,19 @@ function expandTabs(text: string): string[] {
     }
   }
   return out;
+}
+
+function parseHeaderPresentCount(lines: string[]): number | null {
+  let total = 0;
+  let found = false;
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (!PRESENT_ATTENDANCE.has(lines[i])) continue;
+    const m = lines[i + 1].match(/^(\d+)명$/);
+    if (!m) continue;
+    total += Number(m[1]);
+    found = true;
+  }
+  return found ? total : null;
 }
 
 /** "시험+과제: 이름1, 이름2" 형태의 카테고리 리스트 감지 */
@@ -85,6 +99,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   let sessionTitle = "";
   let lectureTitle = "";
   let date = "";
+  const headerPresentCount = parseHeaderPresentCount(lines);
   for (let i = 0; i < lines.length; i++) {
     if (!sessionTitle && /^20\d{2}\s/.test(lines[i]) && /[가-힣]/.test(lines[i])) {
       sessionTitle = lines[i];
@@ -107,7 +122,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
 
     const name = lines[i - 1];
     // UI 노이즈 차단: "공개", "숨김" 등 복붙 시 포함되는 텍스트는 이름 아님
-    if (UI_NOISE.has(name)) continue;
+    if (isUiNoise(name)) continue;
 
     const attendance = lines[i];
 
@@ -191,12 +206,12 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   sort(examOnly);
   sort(hwOnly);
 
-  return { both, examOnly, hwOnly, sessionTitle, lectureTitle, date, totalPresent: presentCount };
+  return { both, examOnly, hwOnly, sessionTitle, lectureTitle, date, totalPresent: headerPresentCount ?? presentCount };
 }
 
 /** 단순 이름 목록 (한 줄에 한 명) → 전부 "시험+과제"로 분류 */
 function parseSimpleNameList(lines: string[]): ParsedClinicData {
-  const names = lines.filter((l) => NAME_RE.test(l) && !UI_NOISE.has(l) && !SPECIAL_VALS.includes(l));
+  const names = lines.filter((l) => NAME_RE.test(l) && !isUiNoise(l) && !SPECIAL_VALS.includes(l));
   if (names.length === 0) return { both: [], examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: 0 };
   names.sort((a, b) => a.localeCompare(b, "ko"));
   return { both: names, examOnly: [], hwOnly: [], sessionTitle: "", lectureTitle: "", date: "", totalPresent: names.length };
