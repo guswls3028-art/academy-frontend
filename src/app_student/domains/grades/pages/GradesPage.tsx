@@ -6,13 +6,14 @@
 import { useState } from "react";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
+import { IconGrade } from "@student/shared/ui/icons/Icons";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import GradesStatsTab from "../components/GradesStatsTab";
 
 const TABS = [
-  { key: "home", label: "홈" },
-  { key: "stats", label: "통계" },
+  { key: "home", label: "요약" },
+  { key: "stats", label: "추이 분석" },
 ];
 
 export default function GradesPage() {
@@ -21,9 +22,22 @@ export default function GradesPage() {
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
   const labels = data?.labels;
+  const shellTitle = tab === "stats" ? "성장 그래프" : "성적 보드";
+  const shellDescription =
+    tab === "stats"
+      ? "시험과 과제 결과가 어떤 방향으로 움직이는지 확인합니다."
+      : "최근 시험, 과제, 통과 여부를 학생 기준으로 정리합니다.";
 
   return (
-    <DomainTabShell title="성적" tabs={TABS} activeTab={tab} onTabChange={setTab}>
+    <DomainTabShell
+      title={shellTitle}
+      eyebrow="학습 결과"
+      description={shellDescription}
+      icon={<IconGrade />}
+      tabs={TABS}
+      activeTab={tab}
+      onTabChange={setTab}
+    >
       {isLoading && <Skeletons />}
 
       {isError && (
@@ -47,15 +61,15 @@ export default function GradesPage() {
 
 function Skeletons() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-      <div className="stu-skel" style={{ height: 44, borderRadius: "var(--stu-radius)" }} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--stu-space-4)" }}>
-        <div className="stu-skel" style={{ height: 68, borderRadius: "var(--stu-radius)" }} />
-        <div className="stu-skel" style={{ height: 68, borderRadius: "var(--stu-radius)" }} />
-        <div className="stu-skel" style={{ height: 68, borderRadius: "var(--stu-radius)" }} />
+    <div className="stu-skel-stack">
+      <div className="stu-skel stu-skel--xs" />
+      <div className="stu-skel-grid-3">
+        <div className="stu-skel stu-skel--md" />
+        <div className="stu-skel stu-skel--md" />
+        <div className="stu-skel stu-skel--md" />
       </div>
-      <div className="stu-skel" style={{ height: 160, borderRadius: "var(--stu-radius)" }} />
-      <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+      <div className="stu-skel stu-skel--xl" />
+      <div className="stu-skel stu-skel--lg" />
     </div>
   );
 }

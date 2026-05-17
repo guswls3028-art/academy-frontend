@@ -6,12 +6,13 @@
 import { useState, useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
+import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { fetchVideoMe } from "../api/video.api";
 import VideoHomeTab from "../components/VideoHomeTab";
 import VideoStatsTab from "../components/VideoStatsTab";
 
 const TABS = [
-  { key: "home", label: "홈" },
+  { key: "home", label: "강의" },
   { key: "stats", label: "통계" },
 ];
 
@@ -31,22 +32,31 @@ export default function VideoHomePage() {
   });
 
   return (
-    <DomainTabShell title="영상" tabs={TABS} activeTab={tab} onTabChange={setTab}>
-      {isLoading && videoMe == null && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
-          <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
-        </div>
-      )}
+    <div className="video-page-content">
+      <DomainTabShell
+        title="영상"
+        variant="plain"
+        icon={<IconPlay aria-hidden="true" />}
+        tabs={TABS}
+        activeTab={tab}
+        onTabChange={setTab}
+      >
+        {isLoading && videoMe == null && (
+          <div className="stu-skel-stack stu-skel-stack--loose">
+            <div className="stu-skel stu-skel--xxl" />
+            <div className="stu-skel stu-skel--xxl" />
+          </div>
+        )}
 
-      {!isLoading && tab === "home" && (
-        <VideoHomeTab
-          lectures={videoMe?.lectures ?? []}
-          publicData={videoMe?.public ?? null}
-        />
-      )}
+        {!isLoading && tab === "home" && (
+          <VideoHomeTab
+            lectures={videoMe?.lectures ?? []}
+            publicData={videoMe?.public ?? null}
+          />
+        )}
 
-      {tab === "stats" && <VideoStatsTab />}
-    </DomainTabShell>
+        {tab === "stats" && <VideoStatsTab />}
+      </DomainTabShell>
+    </div>
   );
 }

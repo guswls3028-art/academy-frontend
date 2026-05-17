@@ -145,7 +145,7 @@ export default function LandingGuidePage() {
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px" }}>더 자세히 알아보기</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             <Link to="/landing/about" style={pillStyle(primary, isDark)}>학원 소개 →</Link>
-            <Link to="/landing/matchup-board" style={pillStyle(primary, isDark)}>적중 보고서 →</Link>
+            <Link to="/landing/reports" style={pillStyle(primary, isDark)}>적중 보고서 →</Link>
             <Link to="/landing#contact" style={pillStyle(primary, isDark)}>상담 문의 →</Link>
           </div>
         </div>

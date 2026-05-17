@@ -1,5 +1,48 @@
 /* 성적 입력 페이지 — 편집할 항목 선택 · 시험 점수 표시 (DS 토큰 기반) */
 
+.scores-entry-page {
+  --scores-ui-border: color-mix(in srgb, var(--color-border-divider) 78%, transparent);
+  --scores-ui-soft: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface));
+}
+
+.scores-entry-page .domain-list-toolbar {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--scores-ui-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, var(--color-primary)) 0%, var(--color-bg-surface) 100%);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.scores-entry-page .domain-list-toolbar > div:first-child {
+  gap: var(--space-2) var(--space-3);
+}
+
+.scores-entry-page .domain-list-toolbar .ds-input {
+  min-height: 34px;
+  border-color: var(--scores-ui-border);
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+
+.scores-entry-page .domain-list-toolbar .ds-button {
+  box-shadow: none;
+}
+
+.scores-entry-page .domain-list-toolbar .ds-button:hover:not(:disabled):not([data-disabled="true"]) {
+  transform: none;
+}
+
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"],
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="ghost"] {
+  border-color: var(--scores-ui-border);
+}
+
+.scores-entry-page .domain-list-toolbar .ds-button:disabled,
+.scores-entry-page .domain-list-toolbar .ds-button[data-disabled="true"] {
+  opacity: 0.48;
+}
+
 /* ── 편집 모드: 한 줄 액션 바 ── */
 .scores-edit-bar {
   display: flex;
@@ -122,23 +165,23 @@
 .scores-display-segment {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 2px;
   border-radius: var(--radius-md);
   padding: 2px;
-  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
-  border: 1px solid var(--color-border-divider);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  background: color-mix(in srgb, var(--color-border-divider) 7%, var(--color-bg-surface));
+  border: 1px solid var(--scores-ui-border, var(--color-border-divider));
+  box-shadow: none;
 }
 
 .scores-display-segment__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-sm, 32px);
-  padding: 0 var(--space-4);
-  min-width: 80px;
+  min-height: 26px;
+  padding: 0 var(--space-3);
+  min-width: 64px;
 
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
   border: none;
@@ -151,14 +194,15 @@
 
 .scores-display-segment__btn:hover {
   color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
 }
 
 .scores-display-segment__btn[aria-pressed="true"] {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-bg-surface));
-  border: 1px solid var(--color-brand-primary);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+  color: var(--color-brand-primary);
+  background: var(--color-bg-surface);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 28%, transparent),
+    0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .scores-display-segment__btn:focus-visible {
@@ -242,6 +286,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 70%, transparent);
 }
 
 .scores-selection-bar__row,
@@ -249,12 +296,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  padding-left: var(--space-1);
+  gap: var(--space-2);
+  padding-left: 0;
 }
 
 .scores-selection-bar__options {
   padding-top: var(--space-1);
+  padding-left: var(--space-1);
 }
 
 .scores-toolbar-actions,
@@ -262,10 +310,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .scores-draft-status {
   white-space: nowrap;
+  padding-inline: var(--space-1);
 }
 
 @media (max-width: 1023px) {

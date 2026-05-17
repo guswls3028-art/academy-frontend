@@ -13,7 +13,10 @@ export type DomainTab = {
 
 type DomainTabShellProps = {
   title: string;
+  eyebrow?: string;
   description?: string;
+  icon?: ReactNode;
+  variant?: "default" | "plain";
   tabs: DomainTab[];
   activeTab: string;
   onTabChange: (key: string) => void;
@@ -25,7 +28,10 @@ type DomainTabShellProps = {
 
 export default function DomainTabShell({
   title,
+  eyebrow,
   description,
+  icon,
+  variant = "default",
   tabs,
   activeTab,
   onTabChange,
@@ -34,6 +40,9 @@ export default function DomainTabShell({
   noSearchParam,
 }: DomainTabShellProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label ?? tabs[0]?.label ?? "";
+  const fallbackInitial = title.trim().slice(0, 1) || "?";
+  const showMark = variant !== "plain" || icon != null;
 
   // ?tab= searchParam → 초기 탭 동기화
   useEffect(() => {
@@ -66,38 +75,27 @@ export default function DomainTabShell({
   };
 
   return (
-    <div>
-      {/* 헤더 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 4,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</div>
-          {description && (
-            <div className="stu-muted" style={{ marginTop: 4 }}>
-              {description}
-            </div>
-          )}
-        </div>
-        {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
-      </div>
+    <div className={`domain-tab-shell domain-tab-shell--${variant}`}>
+      <header className="domain-tab-shell__header">
+        {showMark && (
+          <div className="domain-tab-shell__mark" aria-hidden="true">
+            {icon ?? <span className="domain-tab-shell__initial">{fallbackInitial}</span>}
+          </div>
+        )}
 
-      {/* 탭 바 — 프리미엄: 글자 하단 짧은 인디케이터 */}
+        <div className="domain-tab-shell__copy">
+          {eyebrow && <div className="domain-tab-shell__eyebrow">{eyebrow}</div>}
+          <h1 className="domain-tab-shell__title">{title}</h1>
+          {description && <p className="domain-tab-shell__description">{description}</p>}
+        </div>
+
+        {actions && <div className="domain-tab-shell__actions">{actions}</div>}
+      </header>
+
       <div
         role="tablist"
-        style={{
-          display: "flex",
-          gap: 4,
-          borderBottom: "1px solid var(--stu-border)",
-          marginBottom: "var(--stu-space-5)",
-          marginTop: "var(--stu-space-2)",
-        }}
+        className="domain-tab-shell__tabs"
+        aria-label={`${title} 보기 전환`}
       >
         {tabs.map((tab) => {
           const isActive = tab.key === activeTab;
@@ -108,42 +106,15 @@ export default function DomainTabShell({
               role="tab"
               aria-selected={isActive}
               onClick={() => handleTabChange(tab.key)}
-              style={{
-                position: "relative",
-                flex: "0 0 auto",
-                padding: "10px 14px",
-                background: "transparent",
-                border: "none",
-                fontWeight: isActive ? 700 : 500,
-                fontSize: 14,
-                color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
-                cursor: "pointer",
-                transition: "color var(--stu-motion-base)",
-              }}
+              className={`domain-tab-shell__tab${isActive ? " domain-tab-shell__tab--active" : ""}`}
             >
               {tab.label}
-              {isActive && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    bottom: -1,
-                    transform: "translateX(-50%)",
-                    width: "calc(100% - 20px)",
-                    height: 2,
-                    background: "var(--stu-primary)",
-                    borderRadius: 2,
-                  }}
-                />
-              )}
             </button>
           );
         })}
       </div>
 
-      {/* 콘텐츠 */}
-      <div className="stu-section" role="tabpanel">
+      <div className="domain-tab-shell__content" role="tabpanel" aria-label={activeTabLabel}>
         {children}
       </div>
     </div>

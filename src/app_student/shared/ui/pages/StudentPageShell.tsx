@@ -21,6 +21,7 @@ export default function StudentPageShell({
   noSectionFrame?: boolean;
 }) {
   const navigate = useNavigate();
+  const hasHeader = Boolean(title || description || actions || onBack);
 
   const handleBack = () => {
     if (onBack) {
@@ -31,39 +32,32 @@ export default function StudentPageShell({
   };
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          {onBack && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="stu-back-btn"
-              style={{ marginBottom: 10 }}
-            >
-              <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} />
-              <span>뒤로</span>
-            </button>
-          )}
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</div>
-          {description && (
-            <div className="stu-muted" style={{ marginTop: 4 }}>
-              {description}
-            </div>
-          )}
-        </div>
-        {actions && <div>{actions}</div>}
-      </div>
+    <div className="student-page-shell">
+      {hasHeader && (
+        <header className="student-page-shell__header">
+          <div className="student-page-shell__copy">
+            {onBack && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="stu-back-btn student-page-shell__back"
+              >
+                <IconChevronRight className="student-page-shell__back-icon" />
+                <span>뒤로</span>
+              </button>
+            )}
+            {title && <h1 className="student-page-shell__title">{title}</h1>}
+            {description && (
+              <p className="student-page-shell__description">
+                {description}
+              </p>
+            )}
+          </div>
+          {actions && <div className="student-page-shell__actions">{actions}</div>}
+        </header>
+      )}
 
-      <div className={noSectionFrame ? "stu-section stu-section--video-page" : "stu-section"}>
+      <div className={`${noSectionFrame ? "stu-section stu-section--video-page" : "stu-section"} student-page-shell__section`}>
         {children}
       </div>
     </div>

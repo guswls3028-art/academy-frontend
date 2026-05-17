@@ -1,5 +1,6 @@
 // PATH: src/app_student/domains/video/playback/player/design/ui.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { clamp } from "./utils";
 import "./ui.css";
@@ -113,6 +114,10 @@ export type MenuItem = {
   label: string;
   onClick: () => void;
 };
+
+function floatingMenuStyle(pos: { bottom: number; right: number }): CSSProperties {
+  return { bottom: pos.bottom, right: pos.right };
+}
 
 export function KebabMenu({
   label,
@@ -234,7 +239,7 @@ export function SpeedButton({
         <div
           ref={menuRef}
           className="svpSpeedMenu"
-          style={{ position: "fixed", bottom: pos.bottom, right: pos.right, zIndex: 9999 }}
+          style={floatingMenuStyle(pos)}
         >
           {speeds.filter((r) => r <= 3).map((r) => (
             <button
@@ -244,7 +249,7 @@ export function SpeedButton({
               onClick={() => { onSelect(r); setOpen(false); }}
             >
               <span>{r}x</span>
-              {Math.abs(r - rate) < 0.001 && <span className="svpSpeedCheck">✓</span>}
+              {Math.abs(r - rate) < 0.001 && <span className="svpSpeedCheck" aria-label="선택됨" />}
             </button>
           ))}
         </div>,
@@ -321,7 +326,7 @@ export function QualityButton({
         <div
           ref={menuRef}
           className="svpSpeedMenu"
-          style={{ position: "fixed", bottom: pos.bottom, right: pos.right, zIndex: 9999 }}
+          style={floatingMenuStyle(pos)}
         >
           {qualities.map((q) => (
             <button
@@ -331,7 +336,7 @@ export function QualityButton({
               onClick={() => { onSelect(q.index); setOpen(false); }}
             >
               <span>{q.label}</span>
-              {q.index === current && <span className="svpSpeedCheck">✓</span>}
+              {q.index === current && <span className="svpSpeedCheck" aria-label="선택됨" />}
             </button>
           ))}
         </div>,

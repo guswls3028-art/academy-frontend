@@ -2,6 +2,7 @@
 // 프리미엄 SaaS 인강 느낌의 코스 카드 컴포넌트
 
 import { memo } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { IconPlay, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
@@ -32,51 +33,16 @@ function CourseCard({
   to,
   onClick,
 }: CourseCardProps) {
-  const baseStyle = {
-    display: "block",
-    width: "100%",
-    textAlign: "left" as const,
-    borderRadius: 12,
-    overflow: "hidden",
-    background: "var(--stu-surface)",
-    border: "1px solid var(--stu-border)",
-    boxShadow: "var(--stu-shadow-1)",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
-    cursor: "pointer",
-    position: "relative" as const,
-  };
-  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = "translateY(-6px)";
-    e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)";
-    e.currentTarget.style.borderColor = "var(--stu-border-strong)";
-  };
-  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = "translateY(0)";
-    e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
-    e.currentTarget.style.borderColor = "var(--stu-border)";
-  };
-  const handleMouseDown = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = "translateY(-3px) scale(0.98)";
-  };
-  const handleMouseUp = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.transform = "translateY(-6px)";
-  };
+  const progressStyle = { "--course-progress": `${progress}%` } as CSSProperties;
 
   const inner = (
     <>
       {/* 썸네일 영역 */}
       <div
-        className="media-tile__thumb"
-        style={{
-          position: "relative",
-          background: "var(--stu-surface-soft)",
-          zIndex: 0,
-          aspectRatio: "16 / 9",
-          overflow: "hidden",
-        }}
+        className="media-tile__thumb media-tile__thumb--course"
       >
         {thumbnailUrl ? (
-          <div style={{ width: "100%", height: "100%", position: "relative" }}>
+          <div className="media-tile__thumb-inner">
             <VideoThumbnailWrapper
               title={title}
               thumbnail_url={thumbnailUrl}
@@ -84,119 +50,41 @@ function CourseCard({
             />
           </div>
         ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--stu-gradient, linear-gradient(135deg, #6b7280, #4b5563))",
-            }}
-          >
-            <IconPlay style={{ width: 48, height: 48, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
+          <div className="media-tile__fallback">
+            <IconPlay className="media-tile__fallback-icon" />
           </div>
         )}
 
-        {/* YouTube-style 영상 갯수 오버레이 */}
+        {/* 콘텐츠 수 오버레이 */}
         {videoCount > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              right: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
-              background: "rgba(0,0,0,0.82)",
-              borderTopLeftRadius: 6,
-              fontSize: 11,
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.95)",
-              letterSpacing: 0.2,
-              zIndex: 2,
-              pointerEvents: "none",
-            }}
-          >
-            <IconChevronRight style={{ width: 12, height: 12, opacity: 0.8 }} />
-            {videoCount}개 영상
+          <div className="media-tile__count">
+            <IconChevronRight className="media-tile__count-icon" />
+            {videoCount}
           </div>
         )}
 
         {/* 진행률 바 */}
         {progress > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: "rgba(0,0,0,0.3)",
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                width: `${progress}%`,
-                background: "var(--stu-primary)",
-                transition: "width 0.3s ease",
-              }}
-            />
+          <div className="media-tile__progress">
+            <div className="media-tile__progress-fill" style={progressStyle} />
           </div>
         )}
 
         {/* 뱃지 */}
         {(isNew || isContinue || isCompleted) && (
-          <div
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              display: "flex",
-              gap: 4,
-            }}
-          >
+          <div className="media-tile__badges">
             {isNew && (
-              <span
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  background: "var(--stu-danger)",
-                  color: "var(--stu-primary-contrast)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                }}
-              >
+              <span className="media-tile__badge media-tile__badge--new">
                 NEW
               </span>
             )}
             {isContinue && (
-              <span
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  background: "var(--stu-primary)",
-                  color: "var(--stu-primary-contrast)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
+              <span className="media-tile__badge media-tile__badge--continue">
                 이어보기
               </span>
             )}
             {isCompleted && (
-              <span
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  background: "var(--stu-success)",
-                  color: "var(--stu-primary-contrast)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
+              <span className="media-tile__badge media-tile__badge--completed">
                 완료
               </span>
             )}
@@ -205,20 +93,13 @@ function CourseCard({
       </div>
 
       {/* 정보 영역 */}
-      <div style={{ marginTop: 6, padding: "0 4px 8px", position: "relative", zIndex: 1 }}>
-        <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)" }}>
+      <div className="media-tile__content">
+        <div className="media-tile__title media-tile__title--course">
           {title}
         </div>
         {(videoCount > 0 || (totalDuration != null && totalDuration > 0)) && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--stu-text-muted)",
-              marginTop: 2,
-              fontWeight: 500,
-            }}
-          >
-            {videoCount > 0 && `${videoCount}개 영상`}
+          <div className="media-tile__meta">
+            {videoCount > 0 && `영상 ${videoCount}개`}
             {videoCount > 0 && totalDuration != null && totalDuration > 0 && " · "}
             {totalDuration != null && totalDuration > 0 && formatDuration(totalDuration)}
           </div>
@@ -232,12 +113,7 @@ function CourseCard({
       <button
         type="button"
         onClick={onClick}
-        className="media-tile"
-        style={baseStyle}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        className="media-tile media-tile--course"
       >
         {inner}
       </button>
@@ -247,12 +123,7 @@ function CourseCard({
   return (
     <Link
       to={to}
-      className="media-tile"
-      style={{ ...baseStyle, textDecoration: "none", color: "inherit" }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
+      className="media-tile media-tile--course"
     >
       {inner}
     </Link>

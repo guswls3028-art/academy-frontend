@@ -1,0 +1,117 @@
+.student-name-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.student-name-chip__avatar {
+  flex-shrink: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+  font-size: var(--text-xs, 12px);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.student-name-chip__avatar--20 {
+  width: 20px;
+  height: 20px;
+}
+
+.student-name-chip__avatar--24 {
+  width: 24px;
+  height: 24px;
+}
+
+.student-name-chip__avatar--28 {
+  width: 28px;
+  height: 28px;
+}
+
+.student-name-chip__avatar--32 {
+  width: 32px;
+  height: 32px;
+}
+
+.student-name-chip__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.student-name-chip__body {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.student-name-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.student-name-chip--stacked {
+  width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.student-name-chip--stacked .student-name-chip__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.student-name-chip--stacked .student-name-chip__name {
+  max-width: 100%;
+  line-height: 1.25;
+}
+
+.student-name-chip__lecture-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.student-name-chip__lecture-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta, 12px);
+  line-height: 1.15;
+}
+
+.student-name-chip__lecture-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--color-brand-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-surface) 90%, transparent);
+}
+
+.student-name-chip__lecture-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

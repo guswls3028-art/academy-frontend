@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-import { IconPlus, IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { IconPlus, IconChevronRight, IconBoard } from "@student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import DOMPurify from "dompurify";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
@@ -32,6 +32,7 @@ import {
   type PostAttachment,
   type Answer,
 } from "../api/community.api";
+import "./CommunityPage.css";
 
 // ─── Types ───
 type Tab = "notice" | "board" | "materials" | "qna" | "counsel";
@@ -68,18 +69,7 @@ function SegmentedTabs<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 3,
-        padding: 3,
-        background: "var(--stu-surface-soft)",
-        borderRadius: 12,
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "none",
-      }}
-    >
+    <div className="community-segmented-tabs">
       {items.map(({ key, label, count }) => {
         const active = value === key;
         return (
@@ -87,43 +77,12 @@ function SegmentedTabs<T extends string>({
             key={key}
             type="button"
             onClick={() => onChange(key)}
-            style={{
-              flex: "1 0 auto",
-              minWidth: 0,
-              padding: "10px 12px",
-              border: "none",
-              borderRadius: 9,
-              background: active ? "var(--stu-surface-1)" : "transparent",
-              fontSize: 13,
-              fontWeight: active ? 700 : 500,
-              color: active ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px color-mix(in srgb, var(--stu-primary) 14%, transparent)" : undefined,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              letterSpacing: "-0.01em",
-              whiteSpace: "nowrap",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-            }}
+            className={`community-segmented-tabs__button${active ? " community-segmented-tabs__button--active" : ""}`}
           >
             <span>{label}</span>
             {count != null && count > 0 && (
               <span
-                style={{
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 999,
-                  background: active ? "var(--stu-primary)" : "var(--stu-surface-soft)",
-                  color: active ? "var(--stu-primary-contrast)" : "var(--stu-text-muted)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className={`community-segmented-tabs__count${active ? " community-segmented-tabs__count--active" : ""}`}
               >
                 {count}
               </span>
@@ -139,17 +98,7 @@ function SegmentedTabs<T extends string>({
 function ParentAuthorBadge() {
   return (
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "2px 8px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)",
-        color: "var(--stu-primary)",
-        letterSpacing: "-0.01em",
-      }}
+      className="community-parent-badge"
       title="학부모가 작성한 글입니다"
     >
       학부모 작성
@@ -161,23 +110,10 @@ function ParentAuthorBadge() {
 function StatusChip({ answered }: { answered: boolean }) {
   return (
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "4px 10px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "-0.01em",
-        background: answered ? "var(--stu-success-bg)" : "var(--stu-warn-bg)",
-        color: answered ? "var(--stu-success-text)" : "var(--stu-warn-text)",
-        border: answered ? "1px solid var(--stu-success-border)" : "1px solid var(--stu-warn-border)",
-        flexShrink: 0,
-      }}
+      className={`community-status-chip ${answered ? "community-status-chip--done" : "community-status-chip--pending"}`}
       role="status"
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: answered ? "var(--stu-success)" : "var(--stu-warn)" }} aria-hidden="true" />
+      <span className="community-status-chip__dot" aria-hidden="true" />
       {answered ? "답변 완료" : "답변 대기"}
     </span>
   );
@@ -198,42 +134,32 @@ function MyActivitySummary() {
   if (!data || !data.is_student) return null;
   const hasActivity = (data.score || 0) > 0;
   return (
-    <div style={{
-      padding: "14px 16px",
-      borderRadius: 12,
-      background: "var(--stu-surface-1)",
-      border: "1px solid var(--stu-border)",
-      marginBottom: 12,
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: 12, flexWrap: "wrap",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 28 }}>{data.rank === 1 ? "🥇" : data.rank === 2 ? "🥈" : data.rank === 3 ? "🥉" : hasActivity ? "📊" : "✏️"}</div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--stu-text-muted)", letterSpacing: "0.04em" }}>이번 달 내 활동</div>
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em" }}>
+    <div className="student-activity-summary">
+      <div className="community-activity-main">
+        <div className="student-activity-summary__mark" aria-hidden="true">
+          <IconBoard className="community-icon-board" />
+        </div>
+        <div className="community-activity-copy">
+          <div className="student-activity-summary__label">이번 달 내 활동</div>
+          <div className="student-activity-summary__text">
             {hasActivity
-              ? <>글 {data.post_count}개 · 댓글 {data.reply_count}개 · ♥ {data.received_likes}</>
-              : <span style={{ color: "var(--stu-text-muted)" }}>첫 글을 올려보세요. 학원 친구들이 함께 읽어요.</span>}
+              ? <>글 {data.post_count}개 · 댓글 {data.reply_count}개 · 받은 좋아요 {data.received_likes}개</>
+              : <span className="community-activity-muted">첫 글을 올려보세요. 학원 친구들이 함께 읽어요.</span>}
           </div>
         </div>
       </div>
       {data.rank !== null && data.total_active_students > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: "var(--stu-text-muted)" }}>활동 학생 중</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--stu-primary)" }}>
-            {data.rank}<span style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)" }}> / {data.total_active_students}</span>
+        <div className="community-activity-rank">
+          <div className="community-activity-rank__label">활동 학생 중</div>
+          <div className="community-activity-rank__value">
+            {data.rank}<span className="community-activity-rank__total"> / {data.total_active_students}</span>
           </div>
         </div>
       )}
       {data.badges && data.badges.length > 0 && (
-        <div style={{ width: "100%", display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        <div className="community-activity-badges">
           {data.badges.map((b) => (
-            <span key={b.key} title={b.label} style={{
-              padding: "4px 9px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
-              background: "color-mix(in srgb, var(--stu-primary) 8%, transparent)",
-              color: "var(--stu-primary)", letterSpacing: "-0.01em",
-            }}>{b.label}</span>
+            <span key={b.key} title={b.label} className="community-activity-badge">{b.label}</span>
           ))}
         </div>
       )}
@@ -285,7 +211,7 @@ export default function CommunityPage() {
     <StudentPageShell title="커뮤니티">
       <MyActivitySummary />
       <SegmentedTabs items={TABS} value={tab} onChange={setTab} />
-      <div style={{ marginTop: "var(--stu-space-5)" }}>
+      <div className="community-tab-panel">
         {tab === "notice" && (
           <NoticeTab onDetail={(id) => setView({ kind: "notice-detail", id })} />
         )}
@@ -359,16 +285,16 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
 
   return (
     <StudentPageShell title="공지사항" onBack={onBack}>
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
-          <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+          <h1 className="community-detail-title">{post.title}</h1>
+          <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
-            <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
-            {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
+            <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
+            {post.created_by_display && <span className="stu-muted community-meta-text">· {post.created_by_display}</span>}
           </div>
         </div>
-        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+        <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
@@ -405,14 +331,13 @@ function QnaTab({
   const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : questions;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-5)" }}>
+    <div className="community-stack">
       <button
         type="button"
-        className="stu-btn stu-btn--primary"
+        className="stu-btn stu-btn--primary community-primary-action"
         onClick={onForm}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
       >
-        <IconPlus style={{ width: 18, height: 18, flexShrink: 0 }} />
+        <IconPlus className="community-icon-sm" />
         {profile?.isParentReadOnly ? "학부모 자격으로 질문하기" : "질문하기"}
       </button>
 
@@ -482,14 +407,14 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
 
   return (
     <StudentPageShell title="질문 상세" onBack={onBack}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+      <div className="community-stack community-stack--loose">
         {/* 질문 */}
         <div className="stu-section stu-section--nested">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, flex: 1, minWidth: 0 }}>{question.title}</div>
+          <div className="community-question-head">
+            <div className="community-question-title">{question.title}</div>
             <StatusChip answered={answered} />
           </div>
-          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)", display: "flex", gap: 6, alignItems: "center" }}>
+          <div className="stu-muted community-meta-row community-meta-row--compact">
             <span>{formatYmd(question.created_at)}</span>
             {question.author_role === "parent" && <ParentAuthorBadge />}
           </div>
@@ -501,32 +426,31 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
         <div className="stu-section stu-section--nested">
           {answered ? (
             <>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+              <div className="community-answer-title">
                 선생님 답변{replies.length > 0 && ` (${replies.length}개)`}
               </div>
               {isLoading ? (
                 <Loading />
               ) : replies.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+                <div className="community-answer-list">
                   {replies.map((r) => (
                     <div
                       key={r.id}
-                      className="stu-panel"
-                      style={{ padding: "var(--stu-space-4)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success)" }}
+                      className="stu-panel community-answer-card"
                     >
                       <HtmlContent html={r.content} />
-                      <div className="stu-muted" style={{ fontSize: 12, marginTop: "var(--stu-space-2)" }}>{formatYmd(r.created_at)}</div>
+                      <div className="stu-muted community-answer-date">{formatYmd(r.created_at)}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+                <div className="stu-muted community-muted-center">
                   답변이 등록되었습니다.
                 </div>
               )}
             </>
           ) : (
-            <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+            <div className="stu-muted community-muted-center">
               아직 답변이 등록되지 않았습니다.<br />선생님이 확인 후 답변해 주실 거예요.
             </div>
           )}
@@ -615,40 +539,39 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
         : "궁금한 점을 적어 보내면 선생님이 확인해 주세요."}
       onBack={onBack}
     >
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className="stu-section stu-section--nested community-form-card">
         {errorMsg && (
-          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+          <div role="alert" className="community-alert">
             {errorMsg}
           </div>
         )}
-        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-            제목 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+        <label className="community-field">
+          <span className="community-label">
+            제목 <span className="community-required" aria-hidden>*</span>
           </span>
-          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} required />
+          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" required />
         </label>
         {lectureOptions.length > 0 && (
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>강의 (선택)</span>
-            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
+          <label className="community-field">
+            <span className="community-label">강의 (선택)</span>
+            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input community-input-full">
               <option value="">선택 안 함</option>
               {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-            내용 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+        <div className="community-field community-field--grow">
+          <span className="community-label">
+            내용 <span className="community-required" aria-hidden>*</span>
           </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
         <button
           type="button"
-          className="stu-btn stu-btn--primary"
           disabled={!canSubmit || mutation.isPending}
           onClick={() => { if (canSubmit && !mutation.isPending) mutation.mutate(); }}
-          style={{ alignSelf: "flex-end", minHeight: 44, minWidth: 140 }}
+          className="stu-btn stu-btn--primary community-submit"
         >
           {mutation.isPending ? "보내는 중…" : "질문 보내기"}
         </button>
@@ -704,16 +627,16 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
 
   return (
     <StudentPageShell title="게시물" onBack={onBack}>
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
-          <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+          <h1 className="community-detail-title">{post.title}</h1>
+          <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
-            <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
-            {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
+            <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
+            {post.created_by_display && <span className="stu-muted community-meta-text">· {post.created_by_display}</span>}
           </div>
         </div>
-        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+        <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
@@ -750,14 +673,13 @@ function CounselTab({
   const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : requests;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-5)" }}>
+    <div className="community-stack">
       <button
         type="button"
-        className="stu-btn stu-btn--primary"
+        className="stu-btn stu-btn--primary community-primary-action"
         onClick={onForm}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--stu-space-2)" }}
       >
-        <IconPlus style={{ width: 18, height: 18 }} />
+        <IconPlus className="community-icon-sm" />
         {profile?.isParentReadOnly ? "학부모 자격으로 상담 신청하기" : "상담 신청하기"}
       </button>
 
@@ -827,14 +749,14 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
 
   return (
     <StudentPageShell title="상담 신청 상세" onBack={onBack}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+      <div className="community-stack community-stack--loose">
         {/* 상담 신청 내용 */}
         <div className="stu-section stu-section--nested">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, flex: 1, minWidth: 0 }}>{request.title}</div>
+          <div className="community-question-head">
+            <div className="community-question-title">{request.title}</div>
             <StatusChip answered={answered} />
           </div>
-          <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)", display: "flex", gap: 6, alignItems: "center" }}>
+          <div className="stu-muted community-meta-row community-meta-row--compact">
             <span>{formatYmd(request.created_at)}</span>
             {request.author_role === "parent" && <ParentAuthorBadge />}
           </div>
@@ -846,32 +768,31 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
         <div className="stu-section stu-section--nested">
           {answered ? (
             <>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+              <div className="community-answer-title">
                 선생님 답변{replies.length > 0 && ` (${replies.length}개)`}
               </div>
               {isLoading ? (
                 <Loading />
               ) : replies.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+                <div className="community-answer-list">
                   {replies.map((r) => (
                     <div
                       key={r.id}
-                      className="stu-panel"
-                      style={{ padding: "var(--stu-space-4)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success)" }}
+                      className="stu-panel community-answer-card"
                     >
                       <HtmlContent html={r.content} />
-                      <div className="stu-muted" style={{ fontSize: 12, marginTop: "var(--stu-space-2)" }}>{formatYmd(r.created_at)}</div>
+                      <div className="stu-muted community-answer-date">{formatYmd(r.created_at)}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+                <div className="stu-muted community-muted-center">
                   답변이 등록되었습니다.
                 </div>
               )}
             </>
           ) : (
-            <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
+            <div className="stu-muted community-muted-center">
               아직 답변이 등록되지 않았습니다.<br />선생님이 확인 후 답변해 주실 거예요.
             </div>
           )}
@@ -939,38 +860,37 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
         : "상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다."}
       onBack={onBack}
     >
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className="stu-section stu-section--nested community-form-card">
         {errorMsg && (
-          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+          <div role="alert" className="community-alert">
             {errorMsg}
           </div>
         )}
-        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-            상담 제목 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+        <label className="community-field">
+          <span className="community-label">
+            상담 제목 <span className="community-required" aria-hidden>*</span>
           </span>
-          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input" style={{ width: "100%" }} required />
+          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" required />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 분야 (선택)</span>
-          <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input" style={{ width: "100%" }}>
+        <label className="community-field">
+          <span className="community-label">상담 분야 (선택)</span>
+          <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input community-input-full">
             <option value="">선택 안 함</option>
             {COUNSEL_CATEGORIES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-            상담 내용 <span style={{ color: "var(--stu-danger)" }} aria-hidden>*</span>
+        <div className="community-field community-field--grow">
+          <span className="community-label">
+            상담 내용 <span className="community-required" aria-hidden>*</span>
           </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact />
         </div>
         <FilePickerSection files={files} onChange={setFiles} />
         <button
           type="button"
-          className="stu-btn stu-btn--primary"
           disabled={!canSubmit || mutation.isPending}
           onClick={() => { if (canSubmit && !mutation.isPending) mutation.mutate(); }}
-          style={{ alignSelf: "flex-end", minHeight: 44, minWidth: 140 }}
+          className="stu-btn stu-btn--primary community-submit"
         >
           {mutation.isPending ? "신청 중…" : "상담 신청하기"}
         </button>
@@ -1026,25 +946,20 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
 
   return (
     <StudentPageShell title="자료실" onBack={onBack}>
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)", lineHeight: 1.4, letterSpacing: "-0.02em" }}>{post.title}</h1>
-          <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+          <h1 className="community-detail-title">{post.title}</h1>
+          <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
-            <span className="stu-muted" style={{ fontSize: 13 }}>{formatYmd(post.created_at)}</span>
-            {post.created_by_display && <span className="stu-muted" style={{ fontSize: 13 }}>· {post.created_by_display}</span>}
+            <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
+            {post.created_by_display && <span className="stu-muted community-meta-text">· {post.created_by_display}</span>}
           </div>
         </div>
-        <div style={{ borderTop: "1px solid var(--stu-border-subtle, rgba(0,0,0,0.06))", paddingTop: "var(--stu-space-4)" }}>
+        <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
         <AttachmentList postId={post.id} attachments={post.attachments} />
-        <p style={{
-          margin: "var(--stu-space-2) 0 0",
-          fontSize: 12,
-          color: "var(--stu-text-muted)",
-          lineHeight: 1.5,
-        }}>
+        <p className="community-materials-note">
           💡 자료실은 다운로드 전용입니다. 질문은 QnA 탭에서 등록해 주세요.
         </p>
       </div>
@@ -1117,29 +1032,20 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+    <div className="community-attachments">
       {/* 이미지 미리보기 — 클릭 시 lightbox */}
       {attachments.filter((a) => isImage(a.content_type)).map((att) => (
         <button
           key={`img-${att.id}`}
           type="button"
           onClick={() => imgUrls[att.id] && setLightboxId(att.id)}
-          style={{
-            borderRadius: "var(--stu-radius)",
-            overflow: "hidden",
-            border: "1px solid var(--stu-border-subtle)",
-            padding: 0,
-            background: "transparent",
-            cursor: imgUrls[att.id] ? "zoom-in" : "default",
-            width: "100%",
-            display: "block",
-          }}
+          className={`community-image-preview${imgUrls[att.id] ? " community-image-preview--loaded" : ""}`}
           aria-label={`${att.original_name} 크게 보기`}
         >
           {imgUrls[att.id] ? (
-            <img src={imgUrls[att.id]} alt={att.original_name} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block", background: "var(--stu-surface-soft)" }} />
+            <img src={imgUrls[att.id]} alt={att.original_name} className="community-image" />
           ) : (
-            <div style={{ height: 100, display: "grid", placeItems: "center", background: "var(--stu-surface-soft)", fontSize: 13, color: "var(--stu-text-muted)" }}>이미지 로딩 중…</div>
+            <div className="community-image-placeholder">이미지 로딩 중…</div>
           )}
         </button>
       ))}
@@ -1151,49 +1057,19 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
           role="dialog"
           aria-modal="true"
           aria-label="이미지 크게 보기"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.92)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "zoom-out",
-            padding: 16,
-          }}
+          className="community-lightbox"
         >
           <img
             src={imgUrls[lightboxId]}
             alt={attachments.find((a) => a.id === lightboxId)?.original_name ?? ""}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-              cursor: "default",
-            }}
+            className="community-lightbox__image"
           />
           <button
             type="button"
             onClick={() => setLightboxId(null)}
             aria-label="닫기"
-            style={{
-              position: "absolute",
-              top: 16,
-              right: 16,
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.15)",
-              color: "#fff",
-              border: "none",
-              fontSize: 20,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            className="community-lightbox__close"
           >
             ✕
           </button>
@@ -1202,7 +1078,7 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
 
       {/* 파일 목록 */}
       {attachments.filter((a) => !isImage(a.content_type)).length > 0 && (
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+        <div className="community-file-heading">
           첨부파일 ({attachments.filter((a) => !isImage(a.content_type)).length})
         </div>
       )}
@@ -1211,27 +1087,19 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
           key={att.id}
           type="button"
           onClick={() => handleDownload(att)}
-          className="stu-panel stu-panel--pressable"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--stu-space-3)",
-            padding: "10px var(--stu-space-4)",
-            textAlign: "left",
-            cursor: "pointer",
-          }}
+          className="stu-panel stu-panel--pressable community-file-button"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, color: "var(--stu-primary)" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="community-file-icon">
             <path d="M10 1H4.5A1.5 1.5 0 003 2.5v13A1.5 1.5 0 004.5 17h9a1.5 1.5 0 001.5-1.5V6L10 1z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M10 1v5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div className="community-file-body">
+            <div className="community-file-name">
               {att.original_name}
             </div>
-            <div className="stu-muted" style={{ fontSize: 12 }}>{formatSize(att.size_bytes)}</div>
+            <div className="stu-muted community-file-size">{formatSize(att.size_bytes)}</div>
           </div>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: "var(--stu-text-muted)" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="community-file-download-icon">
             <path d="M8 2v9M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M2 12v2h12v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -1299,13 +1167,13 @@ function FilePickerSection({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+    <div className="community-file-picker">
+      <div className="community-file-picker__head">
+        <div className="community-file-picker__copy">
+          <span className="community-file-picker__title">
             첨부파일 {files.length > 0 && `(${files.length}/${MAX_FILES})`}
           </span>
-          <span style={{ fontSize: 11, color: "var(--stu-text-muted)", opacity: 0.75 }}>
+          <span className="community-file-picker__hint">
             최대 {MAX_FILES}개 · 파일당 {MAX_FILE_SIZE_MB}MB 이하
           </span>
         </div>
@@ -1321,53 +1189,31 @@ function FilePickerSection({
           ref={(el) => { inputRef.current = el; }}
           type="file"
           multiple
-          style={{ display: "none" }}
+          className="community-file-picker__input"
           onChange={handleAdd}
         />
       </div>
       {warn && (
-        <div role="alert" style={{ fontSize: 12, color: "var(--stu-warn-text)", background: "var(--stu-warn-bg)", border: "1px solid var(--stu-warn-border)", borderRadius: "var(--stu-radius)", padding: "6px 10px" }}>
+        <div role="alert" className="community-file-picker__warn">
           {warn}
         </div>
       )}
       {files.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="community-file-list">
           {files.map((f, i) => (
             <div
               key={`${f.name}-${i}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--stu-space-2)",
-                padding: "6px 10px",
-                background: "var(--stu-surface-soft)",
-                borderRadius: "var(--stu-radius)",
-                fontSize: 13,
-              }}
+              className="community-file-item"
             >
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span className="community-file-item__name">
                 {f.name}
               </span>
-              <span className="stu-muted" style={{ fontSize: 11, flexShrink: 0 }}>{formatSize(f.size)}</span>
+              <span className="stu-muted community-file-item__size">{formatSize(f.size)}</span>
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
                 aria-label={`${f.name} 제거`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--stu-text-muted)",
-                  transition: "background var(--stu-motion-fast), color var(--stu-motion-fast)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--stu-danger-bg)"; e.currentTarget.style.color = "var(--stu-danger-text)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--stu-text-muted)"; }}
+                className="community-file-remove"
                 title="제거"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
@@ -1386,17 +1232,16 @@ function FilePickerSection({
 // HtmlContent — renders HTML content (from RichTextEditor) safely
 // ═══════════════════════════════════════════
 function HtmlContent({ html }: { html: string }) {
-  if (!html) return <div className="stu-muted" style={{ fontSize: 14 }}>내용이 없습니다.</div>;
+  if (!html) return <div className="stu-muted community-empty-content">내용이 없습니다.</div>;
 
   const isPlainText = !/<[a-z][\s\S]*>/i.test(html);
   if (isPlainText) {
-    return <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{html}</div>;
+    return <div className="community-plain-content">{html}</div>;
   }
 
   return (
     <div
-      className="stu-html-content"
-      style={{ fontSize: 15, lineHeight: 1.7, wordBreak: "break-word" }}
+      className="stu-html-content community-html-content"
       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   );
@@ -1417,7 +1262,7 @@ function getScopeLabel(post: { mappings?: Array<{ node_detail?: { session_title?
 // Shared primitives
 // ═══════════════════════════════════════════
 function PostList({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>;
+  return <div className="community-post-list">{children}</div>;
 }
 
 function PostRow({
@@ -1437,64 +1282,54 @@ function PostRow({
     const text = post.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     return text.length > 80 ? text.slice(0, 80) + "…" : text;
   }, [post.content]);
+  const rowClass = [
+    "stu-panel",
+    "stu-panel--pressable",
+    "community-post-row",
+    post.is_urgent ? "community-post-row--urgent" : "",
+    !post.is_urgent && post.is_pinned ? "community-post-row--pinned" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <button
       type="button"
-      className="stu-panel stu-panel--pressable"
+      className={rowClass}
       onClick={onClick}
-      style={{
-        textAlign: "left",
-        padding: "14px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--stu-space-3)",
-        borderLeft: post.is_urgent ? "3px solid var(--stu-danger, #ef4444)" : post.is_pinned ? "3px solid var(--stu-primary)" : "3px solid transparent",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-      }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="community-post-body">
         {/* 제목 행 */}
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: preview ? 6 : 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+        <div className={`community-post-title-row${preview ? " community-post-title-row--with-preview" : ""}`}>
           {post.is_urgent && (
-            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)", background: "var(--stu-danger)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>긴급</span>
+            <span className="community-post-badge community-post-badge--urgent">긴급</span>
           )}
           {post.is_pinned && !post.is_urgent && (
-            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "2px 6px", lineHeight: 1.4 }}>고정</span>
+            <span className="community-post-badge community-post-badge--pinned">고정</span>
           )}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
+          <span className="community-post-title-text">{post.title}</span>
         </div>
         {/* 본문 미리보기 */}
         {preview && (
-          <div style={{ fontSize: 12.5, color: "var(--stu-text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.4, opacity: 0.75 }}>
+          <div className="community-post-preview">
             {preview}
           </div>
         )}
         {/* 메타 행 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11.5, color: "var(--stu-text-subtle, var(--stu-text-muted))", opacity: 0.7 }}>
+        <div className="community-post-meta">
+          <span className="community-post-date">
             {formatYmd(post.created_at)}
           </span>
           {subtitle && (
-            <span style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--stu-primary)",
-              background: "color-mix(in srgb, var(--stu-primary) 10%, transparent)",
-              padding: "1px 7px",
-              borderRadius: 4,
-              lineHeight: 1.5,
-            }}>
+            <span className="community-post-scope">
               {subtitle}
             </span>
           )}
           {isAnswered(post) && post.replies_count != null && post.replies_count > 0 && (
-            <span style={{ fontSize: 11, color: "var(--stu-success-text, #16a34a)", fontWeight: 600 }}>
+            <span className="community-post-replies">
               답변 {post.replies_count}개
             </span>
           )}
           {(post.attachments?.length ?? 0) > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 11, color: "var(--stu-text-muted)", opacity: 0.7 }}>
+            <span className="community-post-attachment">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M12 7.17l-4.59 4.59a3.25 3.25 0 01-4.6-4.6l5.3-5.3a2.17 2.17 0 013.06 3.07l-5.3 5.3a1.08 1.08 0 01-1.53-1.53l4.59-4.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               {post.attachments!.length}
             </span>
@@ -1502,34 +1337,29 @@ function PostRow({
         </div>
       </div>
       {right}
-      <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0, opacity: 0.5 }} />
+      <IconChevronRight className="community-icon-chevron" />
     </button>
   );
 }
 
 function Tag({ children, variant }: { children: React.ReactNode; variant?: "default" | "primary" | "session" }) {
   const v = variant ?? "default";
-  const styles: Record<string, React.CSSProperties> = {
-    default: { background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
-    primary: { background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", color: "var(--stu-primary)" },
-    session: { background: "var(--stu-warn-bg)", color: "var(--stu-warn-text)" },
-  };
   return (
-    <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 6, ...styles[v] }}>
+    <span className={`community-tag community-tag--${v}`}>
       {children}
     </span>
   );
 }
 
 function Loading() {
-  return <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-8)" }}>불러오는 중…</div>;
+  return <div className="stu-muted community-loading">불러오는 중…</div>;
 }
 
 function SkeletonList() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="community-skeleton-list">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="stu-skel" style={{ height: 84, borderRadius: "var(--stu-radius-md)", opacity: 1 - (i - 1) * 0.2 }} />
+        <div key={i} className={`stu-skel community-skeleton-item community-skeleton-item--${i}`} />
       ))}
     </div>
   );

@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/sessions/layout/SessionLayout.tsx
 // 구조: students 도메인과 동일 — DomainLayout > Outlet (페이지가 콘텐츠 전담)
 import { useMemo } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -12,6 +12,7 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 export default function SessionLayout() {
   const { lectureId, sessionId } = useSessionParams();
   const { sectionMode } = useSectionMode();
+  const location = useLocation();
 
   const { data: session, isLoading, isError } = useQuery({
     queryKey: ["session", sessionId],
@@ -31,6 +32,9 @@ export default function SessionLayout() {
     lectureId && sessionId
       ? `/admin/lectures/${lectureId}/sessions/${sessionId}`
       : "";
+  const isScoresRoute = base
+    ? location.pathname === `${base}/scores` || location.pathname.startsWith(`${base}/scores/`)
+    : false;
 
   const tabs = useMemo(() => {
     if (!base) return [];
@@ -89,6 +93,7 @@ export default function SessionLayout() {
       description={[session.date, sectionLabel].filter(Boolean).join(" · ") || undefined}
       breadcrumbs={breadcrumbs}
       tabs={tabs}
+      density={isScoresRoute ? "compact" : "default"}
     >
       <Outlet />
     </DomainLayout>

@@ -133,8 +133,8 @@ export const NAV_SECTION_ANCHORS: Record<string, string> = {
 
 /** 사이드 햄버거 패널 메뉴 SSOT — nexon dnfm 스타일 카테고리 그루핑.
  *
- * 학원장이 enable한 sections만 자동 노출됨. 커뮤니티 카테고리는 backend community 도메인
- * 연동(고정 board_type 4종). 학원장이 어드민에서 추후 토글하도록 SSOT 확장 가능.
+ * 학원장이 enable한 sections만 자동 노출됨. 공개 랜딩의 1차 진입은 외부 학부모가
+ * 바로 볼 수 있는 route/section으로 맞추고, family-only route는 보조 항목으로만 유지한다.
  */
 type NavMenuKind = "section" | "route";
 interface NavMenuItem { key: string; label: string; kind: NavMenuKind; target: string; badge?: string }
@@ -160,28 +160,29 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   if (has("programs")) aboutItems.push({ key: "programs", label: "프로그램", kind: "section", target: "programs" });
   categories.push({ key: "about", label: "학원소개", items: aboutItems });
 
-  // 2. 커뮤니티 — backend community 도메인 연동
+  // 2. 커뮤니티 — 공개 자유게시판을 1차 진입점으로 사용.
+  // QnA/공지/자료실은 학원 family 권한이 필요한 내부 커뮤니티 route라 보조 항목으로 유지.
   categories.push({
     key: "community",
     label: "커뮤니티",
     items: [
-      { key: "board", label: "자유게시판", kind: "route", target: "/landing/community/board" },
+      { key: "board", label: "자유게시판", kind: "route", target: "/landing/board" },
       { key: "qna", label: "질문게시판", kind: "route", target: "/landing/community/qna" },
       { key: "notice", label: "공지사항", kind: "route", target: "/landing/community/notice" },
       { key: "materials", label: "자료실", kind: "route", target: "/landing/community/materials" },
     ],
   });
 
-  // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅
-  // 학원장 spec(박철T 2026-05-13): 상단 nav "매치업" 클릭 = section 스크롤이 아니라
-  // 정식 게시판으로 라우트. hit_reports section은 학원소개에 요약 게이트로 유지.
-  // → matchup_board를 first(=inline nav 클릭 대상)로, hit_reports section 항목은 후순위.
+  // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅.
+  // 테넌트2 운영 데이터 기준: 게시판 쇼케이스가 비어 있어도 hit_reports 보고서는 공개되어 있다.
+  // 따라서 "매치업" 1차 진입은 실제 보고서 목록(/landing/reports)으로 연결한다.
   {
     const matchupItems: NavMenuItem[] = [];
-    matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
     if (has("hit_reports")) {
+      matchupItems.push({ key: "reports_all", label: "적중 보고서", kind: "route", target: "/landing/reports", badge: "LIVE" });
       matchupItems.push({ key: "hit_reports", label: "적중 사례 요약 (홈)", kind: "section", target: "hit_reports" });
-      matchupItems.push({ key: "reports_all", label: "보고서 모두 보기", kind: "route", target: "/landing/reports" });
+    } else {
+      matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
     }
     categories.push({ key: "matchup", label: "매치업", items: matchupItems });
   }
@@ -216,6 +217,16 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   return categories;
 }
 
+function selectInlineNavItem(cat: NavMenuCategory): NavMenuItem {
+  if (cat.key === "service") {
+    return cat.items[0];
+  }
+  if (cat.key === "matchup") {
+    return cat.items.find((it) => it.key === "reports_all") || cat.items.find((it) => it.kind === "route") || cat.items[0];
+  }
+  return cat.items.find((it) => it.kind === "route") || cat.items[0];
+}
+
 /** 공통 NavBar — light/dark 톤만 prop으로 받음. PremiumDark/MinimalTutor 모두 사용.
  *
  * 모든 viewport: 로고 + 우측(역할/CTA) + 햄버거 → 카테고리 그루핑 사이드 패널.
@@ -245,15 +256,13 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 데스크탑 가로 nav 항목 — 학원장 spec(2026-05-13) "헤더 메뉴 별로 라우트 구조".
-  // 클릭 = section hash scroll X / dedicated page route O.
-  // 카테고리에 kind="route" item 있으면 그걸 우선 선택. owner 전용은 inline nav 제외.
+  // 데스크탑 가로 nav 항목 — 카테고리별 실제 1차 사용자 목표를 선택.
+  // 예: 매치업은 보고서 목록, 서비스센터는 빈 후기 route가 아니라 상담 문의 섹션.
   const inlineNav: Array<{ key: string; label: string; item: NavMenuItem }> = [];
   for (const cat of categories) {
     if (cat.items.length === 0) continue;
     if (cat.key === "owner") continue;  // owner 카테고리는 햄버거 패널 안에서만 노출
-    const routeItem = cat.items.find((it) => it.kind === "route");
-    const item = routeItem || cat.items[0];
+    const item = selectInlineNavItem(cat);
     inlineNav.push({ key: cat.key, label: cat.label, item });
   }
 

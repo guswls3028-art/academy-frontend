@@ -6,27 +6,41 @@
 import { useState } from "react";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
+import { IconExam } from "@student/shared/ui/icons/Icons";
 import { useStudentExams } from "../hooks/useStudentExams";
 import ExamHomeTab from "../components/ExamHomeTab";
 import ExamStatsTab from "../components/ExamStatsTab";
 
 const TABS = [
-  { key: "home", label: "홈" },
-  { key: "stats", label: "통계" },
+  { key: "home", label: "시험지" },
+  { key: "stats", label: "결과 분석" },
 ];
 
 export default function ExamListPage() {
   const [tab, setTab] = useState("home");
   const { data, isLoading, isError, refetch } = useStudentExams();
   const items = data?.items ?? [];
+  const shellTitle = tab === "stats" ? "시험 분석" : "시험 데스크";
+  const shellDescription =
+    tab === "stats"
+      ? "응시 결과와 강좌별 흐름을 한눈에 확인합니다."
+      : "응시해야 할 시험과 완료한 시험을 상태별로 정리합니다.";
 
   return (
-    <DomainTabShell title="시험" tabs={TABS} activeTab={tab} onTabChange={setTab}>
+    <DomainTabShell
+      title={shellTitle}
+      eyebrow="평가"
+      description={shellDescription}
+      icon={<IconExam />}
+      tabs={TABS}
+      activeTab={tab}
+      onTabChange={setTab}
+    >
       {isLoading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        <div className="stu-skel-stack">
+          <div className="stu-skel stu-skel--lg" />
+          <div className="stu-skel stu-skel--lg" />
+          <div className="stu-skel stu-skel--lg" />
         </div>
       )}
 

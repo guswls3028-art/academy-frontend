@@ -7,6 +7,7 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 function ensureContainer(): HTMLDivElement {
   if (toastEl) return toastEl;
   toastEl = document.createElement("div");
+  toastEl.className = "student-toast";
   toastEl.setAttribute("role", "status");
   toastEl.setAttribute("aria-live", "polite");
   Object.assign(toastEl.style, {
@@ -31,6 +32,7 @@ function ensureContainer(): HTMLDivElement {
 
 function show(message: string, type: "success" | "error" | "info") {
   const el = ensureContainer();
+  el.className = `student-toast student-toast--${type}`;
 
   const colors = {
     success: { bg: "var(--stu-success, #16a34a)", text: "#fff" },

@@ -169,7 +169,7 @@ export default function StudentVideoPlayer({
       ctrl.dispose();
       controllerRef.current = null;
     };
-  }, [video?.id, bootstrap?.play_url, bootstrap?.token, enrollmentId]);
+  }, [video, bootstrap, enrollmentId, initialPosition, onFatal, onLeaveProgress]);
 
   useEffect(() => {
     const ctrl = controllerRef.current;
@@ -274,7 +274,9 @@ export default function StudentVideoPlayer({
   const onVolume = useCallback((v: number) => {
     controllerRef.current?.setVolume(clamp(v, 0, 1));
     const el = controllerRef.current?.getVideoEl();
-    if (el) try { el.volume = clamp(v, 0, 1); } catch {}
+    if (el) try { el.volume = clamp(v, 0, 1); } catch {
+      // Some mobile browsers reject direct volume writes.
+    }
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -363,10 +365,6 @@ export default function StudentVideoPlayer({
 
       ctrl?.queueFullscreenEvent(true);
 
-      const isMobileLike =
-        typeof navigator !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0) ||
-        (typeof window !== "undefined" && window.innerWidth < 768);
-
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       const tryNative = () => {
@@ -428,7 +426,9 @@ export default function StudentVideoPlayer({
     if (el && savedRateRef.current !== undefined) {
       try {
         el.playbackRate = savedRateRef.current;
-      } catch {}
+      } catch {
+        // Restoring playbackRate is best effort across native players.
+      }
       controllerRef.current?.setRate(savedRateRef.current);
     }
   }, []);
@@ -479,7 +479,9 @@ export default function StudentVideoPlayer({
           const v = clamp((start.volume ?? volume) + delta, 0, 1);
           controllerRef.current?.setVolume(v);
           const el = controllerRef.current?.getVideoEl();
-          if (el) try { el.volume = v; } catch {}
+          if (el) try { el.volume = v; } catch {
+            // Gesture volume is best effort on browsers that expose it.
+          }
         }
       }
       gesturePointerMove(e);
@@ -513,7 +515,9 @@ export default function StudentVideoPlayer({
     try {
       el.volume = volume;
       el.muted = muted;
-    } catch {}
+    } catch {
+      // Native media controls may reject programmatic audio updates.
+    }
   }, [muted, volume]);
 
   useEffect(() => {
@@ -555,10 +559,10 @@ export default function StudentVideoPlayer({
   const deviceId = useMemo(() => getOrCreateDeviceId(), []);
 
   const shareText = useMemo(() => {
-    if (!monitoringEnabled) return `기기: ${deviceId.slice(0, 8)}… · 모니터링 없음 (복습 모드)`;
+    if (!monitoringEnabled) return "복습 모드로 시청 중입니다.";
     const expires = bootstrap.expires_at ? formatDateTimeKorean(bootstrap.expires_at * 1000) : "";
-    return `기기: ${deviceId.slice(0, 8)}… · 세션 만료: ${expires || "-"}`;
-  }, [bootstrap.expires_at, deviceId, monitoringEnabled]);
+    return `수업 시청 세션이 활성화되었습니다. 만료: ${expires || "-"}`;
+  }, [bootstrap.expires_at, monitoringEnabled]);
 
   const rateMenu = useMemo(() => {
     const common = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -580,9 +584,13 @@ export default function StudentVideoPlayer({
               <div className="svpTopLeft">
                 <div className="svpTitle" title={video.title}>{video.title}</div>
                 <div className="svpMeta">
-                  <span className="svpMetaItem">video#{video.id}</span>
-                  <span className="svpDot">•</span>
-                  <span className="svpMetaItem">enrollment#{enrollmentId ?? "-"}</span>
+                  <span className="svpMetaItem">{policy.access_mode === "PROCTORED_CLASS" ? "수업 모드" : "복습 모드"}</span>
+                  {video.duration != null && video.duration > 0 && (
+                    <>
+                      <span className="svpDot">•</span>
+                      <span className="svpMetaItem">{formatClock(video.duration)}</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="svpTopRight">
@@ -596,11 +604,11 @@ export default function StudentVideoPlayer({
                   label="메뉴"
                   items={[
                     {
-                      label: "세션 새로고침",
+                      label: "재생 상태 새로고침",
                       onClick: () => controllerRef.current?.refreshSession(),
                     },
                     {
-                      label: "이 영상 정보",
+                      label: "시청 정보 보기",
                       onClick: () => controllerRef.current?.showToast(shareText, "info"),
                     },
                   ]}
@@ -632,7 +640,7 @@ export default function StudentVideoPlayer({
               {!ready && (
                 <div className="svpOverlayCenter">
                   <div className="svpSpinner" />
-                  <div className="svpOverlayText">영상을 준비하고 있어요…</div>
+                  <div className="svpOverlayText">재생 화면을 준비하고 있어요…</div>
                 </div>
               )}
 
@@ -728,11 +736,6 @@ export default function StudentVideoPlayer({
                     {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
                   </div>
                 )}
-                {allowSeek && !speedLocked && (
-                  <div className="svpPolicyHint svpPolicyHintMuted">
-                    키보드: Space/K(재생), J/L(±10s), ←/→(±5s), F(전체화면), M(음소거), T(극장)
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -742,12 +745,12 @@ export default function StudentVideoPlayer({
 
         <aside className="svpSide">
           <div className="svpSideCard">
-            <div className="svpSideTitle">시청 도우미</div>
+            <div className="svpSideTitle">시청 상태</div>
             {policy.monitoring_enabled ? (
               <>
                 <div className="svpSideRow">
-                  <div className="svpSideLabel">세션</div>
-                  <div className="svpSideValue">{bootstrap.session_id?.slice(0, 8) || "-"}…</div>
+                  <div className="svpSideLabel">시청 모드</div>
+                  <div className="svpSideValue">수업 인정</div>
                 </div>
                 <div className="svpSideRow">
                   <div className="svpSideLabel">만료</div>
@@ -756,24 +759,20 @@ export default function StudentVideoPlayer({
               </>
             ) : (
               <div className="svpSideRow">
-                <div className="svpSideLabel">모니터링</div>
-                <div className="svpSideValue">비활성 (복습 모드)</div>
+                <div className="svpSideLabel">시청 모드</div>
+                <div className="svpSideValue">복습</div>
               </div>
             )}
-            <div className="svpSideRow">
-              <div className="svpSideLabel">기기</div>
-              <div className="svpSideValue">{deviceId.slice(0, 10)}…</div>
-            </div>
             <div className="svpSideDivider" />
-            <div className="svpSideTitle2">정책 적용</div>
+            <div className="svpSideTitle2">재생 설정</div>
             <div className="svpSideBullets">
               <div className="svpSideBullet">
                 <span className="svpSideDot" />
-                <span className="svpSideTxt">{allowSeek ? (boundedForward ? "시청한 구간까지만 이동 가능" : "탐색 가능") : "탐색 차단"}</span>
+                <span className="svpSideTxt">{allowSeek ? (boundedForward ? "본 구간까지만 이동 가능" : "자유롭게 이동 가능") : "구간 이동 제한"}</span>
               </div>
               <div className="svpSideBullet">
                 <span className="svpSideDot" />
-                <span className="svpSideTxt">{speedLocked ? "배속 차단" : `최대 배속 ${maxRate}x`}</span>
+                <span className="svpSideTxt">{speedLocked ? "배속 변경 제한" : `최대 ${maxRate}x까지 가능`}</span>
               </div>
               <div className="svpSideBullet">
                 <span className="svpSideDot" />
@@ -795,7 +794,7 @@ export default function StudentVideoPlayer({
             </button>
             {monitoringEnabled && (
               <button type="button" className="svpSideButton svpSideButtonGhost" onClick={() => controllerRef.current?.refreshSession()}>
-                세션 점검
+                재생 상태 확인
               </button>
             )}
           </div>

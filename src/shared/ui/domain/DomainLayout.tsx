@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 import DomainTabs, { type DomainTab } from "./DomainTabs";
 import DomainPanel from "./DomainPanel";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import "./DomainLayout.css";
 
 export type { DomainTab } from "./DomainTabs";
 
@@ -19,6 +19,8 @@ type DomainLayoutProps = {
   /** 도메인 헤더 상단 브레드크럼 (예: 강의 › 박철의 생명과학) */
   breadcrumbs?: DomainCrumb[];
   tabs?: DomainTab[];
+  /** 정보 밀도가 높은 작업 화면에서 헤더를 낮게 쓰는 표시 옵션 */
+  density?: "default" | "compact";
   /** 제목 행 우측 액션 영역 (예: 설정 아이콘) */
   headerActions?: ReactNode;
   children: ReactNode;
@@ -29,56 +31,40 @@ export default function DomainLayout({
   description,
   breadcrumbs,
   tabs,
+  density = "default",
   headerActions,
   children,
 }: DomainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
+  const isCompact = density === "compact";
+  const hasTabs = tabs != null && tabs.length > 0;
 
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
+    <div className="domain-layout" data-app="admin" data-domain-density={density}>
       {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트, 탭 있으면 맨 바닥에 여백 없이 */}
       <div
-        className={`relative flex flex-col ${tabs != null && tabs.length > 0 ? "domain-header--with-tabs" : ""}`}
-        style={{
-          background: "color-mix(in srgb, var(--color-primary) 8%, var(--bg-surface))",
-          borderBottom: "1px solid var(--color-border-divider-strong)",
-          paddingLeft: isMobile ? "var(--space-4)" : "var(--space-6)",
-          paddingRight: isMobile ? "var(--space-4)" : "var(--space-6)",
-          paddingTop: isMobile ? "var(--space-4)" : "var(--space-7)",
-          paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-3)",
-        }}
+        className={[
+          "domain-layout__header",
+          hasTabs ? "domain-header--with-tabs" : "domain-layout__header--no-tabs",
+          isCompact ? "domain-header--compact" : "",
+        ].filter(Boolean).join(" ")}
       >
-        <div className="relative flex-shrink-0 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0 relative">
-            <div
-              className="absolute left-0 top-1 rounded-full bg-[var(--color-primary)]"
-              style={{ width: 4, height: 24 }}
-              aria-hidden
-            />
-            <div style={{ paddingLeft: "var(--space-4)" }}>
+        <div className="domain-layout__header-row">
+          <div className="domain-layout__title-area">
+            <div className="domain-layout__accent" aria-hidden />
+            <div className="domain-layout__title-stack">
               {breadcrumbs != null && breadcrumbs.length > 0 ? (
-                <div
-                  className="flex items-center gap-2 flex-wrap tracking-tight"
-                  style={{
-                    fontWeight: 700,
-                    color: "var(--color-text-primary)",
-                    fontSize: isMobile ? "1rem" : "1.5rem",
-                  }}
-                >
+                <div className="domain-layout__breadcrumbs">
                   {breadcrumbs.map((c, idx) => (
                     <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
                       {c.to ? (
                         <span
+                          className="domain-layout__breadcrumb-link"
                           role="button"
                           tabIndex={0}
                           onClick={() => navigate(c.to!)}
                           onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
-                          style={{
-                            cursor: "pointer",
-                            color: "var(--color-text-secondary)",
-                          }}
                         >
                           {c.label}
                         </span>
@@ -86,12 +72,7 @@ export default function DomainLayout({
                         <span>{c.label}</span>
                       )}
                       {idx < breadcrumbs.length - 1 && (
-                        <span
-                          style={{
-                            color: "var(--color-text-disabled)",
-                            fontWeight: 500,
-                          }}
-                        >
+                        <span className="domain-layout__breadcrumb-separator">
                           ›
                         </span>
                       )}
@@ -99,36 +80,23 @@ export default function DomainLayout({
                   ))}
                 </div>
               ) : (
-                <div
-                  className="tracking-tight"
-                  style={{
-                    fontWeight: 700,
-                    color: "var(--color-text-primary)",
-                    fontSize: isMobile ? "1.125rem" : "1.5rem",
-                  }}
-                >
+                <div className="domain-layout__title">
                   {title}
                 </div>
               )}
               {description != null && (
-                <div
-                  className="text-base mt-1"
-                  style={{
-                    color: "var(--color-text-muted)",
-                    opacity: 0.9,
-                  }}
-                >
+                <div className="domain-layout__description">
                   {description}
                 </div>
               )}
             </div>
           </div>
           {headerActions != null && (
-            <div className="flex items-center gap-2 flex-shrink-0 pt-1">{headerActions}</div>
+            <div className="domain-layout__actions">{headerActions}</div>
           )}
         </div>
 
-        {tabs != null && tabs.length > 0 && (
+        {hasTabs && (
           <div className="domain-header__tabs-wrap">
             <DomainTabs
               tabs={tabs}
@@ -140,11 +108,7 @@ export default function DomainLayout({
       </div>
 
       {/* DOMAIN CONTENT (ds-panel) */}
-      <div
-        style={{
-          padding: isMobile ? "var(--space-3)" : "var(--space-4)",
-        }}
-      >
+      <div className="domain-layout__content">
         <DomainPanel>{children}</DomainPanel>
       </div>
     </div>

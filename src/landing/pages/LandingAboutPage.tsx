@@ -154,7 +154,7 @@ export default function LandingAboutPage() {
         <div style={{ marginTop: 64, padding: 24, borderRadius: 16, background: cardBg, border: `1px solid ${cardBorder}` }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px" }}>더 알아보기</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            <Link to="/landing/matchup-board" style={pillStyle(primary, isDark)}>적중 보고서 →</Link>
+            <Link to="/landing/reports" style={pillStyle(primary, isDark)}>적중 보고서 →</Link>
             <Link to="/landing/guide" style={pillStyle(primary, isDark)}>가이드 →</Link>
             <Link to="/landing/reviews" style={pillStyle(primary, isDark)}>수강 후기 →</Link>
             <Link to="/landing#contact" style={pillStyle(primary, isDark)}>상담 문의 →</Link>

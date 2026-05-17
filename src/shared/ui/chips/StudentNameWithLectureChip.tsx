@@ -5,6 +5,7 @@
 import React from "react";
 import LectureChip from "./LectureChip";
 import { useClinicHighlight } from "@/shared/contexts/ClinicHighlightContext";
+import "./StudentNameWithLectureChip.css";
 
 export type LectureInfo = {
   lectureName: string;
@@ -29,9 +30,21 @@ type Props = {
   clinicHighlight?: boolean;
   /** enrollment ID — clinicHighlight 미지정 시 전역 컨텍스트에서 자동 조회 */
   enrollmentId?: number | null;
+  /** 성적표처럼 좁고 반복되는 표에서는 강의 정보를 이름 아래 보조 메타로 낮춘다. */
+  layout?: "inline" | "stacked";
+  /** inline 기본은 기존 강의 딱지, stacked 표에서는 meta 표시가 더 읽기 좋다. */
+  lectureDisplay?: "chip" | "meta";
 };
 
 const DEFAULT_COLOR = "#3b82f6";
+
+function avatarSizeClass(size?: number): string {
+  if (size == null || size <= 0) return "";
+  if (size <= 20) return "student-name-chip__avatar--20";
+  if (size <= 24) return "student-name-chip__avatar--24";
+  if (size <= 28) return "student-name-chip__avatar--28";
+  return "student-name-chip__avatar--32";
+}
 
 export default function StudentNameWithLectureChip({
   name,
@@ -43,6 +56,8 @@ export default function StudentNameWithLectureChip({
   highlight,
   clinicHighlight,
   enrollmentId,
+  layout = "inline",
+  lectureDisplay = "chip",
 }: Props) {
   const contextHighlight = useClinicHighlight(enrollmentId);
   const isClinicHighlight = clinicHighlight ?? contextHighlight;
@@ -50,13 +65,24 @@ export default function StudentNameWithLectureChip({
     ? lectures
     : [];
   const chipSizeResolved = chipSize;
+  const avatarClass = avatarSizeClass(avatarSize);
+
+  const rootClass = [
+    "student-name-chip",
+    layout === "stacked" ? "student-name-chip--stacked" : "student-name-chip--inline",
+    className ?? "",
+  ].filter(Boolean).join(" ");
+  const nameNode = (
+    <span className={`student-name-chip__name ${isClinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
+      {highlight ? highlight(name || "-") : (name || "-")}
+    </span>
+  );
 
   return (
-    <span className={`inline-flex items-center gap-2 min-w-0 ${className ?? ""}`.trim()}>
+    <span className={rootClass}>
       {avatarSize != null && avatarSize > 0 && (
         <span
-          className="flex-shrink-0 rounded-full overflow-hidden bg-[var(--color-brand-primary)]/15 text-[var(--color-brand-primary)] text-xs font-bold flex items-center justify-center"
-          style={{ width: avatarSize, height: avatarSize }}
+          className={`student-name-chip__avatar ${avatarClass}`}
           aria-hidden
         >
           {profilePhotoUrl ? (
@@ -66,18 +92,39 @@ export default function StudentNameWithLectureChip({
           )}
         </span>
       )}
-      <span className={`truncate ${isClinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
-        {highlight ? highlight(name || "-") : (name || "-")}
+
+      <span className="student-name-chip__body">
+        {nameNode}
+        {layout === "stacked" && lectureDisplay === "meta" && list.length > 0 && (
+          <span className="student-name-chip__lecture-row">
+            {list.map((lec, i) => {
+              const label = lec.lectureName || "강의";
+              return (
+                <span
+                  key={`${lec.lectureName ?? ""}-${i}`}
+                  className="student-name-chip__lecture-meta"
+                  title={label}
+                >
+                  <span
+                    className="student-name-chip__lecture-dot"
+                    aria-hidden
+                  />
+                  <span className="student-name-chip__lecture-text">{label}</span>
+                </span>
+              );
+            })}
+          </span>
+        )}
       </span>
-      {list.map((lec, i) => (
-        <LectureChip
-          key={`${lec.lectureName ?? ""}-${i}`}
-          lectureName={lec.lectureName || "??"}
-          color={lec.color ?? DEFAULT_COLOR}
-          size={chipSizeResolved}
-          chipLabel={lec.chipLabel}
-        />
-      ))}
+      {!(layout === "stacked" && lectureDisplay === "meta") && list.map((lec, i) => (
+          <LectureChip
+            key={`${lec.lectureName ?? ""}-${i}`}
+            lectureName={lec.lectureName || "??"}
+            color={lec.color ?? DEFAULT_COLOR}
+            size={chipSizeResolved}
+            chipLabel={lec.chipLabel}
+          />
+        ))}
     </span>
   );
 }

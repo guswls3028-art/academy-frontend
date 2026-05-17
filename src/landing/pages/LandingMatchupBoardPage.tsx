@@ -53,6 +53,9 @@ export default function LandingMatchupBoardPage() {
   const { user } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const tenantCode = resolveTenantCode();
+  const hasHitReports = (config?.config?.sections || []).some((section) => (
+    section.enabled && section.type === "hit_reports" && Array.isArray(section.items) && section.items.length > 0
+  ));
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -128,6 +131,26 @@ export default function LandingMatchupBoardPage() {
             <p style={{ fontSize: 13, color: "#64748b", margin: 0, lineHeight: 1.5 }}>
               학원에서 게시 준비 중입니다. 잠시 후 다시 확인해주세요.
             </p>
+            {hasHitReports && (
+              <Link
+                to="/landing/reports"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 18,
+                  padding: "10px 18px",
+                  borderRadius: 999,
+                  background: accent,
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                기존 적중 보고서 보기
+              </Link>
+            )}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>

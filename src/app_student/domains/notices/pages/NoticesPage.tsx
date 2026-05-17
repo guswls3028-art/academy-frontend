@@ -53,9 +53,9 @@ export default function NoticesPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="공지사항">
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="stu-skel-stack stu-skel-stack--compact">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius-md)" }} />
+            <div key={i} className="stu-skel stu-skel--lg" />
           ))}
         </div>
       </StudentPageShell>
@@ -77,16 +77,7 @@ export default function NoticesPage() {
   return (
     <StudentPageShell title="공지사항">
       {/* 탭 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          padding: 4,
-          background: "var(--stu-surface-soft)",
-          borderRadius: 10,
-          marginBottom: "var(--stu-space-6)",
-        }}
-      >
+      <div className="student-notice-tabs">
         {TAB_CONFIG.map(({ key, label }) => {
           const isActive = activeTab === key;
           const count = counts[key];
@@ -95,42 +86,12 @@ export default function NoticesPage() {
               key={key}
               type="button"
               onClick={() => setActiveTab(key)}
-              style={{
-                flex: 1,
-                padding: "8px 6px",
-                border: "none",
-                borderRadius: 7,
-                background: isActive ? "var(--stu-surface)" : "transparent",
-                fontSize: 13,
-                fontWeight: isActive ? 700 : 500,
-                color: isActive ? "var(--stu-text)" : "var(--stu-text-muted)",
-                boxShadow: isActive ? "0 1px 4px rgba(0,0,0,0.08)" : undefined,
-                cursor: "pointer",
-                transition: "all var(--stu-motion-fast)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                letterSpacing: "-0.01em",
-              }}
+              className={`student-notice-tab${isActive ? " student-notice-tab--active" : ""}`}
             >
               <span>{label}</span>
               {count > 0 && (
                 <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minWidth: 18,
-                    height: 18,
-                    padding: "0 5px",
-                    borderRadius: 999,
-                    background: isActive ? "var(--stu-primary)" : "var(--stu-surface-soft)",
-                    color: isActive ? "var(--stu-primary-contrast)" : "var(--stu-text-muted)",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                  }}
+                  className={`student-notice-tab__count${isActive ? " student-notice-tab__count--active" : ""}`}
                 >
                   {count}
                 </span>
@@ -153,7 +114,7 @@ export default function NoticesPage() {
           description="새로운 공지가 등록되면 여기에 표시됩니다."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+        <div className="student-notice-list">
           {filtered.map((notice) => {
             const mappingNode = notice.mappings?.[0]?.node_detail;
             const lectureTitle = mappingNode?.lecture_title;
@@ -164,40 +125,24 @@ export default function NoticesPage() {
               <Link
                 key={notice.id}
                 to={`/student/notices/${notice.id}`}
-                className={`stu-panel stu-panel--pressable${(notice.is_urgent || notice.is_pinned) ? " stu-panel--accent" : ""}`}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "var(--stu-space-2)",
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
+                className={`student-notice-card stu-panel stu-panel--pressable${(notice.is_urgent || notice.is_pinned) ? " stu-panel--accent" : ""}`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--stu-space-3)" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="student-notice-card__head">
+                  <div className="student-notice-card__body">
+                    <div className="student-notice-card__title-row">
                       {notice.is_urgent && (
-                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary-contrast)", background: "var(--stu-danger)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>긴급</span>
+                        <span className="student-notice-card__badge student-notice-card__badge--urgent">긴급</span>
                       )}
                       {notice.is_pinned && !notice.is_urgent && (
-                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "var(--stu-primary)", background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", borderRadius: 4, padding: "1px 6px", lineHeight: 1.5 }}>고정</span>
+                        <span className="student-notice-card__badge student-notice-card__badge--pinned">고정</span>
                       )}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{notice.title}</span>
+                      <span className="student-notice-card__title">{notice.title}</span>
                     </div>
                     {notice.content && (() => {
                       const preview = stripHtml(notice.content);
                       return preview ? (
                         <div
-                          className="stu-muted"
-                          style={{
-                            fontSize: 13,
-                            lineHeight: 1.4,
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            overflow: "hidden",
-                            marginTop: 4,
-                          }}
+                          className="stu-muted student-notice-card__preview"
                         >
                           {preview}
                         </div>
@@ -205,40 +150,24 @@ export default function NoticesPage() {
                     })()}
                   </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--stu-space-1)" }}>
-                  <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+                <div className="student-notice-card__meta">
+                  <div className="student-notice-card__scopes">
                     {lectureTitle && (
                       <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 500,
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: isSessionLevel ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)" : "var(--stu-surface-soft)",
-                          color: isSessionLevel ? "var(--stu-primary)" : "var(--stu-text-muted)",
-                          border: isSessionLevel ? "1px solid color-mix(in srgb, var(--stu-primary) 18%, transparent)" : "none",
-                        }}
+                        className={`student-notice-card__scope${isSessionLevel ? " student-notice-card__scope--primary" : ""}`}
                       >
                         {lectureTitle}
                       </span>
                     )}
                     {sessionTitle && (
                       <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: "color-mix(in srgb, var(--stu-primary) 12%, transparent)",
-                          color: "var(--stu-primary)",
-                          border: "1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent)",
-                        }}
+                        className="student-notice-card__scope student-notice-card__scope--session"
                       >
                         {sessionTitle}
                       </span>
                     )}
                   </div>
-                  <span className="stu-muted" style={{ fontSize: 12, flexShrink: 0 }}>
+                  <span className="stu-muted student-notice-card__date">
                     {formatYmd(notice.created_at)}
                   </span>
                 </div>

@@ -18,27 +18,20 @@ export default function VideoHomeTab({ lectures, publicData }: Props) {
     return (
       <EmptyState
         title="등록된 영상이 없습니다"
-        description="공개 영상이나 수강 중인 강의의 차시 영상이 여기에 표시됩니다."
+        description="공개 영상이나 수강 중인 강의 영상이 여기에 표시됩니다."
       />
     );
   }
 
   return (
-    <div>
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: "var(--stu-space-4)" }}>
-        수강 가능한 강의
-      </h2>
+    <div className="video-home-stack">
       <div
         data-guide="video-courses"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 16,
-        }}
+        className="video-course-grid"
       >
         {hasPublic && publicData && (
           <CourseCard
-            title="전체공개영상"
+            title="공개 강의실"
             thumbnailUrl={publicData.thumbnail_url ?? null}
             videoCount={publicData.video_count ?? 0}
             totalDuration={publicData.total_duration ?? 0}

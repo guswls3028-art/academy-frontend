@@ -35,9 +35,9 @@ const COL_EDIT = 36;
 // 2026-05-13 4차 Visual Polish:
 // 1100 narrow viewport (학원장 PC 기본 폭 일부) wrap 836 안에 들어가도록 default 재조정.
 // 직전 합산 1284px → 836 < 1284 → 가로 스크롤 강요. 신규 합산 813px ≤ 836 → viewport 내 안착.
-// 합산 계산: 36 + 170 + 56 + 125*3 + 96 + 72 = 805 + alpha
+// 합산 계산: 36 + 196 + 56 + 125*3 + 96 + 72 = 831 + alpha
 // 학원장이 폭 부족 시 ResizableTh 드래그로 직접 조정 가능 (5/13 1차 fix).
-const COL_NAME = 170;
+const COL_NAME = 196;
 const COL_ATTENDANCE = 56;
 const COL_SCORE = 125;
 const COL_CLINIC_TARGET = 72;
@@ -514,7 +514,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   /* 2026-05-13 4차 Visual Polish: 컬럼 폭 default 추가 재조정.
      v3 bump → 기존 stale prefs (v2 학원장 환경에 박힌 큰 값) 무시. */
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v3", columnDefs);
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v4", columnDefs);
 
   const tableCols = useMemo(() => {
     return [
@@ -872,15 +872,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   data-col-type="name"
                   onClick={() => onSelectRow(row)}
                 >
-                  {/* SSOT 복구 (2026-05-13 3차): 학생 이름 = [아바타]+[이름]+[강의 딱지] 전역 규약 준수.
-                      직전 P1-4 결정(차시 컨텍스트 redundant)은 학원장 SSOT 위반으로 롤백.
+                  {/* 성적표 전용: 학생명 우선, 강의는 아래 보조 메타로 낮춰 표 가독성 확보.
                       아바타도 SSOT 동일: 사진 없으면 이니셜 표시 (다른 30+ 화면과 정합).
                       lectures: 단일 강의 → [{...}] 배열로 어댑트 (백엔드 row.lecture_* SSOT 그대로). */}
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={32}
-                    chipSize={24}
+                    avatarSize={28}
+                    layout="stacked"
+                    lectureDisplay="meta"
                     lectures={
                       row.lecture_title
                         ? [{

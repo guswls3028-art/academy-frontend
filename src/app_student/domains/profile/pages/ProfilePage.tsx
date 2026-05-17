@@ -16,7 +16,7 @@ import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 
 /** 미입력 표시 JSX — italic 회색 */
 const EMPTY_PLACEHOLDER = (
-  <span style={{ fontStyle: "italic", color: "var(--stu-text-muted)", fontWeight: 400 }}>미입력</span>
+  <span className="student-profile-empty">미입력</span>
 );
 
 function formatPhone(phone: string | null | undefined): React.ReactNode {
@@ -268,10 +268,11 @@ export default function ProfilePage() {
       )}
       {/* 프로필 사진 */}
       {!profile.isParentReadOnly && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: "var(--stu-space-6)" }}>
+        <div className="student-profile-photo-wrap">
           <div
             role="button"
             tabIndex={0}
+            className="student-profile-photo"
             aria-label="프로필 사진 변경"
             onClick={() => photoInputRef.current?.click()}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); photoInputRef.current?.click(); } }}
@@ -337,15 +338,15 @@ export default function ProfilePage() {
       )}
 
       {/* 기본 정보 */}
-      <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
+      <div className="stu-section stu-section--nested student-profile-card" style={{ marginBottom: "var(--stu-space-6)" }}>
         {profile.isParentReadOnly && (
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-3)" }}>자녀 정보</div>
         )}
-        <div style={{ position: "relative", paddingRight: 36 }}>
+        <div className="student-profile-card__body">
           {!profile.isParentReadOnly && (
           <button
             type="button"
-            className="stu-btn stu-btn--ghost stu-btn--sm"
+            className="stu-btn stu-btn--ghost stu-btn--sm student-profile-edit-btn"
             onClick={editing ? () => setEditing(false) : startEdit}
             style={{
               position: "absolute",
@@ -367,7 +368,7 @@ export default function ProfilePage() {
           </button>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <div className="student-profile-fields">
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>이름</div>
               {editing && !profile.isParentReadOnly ? (

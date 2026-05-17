@@ -2,16 +2,21 @@
  * 차시 상세 페이지 — 영상 목록 (작은 썸네일 구조)
  */
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
+import type { CSSProperties } from "react";
+import { useParams, useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchStudentSessionVideos, fetchStudentVideoPlayback } from "../api/video.api";
+import { fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { IconPlay } from "@student/shared/ui/icons/Icons";
+import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
 import { resolveTenantCodeString } from "@/shared/tenant";
 
-// 영상 목록 아이템 컴포넌트
+function progressWidthStyle(value: number): CSSProperties {
+  return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
+}
+
+// 재생 목록 아이템 컴포넌트
 function VideoStatusBadge({ status }: { status: string }) {
   // UPLOADED: 업로드 완료 + 인코딩 대기 — 재생 불가
   // PENDING: 업로드 진행 / PROCESSING: 인코딩 중
@@ -30,29 +35,8 @@ function VideoStatusBadge({ status }: { status: string }) {
   else if (status === "PROCESSING") label = "인코딩 중";
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        display: "grid",
-        placeItems: "center",
-        background: "rgba(0,0,0,0.6)",
-        zIndex: 4,
-        borderRadius: 8,
-      }}
-    >
-      <div
-        style={{
-          padding: "4px 10px",
-          borderRadius: 6,
-          background: isFailed ? "rgba(239,68,68,0.9)" : "rgba(255,255,255,0.15)",
-          backdropFilter: "blur(4px)",
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#fff",
-          letterSpacing: "0.02em",
-        }}
-      >
+    <div className="video-status-overlay">
+      <div className={`video-status-label${isFailed ? " video-status-label--failed" : ""}`}>
         {label}
       </div>
     </div>
@@ -64,222 +48,90 @@ function VideoListItem({
   enrollmentId,
   sessionId,
   isCurrent = false,
-  progress = 0, // 0-100
   onPrefetch,
 }: {
-  video: {
-    id: number;
-    title: string;
-    thumbnail_url?: string | null;
-    duration?: number | null;
-    status?: string;
-  };
+  video: StudentVideoListItem;
   enrollmentId?: number | null;
   sessionId?: number | null;
   isCurrent?: boolean;
-  progress?: number; // 0-100
   onPrefetch?: (videoId: number) => void;
 }) {
   const videoStatus = video.status ?? "READY";
   const isPlayable = videoStatus === "READY";
+  const progress = Math.min(100, Math.max(0, Math.round(video.progress ?? 0)));
+  const duration = video.duration ?? 0;
 
   const href = isPlayable
     ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}${sessionId ? `&session=${sessionId}` : ""}`
     : undefined;
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (!isPlayable) {
-      e.preventDefault();
-    }
-  };
+  const metaItems = [
+    duration > 0 ? formatDurationDetailed(duration) : null,
+    video.completed || progress >= 100 ? "완료" : progress > 0 ? `${progress}% 진행` : "새로 시작",
+  ].filter(Boolean);
+
+  const content = (
+    <>
+      <div className={`video-thumb${video.thumbnail_url ? "" : " video-thumb--placeholder"}`}>
+        {video.thumbnail_url ? (
+          <img src={video.thumbnail_url} alt={video.title} loading="lazy" />
+        ) : (
+          <span className="video-play-orb" aria-hidden="true">
+            <IconPlay className="video-play-orb__icon" />
+          </span>
+        )}
+
+        {!isPlayable && <VideoStatusBadge status={videoStatus} />}
+
+        {duration > 0 && (
+          <span className="video-thumb-badge">{formatDurationDetailed(duration)}</span>
+        )}
+
+        {progress > 0 && (
+          <div className="video-progress-track" aria-hidden="true">
+            <div className="video-progress-fill" style={progressWidthStyle(progress)} />
+          </div>
+        )}
+      </div>
+
+      <div className="video-card__body">
+        <div className="video-card__kicker">
+          {isCurrent ? "이어보던 항목" : isPlayable ? "재생 가능" : "준비 중"}
+        </div>
+        <div className="video-card__title">{video.title}</div>
+        <div className="video-card__meta">
+          {metaItems.map((item) => (
+            <span key={item} className="video-card__meta-item">{item}</span>
+          ))}
+        </div>
+        {isPlayable && (
+          <div className="video-card__cta">
+            <span>{progress > 0 && progress < 100 ? "이어보기" : "재생하기"}</span>
+            <IconChevronRight className="video-card__cta-icon" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  if (!isPlayable) {
+    return (
+      <div className="video-card video-card--disabled">
+        {content}
+      </div>
+    );
+  }
 
   return (
     <Link
-      to={href ?? "#"}
-      onClick={handleClick}
-      style={{
-        display: "flex",
-        gap: 12,
-        padding: "var(--stu-space-3)",
-        borderRadius: 10,
-        background: isCurrent ? "var(--stu-tint-primary, var(--stu-surface-soft))" : "var(--stu-surface)",
-        border: "1px solid var(--stu-border)",
-        borderLeft: isCurrent ? "3px solid var(--stu-primary)" : "1px solid var(--stu-border)",
-        textDecoration: "none",
-        color: "inherit",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
-        cursor: isPlayable ? "pointer" : "default",
-        opacity: isPlayable ? 1 : 0.7,
-        boxShadow: "var(--stu-shadow-1)",
-        position: "relative",
-      }}
+      to={href!}
+      className={`video-card${isCurrent ? " video-card--active" : ""}`}
       onTouchStart={() => { if (isPlayable && onPrefetch) onPrefetch(video.id); }}
-      onMouseEnter={(e) => {
-        if (!isPlayable) return;
+      onMouseEnter={() => {
         if (onPrefetch) onPrefetch(video.id);
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
-        e.currentTarget.style.background = "var(--stu-tint-hover)";
-        e.currentTarget.style.borderColor = "var(--stu-border-strong)";
-      }}
-      onMouseLeave={(e) => {
-        if (!isPlayable) return;
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "var(--stu-shadow-1)";
-        e.currentTarget.style.background = isCurrent ? "var(--stu-tint-primary, var(--stu-surface-soft))" : "var(--stu-surface)";
-        e.currentTarget.style.borderColor = "var(--stu-border)";
-      }}
-      onMouseDown={(e) => {
-        if (!isPlayable) return;
-        e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
-      }}
-      onMouseUp={(e) => {
-        if (!isPlayable) return;
-        e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
-      {/* 썸네일 */}
-      <div
-        style={{
-          position: "relative",
-          width: 160,
-          aspectRatio: "16 / 9",
-          borderRadius: 8,
-          overflow: "hidden",
-          background: "var(--stu-surface-soft)",
-          flexShrink: 0,
-          zIndex: 0,
-        }}
-      >
-        {video.thumbnail_url ? (
-          <img
-            src={video.thumbnail_url}
-            alt={video.title}
-            loading="lazy"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--stu-gradient, linear-gradient(135deg, #6b7280, #4b5563))",
-            }}
-          >
-            <IconPlay style={{ width: 32, height: 32, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
-          </div>
-        )}
-
-        {/* 인코딩/실패 상태 오버레이 */}
-        {!isPlayable && <VideoStatusBadge status={videoStatus} />}
-
-        {/* 현재 재생 중 오버레이 */}
-        {isCurrent && isPlayable && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "grid",
-              placeItems: "center",
-              background: "rgba(0,0,0,0.3)",
-              zIndex: 1,
-            }}
-          >
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.95)",
-                display: "grid",
-                placeItems: "center",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-              }}
-            >
-              <IconPlay style={{ width: 24, height: 24, color: "#000", marginLeft: 2 }} />
-            </div>
-          </div>
-        )}
-
-        {/* 진행률 바 (YouTube 스타일) */}
-        {progress > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 3,
-              background: "rgba(0,0,0,0.3)",
-              zIndex: 2,
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                width: `${progress}%`,
-                background: "var(--stu-primary)",
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-        )}
-
-        {/* 영상 시간 오버레이 */}
-        {video.duration && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: progress > 0 ? 9 : 6,
-              right: 6,
-              padding: "2px 6px",
-              borderRadius: 4,
-              background: "rgba(0,0,0,0.8)",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 600,
-              zIndex: 3,
-            }}
-          >
-            {formatDurationDetailed(video.duration)}
-          </div>
-        )}
-      </div>
-
-      {/* 정보 */}
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 15,
-            fontWeight: isCurrent ? 700 : 600,
-            color: "var(--stu-text)",
-            marginBottom: 4,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            lineHeight: 1.4,
-          }}
-        >
-          {video.title}
-        </div>
-      </div>
+      {content}
     </Link>
   );
 }
@@ -287,8 +139,15 @@ function VideoListItem({
 export default function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const nav = useNavigate();
   const qc = useQueryClient();
+  const routeState = (location.state || {}) as {
+    sessionTitle?: string;
+    courseTitle?: string;
+    order?: number;
+    isPublic?: boolean;
+  };
 
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
@@ -349,12 +208,18 @@ export default function SessionDetailPage() {
         ? String(res.data.detail[0] ?? "")
         : null;
 
+  const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
+  const completedCount = videos.filter((v) => v.completed || (v.progress ?? 0) >= 100).length;
+  const progressLabel = videos.length > 0 ? `${completedCount}/${videos.length} 완료` : "준비 중";
+  const sessionTitle = routeState.sessionTitle || "재생 목록";
+  const courseTitle = routeState.courseTitle || "영상 학습";
+
   if (isLoading) {
     return (
       <StudentPageShell title="" noSectionFrame>
-        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-          <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
-          <div className="stu-skel" style={{ height: 100, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="video-page-content video-detail-skel">
+          <div className="stu-skel video-detail-skel__hero" />
+          <div className="stu-skel video-detail-skel__body video-detail-skel__body--compact" />
         </div>
       </StudentPageShell>
     );
@@ -363,10 +228,10 @@ export default function SessionDetailPage() {
   if (is403) {
     return (
       <StudentPageShell title="" noSectionFrame>
-        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+        <div className="video-page-content">
           <EmptyState
             title="영상을 볼 수 없습니다"
-            description={serverMessage || "이 차시의 영상을 볼 수 있는 권한이 없습니다. 수강 중인 강의인지 확인하거나, 선생님에게 문의해 주세요."}
+            description={serverMessage || "이 차시를 볼 수 있는 권한이 없습니다. 수강 중인 강의인지 확인하거나, 선생님에게 문의해 주세요."}
           />
         </div>
       </StudentPageShell>
@@ -376,9 +241,9 @@ export default function SessionDetailPage() {
   if (isError && !is403) {
     return (
       <StudentPageShell title="" noSectionFrame>
-        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+        <div className="video-page-content">
           <EmptyState
-            title="영상을 불러오지 못했어요"
+            title="재생 목록을 불러오지 못했어요"
             description="잠시 후 다시 시도해 주세요."
           />
         </div>
@@ -389,7 +254,7 @@ export default function SessionDetailPage() {
   if (!sessionIdNum || videos.length === 0) {
     return (
       <StudentPageShell title="" noSectionFrame>
-        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+        <div className="video-page-content">
           <EmptyState
             title="차시를 찾을 수 없습니다"
             description="차시가 존재하지 않거나 영상이 없습니다."
@@ -401,30 +266,39 @@ export default function SessionDetailPage() {
 
   return (
     <StudentPageShell title="" noSectionFrame>
-      <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-        {/* 하단: 영상 목록 (큰 썸네일 배너 제거) */}
-        <div>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: "var(--stu-text)",
-              marginBottom: "var(--stu-space-4)",
-            }}
-          >
-            영상 목록
-          </h2>
+      <div className="video-page-content">
+        <button type="button" className="video-back" onClick={() => nav(-1)}>
+          <IconChevronRight className="video-back__icon" aria-hidden="true" />
+          <span>차시 목록</span>
+        </button>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--stu-space-3)",
-            }}
-          >
+        <section className="video-hero">
+          <div className="video-hero__eyebrow">
+            <IconPlay className="video-hero__icon" aria-hidden="true" />
+            <span>{courseTitle}</span>
+          </div>
+          <h1 className="video-hero__title">
+            {routeState.order && !routeState.isPublic ? `${routeState.order}차시 · ` : ""}
+            {sessionTitle}
+          </h1>
+          <div className="video-hero__desc">
+            영상을 선택하면 마지막으로 보던 지점부터 이어서 볼 수 있습니다.
+          </div>
+          <div className="video-hero__stats">
+            <span className="video-stat-pill">영상 {videos.length}개</span>
+            {totalDuration > 0 && <span className="video-stat-pill">{formatDuration(totalDuration)}</span>}
+            <span className="video-stat-pill">{progressLabel}</span>
+          </div>
+        </section>
+
+        <section className="video-list" aria-label="재생 목록">
+          <div className="video-section-head">
+            <h2 className="video-section-title">재생 목록</h2>
+            <span className="video-section-sub">{videos.length}개</span>
+          </div>
+
+          <div className="video-list">
             {videos.map((video) => {
-              // 백엔드에서 받은 progress 사용 (0-100)
-              const progress = video.progress ?? 0;
               const isCurrent = currentVideoId === video.id;
 
               return (
@@ -434,7 +308,6 @@ export default function SessionDetailPage() {
                   enrollmentId={enrollmentId}
                   sessionId={sessionIdNum}
                   isCurrent={isCurrent}
-                  progress={progress}
                   onPrefetch={(vid) => {
                     qc.prefetchQuery({
                       queryKey: ["student-video-playback", vid, enrollmentId],
@@ -446,7 +319,7 @@ export default function SessionDetailPage() {
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
     </StudentPageShell>
   );

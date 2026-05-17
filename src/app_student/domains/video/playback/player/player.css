@@ -244,8 +244,10 @@
 .svpBigPlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: radial-gradient(circle at center, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55));
   border: 0;
   cursor: pointer;
@@ -272,9 +274,7 @@
 }
 
 .svpBigPlayText {
-  margin-top: 10px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.78);
+  display: none;
 }
 
 .svpControls {
@@ -546,9 +546,9 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--stu-border, rgba(17, 17, 17, 0.08));
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid color-mix(in srgb, var(--stu-primary, #2563eb) 42%, transparent);
+  background: var(--stu-primary, #2563eb);
+  color: var(--stu-primary-contrast, #fff);
   font-weight: 900;
   cursor: pointer;
   transition: transform 120ms ease, background 120ms ease;
@@ -556,7 +556,7 @@
 
 .svpSideButton:hover {
   transform: translateY(-1px);
-  background: var(--stu-tint-hover, rgba(17, 17, 17, 0.04));
+  opacity: 0.9;
 }
 
 .svpSideButton:active {
@@ -565,10 +565,13 @@
 
 .svpSideButtonGhost {
   background: var(--stu-surface-soft, #f1f5f9);
+  color: var(--stu-text, rgba(17, 17, 17, 0.95));
+  border-color: var(--stu-border, rgba(17, 17, 17, 0.08));
 }
 
 .svpSideButtonGhost:hover {
   background: var(--stu-tint-hover, rgba(17, 17, 17, 0.06));
+  opacity: 1;
 }
 
 /* ═══════════════════════════════════════════════
@@ -620,6 +623,37 @@
 
 .vpp-back-btn:hover {
   background: var(--stu-tint-hover);
+}
+
+.vpp-icon-back {
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+}
+
+.vpp-icon-back-sm,
+.vpp-icon-next,
+.vpp-icon-play {
+  width: 14px;
+  height: 14px;
+}
+
+.vpp-icon-back-sm {
+  transform: rotate(180deg);
+}
+
+.vpp-playlist-toggle-icon {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--stu-motion-fast);
+}
+
+.vpp-playlist-toggle-icon--open {
+  transform: rotate(-90deg);
+}
+
+.vpp-playlist-toggle-icon--closed {
+  transform: rotate(90deg);
 }
 
 .vpp-player-section {
@@ -677,6 +711,40 @@
   flex-shrink: 0;
 }
 
+.vpp-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vpp-like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-soft);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), color var(--stu-motion-fast);
+}
+
+.vpp-like-btn[aria-pressed="true"] {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.vpp-like-btn:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
 .vpp-back-link,
 .vpp-next-link {
   display: inline-flex;
@@ -709,6 +777,10 @@
   color: var(--stu-primary-contrast);
 }
 
+.vpp-next-link--countdown {
+  font-weight: 600;
+}
+
 .vpp-next-link:hover {
   opacity: 0.88;
 }
@@ -717,10 +789,17 @@
 
 .vpp-playlist {
   margin-top: var(--stu-space-4);
+  max-height: 480px;
   border-radius: 12px;
   background: var(--stu-surface);
   border: 1px solid var(--stu-border);
   overflow: hidden;
+  transition: max-height 0.3s ease, margin-top 0.3s ease;
+}
+
+.vpp-playlist--closed {
+  max-height: 0;
+  margin-top: 0;
 }
 
 .vpp-playlist-header {
@@ -798,7 +877,6 @@
 
 .vpp-pl-item--active .vpp-pl-num {
   color: var(--stu-primary, #3b82f6);
-  font-size: 11px;
 }
 
 /* ── 썸네일 ── */
@@ -851,6 +929,7 @@
 }
 
 .vpp-pl-progress-bar {
+  width: var(--vpp-progress, 0%);
   height: 100%;
   background: var(--stu-primary, #3b82f6);
   border-radius: 0 1px 0 0;
@@ -899,6 +978,18 @@
 @media (max-width: 640px) {
   .vpp-root {
     padding: 0 var(--stu-space-2);
+  }
+
+  .vpp-info-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vpp-primary-actions,
+  .vpp-info-actions {
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .vpp-title {

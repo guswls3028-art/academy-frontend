@@ -717,7 +717,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="scores-entry-page flex flex-col gap-3">
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${displayCount}명`}
         searchSlot={

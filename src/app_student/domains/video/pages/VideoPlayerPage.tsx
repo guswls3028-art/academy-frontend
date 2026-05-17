@@ -1,10 +1,10 @@
 // PATH: src/app_student/domains/video/pages/VideoPlayerPage.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import EmptyState from "../../../layout/EmptyState";
 import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress, toggleVideoLike } from "../api/video.api";
-import type { StudentVideoListItem } from "../api/video.api";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
@@ -16,7 +16,7 @@ import StudentVideoPlayer, {
 import { safeParseInt, formatClock } from "../playback/player/design/utils";
 import { timeAgo, formatViewCount } from "../utils/timeAgo";
 import VideoCommentSection from "../components/VideoCommentSection";
-import { IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 
 /* ─── localStorage 기반 이어보기 ─── */
 function getStoredPosition(videoId: number | null): number {
@@ -36,7 +36,13 @@ function storePosition(videoId: number | null, pos: number) {
   if (!videoId || pos < 1) return;
   try {
     localStorage.setItem(`video_pos_${videoId}`, JSON.stringify({ pos: Math.round(pos), ts: Date.now() }));
-  } catch {}
+  } catch {
+    // localStorage can be unavailable in private/restricted browser modes.
+  }
+}
+
+function playlistProgressStyle(progress: number): CSSProperties {
+  return { "--vpp-progress": `${Math.min(100, Math.max(0, progress))}%` } as CSSProperties;
 }
 
 function useQueryParams() {
@@ -74,25 +80,13 @@ function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; 
       type="button"
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "5px 12px",
-        borderRadius: 20,
-        background: liked ? "rgba(239,68,68,0.1)" : "var(--stu-surface-soft)",
-        border: `1px solid ${liked ? "rgba(239,68,68,0.3)" : "var(--stu-border)"}`,
-        color: liked ? "#ef4444" : "var(--stu-text-muted)",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 600,
-        transition: "all 0.2s",
-      }}
+      className="vpp-like-btn"
+      aria-pressed={liked}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
-      {count > 0 ? count : "좋아요"}
+      <span>{count > 0 ? count : "좋아요"}</span>
     </button>
   );
 }
@@ -127,7 +121,9 @@ export default function VideoPlayerPage() {
   // localStorage에 현재 videoId 저장 (side effect)
   useEffect(() => {
     if (videoId) {
-      try { localStorage.setItem(currentVideoStorageKey, String(videoId)); } catch {}
+      try { localStorage.setItem(currentVideoStorageKey, String(videoId)); } catch {
+        // Keep playback usable even if storage writes are blocked.
+      }
     }
   }, [videoId, currentVideoStorageKey]);
 
@@ -314,7 +310,9 @@ export default function VideoPlayerPage() {
 
   useEffect(() => {
     return () => {
-      try { localStorage.removeItem(currentVideoStorageKey); } catch {}
+      try { localStorage.removeItem(currentVideoStorageKey); } catch {
+        // Storage cleanup is best effort.
+      }
     };
   }, [currentVideoStorageKey]);
 
@@ -346,12 +344,12 @@ export default function VideoPlayerPage() {
       ) : (loadError || fatalError) ? (
         <div className="vpp-error">
           <EmptyState
-            title="영상을 재생할 수 없어요"
+            title="재생을 시작할 수 없어요"
             description={fatalError || loadError || "네트워크 연결을 확인하고 다시 시도해 주세요."}
             onRetry={() => window.location.reload()}
           />
           <button type="button" className="vpp-back-btn" onClick={() => nav(-1)} aria-label="뒤로가기">
-            <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} aria-hidden="true" />
+            <IconChevronRight className="vpp-icon-back" aria-hidden="true" />
             <span>뒤로가기</span>
           </button>
         </div>
@@ -385,9 +383,9 @@ export default function VideoPlayerPage() {
 
             {/* 액션: 좋아요 · 목록 · 다음 */}
             <div className="vpp-info-row">
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="vpp-primary-actions">
                 <button type="button" className="vpp-back-link" onClick={() => nav(-1)} aria-label="목록으로">
-                  <IconChevronRight style={{ width: 14, height: 14, transform: "rotate(180deg)" }} aria-hidden="true" />
+                  <IconChevronRight className="vpp-icon-back-sm" aria-hidden="true" />
                   <span>목록으로</span>
                 </button>
                 <LikeButton videoId={videoId!} initialLiked={video.is_liked ?? false} initialCount={video.like_count ?? 0} />
@@ -402,12 +400,7 @@ export default function VideoPlayerPage() {
                     aria-label={drawerOpen ? "재생목록 닫기" : "재생목록 열기"}
                   >
                     <IconChevronRight
-                      style={{
-                        width: 14,
-                        height: 14,
-                        transform: drawerOpen ? "rotate(-90deg)" : "rotate(90deg)",
-                        transition: "transform var(--stu-motion-fast)",
-                      }}
+                      className={`vpp-playlist-toggle-icon${drawerOpen ? " vpp-playlist-toggle-icon--open" : " vpp-playlist-toggle-icon--closed"}`}
                       aria-hidden="true"
                     />
                     <span>
@@ -418,24 +411,23 @@ export default function VideoPlayerPage() {
                 {nextVideo && autoPlayCountdown != null && autoPlayCountdown > 0 && (
                   <button
                     type="button"
-                    className="vpp-next-link"
+                    className="vpp-next-link vpp-next-link--countdown"
                     onClick={() => {
                       setAutoPlayCountdown(null);
                       if (autoPlayTimerRef.current) { clearInterval(autoPlayTimerRef.current); autoPlayTimerRef.current = null; }
                     }}
-                    style={{ fontWeight: 600 }}
                   >
-                    다음 영상 {autoPlayCountdown}초 (취소)
+                    다음 항목 {autoPlayCountdown}초 (취소)
                   </button>
                 )}
                 {nextVideo && (autoPlayCountdown === null || autoPlayCountdown <= 0) && (
                   <Link
                     to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
                     className="vpp-next-link"
-                    aria-label="다음 영상"
+                    aria-label="다음 항목"
                   >
                     <span>다음</span>
-                    <IconChevronRight style={{ width: 14, height: 14 }} aria-hidden="true" />
+                    <IconChevronRight className="vpp-icon-next" aria-hidden="true" />
                   </Link>
                 )}
               </div>
@@ -448,13 +440,7 @@ export default function VideoPlayerPage() {
           {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (
             <div
-              className="vpp-playlist"
-              style={{
-                maxHeight: drawerOpen ? 480 : 0,
-                overflow: "hidden",
-                transition: "max-height 0.3s ease",
-                marginTop: drawerOpen ? "var(--stu-space-4)" : 0,
-              }}
+              className={`vpp-playlist${drawerOpen ? "" : " vpp-playlist--closed"}`}
             >
               <div className="vpp-playlist-header">
                 <span className="vpp-playlist-label">재생목록</span>
@@ -473,7 +459,9 @@ export default function VideoPlayerPage() {
                       to={`/student/video/play?video=${v.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
                       className={`vpp-pl-item${isActive ? " vpp-pl-item--active" : ""}${v.completed ? " vpp-pl-item--done" : ""}`}
                     >
-                      <span className="vpp-pl-num">{isActive ? "▶" : i + 1}</span>
+                      <span className="vpp-pl-num">
+                        {isActive ? <IconPlay className="vpp-icon-play" aria-hidden="true" /> : i + 1}
+                      </span>
                       <div className="vpp-pl-thumb">
                         {v.thumbnail_url ? (
                           <img className="vpp-pl-thumb-img" src={v.thumbnail_url} alt="" loading="lazy" />
@@ -487,7 +475,7 @@ export default function VideoPlayerPage() {
                           <div className="vpp-pl-progress">
                             <div
                               className="vpp-pl-progress-bar"
-                              style={{ width: `${Math.min(100, progress)}%` }}
+                              style={playlistProgressStyle(progress)}
                             />
                           </div>
                         )}
@@ -504,7 +492,7 @@ export default function VideoPlayerPage() {
           )}
         </>
       ) : (
-        <EmptyState title="영상 정보를 불러올 수 없어요." description="뒤로 가서 다시 시도해 주세요." />
+        <EmptyState title="재생 정보를 불러올 수 없어요." description="뒤로 가서 다시 시도해 주세요." />
       )}
     </div>
   );
