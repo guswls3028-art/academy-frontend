@@ -21,6 +21,8 @@ type UploadErrorPayload = {
   rejection_code?: string;
 };
 
+const MAX_FILES = 100;
+
 function humanizeBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "-";
   const units = ["B", "KB", "MB", "GB"];
@@ -50,7 +52,16 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
   const onPickFiles = (files: File[]) => {
     if (!files.length) return;
     setNotice(null);
-    const next: UploadItem[] = files.map((f) => ({ file: f, status: "ready" as const }));
+    const remaining = Math.max(0, MAX_FILES - items.length);
+    if (remaining === 0) {
+      setNotice(`한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
+      return;
+    }
+    const accepted = files.slice(0, remaining);
+    if (accepted.length < files.length) {
+      setNotice(`한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
+    }
+    const next: UploadItem[] = accepted.map((f) => ({ file: f, status: "ready" as const }));
     setItems((prev) => [...prev, ...next]);
   };
 
@@ -141,7 +152,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
           titleLabel="OMR"
           multiple
           accept="image/*,application/pdf"
-          hintText="이미지 또는 PDF"
+          hintText="이미지 또는 1페이지 PDF · 최대 100개"
           disabled={busy}
           onFilesSelect={onPickFiles}
         />
@@ -212,7 +223,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
         ) : null}
 
         <div className="text-xs text-[var(--text-muted)]">
-          ※ 업로드 후 서버가 식별·답안 추출·채점 작업을 순차 처리합니다.
+          ※ PDF는 답안지 1장당 1개 파일만 지원합니다.
         </div>
       </div>
     </>

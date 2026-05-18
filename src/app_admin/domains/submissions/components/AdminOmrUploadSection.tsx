@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useRef, useState } from "react";
+import type { AxiosError } from "axios";
 import api from "@/shared/api/axios";
 
 type Props = {
@@ -20,10 +21,15 @@ type UploadResult = {
   created?: number; // created submissions count (if backend returns)
 };
 
+type UploadErrorPayload = {
+  detail?: unknown;
+};
+
 const ACCEPT = [
   "image/*",
   "application/pdf",
 ].join(",");
+const MAX_FILES = 100;
 
 function humanizeBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "-";
@@ -71,7 +77,16 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
     const key = (f: File) => `${f.name}__${f.size}`;
     const map = new Map<string, File>();
     for (const f of [...files, ...arr]) map.set(key(f), f);
-    setFiles(Array.from(map.values()));
+    const merged = Array.from(map.values());
+    if (merged.length > MAX_FILES) {
+      setFiles(merged.slice(0, MAX_FILES));
+      setResult({
+        ok: false,
+        message: `한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`,
+      });
+      return;
+    }
+    setFiles(merged);
     setResult(null);
   };
 
@@ -96,13 +111,17 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
       const res = await uploadOmrFiles(examId, form);
 
       // 서버가 반환하는 형태가 제각각이라 안전하게 파싱
-      const data = res.data as any;
+      const data = res.data as unknown;
+      const dataRecord =
+        data && typeof data === "object" && !Array.isArray(data)
+          ? (data as Record<string, unknown>)
+          : {};
 
       const created =
-        Number(data?.created) ||
-        Number(data?.created_count) ||
-        Number(data?.count) ||
-        (Array.isArray(data?.items) ? data.items.length : 0) ||
+        Number(dataRecord.created) ||
+        Number(dataRecord.created_count) ||
+        Number(dataRecord.count) ||
+        (Array.isArray(dataRecord.items) ? dataRecord.items.length : 0) ||
         (Array.isArray(data) ? data.length : 0) ||
         undefined;
 
@@ -117,13 +136,15 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
 
       setFiles([]);
       onUploaded?.();
-    } catch (e: any) {
-      const status = e?.response?.status;
-      const detail = e?.response?.data?.detail;
+    } catch (e: unknown) {
+      const err = e as AxiosError<UploadErrorPayload>;
+      const status = err.response?.status;
+      const rawDetail = err.response?.data?.detail;
+      const detail = typeof rawDetail === "string" ? rawDetail : undefined;
 
       let msg =
         detail ||
-        e?.message ||
+        err.message ||
         "업로드에 실패했습니다. 파일 형식을 확인하고 다시 시도해 주세요.";
 
       if (status === 403) {
@@ -176,7 +197,7 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
           파일을 여기로 드롭
         </div>
         <div className="mt-1 text-xs text-[var(--text-muted)]">
-          지원: 이미지(JPG/PNG) / PDF · 여러 장 한번에 업로드 가능
+          지원: 이미지(JPG/PNG) / 1페이지 PDF · 최대 100개
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -253,7 +274,7 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
       )}
 
       <div className="text-[11px] text-[var(--text-muted)]">
-        ※ 학생 식별번호는 <b>OMR 마킹</b>으로 처리됩니다. 조교가 입력하지 않습니다.
+        ※ PDF는 답안지 1장당 1개 파일만 지원합니다.
       </div>
     </div>
   );

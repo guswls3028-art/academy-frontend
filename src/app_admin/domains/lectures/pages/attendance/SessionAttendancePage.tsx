@@ -344,7 +344,7 @@ export default function SessionAttendancePage({
     if (selectedIds.length === 0) return;
     const ok = await confirm({
       title: "삭제 확인",
-      message: `선택한 ${selectedIds.length}명을 이 차시 출결에서 제외하시겠습니까?\n(수강생 등록은 유지되며, 출결 기록만 제거됩니다.)`,
+      message: `선택한 ${selectedIds.length}명을 이 차시에서 제외하시겠습니까?\n출결 목록과 성적 입력 대상에서 함께 제외됩니다.`,
       danger: true,
       confirmText: "삭제",
     });
@@ -356,7 +356,9 @@ export default function SessionAttendancePage({
       setSelectedIds([]);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
-      feedback.success(`${count}명 출결에서 제외되었습니다.`);
+      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+      qc.invalidateQueries({ queryKey: ["attendance-for-pdf", sessionId] });
+      feedback.success(`${count}명이 이 차시에서 제외되었습니다.`);
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
     } finally {
