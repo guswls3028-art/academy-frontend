@@ -1095,7 +1095,7 @@ export default function SessionScoresEntryPage(_props: Props) {
               <p className="text-sm text-[var(--color-text-muted)] mb-4">
                 학생이 작성한 OMR 스캔본을 업로드하면 식별코드를 인식하여 객관식을 자동 채점합니다.
               </p>
-              <AdminOmrBatchUploadBox examId={omrExam.examId} />
+              <AdminOmrBatchUploadBox examId={omrExam.examId} onUploaded={invalidateScores} />
             </div>
             <div className="px-5 py-3 border-t border-[var(--color-border-divider)] flex justify-end">
               <Button

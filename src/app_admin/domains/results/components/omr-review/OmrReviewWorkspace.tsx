@@ -388,6 +388,10 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
               qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
               qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
               qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId] });
+              qc.invalidateQueries({ queryKey: ["admin-exam-summary", examId] });
+              qc.invalidateQueries({ queryKey: ["exam-question-stats", examId] });
+              qc.invalidateQueries({ queryKey: ["session-scores"] });
+              qc.invalidateQueries({ queryKey: ["clinic-targets"] });
               feedback.success("저장되었습니다. 다음 검토 대상으로 이동합니다.");
               // 자동 다음 학생 이동 (운영자 가속)
               window.setTimeout(() => navigate(1), 250);
