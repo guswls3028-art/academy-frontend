@@ -26,7 +26,7 @@ export async function fetchPayrollSnapshots(params: {
   month?: number;
   staff?: number;
 }) {
-  const cleanParams: any = {};
+  const cleanParams: Record<string, number> = {};
   if (params.staff != null) cleanParams.staff = params.staff;
   if (params.year != null) cleanParams.year = params.year;
   if (params.month != null) cleanParams.month = params.month;

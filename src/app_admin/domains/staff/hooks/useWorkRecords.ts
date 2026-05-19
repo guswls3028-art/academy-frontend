@@ -44,7 +44,13 @@ export function useWorkRecords(params: UseWorkRecordsParams) {
   });
 
   const patchM = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: Parameters<typeof patchWorkRecord>[1];
+    }) =>
       patchWorkRecord(id, payload),
     onSuccess: () => { invalidate(); feedback.success("근무기록이 수정되었습니다."); },
     onError: (e: unknown) => feedback.error(extractApiError(e, "근무기록 수정에 실패했습니다.")),

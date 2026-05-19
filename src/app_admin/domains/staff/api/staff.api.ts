@@ -52,23 +52,21 @@ export async function fetchStaffs(params?: {
   is_manager?: boolean;
   pay_type?: string;
 }): Promise<StaffListResponse> {
-  const res = await api.get<any>("/staffs/", {
+  const res = await api.get<
+    Staff[] | { results?: Staff[]; owner?: StaffListOwner | null }
+  >("/staffs/", {
     params,
   });
 
-  const raw = res?.data;
+  const raw = res.data;
   const staffs: Staff[] = Array.isArray(raw)
-    ? (raw as Staff[])
-    : Array.isArray((raw as Record<string, unknown>)?.results)
-      ? ((raw as Record<string, unknown>).results as Staff[])
+    ? raw
+    : Array.isArray(raw.results)
+      ? raw.results
       : [];
-  const ownerRaw =
-    raw && typeof raw === "object" && "owner" in (raw as object)
-      ? (raw as Record<string, unknown>).owner
-      : undefined;
-  const owner: StaffListOwner | null =
-    ownerRaw && typeof ownerRaw === "object" && ownerRaw !== null && "name" in ownerRaw && (ownerRaw as StaffListOwner).name
-      ? (ownerRaw as StaffListOwner)
+  const owner =
+    !Array.isArray(raw) && raw.owner?.name
+      ? raw.owner
       : null;
 
   return { staffs, owner };

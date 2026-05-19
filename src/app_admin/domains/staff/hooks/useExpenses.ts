@@ -43,7 +43,13 @@ export function useExpenses(params: UseExpensesParams) {
   });
 
   const patchM = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: Parameters<typeof patchExpense>[1];
+    }) =>
       patchExpense(id, payload),
     onSuccess: () => { invalidate(); feedback.success("비용이 처리되었습니다."); },
     onError: (e: unknown) => feedback.error(extractApiError(e, "비용 처리에 실패했습니다.")),
