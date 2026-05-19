@@ -1,0 +1,9 @@
+.summaryBox {
+  border-color: var(--color-border-divider);
+  background: var(--bg-surface-soft);
+}
+
+.summaryBoxWarning {
+  border-color: color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface));
+}

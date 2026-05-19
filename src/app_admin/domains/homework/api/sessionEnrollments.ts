@@ -13,6 +13,34 @@
 import api from "@/shared/api/axios";
 import type { SessionEnrollment } from "../types";
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asNumber(value: unknown): number {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function unwrapList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  const record = asRecord(data);
+  return Array.isArray(record.results) ? record.results : [];
+}
+
+function normalizeSessionEnrollment(raw: unknown): SessionEnrollment {
+  const record = asRecord(raw);
+  return {
+    id: asNumber(record.id),
+    session: asNumber(record.session),
+    enrollment: asNumber(record.enrollment),
+    student_name: String(record.student_name ?? ""),
+    created_at: String(record.created_at ?? ""),
+  };
+}
+
 export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollment[]> {
@@ -20,18 +48,5 @@ export async function fetchSessionEnrollments(
     params: { session: sessionId },
   });
 
-  const data = res.data;
-  const list = Array.isArray(data?.results)
-    ? data.results
-    : Array.isArray(data)
-    ? data
-    : [];
-
-  return list.map((raw: any) => ({
-    id: Number(raw?.id),
-    session: Number(raw?.session),
-    enrollment: Number(raw?.enrollment),
-    student_name: String(raw?.student_name ?? ""),
-    created_at: String(raw?.created_at ?? ""),
-  }));
+  return unwrapList(res.data).map(normalizeSessionEnrollment);
 }

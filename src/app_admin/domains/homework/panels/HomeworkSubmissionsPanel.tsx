@@ -10,8 +10,9 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchHomeworkSubmissions } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@admin/domains/submissions/statusMaps";
+import type { HomeworkSubmissionRow } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button, EmptyState, Badge } from "@/shared/ui/ds";
+import { Button, EmptyState, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
 import api from "@/shared/api/axios";
@@ -27,6 +28,30 @@ function formatFileSize(bytes?: number | null): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function isMappedSubmissionStatus(status: string): status is keyof typeof SUBMISSION_STATUS_LABEL {
+  return Object.prototype.hasOwnProperty.call(SUBMISSION_STATUS_LABEL, status);
+}
+
+function isNotSubmittedStatus(status: HomeworkSubmissionRow["status"]): boolean {
+  return status === "not_submitted" || status === "NOT_SUBMITTED";
+}
+
+function getSubmissionStatusTone(status: HomeworkSubmissionRow["status"]): BadgeTone {
+  if (isNotSubmittedStatus(status)) return "danger";
+  return isMappedSubmissionStatus(status) ? SUBMISSION_STATUS_TONE[status] : "neutral";
+}
+
+function getSubmissionStatusLabel(status: HomeworkSubmissionRow["status"]): string {
+  if (isNotSubmittedStatus(status)) return "미제출";
+  return isMappedSubmissionStatus(status) ? SUBMISSION_STATUS_LABEL[status] : status;
+}
+
+function getNotSubmittedStudentId(row: HomeworkSubmissionRow): number | null {
+  if (!isNotSubmittedStatus(row.status)) return null;
+  const studentId = Number(row.student_id);
+  return Number.isFinite(studentId) && studentId > 0 ? studentId : null;
 }
 
 export default function HomeworkSubmissionsPanel({
@@ -62,9 +87,8 @@ export default function HomeworkSubmissionsPanel({
 
   // 미제출 학생 ID 추출 (status가 "not_submitted" 또는 제출 기록 없는 학생)
   const notSubmittedIds = rows
-    .filter((r: any) => r.status === "not_submitted" || r.status === "NOT_SUBMITTED")
-    .map((r: any) => r.student_id)
-    .filter(Boolean) as number[];
+    .map(getNotSubmittedStudentId)
+    .filter((studentId): studentId is number => studentId != null);
 
   return (
     <div className="space-y-4">
@@ -113,8 +137,8 @@ export default function HomeworkSubmissionsPanel({
       {rows.length > 0 && (
         <div className="rounded-lg border border-[var(--color-border-divider)] divide-y divide-[var(--color-border-divider)]">
           {rows.map((r) => {
-            const tone = (SUBMISSION_STATUS_TONE as any)[r.status] ?? "neutral";
-            const statusLabel = (SUBMISSION_STATUS_LABEL as any)[r.status] ?? r.status;
+            const tone = getSubmissionStatusTone(r.status);
+            const statusLabel = getSubmissionStatusLabel(r.status);
             return (
               <div
                 key={r.id}
@@ -127,16 +151,12 @@ export default function HomeworkSubmissionsPanel({
                   profilePhotoUrl={r.profile_photo_url}
                   avatarSize={32}
                   chipSize={18}
-                  clinicHighlight={(r as any).name_highlight_clinic_target === true}
+                  clinicHighlight={r.name_highlight_clinic_target === true}
                 />
 
                 {/* 과+과제명 뱃지 */}
                 <span
-                  className="flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-                  style={{
-                    background: "var(--color-bg-surface-soft)",
-                    color: "var(--color-text-secondary)",
-                  }}
+                  className="flex-shrink-0 rounded bg-[var(--color-bg-surface-soft)] px-1.5 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]"
                 >
                   과 {homeworkTitle}
                 </span>

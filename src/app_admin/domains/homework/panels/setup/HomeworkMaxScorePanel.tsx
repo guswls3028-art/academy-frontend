@@ -11,21 +11,25 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: number }) {
   const qc = useQueryClient();
   const { data: homework } = useAdminHomework(homeworkId);
+  const homeworkRecordId = homework?.id;
+  const homeworkDefaultMaxScore = homework?.default_max_score;
 
   const [maxScore, setMaxScore] = useState<number | "">("");
   const [savedMaxScore, setSavedMaxScore] = useState<number | "">("");
 
   useEffect(() => {
-    if (!homework) return;
-    const v = homework.default_max_score;
-    const value = typeof v === "number" && v > 0 ? v : 100;
+    if (!homeworkRecordId) return;
+    const value = typeof homeworkDefaultMaxScore === "number" && homeworkDefaultMaxScore > 0
+      ? homeworkDefaultMaxScore
+      : 100;
     setMaxScore(value);
     setSavedMaxScore(value);
-  }, [homework?.id, homework?.default_max_score]);
+  }, [homeworkRecordId, homeworkDefaultMaxScore]);
 
   const isDirty = maxScore !== savedMaxScore;
 
@@ -39,8 +43,8 @@ export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: numb
       setSavedMaxScore(next);
       feedback.success(`만점이 ${next}점으로 저장되었습니다.`);
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "만점 저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "만점 저장에 실패했습니다."));
     },
   });
 

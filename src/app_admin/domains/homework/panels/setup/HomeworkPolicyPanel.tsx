@@ -13,6 +13,7 @@ import { useHomeworkPolicy } from "../../hooks/useHomeworkPolicy";
 import { patchHomeworkPolicy } from "../../api/homeworkPolicy";
 import HomeworkPolicyCard from "../../components/HomeworkPolicyCard";
 import type { HomeworkPolicy } from "../../types";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
@@ -36,8 +37,8 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
       await qc.invalidateQueries({ queryKey: ["session-scores", safeSessionId] });
       feedback.success("과제 정책이 저장되었습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "과제 정책 저장 실패");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "과제 정책 저장 실패"));
     },
   });
 

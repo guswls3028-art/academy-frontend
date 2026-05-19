@@ -16,6 +16,7 @@ import HomeworkEnrollmentManageModal from "@admin/domains/homework/components/Ho
 import type { EnrollmentRow } from "@admin/domains/sessions/components/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 import { QUERY_KEYS } from "@admin/domains/homework/queryKeys";
 import { useAdminHomework } from "@admin/domains/homework/hooks/useAdminHomework";
@@ -24,6 +25,7 @@ import {
   putHomeworkAssignments,
   type HomeworkAssignmentsResponse,
 } from "@admin/domains/homework/api/homeworkAssignments";
+import styles from "./HomeworkEnrollmentPanel.module.css";
 
 export default function HomeworkEnrollmentPanel({
   homeworkId,
@@ -61,6 +63,8 @@ export default function HomeworkEnrollmentPanel({
     // ✅ 요약은 단일 진실
     return assignments?.selected_ids?.length ?? 0;
   }, [assignments?.selected_ids]);
+
+  const showEmptyAssignmentWarning = !loadingAssignments && selectedCount === 0;
 
   const hydrateLocalFromQuery = (q: HomeworkAssignmentsResponse | undefined) => {
     const items = q?.items ?? [];
@@ -128,7 +132,11 @@ export default function HomeworkEnrollmentPanel({
   const toggleOne = (enrollmentId: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(enrollmentId) ? next.delete(enrollmentId) : next.add(enrollmentId);
+      if (next.has(enrollmentId)) {
+        next.delete(enrollmentId);
+      } else {
+        next.add(enrollmentId);
+      }
       return next;
     });
   };
@@ -164,8 +172,8 @@ export default function HomeworkEnrollmentPanel({
         });
       }
     },
-    onError: (e: any) => {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다. 다시 시도해주세요.");
+    onError: (e: unknown) => {
+      setError(extractApiError(e, "저장에 실패했습니다. 다시 시도해주세요."));
     },
   });
 
@@ -190,23 +198,18 @@ export default function HomeworkEnrollmentPanel({
         {hasHomework && (
           <>
             <div
-              className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2"
-              style={{
-                borderColor: !loadingAssignments && selectedCount === 0
-                  ? "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))"
-                  : "var(--color-border-divider)",
-                background: !loadingAssignments && selectedCount === 0
-                  ? "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))"
-                  : "var(--bg-surface-soft)",
-              }}
+              className={[
+                "flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2",
+                showEmptyAssignmentWarning ? styles.summaryBoxWarning : styles.summaryBox,
+              ].join(" ")}
             >
               <div className="text-sm text-[var(--text-primary)]">
                 선택됨{" "}
-                <span className={`font-semibold ${!loadingAssignments && selectedCount === 0 ? "text-[var(--color-warning)]" : ""}`}>
+                <span className={`font-semibold ${showEmptyAssignmentWarning ? "text-[var(--color-warning)]" : ""}`}>
                   {loadingAssignments ? "..." : selectedCount}
                 </span>
                 명
-                {!loadingAssignments && selectedCount === 0 && (
+                {showEmptyAssignmentWarning && (
                   <span className="ml-2 text-xs text-[var(--color-warning)]">
                     — 대상자를 등록해야 성적 입력이 가능합니다
                   </span>

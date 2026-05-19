@@ -107,7 +107,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         profile_photo_url: row.profile_photo_url,
         lecture_title: row.lecture_title,
         lecture_color: row.lecture_color,
-        lecture_chip_label: (row as any).lecture_chip_label,
+        lecture_chip_label: row.lecture_chip_label,
         name_highlight_clinic_target: row.name_highlight_clinic_target,
       });
     }
@@ -212,6 +212,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     <div key={h.label} className="flex flex-1 flex-col items-center gap-1" title={`${h.label}: ${h.count}명`}>
                       <div
                         className="w-full min-h-[4px] rounded-t"
+                        // eslint-disable-next-line no-restricted-syntax
                         style={{
                           height: maxHist > 0 ? `${(h.count / maxHist) * 80}px` : 0,
                           background: "var(--color-primary)",
