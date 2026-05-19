@@ -1,9 +1,11 @@
 // PATH: src/shared/api/axios.ts
 import axios, {
   AxiosError,
+  AxiosHeaders,
   AxiosInstance,
   AxiosRequestConfig,
   AxiosResponse,
+  type AxiosHeaderValue,
 } from "axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
@@ -18,6 +20,7 @@ type RetryConfig = AxiosRequestConfig & {
 export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean };
 
 type RefreshResponse = { access: string; refresh?: string };
+type HeaderSeed = AxiosHeaders | Record<string, AxiosHeaderValue> | string | undefined;
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
@@ -119,10 +122,16 @@ function flushRefreshQueue(token: string | null) {
   q.forEach((cb) => cb(token));
 }
 
-function shouldSkipAuth(url?: string, config?: AxiosRequestConfig) {
+function shouldSkipAuth(url?: string, config?: ApiRequestConfig) {
   const u = String(url || "");
-  if ((config as any)?.skipAuth === true) return true;
+  if (config?.skipAuth === true) return true;
   return u.includes("/token/") || u.includes("/token/refresh/");
+}
+
+function setRequestHeader(config: AxiosRequestConfig, key: string, value: string) {
+  const headers = AxiosHeaders.from(config.headers as HeaderSeed);
+  headers.set(key, value);
+  config.headers = headers;
 }
 
 /**
@@ -198,8 +207,22 @@ async function ensureFreshToken(): Promise<string | null> {
   return proactiveRefreshPromise;
 }
 
-function isAxiosError(e: any): e is AxiosError {
-  return !!e?.isAxiosError;
+function isAxiosError(e: unknown): e is AxiosError {
+  return axios.isAxiosError(e);
+}
+
+function getApiErrorMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    const data = err.response?.data;
+    if (data && typeof data === "object" && "detail" in data) {
+      const detail = data.detail;
+      if (typeof detail === "string" && detail.trim()) return detail;
+    }
+    if (typeof data === "string" && data.trim()) return data;
+    if (err.message) return err.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return "오류";
 }
 
 const api: AxiosInstance = axios.create({
@@ -229,22 +252,20 @@ api.interceptors.request.use(async (config) => {
     // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
     const access = await ensureFreshToken();
     if (access) {
-      cfg.headers = cfg.headers ?? {};
-      (cfg.headers as any).Authorization = `Bearer ${access}`;
+      setRequestHeader(cfg, "Authorization", `Bearer ${access}`);
     }
   }
 
   // Optional operational headers
-  cfg.headers = cfg.headers ?? {};
-  (cfg.headers as any)["X-Client"] = "academyfront";
-  (cfg.headers as any)["X-Client-Version"] = String(
+  setRequestHeader(cfg, "X-Client", "academyfront");
+  setRequestHeader(cfg, "X-Client-Version", String(
     import.meta.env.VITE_APP_VERSION || "dev"
-  );
+  ));
 
   // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
   const tenantCode = getTenantCodeForApiRequest();
   if (tenantCode) {
-    (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
+    setRequestHeader(cfg, "X-Tenant-Code", tenantCode);
   }
 
   // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
@@ -299,14 +320,14 @@ api.interceptors.response.use(
     if (id) asyncStatusStore.completeTask(id, "success");
     return res;
   },
-  async (err: any) => {
-    const config = err?.config as RetryConfig | undefined;
+  async (err: unknown) => {
+    const config = isAxiosError(err) ? err.config as RetryConfig | undefined : undefined;
     const asyncId = config?._asyncId;
     if (asyncId)
       asyncStatusStore.completeTask(
         asyncId,
         "error",
-        err?.response?.data?.detail ?? err?.message ?? "오류"
+        getApiErrorMessage(err)
       );
     if (!isAxiosError(err)) throw err;
 
@@ -354,8 +375,7 @@ api.interceptors.response.use(
               reject(err);
               return;
             }
-            original.headers = original.headers ?? {};
-            (original.headers as any).Authorization = `Bearer ${token}`;
+            setRequestHeader(original, "Authorization", `Bearer ${token}`);
             resolve(api.request(original));
           });
         });
@@ -381,8 +401,7 @@ api.interceptors.response.use(
         throw err;
       }
 
-      original.headers = original.headers ?? {};
-      (original.headers as any).Authorization = `Bearer ${newAccess}`;
+      setRequestHeader(original, "Authorization", `Bearer ${newAccess}`);
       return api.request(original);
     }
 
