@@ -1,15 +1,72 @@
 // PATH: src/app_admin/domains/lectures/api/enrollments.ts
 import api from "@/shared/api/axios";
 
-export async function fetchLectureEnrollments(lectureId: number) {
+export type LectureEnrollmentStudent = {
+  id: number | null;
+  name: string | null;
+  grade?: number | null;
+  high_school?: string | null;
+  middle_school?: string | null;
+  elementary_school?: string | null;
+  profile_photo_url?: string | null;
+  name_highlight_clinic_target?: boolean;
+};
+
+export type LectureEnrollmentRow = {
+  id?: number | null;
+  status?: string | null;
+  student?: LectureEnrollmentStudent | null;
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function unwrapList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  const record = asRecord(data);
+  if (Array.isArray(record.results)) return record.results;
+  if (Array.isArray(record.data)) return record.data;
+  return [];
+}
+
+function normalizeLectureEnrollment(raw: unknown): LectureEnrollmentRow {
+  const record = asRecord(raw);
+  const student = asRecord(record.student);
+  return {
+    id: asNullableNumber(record.id),
+    status: asNullableString(record.status),
+    student: Object.keys(student).length > 0
+      ? {
+          id: asNullableNumber(student.id),
+          name: asNullableString(student.name),
+          grade: asNullableNumber(student.grade),
+          high_school: asNullableString(student.high_school),
+          middle_school: asNullableString(student.middle_school),
+          elementary_school: asNullableString(student.elementary_school),
+          profile_photo_url: asNullableString(student.profile_photo_url),
+          name_highlight_clinic_target: student.name_highlight_clinic_target === true,
+        }
+      : null,
+  };
+}
+
+export async function fetchLectureEnrollments(lectureId: number): Promise<LectureEnrollmentRow[]> {
   const res = await api.get("/enrollments/", {
     params: { lecture: lectureId },
   });
-  const data = res.data;
-  if (Array.isArray(data)) return data;
-  if (data?.results && Array.isArray(data.results)) return data.results;
-  if (data?.data && Array.isArray(data.data)) return data.data;
-  return [];
+  return unwrapList(res.data).map(normalizeLectureEnrollment);
 }
 
 export async function bulkCreateEnrollments(
@@ -41,11 +98,7 @@ export async function lectureEnrollFromExcelUpload(
   if (options?.sessionId != null) {
     form.append("session_id", String(options.sessionId));
   }
-  const res = await api.post("/enrollments/lecture_enroll_from_excel/", form, {
-    // multipart boundary 자동 설정 위해 Content-Type undefined 강제 — axios 타입이 받지 않아 any 우회 필요.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    headers: { "Content-Type": undefined } as any,
-  });
+  const res = await api.post("/enrollments/lecture_enroll_from_excel/", form);
   return res.data as { job_id: string; status: string };
 }
 

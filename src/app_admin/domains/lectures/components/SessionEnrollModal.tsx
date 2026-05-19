@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/lectures/components/SessionEnrollModal.tsx
 // 차시(세션) 수강생 등록 — 기존 학생 추가(전체 명단 테이블) | 신규 학생 추가(학생추가모달)
+/* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -192,6 +193,7 @@ type SelectedItem = {
   displayName?: string;
   profilePhotoUrl?: string | null;
   enrollments?: LectureChipInfo[];
+  nameHighlightClinicTarget?: boolean;
   /** 동명이인 식별용 — 우측 명단에 학교·학년 chip 표시. 직전 차시 불러오기 경로는 정보 없어 undefined (백로그) */
   school?: string | null;
   grade?: number | null;
@@ -345,7 +347,7 @@ export default function SessionEnrollModal({
     staleTime: 0,
   });
 
-  const students = studentsData?.data ?? [];
+  const students = useMemo(() => studentsData?.data ?? [], [studentsData?.data]);
   const totalCount = studentsData?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -465,21 +467,24 @@ export default function SessionEnrollModal({
     try {
       const lectureList = await fetchLectureEnrollments(lectureId);
       // ACTIVE 만 시드 — 퇴원(INACTIVE)/대기(PENDING) 자동 제외
-      const active = lectureList.filter((e: any) => e.status === "ACTIVE" || !e.status);
+      const active = lectureList.filter((e) => e.status === "ACTIVE" || !e.status);
       // backend EnrollmentSerializer는 student 를 StudentShortSerializer 로 nested.
       // student.id / student.name / student.grade / student.high_school | middle_school | elementary_school
-      const toAddRows = active.filter((e: any) => {
+      const toAddRows = active.filter((e) => {
         const sid = e.student?.id;
-        return sid != null && !alreadyEnrolledStudentIds.has(sid);
+        return typeof sid === "number" && Number.isFinite(sid) && !alreadyEnrolledStudentIds.has(sid);
       });
-      const itemsToAdd: SelectedItem[] = toAddRows.map((e: any) => {
-        const s = e.student ?? {};
-        const school = s.high_school || s.middle_school || s.elementary_school || null;
+      const itemsToAdd: SelectedItem[] = toAddRows.map((e) => {
+        const s = e.student;
+        const studentId = Number(s?.id);
+        const school = s?.high_school || s?.middle_school || s?.elementary_school || null;
         return {
-          id: s.id,
-          name: s.name ?? "-",
+          id: studentId,
+          name: s?.name ?? "-",
+          profilePhotoUrl: s?.profile_photo_url ?? undefined,
+          nameHighlightClinicTarget: s?.name_highlight_clinic_target === true,
           school,
-          grade: s.grade ?? null,
+          grade: s?.grade ?? null,
         };
       });
       if (itemsToAdd.length === 0) {
@@ -548,7 +553,15 @@ export default function SessionEnrollModal({
       : [];
     setSelectedItems((prev) => {
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
-      return [...prev, { id, name, profilePhotoUrl, enrollments, school: student.school ?? null, grade: student.grade ?? null }];
+      return [...prev, {
+        id,
+        name,
+        profilePhotoUrl,
+        enrollments,
+        nameHighlightClinicTarget: student.nameHighlightClinicTarget === true,
+        school: student.school ?? null,
+        grade: student.grade ?? null,
+      }];
     });
   }, []);
 
@@ -586,11 +599,12 @@ export default function SessionEnrollModal({
             : [],
           school: s.school ?? null,
           grade: s.grade ?? null,
+          nameHighlightClinicTarget: s.nameHighlightClinicTarget === true,
         });
       });
       return Array.from(byId.values());
     });
-  }, [isCurrentPageAllSelected, studentsToShow, selectedIds]);
+  }, [isCurrentPageAllSelected, studentsToShow]);
 
   const handleExcelFileSelect = useCallback((file: File) => {
     if (excelUploading) return;
@@ -643,7 +657,15 @@ export default function SessionEnrollModal({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, idsToAdd, excelStatusByStudentId, addByStudentMutation, onClose]);
+  }, [
+    isOpen,
+    idsToAdd,
+    excelStatusByStudentId,
+    addByStudentMutation,
+    copyFromLectureLoading,
+    copyFromPrevLoading,
+    onClose,
+  ]);
 
   // ── Early return ───────────────────────────────────────────────────────────
   if (!isOpen) return null;
@@ -951,7 +973,7 @@ export default function SessionEnrollModal({
                                             : undefined
                                         }
                                         chipSize={14}
-                                        clinicHighlight={(row as any).name_highlight_clinic_target === true}
+                                        clinicHighlight={row.nameHighlightClinicTarget === true}
                                       />
                                     </td>
                                     <td
@@ -1215,7 +1237,7 @@ export default function SessionEnrollModal({
                                   : undefined
                               }
                               className="text-[13px] font-semibold leading-5 text-[var(--color-text-primary)]"
-                              clinicHighlight={(s as any).name_highlight_clinic_target === true}
+                              clinicHighlight={s.nameHighlightClinicTarget === true}
                             />
                             {(s.school || s.grade != null) && (
                               <span className="text-[10.5px] text-[var(--color-text-muted)] truncate ml-7 leading-tight">
