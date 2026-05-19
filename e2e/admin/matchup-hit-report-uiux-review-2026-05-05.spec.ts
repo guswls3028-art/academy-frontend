@@ -11,6 +11,7 @@
  *  6. 코멘트 / 하단 요약 textarea
  */
 import { test } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -22,13 +23,21 @@ const __dirname_ = path.dirname(__filename_);
 const SHOTS = path.resolve(__dirname_, "../reports/matchup-hit-report-uiux-2026-05-05");
 fs.mkdirSync(SHOTS, { recursive: true });
 
+async function settle(page: Page, timeout = 10_000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
+}
+
+async function waitForAnyVisible(page: Page, selector: string, timeout = 5000): Promise<void> {
+  await page.locator(selector).first().waitFor({ state: "visible", timeout }).catch(() => {});
+}
+
 test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ page }) => {
   test.setTimeout(120_000);
   await loginViaUI(page, "tchul-admin");
 
   await page.setViewportSize({ width: 1500, height: 1000 });
   await page.goto(`${BASE}/admin/hit-reports`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(2500);
+  await waitForAnyVisible(page, "[data-testid^='hit-report-card'], a[href*='/admin/storage/matchup']", 10_000);
 
   // 1. 보고서 리스트 풀샷
   await page.screenshot({
@@ -52,13 +61,13 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
   if (!opened) {
     console.log("[HR-UIUX] 보고서 카드 진입 못함 — 직접 매치업 페이지로");
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await settle(page);
     // 시험지 doc 행 click → 보고서 작성 버튼
     const testRow = page.locator("[data-testid='matchup-doc-row']").first();
     if (await testRow.count() > 0) {
       await testRow.click();
-      await page.waitForTimeout(1500);
       const reportBtn = page.locator("button").filter({ hasText: /적중\s*보고서|보고서\s*작성/ }).first();
+      await reportBtn.waitFor({ state: "visible", timeout: 8000 }).catch(() => {});
       if (await reportBtn.count() > 0) {
         await reportBtn.click();
         opened = true;
@@ -82,7 +91,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
   } catch {
     console.log("[HR-UIUX] 검색 spinner 안 사라짐 — 그래도 진행");
   }
-  await page.waitForTimeout(2500);
+  await waitForAnyVisible(page, "[role='button'][aria-pressed], text=/PDF에 추가|원본 다시 자르기/", 10_000);
 
   // 3. 1500px 편집기 풀샷
   await page.screenshot({
@@ -116,7 +125,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
 
   // 8. 1366px viewport — 좁은 화면에서 cramped 여부
   await page.setViewportSize({ width: 1366, height: 900 });
-  await page.waitForTimeout(800);
+  await waitForAnyVisible(page, "[role='dialog'][aria-label*='보고서']");
   await page.screenshot({
     path: path.join(SHOTS, "07-editor-1366-full.png"),
     fullPage: false,
@@ -124,7 +133,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
 
   // 9. 1100px viewport — narrow viewport 결함 (memory feedback 'UI fix narrow viewport')
   await page.setViewportSize({ width: 1100, height: 800 });
-  await page.waitForTimeout(800);
+  await waitForAnyVisible(page, "[role='dialog'][aria-label*='보고서']");
   await page.screenshot({
     path: path.join(SHOTS, "08-editor-1100-full.png"),
     fullPage: false,
@@ -132,13 +141,13 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
 
   // 10. 1500으로 복귀, 후보 카드 1개 hover로 디테일/툴팁 확인
   await page.setViewportSize({ width: 1500, height: 1000 });
-  await page.waitForTimeout(500);
+  await waitForAnyVisible(page, "[role='dialog'][aria-label*='보고서']");
   const candCard = page.locator("[role='button'][aria-pressed]").nth(1); // 첫 후보
   if (await candCard.count() > 0) {
     const box = await candCard.boundingBox();
     if (box) {
       await candCard.hover();
-      await page.waitForTimeout(500);
+      await waitForAnyVisible(page, "[role='tooltip'], [role='button'][aria-pressed]", 1000);
       await page.screenshot({
         path: path.join(SHOTS, "09-candidate-row-hover.png"),
         clip: {
@@ -157,7 +166,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
     const box = await qRow.boundingBox();
     if (box) {
       await qRow.hover();
-      await page.waitForTimeout(300);
+      await waitForAnyVisible(page, "[role='tooltip'], [role='button'][aria-pressed]", 1000);
       await page.screenshot({
         path: path.join(SHOTS, "10-q-row-hover-toggle.png"),
         clip: {
@@ -174,7 +183,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
   const allQ = await page.locator("[role='button'][aria-pressed]").all();
   if (allQ.length >= 5) {
     await allQ[4].click();
-    await page.waitForTimeout(800);
+    await waitForAnyVisible(page, "[role='button'][aria-pressed='true']", 3000);
     await page.screenshot({
       path: path.join(SHOTS, "11-q5-active-state.png"),
       fullPage: false,
