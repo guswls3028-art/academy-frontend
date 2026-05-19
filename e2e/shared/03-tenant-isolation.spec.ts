@@ -3,12 +3,18 @@
  * T1(hakwonplus) vs T2(tchul) 데이터 완전 격리 확인
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { Browser } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 
-const BASE_T1 = getBaseUrl("admin");
-const BASE_T2 = getBaseUrl("tchul-admin");
+type ListBody<T> = { results?: T[] };
+type StudentRecord = { id: number | string };
+type PostRecord = { id: number | string };
+
+function resultsOf<T>(body: unknown): T[] {
+  if (!body || typeof body !== "object") return [];
+  const results = (body as ListBody<T>).results;
+  return Array.isArray(results) ? results : [];
+}
 
 test.describe("테넌트 격리 검증", () => {
 
@@ -17,9 +23,9 @@ test.describe("테넌트 격리 검증", () => {
     const ctx1 = await browser.newContext();
     const p1 = await ctx1.newPage();
     await loginViaUI(p1, "admin");
-    const r1 = await apiCall(p1, "GET", "/students/?page_size=200");
+    const r1 = await apiCall<ListBody<StudentRecord>>(p1, "GET", "/students/?page_size=200");
     expect(r1.status).toBe(200);
-    const ids1 = new Set((r1.body?.results || []).map((s: any) => s.id));
+    const ids1 = new Set(resultsOf<StudentRecord>(r1.body).map((student) => student.id));
     expect(ids1.size).toBeGreaterThan(0);
     await ctx1.close();
 
@@ -27,9 +33,9 @@ test.describe("테넌트 격리 검증", () => {
     const ctx2 = await browser.newContext();
     const p2 = await ctx2.newPage();
     await loginViaUI(p2, "tchul-admin");
-    const r2 = await apiCall(p2, "GET", "/students/?page_size=200");
+    const r2 = await apiCall<ListBody<StudentRecord>>(p2, "GET", "/students/?page_size=200");
     expect(r2.status).toBe(200);
-    const ids2 = new Set((r2.body?.results || []).map((s: any) => s.id));
+    const ids2 = new Set(resultsOf<StudentRecord>(r2.body).map((student) => student.id));
     expect(ids2.size).toBeGreaterThan(0);
     await ctx2.close();
 
@@ -43,8 +49,8 @@ test.describe("테넌트 격리 검증", () => {
     const ctx2 = await browser.newContext();
     const p2 = await ctx2.newPage();
     await loginViaUI(p2, "tchul-admin");
-    const r2 = await apiCall(p2, "GET", "/students/?page_size=1");
-    const t2sid = r2.body?.results?.[0]?.id;
+    const r2 = await apiCall<ListBody<StudentRecord>>(p2, "GET", "/students/?page_size=1");
+    const t2sid = resultsOf<StudentRecord>(r2.body)[0]?.id;
     expect(t2sid).toBeTruthy();
     await ctx2.close();
 
@@ -63,7 +69,7 @@ test.describe("테넌트 격리 검증", () => {
     const ctx1 = await browser.newContext();
     const p1 = await ctx1.newPage();
     await loginViaUI(p1, "admin");
-    const createResp = await apiCall(p1, "POST", "/community/posts/", {
+    const createResp = await apiCall<PostRecord>(p1, "POST", "/community/posts/", {
       post_type: "notice", title: "[E2E] 격리테스트", content: "격리검증용", node_ids: [],
     });
     expect(createResp.status).toBe(201);
