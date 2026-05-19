@@ -1,0 +1,165 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.quickFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filterChip {
+  --fee-chip-color: var(--color-text-muted);
+
+  padding: 4px 12px;
+  border: 1.5px solid var(--color-border-divider);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.filterChip[data-tone="muted"] {
+  --fee-chip-color: var(--color-text-secondary);
+}
+
+.filterChip[data-tone="warning"] {
+  --fee-chip-color: var(--color-warning);
+}
+
+.filterChip[data-tone="danger"] {
+  --fee-chip-color: var(--color-danger);
+}
+
+.filterChip[data-tone="success"] {
+  --fee-chip-color: var(--color-success);
+}
+
+.filterChip[data-active="true"] {
+  border-color: var(--fee-chip-color);
+  background: color-mix(in srgb, var(--fee-chip-color) 10%, transparent);
+  color: var(--fee-chip-color);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.periodSelect {
+  width: 140px;
+}
+
+.statusSelect {
+  width: 100px;
+}
+
+.feeTypeSelect {
+  width: 120px;
+}
+
+.lectureSelect,
+.searchInput {
+  width: 160px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.toolbarAction {
+  margin-left: auto;
+}
+
+.loading {
+  padding: 24px;
+  color: var(--color-text-muted);
+}
+
+.alignRight {
+  text-align: right;
+}
+
+.invoiceRow {
+  cursor: pointer;
+}
+
+.invoiceRow[data-status="OVERDUE"] {
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.invoiceRow[data-status="PAID"] {
+  background: color-mix(in srgb, var(--color-success) 5%, transparent);
+}
+
+.invoiceRow[data-status="PARTIAL"] {
+  background: color-mix(in srgb, var(--color-info) 5%, transparent);
+}
+
+.invoiceNumber {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.outstanding {
+  font-weight: 400;
+}
+
+.outstanding[data-due="true"] {
+  font-weight: 600;
+}
+
+.modalHint {
+  margin-top: 8px;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metricLabel {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.metricValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.metricValueSuccess {
+  color: var(--color-success);
+}
+
+.metricValueDanger {
+  color: var(--color-danger);
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.compactTable {
+  font-size: 13px;
+}

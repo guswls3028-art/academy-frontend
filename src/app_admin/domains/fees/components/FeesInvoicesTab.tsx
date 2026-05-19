@@ -4,12 +4,14 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainTable, DomainListToolbar } from "@/shared/ui/domain";
+import { DomainTable } from "@/shared/ui/domain";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { StatusBadge } from "./FeesDashboardTab";
+import styles from "./FeesInvoicesTab.module.css";
 import {
   fetchInvoices,
   fetchInvoiceDetail,
@@ -20,7 +22,6 @@ import {
   fetchLectureOptions,
   type StudentInvoice,
   type PaymentMethod,
-  type LectureOption,
 } from "../api/fees.api";
 
 function formatKRW(n: number) {
@@ -99,7 +100,7 @@ export default function FeesInvoicesTab() {
       setPayAmount("");
       setPayNote("");
     },
-    onError: (e: any) => feedback.error(e?.response?.data?.detail || "수납 기록 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "수납 기록 실패")),
   });
 
   const cancelInvMutation = useMutation({
@@ -109,7 +110,7 @@ export default function FeesInvoicesTab() {
       qc.invalidateQueries({ queryKey: ["fees"] });
       setDetailOpen(false);
     },
-    onError: (e: any) => feedback.error(e?.response?.data?.detail || "취소 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "취소 실패")),
   });
 
   const cancelPayMutation = useMutation({
@@ -120,7 +121,7 @@ export default function FeesInvoicesTab() {
       // reload detail
       if (selectedInvoice) openDetail(selectedInvoice.id);
     },
-    onError: (e: any) => feedback.error(e?.response?.data?.detail || "수납 취소 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "수납 취소 실패")),
   });
 
   const openDetail = useCallback(async (invoiceId: number) => {
@@ -150,19 +151,22 @@ export default function FeesInvoicesTab() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+    <div className={styles.page}>
       {/* Quick Filter Chips */}
       {!isLoading && invoices && invoices.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className={styles.quickFilters}>
           {([
-            { label: `전체 ${counts.total}`, value: "", color: "var(--color-text-secondary)" },
-            { label: `미납/부분납 ${counts.unpaid}`, value: "UNPAID", color: "var(--color-warning)" },
-            { label: `연체 ${counts.overdue}`, value: "OVERDUE", color: "var(--color-danger)" },
-            { label: `완납 ${counts.paid}`, value: "PAID", color: "var(--color-success)" },
+            { label: `전체 ${counts.total}`, value: "", tone: "muted" },
+            { label: `미납/부분납 ${counts.unpaid}`, value: "UNPAID", tone: "warning" },
+            { label: `연체 ${counts.overdue}`, value: "OVERDUE", tone: "danger" },
+            { label: `완납 ${counts.paid}`, value: "PAID", tone: "success" },
           ] as const).map((chip) => (
             <button
               key={chip.value}
               type="button"
+              className={styles.filterChip}
+              data-active={statusFilter === chip.value || (!statusFilter && chip.value === "") ? "true" : "false"}
+              data-tone={chip.tone}
               onClick={() => {
                 if (chip.value === "UNPAID") {
                   // 미납+부분납+연체 모두 보기 — 상태 필터 해제하고 정렬로 처리
@@ -170,18 +174,6 @@ export default function FeesInvoicesTab() {
                 } else {
                   setStatusFilter(chip.value);
                 }
-              }}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 16,
-                border: `1.5px solid ${statusFilter === chip.value || (!statusFilter && chip.value === "") ? chip.color : "var(--color-border-divider)"}`,
-                backgroundColor: statusFilter === chip.value || (!statusFilter && chip.value === "")
-                  ? `color-mix(in srgb, ${chip.color} 10%, transparent)`
-                  : "transparent",
-                color: statusFilter === chip.value || (!statusFilter && chip.value === "") ? chip.color : "var(--color-text-muted)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               {chip.label}
@@ -191,16 +183,15 @@ export default function FeesInvoicesTab() {
       )}
 
       {/* Toolbar */}
-      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
+      <div className={styles.toolbar}>
         <select
-          className="ds-select"
+          className={`ds-select ${styles.periodSelect}`}
           value={`${year}-${month}`}
           onChange={(e) => {
             const [y, m] = e.target.value.split("-").map(Number);
             setYear(y);
             setMonth(m);
           }}
-          style={{ width: 140 }}
         >
           {Array.from({ length: 12 }, (_, i) => {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
@@ -215,10 +206,9 @@ export default function FeesInvoicesTab() {
         </select>
 
         <select
-          className="ds-select"
+          className={`ds-select ${styles.statusSelect}`}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: 100 }}
         >
           <option value="">전체 상태</option>
           <option value="PENDING">미납</option>
@@ -228,10 +218,9 @@ export default function FeesInvoicesTab() {
         </select>
 
         <select
-          className="ds-select"
+          className={`ds-select ${styles.feeTypeSelect}`}
           value={feeTypeFilter}
           onChange={(e) => setFeeTypeFilter(e.target.value)}
-          style={{ width: 120 }}
         >
           <option value="">전체 비목</option>
           <option value="TUITION">수강료</option>
@@ -243,10 +232,9 @@ export default function FeesInvoicesTab() {
         </select>
 
         <select
-          className="ds-select"
+          className={`ds-select ${styles.lectureSelect}`}
           value={lectureFilter}
           onChange={(e) => setLectureFilter(e.target.value)}
-          style={{ width: 160 }}
         >
           <option value="">전체 강의</option>
           {lectures?.map((lec) => (
@@ -255,14 +243,13 @@ export default function FeesInvoicesTab() {
         </select>
 
         <input
-          className="ds-input"
+          className={`ds-input ${styles.searchInput}`}
           placeholder="학생 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 160 }}
         />
 
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+        <label className={styles.checkboxLabel}>
           <input
             type="checkbox"
             checked={unpaidFirst}
@@ -271,7 +258,7 @@ export default function FeesInvoicesTab() {
           미납 우선
         </label>
 
-        <div style={{ marginLeft: "auto" }}>
+        <div className={styles.toolbarAction}>
           <Button intent="primary" onClick={() => setGenerateOpen(true)}>
             월 청구서 생성
           </Button>
@@ -280,7 +267,7 @@ export default function FeesInvoicesTab() {
 
       {/* Table */}
       {isLoading ? (
-        <div style={{ padding: 24, color: "var(--color-text-muted)" }}>불러오는 중...</div>
+        <div className={styles.loading}>불러오는 중...</div>
       ) : !invoices?.length ? (
         <EmptyState title="해당 월의 청구서가 없습니다" />
       ) : (
@@ -290,9 +277,9 @@ export default function FeesInvoicesTab() {
               <tr>
                 <th>학생</th>
                 <th>청구번호</th>
-                <th style={{ textAlign: "right" }}>청구액</th>
-                <th style={{ textAlign: "right" }}>납부액</th>
-                <th style={{ textAlign: "right" }}>미납액</th>
+                <th className={styles.alignRight}>청구액</th>
+                <th className={styles.alignRight}>납부액</th>
+                <th className={styles.alignRight}>미납액</th>
                 <th>상태</th>
                 <th>납부기한</th>
               </tr>
@@ -302,20 +289,14 @@ export default function FeesInvoicesTab() {
                 <tr
                   key={inv.id}
                   onClick={() => openDetail(inv.id)}
-                  style={{
-                    cursor: "pointer",
-                    backgroundColor:
-                      inv.status === "OVERDUE" ? "color-mix(in srgb, var(--color-danger) 6%, transparent)" :
-                      inv.status === "PAID" ? "color-mix(in srgb, var(--color-success) 5%, transparent)" :
-                      inv.status === "PARTIAL" ? "color-mix(in srgb, var(--color-info) 5%, transparent)" :
-                      undefined,
-                  }}
+                  className={styles.invoiceRow}
+                  data-status={inv.status}
                 >
                   <td>{inv.student_name}</td>
-                  <td style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>{inv.invoice_number}</td>
-                  <td style={{ textAlign: "right" }}>{formatKRW(inv.total_amount)}</td>
-                  <td style={{ textAlign: "right" }}>{formatKRW(inv.paid_amount)}</td>
-                  <td style={{ textAlign: "right", fontWeight: inv.outstanding_amount > 0 ? 600 : 400 }}>
+                  <td className={styles.invoiceNumber}>{inv.invoice_number}</td>
+                  <td className={styles.alignRight}>{formatKRW(inv.total_amount)}</td>
+                  <td className={styles.alignRight}>{formatKRW(inv.paid_amount)}</td>
+                  <td className={`${styles.alignRight} ${styles.outstanding}`} data-due={inv.outstanding_amount > 0 ? "true" : "false"}>
                     {formatKRW(inv.outstanding_amount)}
                   </td>
                   <td><StatusBadge status={inv.status} /></td>
@@ -354,7 +335,7 @@ export default function FeesInvoicesTab() {
                 onChange={(e) => setGenDueDate(e.target.value)}
               />
             </div>
-            <p className="modal-hint" style={{ marginTop: 8 }}>
+            <p className={`modal-hint ${styles.modalHint}`}>
               활성 비목(월납)이 할당된 학생에게 청구서가 생성됩니다. 이미 생성된 학생은 건너뜁니다.
             </p>
           </div>
@@ -385,22 +366,22 @@ export default function FeesInvoicesTab() {
               type="inspect"
             />
             <ModalBody>
-              <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div className={`modal-scroll-body ${styles.detailBody}`}>
                 {/* Summary */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div className={styles.summaryGrid}>
                   <div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>청구액</div>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatKRW(selectedInvoice.total_amount)}</div>
+                    <div className={styles.metricLabel}>청구액</div>
+                    <div className={styles.metricValue}>{formatKRW(selectedInvoice.total_amount)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>납부액</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-success)" }}>
+                    <div className={styles.metricLabel}>납부액</div>
+                    <div className={`${styles.metricValue} ${styles.metricValueSuccess}`}>
                       {formatKRW(selectedInvoice.paid_amount)}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>미납액</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: selectedInvoice.outstanding_amount > 0 ? "var(--color-danger)" : undefined }}>
+                    <div className={styles.metricLabel}>미납액</div>
+                    <div className={`${styles.metricValue} ${selectedInvoice.outstanding_amount > 0 ? styles.metricValueDanger : ""}`}>
                       {formatKRW(selectedInvoice.outstanding_amount)}
                     </div>
                   </div>
@@ -408,19 +389,19 @@ export default function FeesInvoicesTab() {
 
                 {/* Items */}
                 <div>
-                  <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>청구 항목</h4>
-                  <table className="ds-table" style={{ fontSize: 13 }}>
+                  <h4 className={styles.sectionTitle}>청구 항목</h4>
+                  <table className={`ds-table ${styles.compactTable}`}>
                     <thead>
                       <tr>
                         <th>항목</th>
-                        <th style={{ textAlign: "right" }}>금액</th>
+                        <th className={styles.alignRight}>금액</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedInvoice.items?.map((item) => (
                         <tr key={item.id}>
                           <td>{item.description}</td>
-                          <td style={{ textAlign: "right" }}>{formatKRW(item.amount)}</td>
+                          <td className={styles.alignRight}>{formatKRW(item.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -430,13 +411,13 @@ export default function FeesInvoicesTab() {
                 {/* Payments */}
                 {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
                   <div>
-                    <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>납부 내역</h4>
-                    <table className="ds-table" style={{ fontSize: 13 }}>
+                    <h4 className={styles.sectionTitle}>납부 내역</h4>
+                    <table className={`ds-table ${styles.compactTable}`}>
                       <thead>
                         <tr>
                           <th>일시</th>
                           <th>수단</th>
-                          <th style={{ textAlign: "right" }}>금액</th>
+                          <th className={styles.alignRight}>금액</th>
                           <th>메모</th>
                           <th></th>
                         </tr>
@@ -446,7 +427,7 @@ export default function FeesInvoicesTab() {
                           <tr key={pay.id}>
                             <td>{new Date(pay.paid_at).toLocaleDateString("ko-KR")}</td>
                             <td>{pay.payment_method_display}</td>
-                            <td style={{ textAlign: "right" }}>{formatKRW(pay.amount)}</td>
+                            <td className={styles.alignRight}>{formatKRW(pay.amount)}</td>
                             <td>{pay.receipt_note || pay.memo || "-"}</td>
                             <td>
                               <Button
