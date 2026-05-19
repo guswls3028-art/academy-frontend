@@ -9,6 +9,8 @@ import AdminModal from "@/shared/ui/modal/AdminModal";
 import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./FeesTemplatesTab.module.css";
 import {
   fetchFeeTemplates,
   createFeeTemplate,
@@ -18,7 +20,6 @@ import {
   type FeeTemplate,
   type FeeType,
   type BillingCycle,
-  type LectureOption,
 } from "../api/fees.api";
 
 function formatKRW(n: number) {
@@ -48,6 +49,11 @@ type FormState = {
   auto_assign: boolean;
   memo: string;
 };
+
+type FeeTemplateFormPayload = Pick<
+  FeeTemplate,
+  "name" | "fee_type" | "billing_cycle" | "amount" | "lecture" | "auto_assign" | "memo"
+>;
 
 const EMPTY_FORM: FormState = {
   name: "",
@@ -84,7 +90,7 @@ export default function FeesTemplatesTab() {
       qc.invalidateQueries({ queryKey: ["fees", "templates"] });
       closeModal();
     },
-    onError: (e: any) => feedback.error(e?.response?.data?.detail || e?.response?.data?.name?.[0] || "생성 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "생성 실패")),
   });
 
   const updateMut = useMutation({
@@ -94,7 +100,7 @@ export default function FeesTemplatesTab() {
       qc.invalidateQueries({ queryKey: ["fees", "templates"] });
       closeModal();
     },
-    onError: () => feedback.error("수정 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "수정 실패")),
   });
 
   const deleteMut = useMutation({
@@ -103,7 +109,7 @@ export default function FeesTemplatesTab() {
       feedback.success("비목이 비활성화되었습니다");
       qc.invalidateQueries({ queryKey: ["fees", "templates"] });
     },
-    onError: () => feedback.error("삭제 실패"),
+    onError: (e: unknown) => feedback.error(extractApiError(e, "삭제 실패")),
   });
 
   function openCreate() {
@@ -133,7 +139,7 @@ export default function FeesTemplatesTab() {
   }
 
   function handleSave() {
-    const payload: any = {
+    const payload: FeeTemplateFormPayload = {
       name: form.name,
       fee_type: form.fee_type,
       billing_cycle: form.billing_cycle,
@@ -158,13 +164,13 @@ export default function FeesTemplatesTab() {
   const isPending = createMut.isPending || updateMut.isPending;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+    <div className={styles.page}>
+      <div className={styles.headerActions}>
         <Button intent="primary" onClick={openCreate}>비목 추가</Button>
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 24, color: "var(--color-text-muted)" }}>불러오는 중...</div>
+        <div className={styles.loading}>불러오는 중...</div>
       ) : !templates?.length ? (
         <EmptyState title="등록된 비목이 없습니다" description="'비목 추가' 버튼으로 수강료, 교재비 등을 등록하세요." />
       ) : (
@@ -175,33 +181,29 @@ export default function FeesTemplatesTab() {
                 <th>비목 이름</th>
                 <th>유형</th>
                 <th>주기</th>
-                <th style={{ textAlign: "right" }}>금액</th>
+                <th className={styles.alignRight}>금액</th>
                 <th>연결 강의</th>
                 <th>자동할당</th>
                 <th>상태</th>
-                <th style={{ width: 100 }}></th>
+                <th className={styles.actionColumn}></th>
               </tr>
             </thead>
             <tbody>
               {templates.map((t) => (
                 <tr key={t.id}>
-                  <td style={{ fontWeight: 500 }}>{t.name}</td>
+                  <td className={styles.nameCell}>{t.name}</td>
                   <td>{t.fee_type_display}</td>
                   <td>{t.billing_cycle_display}</td>
-                  <td style={{ textAlign: "right" }}>{formatKRW(t.amount)}</td>
+                  <td className={styles.alignRight}>{formatKRW(t.amount)}</td>
                   <td>{t.lecture_title || "-"}</td>
-                  <td style={{ fontSize: 13 }}>{t.auto_assign ? "자동" : "수동"}</td>
+                  <td className={styles.autoAssignCell}>{t.auto_assign ? "자동" : "수동"}</td>
                   <td>
-                    <span style={{
-                      color: t.is_active ? "var(--color-success)" : "var(--color-text-muted)",
-                      fontWeight: 500,
-                      fontSize: 13,
-                    }}>
+                    <span className={styles.statusText} data-active={t.is_active ? "true" : "false"}>
                       {t.is_active ? "활성" : "비활성"}
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 4 }}>
+                    <div className={styles.rowActions}>
                       <Button size="sm" intent="ghost" onClick={() => openEdit(t)}>수정</Button>
                       {t.is_active && (
                         <Button
@@ -294,14 +296,14 @@ export default function FeesTemplatesTab() {
                 강의에 연결하면 해당 강의 수강 등록 시 학생에게 자동으로 이 비목이 할당됩니다.
               </div>
               {form.lecture && (
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 14 }}>
+                <label className={styles.autoAssignOption}>
                   <input
                     type="checkbox"
                     checked={form.auto_assign}
                     onChange={(e) => setForm({ ...form, auto_assign: e.target.checked })}
                   />
                   수강 등록 시 자동 할당
-                  <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                  <span className={styles.autoAssignNote}>
                     (해제하면 수동으로만 할당 가능)
                   </span>
                 </label>

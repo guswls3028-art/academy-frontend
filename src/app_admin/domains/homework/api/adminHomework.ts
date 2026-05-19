@@ -13,7 +13,7 @@ export type AdminHomeworkDetail = {
   status: "DRAFT" | "OPEN" | "CLOSED";
 
   /** Homework.meta JSON. default_max_score 등 추가 설정 보관. */
-  meta?: Record<string, any> | null;
+  meta?: Record<string, unknown> | null;
   /** meta.default_max_score 편의 접근자 */
   default_max_score?: number | null;
 
@@ -21,30 +21,50 @@ export type AdminHomeworkDetail = {
   updated_at: string;
 };
 
-function normalize(raw: any): AdminHomeworkDetail {
-  const rawSession = raw?.session_id ?? raw?.session ?? raw?.sessionId;
-  const meta = raw?.meta && typeof raw.meta === "object" ? raw.meta : null;
-  const _dms = meta?.default_max_score;
-  const defaultMaxScore = typeof _dms === "number" && _dms > 0 ? _dms : null;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asPositiveNumber(value: unknown): number | null {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+}
+
+function normalizeStatus(value: unknown): AdminHomeworkDetail["status"] {
+  return value === "DRAFT" || value === "OPEN" || value === "CLOSED" ? value : "OPEN";
+}
+
+function normalizeHomeworkType(value: unknown): NonNullable<AdminHomeworkDetail["homework_type"]> {
+  return value === "template" || value === "regular" ? value : "regular";
+}
+
+function normalize(raw: unknown): AdminHomeworkDetail {
+  const record = asRecord(raw);
+  const rawSession = record.session_id ?? record.session ?? record.sessionId;
+  const meta = record.meta != null ? asRecord(record.meta) : null;
+  const defaultMaxScore = meta ? asPositiveNumber(meta.default_max_score) : null;
+  const templateHomeworkId = record.template_homework != null
+    ? asPositiveNumber(record.template_homework)
+    : asPositiveNumber(record.template_homework_id);
 
   return {
-    id: Number(raw?.id),
-    session_id:
-      typeof rawSession === "number" && rawSession > 0 ? rawSession : undefined,
-    homework_type: raw?.homework_type ?? "regular",
-    template_homework_id:
-      raw?.template_homework != null ? Number(raw.template_homework) : raw?.template_homework_id ?? null,
+    id: Number(record.id),
+    session_id: asPositiveNumber(rawSession) ?? undefined,
+    homework_type: normalizeHomeworkType(record.homework_type),
+    template_homework_id: templateHomeworkId,
 
-    title: String(raw?.title ?? ""),
-    description: raw?.description ?? undefined,
+    title: String(record.title ?? ""),
+    description: typeof record.description === "string" ? record.description : undefined,
 
-    status: (raw?.status ?? "OPEN") as any,
+    status: normalizeStatus(record.status),
 
     meta,
     default_max_score: defaultMaxScore,
 
-    created_at: String(raw?.created_at ?? ""),
-    updated_at: String(raw?.updated_at ?? ""),
+    created_at: String(record.created_at ?? ""),
+    updated_at: String(record.updated_at ?? ""),
   };
 }
 
