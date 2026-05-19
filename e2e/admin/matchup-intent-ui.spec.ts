@@ -42,7 +42,6 @@ test.describe("매치업 업로드 의도 UI 구분", () => {
       return;
     }
     await refDoc.click();
-    await page.waitForTimeout(800);
 
     const toggle = page.locator("[data-testid='matchup-intent-toggle']");
     await expect(toggle).toBeVisible({ timeout: 5000 });

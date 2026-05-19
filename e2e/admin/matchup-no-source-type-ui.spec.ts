@@ -5,6 +5,7 @@
 // hidden div 의 sourceType 자동 추천만 backend 로 전송 확인.
 
 import { test, expect } from "@playwright/test";
+import { waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -35,11 +36,10 @@ test.describe("자료 유형 UI 제거 검증", () => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
 
     const upBtn = page.locator('button:has-text("업로드"), button:has-text("시험지"), button:has-text("자료 등록")').first();
+    await expect(upBtn).toBeVisible({ timeout: 15_000 });
     await upBtn.click();
-    await page.waitForTimeout(500);
 
     const modal = page.locator('[data-testid="matchup-upload-modal"]');
     await expect(modal).toBeVisible();
@@ -70,12 +70,15 @@ test.describe("자료 유형 UI 제거 검증", () => {
       mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4 dummy"),
     });
-    await page.waitForTimeout(800);
 
     const radiosAfter = page.locator('button[data-source-type]');
     expect(await radiosAfter.count()).toBe(0);
 
     // 자동 추천 결과 — hidden div data 속성 확인
+    await waitForCondition(
+      async () => (await autoDiv.getAttribute("data-source-type")) === "explanation",
+      { timeoutMs: 10_000, intervalMs: 250, description: "해설 파일 source_type 자동 추천" },
+    );
     const sourceType = await autoDiv.getAttribute("data-source-type");
     const reason = await autoDiv.getAttribute("data-source-type-reason");
     console.error("[AUTO] sourceType =", sourceType, "reason =", reason);
@@ -90,21 +93,24 @@ test.describe("자료 유형 UI 제거 검증", () => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
 
     const upBtn = page.locator('button:has-text("시험지"), button:has-text("업로드")').first();
+    await expect(upBtn).toBeVisible({ timeout: 15_000 });
     await upBtn.click();
-    await page.waitForTimeout(500);
 
     const fileInput = page.locator('[data-testid="matchup-file-input"]');
+    await expect(fileInput).toBeAttached({ timeout: 10_000 });
     await fileInput.setInputFiles({
       name: "KakaoTalk_20260509_학생답안.jpg",
       mimeType: "image/jpeg",
       buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00]),
     });
-    await page.waitForTimeout(800);
 
     const autoDiv = page.locator('[data-testid="matchup-upload-source-type-auto"]');
+    await waitForCondition(
+      async () => (await autoDiv.getAttribute("data-source-type")) === "student_exam_photo",
+      { timeoutMs: 10_000, intervalMs: 250, description: "학생 답안 이미지 source_type 자동 추천" },
+    );
     const sourceType = await autoDiv.getAttribute("data-source-type");
     expect(sourceType).toBe("student_exam_photo");
 

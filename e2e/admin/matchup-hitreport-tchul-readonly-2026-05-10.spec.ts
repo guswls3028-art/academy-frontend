@@ -58,7 +58,7 @@ test("HR-TCHUL. 학원장 적중 보고서 진입 200 + dangling 인디케이터
 
   // ── (1) 적중 보고서 목록 진입 ─────────────────
   await page.goto(`${BASE}/admin/hit-reports`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1500);
+  await expect(page.locator("body")).toContainText(/적중 보고서|작성중|제출됨|적중/, { timeout: 15_000 });
   await page.screenshot({
     path: path.join(SHOTS, "01-hitreport-list.png"),
     fullPage: false,
@@ -102,7 +102,10 @@ test("HR-TCHUL. 학원장 적중 보고서 진입 200 + dangling 인디케이터
     return;
   }
 
-  await page.waitForTimeout(2500);
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await expect(page.locator("[role='dialog'][aria-label='적중 보고서 작성'], text=/보고서 로드 실패|매치업 적중 보고서/").first())
+    .toBeVisible({ timeout: 15_000 })
+    .catch(() => {});
 
   // ── (3) Editor 모달 렌더 ────────────────────
   const editorDialog = page.locator("[role='dialog'][aria-label='적중 보고서 작성']");
@@ -150,7 +153,7 @@ test("HR-TCHUL. 학원장 적중 보고서 진입 200 + dangling 인디케이터
 
     // (5) ESC 로 dirty-free 종료
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(800);
+    await expect(editorDialog).toBeHidden({ timeout: 5_000 }).catch(() => {});
   }
 
   await page.screenshot({

@@ -30,7 +30,6 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   const testRow = page.locator('[data-testid="matchup-doc-row"]').filter({ hasText: "E2E-CLEAN" }).first();
   await expect(testRow).toBeVisible({ timeout: 15_000 });
   await testRow.click();
-  await page.waitForTimeout(2000);
   console.log("✓ 시험지 doc 선택");
 
   // "직접 자르기" 버튼 클릭
@@ -52,7 +51,14 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   // 캔버스 노출 + 이미지 로드 대기
   const canvas = page.locator('[data-testid="matchup-crop-canvas"]');
   await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await page.waitForTimeout(2500); // 캔버스 이미지 렌더 대기
+  await expect.poll(
+    async () => canvas.evaluate((el) => {
+      const c = el as HTMLCanvasElement;
+      const rect = c.getBoundingClientRect();
+      return c.width > 0 && c.height > 0 && rect.width > 50 && rect.height > 50;
+    }).catch(() => false),
+    { timeout: 15_000, intervals: [250, 500, 1000] },
+  ).toBe(true);
   console.log("✓ 캔버스 + 페이지 이미지 로드");
 
   // 캔버스 위에 마우스 드래그 (30%~70%, 30%~60% 영역)
@@ -64,7 +70,6 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
     await page.mouse.move(cb.x + cb.width * 0.7, cb.y + cb.height * 0.6, { steps: 12 });
     await page.mouse.up();
   }
-  await page.waitForTimeout(400);
   console.log("✓ 캔버스 마우스 드래그");
 
   // draft 박스 노출 + 8방향 핸들

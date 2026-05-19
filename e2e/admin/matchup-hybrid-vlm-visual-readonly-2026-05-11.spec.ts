@@ -9,7 +9,7 @@
  *
  * write API 모두 차단 — POST/PATCH/DELETE/PUT, reanalyze, manual-crop 등.
  */
-import { test } from "../fixtures/strictTest";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -50,7 +50,8 @@ test("HYBRID-VLM. 박철T 매치업 read-only 시각 캡처 baseline", async ({ 
 
   // 매치업 메인 진입
   await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(2500);
+  await expect(page.locator("[data-testid='matchup-doc-row'], [data-testid='matchup-upload-button']").first())
+    .toBeVisible({ timeout: 15_000 });
   await page.screenshot({
     path: path.join(SHOTS, "00-matchup-main.png"),
     fullPage: false,
@@ -61,7 +62,8 @@ test("HYBRID-VLM. 박철T 매치업 read-only 시각 캡처 baseline", async ({ 
     try {
       const url = `${BASE}/admin/storage/matchup?docId=${docId}`;
       await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
-      await page.waitForTimeout(2000);
+      await expect(page.locator("[data-testid='matchup-doc-row'], [data-testid='matchup-problem-grid'], .problem-grid").first())
+        .toBeVisible({ timeout: 15_000 });
       await page.screenshot({
         path: path.join(SHOTS, `doc-${docId}-page.png`),
         fullPage: false,
