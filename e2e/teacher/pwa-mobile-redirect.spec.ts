@@ -29,7 +29,7 @@ async function loginMobile(page: import("@playwright/test").Page) {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
     localStorage.removeItem("teacher:preferAdmin");
-    try { sessionStorage.setItem("tenantCode", "tchul"); } catch {}
+    try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
   }, tokens);
 }
 
@@ -43,7 +43,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
   test("모바일에서 / 접근 → /teacher 리다이렉트", async ({ page }) => {
     await loginMobile(page);
     await page.goto(`${TCHUL}/`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(3000);
+    await page.waitForURL(/\/teacher/, { timeout: 10_000 }).catch(() => {});
 
     // /teacher로 리다이렉트되었는지 확인
     const url = page.url();
@@ -55,7 +55,6 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
   test("선생님 앱 5탭 렌더링 + manifest 로딩", async ({ page }) => {
     await loginMobile(page);
     await page.goto(`${TCHUL}/teacher`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(3000);
 
     // data-app="teacher" 확인
     await expect(page.locator('[data-app="teacher"]')).toBeVisible({ timeout: 10_000 });
@@ -80,14 +79,12 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
   test("프로필 페이지 렌더링", async ({ page }) => {
     await loginMobile(page);
     await page.goto(`${TCHUL}/teacher`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(3000);
 
     // 더보기 탭 클릭 → 드로어 열기
     await expect(page.locator('[data-app="teacher"]')).toBeVisible({ timeout: 10_000 });
 
     // 내 프로필로 직접 이동 (드로어 경유 대신)
     await page.goto(`${TCHUL}/teacher/profile`, { waitUntil: "load", timeout: 15_000 });
-    await page.waitForTimeout(2000);
 
     // 프로필 페이지 렌더링 확인 (h1)
     await expect(page.getByRole("heading", { name: "내 프로필" })).toBeVisible({ timeout: 5_000 });
@@ -134,11 +131,11 @@ test.describe("데스크톱 → admin 유지", () => {
       localStorage.setItem("access", access);
       localStorage.setItem("refresh", refresh);
       localStorage.removeItem("teacher:preferAdmin");
-      try { sessionStorage.setItem("tenantCode", "tchul"); } catch {}
+      try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
     }, tokens);
 
     await page.goto(`${TCHUL}/`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(3000);
+    await page.waitForURL(/\/admin/, { timeout: 10_000 }).catch(() => {});
 
     const url = page.url();
     expect(url).toContain("/admin");
