@@ -27,6 +27,9 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
   const [savedMaxScore, setSavedMaxScore] = useState<number | "">("");
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const resolvedExamId = exam?.id;
+  const examPassScore = exam?.pass_score;
+  const examMaxScore = exam?.max_score;
 
   // 강의명/차시명 조회 (OMR 기본값 주입용)
   const { data: lectureData } = useQuery({
@@ -39,20 +42,20 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
     queryFn: () => fetchSessions(lectureId),
     enabled: lectureId > 0,
   });
-  const resolvedLectureName = lectureData?.find((l: any) => l.id === lectureId)?.title ?? "";
-  const resolvedSessionName = sessionData?.find((s: any) => s.id === sessionId)?.title ?? "";
+  const resolvedLectureName = lectureData?.find((lecture) => lecture.id === lectureId)?.title ?? "";
+  const resolvedSessionName = sessionData?.find((session) => session.id === sessionId)?.title ?? "";
 
   useEffect(() => {
-    if (!exam) return;
-    const ps = Number(exam.pass_score);
+    if (resolvedExamId == null) return;
+    const ps = Number(examPassScore);
     const value = Number.isFinite(ps) && ps >= 0 ? ps : "";
     setPassScore(value);
     setSavedScore(value);
-    const ms = Number(exam.max_score);
+    const ms = Number(examMaxScore);
     const mv = Number.isFinite(ms) && ms > 0 ? ms : "";
     setMaxScore(mv);
     setSavedMaxScore(mv);
-  }, [exam?.id, exam?.pass_score, exam?.max_score]);
+  }, [resolvedExamId, examPassScore, examMaxScore]);
 
   const numericPassScore = typeof passScore === "number" ? passScore : 0;
   const numericMaxScore = typeof maxScore === "number" ? maxScore : 100;

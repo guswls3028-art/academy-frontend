@@ -120,23 +120,32 @@ export interface LectureOption {
 
 export async function fetchLectureOptions(): Promise<LectureOption[]> {
   const res = await api.get("/lectures/lectures/", { params: { is_active: true } });
-  const data = res.data;
-  const list = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-  return list.map((l: any) => ({ id: l.id, title: l.title }));
+  return unwrapList<unknown>(res.data)
+    .map(normalizeLectureOption)
+    .filter((option): option is LectureOption => option != null);
 }
 
 /* ────────── helpers ────────── */
 
-interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  results: T[];
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
-function unwrapList<T>(data: any): T[] {
+function unwrapList<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data;
-  if (data?.results && Array.isArray(data.results)) return data.results;
+  const record = asRecord(data);
+  if (Array.isArray(record.results)) return record.results as T[];
   return [];
+}
+
+function normalizeLectureOption(value: unknown): LectureOption | null {
+  const record = asRecord(value);
+  const id = Number(record.id);
+  const title = typeof record.title === "string" ? record.title : "";
+  if (!Number.isFinite(id) || id <= 0 || !title) return null;
+  return { id, title };
 }
 
 /* ────────── API: Fee Templates ────────── */
@@ -188,11 +197,7 @@ export async function deleteStudentFee(id: number) {
 
 export async function fetchInvoices(params?: Record<string, string>) {
   const res = await api.get("/fees/invoices/", { params: { ...params, page_size: "500" } });
-  const data = res.data;
-  const list = unwrapList<StudentInvoice>(data);
-  // Attach total count for UI
-  (list as any).__totalCount = data?.count ?? list.length;
-  return list;
+  return unwrapList<StudentInvoice>(res.data);
 }
 
 export async function fetchInvoiceDetail(id: number) {
