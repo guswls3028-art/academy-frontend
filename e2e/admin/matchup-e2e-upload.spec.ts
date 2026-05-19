@@ -3,14 +3,14 @@
  * Tenant 1 (hakwonplus), 운영 서버 대상
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
+import { loginViaUI } from "../helpers/auth";
+import { waitForCondition } from "../helpers/wait";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const API = getApiBaseUrl();
 const TAG = `[E2E-${Date.now()}]`;
 
 test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
@@ -24,7 +24,7 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
       waitUntil: "load",
       timeout: 15000,
     });
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     // 2. 업로드 모달 열기
     await page.getByText("문서 업로드").click();
@@ -54,7 +54,6 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
     await expect(page.getByText("PDF, PNG, JPG 파일을 선택하세요")).not.toBeVisible({ timeout: 5000 });
 
     // 5. 문서 목록에 표시 확인
-    await page.waitForTimeout(2000);
     const docItem = page.locator("text=" + `${TAG} 수학 테스트`);
     await expect(docItem).toBeVisible({ timeout: 10000 });
 
@@ -64,42 +63,38 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
     // 6. AI 처리 완료 대기 (최대 2분)
     // 문서 클릭해서 선택
     await docItem.click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     // "처리 중" → "N문제" 로 변경될 때까지 대기
-    let attempts = 0;
-    const maxAttempts = 40; // 40 * 3s = 120s
-    let processingDone = false;
-
-    while (attempts < maxAttempts) {
-      // 페이지 새로고침 없이 폴링이 invalidate하므로 대기
-      await page.waitForTimeout(3000);
-
+    await waitForCondition(async () => {
       // "문제" 텍스트가 나타나면 완료
       const problemText = page.locator("text=/\\d+문제/").first();
       if (await problemText.isVisible().catch(() => false)) {
-        processingDone = true;
-        break;
+        return true;
       }
 
       // "실패" 체크
       const failedText = page.locator("text=실패").first();
       if (await failedText.isVisible().catch(() => false)) {
-        // 스크린샷: 실패 상태
-        await page.screenshot({ path: "e2e/screenshots/matchup-failed.png", fullPage: true });
-        break;
+        return true;
       }
 
-      attempts++;
+      return false;
+    }, { timeoutMs: 120_000, intervalMs: 3_000, description: "matchup document processing completes" });
+    const failedText = page.locator("text=실패").first();
+    const failedVisible = await failedText.isVisible().catch(() => false);
+    if (failedVisible) {
+      await page.screenshot({ path: "e2e/screenshots/matchup-failed.png", fullPage: true });
     }
+    const processingDone = !failedVisible;
 
     // 스크린샷: 처리 완료 상태
     await page.screenshot({ path: "e2e/screenshots/matchup-done.png", fullPage: true });
 
     if (processingDone) {
       // 7. 문제 그리드 표시 확인
-      await page.waitForTimeout(2000);
       const problemCards = page.locator("text=/^Q\\d+$/");
+      await expect(problemCards.first()).toBeVisible({ timeout: 10_000 });
       const cardCount = await problemCards.count();
       console.log(`Extracted problems: ${cardCount}`);
       expect(cardCount).toBeGreaterThan(0);
@@ -109,7 +104,7 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
 
       // 8. 첫 번째 문제 클릭 → 유사 문제 추천
       await problemCards.first().click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
       // 스크린샷: 유사 문제 (문제가 1개뿐이면 "유사한 문제를 찾지 못했습니다" 표시)
       await page.screenshot({ path: "e2e/screenshots/matchup-similar.png", fullPage: true });
@@ -124,7 +119,7 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
       const confirmBtn = page.getByRole("button", { name: "삭제" });
       if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await confirmBtn.click();
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       }
     }
 

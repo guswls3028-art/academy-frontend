@@ -29,7 +29,6 @@ test("KPI inbox screenshots — results + videos", async ({ page }) => {
   ]) {
     await page.goto(`${BASE}${L.path}`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
     await page.screenshot({
       path: `e2e/reports/uiux-landings-kpi/${L.slug}.png`,
       fullPage: true,

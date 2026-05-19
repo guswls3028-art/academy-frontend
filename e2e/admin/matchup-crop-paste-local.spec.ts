@@ -48,7 +48,7 @@ test.describe("매치업 크롭/붙여넣기 — 로컬 시각 확인", () => {
       return;
     }
     await firstDoc.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     const cropBtn = page.locator("button:has-text('직접 자르기'), button:has-text('수동 자르기')").first();
     if (await cropBtn.count() === 0) {
@@ -75,7 +75,6 @@ test.describe("매치업 크롭/붙여넣기 — 로컬 시각 확인", () => {
       await page.mouse.move(cb.x + cb.width * 0.7, cb.y + cb.height * 0.6, { steps: 10 });
       await page.mouse.up();
     }
-    await page.waitForTimeout(200);
 
     const draft = page.locator("[data-testid='matchup-crop-draft']");
     await expect(draft).toBeVisible({ timeout: 3000 });
