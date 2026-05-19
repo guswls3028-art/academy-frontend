@@ -31,6 +31,47 @@ function normalizeDate(s: string): string {
   return d.isValid() ? d.format("YYYY-MM-DD") : s;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeListPayload(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (isRecord(value) && Array.isArray(value.results)) return value.results;
+  return [];
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toStringValue(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  return String(value);
+}
+
+function toNumberArray(value: unknown): number[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.map((item) => Number(item)).filter(Number.isFinite);
+}
+
+function toSectionType(value: unknown): "CLASS" | "CLINIC" | null {
+  return value === "CLASS" || value === "CLINIC" ? value : null;
+}
+
 /**
  * 운영 좌측 트리 전용
  * GET /clinic/sessions/tree/?year=YYYY&month=MM[&section=ID|unassigned]
@@ -48,15 +89,24 @@ export async function fetchClinicSessionTree(params: {
   else if (typeof section === "number") query.section = section;
   const res = await api.get("/clinic/sessions/tree/", { params: query });
 
-  const raw = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-    ? res.data.results
-    : [];
-  return (raw as ClinicSessionTreeNode[]).map((s) => ({
-    ...s,
-    date: normalizeDate(s.date),
-  }));
+  return normalizeListPayload(res.data)
+    .filter(isRecord)
+    .map((row) => ({
+      id: toNumber(row.id),
+      title: row.title == null ? undefined : toStringValue(row.title),
+      date: normalizeDate(toStringValue(row.date)),
+      start_time: toStringValue(row.start_time),
+      location: toStringValue(row.location),
+      target_grade: toNullableNumber(row.target_grade),
+      duration_minutes: toOptionalNumber(row.duration_minutes),
+      participant_count: toNumber(row.participant_count),
+      booked_count: toNumber(row.booked_count),
+      no_show_count: toNumber(row.no_show_count),
+      max_participants: toNullableNumber(row.max_participants),
+      section: toNullableNumber(row.section),
+      section_label: row.section_label == null ? null : toStringValue(row.section_label),
+      section_type: toSectionType(row.section_type),
+    }));
 }
 
 /**
@@ -105,14 +155,28 @@ export async function updateClinicSession(
 export async function fetchClinicSessions(params: {
   date_from?: string;
   date_to?: string;
+  ordering?: string;
 }): Promise<ClinicSessionDetail[]> {
   const res = await api.get("/clinic/sessions/", { params });
-  const raw = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-    ? res.data.results
-    : [];
-  return raw;
+  return normalizeListPayload(res.data)
+    .filter(isRecord)
+    .map((row) => ({
+      id: toNumber(row.id),
+      title: toStringValue(row.title),
+      date: normalizeDate(toStringValue(row.date)),
+      start_time: toStringValue(row.start_time),
+      duration_minutes: toNumber(row.duration_minutes),
+      location: toStringValue(row.location),
+      max_participants: toNumber(row.max_participants),
+      target_grade: toNullableNumber(row.target_grade),
+      target_school_type: row.target_school_type == null ? null : toStringValue(row.target_school_type),
+      target_lecture_ids: toNumberArray(row.target_lecture_ids),
+      participant_count: toNumber(row.participant_count),
+      booked_count: toNumber(row.booked_count),
+      section: toNullableNumber(row.section),
+      section_label: row.section_label == null ? null : toStringValue(row.section_label),
+      section_type: toSectionType(row.section_type),
+    }));
 }
 
 export type ClinicSessionDetail = {

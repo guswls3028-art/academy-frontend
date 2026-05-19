@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
+import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -22,14 +22,19 @@ type ClinicSession = {
 
 type DayCell = { date: string; isCurrentMonth: boolean };
 
-function normalizeList(resData: any): any[] {
-  if (Array.isArray(resData)) return resData;
-  if (Array.isArray(resData?.results)) return resData.results;
-  return [];
-}
-
 function startTimeHHMM(v: string) {
   return v ? v.slice(0, 5) : "";
+}
+
+function toReportSession(row: ClinicSessionDetail): ClinicSession {
+  return {
+    id: row.id,
+    date: row.date,
+    start_time: row.start_time ?? "",
+    duration_minutes: row.duration_minutes,
+    location: row.location || undefined,
+    participant_count: row.participant_count,
+  };
 }
 
 function buildMonthCalendar(year: number, month: number): DayCell[] {
@@ -76,24 +81,12 @@ export default function ClinicReportsPage() {
   const sessionsQ = useQuery({
     queryKey: ["clinic-sessions-month", range.from, range.to],
     queryFn: async () => {
-      const res = await api.get("/clinic/sessions/", {
-        params: {
-          date_from: range.from,
-          date_to: range.to,
-          ordering: "date,start_time",
-        },
+      const rows = await fetchClinicSessions({
+        date_from: range.from,
+        date_to: range.to,
+        ordering: "date,start_time",
       });
-      const rows = normalizeList(res.data) as any[];
-      return rows.map((r: any) => ({
-        id: Number(r.id),
-        date: String(r.date),
-        start_time: String(r.start_time ?? ""),
-        duration_minutes:
-          r.duration_minutes == null ? undefined : Number(r.duration_minutes),
-        location: r.location == null ? undefined : String(r.location),
-        participant_count:
-          r.participant_count == null ? undefined : Number(r.participant_count),
-      })) as ClinicSession[];
+      return rows.map(toReportSession);
     },
     staleTime: 10_000,
     retry: 0,
@@ -167,7 +160,7 @@ export default function ClinicReportsPage() {
 
         {sessionsQ.isError ? (
           <div className="clinic-reports-calendar-block__empty">
-            <p className="text-sm text-[var(--color-text-muted)]" style={{ textAlign: "center", padding: "48px 24px" }}>
+            <p className="clinic-reports-calendar-block__error-message text-sm text-[var(--color-text-muted)]">
               클리닉 데이터를 불러오지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요.
             </p>
           </div>
@@ -243,9 +236,9 @@ export default function ClinicReportsPage() {
             })}
           </div>
           {!sessionsQ.isLoading && sessions.length === 0 && (
-            <div style={{ textAlign: "center", padding: "40px 24px", color: "var(--color-text-muted)" }}>
-              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>이 달에는 클리닉 일정이 없습니다.</p>
-              <p style={{ fontSize: 13 }}>클리닉 진행 탭에서 일정을 등록해 보세요.</p>
+            <div className="clinic-reports-calendar-block__empty-month">
+              <p className="clinic-reports-calendar-block__empty-title">이 달에는 클리닉 일정이 없습니다.</p>
+              <p className="clinic-reports-calendar-block__empty-desc">클리닉 진행 탭에서 일정을 등록해 보세요.</p>
             </div>
           )}
         </div>

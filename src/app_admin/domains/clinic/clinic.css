@@ -1364,6 +1364,23 @@
   border-top: 1px solid var(--color-border-divider);
   padding-top: var(--space-4);
 }
+.clinic-reports-calendar-block__error-message {
+  text-align: center;
+  padding: 48px 24px;
+}
+.clinic-reports-calendar-block__empty-month {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--color-text-muted);
+}
+.clinic-reports-calendar-block__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.clinic-reports-calendar-block__empty-desc {
+  font-size: 13px;
+}
 .clinic-reports-calendar-block__compact {
   border-top: 1px solid var(--color-border-divider);
   padding-top: var(--space-4);

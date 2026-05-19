@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { RefreshCw } from "lucide-react";
@@ -13,8 +13,28 @@ import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
 
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== "object") return fallback;
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+  const message = (error as { message?: unknown }).message;
+  if (typeof detail === "string") return detail;
+  if (typeof message === "string") return message;
+  return fallback;
+}
+
+function colorBackgroundStyle(color: string): CSSProperties {
+  return { backgroundColor: color };
+}
+
+function passcardGradientStyle(colors: [string, string, string]): CSSProperties {
+  return {
+    backgroundImage: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+    backgroundSize: "200% 200%",
+    animation: "idcard-background-flow 8s ease infinite",
+  };
+}
+
 export default function ClinicSettingsPage() {
-  const qc = useQueryClient();
   const meQ = useQuery({
     queryKey: ["clinic-me"],
     queryFn: fetchClinicMe,
@@ -82,12 +102,13 @@ function ClinicIdcardColorSettings() {
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       feedback.success("설정이 저장되었습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "저장에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(apiErrorMessage(e, "저장에 실패했습니다."));
     },
   });
 
   const useDailyRandom = settings?.use_daily_random ?? false;
+  const todayColors = settings?.colors || localColors;
 
   // 설정 로드 시 로컬 상태 동기화 (수동 색상)
   useEffect(() => {
@@ -183,11 +204,7 @@ function ClinicIdcardColorSettings() {
                 <p className="text-xs font-semibold text-[var(--color-text-muted)]">오늘 미리보기</p>
                 <div
                   className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
-                  style={{
-                    backgroundImage: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
-                    backgroundSize: "200% 200%",
-                    animation: "idcard-background-flow 8s ease infinite",
-                  }}
+                  style={passcardGradientStyle(todayColors)}
                 />
               </div>
             )}
@@ -198,11 +215,7 @@ function ClinicIdcardColorSettings() {
               </p>
               <div
                 className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
-                  backgroundSize: "200% 200%",
-                  animation: "idcard-background-flow 8s ease infinite",
-                }}
+                style={passcardGradientStyle(localColors)}
               />
             </div>
 
@@ -220,7 +233,7 @@ function ClinicIdcardColorSettings() {
                     type="button"
                     onClick={() => handleOpenColorModal(index)}
                     className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-brand-primary)] transition-colors flex flex-col items-center justify-center gap-1"
-                    style={{ background: localColors[index] }}
+                    style={colorBackgroundStyle(localColors[index])}
                   >
                     <span className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                       {index + 1}
@@ -327,7 +340,7 @@ function ColorSelectModal({
                       ? "border-[var(--color-brand-primary)] ring-2 ring-[var(--color-brand-primary)] ring-offset-2"
                       : "border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]"
                   }`}
-                  style={{ background: item.color }}
+                  style={colorBackgroundStyle(item.color)}
                   title={item.name}
                 >
                   <span className="sr-only">{item.name}</span>
