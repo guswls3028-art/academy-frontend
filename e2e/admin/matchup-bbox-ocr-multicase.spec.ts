@@ -21,6 +21,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import { execSync } from "child_process";
+import type { Page } from "@playwright/test";
 
 const API = getApiBaseUrl();
 const TS = Date.now();
@@ -51,6 +52,26 @@ const CASES = [
     isOcr: false,
   },
 ];
+
+type MatchupDocument = {
+  id: number;
+  title?: string;
+  status?: string;
+  problem_count?: number;
+  error_message?: string;
+};
+
+type MatchupProblem = {
+  text?: string | null;
+  meta?: Record<string, unknown> | null;
+};
+
+function readResults<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (!payload || typeof payload !== "object") return [];
+  const results = (payload as { results?: unknown }).results;
+  return Array.isArray(results) ? results as T[] : [];
+}
 
 // ── CloudWatch helpers ──────────────────────────────────────────
 
@@ -105,7 +126,7 @@ function getCWOcrSegmentOk(windowMin: number): number {
  * 업로드 버튼: 문서 목록 헤더 오른쪽의 + 아이콘 버튼
  */
 async function openUploadAndSubmit(
-  page: any,
+  page: Page,
   filePath: string,
   title: string,
   subject = "통합과학",
@@ -114,8 +135,6 @@ async function openUploadAndSubmit(
   // + 아이콘 버튼 (문서 목록 헤더)
   // 스크린샷에서 확인: "문서 목록" 텍스트 옆 + 버튼
   const plusBtn = page.locator("button").filter({ has: page.locator("svg") }).last();
-  // 더 정확한 선택자: 문서 목록 헤더 영역의 + 버튼
-  const headerPlusBtn = page.locator("[class*='header'] button, [class*='list'] button").last();
 
   // 우선 "문서 목록" 레이블 근처 + 버튼 시도
   const listHeader = page.locator("text=문서 목록").first();
@@ -175,7 +194,7 @@ async function openUploadAndSubmit(
  * 주의: detail endpoint (/{id}/) 는 405 → list 사용
  */
 async function waitForDone(
-  page: any,
+  page: Page,
   docId: number,
   accessToken: string,
   maxMs = 300_000,
@@ -194,9 +213,9 @@ async function waitForDone(
         timeout: 15000,
       });
       if (resp.ok()) {
-        const body = await resp.json();
-        const items: any[] = Array.isArray(body) ? body : (body?.results ?? []);
-        const doc = items.find((d: any) => d.id === docId);
+        const body = await resp.json() as unknown;
+        const items = readResults<MatchupDocument>(body);
+        const doc = items.find((d) => d.id === docId);
         if (doc) {
           const elapsed = Math.round((Date.now() - start) / 1000);
           console.log(`[POLL ${docId}] status=${doc.status}, count=${doc.problem_count} (${elapsed}s)`);
@@ -233,7 +252,7 @@ const results: Array<{
 // Case A: 은광여고 스캔본
 // ──────────────────────────────────────────────────────────────
 test.describe.serial("Case A: 은광여고 스캔본", () => {
-  let page: any;
+  let page: Page;
   let docId: number | null = null;
   const c = CASES[0];
 
@@ -271,12 +290,13 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 
     // 5. 문서 목록에서 ID 취득
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
+    expect(accessToken).toBeTruthy();
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
       headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" },
     });
-    const docs = await docsResp.json() as any[];
-    const items = Array.isArray(docs) ? docs : (docs?.results ?? []);
-    const found = items.find((d: any) => d.title === c.title);
+    const docs = await docsResp.json() as unknown;
+    const items = readResults<MatchupDocument>(docs);
+    const found = items.find((d) => d.title === c.title);
     expect(found, `문서가 목록에 없음: ${c.title}`).toBeTruthy();
     docId = found!.id;
     console.log(`[A-DOC] id=${docId}`);
@@ -330,9 +350,9 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
       `${API}/api/v1/matchup/problems/?document_id=${docId}`,
       { headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" } },
     );
-    const probs = await probResp.json() as any[];
-    const probItems = Array.isArray(probs) ? probs : (probs?.results ?? []);
-    const nonEmpty = probItems.filter((p: any) => p.text && p.text.trim().length > 0).length;
+    const probs = await probResp.json() as unknown;
+    const probItems = readResults<MatchupProblem>(probs);
+    const nonEmpty = probItems.filter((p) => p.text && p.text.trim().length > 0).length;
     const ratio = probItems.length > 0 ? nonEmpty / probItems.length : 0;
     const firstText = probItems[0]?.text ?? "";
     console.log(`[A-API] problems=${probItems.length}, non_empty=${nonEmpty} (${Math.round(ratio * 100)}%), first="${firstText.substring(0, 60)}"`);
@@ -373,7 +393,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 // Case B: 경기고 스캔본
 // ──────────────────────────────────────────────────────────────
 test.describe.serial("Case B: 경기고 스캔본", () => {
-  let page: any;
+  let page: Page;
   let docId: number | null = null;
   const c = CASES[1];
 
@@ -405,12 +425,13 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
+    expect(accessToken).toBeTruthy();
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
       headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" },
     });
-    const docs = await docsResp.json() as any[];
-    const items = Array.isArray(docs) ? docs : (docs?.results ?? []);
-    const found = items.find((d: any) => d.title === c.title);
+    const docs = await docsResp.json() as unknown;
+    const items = readResults<MatchupDocument>(docs);
+    const found = items.find((d) => d.title === c.title);
     expect(found, `문서가 목록에 없음: ${c.title}`).toBeTruthy();
     docId = found!.id;
     console.log(`[B-DOC] id=${docId}`);
@@ -448,9 +469,9 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
       `${API}/api/v1/matchup/problems/?document_id=${docId}`,
       { headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" } },
     );
-    const probs = await probResp.json() as any[];
-    const probItems = Array.isArray(probs) ? probs : (probs?.results ?? []);
-    const nonEmpty = probItems.filter((p: any) => p.text && p.text.trim().length > 0).length;
+    const probs = await probResp.json() as unknown;
+    const probItems = readResults<MatchupProblem>(probs);
+    const nonEmpty = probItems.filter((p) => p.text && p.text.trim().length > 0).length;
     const ratio = probItems.length > 0 ? nonEmpty / probItems.length : 0;
     const firstText = probItems[0]?.text ?? "";
     console.log(`[B-API] problems=${probItems.length}, non_empty=${nonEmpty} (${Math.round(ratio * 100)}%), first="${firstText.substring(0, 60)}"`);
@@ -491,7 +512,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
 // Case C: 중산고 텍스트 PDF (회귀 체크)
 // ──────────────────────────────────────────────────────────────
 test.describe.serial("Case C: 중산고 텍스트PDF", () => {
-  let page: any;
+  let page: Page;
   let docId: number | null = null;
   const c = CASES[2];
 
@@ -525,12 +546,13 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
+    expect(accessToken).toBeTruthy();
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
       headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" },
     });
-    const docs = await docsResp.json() as any[];
-    const items = Array.isArray(docs) ? docs : (docs?.results ?? []);
-    const found = items.find((d: any) => d.title === c.title);
+    const docs = await docsResp.json() as unknown;
+    const items = readResults<MatchupDocument>(docs);
+    const found = items.find((d) => d.title === c.title);
     expect(found, `문서가 목록에 없음: ${c.title}`).toBeTruthy();
     docId = found!.id;
     console.log(`[C-DOC] id=${docId}`);
@@ -571,9 +593,9 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
       `${API}/api/v1/matchup/problems/?document_id=${docId}`,
       { headers: { Authorization: `Bearer ${accessToken}`, "X-Tenant-Code": "hakwonplus" } },
     );
-    const probs = await probResp.json() as any[];
-    const probItems = Array.isArray(probs) ? probs : (probs?.results ?? []);
-    const nonEmpty = probItems.filter((p: any) => p.text && p.text.trim().length > 0).length;
+    const probs = await probResp.json() as unknown;
+    const probItems = readResults<MatchupProblem>(probs);
+    const nonEmpty = probItems.filter((p) => p.text && p.text.trim().length > 0).length;
     const ratio = probItems.length > 0 ? nonEmpty / probItems.length : 0;
     const firstText = probItems[0]?.text ?? "";
     console.log(`[C-API] problems=${probItems.length}, non_empty=${nonEmpty} (${Math.round(ratio * 100)}%), first="${firstText.substring(0, 80)}"`);

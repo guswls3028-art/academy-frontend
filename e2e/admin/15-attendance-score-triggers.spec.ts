@@ -7,6 +7,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { waitForCondition } from "../helpers/wait";
 
 import { FIXTURES } from "../helpers/test-fixtures";
 
@@ -25,7 +26,7 @@ test.describe("강의 출결 + 성적 트리거", () => {
 
     // 강의 113 > 차시 153 > 출결 탭
     await page.goto(`${BASE}/admin/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/attendance`, { timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await snap(page, "01-attendance-page");
 
     // 출결 페이지 필수 요소 — 출석 or 결석 버튼 중 하나는 반드시 있어야 함
@@ -40,12 +41,12 @@ test.describe("강의 출결 + 성적 트리거", () => {
     // 출석 버튼 우선 클릭
     if (await attendBtn.isVisible().catch(() => false)) {
       await attendBtn.click();
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "01-attend-clicked");
     } else {
       // 출석만 가려진 경우 결석이라도 클릭해서 트리거 발동 확인
       await absentBtn.click();
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "01-absent-clicked");
     }
   });
@@ -55,7 +56,7 @@ test.describe("강의 출결 + 성적 트리거", () => {
 
     // 강의 113 > 차시 153 > 성적 탭
     await page.goto(`${BASE}/admin/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/scores`, { timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     const sendStart = Date.now();
 
@@ -63,13 +64,11 @@ test.describe("강의 출결 + 성적 트리거", () => {
     const checkbox = page.locator('input[type="checkbox"]').first();
     await expect(checkbox, "성적 페이지에 수강생 체크박스가 있어야 함").toBeVisible({ timeout: 10000 });
     await checkbox.click();
-    await page.waitForTimeout(500);
 
     // 수업결과 발송 → 모달 → 발송하기 (각 단계 fail-fast)
     const scoreBtn = page.locator("button").filter({ hasText: "수업결과 발송" }).first();
     await expect(scoreBtn).toBeVisible({ timeout: 5000 });
     await scoreBtn.click();
-    await page.waitForTimeout(2000);
 
     const kakaoPreview = page.locator(".template-preview-kakao").first();
     await expect(kakaoPreview, "알림톡 모드 미리보기가 렌더링되어야 함").toBeVisible({ timeout: 5000 });
@@ -78,12 +77,11 @@ test.describe("강의 출결 + 성적 트리거", () => {
     const sendBtn = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
     await expect(sendBtn).toBeVisible({ timeout: 5000 });
     await sendBtn.click();
-    await page.waitForTimeout(2000);
 
     const confirmBtn = page.locator("button").filter({ hasText: "발송하기" }).first();
     await expect(confirmBtn).toBeVisible({ timeout: 5000 });
     await confirmBtn.click();
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     // 발송 내역 확인 — 방금 발송된 건이 로그에 반영되었는지 폴링
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
@@ -93,15 +91,14 @@ test.describe("강의 출결 + 성적 트리거", () => {
     const { access } = await loginResp.json() as { access: string };
 
     let latest: { id: number; sent_at: string; message_mode: string; success: boolean } | undefined;
-    for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(2000);
+    await waitForCondition(async () => {
       const logResp = await page.request.get(`${API}/api/v1/messaging/log/?page_size=3&ordering=-sent_at`, {
         headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
       });
       const logData = await logResp.json() as { results: Array<{ id: number; sent_at: string; message_mode: string; success: boolean }> };
       latest = logData.results[0];
-      if (latest && new Date(latest.sent_at).getTime() >= sendStart - 60_000) break;
-    }
+      return Boolean(latest && new Date(latest.sent_at).getTime() >= sendStart - 60_000);
+    }, { timeoutMs: 20_000, intervalMs: 2_000, description: "recent attendance score trigger log appears" });
 
     expect(latest, "발송 로그가 최소 1건 있어야 함").toBeDefined();
     expect(
