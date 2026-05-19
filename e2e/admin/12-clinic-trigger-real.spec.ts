@@ -11,6 +11,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { waitForCondition } from "../helpers/wait";
 import {
   ensureClinicSessionForTrigger,
   cleanupEnsuredClinicSession,
@@ -28,7 +29,6 @@ async function snap(page: Page, name: string) {
 async function dismissOverlays(page: Page) {
   for (let i = 0; i < 3; i++) {
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
   }
 }
 
@@ -73,7 +73,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
       waitUntil: "load",
       timeout: 20000,
     });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await snap(page, "00-console");
 
     // ── 3. 사이드바에서 해당 세션 클릭 — 시간 기반 식별 ──
@@ -88,7 +88,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
       `사이드바에서 ${hhmm} 시작 세션이 보여야 함`,
     ).toBeVisible({ timeout: 15000 });
     await sessionBtn.click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await snap(page, "01-session-selected");
 
     // ── 4. 워크스페이스 렌더 + 출석/결석 버튼 중 하나는 반드시 존재 ──
@@ -104,7 +104,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     const firstAttend = attendBtns.first();
     if (await firstAttend.isVisible({ timeout: 2000 }).catch(() => false)) {
       await firstAttend.click();
-      await page.waitForTimeout(2500);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "02-attend-clicked");
       await dismissOverlays(page);
     }
@@ -114,7 +114,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     const currentAbsent = page.locator("button").filter({ hasText: /^결석$|^불참$/ });
     if ((await currentAbsent.count()) > 0) {
       await currentAbsent.first().click();
-      await page.waitForTimeout(2500);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "03-absent-clicked");
       await dismissOverlays(page);
     }
@@ -123,7 +123,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     const completeBtn = page.locator("button").filter({ hasText: /클리닉 완료/ }).first();
     if (await completeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await completeBtn.click();
-      await page.waitForTimeout(2500);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "04-complete-clicked");
       await dismissOverlays(page);
     }
@@ -142,8 +142,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
 
     const recentWindowMs = 2 * 60 * 1000;
     let recentLogs: Array<{ id: number; sent_at: string; success: boolean; message_mode: string }> = [];
-    for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(2000);
+    await waitForCondition(async () => {
       const logResp = await page.request.get(
         `${API}/api/v1/messaging/log/?page_size=10&ordering=-sent_at`,
         { headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" } },
@@ -152,8 +151,12 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
       recentLogs = logData.results.filter(
         (l) => Date.now() - new Date(l.sent_at).getTime() <= recentWindowMs,
       );
-      if (recentLogs.length > 0) break;
-    }
+      return recentLogs.length > 0;
+    }, {
+      timeoutMs: 20_000,
+      intervalMs: 2_000,
+      description: "recent clinic notification log appears",
+    }).catch(() => {});
 
     for (const l of recentLogs.slice(0, 5)) {
       console.log(`  id=${l.id} | ${l.sent_at?.slice(11, 19)} | ${l.message_mode} | success=${l.success}`);

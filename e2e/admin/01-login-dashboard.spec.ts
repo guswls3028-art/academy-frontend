@@ -12,7 +12,7 @@ test.describe("관리자 로그인 → 대시보드", () => {
     // admin으로 명시적 이동
     await page.goto(`${BASE}/admin/dashboard`);
     await page.waitForLoadState("load");
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await expect(page.locator("nav, [class*='sidebar'], [class*='header']").first()).toBeVisible();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
   });

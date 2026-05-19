@@ -41,7 +41,7 @@ test.describe("클레임 회귀 — 공지사항 제목 수정", () => {
 
     // 공지사항 페이지로 이동 + 생성된 공지 선택
     await page.goto(`${BASE}/admin/community/notice?scope=all&id=${created.id}`, { timeout: 15000 });
-    await page.waitForTimeout(5000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     await snap(page, "notice-detail");
 
@@ -56,7 +56,6 @@ test.describe("클레임 회귀 — 공지사항 제목 수정", () => {
 
     // 제목 클릭 → 인라인 편집 활성화
     await titleEl.click();
-    await page.waitForTimeout(500);
 
     // 제목 편집 input — thread-header 안에 있는 ds-input (검색 input과 구분)
     const titleInput = page.locator(".qna-inbox__thread-header input.ds-input, .qna-inbox__thread-title-group input.ds-input").first();
@@ -67,23 +66,17 @@ test.describe("클레임 회귀 — 공지사항 제목 수정", () => {
     await titleInput.focus();
     await page.keyboard.press("Control+a");
     await page.keyboard.press("Backspace");
-    await page.waitForTimeout(300);
 
-    // ASCII만 사용하여 한 글자씩 타이핑 (React onChange 확실히 트리거)
     const ts = String(Date.now()).slice(-6);
     const newTitle = `EDITED-${ts}`;
-    for (const ch of newTitle) {
-      await page.keyboard.press(ch === "-" ? "Minus" : ch);
-      await page.waitForTimeout(30);
-    }
-    await page.waitForTimeout(500);
+    await titleInput.fill(newTitle);
 
     const inputVal = await titleInput.inputValue();
     console.log(`[공지 제목] 키보드 타이핑 후 input value: "${inputVal}"`);
 
     // Enter 키로 저장
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     await snap(page, "notice-title-saved");
 
@@ -159,12 +152,12 @@ test.describe("클레임 회귀 — 커뮤니티 UX 상세 검증", () => {
     const communityLink = page.locator("nav a, aside a, [class*=sidebar] a")
       .filter({ hasText: "커뮤니티" }).first();
     await communityLink.click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     const counselTab = page.locator("a, button").filter({ hasText: "상담" }).first();
     if (await counselTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await counselTab.click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     }
 
     await snap(page, "counsel-cards");

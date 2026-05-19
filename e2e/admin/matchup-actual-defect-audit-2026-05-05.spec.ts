@@ -112,7 +112,7 @@ test("학원장 실측 갭 원인 진단", async ({ page }) => {
       if (r.status() !== 200) continue;
       const list = (await r.json()) as Array<{ id: number; document_id: number; number?: number }>;
       for (const p of list) allProblems.push(p);
-    } catch (e) {
+    } catch {
       console.log(`doc ${d.id} problems fetch failed`);
     }
   }
