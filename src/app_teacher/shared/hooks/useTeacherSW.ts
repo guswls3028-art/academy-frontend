@@ -35,8 +35,7 @@ export function useTeacherSW() {
               navigator.serviceWorker.controller
             ) {
               // 새 SW 활성화됨 — VersionChecker가 이미 reload 처리하므로
-              // 여기서는 추가 reload 하지 않음
-              console.log("[TeacherSW] 새 버전 활성화됨");
+              // 여기서는 추가 reload 하지 않음.
             }
           });
         });
@@ -49,6 +48,7 @@ export function useTeacherSW() {
       // cleanup: manifest link 제거 (다른 앱으로 이동 시)
       removeManifestLink();
       removeThemeColor();
+      removeAppleMeta();
     };
   }, []);
 }
@@ -79,6 +79,18 @@ function injectThemeColor() {
 function removeThemeColor() {
   const el = document.querySelector('meta[name="theme-color"][data-teacher]');
   if (el) el.remove();
+}
+
+function removeAppleMeta() {
+  document
+    .querySelectorAll(
+      [
+        'meta[name="apple-mobile-web-app-capable"][data-teacher]',
+        'meta[name="apple-mobile-web-app-status-bar-style"][data-teacher]',
+        'link[rel="apple-touch-icon"][data-teacher]',
+      ].join(",")
+    )
+    .forEach((el) => el.remove());
 }
 
 function injectAppleMeta() {
