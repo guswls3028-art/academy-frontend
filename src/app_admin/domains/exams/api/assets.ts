@@ -13,10 +13,12 @@ export interface ExamAsset {
   created_at?: string;
 }
 
-function normalizeList(data: any): ExamAsset[] {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.results)) return data.results;
-  if (Array.isArray(data?.items)) return data.items;
+function normalizeList(data: unknown): ExamAsset[] {
+  if (Array.isArray(data)) return data as ExamAsset[];
+  if (!data || typeof data !== "object") return [];
+  const payload = data as { results?: unknown; items?: unknown };
+  if (Array.isArray(payload.results)) return payload.results as ExamAsset[];
+  if (Array.isArray(payload.items)) return payload.items as ExamAsset[];
   return [];
 }
 

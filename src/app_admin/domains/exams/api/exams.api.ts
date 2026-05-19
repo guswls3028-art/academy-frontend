@@ -1,7 +1,12 @@
 import api from "@/shared/api/axios";
 import type { Exam, ExamType } from "../types";
 
-function normalizeExam(raw: any): Exam {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function normalizeExam(rawValue: unknown): Exam {
+  const raw = asRecord(rawValue);
   return {
     /**
      * ✅ 핵심 FIX
@@ -24,14 +29,14 @@ function normalizeExam(raw: any): Exam {
     max_score: Number(raw.max_score ?? 100),
     display_order: Number(raw.display_order ?? 0),
 
-    open_at: raw.open_at ?? null,
-    close_at: raw.close_at ?? null,
+    open_at: raw.open_at == null ? null : String(raw.open_at),
+    close_at: raw.close_at == null ? null : String(raw.close_at),
 
-    template_exam_id: raw.template_exam_id ?? null,
+    template_exam_id: raw.template_exam_id == null ? null : Number(raw.template_exam_id),
 
-    answer_visibility: raw.answer_visibility ?? "hidden",
+    answer_visibility: (raw.answer_visibility ?? "hidden") as Exam["answer_visibility"],
 
-    status: raw.status ?? "OPEN",
+    status: (raw.status ?? "OPEN") as Exam["status"],
 
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
@@ -50,12 +55,13 @@ export async function fetchExams(params?: {
 
   const data = res.data;
 
+  const payload = asRecord(data);
   const items = Array.isArray(data)
     ? data
-    : Array.isArray(data?.results)
-    ? data.results
-    : Array.isArray(data?.items)
-    ? data.items
+    : Array.isArray(payload.results)
+    ? payload.results
+    : Array.isArray(payload.items)
+    ? payload.items
     : [];
 
   return items.map(normalizeExam);

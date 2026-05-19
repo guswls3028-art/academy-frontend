@@ -1,7 +1,12 @@
 import api from "@/shared/api/axios";
 import { Exam } from "../types";
 
-function normalizeExam(raw: any): Exam {
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function normalizeExam(rawValue: unknown): Exam {
+  const raw = asRecord(rawValue);
   return {
     id: Number(raw.id),
 
@@ -9,10 +14,10 @@ function normalizeExam(raw: any): Exam {
     description: String(raw.description ?? ""),
     subject: String(raw.subject ?? ""),
 
-    exam_type: raw.exam_type,
+    exam_type: raw.exam_type as Exam["exam_type"],
 
     is_active: Boolean(raw.is_active),
-    status: (raw?.status ?? "OPEN") as Exam["status"],
+    status: (raw.status ?? "OPEN") as Exam["status"],
 
     allow_retake: Boolean(raw.allow_retake),
     max_attempts: Number(raw.max_attempts ?? 0),
@@ -21,15 +26,15 @@ function normalizeExam(raw: any): Exam {
     max_score: Number(raw.max_score ?? 100),
     display_order: Number(raw.display_order ?? 0),
 
-    open_at: raw.open_at ?? null,
-    close_at: raw.close_at ?? null,
+    open_at: raw.open_at == null ? null : String(raw.open_at),
+    close_at: raw.close_at == null ? null : String(raw.close_at),
 
-    template_exam_id: raw.template_exam_id ?? null,
+    template_exam_id: raw.template_exam_id == null ? null : Number(raw.template_exam_id),
 
-    answer_visibility: raw.answer_visibility ?? "hidden",
+    answer_visibility: (raw.answer_visibility ?? "hidden") as Exam["answer_visibility"],
 
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
+    created_at: String(raw.created_at ?? ""),
+    updated_at: String(raw.updated_at ?? ""),
   };
 }
 
