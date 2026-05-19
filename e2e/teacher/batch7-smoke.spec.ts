@@ -7,7 +7,7 @@
  * admin(owner) 로 로그인하여 권한 가드도 같이 통과 확인.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { Page } from "@playwright/test";
+import type { ConsoleMessage, Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");
@@ -18,13 +18,13 @@ const MOBILE_UA =
 
 async function gotoAndAssertNoError(page: Page, path: string, expectedText: string | RegExp) {
   const errors: string[] = [];
-  const onConsole = (msg: any) => {
+  const onConsole = (msg: ConsoleMessage) => {
     if (msg.type() === "error") errors.push(msg.text());
   };
   page.on("console", onConsole);
 
   await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await page.waitForTimeout(2500);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
   await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
 
@@ -71,10 +71,12 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
   test("OMR 페이지 스켈레톤 렌더링 (examId=1 샘플)", async ({ page }) => {
     // examId 1이 실제 존재하지 않으면 에러 화면이 렌더되는데, 그것도 '시험을 찾을 수 없습니다'가 나와야 정상
     await page.goto(`${BASE}/teacher/exams/1/omr`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(2500);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     // 스켈레톤 또는 에러 둘 중 하나만 나와도 OK — 완전 whitescreen이 아니기만 하면 됨
-    const hasAnyText = await page.locator("body").textContent();
-    expect(hasAnyText?.length ?? 0).toBeGreaterThan(10);
+    await expect.poll(async () => {
+      const hasAnyText = await page.locator("body").textContent();
+      return hasAnyText?.length ?? 0;
+    }, { timeout: 8_000 }).toBeGreaterThan(10);
   });
 
   test("직원 관리 페이지 (owner 전용) 렌더링", async ({ page }) => {
@@ -83,7 +85,7 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
 
   test("학생 목록에서 선택 모드 토글 동작", async ({ page }) => {
     await page.goto(`${BASE}/teacher/students`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(2500);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     // 선택 버튼 클릭 → 선택 모드 진입 확인
     const selectBtn = page.getByRole("button", { name: "선택" }).first();
     if (await selectBtn.isVisible().catch(() => false)) {

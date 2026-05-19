@@ -11,13 +11,13 @@ test.describe("학생앱 성적 통계", () => {
     await loginViaUI(page, "student");
 
     await page.goto("https://hakwonplus.com/student/grades", { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
     // 통계 탭 클릭
     const statsTab = page.getByRole("button", { name: "통계", exact: true });
     if (await statsTab.isVisible().catch(() => false)) {
       await statsTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
     }
 
     // 기존 통계 요소 확인
@@ -39,6 +39,7 @@ test.describe("학생앱 성적 통계", () => {
     const hwStatus = page.getByText("과제 현황");
     const hasHw = await hwStatus.isVisible().catch(() => false);
     console.log(`과제 현황: ${hasHw}`);
+    expect(hasExamSummary || hasPosition || hasWeak || hasHw).toBe(true);
 
     await page.screenshot({
       path: "e2e/screenshots/student-grades-stats.png",
