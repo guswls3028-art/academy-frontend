@@ -8,7 +8,7 @@
  * 환경: hakwonplus.com / admin97
  */
 
-import { test, expect } from "../fixtures/strictTest";
+import { test } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
@@ -424,11 +424,6 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   console.log("[OK] 로그인 완료");
 
   await openSendModalFromStudentPage(page);
-
-  // disable 사유 span 공통 locator
-  // 소스: <span style="fontSize:11, color:color-text-muted">{disableReason}</span>
-  // ModalFooter right에 렌더링
-  const disableReasonLocator = page.locator("span").filter({ hasText: /해 주세요|입력해 주세요|작성해 주세요/ });
 
   // ── 3-A: SMS 모드 + 본문 비어있음 → "본문을 입력해 주세요" ──
   console.log("\n[STEP 1] SMS 본문 비어있음 → disable 사유 확인");

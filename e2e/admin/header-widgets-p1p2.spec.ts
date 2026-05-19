@@ -36,13 +36,9 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Click to open
     await workboxBtn.click();
-    await page.waitForTimeout(500);
 
     // Panel header text should be "작업박스"
     // Look inside the region or panel that appeared
-    const panelRegion = page.locator('[aria-label="작업박스"], region, [role="dialog"], [role="region"]').filter({ hasText: "작업박스" }).first();
-    const panelVisible = await panelRegion.isVisible().catch(() => false);
-
     // Broader: just check "작업박스" text appears somewhere in panel
     const workboxHeading = page.locator("text=작업박스").first();
     await expect(workboxHeading).toBeVisible({ timeout: 8_000 });
@@ -75,7 +71,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close panel (use fresh locator since aria-label changed)
     await page.locator('button[aria-label^="작업박스"]').first().click();
-    await page.waitForTimeout(300);
   });
 
   /* ────────────────────────────────────────────────
@@ -87,7 +82,6 @@ test.describe("Header Widgets P1·P2", () => {
     await expect(bellBtn).toBeVisible({ timeout: 10_000 });
 
     await bellBtn.click();
-    await page.waitForTimeout(500);
 
     // "공지사항 보기" link/button (P1 change: was "알림 전체 보기")
     const noticeLink = page.locator("text=공지사항 보기");
@@ -111,7 +105,7 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Click refresh — should not crash
     await refreshBtn.click();
-    await page.waitForTimeout(800);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // AlertTriangle (error indicator) should NOT be visible (backend healthy)
     const alertTriangle = page.locator('[aria-label*="오류"], [data-testid="notification-error"]');
@@ -140,7 +134,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close with Escape
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
   });
 
   /* ────────────────────────────────────────────────
@@ -153,7 +146,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Mouse click to open
     await helpBtn.click();
-    await page.waitForTimeout(300);
 
     const guideItem = page.locator("text=사용 가이드");
     await expect(guideItem).toBeVisible({ timeout: 5_000 });
@@ -173,7 +165,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close with Escape
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
     await expect(guideItem).not.toBeVisible({ timeout: 3_000 });
     console.log("PASS: Esc로 드롭다운 닫힘");
 
@@ -187,7 +178,6 @@ test.describe("Header Widgets P1·P2", () => {
     // Keyboard: focus + Enter to open
     await helpBtn.focus();
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(300);
     const guideAfterEnter = page.locator("text=사용 가이드");
     await expect(guideAfterEnter).toBeVisible({ timeout: 5_000 });
     console.log("PASS: 키보드 Enter로 드롭다운 열림");
@@ -196,11 +186,10 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close and test Space key
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
+    await expect(guideAfterEnter).not.toBeVisible({ timeout: 3_000 });
 
     await helpBtn.focus();
     await page.keyboard.press("Space");
-    await page.waitForTimeout(300);
     const guideAfterSpace = page.locator("text=사용 가이드");
     await expect(guideAfterSpace).toBeVisible({ timeout: 5_000 });
     console.log("PASS: 키보드 Space로 드롭다운 열림");
@@ -209,7 +198,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close by clicking outside
     await page.mouse.click(100, 100);
-    await page.waitForTimeout(300);
   });
 
   /* ────────────────────────────────────────────────
@@ -222,7 +210,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Mouse click to open
     await profileMenuBtn.click();
-    await page.waitForTimeout(500);
 
     // P2-5: Menu labels
     await expect(page.locator("text=내 프로필")).toBeVisible({ timeout: 5_000 });
@@ -236,7 +223,6 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Old labels should NOT be present
     const oldMyInfo = page.locator("text=내정보");
-    const oldSettings = page.locator("text=설정").filter({ hasNotText: "학원/시스템 설정" });
     const oldMyInfoVisible = await oldMyInfo.isVisible().catch(() => false);
     if (oldMyInfoVisible) {
       console.warn("WARN: 구 레이블 '내정보' 여전히 존재");
@@ -275,12 +261,11 @@ test.describe("Header Widgets P1·P2", () => {
 
     // Close
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
+    await expect(page.locator("text=내 프로필")).not.toBeVisible({ timeout: 3_000 });
 
     // P2-4: Keyboard: focus + Enter to open
     await profileMenuBtn.focus();
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(400);
     const menuAfterEnter = page.locator("text=내 프로필");
     await expect(menuAfterEnter).toBeVisible({ timeout: 5_000 });
     console.log("PASS: 키보드 Enter로 프로필 드롭다운 열림");

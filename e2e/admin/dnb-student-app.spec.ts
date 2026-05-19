@@ -7,7 +7,7 @@
  * 3. Cleanup: 테스트 학생 삭제
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { getBaseUrl, getApiBaseUrl } from "../helpers/auth";
 import type { Page } from "@playwright/test";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
@@ -16,7 +16,6 @@ const API = getApiBaseUrl();
 const TS = Date.now();
 const PHONE_SUFFIX = String(TS).slice(-8);
 const TEST_STUDENT_NAME = `[E2E-${TS}]`;
-const TEST_PS_NO = `e2e${TS}`;
 const TEST_PASSWORD = "test1234";
 
 // Store created student ID for cleanup
@@ -53,12 +52,14 @@ async function studentLogin(page: Page, psNo: string, password: string) {
     ({ access, refresh, code }) => {
       localStorage.setItem("access", access);
       localStorage.setItem("refresh", refresh);
-      try { sessionStorage.setItem("tenantCode", code); } catch {}
+      try { sessionStorage.setItem("tenantCode", code); } catch {
+        // Session storage can be unavailable in a hardened browser context.
+      }
     },
     { access: tokens.access, refresh: tokens.refresh, code: CODE },
   );
   await page.goto(`${DNB_BASE}/student`, { waitUntil: "load", timeout: 20000 });
-  await page.waitForTimeout(2500);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 }
 
 function apiHeaders(token: string) {
@@ -67,14 +68,6 @@ function apiHeaders(token: string) {
     "Content-Type": "application/json",
     "X-Tenant-Code": CODE,
   };
-}
-
-// ---- Collect console errors / network errors per page ----
-interface PageResult {
-  url: string;
-  consoleErrors: string[];
-  networkErrors: string[];
-  rendered: boolean;
 }
 
 async function collectPageErrors(page: Page): Promise<{ consoleErrors: string[]; networkErrors: string[] }> {
@@ -253,7 +246,7 @@ test.describe("DNB 학생앱 전체 E2E", () => {
 
       // Navigate to the page
       await page.goto(`${DNB_BASE}${sp.path}`, { waitUntil: "load", timeout: 15000 });
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
       // Body must be visible
       await expect(page.locator("body")).toBeVisible();
@@ -284,7 +277,7 @@ test.describe("DNB 학생앱 전체 E2E", () => {
 
     await studentLogin(page, createdPsNumber!, TEST_PASSWORD);
     await page.goto(`${DNB_BASE}/student/fees`, { waitUntil: "load", timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     // Should redirect away from /fees since fee_management is not enabled
     const url = page.url();

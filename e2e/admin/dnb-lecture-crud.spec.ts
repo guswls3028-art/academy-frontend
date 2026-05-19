@@ -2,7 +2,7 @@
  * DNB 강의 CRUD 심화 E2E — API 레벨 생성/조회/삭제로 school_level_mode 환경 정상 확인
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl } from "../helpers/auth";
 import type { APIRequestContext } from "@playwright/test";
 
 const API_BASE = getApiBaseUrl();
