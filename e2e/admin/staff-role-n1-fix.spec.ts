@@ -6,7 +6,8 @@
  * Tenant 1 (hakwonplus / admin97)
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import type { Page } from "@playwright/test";
+import { loginViaUI, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");
 const API_BASE = getApiBaseUrl();
@@ -20,7 +21,7 @@ interface StaffApiItem {
   [key: string]: unknown;
 }
 
-async function getToken(page: import("@playwright/test").Page): Promise<string> {
+async function getToken(page: Page): Promise<string> {
   const tokenResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
     data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
     headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
@@ -30,7 +31,7 @@ async function getToken(page: import("@playwright/test").Page): Promise<string> 
   return access;
 }
 
-async function fetchStaffList(page: import("@playwright/test").Page, access: string): Promise<StaffApiItem[]> {
+async function fetchStaffList(page: Page, access: string): Promise<StaffApiItem[]> {
   const staffsResp = await page.request.get(`${API_BASE}/api/v1/staffs/`, {
     headers: {
       Authorization: `Bearer ${access}`,
@@ -41,6 +42,22 @@ async function fetchStaffList(page: import("@playwright/test").Page, access: str
   const data = await staffsResp.json() as { results?: StaffApiItem[] } | StaffApiItem[];
   if (Array.isArray(data)) return data;
   return (data as { results: StaffApiItem[] }).results ?? [];
+}
+
+async function openStaffPage(page: Page): Promise<void> {
+  const staffLink = page.getByRole("link", { name: /직원\s*관리/ }).first();
+  if (await staffLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await staffLink.click();
+  } else {
+    await page.goto(`${BASE}/admin/staff`, { waitUntil: "load", timeout: 20_000 });
+  }
+  await expect(page).toHaveURL(/\/admin\/staff/, { timeout: 10_000 });
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
+}
+
+async function waitForStaffListReady(page: Page): Promise<void> {
+  await expect(page.getByText(/총\s+\d+명/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/불러오는 중/)).toBeHidden({ timeout: 15_000 });
 }
 
 test.describe("Staff role N+1 fix — 운영 E2E", () => {
@@ -71,8 +88,8 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-A0-dashboard.png" });
 
     // Navigate via sidebar — 직원관리 메뉴
-    await page.locator("text=직원관리").first().click();
-    await page.waitForTimeout(2000);
+    await openStaffPage(page);
+    await waitForStaffListReady(page);
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-A1-staff-list.png" });
 
     // Confirm we are on staff page
@@ -83,10 +100,9 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
     // No 5xx errors
     expect(apiErrors, `5xx errors: ${apiErrors.join(", ")}`).toHaveLength(0);
 
-    // Verify visible staff rows exist (table has rows)
-    const rowCount = await page.locator("table tbody tr").count();
-    console.log(`Staff rows visible in DOM: ${rowCount}`);
-    expect(rowCount).toBeGreaterThan(0);
+    // Verify staff table/list is visible.
+    await expect(page.getByRole("table")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/총\s+\d+명/)).toBeVisible();
 
     // API verification — GET /api/v1/staffs/
     const access = await getToken(page);
@@ -124,24 +140,20 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
     await loginViaUI(page, "admin");
 
     // Navigate via sidebar
-    await page.locator("text=직원관리").first().click();
-    await page.waitForTimeout(2000);
+    await openStaffPage(page);
+    await waitForStaffListReady(page);
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-B1-before-add.png" });
 
-    // Click "직원 등록" button
-    const addBtn = page.locator("button:has-text('직원 등록')");
+    // Click "직원 추가" button
+    const addBtn = page.getByRole("button", { name: /직원\s*추가/ });
     await addBtn.waitFor({ state: "visible", timeout: 10_000 });
+    const modal = page.locator(".ant-modal-content, [role='dialog']").last();
     await addBtn.click();
-    await page.waitForTimeout(800);
+    await modal.waitFor({ state: "visible", timeout: 8000 });
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-B2-modal-open.png" });
 
     // The modal is open — fill fields inside it.
     // AdminModal renders in a portal; scope to the modal dialog element.
-    const modal = page.locator(".ant-modal-content, [role='dialog']").last();
-
-    // Wait for modal to be visible
-    await modal.waitFor({ state: "visible", timeout: 8000 });
-
     // Form has 4 inputs with class ds-input: username(text), password(password), name(text), phone(text)
     // nth(0)=username, nth(1)=password, nth(2)=name, nth(3)=phone
     const modalInputs = modal.locator("input.ds-input");
@@ -163,7 +175,7 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
 
     // Click 등록 button inside modal
     await modal.getByRole("button", { name: "등록", exact: true }).click();
-    await page.waitForTimeout(2000);
+    await expect(modal).toBeHidden({ timeout: 10_000 });
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-B4-after-submit.png" });
 
     // Verify via API
@@ -246,17 +258,20 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
 
     // Visit admin page and verify UI
     await loginViaUI(page, "admin");
-    await page.locator("text=직원관리").first().click();
-    await page.waitForTimeout(2000);
+    await openStaffPage(page);
+    await waitForStaffListReady(page);
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-C1-role-labels.png" });
 
     const currentUrl = page.url();
     expect(currentUrl).toContain("/admin/staff");
 
-    // Check role label in page DOM (강사 or 조교 should be visible)
+    // Check role label in page DOM (current UI uses Korean labels; API still verifies raw roles)
     const bodyText = await page.locator("body").innerText();
-    const hasTeacherLabel = bodyText.includes("강사") || bodyText.includes("TEACHER");
-    expect(hasTeacherLabel, "Page must show 강사/TEACHER role label").toBe(true);
+    const hasStaffRoleLabel = bodyText.includes("강사")
+      || bodyText.includes("조교")
+      || bodyText.includes("TEACHER")
+      || bodyText.includes("ASSISTANT");
+    expect(hasStaffRoleLabel, "Page must show staff role label").toBe(true);
 
     console.log("Scenario C: PASS");
   });

@@ -24,7 +24,7 @@ const LIMGLISH = process.env.LIMGLISH_BASE_URL || "https://limglish.kr";
 
 /* ── Credentials ── */
 const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass: string }> = {
-  "admin":          { base: BASE,     code: "hakwonplus", user: process.env.E2E_ADMIN_USER      || "admin97",       pass: process.env.E2E_ADMIN_PASS      || "test1234" },
+  "admin":          { base: BASE,     code: "hakwonplus", user: process.env.E2E_ADMIN_USER      || "admin97",       pass: process.env.E2E_ADMIN_PASS      || "koreaseoul97" },
   "student":        { base: BASE,     code: "hakwonplus", user: process.env.E2E_STUDENT_USER    || "3333",          pass: process.env.E2E_STUDENT_PASS    || "test1234" },
   "tchul-admin":    { base: TCHUL,    code: "tchul",      user: process.env.TCHUL_ADMIN_USER    || "01035023313",   pass: process.env.TCHUL_ADMIN_PASS    || "727258" },
   "dnb-admin":      { base: DNB,      code: "dnb",        user: process.env.DNB_ADMIN_USER      || "dheksql88",     pass: process.env.DNB_ADMIN_PASS      || "dheksql0513" },
@@ -69,7 +69,7 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
   await page.goto(`${c.base}${dashPath}`, { waitUntil: "load", timeout: 20000 });
 
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
-  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
 /**

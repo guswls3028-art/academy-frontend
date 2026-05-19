@@ -15,80 +15,32 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { FIXTURES_ALT } from "../helpers/test-fixtures";
 
 const BASE = getBaseUrl("admin");
 const SCREENSHOT_DIR = "e2e/screenshots";
+const LECTURE_ID = FIXTURES_ALT.lectureId;
+const SESSION_ID = FIXTURES_ALT.sessionId;
 
 async function snap(page: Page, name: string) {
   await page.screenshot({ path: `${SCREENSHOT_DIR}/scores-ux-${name}.png`, fullPage: true });
 }
 
+async function waitForQuietUi(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
+}
+
+function scoresUrl() {
+  return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
+}
+
 /**
- * Navigate to scores tab via sidebar clicks:
- * 1. Sidebar "강의" → lectures list
- * 2. Click lecture row (tr.cursor-pointer)
- * 3. Click session block (SessionBlockView button)
- * 4. Click "성적" tab link
+ * Navigate to the known Tenant 1 scores fixture directly.
+ * Sidebar/list traversal made this audit dependent on incidental layout and loading states.
  */
 async function navigateToScoresTab(page: Page): Promise<boolean> {
-  // 1. 사이드바 강의 메뉴 클릭
-  const lectureNav = page.locator("nav a, aside a, [class*=sidebar] a, [class*=Sidebar] a")
-    .filter({ hasText: "강의" }).first();
-  if (!(await lectureNav.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log("[nav] 사이드바 '강의' 메뉴 없음");
-    return false;
-  }
-  await lectureNav.click();
-  await page.waitForTimeout(3000);
-
-  // 2. 강의 목록에서 행 클릭 (tr role=button or cursor-pointer)
-  const lectureRow = page.locator("tbody tr").filter({ hasText: "omr" }).first();
-  if (!(await lectureRow.isVisible({ timeout: 8000 }).catch(() => false))) {
-    // fallback: 아무 행이나 클릭
-    const anyRow = page.locator("tbody tr").first();
-    if (!(await anyRow.isVisible({ timeout: 3000 }).catch(() => false))) {
-      console.log("[nav] 강의 행 없음");
-      return false;
-    }
-    await anyRow.click();
-  } else {
-    await lectureRow.click();
-  }
-  await page.waitForTimeout(3000);
-  await snap(page, "nav-02-lecture-detail");
-
-  // 3. 세션 블록에서 차시 클릭 (SessionBlockView button)
-  //    SessionBlockView는 "1차시" 텍스트를 가진 버튼 또는 aria-current 요소
-  //    차시 블록 = 작은 카드 형태, 날짜 + 차시명 표시
-  const sessionBlockBtn = page.locator("button, [role='button'], a")
-    .filter({ hasText: /1차시/ }).first();
-  if (await sessionBlockBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await sessionBlockBtn.click();
-    await page.waitForTimeout(3000);
-    console.log(`[nav] 세션 블록 클릭 후 URL: ${page.url()}`);
-  } else {
-    // URL 검사: 이미 세션 상세에 있는 경우
-    if (!page.url().includes("/sessions/")) {
-      console.log("[nav] 세션 블록 없음");
-      await snap(page, "nav-03-no-session-block");
-      return false;
-    }
-  }
-
-  // 4. 성적 탭 클릭 (session detail 내부의 ds-tab 버튼)
-  //    DomainTabs는 <button class="ds-tab"> 요소를 렌더링
-  if (!page.url().includes("/scores")) {
-    const scoresTabBtn = page.locator("button.ds-tab").filter({ hasText: "성적" }).first();
-    if (await scoresTabBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await scoresTabBtn.click();
-      await page.waitForTimeout(2000);
-    } else {
-      console.log("[nav] 성적 탭 버튼(ds-tab) 없음");
-      await snap(page, "nav-04-no-scores-tab");
-      return false;
-    }
-  }
-
+  await page.goto(scoresUrl(), { waitUntil: "load", timeout: 20_000 });
+  await waitForQuietUi(page);
   const ok = page.url().includes("/scores");
   console.log(`[nav] 최종 URL: ${page.url()} (scores: ${ok})`);
   return ok;
@@ -138,7 +90,6 @@ test.describe("성적 탭 UX 개선 검증", () => {
     console.log("[더보기] 버튼 + SVG 아이콘 확인됨");
 
     await moreBtn.click();
-    await page.waitForTimeout(500);
 
     // 메뉴 아이템 아이콘 확인
     const printItem = page.locator("button").filter({ hasText: "성적표 출력" }).first();
@@ -174,30 +125,28 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const editBtn = page.locator("button").filter({ hasText: "편집 모드" }).first();
     await expect(editBtn).toBeVisible({ timeout: 5000 });
     await editBtn.click();
-    await page.waitForTimeout(2000);
-    await snap(page, "02-edit-mode");
 
-    // 키보드 힌트: "Tab·화살표로 셀 이동 · Enter로 다음 행"
-    const hint = page.locator("text=Tab·화살표로 셀 이동");
+    // 키보드 힌트: 현재 note 영역에 Enter/Tab/Esc 조작 안내가 표시된다.
+    const hint = page.getByRole("note").filter({ hasText: "편집 모드" });
     await expect(hint).toBeVisible({ timeout: 5000 });
+    await expect(hint).toContainText("Enter");
+    await expect(hint).toContainText("Tab");
+    await expect(hint).toContainText("Esc");
+    await snap(page, "02-edit-mode");
     console.log("[키보드 힌트] 표시 확인됨");
 
-    // "편집 항목" 라벨
-    await expect(page.locator("text=편집 항목").first()).toBeVisible({ timeout: 3000 });
-    console.log("[편집 항목] 라벨 확인됨");
-
-    // 편집 프리셋 버튼 확인 (합산+과제, 주관식+과제 등)
-    await expect(page.locator("button").filter({ hasText: "합산+과제" }).first()).toBeVisible({ timeout: 3000 });
-    console.log("[편집 프리셋] 합산+과제 확인됨");
+    // 편집 컨트롤 확인
+    await expect(page.getByRole("group", { name: "시험 점수 입력 방식" })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("button", { name: "합산" })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("button", { name: "주관식" })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("group", { name: "과제 점수 입력 켜짐/꺼짐" })).toBeVisible({ timeout: 3000 });
+    console.log("[편집 컨트롤] 시험/과제 입력 방식 확인됨");
 
     // 편집 모드 종료 → 힌트 사라짐 확인
     const saveBtn = page.locator("button").filter({ hasText: "저장하기" }).first();
     await expect(saveBtn).toBeVisible({ timeout: 3000 });
     await saveBtn.click();
-    await page.waitForTimeout(2000);
-
-    const hintGone = await page.locator("text=Tab·화살표로 셀 이동").isVisible().catch(() => false);
-    expect(hintGone).toBe(false);
+    await expect(hint).toBeHidden({ timeout: 10_000 });
     console.log("[키보드 힌트] 종료 후 숨김 확인됨");
   });
 
@@ -210,30 +159,22 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const ok = await navigateToScoresTab(page);
     if (!ok) { test.skip(); return; }
 
-    await page.waitForTimeout(2000);
-    await snap(page, "03-scores-table");
-
     // 차시 158은 데이터가 있으므로 테이블 표시
     const table = page.locator("table").first();
     await expect(table).toBeVisible({ timeout: 8000 });
+    await snap(page, "03-scores-table");
     console.log("[테이블] 성적 테이블 표시됨");
 
-    // 뷰 필터: 전체 / 시험만 / 과제만
-    const allFilter = page.locator("button").filter({ hasText: "전체" }).first();
-    const examFilter = page.locator("button").filter({ hasText: "시험만" }).first();
-    const hwFilter = page.locator("button").filter({ hasText: "과제만" }).first();
+    // 표시 옵션 + 핵심 점수 컬럼 확인
+    await expect(page.getByRole("button", { name: /표시 옵션/ })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("columnheader", { name: /시험/ }).first()).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("columnheader", { name: /과제/ }).first()).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("columnheader", { name: /총점/ }).first()).toBeVisible({ timeout: 3000 });
+    console.log("[표시 옵션] 버튼과 시험/과제/총점 컬럼 확인됨");
 
-    await expect(allFilter).toBeVisible({ timeout: 3000 });
-    await expect(examFilter).toBeVisible({ timeout: 3000 });
-    await expect(hwFilter).toBeVisible({ timeout: 3000 });
-    console.log("[뷰 필터] 전체/시험만/과제만 확인됨");
-
-    // 점수 표시 형식: 원점수 / 만점 표기
-    const rawFormat = page.locator("button").filter({ hasText: "원점수" }).first();
-    const fracFormat = page.locator("button").filter({ hasText: "만점 표기" }).first();
-    await expect(rawFormat).toBeVisible({ timeout: 3000 });
-    await expect(fracFormat).toBeVisible({ timeout: 3000 });
-    console.log("[점수 형식] 원점수/만점 표기 확인됨");
+    // 점수 표시 형식: 점수/만점 셀이 실제 테이블에 렌더링된다.
+    await expect(page.getByRole("cell", { name: /\d+\/\d+/ }).first()).toBeVisible({ timeout: 3000 });
+    console.log("[점수 형식] 점수/만점 셀 확인됨");
   });
 
   /**
@@ -243,7 +184,7 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const ok = await navigateToScoresTab(page);
     if (!ok) { test.skip(); return; }
 
-    await page.waitForTimeout(2000);
+    await expect(page.locator("button").filter({ hasText: "수강생 일괄배정" }).first()).toBeVisible({ timeout: 5000 });
     const html = await page.content();
 
     // 신규 UX 요소 존재 확인
