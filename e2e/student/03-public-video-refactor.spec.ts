@@ -31,14 +31,12 @@ test.describe("공개 영상 리팩토링 검증", () => {
 
     // 강의 관리 화면에서는 시스템 강의가 보이면 안 됨
     // 강의 테이블/카드가 로드되길 기다림
-    await page.waitForTimeout(2000);
+    const mainContent = page.locator("main, [class*=content], [class*=page]").first();
+    await expect(mainContent).toBeVisible({ timeout: 10000 });
 
-    // 관리자 강의 목록에 표시된 강의 제목들을 가져와서 시스템 강의가 없는지 확인
-    const pageContent = await page.textContent("body");
     // 강의 관리 화면의 강의 카드/테이블 안에서만 체크 (네비게이션 등은 제외)
-    const mainContent = page.locator("main, [class*=content], [class*=page]");
-    const mainText = await mainContent.allTextContents();
     // is_system=True 강의는 백엔드에서 제외되므로 리스트에 없어야 함
+    await expect(mainContent.getByText("전체공개영상")).not.toBeVisible({ timeout: 3000 });
   });
 
   test("관리자 영상 탐색기 — 전체공개영상 라벨 표시", async ({ page }) => {

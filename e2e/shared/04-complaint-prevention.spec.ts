@@ -8,6 +8,15 @@ import { apiCall } from "../helpers/api";
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
 
+type ListBody<T> = { results?: T[] };
+type PostRecord = { id: number | string; title?: string | null };
+
+function resultsOf<T>(body: unknown): T[] {
+  if (!body || typeof body !== "object") return [];
+  const results = (body as ListBody<T>).results;
+  return Array.isArray(results) ? results : [];
+}
+
 test.describe("불만 방지 시나리오", () => {
 
   test("중복 제출 방지: 학생 QnA 제출 후 버튼 비활성화", async ({ browser }) => {
@@ -23,7 +32,6 @@ test.describe("불만 방지 시나리오", () => {
     const qnaTab = page.locator("button, [role='tab']").filter({ hasText: /QnA|질문/ }).first();
     if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab.click();
-      await page.waitForTimeout(500);
     }
 
     // 질문하기
@@ -46,23 +54,24 @@ test.describe("불만 방지 시나리오", () => {
 
     // 클릭 후: 버튼 비활성화 OR 페이지 이동 → 둘 다 중복 제출 방지로 인정
     await submitBtn.click();
-    await page.waitForTimeout(1000);
     // 제출 후 상태: 버튼 사라짐(페이지 이동) OR 비활성화 OR 토스트 표시
-    const btnGone = !await submitBtn.isVisible().catch(() => false);
-    const btnDisabled = await submitBtn.isDisabled().catch(() => false);
-    const toastShown = await page.locator('[class*="toast"], [class*="Toastify"]').isVisible().catch(() => false);
-    expect(btnGone || btnDisabled || toastShown).toBe(true);
+    await expect.poll(async () => {
+      const btnGone = !await submitBtn.isVisible().catch(() => false);
+      const btnDisabled = await submitBtn.isDisabled().catch(() => false);
+      const toastShown = await page.locator('[class*="toast"], [class*="Toastify"]').isVisible().catch(() => false);
+      return btnGone || btnDisabled || toastShown;
+    }, { timeout: 5000 }).toBe(true);
 
     // Cleanup
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
     await ctx.close();
 
     // 관리자로 삭제
     const ctx2 = await browser.newContext();
     const adminPage = await ctx2.newPage();
     await loginViaUI(adminPage, "admin");
-    const resp = await apiCall(adminPage, "GET", "/community/posts/?post_type=qna&page_size=50");
-    const target = (resp.body?.results || []).find((p: any) => p.title?.includes(`중복방지 ${TS}`));
+    const resp = await apiCall<ListBody<PostRecord>>(adminPage, "GET", "/community/posts/?post_type=qna&page_size=50");
+    const target = resultsOf<PostRecord>(resp.body).find((post) => post.title?.includes(`중복방지 ${TS}`));
     if (target) await apiCall(adminPage, "DELETE", `/community/posts/${target.id}/`);
     await ctx2.close();
   });
