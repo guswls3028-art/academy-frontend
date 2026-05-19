@@ -18,6 +18,22 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
+interface StudentResult {
+  id: number | string;
+  phone?: string | null;
+}
+
+interface QnaPostResult {
+  id: number | string;
+  title?: string | null;
+}
+
+function resultsOf<T>(body: unknown): T[] {
+  if (!body || typeof body !== "object") return [];
+  const results = (body as { results?: unknown }).results;
+  return Array.isArray(results) ? (results as T[]) : [];
+}
+
 /**
  * 가이드 투어용 화면 진입 + 스크린샷.
  * networkidle settle + 짧은 settleMs (SPA useEffect fetch 안정화) 후 캡처.
@@ -52,7 +68,7 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   test("T03 학생 등록 (단건)", async () => {
     // 기존 테스트 학생이 있으면 삭제 후 재생성
     const existing = await apiCall(T, "GET", "/students/?page_size=200");
-    const old = (existing.body?.results || []).find((s: any) => s.phone === TEST_RECIPIENT.studentPhone);
+    const old = resultsOf<StudentResult>(existing.body).find((s) => s.phone === TEST_RECIPIENT.studentPhone);
     if (old) {
       await apiCall(T, "DELETE", `/students/${old.id}/`);
       await apiCall(T, "POST", "/students/bulk_permanent_delete/", { ids: [old.id] });
@@ -332,9 +348,11 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
     if (T) {
       try {
         const resp = await apiCall(T, "GET", "/community/posts/?post_type=qna&page_size=50");
-        const target = (resp.body?.results || []).find((p: any) => p.title?.includes("가이드 테스트"));
+        const target = resultsOf<QnaPostResult>(resp.body).find((p) => p.title?.includes("가이드 테스트"));
         if (target) await apiCall(T, "DELETE", `/community/posts/${target.id}/`);
-      } catch {}
+      } catch (error) {
+        console.warn("[guide cleanup] QnA cleanup skipped", error);
+      }
     }
     await S?.context()?.close();
     await T?.context()?.close();
