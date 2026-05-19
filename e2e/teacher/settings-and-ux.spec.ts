@@ -95,6 +95,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     const plusBtns = page.locator("button").filter({ has: page.locator('svg') });
     // 작성 버튼 (Plus icon)이 표시되는지 확인
     await expect(page.getByText("공지사항").first()).toBeVisible({ timeout: 10_000 });
+    await expect(plusBtns.first()).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-comms-01-with-actions.png" });
   });
@@ -107,6 +108,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     const searchBtns = page.locator("button").filter({ has: page.locator("svg") });
     // 탭 바 옆의 검색 버튼 활성화 후 검색 입력
     // 검색 UI 표시 확인
+    await expect(searchBtns.first()).toBeVisible();
     await page.screenshot({ path: "e2e/screenshots/teacher-comms-02-search.png" });
   });
 

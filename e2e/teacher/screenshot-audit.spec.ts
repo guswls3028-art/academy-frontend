@@ -3,8 +3,14 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import type { Page } from "@playwright/test";
 
 const BASE = getBaseUrl("admin");
+
+async function waitForTeacherPageReady(page: Page) {
+  await expect(page.locator("body")).toBeVisible({ timeout: 10_000 });
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
+}
 
 test.describe("선생앱 전체 스크린샷", () => {
   test.use({
@@ -35,16 +41,16 @@ test.describe("선생앱 전체 스크린샷", () => {
   for (const p of pages) {
     test(`${p.name}`, async ({ page }) => {
       await page.goto(`${BASE}${p.path}`, { waitUntil: "load", timeout: 20_000 });
-      await page.waitForTimeout(3000);
+      await waitForTeacherPageReady(page);
       await page.screenshot({ path: `e2e/screenshots/audit-teacher-${p.name}.png`, fullPage: true });
     });
   }
 
   test("12-drawer", async ({ page }) => {
     await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForTimeout(2000);
+    await waitForTeacherPageReady(page);
     await page.getByRole("button", { name: "메뉴" }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("button", { name: "설정" })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/audit-teacher-12-drawer.png", fullPage: false });
   });
 });
