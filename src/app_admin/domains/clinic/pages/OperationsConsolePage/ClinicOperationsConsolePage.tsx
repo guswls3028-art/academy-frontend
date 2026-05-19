@@ -4,14 +4,14 @@
  * SSOT: PanelWithTreeLayout (메시지 자동발송과 동일)
  */
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { CalendarPlus } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
-import type { ClinicSessionTreeNode, ClinicSessionDetail } from "../../api/clinicSessions.api";
+import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -27,13 +27,14 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 dayjs.locale("ko");
 
+const WIDE_CONTENT_STYLE: CSSProperties = { maxWidth: "none" };
+
 function todayISO() {
   return dayjs().format("YYYY-MM-DD");
 }
 
 export default function ClinicOperationsConsolePage() {
   const [sp] = useSearchParams();
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const dateParam = sp.get("date");
   const initialDate =
@@ -136,7 +137,7 @@ export default function ClinicOperationsConsolePage() {
     const list = filteredTree;
     return list.filter(
       (s) => dayjs(s.date).format("YYYY-MM-DD") === selectedDate
-    ) as ClinicSessionTreeNode[];
+    );
   }, [filteredTree, selectedDate]);
 
   const participants = useClinicParticipants({
@@ -211,7 +212,7 @@ export default function ClinicOperationsConsolePage() {
           </aside>
 
           <div className={panelStyles.content}>
-            <div className={panelStyles.contentInner} style={{ maxWidth: "none" }}>
+            <div className={panelStyles.contentInner} style={WIDE_CONTENT_STYLE}>
               {!selectedSessionId ? (
                 <div className="clinic-console__empty-workspace">
                   {sessionsForDay.length === 0 ? (

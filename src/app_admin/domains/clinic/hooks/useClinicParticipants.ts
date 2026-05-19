@@ -6,6 +6,8 @@ import {
   ClinicParticipantStatus,
 } from "../api/clinicParticipants.api";
 
+type PatchClinicParticipantPayload = Parameters<typeof patchClinicParticipantStatus>[1];
+
 export function useClinicParticipants(params: {
   session?: number;
   session_date_from?: string;
@@ -30,13 +32,13 @@ export function useClinicParticipants(params: {
   });
 
   const patchM = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: PatchClinicParticipantPayload }) =>
       patchClinicParticipantStatus(id, payload),
-    onSuccess: (_data: unknown, variables: { id: number; payload: any }) => {
+    onSuccess: (_data: unknown, variables: { id: number; payload: PatchClinicParticipantPayload }) => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       const statusLabel: Record<string, string> = { booked: "승인", attended: "출석", no_show: "결석", cancelled: "취소", rejected: "거절" };
-      const label = statusLabel[variables.payload?.status] ?? "변경";
+      const label = statusLabel[variables.payload.status] ?? "변경";
       import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${label} 처리되었습니다.`));
     },
     onError: () => {

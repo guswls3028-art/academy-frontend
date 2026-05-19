@@ -14,7 +14,7 @@ import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
-import { fetchClinicSessionTree, ClinicSessionTreeNode } from "../../api/clinicSessions.api";
+import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 dayjs.locale("ko");
@@ -32,6 +32,15 @@ function weekRangeISO(base: string) {
 
 function nowHHMM() {
   return dayjs().format("HH:mm");
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== "object") return fallback;
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+  const message = (error as { message?: unknown }).message;
+  if (typeof detail === "string") return detail;
+  if (typeof message === "string") return message;
+  return fallback;
 }
 
 function groupBySession(rows: ClinicParticipant[]) {
@@ -178,23 +187,10 @@ export default function ClinicHomePage() {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.detail ?? err?.message ?? "자동 승인 설정 저장에 실패했습니다.";
-      feedback.error(`자동 승인 설정을 저장할 수 없습니다. ${typeof msg === "string" ? msg : ""}`);
-    },
-  });
-
-  const patchStatusM = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>
-      patchClinicParticipantStatus(id, { status }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
-    },
-    onError: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
+    onError: (err: unknown) => {
+      feedback.error(
+        `자동 승인 설정을 저장할 수 없습니다. ${apiErrorMessage(err, "자동 승인 설정 저장에 실패했습니다.")}`,
+      );
     },
   });
 
@@ -356,15 +352,7 @@ export default function ClinicHomePage() {
                         )}
                         {showSectionBadge && s.sectionLabel && (
                           <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              padding: "1px 7px",
-                              borderRadius: 999,
-                              background: "color-mix(in srgb, var(--color-brand-primary) 14%, transparent)",
-                              color: "var(--color-brand-primary)",
-                              marginRight: 6,
-                            }}
+                            className="clinic-home__section-badge"
                             aria-label={`${s.sectionLabel}반`}
                           >
                             {s.sectionLabel}반

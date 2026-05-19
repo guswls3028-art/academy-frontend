@@ -3066,6 +3066,15 @@ details[open] > .clinic-tree__summary {
   line-height: 1.6;
   flex-shrink: 0;
 }
+.clinic-home__section-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  color: var(--color-brand-primary);
+  margin-right: 6px;
+}
 
 /* 지난 세션 미니 출석 표시 */
 .clinic-home__timeline-card-progress {

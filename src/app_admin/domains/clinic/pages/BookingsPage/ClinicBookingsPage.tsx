@@ -9,7 +9,7 @@
  * - Tab/Enter로 빠른 이동
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -63,14 +63,23 @@ const REASON_COLOR: Record<string, string> = {
   missing: "var(--color-warning, #f59e0b)",
 };
 
-function formatCycle(n?: number): string {
-  if (!n || n <= 1) return "1차";
-  return `${n}차`;
-}
-
 function formatNextAttempt(latestIndex?: number): string {
   const next = (latestIndex ?? 1) + 1;
   return `${next}차`;
+}
+
+function reasonBorderStyle(reason: string | null | undefined): CSSProperties {
+  return { borderColor: REASON_COLOR[reason ?? "score"] };
+}
+
+function reasonColorStyle(reason: string | null | undefined): CSSProperties {
+  return { color: REASON_COLOR[reason ?? "score"] };
+}
+
+function indicatorStyle(reason: string | null | undefined, isResolved: boolean): CSSProperties {
+  return {
+    backgroundColor: isResolved ? "var(--color-success)" : REASON_COLOR[reason ?? "score"],
+  };
 }
 
 function formatScoreDisplay(item: ClinicTarget): string {
@@ -388,7 +397,7 @@ export default function ClinicBookingsPage() {
                         <span
                           key={`${item.enrollment_id}-${item.clinic_link_id}-${idx}`}
                           className="clinic-hub__reason-chip"
-                          style={{ borderColor: REASON_COLOR[item.reason ?? "score"] }}
+                          style={reasonBorderStyle(item.reason)}
                         >
                           {item.source_type === "homework" ? (
                             <BookOpen size={11} />
@@ -655,7 +664,7 @@ function RemediationItemRow({
       {/* Left: status indicator */}
       <div
         className="clinic-hub__item-indicator"
-        style={{ backgroundColor: isResolved ? "var(--color-success)" : REASON_COLOR[item.reason ?? "score"] }}
+        style={indicatorStyle(item.reason, isResolved)}
       />
 
       {/* Center: item info */}
@@ -680,7 +689,7 @@ function RemediationItemRow({
           {/* Reason badge */}
           <span
             className="clinic-hub__item-reason"
-            style={{ color: REASON_COLOR[item.reason ?? "score"] }}
+            style={reasonColorStyle(item.reason)}
           >
             {REASON_LABEL[item.reason ?? "score"]}
           </span>

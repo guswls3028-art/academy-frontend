@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/clinic/components/ClinicRemoteControl.tsx
 // 클리닉 리모컨 - 선생님이 실시간으로 학생 패스카드 배경색 변경
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiRefreshCw } from "react-icons/fi";
 import { fetchClinicSettings, updateClinicSettings } from "../api/clinicSettings.api";
@@ -32,6 +32,25 @@ const COLOR_PALETTE = [
   // 청록 계열
   "#14b8a6", "#0d9488", "#0f766e", "#115e59",
 ];
+
+function colorBackgroundStyle(color: string): CSSProperties {
+  return { backgroundColor: color };
+}
+
+function gradientPreviewStyle(colors: [string, string, string]): CSSProperties {
+  return {
+    backgroundImage: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+    backgroundSize: "200% 200%",
+    animation: "idcard-background-flow 8s ease infinite",
+  };
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== "object") return fallback;
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  return fallback;
+}
 
 type ColorSelectModalProps = {
   open: boolean;
@@ -67,7 +86,7 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
                       ? "border-[var(--color-brand-primary)] scale-110"
                       : "border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]"
                   }`}
-                  style={{ backgroundColor: color }}
+                  style={colorBackgroundStyle(color)}
                   title={color}
                 />
               ))}
@@ -99,7 +118,7 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
             <div className="text-sm font-semibold mb-2">미리보기</div>
             <div
               className="w-full h-20 rounded-lg border border-[var(--color-border-divider)]"
-              style={{ backgroundColor: customColor }}
+              style={colorBackgroundStyle(customColor)}
             />
           </div>
         </div>
@@ -138,8 +157,8 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] }); // 학생 앱도 갱신되도록
       feedback.success("색상이 즉시 적용되었습니다!");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "색상 변경에 실패했습니다.");
+    onError: (e: unknown) => {
+      feedback.error(apiErrorMessage(e, "색상 변경에 실패했습니다."));
     },
   });
 
@@ -190,6 +209,7 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
   }
 
   const colors = settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"];
+  const gradientStyle = gradientPreviewStyle(colors);
 
   const content = (
     <div className="space-y-3">
@@ -209,11 +229,7 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
         <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
         <div
           className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
-          style={{
-            backgroundImage: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
-            backgroundSize: "200% 200%",
-            animation: "idcard-background-flow 8s ease infinite",
-          }}
+          style={gradientStyle}
         />
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -226,7 +242,7 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
           >
             <div
               className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-[1.02]"
-              style={{ backgroundColor: colors[index] }}
+              style={colorBackgroundStyle(colors[index])}
             />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
               <span className="text-xs font-semibold text-white">변경</span>

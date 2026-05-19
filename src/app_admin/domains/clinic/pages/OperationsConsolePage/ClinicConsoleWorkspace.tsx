@@ -4,9 +4,9 @@
  * 재설계: 단순 카드 나열 → 운영/처리 워크스페이스
  */
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 
@@ -52,13 +52,24 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { Bell, BellOff, Send } from "lucide-react";
-import AutoSendPreviewPopup from "@admin/domains/messages/components/AutoSendPreviewPopup";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 dayjs.locale("ko");
+
+const SECTION_BADGE_STYLE: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  padding: "2px 8px",
+  borderRadius: 999,
+  background: "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))",
+  color: "var(--color-brand-primary)",
+  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 24%, transparent)",
+};
+const CONFIRM_BAR_DELTA_STYLE: CSSProperties = { marginRight: 8 };
+const CUTLINE_MARKER_STYLE: CSSProperties = { left: "100%" };
 
 const StudentsDetailOverlay = lazy(
   () => import("@admin/domains/students/overlays/StudentsDetailOverlay")
@@ -126,6 +137,14 @@ function getResolutionLabel(type: string | null | undefined): string {
 function getCycleLabel(cycle: number | undefined): string {
   if (!cycle || cycle <= 1) return "";
   return `${cycle}차`;
+}
+
+function widthPercentStyle(percent: number): CSSProperties {
+  return { width: `${percent}%` };
+}
+
+function scoreWidthStyle(score: number, cutline: number): CSSProperties {
+  return widthPercentStyle(Math.min(100, (score / cutline) * 100));
 }
 
 type StatusFilter = "all" | "pending" | "attended" | "no_show";
@@ -260,27 +279,6 @@ export default function ClinicConsoleWorkspace({
     qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
     qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
   }, [qc]);
-
-  const bulkAttendMutation = useMutation({
-    mutationFn: async (ids: number[]) => {
-      const results = await Promise.allSettled(
-        ids.map((participantId) =>
-          patchClinicParticipantStatus(participantId, { status: "attended" })
-        )
-      );
-      const failed = results.filter((r) => r.status === "rejected");
-      if (failed.length > 0) {
-        throw new Error(
-          `${ids.length - failed.length}명 처리 완료, ${failed.length}명 실패`
-        );
-      }
-    },
-    onSuccess: invalidateAll,
-    onError: (err: Error) => {
-      invalidateAll();
-      feedback.error(err.message || "일부 학생의 출석 처리에 실패했습니다.");
-    },
-  });
 
   const timeLabel = session ? formatTime(session.start_time) : "—";
   const dateLabel = dayjs(selectedDate).format("M월 D일 (dd)");
@@ -623,15 +621,7 @@ export default function ClinicConsoleWorkspace({
               <h3 className="clinic-ops__header-date">{dateLabel}</h3>
               {session.section_label && (
                 <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    background: "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))",
-                    color: "var(--color-brand-primary)",
-                    border: "1px solid color-mix(in srgb, var(--color-brand-primary) 24%, transparent)",
-                  }}
+                  style={SECTION_BADGE_STYLE}
                   aria-label={`${session.section_label}반`}
                 >
                   {session.section_label}반
@@ -759,19 +749,19 @@ export default function ClinicConsoleWorkspace({
                     {progress.attended > 0 && (
                       <div
                         className="clinic-ops__progress-seg clinic-ops__progress-seg--attended"
-                        style={{ width: `${(progress.attended / progress.total) * 100}%` }}
+                        style={widthPercentStyle((progress.attended / progress.total) * 100)}
                       />
                     )}
                     {progress.noShow > 0 && (
                       <div
                         className="clinic-ops__progress-seg clinic-ops__progress-seg--noshow"
-                        style={{ width: `${(progress.noShow / progress.total) * 100}%` }}
+                        style={widthPercentStyle((progress.noShow / progress.total) * 100)}
                       />
                     )}
                     {progress.pending > 0 && (
                       <div
                         className="clinic-ops__progress-seg clinic-ops__progress-seg--pending"
-                        style={{ width: `${(progress.pending / progress.total) * 100}%` }}
+                        style={widthPercentStyle((progress.pending / progress.total) * 100)}
                       />
                     )}
                   </div>
@@ -784,7 +774,7 @@ export default function ClinicConsoleWorkspace({
                     {progress.completed > 0 && (
                       <div
                         className="clinic-ops__progress-seg clinic-ops__progress-seg--completed"
-                        style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                        style={widthPercentStyle((progress.completed / progress.total) * 100)}
                       />
                     )}
                   </div>
@@ -960,7 +950,7 @@ export default function ClinicConsoleWorkspace({
             {/* 대기 중인 변경이 있을 때만 발송 액션 표시 */}
             {hasPendingChanges && (
               <div className="clinic-ops__confirm-bar-actions">
-                <div className="clinic-ops__confirm-bar-info" style={{ marginRight: 8 }}>
+                <div className="clinic-ops__confirm-bar-info" style={CONFIRM_BAR_DELTA_STYLE}>
                   {pendingAttend.length > 0 && (
                     <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend clinic-ops__confirm-bar-badge--delta">
                       +출석 {pendingAttend.length}명
@@ -1539,16 +1529,11 @@ export default function ClinicConsoleWorkspace({
                               <div className="clinic-ops__drawer-score-bar-wrap">
                                 <div
                                   className="clinic-ops__drawer-score-fill clinic-ops__drawer-score-fill--fail"
-                                  style={{
-                                    width: `${Math.min(
-                                      100,
-                                      (t.exam_score / t.cutline_score) * 100
-                                    )}%`,
-                                  }}
+                                  style={scoreWidthStyle(t.exam_score, t.cutline_score)}
                                 />
                                 <div
                                   className="clinic-ops__drawer-score-cutline"
-                                  style={{ left: "100%" }}
+                                  style={CUTLINE_MARKER_STYLE}
                                   aria-label={`통과 기준: ${t.cutline_score}점`}
                                 />
                               </div>
@@ -1576,17 +1561,11 @@ export default function ClinicConsoleWorkspace({
                               <div className="clinic-ops__drawer-score-bar-wrap">
                                 <div
                                   className="clinic-ops__drawer-score-fill clinic-ops__drawer-score-fill--fail"
-                                  style={{
-                                    width: `${Math.min(
-                                      100,
-                                      (t.homework_score / t.homework_cutline) *
-                                        100
-                                    )}%`,
-                                  }}
+                                  style={scoreWidthStyle(t.homework_score, t.homework_cutline)}
                                 />
                                 <div
                                   className="clinic-ops__drawer-score-cutline"
-                                  style={{ left: "100%" }}
+                                  style={CUTLINE_MARKER_STYLE}
                                 />
                               </div>
                             </div>
