@@ -13,11 +13,59 @@
  *   - LectureCreateModal: 실제 등록 → 리스트 검증 → 만든 강의 cleanup
  *   - 나머지: 시각 검증 + 스크린샷 (저장 X, 모달 취소로 닫음)
  */
-import { test, expect, Page, Locator } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 import { loginViaUI } from "./helpers/auth";
 
 const BASE = "http://localhost:5174";
+const API_BASE = "https://api.hakwonplus.com";
 const STAMP = Date.now();
+
+type LectureRecord = { id: number | string; title?: string | null };
+type SessionRecord = { id: number | string };
+type AttendanceTarget = { lectureId: number | string; sessionId: number | string };
+
+function listFromBody<T>(body: unknown): T[] {
+  if (Array.isArray(body)) return body as T[];
+  if (!body || typeof body !== "object") return [];
+  const results = (body as { results?: unknown }).results;
+  return Array.isArray(results) ? results as T[] : [];
+}
+
+async function authHeaders(page: Page): Promise<Record<string, string>> {
+  const access = await page.evaluate(() => localStorage.getItem("access"));
+  return {
+    Authorization: `Bearer ${access ?? ""}`,
+    "X-Tenant-Code": "hakwonplus",
+  };
+}
+
+async function apiGetList<T>(page: Page, path: string): Promise<T[]> {
+  const response = await page.request.get(`${API_BASE}/api/v1${path}`, {
+    headers: await authHeaders(page),
+  });
+  const body = await response.json().catch(() => null) as unknown;
+  return listFromBody<T>(body);
+}
+
+async function deleteLecture(page: Page, id: number | string): Promise<void> {
+  await page.request.delete(`${API_BASE}/api/v1/lectures/lectures/${id}/`, {
+    headers: await authHeaders(page),
+  });
+}
+
+async function findFirstLectureSessionIds(page: Page): Promise<AttendanceTarget | null> {
+  const lectures = await apiGetList<LectureRecord>(page, "/lectures/lectures/?page_size=5");
+  for (const lecture of lectures) {
+    const sessions = await apiGetList<SessionRecord>(
+      page,
+      `/lectures/sessions/?lecture=${lecture.id}&page_size=5`,
+    );
+    if (sessions.length > 0) {
+      return { lectureId: lecture.id, sessionId: sessions[0].id };
+    }
+  }
+  return null;
+}
 
 async function ensureInViewport(page: Page, locator: Locator, label: string) {
   const box = await locator.boundingBox();
@@ -79,7 +127,7 @@ for (const vp of [
       // 그냥 +1시간 quick button 두 번으로 종료시간 채우기
       // 우선 시간 popover에서 슬롯 하나 선택
       await timePop.locator(".time-picker__item").nth(40).click();
-      await page.waitForTimeout(150);
+      await expect(timePop).toBeHidden({ timeout: 3000 });
 
       // ── 종료 시간 trigger
       const endTimeTrig = page.getByRole("button", { name: /종료 시간 선택/ });
@@ -88,7 +136,7 @@ for (const vp of [
       await ensureInViewport(page, timePop, `종료 시간 popover @${vp.label}`);
       await shoot(page, `${vp.width}-3-lecture-end-time`);
       await timePop.locator(".time-picker__item").nth(42).click();
-      await page.waitForTimeout(150);
+      await expect(timePop).toBeHidden({ timeout: 3000 });
 
       // ── 필수 필드 채우기
       await page.locator('input[placeholder*="강의 이름"]').fill(lectureTitle);
@@ -110,24 +158,14 @@ for (const vp of [
 
       // ── Cleanup: 만든 강의 삭제 (강의 row 우측 메뉴/체크박스 → 삭제)
       // 가장 안전한 cleanup: API로 직접 삭제
-      const access = await page.evaluate(() => localStorage.getItem("access"));
-      const apiBase = "https://api.hakwonplus.com";
       // 리스트에서 ID 찾기
-      const lectureId = await page.evaluate(async ({ apiBase, access, title }) => {
-        const r = await fetch(`${apiBase}/api/v1/lectures/lectures/?search=${encodeURIComponent(title)}`, {
-          headers: { Authorization: `Bearer ${access}` },
-        });
-        const j = await r.json();
-        const arr = (j?.results || j) as any[];
-        return arr.find((x) => x.title === title)?.id ?? null;
-      }, { apiBase, access, title: lectureTitle });
+      const lectures = await apiGetList<LectureRecord>(
+        page,
+        `/lectures/lectures/?search=${encodeURIComponent(lectureTitle)}`,
+      );
+      const lectureId = lectures.find((lecture) => lecture.title === lectureTitle)?.id ?? null;
       if (lectureId) {
-        await page.evaluate(async ({ apiBase, access, id }) => {
-          await fetch(`${apiBase}/api/v1/lectures/lectures/${id}/`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${access}` },
-          });
-        }, { apiBase, access, id: lectureId });
+        await deleteLecture(page, lectureId);
         console.log(`[cleanup] deleted lecture id=${lectureId} title=${lectureTitle}`);
       } else {
         console.warn(`[cleanup] lecture not found: ${lectureTitle}`);
@@ -137,14 +175,8 @@ for (const vp of [
     test("2) SessionCreateModal: 차시 추가 모달 시간 popover (저장 X)", async ({ page }) => {
       await loginViaUI(page, "admin");
       // API로 첫 강의 id 조회 → /sessions 직접
-      const lectureId = await page.evaluate(async () => {
-        const api = "https://api.hakwonplus.com";
-        const access = localStorage.getItem("access");
-        const r = await fetch(`${api}/api/v1/lectures/lectures/?page_size=1`, { headers: { Authorization: `Bearer ${access}` } });
-        const j = await r.json();
-        const arr = (j.results || j) as any[];
-        return arr[0]?.id ?? null;
-      });
+      const lectures = await apiGetList<LectureRecord>(page, "/lectures/lectures/?page_size=1");
+      const lectureId = lectures[0]?.id ?? null;
       if (!lectureId) {
         test.skip(true, "강의 없음");
         return;
@@ -164,12 +196,10 @@ for (const vp of [
       // "2차시" 카드 클릭 (Heading 안에 "2차시" 텍스트)
       const type2 = page.locator('text=2차시').first();
       await type2.click();
-      await page.waitForTimeout(400);
       // 시간 섹션 "직접선택" — 마지막(=시간 섹션) 라벨
       const directLabel = page.locator("label", { hasText: /^직접선택$/ }).last();
       await directLabel.waitFor({ state: "visible", timeout: 4000 });
       await directLabel.click();
-      await page.waitForTimeout(300);
       // 시간 popover 트리거
       const startTimeTrig = page.getByRole("button", { name: /시작 시간 선택/ }).first();
       await startTimeTrig.waitFor({ state: "visible", timeout: 5000 });
@@ -201,7 +231,6 @@ for (const vp of [
         return;
       }
       await addBtn.click();
-      await page.waitForTimeout(500);
       const startTimeTrig = page.getByRole("button", { name: /시작 시간 선택/ }).first();
       if (!(await startTimeTrig.isVisible({ timeout: 3000 }).catch(() => false))) {
         test.skip(true, "클리닉 시간 트리거 못 찾음");
@@ -236,7 +265,7 @@ for (const vp of [
       await shoot(page, `${vp.width}-9-lecture-instructor-popover`);
       // 닫기
       await teacherTrig.click();
-      await page.waitForTimeout(200);
+      await expect(teacherPop).toBeHidden({ timeout: 3000 });
 
       // 과목 저장 popover (FolderOpen 아이콘)
       const subjectLoadBtn = page.getByRole("button", { name: /저장된 과목 불러오기/ }).first();
@@ -259,7 +288,6 @@ for (const vp of [
         return;
       }
       await addBtn.click();
-      await page.waitForTimeout(500);
 
       // inline DatePicker (openBelow=true) — 캘린더가 인라인으로 펼침
       const dateTrig = page.locator("button.shared-date-picker-trigger").first();
@@ -273,7 +301,7 @@ for (const vp of [
           await shoot(page, `${vp.width}-11-clinic-inline-datepicker`);
           // 닫기
           await dateTrig.click();
-          await page.waitForTimeout(200);
+          await expect(inlineCal).toBeHidden({ timeout: 3000 });
         }
       }
 
@@ -293,21 +321,7 @@ for (const vp of [
     test("4) SessionAttendancePage: 상태 popover (visual only)", async ({ page }) => {
       await loginViaUI(page, "admin");
       // API로 첫 강의·차시 id 조회 → 직접 navigate (안정성 ↑)
-      const ids = await page.evaluate(async () => {
-        const api = "https://api.hakwonplus.com";
-        const access = localStorage.getItem("access");
-        const h = { Authorization: `Bearer ${access}` };
-        const lecR = await fetch(`${api}/api/v1/lectures/lectures/?page_size=5`, { headers: h });
-        const lecJ = await lecR.json();
-        const lecs = (lecJ.results || lecJ) as any[];
-        for (const l of lecs) {
-          const sR = await fetch(`${api}/api/v1/lectures/sessions/?lecture=${l.id}&page_size=5`, { headers: h });
-          const sJ = await sR.json();
-          const ss = (sJ.results || sJ) as any[];
-          if (ss.length > 0) return { lectureId: l.id, sessionId: ss[0].id };
-        }
-        return null;
-      });
+      const ids = await findFirstLectureSessionIds(page);
       if (!ids) {
         test.skip(true, "강의·차시 데이터 없음");
         return;
