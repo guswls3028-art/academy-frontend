@@ -170,7 +170,7 @@ export default function MaterialsBoardPage() {
   }, [filtered, selectedId, setSelectedId]);
 
   return (
-    <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className="notice-tree notice-tree--viewport">
       <CmsTreeNav
         title="자료실"
         allLabel="전체 보기"
@@ -202,7 +202,7 @@ export default function MaterialsBoardPage() {
             <div className="qna-inbox__list-title-group">
               <h2 className="qna-inbox__list-title">자료</h2>
               <CommunityContextBar
-                scope={scope as any}
+                scope={scope}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
               />
@@ -212,12 +212,7 @@ export default function MaterialsBoardPage() {
           <div className="flex items-center gap-2">
             <input type="search" className="ds-input flex-1 min-w-0" placeholder="제목 · 내용 · 작성자" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="자료실 검색" />
           </div>
-          <p style={{
-            margin: "8px 0 0",
-            fontSize: 11,
-            color: "var(--color-text-muted)",
-            lineHeight: 1.5,
-          }}>
+          <p className="materials-board__hint">
             💡 자료실은 강의 자료 다운로드 전용입니다. 댓글·질문은 게시판/QnA에서.
           </p>
         </div>
@@ -442,7 +437,14 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
-  useEffect(() => { setEditingTitle(false); setEditingContent(false); if (post) { setEditTitle(post.title ?? ""); setEditContent(post.content ?? ""); } }, [post?.id]);
+  useEffect(() => {
+    setEditingTitle(false);
+    setEditingContent(false);
+    if (post) {
+      setEditTitle(post.title ?? "");
+      setEditContent(post.content ?? "");
+    }
+  }, [post]);
 
   const updateMut = useMutation({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),

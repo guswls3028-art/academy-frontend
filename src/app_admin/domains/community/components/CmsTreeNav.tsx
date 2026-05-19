@@ -19,7 +19,7 @@ interface CmsTreeNavProps {
   lectureId: number | null;
   sessionId: number | null;
   effectiveLectureId: number | null;
-  lectures: Array<{ id: number; title?: string; name?: string; color?: string | null }>;
+  lectures: Array<{ id: number; title?: string; name?: string; color?: string | null; chip_label?: string | null }>;
   scopeNodes: Array<{ id: number; lecture: number; session: number | null; session_title?: string | null }>;
   sessionsOfLecture: Array<{ id: number; title: string; order: number }>;
   sessionsLoading: boolean;
@@ -137,7 +137,7 @@ export default function CmsTreeNav({
                     lectureName={lec.title || lec.name || ""}
                     color={lec.color ?? undefined}
                     size={20}
-                    chipLabel={(lec as any).chip_label}
+                    chipLabel={lec.chip_label}
                   />
                   <span className="notice-tree__sub-label">
                     {lec.title || lec.name || `강의 ${lec.id}`}
@@ -156,8 +156,7 @@ export default function CmsTreeNav({
                   <div className="notice-tree__children">
                     {sessionsLoading ? (
                       <div
-                        className="notice-tree__sub-item notice-tree__sub-item--child"
-                        style={{ color: "var(--color-text-muted)" }}
+                        className="notice-tree__sub-item notice-tree__sub-item--child notice-tree__sub-item--loading"
                       >
                         불러오는 중…
                       </div>

@@ -8,7 +8,13 @@
  * 사이드바와 100% 중복되던 「바로가기」 8칸은 제거. 대시보드 본 가치는
  * "어디로 갈지" 가 아니라 "지금 무엇을 처리해야 하는지".
  */
-import { useState, lazy, Suspense } from "react";
+import {
+  useState,
+  lazy,
+  Suspense,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCommunityQuestions } from "@admin/domains/community/api/community.api";
@@ -20,6 +26,7 @@ import { Button } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import DashboardWidget from "../components/DashboardWidget";
+import styles from "./DashboardPage.module.css";
 
 const ClinicPasscardModal = lazy(() => import("@admin/domains/clinic/components/ClinicPasscardModal"));
 
@@ -67,7 +74,7 @@ export default function DashboardPage() {
       title="대시보드"
       description="학원 운영 현황을 한눈에 확인하세요."
     >
-      <div className="flex flex-col gap-6" style={{ padding: 0 }}>
+      <div className={styles.stack}>
         {/* 1) 요약 지표 — 학원 상태 한눈에 */}
         <DashboardWidget title="요약 지표" description="운영 현황">
           <div className="ds-section__kpi-list">
@@ -83,7 +90,7 @@ export default function DashboardPage() {
           title="오늘 처리할 일"
           description="아래 항목은 학생/학부모가 기다리고 있습니다."
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className={styles.todoList}>
             <TodoRow
               label="미답변 질의"
               loading={qLoading}
@@ -153,58 +160,31 @@ function TodoRow({
   value: string;
   loading?: boolean;
   error?: boolean;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   onClick: () => void;
-  [key: string]: any;
-}) {
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type" | "onClick">) {
   return (
     <button
       type="button"
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-        width: "100%",
-        padding: "14px 18px",
-        cursor: "pointer",
-        background: "var(--color-bg-surface-soft, #f9fafb)",
-        border: "1px solid var(--color-border-divider)",
-        borderRadius: 10,
-        font: "inherit",
-        color: "inherit",
-        textAlign: "left",
-        transition: "background 120ms ease, border-color 120ms ease",
-      }}
+      className={styles.todoRow}
       {...rest}
     >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-        {icon ? <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span> : null}
-        <span style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--color-text-primary)",
-        }}>{label}</span>
+      <span className={styles.todoLabelGroup}>
+        {icon ? <span className={styles.todoIcon}>{icon}</span> : null}
+        <span className={styles.todoLabel}>{label}</span>
       </span>
       {loading ? (
         <span
           aria-label="로딩 중"
-          className="skeleton"
-          style={{ flexShrink: 0, width: 110, height: 18, borderRadius: 6 }}
+          className={`skeleton ${styles.todoSkeleton}`}
         />
       ) : error ? (
-        <span style={{ flexShrink: 0, fontSize: 13, color: "var(--color-text-muted)" }}>
+        <span className={styles.todoError}>
           불러오기 실패 →
         </span>
       ) : (
-        <span style={{
-          flexShrink: 0,
-          fontSize: 16,
-          fontWeight: 700,
-          color: "var(--color-primary)",
-          letterSpacing: "-0.01em",
-        }}>{value} →</span>
+        <span className={styles.todoValue}>{value} →</span>
       )}
     </button>
   );
@@ -217,11 +197,10 @@ function KpiRow({ label, value, loading, error }: { label: string; value: string
       {loading ? (
         <span
           aria-label="로딩 중"
-          className="skeleton ds-section__kpi-value"
-          style={{ width: 60, height: 18, borderRadius: 6 }}
+          className={`skeleton ds-section__kpi-value ${styles.kpiSkeleton}`}
         />
       ) : error ? (
-        <span className="ds-section__kpi-value" style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>
+        <span className={`ds-section__kpi-value ${styles.kpiError}`}>
           불러오기 실패
         </span>
       ) : (

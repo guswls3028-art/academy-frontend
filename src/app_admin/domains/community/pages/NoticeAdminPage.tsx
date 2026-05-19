@@ -16,6 +16,7 @@ import {
   type PostEntity,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
+  type PostUpdatePayload,
 } from "../api/community.api";
 import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
@@ -142,7 +143,7 @@ export default function NoticeAdminPage() {
     (scope === "session" && sessionId != null);
 
   return (
-    <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className="notice-tree notice-tree--viewport">
       <CmsTreeNav
         title="공지"
         allLabel="전체 보기"
@@ -174,7 +175,7 @@ export default function NoticeAdminPage() {
             <div className="qna-inbox__list-title-group">
               <h2 className="qna-inbox__list-title">공지사항</h2>
               <CommunityContextBar
-                scope={scope as any}
+                scope={scope}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
               />
@@ -359,7 +360,7 @@ function NoticeDetailView({
   });
 
   const updateMut = useMutation({
-    mutationFn: (data: Record<string, unknown>) => updatePost(postId, data as any),
+    mutationFn: (data: Partial<PostUpdatePayload>) => updatePost(postId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
@@ -415,10 +416,9 @@ function NoticeDetailView({
         <div className="qna-inbox__thread-title-row">
           <div className="qna-inbox__thread-title-group">
             {isEditingTitle ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+              <div className="cms-detail__title-edit-row cms-detail__title-edit-row--full">
                 <input
-                  className="ds-input"
-                  style={{ flex: 1, fontSize: "var(--text-lg, 18px)", fontWeight: 700 }}
+                  className="ds-input cms-detail__title-input cms-detail__title-input--lg"
                   value={editingTitle}
                   onChange={(e) => setEditingTitle(e.target.value)}
                   autoFocus
@@ -456,13 +456,12 @@ function NoticeDetailView({
               </div>
             ) : (
               <h1
-                className="qna-inbox__thread-title"
-                style={{ cursor: "pointer" }}
+                className="qna-inbox__thread-title qna-inbox__thread-title--editable"
                 onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}
                 title="클릭하여 제목 수정"
               >
                 {post.title}
-                <span style={{ marginLeft: 6, fontSize: "var(--text-xs, 11px)", color: "var(--color-text-muted)", fontWeight: 400 }}>✎</span>
+                <span className="qna-inbox__thread-title-edit-mark">✎</span>
               </h1>
             )}
             <div className="qna-inbox__thread-meta">
@@ -516,7 +515,7 @@ function NoticeDetailView({
 
       <div className="cms-detail__body">
         <div className="cms-detail__section">
-          <div className="cms-detail__section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="cms-detail__section-label cms-detail__section-label--actions">
             <span>내용</span>
             {!isEditing && (
               <Button intent="ghost" size="sm" onClick={() => { setEditingContent(post.content ?? ""); setIsEditing(true); }}>
@@ -641,7 +640,7 @@ function NoticeCreatePane({
             <h1 className="qna-inbox__thread-title">새 공지 작성</h1>
             <div className="qna-inbox__thread-meta">
               <Badge tone="primary">대상: {scopeLabel}</Badge>
-              <span className="text-xs text-[var(--color-text-muted)]" style={{ marginLeft: 8 }}>
+              <span className="cms-form__scope-help">
                 {scopeParams.scope === "all"
                   ? "모든 강의의 학생에게 보이는 공지입니다."
                   : scopeParams.scope === "lecture"
@@ -668,7 +667,7 @@ function NoticeCreatePane({
         </div>
 
         <div className="cms-form__field--inline">
-          <label className="cms-form__checkbox-label" style={{ color: isUrgent ? "var(--color-error)" : undefined }}>
+          <label className={`cms-form__checkbox-label ${isUrgent ? "cms-form__checkbox-label--urgent" : ""}`}>
             <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} />
             긴급 공지
           </label>

@@ -12,6 +12,10 @@
   overflow: hidden;
 }
 
+.notice-tree--viewport {
+  min-height: calc(100vh - 180px);
+}
+
 .notice-tree__nav {
   width: 200px;
   min-width: 180px;
@@ -237,6 +241,10 @@
   padding-left: var(--space-6);
   font-size: 13px;
   font-weight: 500;
+}
+
+.notice-tree__sub-item--loading {
+  color: var(--color-text-muted);
 }
 
 /* 차시 블럭과 동일한 DS 토큰 사용: 정규차시(n1) / 보강(supplement) */

@@ -81,6 +81,11 @@ export interface PostEntity {
   meta?: Record<string, unknown>;
 }
 
+export type PostUpdatePayload = Pick<
+  PostEntity,
+  "title" | "content" | "is_urgent" | "is_pinned" | "status" | "published_at"
+>;
+
 // ----------------------------------------
 // Scope nodes (강의/차시 트리 → node_id 도출용). 페이지네이션(results) 지원
 // ----------------------------------------
@@ -231,7 +236,7 @@ export async function updatePostNodes(postId: number, nodeIds: number[]): Promis
 /** 게시물 제목/내용 수정 — PATCH /community/posts/:id/ */
 export async function updatePost(
   postId: number,
-  data: { title?: string; content?: string }
+  data: Partial<PostUpdatePayload>
 ): Promise<PostEntity> {
   const res = await api.patch(`${PREFIX}/posts/${postId}/`, data);
   return res.data as PostEntity;
