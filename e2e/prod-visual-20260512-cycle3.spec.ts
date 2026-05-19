@@ -1,33 +1,45 @@
-import { test, expect, chromium } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { loginViaUI } from "./helpers/auth";
 import path from "path";
 import fs from "fs";
+import { gotoAndSettle } from "./helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL ?? "https://hakwonplus.com";
-const ADMIN = process.env.E2E_ADMIN_USER ?? "admin97";
-const PASS = process.env.E2E_ADMIN_PASS ?? "koreaseoul97";
 const SHOTS = path.resolve("e2e/screenshots/prod-visual-20260512-cycle3");
 
 fs.mkdirSync(SHOTS, { recursive: true });
 
-async function shot(page: any, name: string) {
+async function shot(page: Page, name: string) {
   const p = path.join(SHOTS, `${name}.png`);
   await page.screenshot({ path: p, fullPage: false });
   return p;
 }
 
-async function shotFull(page: any, name: string) {
+async function shotFull(page: Page, name: string) {
   const p = path.join(SHOTS, `${name}.png`);
   await page.screenshot({ path: p, fullPage: true });
   return p;
+}
+
+async function waitForNetworkQuiet(page: Page, timeout = 8000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
+}
+
+async function scrollToPageBottom(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForFunction(
+    () => window.innerHeight + window.scrollY >= document.body.scrollHeight - 2,
+    undefined,
+    { timeout: 3000 },
+  ).catch(() => {});
+  await waitForNetworkQuiet(page, 5000);
 }
 
 // ─────────────────────────────────────────────────────────────
 // [A] Landing hero + empty section regression
 // ─────────────────────────────────────────────────────────────
 test("[A] Landing hero + empty section regression", async ({ page }) => {
-  await page.goto(`${BASE}/landing`, { waitUntil: "networkidle", timeout: 30000 });
-  await page.waitForTimeout(2000);
+  await gotoAndSettle(page, `${BASE}/landing`, { timeout: 30000 });
 
   // Brand chip visible
   const brandChip = page.locator("text=HakwonPlus").first();
@@ -59,8 +71,7 @@ test("[A] Landing hero + empty section regression", async ({ page }) => {
   console.log("[A] ACADEMY·MANAGEMENT·SAAS visible:", saasTextVisible);
 
   // Scroll down and check for empty sections (header-only sections with 200px blank)
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(1000);
+  await scrollToPageBottom(page);
   await shotFull(page, "A-02-landing-full-scroll");
 
   // Check if any empty sections (only header, no body) are visible
@@ -103,7 +114,7 @@ test("[A] Landing hero + empty section regression", async ({ page }) => {
 // ─────────────────────────────────────────────────────────────
 test("[B] Hit report share chip toast + style", async ({ page }) => {
   await loginViaUI(page, "admin");
-  await page.waitForTimeout(1000);
+  await waitForNetworkQuiet(page);
 
   // Navigate to hit-reports via sidebar
   // Try sidebar navigation first
@@ -117,7 +128,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
     // Direct navigation as fallback
     await page.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "networkidle", timeout: 20000 });
   }
-  await page.waitForTimeout(1500);
+  await waitForNetworkQuiet(page);
   await shot(page, "B-01-hit-reports-list");
 
   // Find a row with 🔗 share chip (active/published)
@@ -148,11 +159,11 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
   console.log("[B] chip initial style:", JSON.stringify(chipStyle));
 
   // Click share chip
+  const toast = page.locator("text=공유 링크를 복사했습니다").first();
   await shareChip.click();
-  await page.waitForTimeout(500);
+  await toast.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
 
   // Check toast appears
-  const toast = page.locator("text=공유 링크를 복사했습니다").first();
   const toastVisible = await toast.isVisible().catch(() => false);
   console.log("[B] toast visible:", toastVisible);
   await shot(page, "B-03-after-chip-click");
@@ -162,7 +173,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
   console.log("[B] toast count (expect 1):", toastCount);
 
   // Wait for toast to disappear and check chip style change
-  await page.waitForTimeout(1500);
+  await toast.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
   const chipStyleAfter = await shareChip.evaluate((el: Element) => {
     const computed = window.getComputedStyle(el);
     return {
@@ -182,7 +193,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
 // ─────────────────────────────────────────────────────────────
 test("[C] Board admin bulk action", async ({ page }) => {
   await loginViaUI(page, "admin");
-  await page.waitForTimeout(1000);
+  await waitForNetworkQuiet(page);
 
   // Navigate to community/board via sidebar or direct
   const sidebarCommunity = page.locator("a[href*='community']").filter({ hasText: /커뮤니티|게시판/ }).first();
@@ -194,7 +205,7 @@ test("[C] Board admin bulk action", async ({ page }) => {
   } else {
     await page.goto(`${BASE}/admin/community/board`, { waitUntil: "networkidle", timeout: 20000 });
   }
-  await page.waitForTimeout(1500);
+  await waitForNetworkQuiet(page);
   await shot(page, "C-01-board-page");
 
   // Check select-all checkbox
@@ -220,16 +231,17 @@ test("[C] Board admin bulk action", async ({ page }) => {
   // Click first 2-3 row checkboxes
   const clickCount = Math.min(rowCount, 3);
   for (let i = 0; i < clickCount; i++) {
-    await rowCheckboxes.nth(i).click();
-    await page.waitForTimeout(200);
+    const checkbox = rowCheckboxes.nth(i);
+    await checkbox.click();
+    await expect(checkbox).toBeChecked({ timeout: 2000 }).catch(() => {});
   }
   console.log("[C] clicked", clickCount, "checkboxes");
 
-  await page.waitForTimeout(500);
+  const bulkBar = page.locator("[data-testid='board-bulk-bar']");
+  await bulkBar.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
   await shot(page, "C-04-after-checkbox-click");
 
   // Bulk bar should appear
-  const bulkBar = page.locator("[data-testid='board-bulk-bar']");
   const bulkBarVisible = await bulkBar.isVisible().catch(() => false);
   console.log("[C] bulk bar visible:", bulkBarVisible);
 
@@ -249,7 +261,7 @@ test("[C] Board admin bulk action", async ({ page }) => {
 
   // Escape to clear selection
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(500);
+  await bulkBar.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
   const bulkBarAfterEsc = await bulkBar.isVisible().catch(() => false);
   console.log("[C] bulk bar after Escape:", bulkBarAfterEsc);
   await shot(page, "C-06-after-escape");
@@ -261,8 +273,7 @@ test("[C] Board admin bulk action", async ({ page }) => {
 // ─────────────────────────────────────────────────────────────
 // [D] Share token page (incognito) + carousel
 // ─────────────────────────────────────────────────────────────
-test("[D] Share token student page + carousel", async ({}) => {
-  const browser = await chromium.launch({ headless: true });
+test("[D] Share token student page + carousel", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
   });
@@ -271,8 +282,7 @@ test("[D] Share token student page + carousel", async ({}) => {
   const TOKEN_URL = `${BASE}/landing/share/974715e6-e326-46f6-8c6a-53bd65ebda6d`;
 
   try {
-    await page.goto(TOKEN_URL, { waitUntil: "networkidle", timeout: 30000 });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, TOKEN_URL, { timeout: 30000 });
     await shot(page, "D-01-share-page-initial");
 
     // NavBar visible
@@ -327,8 +337,7 @@ test("[D] Share token student page + carousel", async ({}) => {
     await shotFull(page, "D-02-share-page-full");
 
     // Scroll down to check full page
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
+    await scrollToPageBottom(page);
     await shot(page, "D-03-share-page-bottom");
 
     // Verify page didn't redirect to login
@@ -341,6 +350,5 @@ test("[D] Share token student page + carousel", async ({}) => {
     expect(navbarVisible || brandChipVisible).toBe(true);
   } finally {
     await context.close();
-    await browser.close();
   }
 });
