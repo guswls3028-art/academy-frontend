@@ -15,7 +15,7 @@
  *
  * 출력: _artifacts/sessions/matchup-rebuild-2026-05-05/v9_phase1_visual_verify/
  */
-import { test, expect } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { resolve } from "path";
 import { mkdirSync } from "fs";
@@ -25,6 +25,13 @@ const OUT_DIR = "C:/academy/_artifacts/sessions/matchup-rebuild-2026-05-05/v9_ph
 mkdirSync(OUT_DIR, { recursive: true });
 
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
+
+async function settlePage(page: Page, timeout = 15_000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => undefined);
+  await page.evaluate(() => new Promise<void>((resolveFrame) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()));
+  })).catch(() => undefined);
+}
 
 // 검증 대상 doc 리스트 (양식별 sample)
 const DOCS = [
@@ -40,12 +47,12 @@ test.describe("V9 + Phase 1 시각검증 — T2 매치업", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
     await page.goto(`${TCHUL}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    await settlePage(page);
     await page.setViewportSize({ width: 1920, height: 1080 });
   });
 
   test("00 매치업 페이지 진입 — 전체 자료 리스트", async ({ page }) => {
-    await page.waitForTimeout(2000); // SPA 데이터 로딩 안정
+    await settlePage(page);
     await page.screenshot({
       path: resolve(OUT_DIR, "00_matchup_landing.png"),
       fullPage: true,
@@ -59,8 +66,7 @@ test.describe("V9 + Phase 1 시각검증 — T2 매치업", () => {
         waitUntil: "load",
         timeout: 30_000,
       });
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await page.waitForTimeout(3000); // 추천 결과 fetch 대기
+      await settlePage(page);
 
       // 전체 페이지 캡처
       await page.screenshot({
@@ -77,8 +83,8 @@ test.describe("V9 + Phase 1 시각검증 — T2 매치업", () => {
       // 첫 problem 클릭 → 매치업 추천 결과 변화 캡처
       const firstProblem = page.locator('[data-testid="problem-card"], [class*="ProblemCard"]').first();
       if (await firstProblem.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await firstProblem.click({ timeout: 5000 }).catch(() => {});
-        await page.waitForTimeout(3000);
+        await firstProblem.click({ timeout: 5000 }).catch(() => undefined);
+        await settlePage(page);
         await page.screenshot({
           path: resolve(OUT_DIR, `${doc.label}_problem1_clicked.png`),
           fullPage: true,

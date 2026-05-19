@@ -254,7 +254,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
-  const accept = context.request.headers.get("Accept") ?? "";
 
   // 네이버 Search Advisor HTML 파일 소유 확인 (/naver{hash}.html)
   const naverVerifyId = NAVER_HTML_VERIFY[host];
