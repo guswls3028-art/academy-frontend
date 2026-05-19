@@ -3,6 +3,18 @@
 
 import { useRef, useState } from "react";
 
+function matchesAcceptPattern(file: File, pattern: string): boolean {
+  const normalized = pattern.trim().toLowerCase();
+  if (!normalized) return true;
+
+  const fileName = file.name.toLowerCase();
+  const mime = (file.type || "").toLowerCase();
+
+  if (normalized.startsWith(".")) return fileName.endsWith(normalized);
+  if (normalized.endsWith("/*")) return mime.startsWith(normalized.slice(0, -1));
+  return mime === normalized;
+}
+
 function UploadIcon({ className, size = 24 }: { className?: string; size?: number }) {
   return (
     <svg
@@ -89,13 +101,7 @@ export default function FileUploadZone({
     // accept 기반 파일 타입 필터링 (드래그앤드롭 포함 — input.accept는 파일 선택기만 필터)
     if (accept) {
       const patterns = accept.split(",").map((s) => s.trim().toLowerCase());
-      list = list.filter((f) => {
-        const mime = (f.type || "").toLowerCase();
-        return patterns.some((p) => {
-          if (p.endsWith("/*")) return mime.startsWith(p.slice(0, -1));
-          return mime === p;
-        });
-      });
+      list = list.filter((f) => patterns.some((p) => matchesAcceptPattern(f, p)));
       if (list.length === 0) {
         onInvalidFile?.("허용된 형식의 파일만 업로드할 수 있습니다.");
         return;
@@ -155,7 +161,7 @@ export default function FileUploadZone({
         type="file"
         accept={accept}
         multiple={multiple}
-        style={{ display: "none" }}
+        className="ds-sr-only"
         onChange={handleChange}
       />
       {isFilled ? (
@@ -180,12 +186,12 @@ export default function FileUploadZone({
             <span className="excel-upload-zone__title">{titleLabel}</span>
           </div>
           <div className="excel-upload-zone__drag-label">Drag or Click</div>
-          <div className="excel-upload-zone__upload" style={{ marginBottom: hintText ? undefined : 0 }}>
+          <div className={`excel-upload-zone__upload${hintText ? "" : " excel-upload-zone__upload--compact"}`}>
             <UploadIcon size={16} className="excel-upload-zone__upload-icon" />
             <span className="excel-upload-zone__upload-label">업로드</span>
           </div>
           {hintText ? (
-            <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
+            <div className="modal-hint">
               {hintText}
             </div>
           ) : null}

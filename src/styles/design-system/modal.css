@@ -481,6 +481,9 @@
   gap: var(--space-2);
   margin-bottom: var(--space-1);
 }
+.excel-upload-zone__upload--compact {
+  margin-bottom: 0;
+}
 .excel-upload-zone__upload-icon {
   color: var(--color-primary);
 }

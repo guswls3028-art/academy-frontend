@@ -16,6 +16,76 @@ import { apiCall } from "../helpers/api";
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
 
+type ExamSummary = {
+  id?: number | string | null;
+  exam_id?: number | string | null;
+  exam_type?: string | null;
+  template_exam_id?: number | string | null;
+  title?: string | null;
+};
+
+type LectureSummary = {
+  id?: number | string | null;
+  title?: string | null;
+  name?: string | null;
+};
+
+type SessionSummary = {
+  id?: number | string | null;
+};
+
+type ExamAsset = {
+  asset_type?: string | null;
+  file_key?: string | null;
+};
+
+type UploadAssetResult = {
+  status: number;
+  body: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function numberFrom(value: unknown): number | null {
+  const parsed = typeof value === "number" || typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stringFrom(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function listOf<T>(body: unknown, guard: (value: unknown) => value is T): T[] {
+  const source = isRecord(body) && Array.isArray(body.results) ? body.results : body;
+  return Array.isArray(source) ? source.filter(guard) : [];
+}
+
+function isExamSummary(value: unknown): value is ExamSummary {
+  if (!isRecord(value)) return false;
+  return numberFrom(value.id ?? value.exam_id) !== null || stringFrom(value.title) !== null;
+}
+
+function isLectureSummary(value: unknown): value is LectureSummary {
+  if (!isRecord(value)) return false;
+  return numberFrom(value.id) !== null;
+}
+
+function isSessionSummary(value: unknown): value is SessionSummary {
+  if (!isRecord(value)) return false;
+  return numberFrom(value.id) !== null;
+}
+
+function isExamAsset(value: unknown): value is ExamAsset {
+  if (!isRecord(value)) return false;
+  return stringFrom(value.asset_type) !== null || stringFrom(value.file_key) !== null;
+}
+
+function pdfUploadModal(page: Page) {
+  return page.locator(".admin-modal__inner").filter({ hasText: "시험지 PDF 업로드" }).last();
+}
+
 test.describe.serial("Exam PDF upload flow", () => {
   let browser: Browser;
   let page: Page;
@@ -27,9 +97,31 @@ test.describe.serial("Exam PDF upload flow", () => {
   let lectureId: number | null = null;
   let createdTemplate = false;
   let createdRegular = false;
+  let cleanupDone = false;
 
   test.beforeAll(async ({ browser: b }) => {
     browser = b;
+  });
+
+  async function cleanupTestData(): Promise<void> {
+    if (cleanupDone) return;
+    cleanupDone = true;
+
+    if (page) {
+      if (createdRegular && regularExamId) {
+        const r = await apiCall(page, "DELETE", `/exams/${regularExamId}/`);
+        console.log(`  Cleanup regular exam ${regularExamId}: ${r.status}`);
+      }
+      if (createdTemplate && templateExamId) {
+        const r = await apiCall(page, "DELETE", `/exams/${templateExamId}/`);
+        console.log(`  Cleanup template exam ${templateExamId}: ${r.status}`);
+      }
+      await page.context().close().catch(() => undefined);
+    }
+  }
+
+  test.afterAll(async () => {
+    await cleanupTestData();
   });
 
   // ══════════════════════════════════════════════════════
@@ -48,34 +140,34 @@ test.describe.serial("Exam PDF upload flow", () => {
   test("2. Find or create exam with session + template context", async () => {
     // Step A: Find existing regular exams (they have sessions)
     const resp = await apiCall(page, "GET", "/exams/");
-    const allExams: any[] = Array.isArray(resp.body)
-      ? resp.body
-      : Array.isArray(resp.body?.results) ? resp.body.results : [];
+    const allExams = listOf<ExamSummary>(resp.body, isExamSummary);
     console.log(`  Total exams found: ${allExams.length}`);
     for (const e of allExams.slice(0, 5)) {
-      console.log(`    exam id=${e.id ?? e.exam_id} type=${e.exam_type} template_exam_id=${e.template_exam_id} title="${e.title}"`);
+      console.log(
+        `    exam id=${e.id ?? e.exam_id} type=${e.exam_type} template_exam_id=${e.template_exam_id} title="${e.title}"`,
+      );
     }
 
     // Find a regular exam with a template_exam_id
     const regularWithTemplate = allExams.find(
-      (e: any) => e.exam_type === "regular" && e.template_exam_id,
+      (e) => e.exam_type === "regular" && numberFrom(e.template_exam_id) !== null,
     );
 
     if (regularWithTemplate) {
-      regularExamId = Number(regularWithTemplate.id ?? regularWithTemplate.exam_id);
-      templateExamId = Number(regularWithTemplate.template_exam_id);
+      regularExamId = numberFrom(regularWithTemplate.id ?? regularWithTemplate.exam_id);
+      templateExamId = numberFrom(regularWithTemplate.template_exam_id);
       console.log(`  Found regular exam ${regularExamId} with template ${templateExamId}`);
     }
 
-    // If no regular with template, use any exam as-is (for API testing)
+    // If no regular with template, use the first available exam as-is for API testing.
     if (!templateExamId && allExams.length > 0) {
-      const anyExam = allExams[0];
-      const eid = Number(anyExam.id ?? anyExam.exam_id);
+      const fallbackExam = allExams[0];
+      const eid = numberFrom(fallbackExam.id ?? fallbackExam.exam_id);
       // Try asset upload directly - if it's a template, it might work
-      if (anyExam.exam_type === "template") {
+      if (eid && fallbackExam.exam_type === "template") {
         templateExamId = eid;
         console.log(`  Using template exam directly: ${templateExamId}`);
-      } else {
+      } else if (eid) {
         regularExamId = eid;
         console.log(`  Using regular exam for navigation: ${regularExamId}`);
       }
@@ -83,23 +175,21 @@ test.describe.serial("Exam PDF upload flow", () => {
 
     // Step B: Find session/lecture context for navigation
     const lecturesResp = await apiCall(page, "GET", "/lectures/lectures/");
-    const lectures = Array.isArray(lecturesResp.body)
-      ? lecturesResp.body
-      : Array.isArray(lecturesResp.body?.results) ? lecturesResp.body.results : [];
+    const lectures = listOf<LectureSummary>(lecturesResp.body, isLectureSummary);
 
     console.log(`  Lectures found: ${lectures.length}`);
 
     for (const lec of lectures) {
-      const lid = Number(lec.id);
+      const lid = numberFrom(lec.id);
+      if (!lid) continue;
       const sessResp = await apiCall(page, "GET", `/lectures/sessions/?lecture=${lid}`);
-      const sessions = Array.isArray(sessResp.body)
-        ? sessResp.body
-        : Array.isArray(sessResp.body?.results) ? sessResp.body.results : [];
+      const sessions = listOf<SessionSummary>(sessResp.body, isSessionSummary);
       console.log(`    lecture ${lid} "${lec.title || lec.name}" → ${sessions.length} sessions`);
 
       if (sessions.length > 0) {
         lectureId = lid;
-        sessionId = Number(sessions[0].id);
+        sessionId = numberFrom(sessions[0].id);
+        if (!sessionId) continue;
 
         // If we don't have a template exam yet, create one and link via regular
         if (!templateExamId) {
@@ -109,8 +199,9 @@ test.describe.serial("Exam PDF upload flow", () => {
             subject: "E2E",
             exam_type: "template",
           });
-          if (tmplResp.status < 300 && tmplResp.body?.id) {
-            templateExamId = Number(tmplResp.body.id);
+          const createdTemplateId = numberFrom(isRecord(tmplResp.body) ? tmplResp.body.id : null);
+          if (tmplResp.status < 300 && createdTemplateId) {
+            templateExamId = createdTemplateId;
             createdTemplate = true;
             console.log(`  Created template exam: ${templateExamId}`);
 
@@ -121,8 +212,9 @@ test.describe.serial("Exam PDF upload flow", () => {
               session_id: sessionId,
               exam_type: "regular",
             });
-            if (regResp.status < 300 && regResp.body?.id) {
-              regularExamId = Number(regResp.body.id);
+            const createdRegularId = numberFrom(isRecord(regResp.body) ? regResp.body.id : null);
+            if (regResp.status < 300 && createdRegularId) {
+              regularExamId = createdRegularId;
               createdRegular = true;
               console.log(`  Created regular exam: ${regularExamId} → template ${templateExamId}`);
             }
@@ -144,9 +236,10 @@ test.describe.serial("Exam PDF upload flow", () => {
   // ══════════════════════════════════════════════════════
   test("3. API: Upload PDF asset to template exam", async () => {
     test.skip(!templateExamId, "No template exam available");
+    if (!templateExamId) throw new Error("No template exam available");
 
     const result = await page.evaluate(
-      async ({ examId, apiBase }) => {
+      async ({ examId, apiBase }): Promise<UploadAssetResult> => {
         const token = localStorage.getItem("access") || "";
         const host = window.location.hostname.toLowerCase();
         const tenantMap: Record<string, string> = {
@@ -173,7 +266,7 @@ test.describe.serial("Exam PDF upload flow", () => {
           body: fd,
         });
 
-        let body: any;
+        let body: unknown;
         try { body = await res.json(); } catch { body = null; }
         return { status: res.status, body };
       },
@@ -184,7 +277,9 @@ test.describe.serial("Exam PDF upload flow", () => {
     console.log(`  Response:`, JSON.stringify(result.body));
 
     expect(result.status).toBeLessThan(300);
-    expect(result.body).toBeTruthy();
+    if (!isExamAsset(result.body)) {
+      throw new Error(`Unexpected asset response: ${JSON.stringify(result.body)}`);
+    }
     expect(result.body.asset_type).toBe("problem_pdf");
     expect(result.body.file_key).toBeTruthy();
   });
@@ -199,7 +294,7 @@ test.describe.serial("Exam PDF upload flow", () => {
       `${BASE}/admin/lectures/${lectureId}/sessions/${sessionId}/exams`,
       { waitUntil: "load", timeout: 15000 },
     );
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
     expect(page.url()).toContain("/exams");
     const root = page.locator("[data-app], main, #root").first();
@@ -228,7 +323,7 @@ test.describe.serial("Exam PDF upload flow", () => {
 
       if (count > 0) {
         await examListItems.first().click();
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
       }
 
       // Try again after selecting
@@ -239,15 +334,15 @@ test.describe.serial("Exam PDF upload flow", () => {
 
     if (btnVisible) {
       await uploadBtn.click();
-      await page.waitForTimeout(1000);
 
       // Verify modal opened
-      const modalTitle = page.locator("text=시험지 PDF 업로드").first();
+      const modal = pdfUploadModal(page);
+      const modalTitle = modal.locator(".modal-header").filter({ hasText: "시험지 PDF 업로드" }).first();
       await expect(modalTitle).toBeVisible({ timeout: 5000 });
       console.log("  ExamPdfUploadModal opened successfully");
 
       // Verify FileUploadZone exists
-      const uploadZone = page.locator("text=PDF, PNG, JPG").first();
+      const uploadZone = modal.getByText(/PDF, PNG, JPG/).first();
       await expect(uploadZone).toBeVisible({ timeout: 3000 });
       console.log("  FileUploadZone visible in modal");
 
@@ -255,10 +350,10 @@ test.describe.serial("Exam PDF upload flow", () => {
       await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-modal.png" });
 
       // Close modal
-      const closeBtn = page.locator("button").filter({ hasText: /닫기/ }).first();
+      const closeBtn = modal.locator("button").filter({ hasText: /닫기/ }).first();
       if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await closeBtn.click();
-        await page.waitForTimeout(500);
+        await expect(modal).toBeHidden({ timeout: 5000 });
       }
     } else {
       console.log("  Upload button not found — taking screenshot for debugging");
@@ -284,14 +379,14 @@ test.describe.serial("Exam PDF upload flow", () => {
     }
 
     await uploadBtn.click();
-    await page.waitForTimeout(1000);
 
     // Verify modal opened
-    const modalHeader = page.locator("text=시험지 PDF 업로드").first();
+    const modal = pdfUploadModal(page);
+    const modalHeader = modal.locator(".modal-header").filter({ hasText: "시험지 PDF 업로드" }).first();
     await expect(modalHeader).toBeVisible({ timeout: 5000 });
 
     // Upload a file via input[type=file]
-    const fileInput = page.locator('input[type="file"]').first();
+    const fileInput = modal.locator('input[type="file"]').first();
     await expect(fileInput).toBeAttached({ timeout: 3000 });
 
     const pdfContent = Buffer.from(
@@ -303,48 +398,44 @@ test.describe.serial("Exam PDF upload flow", () => {
       mimeType: "application/pdf",
       buffer: pdfContent,
     });
-    await page.waitForTimeout(500);
 
     // Click "업로드" button in modal footer
-    const submitBtn = page.locator("button").filter({ hasText: /^업로드$/ }).first();
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await submitBtn.click();
+    const submitBtn = modal.locator("button").filter({ hasText: /업로드/ }).first();
+    await expect(submitBtn).toBeVisible({ timeout: 5000 });
+    await submitBtn.click();
 
-      // Verify progress display: "시험지 업로드 중…" or "업로드 완료"
-      const uploadingText = page.locator("text=시험지 업로드 중…").first();
-      const doneText = page.locator("text=업로드 완료").first();
-      const failedText = page.locator("text=업로드 실패").first();
+    // Verify progress display: upload, AI processing, done, or failed.
+    const uploadingText = modal.getByText("시험지 업로드 중…").first();
+    const processingText = modal.getByText("AI 문항 분할 처리 중…").first();
+    const doneText = modal.getByText("문항 분할 완료").first();
+    const failedText = modal.getByText("처리 실패").first();
 
-      // Wait for either progress or result
-      await expect(uploadingText.or(doneText).or(failedText)).toBeVisible({ timeout: 15000 });
+    // Wait for either progress or result
+    await expect(uploadingText.or(processingText).or(doneText).or(failedText)).toBeVisible({ timeout: 15000 });
 
-      if (await doneText.isVisible({ timeout: 10000 }).catch(() => false)) {
-        console.log("  Upload completed successfully");
+    if (await doneText.isVisible({ timeout: 10000 }).catch(() => false)) {
+      console.log("  Upload completed successfully");
 
-        // Verify success detail
-        const successMsg = page.locator("text=시험지 PDF가 자산으로 저장되었습니다").first();
-        const msgVisible = await successMsg.isVisible({ timeout: 3000 }).catch(() => false);
-        if (msgVisible) console.log("  Success message displayed");
+      // Verify success detail
+      const successMsg = modal.getByText(/인식된 문항 수|문항 목록에서 결과/).first();
+      const msgVisible = await successMsg.isVisible({ timeout: 3000 }).catch(() => false);
+      if (msgVisible) console.log("  Success message displayed");
 
-        // Take success screenshot
-        await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-done.png" });
+      // Take success screenshot
+      await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-done.png" });
 
-        // Close modal
-        const confirmBtn = page.locator("button").filter({ hasText: /확인/ }).first();
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmBtn.click();
-          await page.waitForTimeout(500);
-        }
-      } else if (await failedText.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Upload failed - could be due to template not being editable
-        const errorEl = page.locator("[class*='error'], .text-\\[var\\(--color-error\\)\\]").first();
-        const errorText = await errorEl.textContent().catch(() => "unknown error");
-        console.log(`  Upload failed: ${errorText}`);
-        await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-failed.png" });
+      // Close modal
+      const confirmBtn = modal.locator("button").filter({ hasText: /확인/ }).first();
+      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await confirmBtn.click();
+        await expect(modal).toBeHidden({ timeout: 5000 });
       }
-    } else {
-      console.log("  Submit button not found in modal");
-      await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-no-submit.png" });
+    } else if (await failedText.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Upload failed - could be due to template not being editable
+      const errorEl = modal.locator("[class*='error'], .text-\\[var\\(--color-error\\)\\]").first();
+      const errorText = await errorEl.textContent().catch(() => "unknown error");
+      console.log(`  Upload failed: ${errorText}`);
+      await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-failed.png" });
     }
   });
 
@@ -360,10 +451,10 @@ test.describe.serial("Exam PDF upload flow", () => {
     console.log(`  GET /exams/${examIdForQuery}/assets/ → ${resp.status}`);
 
     if (resp.status === 200) {
-      const assets: any[] = Array.isArray(resp.body) ? resp.body : [];
+      const assets = listOf<ExamAsset>(resp.body, isExamAsset);
       console.log(`  Assets count: ${assets.length}`);
 
-      const pdfAsset = assets.find((a: any) => a.asset_type === "problem_pdf");
+      const pdfAsset = assets.find((a) => a.asset_type === "problem_pdf");
       if (pdfAsset) {
         expect(pdfAsset.file_key).toBeTruthy();
         console.log(`  problem_pdf found: ${pdfAsset.file_key}`);
@@ -379,16 +470,6 @@ test.describe.serial("Exam PDF upload flow", () => {
   // 8. Cleanup
   // ══════════════════════════════════════════════════════
   test("8. Cleanup test data", async () => {
-    if (createdRegular && regularExamId) {
-      const r = await apiCall(page, "DELETE", `/exams/${regularExamId}/`);
-      console.log(`  Cleanup regular exam ${regularExamId}: ${r.status}`);
-    }
-    // Template cleanup: may fail if derived exams exist, that's OK
-    if (createdTemplate && templateExamId) {
-      const r = await apiCall(page, "DELETE", `/exams/${templateExamId}/`);
-      console.log(`  Cleanup template exam ${templateExamId}: ${r.status}`);
-    }
-
-    await page.context().close();
+    await cleanupTestData();
   });
 });
