@@ -25,7 +25,6 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
-    await page.waitForTimeout(1500);
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/01-sidebar.png`,
       fullPage: true,
@@ -37,7 +36,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
     await link.click();
 
     await page.waitForURL(/\/admin\/hit-reports/, { timeout: 30_000 });
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/02-hit-reports-page.png`,
       fullPage: true,
@@ -52,7 +51,6 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
-    await page.waitForTimeout(2000);
 
     // alert banner 확인 (draft 1건 이상이면 표시)
     const banner = page.getByText(/작성중 \d+건/);
@@ -68,7 +66,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
       await firstCard.click();
       // 매치업 페이지로 navigate + editor 오픈
       await page.waitForURL(/\/admin\/storage\/matchup/, { timeout: 30_000 });
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await page.screenshot({
         path: `${SCREENSHOT_DIR}/03-editor-opened.png`,
         fullPage: true,

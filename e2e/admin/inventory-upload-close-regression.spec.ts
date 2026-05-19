@@ -21,13 +21,13 @@ async function openInventoryUploadModal(page: import("@playwright/test").Page) {
     waitUntil: "load",
     timeout: 20_000,
   });
-  await page.waitForTimeout(1500);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
   await page.getByRole("button", { name: /^저장소$/ }).click();
-  await page.waitForTimeout(800);
+  await expect(page.getByRole("button", { name: /^추가$/ })).toBeVisible({ timeout: 5_000 });
   await page.getByRole("button", { name: /^추가$/ }).click();
-  await page.waitForTimeout(300);
+  await expect(page.getByText("파일 업로드")).toBeVisible({ timeout: 5_000 });
   await page.getByText("파일 업로드").click();
-  await page.waitForTimeout(500);
+  await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 5_000 });
 }
 
 test.describe("UploadModal close 회귀 (mock)", () => {
@@ -49,7 +49,7 @@ test.describe("UploadModal close 회귀 (mock)", () => {
 
     const fileInput = page.locator('input[type="file"]').first();
     await fileInput.setInputFiles([PDF]);
-    await page.waitForTimeout(400);
+    await expect(fileList).toBeVisible({ timeout: 5_000 });
 
     await page.getByRole("button", { name: /^업로드$/ }).click();
     // 단일 파일도 succeeded === files.length(=1) 조건으로 close
@@ -75,12 +75,12 @@ test.describe("UploadModal close 회귀 (mock)", () => {
 
     const fileInput = page.locator('input[type="file"]').first();
     await fileInput.setInputFiles([PDF, PDF, PDF]);
-    await page.waitForTimeout(400);
+    await expect(fileList).toBeVisible({ timeout: 5_000 });
 
     // "3개 업로드" 버튼 클릭
     await page.getByRole("button", { name: /3개 업로드/ }).click();
-    // 첫 파일 끝난 후 ~250ms 시점에서도 모달은 보여야 함 (close 회귀 방지)
-    await page.waitForTimeout(400);
+    // 첫 파일이 끝난 뒤에도 모달은 보여야 함 (close 회귀 방지)
+    await expect(page.getByRole("button", { name: /업로드 중.*\d\/3/ })).toBeVisible({ timeout: 5_000 });
     await expect(fileList).toBeVisible();
     // 진행률 라벨 노출 (n/3)
     await expect(page.getByRole("button", { name: /업로드 중.*\d\/3/ })).toBeVisible({ timeout: 5_000 });
@@ -116,11 +116,11 @@ test.describe("UploadModal close 회귀 (mock)", () => {
 
     const fileInput = page.locator('input[type="file"]').first();
     await fileInput.setInputFiles([PDF, PDF]);
-    await page.waitForTimeout(400);
+    await expect(fileList).toBeVisible({ timeout: 5_000 });
 
     await page.getByRole("button", { name: /2개 업로드/ }).click();
     // 부분 실패 → 모달은 유지되어야 함
-    await page.waitForTimeout(2000);
+    await expect(page.getByText("mock 실패")).toBeVisible({ timeout: 10_000 });
     await expect(fileList).toBeVisible();
 
     // 사용자가 명시적으로 닫음

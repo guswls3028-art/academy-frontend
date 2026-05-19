@@ -30,7 +30,6 @@ for (const r of REPORTS) {
     await draftPromise.catch(() => {});
     // 응답 후 React state 반영 + image presigned URL 로드 대기.
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
 
     await page.screenshot({
       path: `test-results/tchul-report-${r.reportId}-overview.png`,
@@ -43,7 +42,7 @@ for (const r of REPORTS) {
     const total = await qRows.count();
     for (let i = 0; i < Math.min(3, total); i++) {
       await qRows.nth(i).click().catch(() => {});
-      await page.waitForTimeout(1200);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await page.screenshot({
         path: `test-results/tchul-report-${r.reportId}-q${i + 1}.png`,
         fullPage: false,
