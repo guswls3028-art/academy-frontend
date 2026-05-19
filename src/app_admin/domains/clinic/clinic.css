@@ -942,6 +942,14 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+.clinic-create__field--grow {
+  flex: 1;
+  min-width: 0;
+}
+.clinic-create__field--capacity {
+  flex: 0 0 120px;
+  min-width: 120px;
+}
 .clinic-create__label {
   font-size: 13px;
   font-weight: 600;
@@ -1076,6 +1084,23 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+.clinic-create__filter-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.clinic-create__filter-chip--active {
+  font-weight: 600;
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
 .clinic-create__filter-reset {
   align-self: flex-end;
   font-size: 12px;
@@ -1089,6 +1114,17 @@
 }
 .clinic-create__filter-reset:hover {
   color: var(--color-text-primary);
+}
+.clinic-create__select-full {
+  width: 100%;
+}
+.clinic-create__select-min {
+  min-width: 0;
+}
+.clinic-create__section-empty-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
 
 /* 대상자 선택 row */

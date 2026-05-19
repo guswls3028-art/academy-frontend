@@ -15,7 +15,6 @@ import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessio
 import { fetchLectures, type Lecture } from "@admin/domains/lectures/api/sessions";
 import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
-import type { EnrollmentSelection, StudentSelection } from "@/shared/types/selection";
 import { buildParticipantPayload } from "../utils/buildParticipantPayload";
 
 import api from "@/shared/api/axios";
@@ -93,23 +92,46 @@ function toHHmmss(s: string): string {
   return `${h.padStart(2, "0")}:${m}:00`;
 }
 
-const filterBtnStyle = (active: boolean) => ({
-  padding: "4px 10px",
-  fontSize: 12,
-  fontWeight: active ? 600 : 500,
-  borderRadius: 6,
-  border: `1px solid ${active ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
-  background: active
-    ? "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))"
-    : "var(--color-bg-surface)",
-  color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
-  cursor: "pointer",
-  transition: "background-color 0.15s, color 0.15s, border-color 0.15s",
-});
+const filterChipClass = (active: boolean) =>
+  active
+    ? "clinic-create__filter-chip clinic-create__filter-chip--active"
+    : "clinic-create__filter-chip";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
+function stringifyValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  const json = JSON.stringify(value);
+  return json ?? String(value);
+}
+
+function formatDetailItem(item: unknown): string {
+  if (isRecord(item) && typeof item.msg === "string") return item.msg;
+  return stringifyValue(item);
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!isRecord(error) || !isRecord(error.response)) return fallback;
+  const res = error.response.data;
+  if (!res) return fallback;
+  if (!isRecord(res)) return stringifyValue(res);
+
+  const detail = res.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map(formatDetailItem).join(", ");
+  if (isRecord(detail)) return JSON.stringify(detail);
+
+  const parts = Object.entries(res).map(([k, v]) => {
+    const valueText = Array.isArray(v) ? v.map(stringifyValue).join(", ") : stringifyValue(v);
+    return `${k}: ${valueText}`;
+  });
+  return parts.length ? parts.join(" · ") : fallback;
+}
 
 type Props = {
   date?: string;
-  defaultMode?: "targets" | "students";
   hideDatePicker?: boolean;
   selectedTargetEnrollmentIds?: number[];
   onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
@@ -136,7 +158,6 @@ type Props = {
 
 export default function ClinicCreatePanel({
   date,
-  defaultMode = "targets",
   hideDatePicker = false,
   selectedTargetEnrollmentIds,
   onChangeSelectedTargetEnrollmentIds,
@@ -207,7 +228,7 @@ export default function ClinicCreatePanel({
 
   const setSelected = (next: number[] | ((prev: number[]) => number[])) => {
     const resolved =
-      typeof next === "function" ? (next as any)(selected) : next;
+      typeof next === "function" ? next(selected) : next;
     if (mode === "targets" && onChangeSelectedTargetEnrollmentIds) {
       onChangeSelectedTargetEnrollmentIds(resolved);
       return;
@@ -311,23 +332,8 @@ export default function ClinicCreatePanel({
         qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
         qc.invalidateQueries({ queryKey: ["clinic-participants"] });
         onUpdated?.();
-      } catch (e: any) {
-        const res = e?.response?.data;
-        let detail = "클리닉을 수정하지 못했습니다.";
-        if (res) {
-          if (typeof res.detail === "string") detail = res.detail;
-          else if (Array.isArray(res.detail))
-            detail = res.detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ");
-          else if (res.detail && typeof res.detail === "object")
-            detail = JSON.stringify(res.detail);
-          else if (typeof res === "object" && !res.detail) {
-            const parts = Object.entries(res).map(
-              ([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
-            );
-            if (parts.length) detail = parts.join(" · ");
-          }
-        }
-        message.error(detail);
+      } catch (e: unknown) {
+        message.error(apiErrorMessage(e, "클리닉을 수정하지 못했습니다."));
       }
       return;
     }
@@ -385,23 +391,8 @@ export default function ClinicCreatePanel({
         queryFn: () => fetchClinicSessionTree({ year: y, month: m }),
       });
       onCreated?.(selectedDate.format("YYYY-MM-DD"));
-    } catch (e: any) {
-      const res = e?.response?.data;
-      let detail = "클리닉을 만들지 못했습니다.";
-      if (res) {
-        if (typeof res.detail === "string") detail = res.detail;
-        else if (Array.isArray(res.detail))
-          detail = res.detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ");
-        else if (res.detail && typeof res.detail === "object")
-          detail = JSON.stringify(res.detail);
-        else if (typeof res === "object" && !res.detail) {
-          const parts = Object.entries(res).map(
-            ([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
-          );
-          if (parts.length) detail = parts.join(" · ");
-        }
-      }
-      message.error(detail);
+    } catch (e: unknown) {
+      message.error(apiErrorMessage(e, "클리닉을 만들지 못했습니다."));
     }
   };
 
@@ -565,11 +556,11 @@ export default function ClinicCreatePanel({
             options={clinicSectionOptions}
             loading={clinicSectionsQ.isLoading}
             allowClear
-            style={{ width: "100%" }}
+            className="clinic-create__select-full"
             size="small"
           />
           {clinicSectionOptions.length === 0 && !clinicSectionsQ.isLoading && (
-            <div className="text-[11px]" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+            <div className="clinic-create__section-empty-hint">
               클리닉반이 아직 없습니다. 강의 상세 → 반 편성에서 먼저 생성하세요.
             </div>
           )}
@@ -593,7 +584,7 @@ export default function ClinicCreatePanel({
 
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
-        <div className="clinic-create__field" style={{ flex: 1 }}>
+        <div className="clinic-create__field clinic-create__field--grow">
           <label className="clinic-create__label">제목 (선택)</label>
           <Input
             placeholder="예: 수학 보충"
@@ -603,7 +594,7 @@ export default function ClinicCreatePanel({
             size="small"
           />
         </div>
-        <div className="clinic-create__field" style={{ flex: 0, minWidth: 120 }}>
+        <div className="clinic-create__field clinic-create__field--capacity">
           <label className="clinic-create__label">정원</label>
           <div className="clinic-create__capacity-row">
             <div className="clinic-capacity-stepper">
@@ -689,7 +680,7 @@ export default function ClinicCreatePanel({
           className="clinic-create__collapse-trigger"
           onClick={() => setShowFilters((v) => !v)}
         >
-          <span className="clinic-create__label" style={{ margin: 0 }}>대상 조건</span>
+          <span className="clinic-create__label">대상 조건</span>
           {hasActiveFilter && (
             <span className="clinic-create__filter-badge">{filterSummary}</span>
           )}
@@ -720,7 +711,7 @@ export default function ClinicCreatePanel({
                     key={g ?? "all"}
                     type="button"
                     onClick={() => setTargetGrade(g as number | null)}
-                    style={filterBtnStyle(targetGrade === g)}
+                    className={filterChipClass(targetGrade === g)}
                   >
                     {g === null ? "전체" : `${g}학년`}
                   </button>
@@ -737,7 +728,7 @@ export default function ClinicCreatePanel({
                     key={s ?? "all"}
                     type="button"
                     onClick={() => setTargetSchoolType(s)}
-                    style={filterBtnStyle(targetSchoolType === s)}
+                    className={filterChipClass(targetSchoolType === s)}
                   >
                     {s === null ? "전체" : slm.getLabel(s)}
                   </button>
@@ -758,11 +749,10 @@ export default function ClinicCreatePanel({
                   value: l.id,
                 }))}
                 loading={lecturesQ.isLoading}
-                className="flex-1 min-w-0"
+                className="clinic-create__select-min flex-1 min-w-0"
                 maxTagCount={2}
                 maxTagPlaceholder={(omitted) => `+${omitted.length}개`}
                 allowClear
-                style={{ minWidth: 0 }}
                 size="small"
               />
             </div>
