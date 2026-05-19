@@ -12,7 +12,7 @@ const MAX_HEIGHT = 1920;
 export async function compressImageToWebP(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {

@@ -25,7 +25,6 @@ const STAFF_MAIN_TABS = [
 ];
 
 const PAYROLL_ROUTES = ["attendance", "expenses", "month-lock", "payroll-snapshot", "reports"];
-const SETTINGS_ROUTE = "settings";
 
 function isPayrollRoute(pathname: string) {
   return PAYROLL_ROUTES.some(

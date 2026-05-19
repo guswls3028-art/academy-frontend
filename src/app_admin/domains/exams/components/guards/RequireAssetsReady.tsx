@@ -1,7 +1,6 @@
 import { ExamAsset } from "../../api/assets";
 
 export default function RequireAssetsReady({
-  assets,
   children,
 }: {
   assets: ExamAsset[];

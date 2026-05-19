@@ -176,9 +176,6 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
   const homeworks = meta.homeworks ?? [];
   const hasAttendance = attendanceMap && Object.keys(attendanceMap).length > 0;
 
-  // 컬럼 수 계산 (번호 + 이름 + 출결 + 시험들 + 과제들 + 판정)
-  const colCount = 2 + (hasAttendance ? 1 : 0) + exams.length * 2 + homeworks.length + 1;
-
   // Group headers
   let groupRow = "";
   groupRow += `<th class="group-header" rowspan="2" style="width:30px">No</th>`;
