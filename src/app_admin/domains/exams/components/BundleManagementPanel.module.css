@@ -1,0 +1,13 @@
+.errorHint {
+  color: var(--color-error);
+  font-weight: 700;
+}
+
+.modalBody :global(.modal-form-group) {
+  background: var(--color-bg-surface);
+}
+
+.templateList {
+  max-height: 200px;
+  overflow-y: auto;
+}

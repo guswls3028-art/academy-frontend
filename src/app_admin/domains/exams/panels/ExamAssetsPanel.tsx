@@ -13,6 +13,7 @@ import { useExamAssets } from "../hooks/useExamAssets";
 import AssetUploadSection from "../components/assets/AssetUploadSection";
 import ExamPdfUploadModal from "../components/ExamPdfUploadModal";
 import BlockReason from "../components/BlockReason";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function ExamAssetsPanel({ examId }: { examId: number }) {
   const { data: exam } = useAdminExam(examId);
@@ -34,9 +35,7 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
       {q.isError && (
         <BlockReason
           title="파일을 불러오지 못했습니다"
-          description={
-            String((q.error as any)?.response?.data?.detail || "자산 정보를 불러오지 못했습니다.")
-          }
+          description={extractApiError(q.error, "자산 정보를 불러오지 못했습니다.")}
         />
       )}
 

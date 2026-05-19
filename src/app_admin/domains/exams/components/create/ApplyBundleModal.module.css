@@ -1,0 +1,9 @@
+.errorHint {
+  color: var(--color-error);
+  font-weight: 700;
+}
+
+.bundleList {
+  max-height: 360px;
+  overflow-y: auto;
+}

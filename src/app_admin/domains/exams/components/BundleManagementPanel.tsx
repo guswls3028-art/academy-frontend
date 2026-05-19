@@ -12,6 +12,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchBundles,
   createBundle,
@@ -22,6 +23,7 @@ import {
 } from "../api/templateBundles";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "../api/templatesWithUsage";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "@admin/domains/homework/api/adminHomework";
+import styles from "./BundleManagementPanel.module.css";
 
 export default function BundleManagementPanel() {
   const qc = useQueryClient();
@@ -320,15 +322,15 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
     try {
       const data = { name: name.trim(), description: description.trim(), items };
       if (isEdit) {
-        await updateBundle(bundle!.id, data);
+        await updateBundle(bundle.id, data);
         feedback.success("묶음이 수정되었습니다.");
       } else {
         await createBundle(data);
         feedback.success("묶음이 생성되었습니다.");
       }
       onSaved();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "저장에 실패했습니다.");
+    } catch (e: unknown) {
+      setError(extractApiError(e, "저장에 실패했습니다."));
     } finally {
       setSubmitting(false);
     }
@@ -344,9 +346,9 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
         description="시험/과제 템플릿을 선택하여 묶음을 구성합니다."
       />
       <ModalBody>
-        <div className="modal-scroll-body space-y-4">
+        <div className={`modal-scroll-body space-y-4 ${styles.modalBody}`}>
           {error && (
-            <div className="modal-hint modal-hint--block" style={{ color: "var(--color-error)", fontWeight: 700 }}>
+            <div className={`modal-hint modal-hint--block ${styles.errorHint}`}>
               {error}
             </div>
           )}
@@ -471,7 +473,7 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
                 {loadingTemplates && <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>}
 
                 {!loadingTemplates && (
-                  <div className="grid gap-1.5" style={{ maxHeight: 200, overflowY: "auto" }}>
+                  <div className={`grid gap-1.5 ${styles.templateList}`}>
                     {addTab === "exam" && filteredExamTemplates.map((t) => {
                       const checked = selectedExamIds.has(t.id);
                       return (

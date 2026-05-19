@@ -43,7 +43,13 @@ export type BundleCreateInput = {
 export type ApplyBundleResult = {
   created_exams: { id: number; title: string }[];
   created_homeworks: { id: number; title: string }[];
+  skipped_items: {
+    item_id: number;
+    item_type: "exam" | "homework";
+    reason: string;
+  }[];
   total: number;
+  enrolled_students: number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -116,12 +122,23 @@ function normalizeAppliedItem(value: unknown): { id: number; title: string } {
   };
 }
 
+function normalizeSkippedItem(value: unknown): ApplyBundleResult["skipped_items"][number] {
+  const row = isRecord(value) ? value : {};
+  return {
+    item_id: toNumber(row.item_id),
+    item_type: toItemType(row.item_type),
+    reason: toStringValue(row.reason),
+  };
+}
+
 function normalizeApplyBundleResult(value: unknown): ApplyBundleResult {
   const row = isRecord(value) ? value : {};
   return {
     created_exams: listPayload(row.created_exams).map(normalizeAppliedItem),
     created_homeworks: listPayload(row.created_homeworks).map(normalizeAppliedItem),
+    skipped_items: listPayload(row.skipped_items).map(normalizeSkippedItem),
     total: toNumber(row.total),
+    enrolled_students: toNumber(row.enrolled_students),
   };
 }
 

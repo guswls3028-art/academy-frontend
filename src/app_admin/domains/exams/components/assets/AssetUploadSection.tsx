@@ -8,6 +8,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 type Props = {
   examId: number;
@@ -26,6 +27,17 @@ function humanizeBytes(bytes: number) {
     i += 1;
   }
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function getResponseStatus(error: unknown): number | undefined {
+  const status = (error as { response?: { status?: unknown } })?.response?.status;
+  return typeof status === "number" ? status : undefined;
+}
+
+function uploadErrorFallback(status: number | undefined): string {
+  if (status === 403) return "권한이 없습니다. 운영 시험은 파일을 수정할 수 없습니다.";
+  if (status === 400) return "요청 값이 올바르지 않습니다.";
+  return "업로드에 실패했습니다. 파일을 확인하고 다시 시도해 주세요.";
 }
 
 export default function AssetUploadSection({
@@ -69,28 +81,11 @@ export default function AssetUploadSection({
       setDoneMsg("업로드 완료");
       setFile(null);
 
-      // ✅ 즉시 반영
+      // 즉시 반영
       await qc.invalidateQueries({ queryKey: ["exam-assets", examId] });
-    } catch (e: any) {
-      const status = e?.response?.status;
-      const detail = e?.response?.data?.detail;
-
-      // 백엔드 봉인 메시지/권한/검증 메시지를 가능한 그대로 노출
-      let msg =
-        detail ||
-        "업로드에 실패했습니다. 파일을 확인하고 다시 시도해 주세요.";
-
-      if (status === 403) {
-        msg =
-          detail ||
-          "권한이 없습니다. 운영 시험은 파일을 수정할 수 없습니다.";
-      }
-
-      if (status === 400) {
-        msg = detail || "요청 값이 올바르지 않습니다.";
-      }
-
-      setError(String(msg));
+    } catch (e: unknown) {
+      const status = getResponseStatus(e);
+      setError(extractApiError(e, uploadErrorFallback(status)));
     } finally {
       setSubmitting(false);
     }

@@ -11,7 +11,9 @@ import { Package } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { fetchBundles, applyBundle, type TemplateBundle } from "../../api/templateBundles";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { fetchBundles, applyBundle } from "../../api/templateBundles";
+import styles from "./ApplyBundleModal.module.css";
 
 type Props = {
   open: boolean;
@@ -38,8 +40,6 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
     setSubmitting(false);
   }, [open]);
 
-  const selected = bundles.find((b) => b.id === selectedId) ?? null;
-
   const handleApply = async () => {
     if (!selectedId || !sessionId) return;
 
@@ -50,15 +50,15 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
       const examIds = result.created_exams.map((e) => e.id);
       const hwIds = result.created_homeworks.map((h) => h.id);
 
-      const skipped = (result as any).skipped_items?.length ?? 0;
+      const skipped = result.skipped_items.length;
       const msg = `묶음 적용 완료: 시험 ${result.created_exams.length}개, 과제 ${result.created_homeworks.length}개 생성` +
         (skipped > 0 ? ` (삭제된 템플릿 ${skipped}개 건너뜀)` : "");
       if (skipped > 0) feedback.warning(msg);
       else feedback.success(msg);
       onApplied({ examIds: examIds, homeworkIds: hwIds });
       onClose();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "묶음 적용에 실패했습니다.");
+    } catch (e: unknown) {
+      setError(extractApiError(e, "묶음 적용에 실패했습니다."));
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +76,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact">
           {error && (
-            <div className="modal-hint modal-hint--block" style={{ color: "var(--color-error)", fontWeight: 700 }}>
+            <div className={`modal-hint modal-hint--block ${styles.errorHint}`}>
               {error}
             </div>
           )}
@@ -96,7 +96,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
           {!isLoading && bundles.length > 0 && (
             <div className="modal-form-group">
               <label className="modal-section-label">묶음 선택</label>
-              <div className="grid gap-2" style={{ maxHeight: 360, overflowY: "auto" }}>
+              <div className={`grid gap-2 ${styles.bundleList}`}>
                 {bundles.map((bundle) => {
                   const active = bundle.id === selectedId;
                   return (
