@@ -16,6 +16,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import styles from "./ExamSubmissionsPanel.module.css";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -106,8 +107,9 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
         {rows.length > 0 && (
           <div className="rounded-lg border border-[var(--color-border-divider)] divide-y divide-[var(--color-border-divider)]">
             {rows.map((r) => {
-              const tone = (SUBMISSION_STATUS_TONE as any)[r.status] ?? "neutral";
-              const statusLabel = (SUBMISSION_STATUS_LABEL as any)[r.status] ?? r.status;
+              const tone = SUBMISSION_STATUS_TONE[r.status];
+              const statusLabel = SUBMISSION_STATUS_LABEL[r.status];
+              const fileKey = r.file_key ?? "";
               return (
                 <div
                   key={r.id}
@@ -120,16 +122,12 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
                     avatarSize={32}
                     lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
                     chipSize={18}
-                    clinicHighlight={(r as any).name_highlight_clinic_target === true}
+                    clinicHighlight={r.name_highlight_clinic_target === true}
                   />
 
                   {/* 시+시험명 뱃지 */}
                   <span
-                    className="flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-                    style={{
-                      background: "var(--color-bg-surface-soft)",
-                      color: "var(--color-text-secondary)",
-                    }}
+                    className={`flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded ${styles.examBadge}`}
                   >
                     시 {examTitle}
                   </span>
@@ -161,12 +159,12 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
                   </span>
 
                   {/* 파일 보기 버튼 */}
-                  {r.file_key && (
+                  {fileKey && (
                     <Button
                       type="button"
                       intent="ghost"
                       size="sm"
-                      onClick={() => handleViewFile(r.file_key!)}
+                      onClick={() => handleViewFile(fileKey)}
                     >
                       보기
                     </Button>

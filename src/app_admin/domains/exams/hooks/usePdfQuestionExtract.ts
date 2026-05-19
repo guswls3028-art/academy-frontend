@@ -13,6 +13,7 @@ import { useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export type PdfExtractStatus =
   | "idle"
@@ -33,6 +34,64 @@ export type PdfExtractResult = {
   explanationCount: number;
   pageCount: number;
 } | null;
+
+type JobStatusPayload = {
+  status?: string;
+  progress?: PdfExtractProgress | null;
+  result?: Exclude<PdfExtractResult, null>;
+  errorMessage?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeProgress(value: unknown): PdfExtractProgress | null {
+  const record = asRecord(value);
+  if (Object.keys(record).length === 0) return null;
+  return {
+    percent: asNumber(record.percent) ?? 0,
+    stepName: asString(record.step_name_display),
+    stepIndex: asNumber(record.step_index),
+    stepTotal: asNumber(record.step_total),
+  };
+}
+
+function normalizeResult(value: unknown): Exclude<PdfExtractResult, null> {
+  const record = asRecord(value);
+  const boxes = Array.isArray(record.boxes) ? record.boxes : [];
+  const explanations = Array.isArray(record.explanations) ? record.explanations : [];
+  const matchedExplanations = explanations.filter((item) => {
+    const explanation = asRecord(item);
+    return explanation.question_number != null;
+  });
+
+  return {
+    totalQuestions: asNumber(record.total_questions) ?? boxes.length,
+    explanationCount: matchedExplanations.length,
+    pageCount: asNumber(record.page_count) ?? 1,
+  };
+}
+
+function normalizeJobStatus(value: unknown): JobStatusPayload {
+  const record = asRecord(value);
+  return {
+    status: asString(record.status),
+    progress: normalizeProgress(record.progress),
+    result: normalizeResult(record.result),
+    errorMessage: asString(record.error_message),
+  };
+}
 
 export function usePdfQuestionExtract(examId: number) {
   const qc = useQueryClient();
@@ -69,34 +128,26 @@ export function usePdfQuestionExtract(examId: number) {
 
         try {
           const resp = await api.get(`/jobs/${jobId}/`);
-          const data = resp.data;
+          const data = normalizeJobStatus(resp.data);
 
           // 진행률 업데이트
           if (data.progress) {
-            setProgress({
-              percent: data.progress.percent ?? 0,
-              stepName: data.progress.step_name_display,
-              stepIndex: data.progress.step_index,
-              stepTotal: data.progress.step_total,
-            });
+            setProgress(data.progress);
           }
 
           if (data.status === "DONE") {
             stopPolling();
             setStatus("done");
 
-            const r = data.result || {};
-            const matchedExplanations = (r.explanations ?? []).filter(
-              (e: { question_number?: number | null }) => e.question_number != null,
-            );
-            setResult({
-              totalQuestions: r.total_questions ?? r.boxes?.length ?? 0,
-              explanationCount: matchedExplanations.length,
-              pageCount: r.page_count ?? 1,
-            });
+            const resultPayload = data.result ?? {
+              totalQuestions: 0,
+              explanationCount: 0,
+              pageCount: 1,
+            };
+            setResult(resultPayload);
 
             feedback.success(
-              `문항 분할 완료: ${r.total_questions ?? r.boxes?.length ?? 0}개 문항 인식`
+              `문항 분할 완료: ${resultPayload.totalQuestions}개 문항 인식`
             );
 
             // 캐시 무효화 → 문항 목록·자산 자동 갱신
@@ -110,7 +161,7 @@ export function usePdfQuestionExtract(examId: number) {
           ) {
             stopPolling();
             setStatus("failed");
-            const msg = data.error_message || "문항 분할 처리 실패";
+            const msg = data.errorMessage || "문항 분할 처리 실패";
             setError(msg);
             feedback.error(msg);
           }
@@ -160,7 +211,7 @@ export function usePdfQuestionExtract(examId: number) {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
-        const jobId = extractResp.data?.job_id;
+        const jobId = asString(asRecord(extractResp.data).job_id);
         if (!jobId) {
           throw new Error("AI job 제출 실패: job_id를 받지 못했습니다.");
         }
@@ -170,11 +221,10 @@ export function usePdfQuestionExtract(examId: number) {
         setProgress({ percent: 15, stepName: "AI 문항 분할 시작" });
         feedback.info("AI가 문항을 분석 중입니다...");
         pollJobStatus(jobId);
-      } catch (e: any) {
+      } catch (e: unknown) {
         stopPolling();
         setStatus("failed");
-        const detail = e?.response?.data?.detail;
-        const msg = detail ?? e?.message ?? "시험지 처리 실패";
+        const msg = extractApiError(e, "시험지 처리 실패");
         setError(msg);
         feedback.error(msg);
       }

@@ -1,0 +1,19 @@
+.targetWarning {
+  border: 1px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface));
+  color: var(--color-warning);
+}
+
+.targetWarningIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.targetWarningText {
+  color: var(--color-text-primary);
+}
+
+.selectionSummary {
+  border-color: var(--color-border-divider);
+  background: var(--bg-surface-soft);
+}

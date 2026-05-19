@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+import { AlertTriangle } from "lucide-react";
 import { useSessionParams } from "@admin/domains/sessions/hooks/useSessionParams";
 import {
   useExamEnrollmentRows,
@@ -20,6 +21,7 @@ import type { EnrollmentRow } from "@admin/domains/sessions/components/enrollmen
 import EnrollmentManageModal from "@admin/domains/sessions/components/enrollment/EnrollmentManageModal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import styles from "./ExamEnrollmentPanel.module.css";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -33,7 +35,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const rowsQ = useExamEnrollmentRows(examId, sessionId);
   const updateMut = useUpdateExamEnrollmentRows(examId, sessionId);
 
-  const serverRows = rowsQ.data?.items ?? [];
+  const serverRows = useMemo(() => rowsQ.data?.items ?? [], [rowsQ.data?.items]);
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -57,7 +59,11 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const toggle = (enrollmentId: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(enrollmentId) ? next.delete(enrollmentId) : next.add(enrollmentId);
+      if (next.has(enrollmentId)) {
+        next.delete(enrollmentId);
+      } else {
+        next.add(enrollmentId);
+      }
       return next;
     });
   };
@@ -130,32 +136,19 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
         {!rowsQ.isLoading && selectedCountFromServer === 0 && (
           <div
             role="alert"
-            className="flex items-start gap-2 rounded px-3 py-2.5 text-sm"
-            style={{
-              border: "1px solid var(--color-warning)",
-              background: "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))",
-              color: "var(--color-warning)",
-            }}
+            className={`flex items-start gap-2 rounded px-3 py-2.5 text-sm ${styles.targetWarning}`}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
+            <AlertTriangle size={18} className={styles.targetWarningIcon} aria-hidden />
             <div className="flex-1 leading-relaxed">
               <div className="font-semibold">대상 학생이 0명입니다.</div>
-              <div className="text-xs mt-0.5" style={{ color: "var(--color-text-primary)" }}>
+              <div className={`text-xs mt-0.5 ${styles.targetWarningText}`}>
                 학생을 등록해야 시험 응시·성적 입력이 가능합니다. 아래 <b>이 시험에 일괄배정</b> 또는 <b>대상자 관리</b>로 등록하세요.
               </div>
             </div>
           </div>
         )}
         <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2"
-          style={{
-            borderColor: "var(--color-border-divider)",
-            background: "var(--bg-surface-soft)",
-          }}
+          className={`flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 ${styles.selectionSummary}`}
         >
           <div className="text-sm text-[var(--text-primary)]">
             선택됨{" "}

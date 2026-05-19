@@ -1,0 +1,4 @@
+.examBadge {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+}
