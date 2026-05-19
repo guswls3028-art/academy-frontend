@@ -13,7 +13,16 @@ import { apiCall } from "../helpers/api";
 import { TEST_RECIPIENT } from "../helpers/test-fixtures";
 
 const BASE = getBaseUrl("admin");
-const TS = Date.now();
+
+type ApiListBody<T> = { results?: T[] };
+type LectureSummary = { id: number; title?: string | null };
+type StudentSummary = { id: number; name?: string | null; ps_number?: string | null; phone?: string | null };
+
+function resultsOf<T>(body: unknown): T[] {
+  if (!body || typeof body !== "object") return [];
+  const results = (body as ApiListBody<T>).results;
+  return Array.isArray(results) ? results : [];
+}
 
 test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   let browser: Browser;
@@ -76,7 +85,9 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     // 이미 존재하면 기존 강의 사용
     if (lec.status !== 201) {
       const existingLecs = await apiCall(teacherPage, "GET", "/lectures/lectures/?page_size=50");
-      const existing = (existingLecs.body?.results || []).find((l: any) => l.title?.includes("0317"));
+      const existing = resultsOf<LectureSummary>(existingLecs.body).find((lecture) =>
+        lecture.title?.includes("0317"),
+      );
       if (existing) {
         console.log(`  기존 강의 사용: id=${existing.id}`);
         lec.body = existing;
@@ -88,7 +99,9 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
 
     // 수강생 등록 (학생 찾기)
     const stuList = await apiCall(teacherPage, "GET", "/students/?page_size=200");
-    const stu = (stuList.body?.results || []).find((s: any) => s.name === TEST_RECIPIENT.studentName);
+    const stu = resultsOf<StudentSummary>(stuList.body).find((student) =>
+      student.name === TEST_RECIPIENT.studentName,
+    );
     if (stu) {
       const enroll = await apiCall(teacherPage, "POST", "/lectures/enrollments/", {
         lecture: lec.body.id, student: stu.id,
@@ -150,7 +163,9 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
 
     // 학생 ps_number 확인 (API로 먼저 찾기)
     const stuList = await apiCall(teacherPage, "GET", "/students/?page_size=200");
-    const stu = (stuList.body?.results || []).find((s: any) => s.name === TEST_RECIPIENT.studentName);
+    const stu = resultsOf<StudentSummary>(stuList.body).find((student) =>
+      student.name === TEST_RECIPIENT.studentName,
+    );
     const psNumber = stu?.ps_number || stu?.phone || TEST_RECIPIENT.studentPhone;
     console.log(`  학생 아이디: ${psNumber}`);
 
