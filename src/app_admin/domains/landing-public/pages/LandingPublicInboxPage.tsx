@@ -27,6 +27,7 @@ import {
   type ReportTargetKind,
   type UserBlockEntry,
 } from "@/landing/api/publicCommunity";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 type Tab = "reviews" | "reports" | "blocks";
 
@@ -103,7 +104,6 @@ function TabButton({ on, onClick, label, badge, testid }: { on: boolean; onClick
 // ─────────────────────────────────────────────────────────
 function PendingReviewsPanel({ onChange }: { onChange: () => void }) {
   const [list, setList] = useState<PublicReview[] | null>(null);
-  const [pending, setPending] = useState<number | null>(null);
 
   const load = useCallback(() => {
     fetchReviewsList({ page: 1, page_size: 50, ordering: "latest" })
@@ -111,9 +111,8 @@ function PendingReviewsPanel({ onChange }: { onChange: () => void }) {
         // staff 시점 — 본인 학원의 pending 만 노출 (backend는 staff에게 모든 status 노출)
         const onlyPending = r.results.filter((x) => x.status === "pending");
         setList(onlyPending);
-        setPending(onlyPending.length);
       })
-      .catch(() => { setList([]); setPending(0); });
+      .catch(() => { setList([]); });
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -238,8 +237,8 @@ function BlocksPanel() {
       await blockUser(uid, reasonInput.trim());
       setUserIdInput(""); setReasonInput("");
       load();
-    } catch (e: any) {
-      window.alert(e?.response?.data?.detail || "차단 실패");
+    } catch (e: unknown) {
+      window.alert(extractApiError(e, "차단 실패"));
     }
   };
 

@@ -151,8 +151,17 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const { mutate, isPending } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
       if (isEditMode && lectureId != null) {
-        const { is_active, ...rest } = payload;
-        await updateLecture(lectureId, { ...rest });
+        await updateLecture(lectureId, {
+          title: payload.title,
+          name: payload.name,
+          subject: payload.subject,
+          description: payload.description,
+          start_date: payload.start_date,
+          end_date: payload.end_date,
+          lecture_time: payload.lecture_time,
+          color: payload.color,
+          chip_label: payload.chip_label,
+        });
       } else {
         await api.post("/lectures/lectures/", payload);
       }
@@ -419,7 +428,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
 
       <ModalBody>
         {apiError && (
-          <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 900, color: "var(--color-error)", whiteSpace: "pre-line" }}>
+          <div className="lecture-create-api-error">
             {apiError}
           </div>
         )}
@@ -429,19 +438,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             불러오는 중…
           </div>
         ) : (
-        <div className="modal-scroll-body modal-scroll-body--compact lecture-create-modal-form" style={{ maxWidth: 400 }}>
+        <div className="modal-scroll-body modal-scroll-body--compact lecture-create-modal-form">
           {/* 딱지 영역 */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-              gridTemplateRows: "auto auto",
-              gap: "10px 14px",
-              alignItems: "center",
-              direction: "ltr",
-            }}
-          >
-            <div style={{ gridColumn: 1, gridRow: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="lecture-create-chip-layout">
+            <div className="lecture-create-chip-preview">
               <LectureChip
                 lectureName=""
                 color={color}
@@ -449,7 +449,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 size={36}
               />
             </div>
-            <div style={{ gridColumn: 2, gridRow: "1 / -1", minWidth: 0 }}>
+            <div className="lecture-create-chip-picker">
               <ColorPickerField
                 label=""
                 value={color}
@@ -457,15 +457,14 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 disabled={isPending}
               />
             </div>
-            <div style={{ gridColumn: 1, gridRow: 2 }}>
+            <div className="lecture-create-chip-input-wrap">
               <input
-                className="ds-input"
+                className="ds-input lecture-create-chip-input"
                 placeholder="아이콘"
                 value={chipLabel}
                 onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
                 maxLength={2}
                 disabled={isPending}
-                style={{ width: 56, textAlign: "center", padding: "6px 4px" }}
                 aria-label="아이콘(딱지 2글자)"
               />
             </div>
@@ -487,7 +486,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
           </div>
 
           {/* 담당 강사 · 과목 — 라벨 없이 placeholder로 표시 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "stretch" }}>
+          <div className="lecture-create-field-grid">
             <div className="modal-form-group">
               <Popover
                 open={instructorPopoverOpen}
@@ -500,12 +499,11 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
               >
                 <button
                   type="button"
-                  className="lecture-create-instructor-trigger ds-input w-full min-w-0"
+                  className="lecture-create-instructor-trigger lecture-create-caret-hidden ds-input w-full min-w-0"
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
                   disabled={isPending}
                   aria-label="담당 강사 (필수)"
-                  style={{ caretColor: "transparent" }}
                 >
                   {selectedInstructor ? (
                     <>
@@ -586,19 +584,18 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
           {/* 설명 — 라벨 없이 placeholder로 표시 */}
           <div className="modal-form-group modal-form-group--neutral">
             <textarea
-              className="ds-textarea w-full"
+              className="ds-textarea lecture-create-description w-full"
               rows={3}
               placeholder="설명"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isPending}
-              style={{ resize: "none" }}
               aria-label="설명"
             />
           </div>
 
           {/* 시작일(필수) · 종료일(선택) — 라벨 없이 placeholder로 표시 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div className="lecture-create-date-grid">
             <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
               <DatePicker
                 value={startDate}

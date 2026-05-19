@@ -1,4 +1,8 @@
 /* 강의 추가 모달 — 폼 전체 폰트 굵기, 블록 중첩 최소화 */
+.lecture-create-modal-form {
+  max-width: 400px;
+}
+
 .lecture-create-modal-form .ds-input,
 .lecture-create-modal-form .ds-textarea,
 .lecture-create-modal-form .shared-time-range-trigger,
@@ -48,4 +52,65 @@
 }
 .lecture-create-instructor-trigger[data-invalid="true"] {
   border-color: var(--color-danger);
+}
+
+.lecture-create-api-error {
+  margin-bottom: 8px;
+  color: var(--color-error);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: pre-line;
+}
+
+.lecture-create-chip-layout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 10px 14px;
+  align-items: center;
+  direction: ltr;
+}
+
+.lecture-create-chip-preview {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lecture-create-chip-picker {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  min-width: 0;
+}
+
+.lecture-create-chip-input-wrap {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.lecture-create-chip-input {
+  width: 56px;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.lecture-create-field-grid,
+.lecture-create-date-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.lecture-create-field-grid {
+  align-items: stretch;
+}
+
+.lecture-create-caret-hidden {
+  caret-color: transparent;
+}
+
+.lecture-create-description {
+  resize: none;
 }

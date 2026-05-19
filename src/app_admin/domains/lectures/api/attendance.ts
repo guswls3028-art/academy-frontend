@@ -8,9 +8,27 @@ import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
  * 응답: { count, next, previous, results } (DRF 페이지네이션)
  * ======================================================= */
 export type AttendanceListResponse = {
-  data: any[];
+  data: AttendanceListItem[];
   count: number;
   pageSize: number;
+};
+
+export type AttendanceListItem = Record<string, unknown> & {
+  id: number;
+  status: string;
+  name?: string | null;
+  student_name?: string | null;
+  phone?: string | null;
+  student_phone?: string | null;
+  parent_phone?: string | null;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  student_id?: number | null;
+  enrollment?: {
+    student_id?: number | null;
+  } | null;
 };
 
 export async function fetchAttendance(
@@ -25,14 +43,17 @@ export async function fetchAttendance(
 
   const res = await api.get("/lectures/attendance/", { params });
 
-  const raw = res.data;
-  const items = Array.isArray(raw?.results)
-    ? raw.results
+  const raw = res.data as unknown;
+  const record = raw != null && typeof raw === "object" && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+  const items = Array.isArray(record.results)
+    ? record.results as AttendanceListItem[]
     : Array.isArray(raw)
-      ? raw
+      ? raw as AttendanceListItem[]
       : [];
-  const count = typeof raw?.count === "number" ? raw.count : items.length;
-  const pageSize = typeof raw?.page_size === "number" ? raw.page_size : 50;
+  const count = typeof record.count === "number" ? record.count : items.length;
+  const pageSize = typeof record.page_size === "number" ? record.page_size : 50;
 
   return {
     data: items,

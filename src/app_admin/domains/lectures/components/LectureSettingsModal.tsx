@@ -130,7 +130,11 @@ export default function LectureSettingsModal({
                     desc="강의 정보 수정"
                     onClick={() => {
                       onClose();
-                      onEdit ? onEdit(lecture.id) : window.location.assign(`/admin/lectures/${lecture.id}`);
+                      if (onEdit) {
+                        onEdit(lecture.id);
+                      } else {
+                        window.location.assign(`/admin/lectures/${lecture.id}`);
+                      }
                     }}
                     ariaPressed={false}
                   />
