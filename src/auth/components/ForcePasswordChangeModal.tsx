@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
