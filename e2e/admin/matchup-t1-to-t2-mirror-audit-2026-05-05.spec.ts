@@ -20,7 +20,6 @@
 import { expect, test } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import * as fs from "node:fs";
-import * as path from "node:path";
 
 const BASE = "https://tchul.com";
 const SCREENSHOT_DIR = "e2e/_artifacts/matchup-t1-to-t2-audit-2026-05-05";
@@ -50,14 +49,15 @@ test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
-    await page.waitForTimeout(3_000);
+
+    const rows = page.locator('[data-testid="matchup-doc-row"]');
+    await expect(rows.first()).toBeVisible({ timeout: 15_000 });
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/01-matchup-main.png`,
       fullPage: true,
     });
 
     // doc rows 카운트
-    const rows = page.locator('[data-testid="matchup-doc-row"]');
     const rowCount = await rows.count();
     console.log(`[main] visible doc rows: ${rowCount}`);
     expect(rowCount).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
         waitUntil: "networkidle",
         timeout: 60_000,
       });
-      await page.waitForTimeout(2_000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
       // 정확한 doc 찾기 — hint로 filter
       const row = page.locator('[data-testid="matchup-doc-row"]')
@@ -94,7 +94,9 @@ test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
       }
 
       await row.click();
-      await page.waitForTimeout(3_000);
+      await page.locator("img, [data-testid='matchup-problem-card']").first()
+        .waitFor({ state: "visible", timeout: 8_000 })
+        .catch(() => {});
 
       // 어디든 캡쳐
       await page.screenshot({

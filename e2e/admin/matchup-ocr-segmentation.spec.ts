@@ -8,14 +8,12 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
-import path from "path";
 
 const API = getApiBaseUrl();
 const TAG = `[E2E-${Date.now()}]`;
 const SCAN_PDF = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted/2025-1-m 고1 숙명여고 통합과학.pdf";
 
 let uploadedDocId: number | null = null;
-let uploadedDocToken: string | null = null;
 
 test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
   test("스캔본 PDF 업로드 → 25개 이상 문항 분할 확인", async ({ page }) => {
@@ -59,7 +57,6 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     // ── 3. 문서 업로드 버튼 클릭 ──
     // "문서 업로드" 텍스트가 있는 버튼 or Plus 아이콘 버튼
     const uploadBtnByText = page.locator("button").filter({ hasText: "문서 업로드" }).first();
-    const uploadBtnByIcon = page.locator('button[title="업로드"]').first();
 
     if (await uploadBtnByText.isVisible({ timeout: 3000 }).catch(() => false)) {
       await uploadBtnByText.click();
@@ -135,7 +132,6 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
     // API로 문서 ID 확인
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
-    uploadedDocToken = accessToken;
 
     const docsResp = await page.request.get(`${API}/api/v1/matchup/documents/`, {
       headers: {

@@ -4,7 +4,7 @@
 // 목적: 학원장 시야로 자연스러운지 + 결함 잡아내기.
 // 다양한 paper_type doc + 업로드 모달 단계별 + 모바일 + 적중보고서.
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -28,14 +28,21 @@ async function login(page: import("@playwright/test").Page) {
   }, tokens);
 }
 
+async function settle(page: Page, timeout = 15_000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
+}
+
+async function waitForAnyVisible(page: Page, selector: string, timeout = 5000): Promise<void> {
+  await page.locator(selector).first().waitFor({ state: "visible", timeout }).catch(() => {});
+}
+
 test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
   test.setTimeout(180_000);
 
   test("01 - 1920 랜딩 (doc 자동선택 자연스러운지)", async ({ page }) => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settle(page);
     await page.screenshot({ path: `${OUT}/01-landing-1920.png`, fullPage: true });
 
     // 어떤 doc가 자동 선택됐는지 확인
@@ -51,8 +58,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
   test("02 - 다양한 paper_type doc 헤더+배너 (3건)", async ({ page }) => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await settle(page);
 
     const allRows = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]');
     const total = await allRows.count();
@@ -62,7 +68,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
       const idx = indices[i];
       if (idx >= total) continue;
       await allRows.nth(idx).click();
-      await page.waitForTimeout(2000);
+      await waitForAnyVisible(page, "[data-testid='document-guidance-banner'], [data-testid='matchup-problem-card']", 8000);
 
       const banner = page.locator('[data-testid="document-guidance-banner"]');
       const paperType = await banner.getAttribute("data-paper-type").catch(() => "");
@@ -76,8 +82,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
   test("03 - 업로드 모달 단계별 (empty / 1 file / multi files)", async ({ page }) => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await settle(page);
 
     const upBtn = page.locator('button:has-text("자료 등록"), button:has-text("참고자료")').first();
     if (await upBtn.count() === 0) {
@@ -85,7 +90,6 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     } else {
       await upBtn.click();
     }
-    await page.waitForTimeout(500);
 
     const modal = page.locator('[data-testid="matchup-upload-modal"]');
     await expect(modal).toBeVisible();
@@ -93,15 +97,15 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
 
     // 1개 파일
     const fileInput = page.locator('[data-testid="matchup-file-input"]');
+    const auto = page.locator('[data-testid="matchup-upload-source-type-auto"]');
     await fileInput.setInputFiles({
       name: "쎈_고1수학_2026.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4 dummy"),
     });
-    await page.waitForTimeout(500);
+    await expect(auto).toBeVisible({ timeout: 5000 });
     await modal.screenshot({ path: `${OUT}/03b-modal-1file-ssen.png` });
 
-    const auto = page.locator('[data-testid="matchup-upload-source-type-auto"]');
     const st1 = await auto.getAttribute("data-source-type");
     const r1 = await auto.getAttribute("data-source-type-reason");
     console.error("[1file] sourceType=", st1, "reason=", r1);
@@ -112,7 +116,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
       { name: "기출_2026_중간고사_2.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 b") },
       { name: "기출_2026_중간고사_3.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 c") },
     ]);
-    await page.waitForTimeout(500);
+    await expect(auto).toBeVisible({ timeout: 5000 });
     await modal.screenshot({ path: `${OUT}/03c-modal-multi-files.png` });
 
     const st2 = await auto.getAttribute("data-source-type");
@@ -125,14 +129,13 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     const page = await ctx.newPage();
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2500);
+    await settle(page);
     await page.screenshot({ path: `${OUT}/04a-mobile-1100-landing.png`, fullPage: true });
 
     // 업로드 모달 모바일
     const upBtn = page.locator('button:has-text("업로드"), button:has-text("시험지"), button:has-text("자료 등록")').first();
     await upBtn.click();
-    await page.waitForTimeout(800);
+    await expect(page.locator('[data-testid="matchup-upload-modal"]')).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: `${OUT}/04b-mobile-1100-modal.png`, fullPage: true });
     await ctx.close();
   });
@@ -142,8 +145,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     const page = await ctx.newPage();
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2500);
+    await settle(page);
     await page.screenshot({ path: `${OUT}/05-1366-landing.png`, fullPage: true });
     await ctx.close();
   });
@@ -151,13 +153,12 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
   test("06 - 적중보고서 편집기 진입", async ({ page }) => {
     await login(page);
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settle(page);
 
     const reportBtn = page.locator('button:has-text("적중 보고서 작성"), button:has-text("보고서")').first();
     if (await reportBtn.count() > 0) {
       await reportBtn.click();
-      await page.waitForTimeout(2500);
+      await waitForAnyVisible(page, "text=/홈페이지에 게시|게시 취소|재편집 시작|적중 보고서/", 8000);
       await page.screenshot({ path: `${OUT}/06-hit-report-editor.png`, fullPage: true });
     }
   });

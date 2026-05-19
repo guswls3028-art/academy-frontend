@@ -33,18 +33,21 @@ test("done doc spinner check — 5s/10s/15s", async ({ page }) => {
 
   await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load" });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-  await page.waitForTimeout(2000);
 
   // 다른 done doc 선택
   const rows = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]');
+  await expect(rows.nth(64)).toBeVisible({ timeout: 15_000 });
   await rows.nth(64).click();
 
+  // eslint-disable-next-line no-restricted-syntax
   await page.waitForTimeout(2000);
   await page.screenshot({ path: `${OUT}/spinner-2s.png`, fullPage: true });
 
+  // eslint-disable-next-line no-restricted-syntax
   await page.waitForTimeout(3000); // total 5s
   await page.screenshot({ path: `${OUT}/spinner-5s.png`, fullPage: true });
 
+  // eslint-disable-next-line no-restricted-syntax
   await page.waitForTimeout(5000); // total 10s
   await page.screenshot({ path: `${OUT}/spinner-10s.png`, fullPage: true });
 

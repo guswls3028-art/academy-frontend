@@ -87,7 +87,7 @@ for (const vp of VIEWPORTS) {
       const draftCard = page.locator('[data-testid="hit-report-card"][data-report-status="draft"]').first();
       const submittedCard = page.locator('[data-testid="hit-report-card"][data-report-status="submitted"]').first();
 
-      let targetCard = (await draftCard.isVisible().catch(() => false)) ? draftCard : submittedCard;
+      const targetCard = (await draftCard.isVisible().catch(() => false)) ? draftCard : submittedCard;
       const targetVisible = await targetCard.isVisible().catch(() => false);
 
       if (!targetVisible) {

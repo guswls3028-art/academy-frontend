@@ -118,11 +118,10 @@ test("doc 321 reanalyze 시험 + before/after 측정", async ({ page }) => {
 
   // 3. polling — 최대 6분 워커 처리 대기
   const startedAt = Date.now();
-  let lastSnapshot: Record<string, unknown> | null = null;
   for (let i = 0; i < 30; i++) {
+    // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(12_000);
     const snap = await snapshotDoc(page, H, TARGET_DOC);
-    lastSnapshot = snap;
     console.log(
       `poll ${i + 1}: status=${snap.status} pcount=${snap.problem_count_db} ` +
       `bbox_null_rate=${snap.bbox_null_rate} updated_at=${snap.updated_at}`,
