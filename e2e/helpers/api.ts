@@ -9,14 +9,24 @@ import { type Page } from "@playwright/test";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
-export async function apiCall(
+type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type ApiCallArgs = {
+  method: ApiMethod;
+  path: string;
+  data?: Record<string, unknown>;
+  apiBase: string;
+};
+
+export type ApiCallResult<TBody = unknown> = { status: number; body: TBody };
+
+export async function apiCall<TBody = unknown>(
   page: Page,
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: ApiMethod,
   path: string,
   data?: Record<string, unknown>,
-): Promise<{ status: number; body: any }> {
-  return page.evaluate(
-    async ({ method, path, data, apiBase }) => {
+): Promise<ApiCallResult<TBody>> {
+  const result = await page.evaluate(
+    async ({ method, path, data, apiBase }: ApiCallArgs): Promise<ApiCallResult<unknown>> => {
       // 현재 페이지 hostname → tenant code (프론트엔드와 동일 매핑)
       const host = window.location.hostname.toLowerCase();
       const tenantMap: Record<string, string> = {
@@ -71,10 +81,11 @@ export async function apiCall(
         }
       }
 
-      let body: any;
+      let body: unknown = null;
       try { body = await res.json(); } catch { body = null; }
       return { status: res.status, body };
     },
     { method, path, data, apiBase: API_BASE },
   );
+  return result as ApiCallResult<TBody>;
 }

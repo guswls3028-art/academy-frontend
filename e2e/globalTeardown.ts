@@ -12,7 +12,6 @@
  */
 import * as fs from "fs";
 import * as path from "path";
-import type { FullConfig } from "@playwright/test";
 
 interface DefectEntry {
   spec: string;
@@ -20,7 +19,7 @@ interface DefectEntry {
   description: string;
 }
 
-export default async function globalTeardown(_config: FullConfig): Promise<void> {
+export default async function globalTeardown(): Promise<void> {
   // strict 모드에선 spec 가 자체 fail 처리하므로 별도 수집 불필요.
   if ((process.env.E2E_STRICT || "").toLowerCase() === "strict") return;
   if ((process.env.E2E_STRICT || "").toLowerCase() === "off") return;
