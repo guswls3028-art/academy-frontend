@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/lectures/pages/lectures/LecturesPage.tsx
 // Design: docs/DESIGN_SSOT.md (강의 관리만 체크박스 없음 — 유일 예외)
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Settings } from "lucide-react";
@@ -39,7 +39,81 @@ type LectureItem = {
   is_active?: boolean;
 };
 
-type TabKey = "active" | "past";
+type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange";
+
+const FIT_CONTENT_STYLE: CSSProperties = { width: "fit-content" };
+const ACTION_COLUMN_STYLE: CSSProperties = { width: 56 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toStringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function normalizeLectureItem(value: unknown): LectureItem | null {
+  if (!isRecord(value)) return null;
+  const id = toNumber(value.id);
+  if (id == null) return null;
+  return {
+    id,
+    title: toStringOrNull(value.title) ?? "",
+    subject: toStringOrNull(value.subject),
+    name: toStringOrNull(value.name),
+    start_date: toStringOrNull(value.start_date),
+    end_date: toStringOrNull(value.end_date),
+    lecture_time: toStringOrNull(value.lecture_time),
+    color: toStringOrNull(value.color),
+    chip_label: toStringOrNull(value.chip_label),
+    is_active: typeof value.is_active === "boolean" ? value.is_active : undefined,
+  };
+}
+
+function extractLectureListPayload(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (isRecord(value) && Array.isArray(value.results)) return value.results;
+  return [];
+}
+
+function columnWidthStyle(width: number): CSSProperties {
+  return { width };
+}
+
+function lectureChipStyle(color?: string | null): CSSProperties {
+  const bg = color || DEFAULT_PRESET_COLOR;
+  return {
+    color: isLightColor(bg) ? "#1a1a1a" : "#fff",
+    background: bg,
+    border: "none",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+    textShadow: "0 0 1px rgba(0,0,0,0.2)",
+    letterSpacing: 0,
+  };
+}
+
+function isLightColor(hex: string): boolean {
+  const c = String(hex || "").toLowerCase();
+  return ["#eab308", "#06b6d4"].includes(c);
+}
+
+function isLectureSortKey(key: string): key is LectureSortKey {
+  return key === "title" || key === "subject" || key === "name" || key === "lecture_time" || key === "dateRange";
+}
+
+function getLectureSortValue(lecture: LectureItem, key: LectureSortKey, toTime: (value?: string | null) => number): string | number {
+  if (key === "dateRange") return toTime(lecture.start_date);
+  return lecture[key] ?? "";
+}
 
 /** 지난 강의 = is_active === false 인 경우만. 종료일 자동 이동 로직 없음. */
 function isPastLecture(lec: LectureItem) {
@@ -79,7 +153,10 @@ function LectureSortableTh({
     >
       <span className="inline-flex items-center justify-center gap-2">
         {label}
-        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+        <span
+          aria-hidden
+          className={`text-[11px] text-[var(--color-primary)] ${isAsc || isDesc ? "opacity-100" : "opacity-[0.35]"}`}
+        >
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
       </span>
@@ -98,8 +175,9 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
     queryKey: ["lectures"],
     queryFn: async (): Promise<LectureItem[]> => {
       const res = await api.get("/lectures/lectures/");
-      const list = (res.data?.results ?? res.data) as LectureItem[] | any;
-      return Array.isArray(list) ? list : [];
+      return extractLectureListPayload(res.data)
+        .map(normalizeLectureItem)
+        .filter((item): item is LectureItem => item != null);
     },
   });
 
@@ -128,11 +206,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const [editLectureId, setEditLectureId] = useState<number | null>(null);
   const qc = useQueryClient();
 
-  function isLightColor(hex: string): boolean {
-  const c = String(hex || "").toLowerCase();
-  return ["#eab308", "#06b6d4"].includes(c);
-}
-
   const toTime = useCallback((v?: string | null) => {
     if (!v) return 0;
     const t = new Date(v).getTime();
@@ -159,17 +232,11 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
         );
     if (!sort) return filtered;
     const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    if (!isLectureSortKey(key)) return filtered;
     const asc = !sort.startsWith("-");
     return [...filtered].sort((a, b) => {
-      let aVal: string | number = "";
-      let bVal: string | number = "";
-      if (key === "dateRange") {
-        aVal = toTime(a.start_date);
-        bVal = toTime(b.start_date);
-      } else {
-        aVal = ((a as Record<string, unknown>)[key] ?? "") as string | number;
-        bVal = ((b as Record<string, unknown>)[key] ?? "") as string | number;
-      }
+      const aVal = getLectureSortValue(a, key, toTime);
+      const bVal = getLectureSortValue(b, key, toTime);
       if (typeof aVal === "string" && typeof bVal === "string") {
         const cmp = aVal.localeCompare(String(bVal), "ko");
         return asc ? cmp : -cmp;
@@ -202,12 +269,11 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           }
           searchSlot={
             <input
-              className="ds-input"
               data-guide="lectures-search"
               placeholder="강의 검색 (강의명/과목/강사/기간)"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              style={{ maxWidth: 360 }}
+              className="ds-input max-w-[360px]"
             />
           }
           primaryAction={
@@ -225,16 +291,16 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           ) : list.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
           ) : (
-            <div data-guide="lectures-table" style={{ width: "fit-content" }}>
+            <div data-guide="lectures-table" style={FIT_CONTENT_STYLE}>
               <DomainTable
                 tableClassName="ds-table--flat ds-table--center"
                 tableStyle={{ tableLayout: "fixed", width: tableWidth }}
               >
                 <colgroup>
                   {LECTURES_TABLE_COLUMN_DEFS.map((c) => (
-                    <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
+                    <col key={c.key} style={columnWidthStyle(columnWidths[c.key] ?? c.defaultWidth)} />
                   ))}
-                  <col style={{ width: 56 }} />
+                  <col style={ACTION_COLUMN_STYLE} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -283,7 +349,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
                     />
-                    <th scope="col" aria-label="설정" style={{ width: 56 }} />
+                    <th scope="col" aria-label="설정" style={ACTION_COLUMN_STYLE} />
                   </tr>
                 </thead>
                 <tbody>
@@ -295,48 +361,28 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       role="button"
                       className="cursor-pointer"
                     >
-                      <td style={{ fontWeight: 600 }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 10,
-                          }}
-                        >
+                      <td className="font-semibold">
+                        <span className="inline-flex items-center gap-[10px]">
                           <span
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 8,
-                              flexShrink: 0,
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: 12,
-                              fontWeight: 800,
-                              letterSpacing: "-0.02em",
-                              color: isLightColor(lec.color || "") ? "#1a1a1a" : "#fff",
-                              background: lec.color || DEFAULT_PRESET_COLOR,
-                              border: "none",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
-                              textShadow: "0 0 1px rgba(0,0,0,0.2)",
-                            }}
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[12px] font-extrabold"
+                            style={lectureChipStyle(lec.color)}
                           >
                             {(lec.chip_label || lec.title || "??").slice(0, 2)}
                           </span>
                           {lec.title}
                         </span>
                       </td>
-                      <td>{lec.subject || <span style={{ color: "var(--color-text-muted)" }}>미입력</span>}</td>
-                      <td>{lec.name || <span style={{ color: "var(--color-text-muted)" }}>미배정</span>}</td>
-                      <td>{lec.lecture_time || <span style={{ color: "var(--color-text-muted)" }}>미설정</span>}</td>
-                      <td style={{ fontWeight: 600 }}>
+                      <td>{lec.subject || <span className="text-[var(--color-text-muted)]">미입력</span>}</td>
+                      <td>{lec.name || <span className="text-[var(--color-text-muted)]">미배정</span>}</td>
+                      <td>{lec.lecture_time || <span className="text-[var(--color-text-muted)]">미설정</span>}</td>
+                      <td className="font-semibold">
                         {lec.start_date && lec.end_date
                           ? `${lec.start_date} ~ ${lec.end_date}`
                           : lec.start_date
                             ? `${lec.start_date} ~`
-                            : <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>미설정</span>}
+                            : <span className="font-normal text-[var(--color-text-muted)]">미설정</span>}
                       </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ verticalAlign: "middle", padding: "4px 8px" }}>
+                      <td onClick={(e) => e.stopPropagation()} className="align-middle px-2 py-1">
                         <button
                           type="button"
                           className="flex items-center justify-center w-9 h-9 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"

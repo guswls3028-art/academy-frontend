@@ -19,6 +19,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
 import VideoReorderModal from "@admin/domains/videos/components/VideoReorderModal";
+import styles from "./SessionVideosTab.module.css";
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
 function formatTimeAgo(isoDate: string): string {
@@ -228,60 +229,20 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     return (
       <div
         key={video.id}
-        className="group"
-        style={{
-          borderRadius: 14,
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-app)",
-          padding: 12,
-          transition: "border-color 120ms ease, box-shadow 120ms ease",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-primary)";
-          (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)";
-          (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-        }}
+        className={styles.card}
       >
         {/* Order controls */}
         {globalIndex != null && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--color-text-muted)",
-                background: "var(--color-bg-surface-soft)",
-                borderRadius: 4,
-                padding: "1px 6px",
-                lineHeight: "18px",
-              }}
-            >
+          <div className={styles.orderBar}>
+            <span className={styles.orderIndex}>
               #{video.order ?? globalIndex + 1}
             </span>
-            <div style={{ display: "flex", gap: 2 }}>
+            <div className={styles.orderActions}>
               <button
                 type="button"
                 disabled={globalIndex === 0 || reorderMutation.isPending}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveUp(globalIndex); }}
-                style={{
-                  width: 24,
-                  height: 24,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 4,
-                  background: globalIndex === 0 ? "var(--color-bg-surface-soft)" : "var(--color-bg-app)",
-                  color: globalIndex === 0 ? "var(--color-text-disabled)" : "var(--color-text-secondary)",
-                  cursor: globalIndex === 0 ? "not-allowed" : "pointer",
-                  fontSize: 12,
-                  lineHeight: 1,
-                  padding: 0,
-                  transition: "background 100ms",
-                }}
+                className={styles.orderButton}
                 title="위로 이동"
               >
                 ▲
@@ -290,22 +251,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                 type="button"
                 disabled={globalIndex === videos.length - 1 || reorderMutation.isPending}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveDown(globalIndex); }}
-                style={{
-                  width: 24,
-                  height: 24,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 4,
-                  background: globalIndex === videos.length - 1 ? "var(--color-bg-surface-soft)" : "var(--color-bg-app)",
-                  color: globalIndex === videos.length - 1 ? "var(--color-text-disabled)" : "var(--color-text-secondary)",
-                  cursor: globalIndex === videos.length - 1 ? "not-allowed" : "pointer",
-                  fontSize: 12,
-                  lineHeight: 1,
-                  padding: 0,
-                  transition: "background 100ms",
-                }}
+                className={styles.orderButton}
                 title="아래로 이동"
               >
                 ▼
@@ -314,7 +260,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           </div>
         )}
 
-        <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
+        <Link to={`${video.id}`} className={styles.thumbnailLink}>
           <VideoThumbnail
             title={video.title}
             status={video.status ?? "PENDING"}
@@ -325,35 +271,26 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           />
         </Link>
 
-        <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+        <div className={styles.metaRow}>
+          <div className={styles.metaMain}>
+            <div className={styles.title}>
               {video.title}
             </div>
 
             {/* 유튜브 스타일: 조회수 · N시간 전 (제목 바로 아래) */}
             {(viewCountLabel || timeAgo) && (
-              <div style={{ marginTop: 4, fontSize: 12, color: "var(--color-text-muted)" }}>
+              <div className={styles.subMeta}>
                 {[viewCountLabel, timeAgo].filter(Boolean).join(" · ")}
               </div>
             )}
           </div>
 
-          <div style={{ flex: "0 0 auto" }}>
+          <div className={styles.statusSlot}>
             <VideoStatusBadge status={video.status} />
           </div>
         </div>
 
-        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className={styles.badges}>
           <Badge variant="solid" tone={video.show_watermark ? "info" : "neutral"}>
             {video.show_watermark ? "워터마크" : "워터마크 없음"}
           </Badge>
@@ -365,7 +302,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           </Badge>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <div className={styles.actions}>
           {canShowRetryButton(video) && (
             <Button
               intent="primary"
@@ -418,7 +355,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         totalLabel={isLoading ? "…" : `총 ${videos.length}개`}
         searchSlot={null}
         primaryAction={
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className={styles.toolbarActions}>
             {videos.length > 1 && (
               <Button intent="ghost" onClick={() => setReorderOpen(true)}>
                 순서 관리
@@ -432,79 +369,42 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       />
 
       <div
-        className="ds-panel"
-        style={{
-          borderRadius: "var(--radius-xl)",
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface)",
-          padding: "var(--space-4)",
-        }}
+        className={`ds-panel ${styles.panel}`}
       >
         {isLoading ? (
           <div
-            className="animate-pulse"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "var(--space-4)",
-            }}
+            className={`animate-pulse ${styles.grid}`}
           >
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                style={{
-                  borderRadius: 14,
-                  border: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface-soft)",
-                  padding: 12,
-                  height: 220,
-                }}
+                className={styles.skeletonCard}
               />
             ))}
           </div>
         ) : videos.length === 0 ? (
           <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
         ) : (
-          <div className="session-videos-tab__list" style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+          <div className={styles.list}>
             {/* 묶음 단위 (제목 1, 제목 2, ... 패턴) — 폴더처럼 표시 */}
             {Array.from(groupedVideos.groups.entries()).map(([baseTitle, groupVideos]) => (
-              <div key={baseTitle} className="session-videos-tab__group">
+              <div key={baseTitle}>
                 <div
-                  className="session-videos-tab__group-header"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    marginBottom: "var(--space-3)",
-                    paddingLeft: "var(--space-2)",
-                    borderLeft: "3px solid var(--color-brand-primary)",
-                  }}
+                  className={styles.groupHeader}
                 >
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>{baseTitle}</span>
-                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 600 }}>
+                  <span className={styles.groupTitle}>{baseTitle}</span>
+                  <span className={styles.groupCount}>
                     {groupVideos.length}개
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                    gap: "var(--space-4)",
-                  }}
-                >
+                <div className={styles.grid}>
                   {groupVideos.map((video: MediaVideo) => renderVideoCard(video, videoIndexMap.get(video.id)))}
                 </div>
               </div>
             ))}
             {/* 묶음 아닌 단일 영상 */}
             {groupedVideos.ungrouped.length > 0 && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: "var(--space-4)",
-                }}
-              >
+              <div className={styles.grid}>
                 {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video, videoIndexMap.get(video.id)))}
               </div>
             )}
@@ -520,7 +420,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           onClose={() => setEditTarget(null)}
           videoId={editTarget.id}
           initialTitle={editTarget.title}
-          initialOrder={(editTarget as any).order ?? 1}
+          initialOrder={editTarget.order ?? 1}
           sessionId={sessionId}
         />
       )}
