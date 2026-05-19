@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { fetchQuestionsByExam, type ExamQuestion } from "../api/question.api";
 import { initExamQuestions } from "../api/questionInit.api";
 import {
@@ -49,6 +50,33 @@ type ExplanationState = {
 };
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getResponseStatus(error: unknown): number | undefined {
+  const response = isRecord(error) ? error.response : undefined;
+  if (!isRecord(response)) return undefined;
+  return typeof response.status === "number" ? response.status : undefined;
+}
+
+function isAnswerKey(value: unknown): value is AnswerKey {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "number" || typeof value.exam !== "number") return false;
+  if (!isRecord(value.answers)) return false;
+  return Object.values(value.answers).every((answer) => typeof answer === "string");
+}
+
+function answerKeysFromResponse(response: unknown): AnswerKey[] {
+  const body = isRecord(response) && "data" in response ? response.data : response;
+  const list = Array.isArray(body)
+    ? body
+    : isRecord(body) && Array.isArray(body.results)
+      ? body.results
+      : [];
+  return list.filter(isAnswerKey);
+}
 
 /** 총점을 문항 수만큼 정수로 균등 분배. 나누어떨어지지 않으면 낮은 점수가 앞문항부터 (예: 80점 17문항 → 4점×5문항, 5점×12문항) */
 function distributeTotalToScores(total: number, count: number): number[] {
@@ -95,20 +123,17 @@ export default function AnswerKeyRegisterModal({
     queryFn: async () => {
       try {
         return await fetchAnswerKeyByExam(examId);
-      } catch (e: any) {
-        if (e?.response?.status === 404) return { data: [] };
-        throw e;
+      } catch (error: unknown) {
+        if (getResponseStatus(error) === 404) return { data: [] };
+        throw error;
       }
     },
     enabled: open && questions.length > 0,
-    retry: (_, error: any) => error?.response?.status !== 404,
+    retry: (_, error: unknown) => getResponseStatus(error) !== 404,
   });
   /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
   const answerKey = useMemo(() => {
-    const body = answerKeyList && typeof answerKeyList === "object" && "data" in answerKeyList ? (answerKeyList as { data: unknown }).data : answerKeyList;
-    const raw = body as unknown;
-    const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "results" in raw ? (raw as { results: AnswerKey[] }).results : []);
-    return (list as AnswerKey[])[0] ?? null;
+    return answerKeysFromResponse(answerKeyList)[0] ?? null;
   }, [answerKeyList]);
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
@@ -177,7 +202,10 @@ export default function AnswerKeyRegisterModal({
   useEffect(() => {
     if (!answerKey || !answerKey.answers) return;
     setDraft(normalizeAnswers(answerKey.answers));
+  }, [answerKey]);
 
+  useEffect(() => {
+    if (!answerKey || !answerKey.answers) return;
     // 기존 답안키 기반으로 선택형/서술형 수 자동 계산 (미설정 시에만)
     if (choiceCount === "" && essayCount === "" && sortedQuestions.length > 0) {
       const normalized = normalizeAnswers(answerKey.answers);
@@ -195,10 +223,9 @@ export default function AnswerKeyRegisterModal({
       setEssayCount(essayCnt > 0 ? essayCnt : 0);
       setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
     }
-  }, [answerKey?.id]);
+  }, [answerKey, choiceCount, essayCount, sortedQuestions]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
-  const questionIdsKey = sortedQuestions.map((q) => q.id).join(",");
   useEffect(() => {
     if (sortedQuestions.length === 0) return;
     setScoreDraft((prev) => {
@@ -208,7 +235,7 @@ export default function AnswerKeyRegisterModal({
       });
       return next;
     });
-  }, [questionIdsKey, sortedQuestions.length]);
+  }, [sortedQuestions]);
 
   /** AI 추출 해설 + 문항 이미지를 explanationDraft에 자동 반영 */
   useEffect(() => {
@@ -234,7 +261,7 @@ export default function AnswerKeyRegisterModal({
       }
       return next;
     });
-  }, [questionIdsKey, explanationsFromApi, sortedQuestions.length]);
+  }, [explanationsFromApi, sortedQuestions]);
 
   const initMut = useMutation({
     mutationFn: async (overrides?: { choiceCount?: number | ""; essayCount?: number | "" }) => {
@@ -318,13 +345,13 @@ export default function AnswerKeyRegisterModal({
       await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
       feedback.success("적용되었습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "적용 실패");
+    onError: (error: unknown) => {
+      feedback.error(extractApiError(error, "적용 실패"));
     },
   });
 
   /** 적용 클릭: 자동점수 ON이면 총점 필수 검증, 선택형만 설정 시 서술형 0으로 전달 */
-  const handleApply = (source: "choice" | "essay") => {
+  const handleApply = () => {
     if (choiceAutoScore) {
       const v = choiceTotalInput;
       if (v === "" || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0) {
@@ -385,20 +412,42 @@ export default function AnswerKeyRegisterModal({
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
-    } catch (e: any) {
-      const raw = e?.response?.data;
-      const detail = raw?.detail ?? raw ?? e?.message;
-      const msg =
-        typeof detail === "string"
-          ? detail
-          : Array.isArray(detail)
-            ? detail.join(", ")
-            : detail && typeof detail === "object" && "detail" in detail
-              ? String((detail as { detail: unknown }).detail)
-              : "저장 실패";
-      feedback.error(msg);
+    } catch (error: unknown) {
+      feedback.error(extractApiError(error, "저장 실패"));
     } finally {
       setSaveBusy(false);
+    }
+  };
+
+  const handleSaveExplanations = async () => {
+    setExplanationSaveBusy(true);
+    try {
+      const items = sortedQuestions
+        .filter((q) => {
+          const d = explanationDraft[q.id];
+          return d && (d.text || d.imageUrl || d.imageKey);
+        })
+        .map((q) => {
+          const d = explanationDraft[q.id];
+          const item: { question_id: number; text: string; image_key?: string } = {
+            question_id: q.id,
+            text: d?.text ?? "",
+          };
+          if (d?.imageKey) item.image_key = d.imageKey;
+          return item;
+        });
+      if (items.length === 0) {
+        feedback.info("저장할 해설이 없습니다.");
+        return;
+      }
+      await saveExplanationsBulk(examId, items);
+      qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
+      qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      feedback.success(`해설 ${items.length}건 저장 완료`);
+    } catch (error: unknown) {
+      feedback.error(extractApiError(error, "해설 저장 실패"));
+    } finally {
+      setExplanationSaveBusy(false);
     }
   };
 
@@ -419,7 +468,7 @@ export default function AnswerKeyRegisterModal({
       <ModalHeader
         type="action"
         title={
-          <div className="answer-key-modal-header-tabs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div className="answer-key-modal-header-tabs">
             <Tabs
               value={activeTab}
               items={[
@@ -509,8 +558,7 @@ export default function AnswerKeyRegisterModal({
                         }
                       }}
                       placeholder="예: 20"
-                      className="ds-input"
-                      style={{ width: 100 }}
+                      className="ds-input answer-key-input--count"
                     />
                   </label>
                   <label className={`answer-key-field answer-key-field--total ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
@@ -524,8 +572,7 @@ export default function AnswerKeyRegisterModal({
                         setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                       }
                       placeholder="예: 80"
-                      className="ds-input"
-                      style={{ width: 80 }}
+                      className="ds-input answer-key-input--score"
                       disabled={!choiceAutoScore}
                       aria-readonly={!choiceAutoScore}
                     />
@@ -553,7 +600,7 @@ export default function AnswerKeyRegisterModal({
                     type="button"
                     intent="primary"
                     size="sm"
-                    onClick={() => handleApply("choice")}
+                    onClick={handleApply}
                     disabled={initMut.isPending}
                     loading={initMut.isPending}
                   >
@@ -661,8 +708,7 @@ export default function AnswerKeyRegisterModal({
                         }
                       }}
                       placeholder="예: 1"
-                      className="ds-input"
-                      style={{ width: 100 }}
+                      className="ds-input answer-key-input--count"
                     />
                   </label>
                   <label className={`answer-key-field answer-key-field--total ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
@@ -676,8 +722,7 @@ export default function AnswerKeyRegisterModal({
                         setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                       }
                       placeholder="예: 50"
-                      className="ds-input"
-                      style={{ width: 80 }}
+                      className="ds-input answer-key-input--score"
                       disabled={!essayAutoScore}
                       aria-readonly={!essayAutoScore}
                     />
@@ -705,7 +750,7 @@ export default function AnswerKeyRegisterModal({
                     type="button"
                     intent="primary"
                     size="sm"
-                    onClick={() => handleApply("essay")}
+                    onClick={handleApply}
                     disabled={initMut.isPending}
                     loading={initMut.isPending}
                   >
@@ -822,37 +867,7 @@ export default function AnswerKeyRegisterModal({
                 intent="primary"
                 disabled={explanationSaveBusy}
                 loading={explanationSaveBusy}
-                onClick={async () => {
-                  setExplanationSaveBusy(true);
-                  try {
-                    const items = sortedQuestions
-                      .filter((q) => {
-                        const d = explanationDraft[q.id];
-                        return d && (d.text || d.imageUrl || d.imageKey);
-                      })
-                      .map((q) => {
-                        const d = explanationDraft[q.id];
-                        const item: { question_id: number; text: string; image_key?: string } = {
-                          question_id: q.id,
-                          text: d?.text ?? "",
-                        };
-                        if (d?.imageKey) item.image_key = d.imageKey;
-                        return item;
-                      });
-                    if (items.length === 0) {
-                      feedback.info("저장할 해설이 없습니다.");
-                      return;
-                    }
-                    await saveExplanationsBulk(examId, items);
-                    qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
-                    qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-                    feedback.success(`해설 ${items.length}건 저장 완료`);
-                  } catch (e: any) {
-                    feedback.error(e?.response?.data?.detail ?? "해설 저장 실패");
-                  } finally {
-                    setExplanationSaveBusy(false);
-                  }
-                }}
+                onClick={handleSaveExplanations}
               >
                 해설 저장
               </Button>
@@ -1043,59 +1058,6 @@ function EssayRow({
   );
 }
 
-/** 등록된 답안 요약 — 문항 수, 총점, 미니 그리드 */
-function AnswerSummary({
-  answerKey,
-  sortedQuestions,
-  effectiveChoiceCount,
-  effectiveEssayCount,
-  totalScore,
-}: {
-  answerKey: AnswerKey;
-  sortedQuestions: ExamQuestion[];
-  effectiveChoiceCount: number;
-  effectiveEssayCount: number;
-  totalScore: number;
-}) {
-  const answers = answerKey.answers ?? {};
-  const answeredCount = Object.values(answers).filter((v) => v && String(v).trim() !== "").length;
-
-  return (
-    <div className="answer-key-summary">
-      <div className="answer-key-summary__header">
-        <span className="answer-key-summary__title">등록된 답안</span>
-        <span className="answer-key-summary__stats">
-          {effectiveChoiceCount > 0 && <span>선택형 {effectiveChoiceCount}문항</span>}
-          {effectiveChoiceCount > 0 && effectiveEssayCount > 0 && <span className="answer-key-summary__sep">,</span>}
-          {effectiveEssayCount > 0 && <span>서술형 {effectiveEssayCount}문항</span>}
-          <span className="answer-key-summary__sep"> | </span>
-          <span>총 {Math.round(totalScore)}점</span>
-          <span className="answer-key-summary__sep"> | </span>
-          <span>입력 {answeredCount}/{sortedQuestions.length}</span>
-        </span>
-      </div>
-      <div className="answer-key-summary__grid">
-        {sortedQuestions.map((q) => {
-          const val = String(answers[String(q.id)] ?? "").trim();
-          const isChoice = sortedQuestions.indexOf(q) < effectiveChoiceCount;
-          return (
-            <div
-              key={q.id}
-              className={`answer-key-summary__cell ${val ? "answer-key-summary__cell--filled" : "answer-key-summary__cell--empty"}`}
-              title={`${q.number}번: ${val || "(미입력)"}`}
-            >
-              <span className="answer-key-summary__cell-num">{q.number}</span>
-              <span className="answer-key-summary__cell-val">
-                {isChoice ? (val || "-") : (val ? (val.length > 3 ? val.slice(0, 3) + ".." : val) : "-")}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ExplanationState is defined at top level, above the component
 
 /** 문제 이미지·해설 이미지 공통 셀 — 클릭: 포커스(Ctrl+V 붙여넣기), 더블클릭: 파일 선택 */
@@ -1188,7 +1150,7 @@ function ImageCell({
       <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
       <div className="answer-key-explanation-cell__placeholder answer-key-explanation-cell__placeholder--no-label">
         {uploading ? (
-          <span className="answer-key-explanation-cell__placeholder-text" style={{ color: "var(--color-brand-primary)" }}>업로드 중…</span>
+          <span className="answer-key-explanation-cell__placeholder-text answer-key-explanation-cell__placeholder-text--uploading">업로드 중…</span>
         ) : (
           <>
             <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
@@ -1331,28 +1293,28 @@ function OmrSettingsTab({
   /* OMR 탭: 답안등록/이미지등록 탭과 동일한 모달 높이 사용.
      미리보기는 A4 가로(297:210 = 1.414:1) 비율 유지. */
   return (
-    <div className="answer-key-two-panels" style={{ gridTemplateColumns: "240px 1fr" }}>
+    <div className="answer-key-two-panels answer-key-two-panels--omr">
       {/* 좌측: 설정 */}
-      <div className="answer-key-panel--choice" style={{ gap: "var(--space-3)" }}>
-        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>답안지 설정</div>
-        <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+      <div className="answer-key-panel--choice answer-key-panel--omr-settings">
+        <div className="answer-key-omr-title">답안지 설정</div>
+        <div className="answer-key-omr-description">
           답안지에 인쇄될 정보를 확인하고 필요시 수정하세요.
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>시험명</label>
-          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="시험명 입력" />
+          <label className="answer-key-omr-field-label">시험명</label>
+          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="ds-input answer-key-omr-input" placeholder="시험명 입력" />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>강의명</label>
-          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="강의명 입력" />
+          <label className="answer-key-omr-field-label">강의명</label>
+          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="ds-input answer-key-omr-input" placeholder="강의명 입력" />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>차시명</label>
-          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="ds-input" style={{ width: "100%" }} placeholder="차시명 입력" />
+          <label className="answer-key-omr-field-label">차시명</label>
+          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="ds-input answer-key-omr-input" placeholder="차시명 입력" />
         </div>
 
-        <div style={{ borderRadius: "var(--radius-md)", background: "var(--color-bg-surface-soft)", padding: "8px 10px", fontSize: 12, color: "var(--color-text-muted)" }}>
+        <div className="answer-key-omr-summary">
           {choiceCount > 0 && <span>객관식 {choiceCount}문항</span>}
           {choiceCount > 0 && essayCount > 0 && <span> · </span>}
           {essayCount > 0 && <span>서술형 {essayCount}문항</span>}
@@ -1360,7 +1322,7 @@ function OmrSettingsTab({
           <span> · 총 {choiceCount + essayCount}문항</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", paddingTop: 4 }}>
+        <div className="answer-key-omr-actions">
           <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || choiceCount + essayCount < 1}>
             {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
           </Button>
@@ -1371,17 +1333,17 @@ function OmrSettingsTab({
       </div>
 
       {/* 우측: 미리보기 (A4 가로 비율) */}
-      <div className="answer-key-panel--essay" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="answer-key-panel--essay answer-key-panel--omr-preview">
         {previewHtml ? (
           <iframe
             ref={iframeRef}
             srcDoc={previewHtml}
-            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+            className="answer-key-omr-frame"
             title="OMR 답안지 미리보기"
             sandbox="allow-same-origin"
           />
         ) : (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "var(--color-text-muted)" }}>
+          <div className="answer-key-omr-empty">
             {previewLoading ? "미리보기 로딩 중..." : "문항을 설정하면 미리보기가 표시됩니다."}
           </div>
         )}
@@ -1389,4 +1351,3 @@ function OmrSettingsTab({
     </div>
   );
 }
-

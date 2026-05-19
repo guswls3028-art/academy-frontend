@@ -20,6 +20,10 @@
 
 /* 모달 헤더 내 탭 (답안 등록 | 이미지 등록) */
 .answer-key-modal-header-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 2px;
 }
 .answer-key-modal-header-tabs .ds-tabs {
@@ -269,6 +273,14 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+.answer-key-input--count {
+  width: 100px;
+}
+
+.answer-key-input--score {
+  width: 80px;
 }
 
 /* 총점 필드: 자동점수 미사용 시 회색 비활성 표시 */
@@ -665,6 +677,10 @@
   font-weight: 600;
 }
 
+.answer-key-explanation-cell__placeholder-text--uploading {
+  color: var(--color-brand-primary);
+}
+
 .answer-key-explanation-cell__placeholder-hint {
   font-size: 11px;
   line-height: 1.35;
@@ -814,4 +830,70 @@
 .answer-key-explanation-cell__placeholder--no-label:hover {
   border-color: var(--color-brand-primary);
   background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.answer-key-two-panels--omr {
+  grid-template-columns: 240px 1fr;
+}
+
+.answer-key-panel--omr-settings {
+  gap: var(--space-3);
+}
+
+.answer-key-omr-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.answer-key-omr-description {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.answer-key-omr-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.answer-key-omr-input {
+  width: 100%;
+}
+
+.answer-key-omr-summary {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.answer-key-omr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 4px;
+}
+
+.answer-key-panel--omr-preview {
+  padding: 0;
+  overflow: hidden;
+}
+
+.answer-key-omr-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.answer-key-omr-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
