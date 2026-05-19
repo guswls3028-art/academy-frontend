@@ -15,6 +15,23 @@ const TS = Date.now();
 const TITLE = `[E2E] UI 공지 ${TS}`;
 const CONTENT = `E2E UI-driven 공지 본문 테스트입니다. (${TS})`;
 
+interface NoticePost {
+  id: number;
+  title?: string | null;
+}
+
+function postsOf(body: unknown): NoticePost[] {
+  const source = body && typeof body === "object" && "results" in body
+    ? (body as { results?: unknown }).results
+    : body;
+  if (!Array.isArray(source)) return [];
+  return source.filter((p): p is NoticePost => (
+    Boolean(p)
+    && typeof p === "object"
+    && typeof (p as { id?: unknown }).id === "number"
+  ));
+}
+
 test.describe.serial("공지 UI 작성: 선생 UI -> 학생 확인", () => {
   let browser: Browser;
   let adminPage: Page;
@@ -67,10 +84,8 @@ test.describe.serial("공지 UI 작성: 선생 UI -> 학생 확인", () => {
 
     // Extract the post ID from the API for cleanup
     // After creation, the list should refresh. We search the list via API.
-    await adminPage.waitForTimeout(1000);
     const listResp = await apiCall(adminPage, "GET", "/community/posts/?post_type=notice&page_size=50");
-    const posts = listResp.body?.results || listResp.body || [];
-    const target = posts.find((p: any) => p.title === TITLE);
+    const target = postsOf(listResp.body).find((p) => p.title === TITLE);
     if (target) {
       createdPostId = target.id;
     }
@@ -94,8 +109,8 @@ test.describe.serial("공지 UI 작성: 선생 UI -> 학생 확인", () => {
     if (createdPostId && adminPage) {
       try {
         await apiCall(adminPage, "DELETE", `/community/posts/${createdPostId}/`);
-      } catch {
-        /* cleanup failure is not test failure */
+      } catch (error) {
+        console.warn("[notice-ui-create] cleanup skipped", error);
       }
     }
     await studentPage?.context()?.close();

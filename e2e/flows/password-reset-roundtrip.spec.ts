@@ -7,7 +7,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 
 const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";

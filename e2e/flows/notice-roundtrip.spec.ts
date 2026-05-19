@@ -50,7 +50,6 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
   test("3. 학생이 공지 상세에서 내용을 확인한다", async () => {
     await studentPage.locator(`text=${TITLE}`).first().click();
     await studentPage.waitForLoadState("load");
-    await studentPage.waitForTimeout(1500);
 
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
     const content = studentPage.locator(`text=${CONTENT}`).first();
@@ -60,7 +59,11 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
 
   test.afterAll(async () => {
     if (postId && adminPage) {
-      try { await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`); } catch {}
+      try {
+        await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`);
+      } catch (error) {
+        console.warn("[notice-roundtrip] cleanup skipped", error);
+      }
     }
     await studentPage?.context()?.close();
     await adminPage?.context()?.close();
