@@ -14,31 +14,44 @@
 import api from "@/shared/api/axios";
 import type { HomeworkPolicy, HomeworkCutlineMode } from "../types";
 
-function normalize(raw: any): HomeworkPolicy {
-  const session = Number(raw?.session ?? raw?.session_id ?? 0);
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function unwrapList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  const record = asRecord(data);
+  return Array.isArray(record.results) ? record.results : [];
+}
+
+function normalize(raw: unknown): HomeworkPolicy {
+  const record = asRecord(raw);
+  const session = Number(record.session ?? record.session_id ?? 0);
 
   // 서버가 새 스펙을 이미 지원하는 경우
-  const modeRaw = String(raw?.cutline_mode ?? "").toUpperCase();
+  const modeRaw = String(record.cutline_mode ?? "").toUpperCase();
   const mode: HomeworkCutlineMode =
     modeRaw === "COUNT" ? "COUNT" : "PERCENT";
 
   const valueRaw =
-    raw?.cutline_value ??
+    record.cutline_value ??
     // ⛑️ 구형 호환: cutline_percent만 있으면 percent 모드로 흡수
-    raw?.cutline_percent ??
+    record.cutline_percent ??
     80;
 
   return {
-    id: Number(raw?.id),
+    id: Number(record.id),
     session,
 
     cutline_mode: mode,
     cutline_value: Number(valueRaw),
 
-    round_unit_percent: Number(raw?.round_unit_percent ?? 5),
+    round_unit_percent: Number(record.round_unit_percent ?? 5),
 
-    created_at: String(raw?.created_at ?? ""),
-    updated_at: String(raw?.updated_at ?? ""),
+    created_at: String(record.created_at ?? ""),
+    updated_at: String(record.updated_at ?? ""),
   };
 }
 
@@ -52,11 +65,7 @@ export async function fetchHomeworkPolicyBySession(
   });
 
   const data = res.data;
-  const list = Array.isArray(data?.results)
-    ? data.results
-    : Array.isArray(data)
-    ? data
-    : [];
+  const list = unwrapList(data);
 
   if (list.length === 0) return null;
   return normalize(list[0]);

@@ -31,21 +31,44 @@ export type HomeworkAssignmentsResponse = {
   selected_ids: number[];
 };
 
-function normalizeItems(raw: any): HomeworkAssignmentItem[] {
-  const list = Array.isArray(raw?.items) ? raw.items : [];
-  return list.map((r: any) => ({
-    enrollment_id: Number(r?.enrollment_id),
-    student_name: String(r?.student_name ?? ""),
-    is_selected: Boolean(r?.is_selected),
-    profile_photo_url: r?.profile_photo_url ?? undefined,
-    lecture_title: r?.lecture_title ?? undefined,
-    lecture_color: r?.lecture_color ?? undefined,
-    lecture_chip_label: r?.lecture_chip_label ?? undefined,
-    parent_phone: r?.parent_phone ?? null,
-    student_phone: r?.student_phone ?? null,
-    school: r?.school ?? null,
-    grade: r?.grade ?? null,
-  }));
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function asOptionalString(value: unknown): string | null | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asNumberOrNull(value: unknown): number | null {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function normalizeItems(raw: unknown): HomeworkAssignmentItem[] {
+  const record = asRecord(raw);
+  const list = Array.isArray(record.items) ? record.items : [];
+  return list.map((item) => {
+    const itemRecord = asRecord(item);
+    return {
+      enrollment_id: Number(itemRecord.enrollment_id),
+      student_name: String(itemRecord.student_name ?? ""),
+      is_selected: Boolean(itemRecord.is_selected),
+      profile_photo_url: asOptionalString(itemRecord.profile_photo_url),
+      lecture_title: asOptionalString(itemRecord.lecture_title),
+      lecture_color: asOptionalString(itemRecord.lecture_color),
+      lecture_chip_label: asOptionalString(itemRecord.lecture_chip_label),
+      parent_phone: asNullableString(itemRecord.parent_phone),
+      student_phone: asNullableString(itemRecord.student_phone),
+      school: asNullableString(itemRecord.school),
+      grade: asNumberOrNull(itemRecord.grade),
+    };
+  });
 }
 
 export async function fetchHomeworkAssignments(

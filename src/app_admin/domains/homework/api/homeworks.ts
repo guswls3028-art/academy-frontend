@@ -16,30 +16,44 @@ export type HomeworkListItem = {
   session_id?: number;
 };
 
-function normalizeListItem(raw: any): HomeworkListItem {
-  const sid = raw?.session_id ?? raw?.session ?? raw?.sessionId;
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asPositiveNumber(value: unknown): number | null {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+}
+
+function normalizeStatus(value: unknown): HomeworkListItem["status"] {
+  return value === "DRAFT" || value === "OPEN" || value === "CLOSED" ? value : "OPEN";
+}
+
+function unwrapList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  const record = asRecord(data);
+  if (Array.isArray(record.results)) return record.results;
+  if (Array.isArray(record.items)) return record.items;
+  return [];
+}
+
+function normalizeListItem(raw: unknown): HomeworkListItem {
+  const record = asRecord(raw);
+  const sid = record.session_id ?? record.session ?? record.sessionId;
 
   return {
-    id: Number(raw?.id),
-    title: String(raw?.title ?? ""),
-    status: (raw?.status ?? "OPEN") as any,
-    session_id: typeof sid === "number" && sid > 0 ? sid : undefined,
+    id: Number(record.id),
+    title: String(record.title ?? ""),
+    status: normalizeStatus(record.status),
+    session_id: asPositiveNumber(sid) ?? undefined,
   };
 }
 
 export async function fetchHomeworks(params?: { session_id?: number }): Promise<HomeworkListItem[]> {
   const res = await api.get("/homeworks/", { params });
-  const d = res.data;
-
-  const list = Array.isArray(d?.results)
-    ? d.results
-    : Array.isArray(d?.items)
-    ? d.items
-    : Array.isArray(d)
-    ? d
-    : [];
-
-  return list.map(normalizeListItem);
+  return unwrapList(res.data).map(normalizeListItem);
 }
 
 /**
