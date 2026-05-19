@@ -1,16 +1,63 @@
-import { test, expect, chromium } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import path from "path";
+import { gotoAndSettle } from "./helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL ?? "https://hakwonplus.com";
 const ADMIN = process.env.E2E_ADMIN_USER ?? "admin97";
 const PASS = process.env.E2E_ADMIN_PASS ?? "koreaseoul97";
 const SHOTS = path.resolve("e2e/screenshots/prod-visual-20260512-cycle2");
+const TOAST_SELECTOR = "[class*='toast'], [class*='Toast'], [role='alert'], [class*='snack']";
 
 // Helper: save screenshot with an absolute path
-async function shot(page: any, name: string) {
+async function shot(page: Page, name: string) {
   const p = path.join(SHOTS, `${name}.png`);
   await page.screenshot({ path: p, fullPage: false });
   return p;
+}
+
+async function waitForNetworkQuiet(page: Page, timeout = 8000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
+}
+
+async function waitForOptional(locator: Locator, timeout = 5000): Promise<void> {
+  await locator.waitFor({ state: "visible", timeout }).catch(() => {});
+}
+
+async function scrollToY(page: Page, y: number): Promise<void> {
+  await page.evaluate((targetY) => window.scrollTo(0, targetY), y);
+  await page.waitForFunction(
+    (targetY) => Math.abs(window.scrollY - Number(targetY)) <= 2,
+    y,
+    { timeout: 3000 },
+  ).catch(() => {});
+  await waitForNetworkQuiet(page, 5000);
+}
+
+async function scrollToPageMiddle(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+  await page.waitForFunction(() => window.scrollY > 0, undefined, { timeout: 3000 }).catch(() => {});
+  await waitForNetworkQuiet(page, 5000);
+}
+
+async function scrollToPageBottom(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForFunction(
+    () => window.innerHeight + window.scrollY >= document.body.scrollHeight - 2,
+    undefined,
+    { timeout: 3000 },
+  ).catch(() => {});
+  await waitForNetworkQuiet(page, 5000);
+}
+
+async function loginAdmin(page: Page): Promise<void> {
+  await gotoAndSettle(page, `${BASE}/admin`);
+  const userInput = page.locator("input[type='text'], input[name='username'], input[placeholder*='아이디'], input[placeholder*='ID']").first();
+  await userInput.fill(ADMIN);
+  const passInput = page.locator("input[type='password']").first();
+  await passInput.fill(PASS);
+  await passInput.press("Enter");
+  await waitForNetworkQuiet(page, 15000);
+  await expect(page.locator("body")).toBeVisible();
 }
 
 test.describe("prod-visual-20260512-cycle2", () => {
@@ -18,8 +65,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
   // V1: Landing hero visual fix
   // ──────────────────────────────────────────────
   test("V1 landing hero visual fix", async ({ page }) => {
-    await page.goto(`${BASE}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/landing`);
 
     // brand_name chip
     const brandChip = page.locator("text=HakwonPlus").first();
@@ -51,8 +97,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
 
     // Check empty sections are gone (about/features giant whitespace)
     // Scroll down to check sections
-    await page.evaluate(() => window.scrollTo(0, 600));
-    await page.waitForTimeout(500);
+    await scrollToY(page, 600);
     await shot(page, "V1-02-scroll600");
 
     // Check page height vs content - if about/features have only headers with big blank space
@@ -67,13 +112,11 @@ test.describe("prod-visual-20260512-cycle2", () => {
   // V2: Sticky section tabs active solid filled
   // ──────────────────────────────────────────────
   test("V2 sticky tabs active state", async ({ page }) => {
-    await page.goto(`${BASE}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/landing`);
     await shot(page, "V2-01-before-scroll");
 
     // Scroll 300px down
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await page.waitForTimeout(800);
+    await scrollToY(page, 300);
     await shot(page, "V2-02-scroll300");
 
     // Find sticky tab strip
@@ -95,8 +138,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
     }
 
     // Scroll more to check tab behavior
-    await page.evaluate(() => window.scrollTo(0, 800));
-    await page.waitForTimeout(500);
+    await scrollToY(page, 800);
     await shot(page, "V2-03-scroll800");
   });
 
@@ -105,21 +147,11 @@ test.describe("prod-visual-20260512-cycle2", () => {
   // ──────────────────────────────────────────────
   test("V3 share token chip behavior", async ({ page }) => {
     // Login
-    await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1000);
-
-    // Fill login form
-    const userInput = page.locator("input[type='text'], input[name='username'], input[placeholder*='아이디'], input[placeholder*='ID']").first();
-    await userInput.fill(ADMIN);
-    const passInput = page.locator("input[type='password']").first();
-    await passInput.fill(PASS);
-    await passInput.press("Enter");
-    await page.waitForTimeout(2000);
+    await loginAdmin(page);
     await shot(page, "V3-01-after-login");
 
     // Navigate to hit reports via sidebar/menu
-    await page.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${BASE}/admin/storage/hit-reports`);
     await shot(page, "V3-02-hit-reports-list");
 
     // Find share chip
@@ -142,17 +174,17 @@ test.describe("prod-visual-20260512-cycle2", () => {
     });
     console.log("initial chip style:", initialBorder);
 
-    // Set up toast listener BEFORE clicking
-    const toastMessages: string[] = [];
+    // Set up console listener BEFORE clicking
     page.on("console", msg => console.log("BROWSER:", msg.text()));
 
     // Click share chip
+    const toast = page.locator(TOAST_SELECTOR).first();
     await shareChip.click();
-    await page.waitForTimeout(2000);
+    await waitForNetworkQuiet(page);
+    await waitForOptional(toast);
     await shot(page, "V3-03-after-first-click");
 
     // Check for toast
-    const toast = page.locator("[class*='toast'], [class*='Toast'], [role='alert'], [class*='snack']").first();
     const toastVisible = await toast.isVisible().catch(() => false);
     const toastText = toastVisible ? await toast.textContent() : "no toast";
     console.log("toast text:", toastText);
@@ -166,7 +198,6 @@ test.describe("prod-visual-20260512-cycle2", () => {
 
     // Reload and check has_share_token=true
     await page.reload({ waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
     await shot(page, "V3-04-after-reload");
 
     const shareChipReloaded = page.locator("[data-testid='hit-report-share-copy']").first();
@@ -175,10 +206,11 @@ test.describe("prod-visual-20260512-cycle2", () => {
 
     // Click again — should say "복사" not "새로 만들고"
     if (reloadedVisible) {
+      const toast2 = page.locator(TOAST_SELECTOR).first();
       await shareChipReloaded.click();
-      await page.waitForTimeout(2000);
+      await waitForNetworkQuiet(page);
+      await waitForOptional(toast2);
       await shot(page, "V3-05-second-click");
-      const toast2 = page.locator("[class*='toast'], [class*='Toast'], [role='alert'], [class*='snack']").first();
       const toast2Visible = await toast2.isVisible().catch(() => false);
       const toast2Text = toast2Visible ? await toast2.textContent() : "no toast";
       console.log("second click toast:", toast2Text);
@@ -193,18 +225,9 @@ test.describe("prod-visual-20260512-cycle2", () => {
     const adminCtx = await browser.newContext();
     const adminPage = await adminCtx.newPage();
 
-    await adminPage.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
-    await adminPage.waitForTimeout(1000);
+    await loginAdmin(adminPage);
 
-    const userInput = adminPage.locator("input[type='text'], input[name='username'], input[placeholder*='아이디'], input[placeholder*='ID']").first();
-    await userInput.fill(ADMIN);
-    const passInput = adminPage.locator("input[type='password']").first();
-    await passInput.fill(PASS);
-    await passInput.press("Enter");
-    await adminPage.waitForTimeout(2000);
-
-    await adminPage.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "networkidle" });
-    await adminPage.waitForTimeout(2000);
+    await gotoAndSettle(adminPage, `${BASE}/admin/storage/hit-reports`);
 
     // Intercept share link API to get token
     let shareUrl: string | null = null;
@@ -214,7 +237,9 @@ test.describe("prod-visual-20260512-cycle2", () => {
           const body = await response.json().catch(() => null);
           if (body?.share_url) shareUrl = body.share_url;
           if (body?.url) shareUrl = body.url;
-        } catch {}
+        } catch (error) {
+          console.warn("share response parse failed:", error);
+        }
       }
     });
 
@@ -224,7 +249,8 @@ test.describe("prod-visual-20260512-cycle2", () => {
 
     if (shareChipVisible) {
       await shareChip.click();
-      await adminPage.waitForTimeout(2000);
+      await waitForNetworkQuiet(adminPage);
+      await waitForOptional(adminPage.locator(TOAST_SELECTOR).first());
     }
 
     // Try to get share URL from clipboard or construct from known pattern
@@ -253,7 +279,6 @@ test.describe("prod-visual-20260512-cycle2", () => {
     console.log("Opening share URL:", targetUrl);
 
     await studentPage.goto(targetUrl, { waitUntil: "networkidle" });
-    await studentPage.waitForTimeout(2000);
     await studentPage.screenshot({ path: path.join(SHOTS, "V4-01-share-page.png"), fullPage: false });
 
     // Check NavBar
@@ -284,12 +309,10 @@ test.describe("prod-visual-20260512-cycle2", () => {
     console.log("iframe visible:", iframeVisible, "src:", iframeSrc);
 
     // Check carousel or other reports section
-    await studentPage.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
-    await studentPage.waitForTimeout(500);
+    await scrollToPageMiddle(studentPage);
     await studentPage.screenshot({ path: path.join(SHOTS, "V4-02-share-scroll.png"), fullPage: false });
 
-    await studentPage.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await studentPage.waitForTimeout(500);
+    await scrollToPageBottom(studentPage);
     await studentPage.screenshot({ path: path.join(SHOTS, "V4-03-share-bottom.png"), fullPage: false });
 
     // Check footer
