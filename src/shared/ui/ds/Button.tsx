@@ -37,7 +37,7 @@ export default function Button({
   return (
     <button
       {...props}
-      type={(props.type as any) ?? "button"}
+      type={props.type ?? "button"}
       disabled={isDisabled}
       className={cx("ds-button", className)}
       data-intent={intent}

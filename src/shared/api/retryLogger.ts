@@ -3,9 +3,19 @@
 
 const LOG_PREFIX = "[video-retry]";
 
+declare global {
+  interface Window {
+    __VIDEO_RETRY_DEBUG__?: boolean;
+  }
+}
+
+function isDebugEnabled(): boolean {
+  return import.meta.env.DEV || (typeof window !== "undefined" && window.__VIDEO_RETRY_DEBUG__ === true);
+}
+
 export function logRetryAttempt(videoId: number): void {
   try {
-    if (import.meta.env.DEV || (typeof window !== "undefined" && (window as any).__VIDEO_RETRY_DEBUG__)) {
+    if (isDebugEnabled()) {
       console.info(LOG_PREFIX, "attempt", { videoId });
     }
   } catch {
@@ -15,7 +25,7 @@ export function logRetryAttempt(videoId: number): void {
 
 export function logRetrySuccess(videoId: number): void {
   try {
-    if (import.meta.env.DEV || (typeof window !== "undefined" && (window as any).__VIDEO_RETRY_DEBUG__)) {
+    if (isDebugEnabled()) {
       console.info(LOG_PREFIX, "success", { videoId });
     }
   } catch {

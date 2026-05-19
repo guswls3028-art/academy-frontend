@@ -31,6 +31,8 @@ type AdminModalProps = {
   children: React.ReactNode;
 };
 
+type ModalStyles = NonNullable<React.ComponentProps<typeof Modal>["styles"]>;
+
 export default function AdminModal({
   open,
   onClose,
@@ -103,6 +105,18 @@ export default function AdminModal({
   const baseClass = className
     ? `admin-modal admin-modal--${type} ${className}`
     : `admin-modal admin-modal--${type}`;
+  const modalStyles: ModalStyles = {
+    body: {
+      padding: 0,
+      overflow: "hidden",
+    },
+    mask: {
+      backdropFilter: "blur(3px)",
+      backgroundColor: isConfirm
+        ? "rgba(0,0,0,0.58)"
+        : "rgba(0,0,0,0.42)",
+    },
+  };
 
   return (
     <>
@@ -117,20 +131,7 @@ export default function AdminModal({
         mask={{ closable: !isConfirm }}
         closable={!isConfirm}
         keyboard={false}
-        styles={
-          {
-            content: {
-              padding: 0,
-              overflow: "hidden",
-            },
-            mask: {
-              backdropFilter: "blur(3px)",
-              backgroundColor: isConfirm
-                ? "rgba(0,0,0,0.58)"
-                : "rgba(0,0,0,0.42)",
-            },
-          } as any
-        }
+        styles={modalStyles}
         className={baseClass}
         modalRender={(modal) => (
           <div

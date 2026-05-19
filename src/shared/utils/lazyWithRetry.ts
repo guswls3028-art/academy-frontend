@@ -1,4 +1,6 @@
-import { lazy } from "react";
+import { lazy, type ComponentType } from "react";
+
+type ReactLazyLoader = Parameters<typeof lazy>[0];
 
 /**
  * Vite code-splitting + Cloudflare Pages 배포 시 발생하는 두 종류 race 처리.
@@ -12,9 +14,10 @@ import { lazy } from "react";
  * 두 케이스 모두 한 번 페이지를 리로드해 최신 HTML(새 chunk 해시)을 가져오는 것으로 회복.
  * sessionStorage 타임스탬프로 무한 리로드 방지(10초 이내 재시도 차단).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function lazyWithRetry(factory: () => Promise<{ default: any }>) {
-  return lazy(() =>
+export function lazyWithRetry<T extends ComponentType<never>>(
+  factory: () => Promise<{ default: T }>,
+): ReturnType<typeof lazy> {
+  const load = () =>
     factory()
       .then((mod) => {
         // factory가 resolve 되었어도 default가 undefined면 race로 간주.
@@ -38,6 +41,7 @@ export function lazyWithRetry(factory: () => Promise<{ default: any }>) {
         window.location.reload();
         // reload 대기 (실제로 도달하지 않음)
         return new Promise<never>(() => {});
-      }),
-  );
+      });
+
+  return lazy(load as unknown as ReactLazyLoader);
 }

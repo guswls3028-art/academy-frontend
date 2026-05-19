@@ -3,6 +3,27 @@
 
 const PREFIX = "[workbox]";
 
+type WorkboxTelemetryPayload =
+  | {
+      taskId: string;
+      taskTenantScope: string | null;
+      currentTenantKey: string;
+    }
+  | { taskId: string; status: string }
+  | { taskId: string; from: string; to: string }
+  | { taskId: string; jobType: string };
+
+declare global {
+  interface Window {
+    __WORKBOX_DEBUG__?: boolean;
+    __WORKBOX_TELEMETRY__?: (event: string, payload: WorkboxTelemetryPayload) => void;
+  }
+}
+
+function isDebugEnabled(): boolean {
+  return import.meta.env.DEV && typeof window !== "undefined" && window.__WORKBOX_DEBUG__ === true;
+}
+
 export function workboxTenantMismatch(payload: {
   taskId: string;
   taskTenantScope: string | null;
@@ -10,8 +31,8 @@ export function workboxTenantMismatch(payload: {
 }): void {
   try {
     console.warn(PREFIX, "workbox_tenant_mismatch", payload);
-    if (typeof (window as any).__WORKBOX_TELEMETRY__ === "function") {
-      (window as any).__WORKBOX_TELEMETRY__("workbox_tenant_mismatch", payload);
+    if (typeof window !== "undefined" && typeof window.__WORKBOX_TELEMETRY__ === "function") {
+      window.__WORKBOX_TELEMETRY__("workbox_tenant_mismatch", payload);
     }
   } catch {
     // no-op
@@ -20,7 +41,7 @@ export function workboxTenantMismatch(payload: {
 
 export function workboxTaskRendered(payload: { taskId: string; status: string }): void {
   try {
-    if (import.meta.env.DEV && (window as any).__WORKBOX_DEBUG__) {
+    if (isDebugEnabled()) {
       console.info(PREFIX, "workbox_task_rendered", payload);
     }
   } catch {
@@ -34,7 +55,7 @@ export function workboxTaskStatusChanged(payload: {
   to: string;
 }): void {
   try {
-    if (import.meta.env.DEV && (window as any).__WORKBOX_DEBUG__) {
+    if (isDebugEnabled()) {
       console.info(PREFIX, "workbox_task_status_changed", payload);
     }
   } catch {
@@ -44,7 +65,7 @@ export function workboxTaskStatusChanged(payload: {
 
 export function workboxRetryClicked(payload: { taskId: string; jobType: string }): void {
   try {
-    if (import.meta.env.DEV && (window as any).__WORKBOX_DEBUG__) {
+    if (isDebugEnabled()) {
       console.info(PREFIX, "workbox_retry_clicked", payload);
     }
   } catch {
