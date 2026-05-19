@@ -7,12 +7,19 @@
  *       본 spec은 write/mutation 없는 read-only 시각 검수이며 사용자 명시 요청에 따라 실행.
  *       데이터 변경 없음 — 캡처만.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { loginViaUI } from "./helpers/auth";
 
 const TCHUL = "https://tchul.com";
 const SS = (name: string) =>
   `C:/academy/e2e/screenshots/tchul-blueprint-final-20260512/${name}.png`;
+
+async function settlePage(page: Page, timeout = 10_000): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => undefined);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  })).catch(() => undefined);
+}
 
 // ─── V1: 비로그인 외부 학부모 시점 ───────────────────────────────────────────
 test.describe("V1 — 비로그인 랜딩 (3 viewport)", () => {
@@ -23,8 +30,7 @@ test.describe("V1 — 비로그인 랜딩 (3 viewport)", () => {
     });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // Hero h1 visible
     const h1 = page.locator("h1, [class*='hero'] h1, [class*='Hero'] h1").first();
@@ -43,8 +49,7 @@ test.describe("V1 — 비로그인 랜딩 (3 viewport)", () => {
     });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     const h1 = page.locator("h1, [class*='hero'] h1, [class*='Hero'] h1, .pd-hero h1").first();
     const h1Text = await h1.innerText().catch(() => "NOT_FOUND");
@@ -85,8 +90,7 @@ test.describe("V1 — 비로그인 랜딩 (3 viewport)", () => {
     });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // Full-page screenshot
     await page.screenshot({ path: SS("v1-desktop-1366-above-fold"), fullPage: false });
@@ -103,7 +107,7 @@ test.describe("V1 — 비로그인 랜딩 (3 viewport)", () => {
 
     // Scroll to trigger section enter
     await page.evaluate(() => window.scrollTo(0, 600));
-    await page.waitForTimeout(800);
+    await settlePage(page);
     const inViewCount = await page.locator(".pd-in-view").count();
     console.log("[V1-1366] pd-in-view count after scroll:", inViewCount);
     await page.screenshot({ path: SS("v1-desktop-1366-scrolled"), fullPage: false });
@@ -122,8 +126,7 @@ test.describe("V2 — 학원장 owner — inline editor FAB + drawer", () => {
     await loginViaUI(page, "tchul-admin");
 
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // FAB 존재 여부
     const fab = page.locator('[data-testid="landing-inline-editor-fab"]');
@@ -133,7 +136,7 @@ test.describe("V2 — 학원장 owner — inline editor FAB + drawer", () => {
 
     if (fabVisible) {
       await fab.click();
-      await page.waitForTimeout(600);
+      await settlePage(page, 5_000);
       await page.screenshot({ path: SS("v2-drawer-open"), fullPage: false });
 
       // drawer sections
@@ -153,21 +156,21 @@ test.describe("V2 — 학원장 owner — inline editor FAB + drawer", () => {
 
       // WYSIWYG: change slogan and check live update
       if (await sloganInput.isVisible().catch(() => false)) {
-        await sloganInput.triple_click ? sloganInput.click({ clickCount: 3 }) : await sloganInput.selectText().catch(() => {});
+        await sloganInput.click({ clickCount: 3 }).catch(() => sloganInput.selectText().catch(() => undefined));
         await page.keyboard.press("Control+A");
         await page.keyboard.type("E2E-WYSIWYG-TEST");
-        await page.waitForTimeout(500);
+        await settlePage(page, 5_000);
         await page.screenshot({ path: SS("v2-wysiwyg-live"), fullPage: false });
         // Restore original value
         await sloganInput.click({ clickCount: 3 });
         await page.keyboard.press("Control+A");
         await page.keyboard.type(sloganVal || "과학은 철두철미하게");
-        await page.waitForTimeout(300);
+        await settlePage(page, 5_000);
       }
 
       // Esc to close
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(400);
+      await settlePage(page, 5_000);
       const drawerAfterEsc = await drawerEl.isVisible().catch(() => false);
       console.log("[V2] drawer-after-Esc:", drawerAfterEsc);
       await page.screenshot({ path: SS("v2-after-esc"), fullPage: false });
@@ -187,8 +190,7 @@ test.describe("V2 — 학원장 owner — inline editor FAB + drawer", () => {
     const page = await ctx.newPage();
     await loginViaUI(page, "admin");
     await page.goto("https://hakwonplus.com/landing", { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     const fab = page.locator('[data-testid="landing-inline-editor-fab"]');
     const fabVisible = await fab.isVisible({ timeout: 5000 }).catch(() => false);
@@ -197,7 +199,7 @@ test.describe("V2 — 학원장 owner — inline editor FAB + drawer", () => {
 
     if (fabVisible) {
       await fab.click();
-      await page.waitForTimeout(600);
+      await settlePage(page, 5_000);
       await page.screenshot({ path: SS("v2-alt-drawer-open"), fullPage: false });
     }
 
@@ -214,8 +216,7 @@ test.describe("V3 — reports 페이지 React #310 회귀", () => {
     });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing/reports`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // Check for error message
     const errorText = await page.locator("body").innerText().catch(() => "");
@@ -242,8 +243,7 @@ test.describe("V3 — reports 페이지 React #310 회귀", () => {
     });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // Look for "적중 보고서 보기" button
     const reportBtn = page.locator("a, button").filter({ hasText: /적중 보고서|적중사례|보고서 보기/ }).first();
@@ -252,8 +252,8 @@ test.describe("V3 — reports 페이지 React #310 회귀", () => {
 
     if (btnVisible) {
       await reportBtn.click();
-      await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("load", { timeout: 15000 }).catch(() => undefined);
+      await settlePage(page);
       const url = page.url();
       console.log("[V3-cta] after-click url:", url);
       const hasError310 = (await page.locator("body").innerText().catch(() => "")).includes("일시적인 오류");
@@ -274,15 +274,14 @@ test.describe("V4 — micro-interactions 1366×768", () => {
     const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, storageState: undefined });
     const page = await ctx.newPage();
     await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await settlePage(page);
 
     // CTA primary button hover
     const ctaBtn = page.locator("a, button").filter({ hasText: /수강 문의|상담 신청|문의하기/ }).first();
     const ctaVisible = await ctaBtn.isVisible().catch(() => false);
     if (ctaVisible) {
       await ctaBtn.hover();
-      await page.waitForTimeout(300);
+      await settlePage(page, 5_000);
       const transform = await ctaBtn.evaluate((el) => getComputedStyle(el).transform);
       console.log("[V4] cta-hover-transform:", transform);
       await page.screenshot({ path: SS("v4-cta-hover"), fullPage: false });
@@ -297,7 +296,7 @@ test.describe("V4 — micro-interactions 1366×768", () => {
     console.log("[V4] hamburger visible:", hambVisible);
     if (hambVisible) {
       await hamburger.click();
-      await page.waitForTimeout(500);
+      await settlePage(page, 5_000);
       const sidebarText = await page.locator('[class*="sidebar"], [class*="drawer"], [role="navigation"]').first().innerText().catch(() => "NOT_FOUND");
       console.log("[V4] sidebar-text snippet:", sidebarText.slice(0, 200));
       await page.screenshot({ path: SS("v4-sidebar-open"), fullPage: false });
@@ -309,7 +308,7 @@ test.describe("V4 — micro-interactions 1366×768", () => {
 
     // Sticky tabs — scroll 300px
     await page.evaluate(() => window.scrollTo(0, 300));
-    await page.waitForTimeout(800);
+    await settlePage(page, 5_000);
     const tabStrip = page.locator('[class*="tab"], [class*="Tab"], [class*="chip-strip"], [class*="nav-strip"]').first();
     const tabVisible = await tabStrip.isVisible().catch(() => false);
     console.log("[V4] tab-strip visible after scroll:", tabVisible);
@@ -341,14 +340,14 @@ test.describe("V5 — cross-tenant superuser report", () => {
         localStorage.setItem("refresh", refresh);
       }, { access: tokens.access, refresh: tokens.refresh });
       await page.goto(`${TCHUL}/admin`, { waitUntil: "load", timeout: 20000 });
-      await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+      await settlePage(page);
       const url = page.url();
       console.log("[V5] admin97@tchul post-login url:", url);
       await page.screenshot({ path: SS("v5-superuser-tchul-admin"), fullPage: false });
 
       // Navigate to landing
       await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 20000 });
-      await page.waitForTimeout(2000);
+      await settlePage(page);
       const fab = page.locator('[data-testid="landing-inline-editor-fab"]');
       const fabVisible = await fab.isVisible({ timeout: 3000 }).catch(() => false);
       console.log("[V5] FAB visible with admin97@tchul:", fabVisible);
