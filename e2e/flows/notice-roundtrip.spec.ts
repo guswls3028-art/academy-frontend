@@ -53,7 +53,6 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
 
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
     const content = studentPage.locator(`text=${CONTENT}`).first();
-    await content.scrollIntoViewIfNeeded();
     await expect(content).toBeVisible({ timeout: 8000 });
   });
 
