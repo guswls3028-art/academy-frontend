@@ -13,8 +13,6 @@
 
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth.ts";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";

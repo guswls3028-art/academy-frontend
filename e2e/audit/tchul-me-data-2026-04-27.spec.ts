@@ -7,12 +7,12 @@ import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("tchul-admin");
 
-test("tchul me raw data", async ({ page, context }) => {
+test("tchul me raw data", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginViaUI(page, "tchul-admin");
 
   await page.goto(`${BASE}/admin/dashboard`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(800);
+  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
 
   // 1) 페이지 컨텍스트에서 axios 호출 — 토큰/테넌트 헤더 자동 첨부
   const me = await page.evaluate(async () => {
@@ -27,10 +27,10 @@ test("tchul me raw data", async ({ page, context }) => {
         credentials: "include",
       });
       const text = await r.text();
-      let body: any = null;
+      let body: unknown = null;
       try { body = JSON.parse(text); } catch { body = text.slice(0, 300); }
       return { status: r.status, body };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return { error: String(e) };
     }
   });
@@ -48,10 +48,10 @@ test("tchul me raw data", async ({ page, context }) => {
         credentials: "include",
       });
       const text = await r.text();
-      let body: any = null;
+      let body: unknown = null;
       try { body = JSON.parse(text); } catch { body = text.slice(0, 300); }
       return { status: r.status, body };
-    } catch (e: any) {
+    } catch (e: unknown) {
       return { error: String(e) };
     }
   });

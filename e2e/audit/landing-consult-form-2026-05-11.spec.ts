@@ -9,10 +9,9 @@ test.describe("상담 요청 form 검증", () => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
     await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
     const heading = page.getByText("바로 상담 요청 보내기").first();
+    await expect(heading).toBeVisible({ timeout: 5000 });
     await heading.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
     await page.screenshot({ path: `${OUT}/v7-contact-form-desktop.png`, fullPage: false });
 
     const headingCount = await page.getByText("바로 상담 요청 보내기").count();
@@ -29,15 +28,14 @@ test.describe("상담 요청 form 검증", () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
     const heading = page.getByText("바로 상담 요청 보내기").first();
+    await expect(heading).toBeVisible({ timeout: 5000 });
     await heading.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
     await page.screenshot({ path: `${OUT}/v7-contact-form-mobile.png`, fullPage: false });
     await ctx.close();
   });
 
-  test("form 제출 → 201 + ✓ 안내", async ({ page, request }) => {
+  test("form 제출 → 201 + ✓ 안내", async ({ request }) => {
     // 직접 API POST로 검증 (UI 제출 시 실제 DB에 spam 데이터 박힘 방지)
     const resp = await request.post("https://api.hakwonplus.com/api/v1/core/landing/consult/", {
       data: { name: "검수봇", phone: "02-9999-9999", interest: "검수", message: "spec 검증", source: "e2e-audit" },

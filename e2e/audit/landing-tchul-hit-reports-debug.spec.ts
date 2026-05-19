@@ -10,7 +10,7 @@ test("tchul.com hit_reports fetch 응답 직접 호출 + DOM 확인", async ({ b
     if (r.url().includes("/matchup/landing/public/")) {
       try {
         requests.push({ url: r.url(), status: r.status(), body: (await r.text()).slice(0, 400) });
-      } catch (e) {
+      } catch {
         requests.push({ url: r.url(), status: r.status(), body: "[read err]" });
       }
     }
@@ -23,7 +23,7 @@ test("tchul.com hit_reports fetch 응답 직접 호출 + DOM 확인", async ({ b
   });
 
   await page.goto("https://tchul.com/landing", { waitUntil: "networkidle" });
-  await page.waitForTimeout(2000);
+  await page.locator("h2").first().waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
 
   console.log("REQUESTS:", JSON.stringify(requests, null, 2));
 

@@ -4,7 +4,7 @@
 // - #7 매치업 카드 hover 시각 (학원장 한 달 호소 지점)
 /* eslint-disable no-restricted-syntax */
 
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth.ts";
 
 const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
