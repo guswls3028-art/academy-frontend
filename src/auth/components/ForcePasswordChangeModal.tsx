@@ -25,7 +25,7 @@ export default function ForcePasswordChangeModal({
   const submit = async () => {
     setMsg("");
     if (!oldPw) {
-      setMsg("현재 비밀번호를 입력해 주세요.");
+      setMsg("현재 또는 받은 임시 비밀번호를 입력해 주세요.");
       return;
     }
     if (!newPw) {
@@ -41,7 +41,7 @@ export default function ForcePasswordChangeModal({
       return;
     }
     if (oldPw === newPw) {
-      setMsg("현재 비밀번호와 다른 비밀번호를 입력해 주세요.");
+      setMsg("현재 또는 임시 비밀번호와 다른 비밀번호를 입력해 주세요.");
       return;
     }
 
@@ -114,7 +114,7 @@ export default function ForcePasswordChangeModal({
                 비밀번호 변경
               </div>
               <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 2 }}>
-                보안을 위해 초기 비밀번호를 변경해 주세요
+                받은 임시 비밀번호를 새 비밀번호로 바꿔 주세요
               </div>
             </div>
           </div>
@@ -125,14 +125,14 @@ export default function ForcePasswordChangeModal({
           <div className="flex flex-col gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
-                현재 비밀번호
+                현재/임시 비밀번호
               </label>
               <input
                 type="password"
                 className={inputCls}
                 value={oldPw}
                 onChange={(e) => setOldPw(e.target.value)}
-                placeholder="현재 비밀번호"
+                placeholder="받은 임시 비밀번호"
                 autoComplete="current-password"
                 autoFocus
               />
