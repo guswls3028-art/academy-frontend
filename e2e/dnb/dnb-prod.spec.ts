@@ -4,7 +4,7 @@
  * API: api.hakwonplus.com (X-Tenant-Code: dnb)
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { getBaseUrl, getApiBaseUrl } from "../helpers/auth";
 import type { Page } from "@playwright/test";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
@@ -97,7 +97,7 @@ test.describe("DNB 운영 전기능", () => {
   test("클리닉 진행중 항목", async ({ page }) => {
     await page.goto(`${DNB_BASE}/admin/clinic/bookings`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    const body = await assertNoRenderError(page);
+    await assertNoRenderError(page);
 
     // section_mode=false이므로 반 필터 없어야 함
     const sectionFilter = page.locator(".clinic-section-filter");
