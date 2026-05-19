@@ -10,7 +10,7 @@ export type BundleItem = {
   homework_template: number | null;
   title_override: string;
   display_order: number;
-  config: Record<string, any> | null;
+  config: Record<string, unknown> | null;
   template_title: string;
 };
 
@@ -31,7 +31,7 @@ export type BundleItemInput = {
   homework_template_id?: number;
   title_override?: string;
   display_order?: number;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 };
 
 export type BundleCreateInput = {
@@ -46,24 +46,103 @@ export type ApplyBundleResult = {
   total: number;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toStringValue(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  return String(value);
+}
+
+function toItemType(value: unknown): "exam" | "homework" {
+  return value === "homework" ? "homework" : "exam";
+}
+
+function toRecordOrNull(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
+function listPayload(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (isRecord(value) && Array.isArray(value.results)) return value.results;
+  return [];
+}
+
+function normalizeBundleItem(value: unknown): BundleItem {
+  const row = isRecord(value) ? value : {};
+  return {
+    id: toNumber(row.id),
+    item_type: toItemType(row.item_type),
+    exam_template: toNullableNumber(row.exam_template),
+    homework_template: toNullableNumber(row.homework_template),
+    title_override: toStringValue(row.title_override),
+    display_order: toNumber(row.display_order),
+    config: toRecordOrNull(row.config),
+    template_title: toStringValue(row.template_title),
+  };
+}
+
+function normalizeBundle(value: unknown): TemplateBundle {
+  const row = isRecord(value) ? value : {};
+  return {
+    id: toNumber(row.id),
+    name: toStringValue(row.name),
+    description: toStringValue(row.description),
+    items: listPayload(row.items).map(normalizeBundleItem),
+    exam_count: toNumber(row.exam_count),
+    homework_count: toNumber(row.homework_count),
+    created_at: toStringValue(row.created_at),
+    updated_at: toStringValue(row.updated_at),
+  };
+}
+
+function normalizeAppliedItem(value: unknown): { id: number; title: string } {
+  const row = isRecord(value) ? value : {};
+  return {
+    id: toNumber(row.id),
+    title: toStringValue(row.title),
+  };
+}
+
+function normalizeApplyBundleResult(value: unknown): ApplyBundleResult {
+  const row = isRecord(value) ? value : {};
+  return {
+    created_exams: listPayload(row.created_exams).map(normalizeAppliedItem),
+    created_homeworks: listPayload(row.created_homeworks).map(normalizeAppliedItem),
+    total: toNumber(row.total),
+  };
+}
+
 export async function fetchBundles(): Promise<TemplateBundle[]> {
   const res = await api.get("/exams/bundles/");
-  return res.data?.results ?? res.data ?? [];
+  return listPayload(res.data).map(normalizeBundle);
 }
 
 export async function fetchBundle(id: number): Promise<TemplateBundle> {
   const res = await api.get(`/exams/bundles/${id}/`);
-  return res.data;
+  return normalizeBundle(res.data);
 }
 
 export async function createBundle(data: BundleCreateInput): Promise<TemplateBundle> {
   const res = await api.post("/exams/bundles/", data);
-  return res.data;
+  return normalizeBundle(res.data);
 }
 
 export async function updateBundle(id: number, data: BundleCreateInput): Promise<TemplateBundle> {
   const res = await api.put(`/exams/bundles/${id}/`, data);
-  return res.data;
+  return normalizeBundle(res.data);
 }
 
 export async function deleteBundle(id: number): Promise<void> {
@@ -72,5 +151,5 @@ export async function deleteBundle(id: number): Promise<void> {
 
 export async function applyBundle(bundleId: number, sessionId: number): Promise<ApplyBundleResult> {
   const res = await api.post(`/exams/bundles/${bundleId}/apply/`, { session_id: sessionId });
-  return res.data;
+  return normalizeApplyBundleResult(res.data);
 }

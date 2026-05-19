@@ -26,6 +26,37 @@ export type SessionEnrollment = {
   created_at: string;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function listPayload(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (isRecord(value) && Array.isArray(value.results)) return value.results;
+  return [];
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toStringValue(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  return String(value);
+}
+
+function normalizeSessionEnrollment(value: unknown): SessionEnrollment {
+  const row = isRecord(value) ? value : {};
+  return {
+    id: toNumber(row.id),
+    session: toNumber(row.session),
+    enrollment: toNumber(row.enrollment),
+    student_name: toStringValue(row.student_name),
+    created_at: toStringValue(row.created_at),
+  };
+}
+
 export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollment[]> {
@@ -40,16 +71,8 @@ export async function fetchSessionEnrollments(
     /**
      * DRF pagination 대응
      */
-    if (Array.isArray(res.data?.results)) {
-      return res.data.results as SessionEnrollment[];
-    }
-
-    if (Array.isArray(res.data)) {
-      return res.data as SessionEnrollment[];
-    }
-
-    return [];
-  } catch (err: any) {
+    return listPayload(res.data).filter(isRecord).map(normalizeSessionEnrollment);
+  } catch (err: unknown) {
     /**
      * 🔒 방어 규칙 (합의됨)
      * - 아직 API 미구현 / 권한 없음 → 빈 배열
