@@ -8,6 +8,7 @@ import { fetchStaffMe } from "../../api/staffMe.api";
 import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function StaffSettingsTab() {
   const { staffId } = useParams();
@@ -37,8 +38,7 @@ export default function StaffSettingsTab() {
       feedback.success("저장되었습니다.");
     },
     onError: (e: unknown) => {
-      const msg = (e as any)?.response?.data?.detail ?? (e as any)?.response?.data?.message ?? "저장에 실패했습니다.";
-      feedback.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
+      feedback.error(extractApiError(e, "저장에 실패했습니다."));
     },
   });
 
