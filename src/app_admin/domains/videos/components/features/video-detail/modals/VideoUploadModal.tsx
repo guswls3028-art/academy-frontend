@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, ChevronLeft, ChevronRight, Upload as UploadIcon } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -10,64 +11,6 @@ import { initVideoUpload, uploadFilesWithLimit } from "@admin/domains/videos/uti
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { blockAutoReload as blockAutoReloadFn } from "@/shared/ui/layout/VersionChecker";
 import "./VideoUploadModal.css";
-
-function UploadIcon({ className, size = 22 }: { className?: string; size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      width={size}
-      height={size}
-      aria-hidden
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon({ size = 32 }: { size?: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      width={size}
-      height={size}
-      aria-hidden
-      style={{ color: "var(--color-status-success, #10b981)" }}
-    >
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
 
 const VIDEO_ACCEPT = "video/*";
 type Props = {
@@ -317,21 +260,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           {initErrorMessages.length > 0 && (
             <div
               role="alert"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                padding: "10px 12px",
-                marginBottom: 4,
-                background: "var(--color-status-danger-soft, #fef2f2)",
-                border: "1px solid var(--color-status-danger, #dc2626)",
-                borderRadius: 8,
-              }}
+              className="video-upload-modal__error-banner"
             >
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-status-danger, #b91c1c)" }}>
+              <div className="video-upload-modal__error-title">
                 일부 파일이 실패했습니다 — 슬롯에 그대로 남아있어요. 사유를 확인하고 ‘다시 시도’를 눌러 주세요.
               </div>
-              <ul style={{ margin: 0, paddingLeft: 16, color: "var(--color-status-danger, #b91c1c)", fontSize: 12, lineHeight: 1.6 }}>
+              <ul className="video-upload-modal__error-list">
                 {initErrorMessages.map((m, i) => (
                   <li key={i}>{m}</li>
                 ))}
@@ -398,7 +332,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                       />
                       {file ? (
                         <div className="excel-upload-zone__filled">
-                          <CheckCircleIcon size={36} />
+                          <CheckCircle2 size={36} className="video-upload-modal__success-icon" aria-hidden />
                           <span className="excel-upload-zone__filled-filename">{file.name}</span>
                           <button
                             type="button"
@@ -412,12 +346,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                       ) : (
                         <>
                           <div className="excel-upload-zone__head">
-                            <UploadIcon size={18} className="text-[var(--color-text-secondary)]" />
+                            <UploadIcon size={18} className="video-upload-modal__muted-icon" aria-hidden />
                             <span className="excel-upload-zone__title">Video</span>
                           </div>
                           <div className="excel-upload-zone__drag-label">Drag or Click</div>
                           <div className="excel-upload-zone__upload">
-                            <UploadIcon size={14} className="excel-upload-zone__upload-icon" />
+                            <UploadIcon size={14} className="excel-upload-zone__upload-icon" aria-hidden />
                             <span className="excel-upload-zone__upload-label">업로드</span>
                           </div>
                         </>
@@ -478,7 +412,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                     intent="secondary"
                     size="sm"
                     iconOnly
-                    leftIcon={<ChevronLeftIcon />}
+                    leftIcon={<ChevronLeft size={16} strokeWidth={2.5} aria-hidden />}
                     onClick={() => setMaxSpeed((v) => Math.max(1, v - 0.25))}
                     disabled={maxSpeed <= 1}
                     aria-label="배속 낮추기"
@@ -491,7 +425,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                     intent="secondary"
                     size="sm"
                     iconOnly
-                    leftIcon={<ChevronRightIcon />}
+                    leftIcon={<ChevronRight size={16} strokeWidth={2.5} aria-hidden />}
                     onClick={() => setMaxSpeed((v) => Math.min(5, v + 0.25))}
                     disabled={maxSpeed >= 5}
                     aria-label="배속 높이기"
@@ -511,7 +445,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
       <ModalFooter
         left={
-          <span className="modal-hint" style={{ marginBottom: 0 }}>
+          <span className="modal-hint video-upload-modal__footer-hint">
             업로드 버튼을 누르면 우상단 작업박스에서 업로드·처리 진행을 확인할 수 있습니다.
           </span>
         }

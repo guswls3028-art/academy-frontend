@@ -8,6 +8,39 @@
   padding: var(--space-3) var(--space-4);
 }
 
+.video-upload-modal__error-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border: 1px solid var(--color-status-danger, #dc2626);
+  border-radius: 8px;
+  background: var(--color-status-danger-soft, #fef2f2);
+}
+
+.video-upload-modal__error-title {
+  color: var(--color-status-danger, #b91c1c);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.video-upload-modal__error-list {
+  padding-left: 16px;
+  margin: 0;
+  color: var(--color-status-danger, #b91c1c);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.video-upload-modal__success-icon {
+  color: var(--color-status-success, #10b981);
+}
+
+.video-upload-modal__muted-icon {
+  color: var(--color-text-secondary);
+}
+
 /* 5개 슬롯 가로 배치 — 직사각형, 엑셀 업로드 존(modal.css .excel-upload-zone)과 동일 감성 */
 .video-upload-modal__slots-label {
   display: block;
@@ -248,4 +281,8 @@
 .video-upload-modal__policy-hint-badge .ds-status-badge {
   transform: scale(0.9);
   transform-origin: left center;
+}
+
+.video-upload-modal__footer-hint {
+  margin-bottom: 0;
 }
