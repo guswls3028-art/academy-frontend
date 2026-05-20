@@ -1,0 +1,268 @@
+.bodyPadded {
+  padding: 24px;
+}
+
+.centerAction {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.skeletonAvatar,
+.skeletonTitle,
+.skeletonSubtitle {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  background: var(--color-bg-surface-soft);
+}
+
+.skeletonTitle {
+  width: 120px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.skeletonSubtitle {
+  width: 80px;
+  height: 14px;
+  margin-top: 6px;
+  border-radius: 4px;
+}
+
+.studentTag {
+  background: var(--student-tag-color);
+  color: #fff;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.studentTag[data-light] {
+  color: #1a1a1a;
+  text-shadow: none;
+}
+
+.studentTagRemove {
+  cursor: pointer;
+}
+
+.studentTagRemove[data-pending] {
+  cursor: wait;
+}
+
+.tagControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tagSelect {
+  min-width: 120px;
+  font-size: 12px;
+}
+
+.memoTextarea {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.inventoryExplorerBody {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tabList {
+  display: grid;
+  gap: 8px;
+}
+
+.matrixBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+}
+
+.matrixCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.matrixTitle {
+  color: var(--color-text-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.matrixDescription {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.matrixPanel {
+  padding: 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-canvas);
+}
+
+.lectureChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--lecture-chip-color);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.tabRecord,
+.questionRecord {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  transition: border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.tabRecord {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.questionRecord {
+  padding: 12px 16px;
+}
+
+.tabRecord[data-clickable],
+.questionRecord[data-clickable] {
+  cursor: pointer;
+}
+
+.tabRecord[data-clickable]:hover,
+.questionRecord[data-clickable]:hover {
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tabRecord[data-inactive] {
+  opacity: 0.6;
+}
+
+.recordMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recordTitle {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordMeta,
+.recordMetaRow,
+.questionMeta {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.recordMeta,
+.questionMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recordActions,
+.questionMetaGroup {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.scoreValue {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreMax {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.questionTitleGroup {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shrink0,
+.chevronIcon {
+  flex-shrink: 0;
+}
+
+.replyCount {
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.questionMeta {
+  display: block;
+  margin-top: 4px;
+}
+
+.chevronIcon {
+  opacity: 0.5;
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}

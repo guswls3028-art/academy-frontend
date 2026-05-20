@@ -2,7 +2,7 @@
 // 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import api from "@/shared/api/axios";
@@ -14,6 +14,8 @@ import {
   detachStudentTag,
   createMemo,
   toggleStudentActive,
+  type ClientEnrollmentLite,
+  type ClientStudentTag,
 } from "../api/students.api";
 
 import StudentFormModal from "../components/EditStudentModal";
@@ -27,9 +29,83 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import StudentStorageExplorer from "@admin/domains/storage/components/StudentStorageExplorer";
+import styles from "./StudentsDetailOverlay.module.css";
 
-const STAT_TAB_KEYS = ["enroll", "score", "homework", "clinic", "question"] as const;
-type StatTabKey = (typeof STAT_TAB_KEYS)[number];
+type StatTabKey = "enroll" | "score" | "homework" | "clinic" | "question";
+type AchievementStatus = "PASS" | "FAIL" | "REMEDIATED" | "NOT_SUBMITTED";
+
+type StudentExamGrade = {
+  achievement?: AchievementStatus | null;
+  remediated?: boolean | null;
+  final_pass?: boolean | null;
+  is_pass?: boolean | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  lecture_id?: number | null;
+  session_id?: number | null;
+  exam_id?: number | string | null;
+  title?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  session_title?: string | null;
+  retake_count?: number | null;
+  submitted_at?: string | null;
+};
+
+type StudentHomeworkGrade = {
+  passed?: boolean | null;
+  achievement?: AchievementStatus | null;
+  score?: number | null;
+  max_score?: number | null;
+  lecture_id?: number | null;
+  session_id?: number | null;
+  homework_id?: number | string | null;
+  enrollment_id?: number | string | null;
+  title?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  session_title?: string | null;
+  retake_count?: number | null;
+};
+
+type StudentGradesResponse = {
+  exams?: StudentExamGrade[];
+  homeworks?: StudentHomeworkGrade[];
+};
+
+type ClinicParticipant = {
+  id: number | string;
+  status?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  student_name?: string | null;
+  session_date?: string | null;
+  session_start_time?: string | null;
+  session_location?: string | null;
+  clinic_reason?: string | null;
+};
+
+type CommunityPost = {
+  id: number | string;
+  replies_count?: number | null;
+  reply_count?: number | null;
+  post_type?: string | null;
+  title?: string | null;
+  created_at?: string | null;
+  created_by_display?: string | null;
+};
+
+type ListEnvelope<T> = {
+  results?: T[];
+};
+
+function listFromResponse<T>(value: T[] | ListEnvelope<T> | null | undefined): T[] {
+  if (Array.isArray(value)) return value;
+  return Array.isArray(value?.results) ? value.results : [];
+}
 
 type StudentsDetailOverlayProps = {
   /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
@@ -37,11 +113,20 @@ type StudentsDetailOverlayProps = {
   onClose?: () => void;
 };
 
-export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps) {
+export default function StudentsDetailOverlay({
+  studentId,
+  onClose: closeOverride,
+}: StudentsDetailOverlayProps = {}) {
   const routeParams = useParams();
   const navigate = useNavigate();
-  const id = props?.studentId ?? Number(routeParams.studentId);
-  const onClose = props?.onClose ?? (() => navigate(-1));
+  const id = studentId ?? Number(routeParams.studentId);
+  const onClose = useCallback(() => {
+    if (closeOverride) {
+      closeOverride();
+      return;
+    }
+    navigate(-1);
+  }, [closeOverride, navigate]);
   const qc = useQueryClient();
   const { openSendMessageModal } = useSendMessageModal();
 
@@ -77,8 +162,11 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const { data: gradesData } = useQuery({
     queryKey: ["student", id, "grades"],
     queryFn: async () => {
-      const res = await api.get("/results/admin/student-grades/", { params: { student_id: id } });
-      return res.data as { exams: any[]; homeworks: any[] };
+      const res = await api.get<StudentGradesResponse>("/results/admin/student-grades/", { params: { student_id: id } });
+      return {
+        exams: Array.isArray(res.data.exams) ? res.data.exams : [],
+        homeworks: Array.isArray(res.data.homeworks) ? res.data.homeworks : [],
+      };
     },
     enabled: id > 0,
   });
@@ -88,16 +176,16 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const { data: clinicData } = useQuery({
     queryKey: ["student", id, "clinic"],
     queryFn: async () => {
-      const res = await api.get("/clinic/participants/", { params: { student: id, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+      const res = await api.get<ClinicParticipant[] | ListEnvelope<ClinicParticipant>>("/clinic/participants/", { params: { student: id, page_size: 50 } });
+      return listFromResponse(res.data);
     },
     enabled: id > 0,
   });
   const { data: questionsData } = useQuery({
     queryKey: ["student", id, "questions"],
     queryFn: async () => {
-      const res = await api.get("/community/posts/", { params: { author_student: id, page_size: 50 } });
-      return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+      const res = await api.get<CommunityPost[] | ListEnvelope<CommunityPost>>("/community/posts/", { params: { author_student: id, page_size: 50 } });
+      return listFromResponse(res.data);
     },
     enabled: id > 0,
   });
@@ -140,9 +228,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
         <div className="ds-overlay-wrap">
           <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
             <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
-            <div className="ds-overlay-body" style={{ padding: 24 }}>
+            <div className={`ds-overlay-body ${styles.bodyPadded}`}>
               <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+              <div className={styles.centerAction}>
                 <Button intent="secondary" size="sm" onClick={onClose}>닫기</Button>
               </div>
             </div>
@@ -164,18 +252,18 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
               <div className="ds-overlay-header__inner">
                 <div className="ds-overlay-header__left">
                   <div className="ds-overlay-header__avatar-wrap" aria-hidden>
-                    <span className="ds-overlay-header__avatar" style={{ background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }}>
+                    <span className={`ds-overlay-header__avatar ${styles.skeletonAvatar}`}>
                       &nbsp;
                     </span>
                   </div>
                   <div className="ds-overlay-header__title-block">
-                    <div style={{ width: 120, height: 20, borderRadius: 6, background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
-                    <div style={{ width: 80, height: 14, borderRadius: 4, marginTop: 6, background: "var(--color-bg-surface-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
+                    <div className={styles.skeletonTitle} />
+                    <div className={styles.skeletonSubtitle} />
                   </div>
                 </div>
               </div>
             </header>
-            <div className="ds-overlay-body" style={{ padding: 24 }}>
+            <div className={`ds-overlay-body ${styles.bodyPadded}`}>
               <EmptyState scope="panel" tone="loading" title="학생 정보를 불러오는 중..." />
             </div>
           </div>
@@ -183,6 +271,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       </>
     );
   }
+
+  const studentTagIds = new Set(student.tags.map((tag) => tag.id));
+  const availableTags = tags?.filter((tag) => !studentTagIds.has(tag.id)) ?? [];
 
   return (
     <>
@@ -309,29 +400,26 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       {student.tags?.length > 0 && <span className="ds-overlay-sidebar-section__count">{student.tags.length}</span>}
                     </div>
                     <div className="ds-overlay-tags">
-                      {student.tags?.length ? (
-                        student.tags.map((t: any) => {
-                          const c = String(t.color || "").toLowerCase();
+                      {student.tags.length ? (
+                        student.tags.map((tag: ClientStudentTag) => {
+                          const c = tag.color.toLowerCase();
                           const lightColors = ["#eab308", "#06b6d4"];
                           const isLight = lightColors.some((x) => c === x);
                           return (
                             <span
-                              key={t.id}
-                              className="ds-overlay-tag"
-                              style={{
-                                background: t.color,
-                                color: isLight ? "#1a1a1a" : "#fff",
-                                textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
-                              }}
+                              key={tag.id}
+                              className={`ds-overlay-tag ${styles.studentTag}`}
+                              data-light={isLight ? "" : undefined}
+                              style={{ "--student-tag-color": tag.color } as CSSProperties}
                             >
-                              {t.name}
+                              {tag.name}
                               <button
                                 type="button"
-                                className="ds-overlay-tag__remove"
-                                onClick={(e) => { e.stopPropagation(); removeTag.mutate(t.id); }}
+                                className={`ds-overlay-tag__remove ${styles.studentTagRemove}`}
+                                onClick={(e) => { e.stopPropagation(); removeTag.mutate(tag.id); }}
                                 disabled={removeTag.isPending}
-                                aria-label={`${t.name} 태그 제거`}
-                                style={{ cursor: removeTag.isPending ? "wait" : "pointer" }}
+                                data-pending={removeTag.isPending ? "" : undefined}
+                                aria-label={`${tag.name} 태그 제거`}
                               >
                                 ×
                               </button>
@@ -342,14 +430,13 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         <span className="ds-overlay-info-row__label">태그 없음</span>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-1.5" style={{ marginTop: 6 }}>
+                    <div className={styles.tagControls}>
                       <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
                         + 추가
                       </Button>
-                      {(tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length ?? 0) > 0 && (
+                      {availableTags.length > 0 && (
                         <select
-                          className="ds-input"
-                          style={{ fontSize: 12, minWidth: 120 }}
+                          className={`ds-input ${styles.tagSelect}`}
                           onChange={(e) => {
                             const tagId = Number(e.target.value);
                             if (tagId) addTag.mutate(tagId);
@@ -357,11 +444,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                           }}
                         >
                           <option value="">기존 태그…</option>
-                          {tags
-                            ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
-                            .map((tag: any) => (
-                              <option key={tag.id} value={tag.id}>{tag.name}</option>
-                            ))}
+                          {availableTags.map((tag) => (
+                            <option key={tag.id} value={tag.id}>{tag.name}</option>
+                          ))}
                         </select>
                       )}
                     </div>
@@ -380,12 +465,11 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     </div>
                     <textarea
                       key={`memo-${student.memo ?? ""}`}
-                      className="ds-textarea w-full"
+                      className={`ds-textarea w-full ${styles.memoTextarea}`}
                       rows={3}
                       defaultValue={student.memo ?? ""}
                       placeholder="포커스 해제 시 자동 저장"
                       onBlur={(e) => updateMemo.mutate(e.target.value)}
-                      style={{ fontSize: 13, borderRadius: 8, border: "1px solid var(--color-border-divider)" }}
                     />
                   </div>
                 </div>
@@ -405,11 +489,11 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 />
 
                 <div className="ds-overlay-content-panel__scrollable">
-                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
-                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
-                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
-                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
-                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { if (props?.onClose) props.onClose(); navigate(path); }} />}
+                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                 </div>
               </div>
             </div>
@@ -446,7 +530,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   <CloseButton onClick={() => setInventoryOpen(false)} />
                 </div>
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <div className={styles.inventoryExplorerBody}>
                 <StudentStorageExplorer studentPs={student.psNumber} />
               </div>
             </div>
@@ -478,7 +562,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
               addTag.mutate(tag.id);
               setTagCreateOpen(false);
             }}
-            usedColors={tags?.map((t: any) => t.color).filter(Boolean) ?? []}
+            usedColors={tags?.map((tag) => tag.color).filter((color): color is string => Boolean(color)) ?? []}
           />,
           document.body
         )}
@@ -507,7 +591,7 @@ function InfoRow({
   copyable,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   accent?: boolean;
   copyable?: boolean;
 }) {
@@ -516,7 +600,7 @@ function InfoRow({
 
   const handleCopy = () => {
     if (!canCopy) return;
-    const text = String(value).replace(/[^0-9a-zA-Z가-힣\-]/g, "").trim() || String(value);
+    const text = String(value).replace(/[^0-9a-zA-Z가-힣-]/g, "").trim() || String(value);
     navigator.clipboard.writeText(text).then(
       () => feedback.success(`${label} 복사됨`),
       () => {}
@@ -556,18 +640,18 @@ function StudentStatTabs({
 }: {
   activeTab: StatTabKey;
   onTabChange: (tab: StatTabKey) => void;
-  enrollments: any[];
-  examGrades: any[];
-  homeworkGrades: any[];
-  clinicData: any[];
-  questionsData: any[];
+  enrollments: ClientEnrollmentLite[];
+  examGrades: StudentExamGrade[];
+  homeworkGrades: StudentHomeworkGrade[];
+  clinicData: ClinicParticipant[];
+  questionsData: CommunityPost[];
 }) {
   // 정책: 합격률은 "성취"(1차 + 보강합격) 기준. achievement가 내려오면 우선 사용.
   // 드리프트 방지: 같은 오버레이의 ScoreTab이 achievement 기반으로 뱃지를 그리므로
   // 요약 KPI도 동일 기준이어야 한다.
   let examPassCount = 0;
   let examFailCount = 0;
-  for (const e of examGrades as any[]) {
+  for (const e of examGrades) {
     const ach: string | null | undefined = e.achievement;
     if (ach === "PASS" || ach === "REMEDIATED") examPassCount += 1;
     else if (ach === "FAIL") examFailCount += 1;
@@ -579,18 +663,18 @@ function StudentStatTabs({
   }
   const examJudged = examPassCount + examFailCount;
   const avgScore = examGrades.length > 0
-    ? Math.round(examGrades.reduce((s: number, e: any) => s + (e.total_score ?? 0), 0) / examGrades.length)
+    ? Math.round(examGrades.reduce((sum, exam) => sum + (exam.total_score ?? 0), 0) / examGrades.length)
     : null;
   const passRate = examJudged > 0 ? `${Math.round((examPassCount / examJudged) * 100)}%` : null;
 
-  const hwPassCount = homeworkGrades.filter((h: any) => h.passed === true).length;
+  const hwPassCount = homeworkGrades.filter((homework) => homework.passed === true).length;
   const hwTotal = homeworkGrades.length;
 
   const clinicCount = (clinicData ?? []).length;
-  const clinicAttended = (clinicData ?? []).filter((c: any) => c.status === "ATTENDED" || c.status === "attended").length;
+  const clinicAttended = (clinicData ?? []).filter((participant) => participant.status === "ATTENDED" || participant.status === "attended").length;
   const questionCount = (questionsData ?? []).length;
 
-  const activeEnrollments = (enrollments ?? []).filter((en: any) => (en.status ?? "ACTIVE") === "ACTIVE").length;
+  const activeEnrollments = (enrollments ?? []).filter((enrollment) => (enrollment.status ?? "ACTIVE") === "ACTIVE").length;
 
   const tabs: { key: StatTabKey; label: string; value: string; sub?: string; tone?: string }[] = [
     {
@@ -658,15 +742,34 @@ function LectureChip({ name, color, chipLabel }: { name: string; color?: string;
   const label = (chipLabel && chipLabel.length >= 1 ? chipLabel : (name || "").replace(/\s/g, "")).slice(0, 2) || "강의";
   return (
     <span
-      className="inline-flex items-center justify-center rounded text-[10px] font-bold text-white select-none shrink-0"
-      style={{ width: 28, height: 20, background: color || "var(--color-brand-primary)", lineHeight: 1 }}
+      className={styles.lectureChip}
+      style={{ "--lecture-chip-color": color || "var(--color-brand-primary)" } as CSSProperties}
     >
       {label}
     </span>
   );
 }
 
-function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { studentId: number; studentName: string; enrollments: any[]; onNavigate: (path: string) => void }) {
+function ChevronIcon() {
+  return (
+    <svg
+      className={styles.chevronIcon}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--color-text-muted)"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { studentId: number; studentName: string; enrollments: ClientEnrollmentLite[]; onNavigate: (path: string) => void }) {
   const [matrixOpen, setMatrixOpen] = useState(false);
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
@@ -675,17 +778,17 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
 
   // Phase #11/#12 — 학생 단위 matrix UI 진입 (수강중 강의만 대상).
   const activeLectures = enrollments
-    .filter((en: any) => (en.status ?? "ACTIVE") === "ACTIVE" && en.lectureId)
-    .map((en: any) => ({ id: en.lectureId as number, title: (en.lectureName as string) || `강의 ${en.lectureId}` }));
+    .filter((enrollment) => (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureId)
+    .map((enrollment) => ({ id: enrollment.lectureId as number, title: enrollment.lectureName || `강의 ${enrollment.lectureId}` }));
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div className={styles.tabList}>
       {/* Phase #11/#12 Matrix 진입 — 학생 단위 시험/과제 개별 추가·제거 */}
       {activeLectures.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface))", border: "1px solid color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border-divider))" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-text-primary)" }}>📋 수강 매트릭스</span>
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>학생 1명 × 세션별 시험·과제 빠른 추가/제거</span>
+        <div className={styles.matrixBanner}>
+          <div className={styles.matrixCopy}>
+            <span className={styles.matrixTitle}>📋 수강 매트릭스</span>
+            <span className={styles.matrixDescription}>학생 1명 × 세션별 시험·과제 빠른 추가/제거</span>
           </div>
           <button
             type="button"
@@ -700,7 +803,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
         </div>
       )}
       {matrixOpen && activeLectures.length > 0 && (
-        <div style={{ padding: 12, borderRadius: 12, background: "var(--color-bg-canvas)", border: "1px solid var(--color-border-divider)" }}>
+        <div className={styles.matrixPanel}>
           <StudentEnrollmentMatrixDrawer
             studentId={studentId}
             studentName={studentName}
@@ -708,36 +811,33 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
           />
         </div>
       )}
-      <div style={{ display: "grid", gap: 8 }}>
-      {enrollments.map((en: any) => {
-        const status = en.status ?? "ACTIVE";
+      <div className={styles.tabList}>
+      {enrollments.map((enrollment) => {
+        const { id, status: rawStatus, lectureId, lectureName, lectureColor, lectureChipLabel, enrolledAt } = enrollment;
+        const status = rawStatus ?? "ACTIVE";
         const isActive = status === "ACTIVE";
-        const lectureId = en.lectureId;
         const canNav = !!lectureId;
         return (
           <div
-            key={en.id}
-            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
-            style={{ opacity: isActive ? 1 : 0.6, cursor: canNav ? "pointer" : "default" }}
+            key={id}
+            className={styles.tabRecord}
+            data-clickable={canNav ? "" : undefined}
+            data-inactive={isActive ? undefined : ""}
             onClick={canNav ? () => onNavigate(`/admin/lectures/${lectureId}`) : undefined}
           >
-            <LectureChip name={en.lectureName || ""} color={en.lectureColor} chipLabel={en.lectureChipLabel} />
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{en.lectureName || "-"}</span>
-              {en.enrolledAt && (
-                <span className="text-[11px] text-[var(--color-text-muted)]">
-                  {en.enrolledAt?.slice(0, 10)} 등록
+            <LectureChip name={lectureName || ""} color={lectureColor ?? undefined} chipLabel={lectureChipLabel} />
+            <div className={styles.recordMain}>
+              <span className={styles.recordTitle}>{lectureName || "-"}</span>
+              {enrolledAt && (
+                <span className={styles.recordMeta}>
+                  {enrolledAt.slice(0, 10)} 등록
                 </span>
               )}
             </div>
             <Badge variant="solid" size="sm" tone={(statusTone[status] || "muted") as BadgeTone}>
               {statusLabel[status] || status}
             </Badge>
-            {canNav && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            )}
+            {canNav && <ChevronIcon />}
           </div>
         );
       })}
@@ -747,17 +847,17 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
 }
 
 /** 클리닉/상담 이력 탭 */
-function ClinicTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="클리닉/상담 이력이 없습니다." />;
 
   // 백엔드 ParticipantSerializer: status는 소문자 (booked, attended, no_show, cancelled, pending)
-  const normalize = (s: string) => (s || "").toUpperCase();
+  const normalize = (status: string | null | undefined) => (status || "").toUpperCase();
   const statusLabel: Record<string, string> = { BOOKED: "예약", ATTENDED: "출석", NO_SHOW: "결석", CANCELLED: "취소", PENDING: "대기" };
   const statusTone: Record<string, string> = { BOOKED: "info", ATTENDED: "success", NO_SHOW: "danger", CANCELLED: "muted", PENDING: "warning" };
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {data.map((p: any) => {
+    <div className={styles.tabList}>
+      {data.map((p) => {
         const st = normalize(p.status);
         const lectureName = p.lecture_title;
         const lectureColor = p.lecture_color;
@@ -765,29 +865,28 @@ function ClinicTab({ data, onNavigate }: { data: any[]; onNavigate: (path: strin
         return (
           <div
             key={p.id}
-            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all cursor-pointer"
+            className={styles.tabRecord}
+            data-clickable=""
             onClick={() => onNavigate("/admin/clinic/operations")}
           >
-            {lectureName && <LectureChip name={lectureName} color={lectureColor} chipLabel={lectureChip} />}
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
+            {lectureName && <LectureChip name={lectureName} color={lectureColor ?? undefined} chipLabel={lectureChip} />}
+            <div className={styles.recordMain}>
+              <span className={styles.recordTitle}>
                 {p.student_name ? `${p.student_name} 클리닉` : "클리닉"}
               </span>
-              <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+              <div className={styles.recordMetaRow}>
                 {p.session_date && <span>{p.session_date}</span>}
                 {p.session_start_time && <span>{String(p.session_start_time).slice(0, 5)}</span>}
                 {p.session_location && <span>· {p.session_location}</span>}
               </div>
               {p.clinic_reason && (
-                <span className="text-[11px] text-[var(--color-text-muted)] truncate">{p.clinic_reason}</span>
+                <span className={styles.recordMeta}>{p.clinic_reason}</span>
               )}
             </div>
             <Badge variant="solid" size="sm" tone={(statusTone[st] || "muted") as BadgeTone}>
               {statusLabel[st] || p.status}
             </Badge>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
+            <ChevronIcon />
           </div>
         );
       })}
@@ -796,14 +895,14 @@ function ClinicTab({ data, onNavigate }: { data: any[]; onNavigate: (path: strin
 }
 
 /** 질문 이력 탭 */
-function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="질문 이력이 없습니다." />;
 
   const typeLabel: Record<string, string> = { qna: "질문", board: "게시글", notice: "공지", counsel: "상담", materials: "자료" };
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {data.map((post: any) => {
+    <div className={styles.tabList}>
+      {data.map((post) => {
         const repliesCount = post.replies_count ?? post.reply_count ?? 0;
         const postType = post.post_type || "qna";
         // 질문 → QnA 인박스, 그 외 → 게시판
@@ -813,28 +912,27 @@ function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
         return (
           <div
             key={post.id}
-            className="rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all cursor-pointer"
+            className={styles.questionRecord}
+            data-clickable=""
             onClick={() => onNavigate(navPath)}
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Badge size="xs" className="shrink-0">
+            <div className={styles.questionHeader}>
+              <div className={styles.questionTitleGroup}>
+                <Badge size="xs" className={styles.shrink0}>
                   {typeLabel[postType] || postType}
                 </Badge>
-                <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{post.title || "(제목 없음)"}</span>
+                <span className={styles.recordTitle}>{post.title || "(제목 없음)"}</span>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className={styles.questionMetaGroup}>
                 {repliesCount > 0 && (
-                  <span className="text-xs text-[var(--color-brand-primary)] font-semibold">
+                  <span className={styles.replyCount}>
                     답변 {repliesCount}
                   </span>
                 )}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <ChevronIcon />
               </div>
             </div>
-            <span className="text-[11px] text-[var(--color-text-muted)] mt-1 block">
+            <span className={styles.questionMeta}>
               {post.created_at ? new Date(post.created_at).toLocaleDateString("ko-KR") : ""}
               {post.created_by_display ? ` · ${post.created_by_display}` : ""}
             </span>
@@ -846,7 +944,7 @@ function QuestionTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
 }
 
 /** 시험 성적 탭 — admin/student-grades API 기반 */
-function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+function ScoreTab({ data, onNavigate }: { data: StudentExamGrade[]; onNavigate: (path: string) => void }) {
   const labels = useTenantLabels();
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="시험 성적이 없습니다." />;
 
@@ -855,8 +953,8 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
   const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {data.map((exam: any, i: number) => {
+    <div className={styles.tabList}>
+      {data.map((exam, i) => {
         const lectureId = exam.lecture_id;
         const sessionId = exam.session_id;
         const canNav = !!lectureId && !!sessionId;
@@ -864,25 +962,25 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
         return (
           <div
             key={exam.exam_id ?? i}
-            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
-            style={{ cursor: canNav ? "pointer" : "default" }}
+            className={styles.tabRecord}
+            data-clickable={canNav ? "" : undefined}
             onClick={canNav ? () => onNavigate(navPath) : undefined}
           >
             {exam.lecture_title && (
-              <LectureChip name={exam.lecture_title} color={exam.lecture_color} chipLabel={exam.lecture_chip_label} />
+              <LectureChip name={exam.lecture_title} color={exam.lecture_color ?? undefined} chipLabel={exam.lecture_chip_label} />
             )}
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{exam.title}</span>
-              <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+            <div className={styles.recordMain}>
+              <span className={styles.recordTitle}>{exam.title}</span>
+              <div className={styles.recordMetaRow}>
                 {exam.session_title && <span>{exam.session_title}</span>}
-                {exam.retake_count > 1 && <span>· 재시도 {exam.retake_count - 1}회</span>}
+                {(exam.retake_count ?? 0) > 1 && <span>· 재시도 {(exam.retake_count ?? 0) - 1}회</span>}
                 {exam.submitted_at && <span>· {exam.submitted_at.slice(0, 10)}</span>}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={styles.recordActions}>
               {exam.total_score != null && (
-                <span className="text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
-                  {Math.round(exam.total_score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{exam.max_score ?? 100}</span>
+                <span className={styles.scoreValue}>
+                  {Math.round(exam.total_score)}<span className={styles.scoreMax}>/{exam.max_score ?? 100}</span>
                 </span>
               )}
               {exam.achievement && (
@@ -902,9 +1000,7 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
                 </span>
               )}
               {canNav && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <ChevronIcon />
               )}
             </div>
           </div>
@@ -915,15 +1011,15 @@ function ScoreTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string
 }
 
 /** 과제 탭 — admin/student-grades API 기반 */
-function HomeworkTab({ data, onNavigate }: { data: any[]; onNavigate: (path: string) => void }) {
+function HomeworkTab({ data, onNavigate }: { data: StudentHomeworkGrade[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
 
   const achievementLabel: Record<string, string> = { PASS: "완료", FAIL: "미완료", REMEDIATED: "보강완료" };
   const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {data.map((hw: any, i: number) => {
+    <div className={styles.tabList}>
+      {data.map((hw, i) => {
         const lectureId = hw.lecture_id;
         const sessionId = hw.session_id;
         const canNav = !!lectureId && !!sessionId;
@@ -931,24 +1027,24 @@ function HomeworkTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
         return (
           <div
             key={`${hw.homework_id}-${hw.enrollment_id}-${i}`}
-            className="flex items-center gap-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-4 py-3 hover:border-[var(--color-brand-primary)] hover:shadow-sm transition-all"
-            style={{ cursor: canNav ? "pointer" : "default" }}
+            className={styles.tabRecord}
+            data-clickable={canNav ? "" : undefined}
             onClick={canNav ? () => onNavigate(navPath) : undefined}
           >
             {hw.lecture_title && (
-              <LectureChip name={hw.lecture_title} color={hw.lecture_color} chipLabel={hw.lecture_chip_label} />
+              <LectureChip name={hw.lecture_title} color={hw.lecture_color ?? undefined} chipLabel={hw.lecture_chip_label} />
             )}
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{hw.title}</span>
-              <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+            <div className={styles.recordMain}>
+              <span className={styles.recordTitle}>{hw.title}</span>
+              <div className={styles.recordMetaRow}>
                 {hw.session_title && <span>{hw.session_title}</span>}
-                {hw.retake_count > 1 && <span>· 재시도 {hw.retake_count - 1}회</span>}
+                {(hw.retake_count ?? 0) > 1 && <span>· 재시도 {(hw.retake_count ?? 0) - 1}회</span>}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={styles.recordActions}>
               {hw.score != null && (
-                <span className="text-sm font-bold tabular-nums text-[var(--color-text-primary)]">
-                  {Math.round(hw.score)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/{hw.max_score ?? 100}</span>
+                <span className={styles.scoreValue}>
+                  {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
                 </span>
               )}
               {hw.achievement && (
@@ -957,9 +1053,7 @@ function HomeworkTab({ data, onNavigate }: { data: any[]; onNavigate: (path: str
                 </Badge>
               )}
               {canNav && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <ChevronIcon />
               )}
             </div>
           </div>
