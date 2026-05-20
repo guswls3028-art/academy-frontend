@@ -3,15 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import type { StudentFilters } from "../api/students.api";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  filters: any;
-  onApply: (next: any) => void;
+  filters: StudentFilters;
+  onApply: (next: StudentFilters) => void;
 }
 
-function normalize(next: any) {
+function normalize(next: StudentFilters): StudentFilters {
   Object.keys(next).forEach((k) => {
     const v = next[k];
     if (v === "" || v == null) delete next[k];
@@ -36,6 +37,16 @@ function normalize(next: any) {
   return next;
 }
 
+function inputValue(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function managedValue(value: unknown): string {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return typeof value === "string" ? value : "";
+}
+
 export default function StudentFilterModal({
   open,
   onClose,
@@ -43,7 +54,7 @@ export default function StudentFilterModal({
   onApply,
 }: Props) {
   const slm = useSchoolLevelMode();
-  const [local, setLocal] = useState<any>(filters || {});
+  const [local, setLocal] = useState<StudentFilters>(filters || {});
   const title = useMemo(() => "고급 필터", []);
 
   useEffect(() => {
@@ -51,8 +62,8 @@ export default function StudentFilterModal({
     setLocal(filters || {});
   }, [open, filters]);
 
-  function update(key: string, value: any) {
-    setLocal((prev: any) => ({ ...prev, [key]: value }));
+  function update(key: string, value: unknown) {
+    setLocal((prev) => ({ ...prev, [key]: value }));
   }
 
   function apply() {
@@ -78,18 +89,18 @@ export default function StudentFilterModal({
             <input
               className="ds-input"
               placeholder="이름"
-              value={local.name || ""}
+              value={inputValue(local.name)}
               onChange={(e) => update("name", e.target.value)}
             />
             <input
               className="ds-input"
               placeholder="아이디"
-              value={local.ps_number || ""}
+              value={inputValue(local.ps_number)}
               onChange={(e) => update("ps_number", e.target.value)}
             />
             <select
               className="ds-select"
-              value={local.gender || ""}
+              value={inputValue(local.gender)}
               onChange={(e) => update("gender", e.target.value)}
             >
               <option value="">성별 전체</option>
@@ -101,18 +112,18 @@ export default function StudentFilterModal({
             <input
               className="ds-input"
               placeholder="학생 전화번호"
-              value={local.student_phone || ""}
+              value={inputValue(local.student_phone)}
               onChange={(e) => update("student_phone", e.target.value)}
             />
             <input
               className="ds-input"
               placeholder="학부모 전화번호"
-              value={local.parent_phone || ""}
+              value={inputValue(local.parent_phone)}
               onChange={(e) => update("parent_phone", e.target.value)}
             />
             <select
               className="ds-select"
-              value={local.is_managed ?? ""}
+              value={managedValue(local.is_managed)}
               onChange={(e) => update("is_managed", e.target.value)}
             >
               <option value="">상태 전체</option>
@@ -123,7 +134,7 @@ export default function StudentFilterModal({
           <div className="modal-form-row modal-form-row--3">
             <select
               className="ds-select"
-              value={local.school_type ?? ""}
+              value={inputValue(local.school_type)}
               onChange={(e) => update("school_type", e.target.value)}
             >
               <option value="">학교급 전체</option>
@@ -135,28 +146,28 @@ export default function StudentFilterModal({
               <input
                 className="ds-input"
                 placeholder="초등학교"
-                value={local.elementary_school || ""}
+                value={inputValue(local.elementary_school)}
                 onChange={(e) => update("elementary_school", e.target.value)}
               />
             ) : (
               <input
                 className="ds-input"
                 placeholder="고등학교"
-                value={local.high_school || ""}
+                value={inputValue(local.high_school)}
                 onChange={(e) => update("high_school", e.target.value)}
               />
             )}
             <input
               className="ds-input"
               placeholder="중학교"
-              value={local.middle_school || ""}
+              value={inputValue(local.middle_school)}
               onChange={(e) => update("middle_school", e.target.value)}
             />
           </div>
           <div className="modal-form-row modal-form-row--3">
             <select
               className="ds-select"
-              value={local.grade ?? ""}
+              value={inputValue(local.grade)}
               onChange={(e) => update("grade", e.target.value)}
             >
               <option value="">학년 전체</option>
@@ -171,7 +182,7 @@ export default function StudentFilterModal({
               <input
                 className="ds-input"
                 placeholder="계열"
-                value={local.major || ""}
+                value={inputValue(local.major)}
                 onChange={(e) => update("major", e.target.value)}
               />
             )}

@@ -1,13 +1,13 @@
 // PATH: src/app_admin/domains/students/hooks/useStudentsQuery.ts
 import { useQuery } from "@tanstack/react-query";
-import { fetchStudents } from "../api/students.api";
+import { fetchStudents, type StudentFilters } from "../api/students.api";
 import { resolveTenantCodeString } from "@/shared/tenant";
 
 const PAGE_SIZE = 50;
 
 export function useStudentsQuery(
   search: string,
-  filters: any,
+  filters: StudentFilters,
   sort: string,
   page: number = 1,
   deleted: boolean = false

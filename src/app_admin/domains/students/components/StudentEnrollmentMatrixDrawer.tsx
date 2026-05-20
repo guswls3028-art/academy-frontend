@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge } from "@/shared/ui/ds";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import {
   fetchStudentEnrollmentMatrix,
   toggleStudentEnrollmentMatrix,
@@ -38,8 +39,8 @@ export default function StudentEnrollmentMatrixDrawer({ studentId, studentName, 
     try {
       const data = await fetchStudentEnrollmentMatrix(studentId, lectureId);
       setMatrix(data);
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail || "수강 매트릭스 조회 실패");
+    } catch (e: unknown) {
+      feedback.error(getApiErrorMessage(e, "수강 매트릭스 조회 실패"));
       setMatrix(null);
     } finally {
       setLoading(false);
@@ -62,8 +63,8 @@ export default function StudentEnrollmentMatrixDrawer({ studentId, studentName, 
         action: current ? "remove" : "add",
       });
       await load(selectedLectureId);
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail || "변경 실패");
+    } catch (e: unknown) {
+      feedback.error(getApiErrorMessage(e, "변경 실패"));
     } finally {
       setBusy(null);
     }
