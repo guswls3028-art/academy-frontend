@@ -17,6 +17,7 @@ import { loginViaUI } from "../helpers/auth";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const __filename_ = fileURLToPath(import.meta.url);
@@ -43,8 +44,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("01. 매치업 진입 + 문서 목록 + 카테고리 트리", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle").catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     await page.screenshot({ path: path.join(SHOTS, "01-landing.png"), fullPage: true });
 
@@ -66,7 +66,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("02. 시험지 doc 선택 → 액션바 + 문제 그리드 + 유사/cross 탭", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     // intent=test 문서를 우선 선택. 없으면 첫 문서.
     const testRow = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test']").first();
@@ -80,7 +80,10 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     }
 
     // URL ?docId 동기화
-    await page.waitForTimeout(800);
+    await waitForCondition(
+      async () => /docId=\d+/.test(page.url()),
+      { timeoutMs: 5_000, intervalMs: 200, description: "docId URL sync" },
+    ).catch(() => {});
     const url = page.url();
     if (!/docId=\d+/.test(url)) {
       rec("P1", "URL 동기화", `?docId=N 미반영: ${url}`);
@@ -112,7 +115,12 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     // 첫 문제 클릭 → 유사 결과 패널
     if (pCount > 0) {
       await problemCards.first().click();
-      await page.waitForTimeout(1500);
+      await waitForCondition(
+        async () =>
+          (await page.locator("[data-testid='matchup-similar-row']").count()) > 0 ||
+          (await page.locator("text=유사한 문제를 찾지 못했습니다").count()) > 0,
+        { timeoutMs: 8_000, intervalMs: 300, description: "similar results or empty state" },
+      ).catch(() => {});
       await page.screenshot({ path: path.join(SHOTS, "03-similar-panel.png"), fullPage: true });
 
       // 유사 결과 노출 (실제 마크업: matchup-similar-row)
@@ -132,7 +140,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     // cross-matches 탭 (시험지에서만)
     if (await testRow.count() > 0 && pCount > 0) {
       await crossTab.click();
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
       await page.screenshot({ path: path.join(SHOTS, "04-cross-matches.png"), fullPage: true });
 
       const crossDisabled = await crossTab.isDisabled();
@@ -143,7 +151,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("03. 자동 적중 PDF 다운로드 (vertical stack 검증)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     // 시험지 doc 우선. status=done 보장
     const doneTestDoc = page.locator(
@@ -159,7 +167,6 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
       used = page.locator("[data-testid='matchup-doc-row'], [data-doc-id]").first();
     }
     await used.click();
-    await page.waitForTimeout(800);
 
     const pdfBtn = page.locator("[data-testid='matchup-doc-hit-report-btn']");
     await expect(pdfBtn).toBeVisible({ timeout: 5000 });
@@ -192,12 +199,11 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("04. 카테고리 인라인 편집 (변경 후 원복)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     const firstRow = page.locator("[data-testid='matchup-doc-row'], [data-doc-id]").first();
     if (await firstRow.count() === 0) return;
     await firstRow.click();
-    await page.waitForTimeout(600);
 
     const catBadge = page.locator("[data-testid='matchup-doc-category-badge']");
     await expect(catBadge).toBeVisible({ timeout: 5000 });
@@ -211,7 +217,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     await input.fill(TEST_VAL);
     const saveBtn = page.locator("[data-testid='matchup-doc-category-save']");
     await saveBtn.click();
-    await page.waitForTimeout(800);
+    await expect(catBadge).toContainText(TEST_VAL, { timeout: 5_000 }).catch(() => {});
 
     // 새 값 노출 확인
     const newCat = (await catBadge.textContent())?.trim() ?? "";
@@ -221,20 +227,26 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
 
     // 원복
     await catBadge.click();
-    await page.waitForTimeout(300);
     const inp2 = editArea.locator("input");
+    await expect(inp2).toBeVisible({ timeout: 5_000 });
     await inp2.fill(original);
     if (original === "" || original === "+ 카테고리 지정") {
       // 빈 값으로 저장 — 미분류로 이동
       await inp2.fill("");
     }
     await saveBtn.click();
-    await page.waitForTimeout(600);
+    await waitForCondition(
+      async () => {
+        const text = (await catBadge.textContent())?.trim() ?? "";
+        return original === "" ? text !== TEST_VAL : text.includes(original) || text !== TEST_VAL;
+      },
+      { timeoutMs: 5_000, intervalMs: 250, description: "category restore reflected" },
+    ).catch(() => {});
     console.log(`[REVIEW] 카테고리 편집 원복: "${original}"`);
   });
 
   test("05. 직접 자르기 모달 진입 + 페이지 로드", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     const firstRow = page.locator("[data-testid='matchup-doc-row'][data-doc-status='done']").first();
     if (await firstRow.count() === 0) {
@@ -242,11 +254,9 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
       return;
     }
     await firstRow.click();
-    await page.waitForTimeout(600);
 
     const cropBtn = page.locator("[data-testid='matchup-doc-manual-crop-btn']");
     await cropBtn.click();
-    await page.waitForTimeout(2000);
 
     const modal = page.locator("[role='dialog'], [data-testid='manual-crop-modal']").first();
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -254,11 +264,11 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
 
     // ESC로 닫기
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(500);
+    await expect(modal).toBeHidden({ timeout: 5_000 }).catch(() => {});
   });
 
   test("06. 업로드 모달 진입 + 라디오/카테고리 prefill", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     // 우상단 / 빈 상태 / 트리 어디서든 업로드 진입
     const uploadBtn = page.locator(
@@ -269,7 +279,6 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
       return;
     }
     await uploadBtn.click();
-    await page.waitForTimeout(800);
 
     const modal = page.locator("[data-testid='matchup-upload-modal']").first();
     await expect(modal).toBeVisible({ timeout: 5000 });
