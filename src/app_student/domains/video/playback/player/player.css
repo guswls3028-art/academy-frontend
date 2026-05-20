@@ -1022,6 +1022,14 @@
 /* --- YouTube-style double-tap seek overlay --- */
 .svpSeekOverlay {
   --svp-seek-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .svpSeekOverlay__ripple {

@@ -5,8 +5,6 @@
 import { useEffect, useState } from "react";
 import type { SeekOverlayState } from "./useDoubleTapSeek";
 
-const EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
-
 export default function SeekOverlay({ overlay }: { overlay: SeekOverlayState }) {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState<"in" | "out">("in");
@@ -20,7 +18,7 @@ export default function SeekOverlay({ overlay }: { overlay: SeekOverlayState }) 
     setPhase("in");
     const t = setTimeout(() => setPhase("out"), 320);
     return () => clearTimeout(t);
-  }, [overlay?.key]);
+  }, [overlay]);
 
   if (!overlay || !visible) return null;
 
@@ -36,15 +34,6 @@ export default function SeekOverlay({ overlay }: { overlay: SeekOverlayState }) 
       aria-label={isForward ? `앞으로 ${delta}초` : `뒤로 ${delta}초`}
       data-phase={phase}
       data-side={side}
-      style={{
-        position: "absolute",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        pointerEvents: "none",
-        zIndex: 15,
-      }}
     >
       <div className="svpSeekOverlay__ripple" data-side={side} />
       <div className="svpSeekOverlay__content" data-side={side}>
