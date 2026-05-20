@@ -15,6 +15,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
+import styles from "./GradesStatsTab.module.css";
 
 const ALL_FILTER = "__all__";
 
@@ -95,24 +96,61 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
     return { passed, failed: homeworks.length - passed, total: homeworks.length, avgPct, passRate };
   }, [homeworks]);
 
+  const rankInsight = useMemo(() => {
+    const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
+    if (ranked.length === 0) return null;
+    const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
+    const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;
+    const bottom = ranked.length - topQuartile - midRange;
+    const bestExam = [...ranked].sort((a, b) => (a.percentile ?? 100) - (b.percentile ?? 100))[0];
+    const worstExam = [...ranked].sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))[0];
+    return { topQuartile, midRange, bottom, bestExam, worstExam };
+  }, [exams]);
+
+  const weakestLecture = useMemo(() => {
+    const byLecture = new Map<string, { total: number; pass: number; scores: number[] }>();
+    for (const e of exams) {
+      if (!e.lecture_title || e.total_score == null) continue;
+      const key = e.lecture_title;
+      if (!byLecture.has(key)) byLecture.set(key, { total: 0, pass: 0, scores: [] });
+      const entry = byLecture.get(key)!;
+      entry.total++;
+      if (e.is_pass) entry.pass++;
+      entry.scores.push(e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0);
+    }
+    if (byLecture.size < 2) return null;
+    const lectureStats = Array.from(byLecture.entries())
+      .map(([name, d]) => ({
+        name: name.length > 8 ? name.slice(0, 8) + "\u2026" : name,
+        avg: Math.round(d.scores.reduce((s, v) => s + v, 0) / d.scores.length),
+        passRate: Math.round((d.pass / d.total) * 100),
+      }))
+      .sort((a, b) => a.avg - b.avg);
+    const weakest = lectureStats[0];
+    return weakest && weakest.avg < 70 ? weakest : null;
+  }, [exams]);
+
+  const homeworkPassPct = hwStats && hwStats.total > 0 ? (hwStats.passed / hwStats.total) * 100 : 0;
+  const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
+
   if (exams.length === 0 && homeworks.length === 0) {
     return <EmptyState title="성적 데이터가 없습니다." description="시험이나 과제 결과가 입력되면 통계가 표시됩니다." />;
   }
 
   return (
-    <div style={stack}>
+    <div className={styles.stack}>
       {/* 시험 통계 요약 */}
       {examStats && (
         <div>
-          <div style={sectionTitle}>시험 성적 요약</div>
-          <div style={{ display: "flex", gap: "var(--stu-space-6)", alignItems: "center" }}>
+          <div className={styles.sectionTitle}>시험 성적 요약</div>
+          <div className={styles.examSummary}>
             <ProgressRing
               percent={examStats.avgPct}
               size={88}
               color={examStats.avgPct >= 70 ? "var(--stu-success)" : examStats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
               sublabel="평균"
             />
-            <div style={{ flex: 1 }}>
+            <div className={styles.summaryStats}>
               <StatGrid>
                 <StatCard label="합격률" value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
                 <StatCard label="시험 수" value={`${examStats.count}건`} />
@@ -128,11 +166,11 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
 
       {/* 점수 추이 차트 */}
       {trendData.length >= 2 && (
-        <div data-guide="grades-chart" style={chartWrap}>
-          <div style={sectionTitle}>점수 추이</div>
+        <div data-guide="grades-chart" className={styles.chartWrap}>
+          <div className={styles.sectionTitle}>점수 추이</div>
 
           {lectureNames.length >= 2 && (
-            <div style={filterPillWrap}>
+            <div className={styles.filterPillWrap}>
               <FilterPill label="전체" active={lectureFilter === ALL_FILTER} onClick={() => setLectureFilter(ALL_FILTER)} />
               {lectureNames.map((name) => (
                 <FilterPill key={name} label={name} active={lectureFilter === name} onClick={() => setLectureFilter(name)} />
@@ -140,7 +178,7 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
             </div>
           )}
 
-          <div style={{ width: "100%", height: 160 }}>
+          <div className={styles.chartBox}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 8, right: 12, bottom: 4, left: -16 }}>
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--stu-text-muted)" }} axisLine={false} tickLine={false} />
@@ -165,77 +203,47 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
       )}
 
       {/* 시험 석차 & 위치 요약 */}
-      {examStats && (() => {
-        const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
-        if (ranked.length === 0) return null;
-        const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
-        const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;
-        const bottom = ranked.length - topQuartile - midRange;
-        const bestExam = [...ranked].sort((a, b) => (a.percentile ?? 100) - (b.percentile ?? 100))[0];
-        const worstExam = [...ranked].sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))[0];
-        return (
+      {examStats && rankInsight && (
           <div>
-            <div style={sectionTitle}>내 위치 분석</div>
+            <div className={styles.sectionTitle}>내 위치 분석</div>
             <StatGrid>
-              <StatCard label="상위권" value={`${topQuartile}회`} accent="success" />
-              <StatCard label="중위권" value={`${midRange}회`} />
-              <StatCard label="하위권" value={`${bottom}회`} accent={bottom > 0 ? "danger" : undefined} />
+              <StatCard label="상위권" value={`${rankInsight.topQuartile}회`} accent="success" />
+              <StatCard label="중위권" value={`${rankInsight.midRange}회`} />
+              <StatCard label="하위권" value={`${rankInsight.bottom}회`} accent={rankInsight.bottom > 0 ? "danger" : undefined} />
             </StatGrid>
-            <div style={{ marginTop: "var(--stu-space-4)", fontSize: 13, color: "var(--stu-text-muted)", display: "flex", flexDirection: "column", gap: 4 }}>
-              {bestExam && (
+            <div className={styles.rankNotes}>
+              {rankInsight.bestExam && (
                 <div>
-                  <span style={{ color: "var(--stu-success)", fontWeight: 600 }}>최고 성적</span>{" "}
-                  {bestExam.title} — {bestExam.rank}등/{bestExam.cohort_size}명
+                  <span className={styles.bestLabel}>최고 성적</span>{" "}
+                  {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등/{rankInsight.bestExam.cohort_size}명
                 </div>
               )}
-              {worstExam && worstExam.exam_id !== bestExam?.exam_id && (
+              {rankInsight.worstExam && rankInsight.worstExam.exam_id !== rankInsight.bestExam?.exam_id && (
                 <div>
-                  <span style={{ color: "var(--stu-danger)", fontWeight: 600 }}>보완 필요</span>{" "}
-                  {worstExam.title} — {worstExam.rank}등/{worstExam.cohort_size}명
+                  <span className={styles.worstLabel}>보완 필요</span>{" "}
+                  {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등/{rankInsight.worstExam.cohort_size}명
                 </div>
               )}
             </div>
           </div>
-        );
-      })()}
+      )}
 
       {/* 강좌별 성적 분석 */}
-      {(() => {
-        const byLecture = new Map<string, { total: number; pass: number; scores: number[] }>();
-        for (const e of exams) {
-          if (!e.lecture_title || e.total_score == null) continue;
-          const key = e.lecture_title;
-          if (!byLecture.has(key)) byLecture.set(key, { total: 0, pass: 0, scores: [] });
-          const entry = byLecture.get(key)!;
-          entry.total++;
-          if (e.is_pass) entry.pass++;
-          entry.scores.push(e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0);
-        }
-        if (byLecture.size < 2) return null;
-        const lectureStats = Array.from(byLecture.entries())
-          .map(([name, d]) => ({
-            name: name.length > 8 ? name.slice(0, 8) + "\u2026" : name,
-            avg: Math.round(d.scores.reduce((s, v) => s + v, 0) / d.scores.length),
-            passRate: Math.round((d.pass / d.total) * 100),
-          }))
-          .sort((a, b) => a.avg - b.avg);
-        const weakest = lectureStats[0];
-        return weakest && weakest.avg < 70 ? (
-          <div style={{ background: "var(--stu-surface-soft)", borderRadius: "var(--stu-radius)", padding: "var(--stu-space-4)" }}>
-            <div style={sectionTitle}>약점 강좌</div>
-            <div style={{ fontSize: 13, color: "var(--stu-text-muted)" }}>
-              <span style={{ color: "var(--stu-danger)", fontWeight: 700 }}>{weakest.name}</span> 강좌의
-              평균 득점률이 <strong style={{ color: "var(--stu-danger)" }}>{weakest.avg}%</strong>로 가장 낮습니다.
-              {weakest.passRate < 50 && ` 합격률도 ${weakest.passRate}%입니다.`}
+      {weakestLecture && (
+          <div className={styles.weaknessCard}>
+            <div className={styles.sectionTitle}>약점 강좌</div>
+            <div className={styles.weaknessText}>
+              <span className={styles.weaknessEmphasis}>{weakestLecture.name}</span> 강좌의
+              평균 득점률이 <strong className={styles.weaknessEmphasis}>{weakestLecture.avg}%</strong>로 가장 낮습니다.
+              {weakestLecture.passRate < 50 && ` 합격률도 ${weakestLecture.passRate}%입니다.`}
             </div>
           </div>
-        ) : null;
-      })()}
+      )}
 
       {/* 과제 현황 통계 */}
       {hwStats && (
         <div>
-          <div style={sectionTitle}>과제 현황</div>
+          <div className={styles.sectionTitle}>과제 현황</div>
           <StatGrid>
             <StatCard label="채점 완료" value={`${hwStats.total}건`} />
             <StatCard label="평균 점수" value={hwStats.avgPct != null ? `${hwStats.avgPct}점` : "-"} />
@@ -243,10 +251,16 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
           </StatGrid>
 
           {hwStats.total > 0 && (
-            <div style={{ marginTop: "var(--stu-space-4)", borderRadius: "var(--stu-radius)", overflow: "hidden", height: 8, background: "var(--stu-surface-soft)", display: "flex" }}>
-              <div style={{ width: `${(hwStats.passed / hwStats.total) * 100}%`, background: "var(--stu-success)", transition: "width 0.4s ease" }} />
-              <div style={{ width: `${(hwStats.failed / hwStats.total) * 100}%`, background: "var(--stu-danger)", transition: "width 0.4s ease" }} />
-            </div>
+            <svg
+              className={styles.homeworkBar}
+              viewBox="0 0 100 8"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <rect width="100" height="8" fill="var(--stu-surface-soft)" rx="4" />
+              <rect className={styles.homeworkFill} width={homeworkPassPct} height="8" fill="var(--stu-success)" rx="4" />
+              <rect className={styles.homeworkFill} x={homeworkPassPct} width={homeworkFailPct} height="8" fill="var(--stu-danger)" rx="4" />
+            </svg>
           )}
         </div>
       )}
@@ -256,22 +270,14 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
 
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={active ? filterPillActive : filterPillDefault}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={styles.filterPill}
+      data-active={active}
+      aria-pressed={active}
+    >
       {label}
     </button>
   );
 }
-
-/* ── Styles ── */
-const stack: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" };
-const sectionTitle: React.CSSProperties = { fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" };
-const chartWrap: React.CSSProperties = { background: "var(--stu-surface-soft)", borderRadius: "var(--stu-radius)", padding: "var(--stu-space-6)" };
-const filterPillWrap: React.CSSProperties = { display: "flex", gap: "var(--stu-space-2)", flexWrap: "wrap", marginBottom: "var(--stu-space-4)" };
-const filterPillBase: React.CSSProperties = {
-  padding: "var(--stu-space-2) var(--stu-space-4)", borderRadius: 999, fontSize: 12, fontWeight: 600,
-  cursor: "pointer", border: "1px solid var(--stu-border-subtle)",
-  transition: "background var(--stu-motion-base), color var(--stu-motion-base), border-color var(--stu-motion-base)",
-  whiteSpace: "nowrap" as const,
-};
-const filterPillDefault: React.CSSProperties = { ...filterPillBase, background: "var(--stu-surface)", color: "var(--stu-text-muted)" };
-const filterPillActive: React.CSSProperties = { ...filterPillBase, background: "var(--stu-primary)", color: "var(--stu-primary-contrast, #fff)", borderColor: "var(--stu-primary)" };

@@ -1,0 +1,114 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-8);
+}
+
+.sectionTitle {
+  margin-bottom: var(--stu-space-4);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.examSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--stu-space-6);
+}
+
+.summaryStats {
+  flex: 1;
+}
+
+.chartWrap,
+.weaknessCard {
+  background: var(--stu-surface-soft);
+  border-radius: var(--stu-radius);
+}
+
+.chartWrap {
+  padding: var(--stu-space-6);
+}
+
+.chartBox {
+  width: 100%;
+  height: 160px;
+}
+
+.filterPillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stu-space-2);
+  margin-bottom: var(--stu-space-4);
+}
+
+.filterPill {
+  padding: var(--stu-space-2) var(--stu-space-4);
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: 999px;
+  transition:
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    color var(--stu-motion-base);
+}
+
+.filterPill[data-active="true"] {
+  color: var(--stu-primary-contrast, #fff);
+  background: var(--stu-primary);
+  border-color: var(--stu-primary);
+}
+
+.rankNotes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--stu-space-4);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+}
+
+.bestLabel {
+  color: var(--stu-success);
+  font-weight: 600;
+}
+
+.worstLabel,
+.weaknessEmphasis {
+  color: var(--stu-danger);
+}
+
+.worstLabel {
+  font-weight: 600;
+}
+
+.weaknessCard {
+  padding: var(--stu-space-4);
+}
+
+.weaknessText {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+}
+
+.weaknessEmphasis {
+  font-weight: 700;
+}
+
+.homeworkBar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin-top: var(--stu-space-4);
+  overflow: hidden;
+  border-radius: var(--stu-radius);
+}
+
+.homeworkFill {
+  transition: width 0.4s ease;
+}
