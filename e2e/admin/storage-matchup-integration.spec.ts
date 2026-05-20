@@ -13,8 +13,25 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+import type { Page } from "@playwright/test";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+const MATCHUP_DOC_ROW = "[data-testid='matchup-doc-row']";
+const STORAGE_PROMOTED_ROW = "[data-testid='storage-file-row-promoted']";
+
+async function gotoStorage(page: Page, path: string): Promise<void> {
+  await gotoAndSettle(page, `${BASE}${path}`, { timeout: 30_000 });
+}
+
+async function openStorageUploadModal(page: Page): Promise<void> {
+  const addBtn = page.getByRole("button", { name: "추가" }).first();
+  await expect(addBtn).toBeVisible({ timeout: 5000 });
+  await addBtn.click();
+  await expect(page.getByText("파일 업로드")).toBeVisible({ timeout: 5000 });
+  await page.getByText("파일 업로드").click();
+  await expect(page.locator("input[type='file']").first()).toBeAttached({ timeout: 5000 });
+}
 
 test.describe("storage-as-canonical 통합", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,18 +39,12 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("매치업 list 응답에 inventory_file_id 포함 (M-3 NOT NULL 검증)", async ({ page }) => {
-    let docs: Array<{ id: number; inventory_file_id: number | null }> = [];
-    page.on("response", async (resp) => {
-      if (resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET") {
-        try {
-          docs = await resp.json();
-        } catch {
-          // ignore
-        }
-      }
-    });
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    const docsResponse = page.waitForResponse(
+      (resp) => resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET",
+      { timeout: 15_000 },
+    );
+    await gotoStorage(page, "/admin/storage/matchup");
+    const docs = (await (await docsResponse).json()) as Array<{ id: number; inventory_file_id: number | null }>;
 
     expect(docs.length).toBeGreaterThan(0);
     for (const d of docs) {
@@ -42,21 +53,17 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소 list 응답에 매치업 정보 포함", async ({ page }) => {
-    let body: { files: Array<{ id: string; matchup?: { documentId: number; status: string; problemCount: number } }> } | null = null;
-    page.on("response", async (resp) => {
-      if (resp.url().includes("/storage/inventory/?scope=admin") && resp.request().method() === "GET") {
-        try {
-          body = await resp.json();
-        } catch {
-          // ignore
-        }
-      }
-    });
-    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    const inventoryResponse = page.waitForResponse(
+      (resp) => resp.url().includes("/storage/inventory/?scope=admin") && resp.request().method() === "GET",
+      { timeout: 15_000 },
+    );
+    await gotoStorage(page, "/admin/storage/files");
+    const body = (await (await inventoryResponse).json()) as {
+      files: Array<{ id: string; matchup?: { documentId: number; status: string; problemCount: number } }>;
+    };
 
     expect(body, "inventory list response should arrive").not.toBeNull();
-    const promoted = body!.files.filter((f) => f.matchup);
+    const promoted = body.files.filter((f) => f.matchup);
     expect(promoted.length, "at least one promoted file expected after backfill").toBeGreaterThan(0);
     const m = promoted[0].matchup!;
     expect(m).toHaveProperty("documentId");
@@ -65,16 +72,14 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("매치업 페이지에서 '저장소에서 보기' 버튼 노출 + 클릭 시 저장소 탭 이동", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoStorage(page, "/admin/storage/matchup");
 
-    const firstDoc = page.locator("[data-testid='matchup-doc-row']").first();
+    const firstDoc = page.locator(MATCHUP_DOC_ROW).first();
     if (await firstDoc.count() === 0) {
       test.skip(true, "no matchup docs in this tenant");
       return;
     }
     await firstDoc.click();
-    await page.waitForTimeout(800);
 
     const storageLink = page.locator("[data-testid='matchup-doc-storage-link']");
     await expect(storageLink, "storage 링크 버튼 노출 (inventory_file_id 있을 때만)").toBeVisible({ timeout: 5000 });
@@ -84,10 +89,9 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소에서 매치업 승격된 파일 row 클릭 → '매치업 보기' 액션 (📚 뱃지 노출 동시 검증)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoStorage(page, "/admin/storage/files");
 
-    const promotedRow = page.locator("[data-testid='storage-file-row-promoted']").first();
+    const promotedRow = page.locator(STORAGE_PROMOTED_ROW).first();
     if (await promotedRow.count() === 0) {
       test.skip(true, "no promoted files in root folder");
       return;
@@ -97,7 +101,6 @@ test.describe("storage-as-canonical 통합", () => {
     await expect(promotedRow.locator("[data-testid^='storage-file-matchup-badge-']")).toBeVisible();
 
     await promotedRow.click();
-    await page.waitForTimeout(500);
 
     // "매치업 보기" 액션 노출, "매치업으로 등록"은 아님
     await expect(page.locator("[data-testid='storage-file-action-matchup-open']")).toBeVisible({ timeout: 3000 });
@@ -105,8 +108,7 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("매치업 자동등록 폴더 진입 시 안내 banner 노출 + 매치업 페이지 이동 CTA", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoStorage(page, "/admin/storage/files");
 
     // 좌측 트리에서 매치업-자동등록 폴더 클릭
     const matchupFolder = page.locator("text=매치업-자동등록").first();
@@ -115,7 +117,6 @@ test.describe("storage-as-canonical 통합", () => {
       return;
     }
     await matchupFolder.click();
-    await page.waitForTimeout(800);
 
     const banner = page.locator("[data-testid='storage-matchup-folder-banner']");
     await expect(banner).toBeVisible({ timeout: 3000 });
@@ -123,14 +124,8 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소 업로드 모달 — 다중 파일 드래그앤드롭 입력 시 파일 리스트에 모두 추가", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
-
-    const addBtn = page.getByRole("button", { name: "추가" }).first();
-    await addBtn.click();
-    await page.waitForTimeout(300);
-    await page.getByText("파일 업로드").click();
-    await page.waitForTimeout(500);
+    await gotoStorage(page, "/admin/storage/files");
+    await openStorageUploadModal(page);
 
     // 다중 파일 선택 (FileUploadZone 내부 input)
     const fileInput = page.locator("input[type='file'][multiple]");
@@ -138,7 +133,6 @@ test.describe("storage-as-canonical 통합", () => {
       { name: "smoke1.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") },
       { name: "smoke2.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") },
     ]);
-    await page.waitForTimeout(300);
 
     const list = page.locator("[data-testid='upload-modal-file-list']");
     await expect(list).toBeVisible({ timeout: 3000 });
@@ -155,14 +149,8 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소 업로드 모달 — 파일 선택 전엔 매치업 토글 hidden, PDF 선택 후 enabled로 노출", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/files`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
-
-    const addBtn = page.getByRole("button", { name: "추가" }).first();
-    await addBtn.click();
-    await page.waitForTimeout(300);
-    await page.getByText("파일 업로드").click();
-    await page.waitForTimeout(500);
+    await gotoStorage(page, "/admin/storage/files");
+    await openStorageUploadModal(page);
 
     const promoteToggle = page.locator("[data-testid='upload-modal-promote-matchup']");
     // 파일 선택 전: 토글이 노출되지 않아야 함 (disabled 회색 토글이 "잠긴 듯" 보이는 UX 회피)
@@ -175,9 +163,7 @@ test.describe("storage-as-canonical 통합", () => {
       mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4\n%%EOF"),
     });
-    await page.waitForTimeout(300);
     await expect(promoteToggle).toBeVisible({ timeout: 3000 });
     await expect(promoteToggle).toBeEnabled();
   });
 });
-

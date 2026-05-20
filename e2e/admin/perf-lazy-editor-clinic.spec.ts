@@ -314,7 +314,7 @@ test.describe("시나리오 B — clinic staleTime 회귀", () => {
       const beforeCount = clinicApiCalls.length;
       await approveBtn.click();
       await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(1500);
+      await expect.poll(() => clinicApiCalls.length, { timeout: 5000 }).toBeGreaterThan(beforeCount);
 
       await snap(page, "B5-clinic-after-approve");
 

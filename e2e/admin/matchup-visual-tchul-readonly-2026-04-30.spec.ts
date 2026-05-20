@@ -5,11 +5,13 @@
  * Tenant 1에는 처리중 doc 0건이라 P0-1 disabled / P0-2 단계 / P3 skeleton 시각 검증 불가.
  * tchul에는 항상 처리중 doc이 있어 read-only 캡처로 보충.
  */
-import { test } from "../fixtures/strictTest";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Page } from "@playwright/test";
 
 const BASE = getBaseUrl("tchul-admin");
 const __filename_ = fileURLToPath(import.meta.url);
@@ -17,29 +19,49 @@ const __dirname_ = path.dirname(__filename_);
 const SHOTS = path.resolve(__dirname_, "../reports/matchup-visual-review-2026-04-30");
 fs.mkdirSync(SHOTS, { recursive: true });
 
+async function waitForMatchupReady(page: Page): Promise<void> {
+  await waitForCondition(
+    async () =>
+      (await page.locator("[data-testid='matchup-doc-row']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-upload-button']").count()) > 0,
+    { timeoutMs: 10_000, description: "tchul matchup page ready" },
+  ).catch(() => {});
+}
+
+async function waitForProcessingDetail(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator("[data-testid='matchup-doc-hit-report-btn']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-problem-card']").count()) > 0 ||
+      (await page.getByText(/처리 중|분석 중|단계|체크/).count()) > 0,
+    { timeoutMs: 10_000, description: "processing document detail settled" },
+  ).catch(() => {});
+}
+
 test("VR-TCHUL. read-only 처리중 doc 시각 캡처", async ({ page }) => {
   test.setTimeout(60_000);
   await loginViaUI(page, "tchul-admin");
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(2500);
+  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await waitForMatchupReady(page);
 
   // 처리중 chip 클릭 → 처리중 doc 목록만 표시
   const procChip = page.locator("button, label").filter({ hasText: /처리중\s*\d+/ }).first();
   if (await procChip.count() === 0) {
-    console.log("[VR-TCHUL] 처리중 doc 없음, skip");
+    test.skip(true, "처리중 doc 없음");
     return;
   }
   await procChip.click();
-  await page.waitForTimeout(800);
+  await waitForMatchupReady(page);
 
   const row = page.locator("[data-testid='matchup-doc-row']").first();
   if (await row.count() === 0) {
-    console.log("[VR-TCHUL] 처리중 row 없음, skip");
+    test.skip(true, "처리중 row 없음");
     return;
   }
   await row.click();
-  await page.waitForTimeout(2500);
+  await waitForProcessingDetail(page);
 
   // 1. 처리중 doc 디테일 풀샷 — 단계 체크리스트 + 스피너 + 액션 버튼들
   await page.screenshot({
@@ -65,7 +87,7 @@ test("VR-TCHUL. read-only 처리중 doc 시각 캡처", async ({ page }) => {
     const box = await pdfBtn.boundingBox();
     if (box) {
       await pdfBtn.hover();
-      await page.waitForTimeout(800);
+      await expect(page.locator("[role='tooltip']").first()).toBeVisible({ timeout: 3000 }).catch(() => {});
       await page.screenshot({
         path: path.join(SHOTS, "tchul-vr4-pdf-tooltip.png"),
         clip: {

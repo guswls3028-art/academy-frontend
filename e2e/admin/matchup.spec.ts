@@ -4,6 +4,16 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+import type { Page } from "@playwright/test";
+
+const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+
+async function gotoMatchup(page: Page): Promise<void> {
+  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await expect(page.locator("[data-testid='matchup-upload-button'], [data-testid='matchup-doc-row']").first())
+    .toBeVisible({ timeout: 5000 });
+}
 
 test.describe("매치업 기능", () => {
   test.beforeEach(async ({ page }) => {
@@ -29,8 +39,7 @@ test.describe("매치업 기능", () => {
 
   test("탭 전환: 매치업 → 저장소 → 매치업 + 스크린샷", async ({ page }) => {
     // 매치업으로 이동
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", { waitUntil: "load", timeout: 15000 });
-    await page.waitForTimeout(1000);
+    await gotoMatchup(page);
 
     // 스크린샷: 매치업 탭
     await page.screenshot({ path: "e2e/screenshots/matchup-tab.png", fullPage: true });
@@ -39,7 +48,7 @@ test.describe("매치업 기능", () => {
     const storageTab = page.locator("a, button").filter({ hasText: "저장소" }).first();
     await storageTab.click();
     await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 10000 });
-    await page.waitForTimeout(1000);
+    await expect(page.getByRole("button", { name: "추가" }).first()).toBeVisible({ timeout: 5000 });
 
     // 스크린샷: 저장소 탭
     await page.screenshot({ path: "e2e/screenshots/storage-tab.png", fullPage: true });
@@ -51,8 +60,7 @@ test.describe("매치업 기능", () => {
   });
 
   test("업로드 모달 열기/닫기 + 스크린샷", async ({ page }) => {
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", { waitUntil: "load", timeout: 15000 });
-    await page.waitForTimeout(1000);
+    await gotoMatchup(page);
 
     // '문서 업로드' 버튼 클릭
     await page.getByText("문서 업로드").click();
