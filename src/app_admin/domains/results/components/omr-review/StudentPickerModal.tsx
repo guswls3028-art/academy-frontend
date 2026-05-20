@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchExamCandidates, type CandidateRow } from "./omrReviewApi";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import "./StudentPickerModal.css";
 
 type Props = {
@@ -26,6 +27,10 @@ type Props = {
   onClose: () => void;
   onPick: (c: CandidateRow) => void;
 };
+
+function lecturesForCandidate(row: CandidateRow) {
+  return row.lecture_title ? [{ lectureName: row.lecture_title }] : [];
+}
 
 export default function StudentPickerModal({
   examId,
@@ -154,9 +159,17 @@ export default function StudentPickerModal({
                 onMouseEnter={() => setHighlight(idx)}
                 onClick={() => onPick(r)}
               >
-                <span className="spm-row__name">{r.student_name || "이름 없음"}</span>
+                <span className="spm-row__name">
+                  <StudentNameWithLectureChip
+                    name={r.student_name || "이름 없음"}
+                    lectures={lecturesForCandidate(r)}
+                    enrollmentId={r.enrollment_id}
+                    avatarSize={20}
+                    layout="stacked"
+                    lectureDisplay="meta"
+                  />
+                </span>
                 <span className="spm-row__meta">
-                  {r.lecture_title && <span className="spm-row__lecture">{r.lecture_title}</span>}
                   {r.student_phone_last4 && (
                     <span className="spm-row__phone">학생 ···{r.student_phone_last4}</span>
                   )}

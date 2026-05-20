@@ -142,7 +142,7 @@ export async function deleteSession(sessionId: number) {
 
 /* ─── Enrollment management ─── */
 export async function bulkCreateEnrollments(lectureId: number, studentIds: number[]) {
-  const res = await api.post("/enrollments/bulk_create/", { lecture: lectureId, student_ids: studentIds });
+  const res = await api.post("/enrollments/bulk_create/", { lecture: lectureId, students: studentIds });
   return res.data;
 }
 

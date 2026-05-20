@@ -8,7 +8,8 @@ import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
 const POLL_INTERVAL_MS = 2000;
 const POLL_BACKOFF_AFTER_MS = 3 * 60 * 1000; // 3 minutes
 const POLL_BACKOFF_INTERVAL_MS = 10000;      // 10s after backoff
-const POLL_MAX_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours cap
+const BACKEND_BATCH_TIMEOUT_MS = 6 * 60 * 60 * 1000; // Batch timeout: 6 hours
+const POLL_MAX_DURATION_MS = BACKEND_BATCH_TIMEOUT_MS + 5 * 60 * 1000;
 
 /**
  * Session-scoped video list with Batch-only safe polling.
@@ -16,7 +17,7 @@ const POLL_MAX_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours cap
  * - Stop when all are READY or FAILED.
  * - Stop when tab is hidden.
  * - Exponential backoff: after 3 min, poll every 10s.
- * - Hard cap: stop polling after 4 hours.
+ * - Hard cap: stop polling after backend Batch timeout + propagation cushion.
  */
 export function useSessionVideos(sessionId: number) {
   const pollStartedAt = useRef<number | null>(null);

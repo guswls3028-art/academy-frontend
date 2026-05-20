@@ -24,8 +24,7 @@ const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
 
 type SelectedTarget =
-  | { type: "exam"; id: number; title: string; enrollmentId: number }
-  | { type: "homework"; id: number; title: string; enrollmentId: number };
+  { type: "homework"; id: number; title: string; enrollmentId: number };
 
 export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
@@ -41,11 +40,21 @@ export default function SubmitAssignmentPage() {
 
   // 미합격 과제·시험 필터
   const unfinishedHomeworks = useMemo(
-    () => (grades?.homeworks ?? []).filter((h) => h.passed === false),
+    () => (grades?.homeworks ?? []).filter((h) => (
+      h.passed === false
+      || h.achievement === "FAIL"
+      || h.achievement === "NOT_SUBMITTED"
+    )),
     [grades?.homeworks],
   );
   const unfinishedExams = useMemo(
-    () => (grades?.exams ?? []).filter((e) => e.is_pass === false),
+    () => (grades?.exams ?? []).filter((e) => (
+      e.is_pass === false
+      || e.achievement === "FAIL"
+      || e.achievement === "NOT_SUBMITTED"
+      || e.meta_status === "NOT_SUBMITTED"
+      || e.total_score == null
+    )),
     [grades?.exams],
   );
 
@@ -57,9 +66,7 @@ export default function SubmitAssignmentPage() {
         throw new Error(`파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
       }
       const isVideo = selectedFile.type.startsWith("video/");
-      const kind = selected.type === "exam"
-        ? (isVideo ? "homework_video" : "omr_scan")
-        : (isVideo ? "homework_video" : "homework_image");
+      const kind = isVideo ? "homework_video" : "homework_image";
 
       const fd = new FormData();
       fd.append("source", kind);
@@ -132,7 +139,7 @@ export default function SubmitAssignmentPage() {
   return (
     <StudentPageShell
       title="과제 제출"
-      description="미완료 시험·과제를 선택한 뒤 파일을 업로드하세요."
+      description="미완료 과제는 파일로, 시험은 온라인 답안으로 제출하세요."
       onBack={() => window.history.back()}
     >
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
@@ -217,24 +224,24 @@ export default function SubmitAssignmentPage() {
 
             {/* 미완료 시험 */}
             {unfinishedExams.map((e: MyExamGradeSummary) => {
-              const isSelected = selected?.type === "exam" && selected.id === e.exam_id;
               return (
-                <button
+                <Link
                   key={`ex-${e.exam_id}`}
-                  type="button"
-                  onClick={() => setSelected({ type: "exam", id: e.exam_id, title: e.title, enrollmentId: e.enrollment_id })}
+                  to={`/student/exams/${e.exam_id}/submit`}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
                     padding: "10px 12px",
-                    background: isSelected ? "var(--stu-primary-bg)" : "var(--stu-surface)",
-                    border: `2px solid ${isSelected ? "var(--stu-primary)" : "var(--stu-border)"}`,
+                    background: "var(--stu-surface)",
+                    border: "2px solid var(--stu-border)",
                     borderRadius: "var(--stu-radius)",
                     fontSize: 14,
                     cursor: "pointer",
                     textAlign: "left",
                     width: "100%",
+                    color: "inherit",
+                    textDecoration: "none",
                     transition: "border-color 0.15s",
                   }}
                 >
@@ -260,7 +267,7 @@ export default function SubmitAssignmentPage() {
                       {e.lecture_title}
                     </span>
                   )}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -321,7 +328,7 @@ export default function SubmitAssignmentPage() {
         {selected && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 13, color: "var(--stu-text-muted)" }}>
-              제출 대상: <b>{selected.type === "exam" ? "시험" : "과제"} · {selected.title}</b>
+              제출 대상: <b>과제 · {selected.title}</b>
             </div>
             <button
               type="button"
