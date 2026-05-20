@@ -16,9 +16,10 @@
  * 검증 sample (T2 박철 과학):
  *   각 양식별 1-2 doc 클릭 → full screenshot.
  */
-import { test } from "@playwright/test";
-import { loginViaUI } from "../helpers/auth";
 import { mkdirSync } from "fs";
+import { test, expect, type Page } from "@playwright/test";
+import { loginViaUI } from "../helpers/auth";
+import { clickAndSettle, fillAndSettle, gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
 const OUT_DIR = "C:/academy/_artifacts/sessions/matchup-rebuild-2026-05-05/v9_phase1_visual_verify_v2";
 mkdirSync(OUT_DIR, { recursive: true });
@@ -35,13 +36,31 @@ const SAMPLES = [
   { search: "통합과학1 출제원안", label: "06_other_출제원안", desc: "출제원안 양식 (V9 신규 양식)" },
 ];
 
+const documentItemSelector =
+  'button[class*="DocumentItem"], div[class*="DocumentItem"], li[class*="DocumentItem"], [data-testid="document-item"]';
+const problemSelector =
+  '[data-testid="matchup-problem-card"], button[class*="ProblemCard"], div[class*="ProblemCard"], img[alt*="문제"]';
+
+async function waitForSearchResults(page: Page, search: string) {
+  await Promise.any([
+    page.locator(documentItemSelector).first().waitFor({ state: "visible", timeout: 7000 }),
+    page.locator(`text=${search}`).first().waitFor({ state: "visible", timeout: 7000 }),
+  ]).catch(() => {});
+}
+
+async function waitForProblemGrid(page: Page) {
+  await waitForRenderSettled(page, { timeout: 15_000 });
+  await page.locator(problemSelector).first().waitFor({ state: "visible", timeout: 7000 }).catch(() => {});
+}
+
 test.describe("V9 + Phase 1 시각검증 v2 — T2 매치업 (좌측 클릭)", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${TCHUL}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${TCHUL}/admin/storage/matchup`, { timeout: 30_000 });
+    await expect(page.locator('input[placeholder*="검색"], input[placeholder*="제목"]').first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("00 매치업 페이지 진입", async ({ page }) => {
@@ -50,8 +69,7 @@ test.describe("V9 + Phase 1 시각검증 v2 — T2 매치업 (좌측 클릭)", (
     // "전체 자료" 또는 "자료" 탭 클릭 (참고자료 모두 보기)
     const allTab = page.getByText(/^전체 자료/, { exact: false }).first();
     if (await allTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await allTab.click({ timeout: 5000 });
-      await page.waitForTimeout(1500);
+      await clickAndSettle(allTab, page);
       await page.screenshot({ path: `${OUT_DIR}/01_all_documents_tab.png`, fullPage: true });
     }
   });
@@ -61,9 +79,8 @@ test.describe("V9 + Phase 1 시각검증 v2 — T2 매치업 (좌측 클릭)", (
       // 검색박스 → 키워드
       const searchBox = page.locator('input[placeholder*="검색"], input[placeholder*="제목"]').first();
       await searchBox.waitFor({ state: "visible", timeout: 10_000 });
-      await searchBox.click();
-      await searchBox.fill(s.search);
-      await page.waitForTimeout(2000); // debounce + filter
+      await fillAndSettle(searchBox, s.search, page);
+      await waitForSearchResults(page, s.search);
 
       await page.screenshot({ path: `${OUT_DIR}/${s.label}_a_search.png`, fullPage: true });
 
@@ -78,28 +95,27 @@ test.describe("V9 + Phase 1 시각검증 v2 — T2 매치업 (좌측 클릭)", (
         // fallback: text 매칭으로 자료 찾기
         const byText = page.locator(`text=${s.search}`).first();
         if (await byText.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await byText.click({ timeout: 5000 });
+          await clickAndSettle(byText, page, { settleTimeout: 15_000 });
         } else {
           // 더 일반적인 selector — 좌측 리스트 안의 클릭 가능한 행
           const generic = page.locator('aside button, aside [role="button"], aside li').first();
           if (await generic.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await generic.click({ timeout: 5000 });
+            await clickAndSettle(generic, page, { settleTimeout: 15_000 });
           }
         }
       } else {
-        await firstDoc.click({ timeout: 5000 });
+        await clickAndSettle(firstDoc, page, { settleTimeout: 15_000 });
       }
 
-      await page.waitForTimeout(4000); // 추천 결과 fetch 대기
+      await waitForProblemGrid(page);
 
       // 전체 페이지 캡처
       await page.screenshot({ path: `${OUT_DIR}/${s.label}_b_doc_selected.png`, fullPage: true });
 
       // 첫 problem 클릭 → 우측 추천 결과 변화
-      const problem = page.locator('button[class*="ProblemCard"], div[class*="ProblemCard"], img[alt*="문제"]').first();
+      const problem = page.locator(problemSelector).first();
       if (await problem.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await problem.click({ timeout: 5000 }).catch(() => {});
-        await page.waitForTimeout(3500);
+        await clickAndSettle(problem, page, { settleTimeout: 15_000 }).catch(() => {});
         await page.screenshot({ path: `${OUT_DIR}/${s.label}_c_problem_click.png`, fullPage: true });
       }
     });

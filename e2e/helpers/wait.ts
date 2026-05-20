@@ -35,6 +35,50 @@ export async function gotoAndSettle(
 }
 
 /**
+ * 네트워크, body, 웹폰트, 다음 프레임까지 안정화한 뒤 시각 검증/스크린샷을 진행한다.
+ */
+export async function waitForRenderSettled(
+  page: Page,
+  opts?: { timeout?: number },
+): Promise<void> {
+  const timeout = opts?.timeout ?? 10_000;
+  await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
+  await page.locator("body").waitFor({ state: "visible", timeout });
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+}
+
+/**
+ * 클릭 후 SPA 렌더가 안정화될 때까지 대기한다.
+ */
+export async function clickAndSettle(
+  trigger: Locator,
+  page: Page,
+  opts?: { clickTimeout?: number; settleTimeout?: number },
+): Promise<void> {
+  await trigger.click({ timeout: opts?.clickTimeout ?? 5000 });
+  await waitForRenderSettled(page, { timeout: opts?.settleTimeout });
+}
+
+/**
+ * 입력값 반영과 필터링 렌더를 함께 기다린다.
+ */
+export async function fillAndSettle(
+  field: Locator,
+  value: string,
+  page: Page,
+  opts?: { timeout?: number },
+): Promise<void> {
+  const timeout = opts?.timeout ?? 10_000;
+  await field.click({ clickCount: 3 });
+  await field.fill(value);
+  await expect(field).toHaveValue(value, { timeout });
+  await waitForRenderSettled(page, { timeout });
+}
+
+/**
  * 액션 후 기대 요소가 보일 때까지 대기.
  * 임의 sleep 대신 명확한 후속 조건으로 대기.
  */
