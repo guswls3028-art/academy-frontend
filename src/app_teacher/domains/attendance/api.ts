@@ -6,7 +6,10 @@ export {
   updateAttendance,
   bulkSetPresent,
 } from "@admin/domains/lectures/api/attendance";
-export type { AttendanceListResponse } from "@admin/domains/lectures/api/attendance";
+export type {
+  AttendanceListItem,
+  AttendanceListResponse,
+} from "@admin/domains/lectures/api/attendance";
 
 /** 출석 상태 표시 설정 — 모바일 UI 전용 */
 export type AttendanceStatus =

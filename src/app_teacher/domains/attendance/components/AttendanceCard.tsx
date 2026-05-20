@@ -1,13 +1,28 @@
 // PATH: src/app_teacher/domains/attendance/components/AttendanceCard.tsx
 // 출석 카드 — 스와이프로 상태 변경, 탭으로 전체 상태 선택
+import type { CSSProperties } from "react";
+
 import { useSwipeGesture } from "../hooks/useSwipeGesture";
-import { STATUS_CONFIG } from "../api";
+import {
+  STATUS_CONFIG,
+  type AttendanceListItem,
+  type AttendanceStatus,
+} from "../api";
+import styles from "./AttendanceCard.module.css";
 
 interface Props {
-  record: any; // attendance row from fetchAttendance
-  onStatusChange: (id: number, status: string) => void;
-  onTap: (record: any) => void;
+  record: AttendanceListItem;
+  onStatusChange: (id: number, status: AttendanceStatus) => void;
+  onTap: (record: AttendanceListItem) => void;
 }
+
+type AttendanceCardVars = CSSProperties & {
+  "--attendance-swipe-bg": string;
+  "--attendance-card-offset": string;
+  "--attendance-card-transition": string;
+  "--attendance-status-bg": string;
+  "--attendance-status-color": string;
+};
 
 export default function AttendanceCard({
   record,
@@ -29,6 +44,15 @@ export default function AttendanceCard({
       : `rgba(239,68,68,${Math.min(Math.abs(state.offsetX) / 200, 0.25)})`
     : "transparent";
 
+  const offset = state.isSwiping ? `translateX(${state.offsetX}px)` : "translateX(0)";
+  const cardVars: AttendanceCardVars = {
+    "--attendance-swipe-bg": swipeBg,
+    "--attendance-card-offset": offset,
+    "--attendance-card-transition": state.isSwiping ? "none" : "transform 200ms ease",
+    "--attendance-status-bg": cfg.bg,
+    "--attendance-status-color": cfg.color,
+  };
+
   const hint =
     state.isSwiping && Math.abs(state.offsetX) > 30
       ? state.direction === "right"
@@ -37,18 +61,16 @@ export default function AttendanceCard({
       : null;
 
   return (
-    <div className="relative overflow-hidden rounded-lg" style={{ background: swipeBg }}>
+    <div
+      className={styles.root}
+      style={cardVars}
+    >
       {/* Swipe hint */}
       {hint && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 text-[13px] font-bold pointer-events-none"
-          style={{
-            [state.direction === "right" ? "left" : "right"]: 16,
-            color:
-              state.direction === "right"
-                ? "var(--tc-success)"
-                : "var(--tc-danger)",
-          }}
+          className={`${styles.hint} ${
+            state.direction === "right" ? styles.hintRight : styles.hintLeft
+          }`}
         >
           {hint}
         </div>
@@ -58,45 +80,22 @@ export default function AttendanceCard({
       <div
         {...handlers}
         onClick={() => onTap(record)}
-        className="flex items-center justify-between rounded-lg cursor-pointer select-none"
-        style={{
-          padding: "var(--tc-space-3) var(--tc-space-4)",
-          background: "var(--tc-surface)",
-          border: "1px solid var(--tc-border)",
-          transform: state.isSwiping
-            ? `translateX(${state.offsetX}px)`
-            : "translateX(0)",
-          transition: state.isSwiping ? "none" : "transform 200ms ease",
-          touchAction: "pan-y",
-        }}
+        className={styles.card}
       >
         {/* Left: student info */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-base shrink-0"
-            style={{ background: "var(--tc-surface-soft)" }}
-          >
+        <div className={styles.student}>
+          <div className={styles.avatar}>
             {studentName[0]}
           </div>
-          <div className="min-w-0">
-            <div
-              className="ds-text-name font-semibold"
-              style={{ color: "var(--tc-text)" }}
-            >
+          <div className={styles.studentText}>
+            <div className={styles.studentName}>
               {studentName}
             </div>
           </div>
         </div>
 
         {/* Right: status badge */}
-        <div
-          className="text-xs font-bold rounded-full shrink-0"
-          style={{
-            padding: "4px 12px",
-            background: cfg.bg,
-            color: cfg.color,
-          }}
-        >
+        <div className={styles.statusBadge}>
           {cfg.label}
         </div>
       </div>

@@ -1,0 +1,78 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tc-z-bottom-sheet);
+  background: rgb(0 0 0 / 35%);
+}
+
+.sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: calc(var(--tc-z-bottom-sheet) + 1);
+  padding-bottom: calc(var(--tc-safe-bottom) + var(--tc-space-4));
+  border-radius: var(--tc-radius-xl) var(--tc-radius-xl) 0 0;
+  background: var(--tc-surface);
+  animation: tc-slide-up 200ms ease;
+}
+
+.handleWrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--tc-space-3) 0;
+}
+
+.handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--tc-border-strong);
+}
+
+.title {
+  padding: 0 var(--tc-space-4) var(--tc-space-3);
+  color: var(--tc-text);
+  font-weight: 700;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tc-space-2);
+  padding: 0 var(--tc-space-4);
+}
+
+.option {
+  display: flex;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tc-space-1);
+  padding: var(--tc-space-3);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: transparent;
+}
+
+.optionActive {
+  border-width: 2px;
+  border-color: var(--attendance-option-color);
+  background: var(--attendance-option-bg);
+}
+
+.optionLabel {
+  color: var(--attendance-option-color);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@keyframes tc-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}

@@ -1,14 +1,26 @@
 // PATH: src/app_teacher/domains/attendance/components/StatusBottomSheet.tsx
 // 출석 상태 선택 바텀시트 — 6개 주요 상태
+import type { CSSProperties } from "react";
 import { useEffect } from "react";
-import { STATUS_CONFIG, QUICK_STATUSES } from "../api";
+import {
+  STATUS_CONFIG,
+  QUICK_STATUSES,
+  type AttendanceListItem,
+  type AttendanceStatus,
+} from "../api";
+import styles from "./StatusBottomSheet.module.css";
 
 interface Props {
   open: boolean;
-  record: any | null;
-  onSelect: (id: number, status: string) => void;
+  record: AttendanceListItem | null;
+  onSelect: (id: number, status: AttendanceStatus) => void;
   onClose: () => void;
 }
+
+type StatusOptionVars = CSSProperties & {
+  "--attendance-option-color": string;
+  "--attendance-option-bg": string;
+};
 
 export default function StatusBottomSheet({
   open,
@@ -31,53 +43,28 @@ export default function StatusBottomSheet({
     <>
       <div
         onClick={onClose}
-        className="fixed inset-0"
-        style={{
-          zIndex: "var(--tc-z-bottom-sheet)" as any,
-          background: "rgba(0,0,0,0.35)",
-        }}
+        className={styles.backdrop}
       />
-      <div
-        className="fixed left-0 right-0 bottom-0"
-        style={{
-          zIndex: "calc(var(--tc-z-bottom-sheet) + 1)" as any,
-          background: "var(--tc-surface)",
-          borderRadius: "var(--tc-radius-xl) var(--tc-radius-xl) 0 0",
-          paddingBottom: "calc(var(--tc-safe-bottom) + var(--tc-space-4))",
-          animation: "tcSlideUp 200ms ease",
-        }}
-      >
+      <div className={styles.sheet}>
         {/* Handle */}
-        <div className="flex justify-center" style={{ padding: "var(--tc-space-3) 0" }}>
-          <div
-            className="rounded-full"
-            style={{
-              width: 36,
-              height: 4,
-              background: "var(--tc-border-strong)",
-            }}
-          />
+        <div className={styles.handleWrap}>
+          <div className={styles.handle} />
         </div>
 
         {/* Title */}
-        <div
-          className="ds-text-name font-bold"
-          style={{
-            padding: "0 var(--tc-space-4) var(--tc-space-3)",
-            color: "var(--tc-text)",
-          }}
-        >
+        <div className={styles.title}>
           {studentName} 출석 상태
         </div>
 
         {/* Status grid */}
-        <div
-          className="grid grid-cols-3 gap-2"
-          style={{ padding: "0 var(--tc-space-4)" }}
-        >
+        <div className={styles.grid}>
           {QUICK_STATUSES.map((status) => {
             const cfg = STATUS_CONFIG[status];
             const active = record.status === status;
+            const optionVars: StatusOptionVars = {
+              "--attendance-option-color": cfg.color,
+              "--attendance-option-bg": cfg.bg,
+            };
             return (
               <button
                 key={status}
@@ -85,28 +72,16 @@ export default function StatusBottomSheet({
                   onSelect(record.id, status);
                   onClose();
                 }}
-                className="flex flex-col items-center gap-1 cursor-pointer"
-                style={{
-                  padding: "var(--tc-space-3)",
-                  borderRadius: "var(--tc-radius)",
-                  border: active
-                    ? `2px solid ${cfg.color}`
-                    : "1px solid var(--tc-border)",
-                  background: active ? cfg.bg : "transparent",
-                }}
+                className={`${styles.option} ${active ? styles.optionActive : ""}`}
+                style={optionVars}
               >
-                <span
-                  className="text-sm font-bold"
-                  style={{ color: cfg.color }}
-                >
+                <span className={styles.optionLabel}>
                   {cfg.label}
                 </span>
               </button>
             );
           })}
         </div>
-
-        <style>{`@keyframes tcSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
       </div>
     </>
   );

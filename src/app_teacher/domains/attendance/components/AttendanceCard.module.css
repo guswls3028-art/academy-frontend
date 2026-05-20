@@ -1,0 +1,79 @@
+.root {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--tc-radius);
+  background: var(--attendance-swipe-bg);
+}
+
+.hint {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.hintRight {
+  left: 16px;
+  color: var(--tc-success);
+}
+
+.hintLeft {
+  right: 16px;
+  color: var(--tc-danger);
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+  cursor: pointer;
+  user-select: none;
+  transform: var(--attendance-card-offset);
+  transition: var(--attendance-card-transition);
+  touch-action: pan-y;
+}
+
+.student {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: var(--tc-space-3);
+}
+
+.avatar {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tc-surface-soft);
+  font-size: 16px;
+}
+
+.studentText {
+  min-width: 0;
+}
+
+.studentName {
+  color: var(--tc-text);
+  font-weight: 600;
+}
+
+.statusBadge {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--attendance-status-bg);
+  color: var(--attendance-status-color);
+  font-size: 12px;
+  font-weight: 700;
+}
