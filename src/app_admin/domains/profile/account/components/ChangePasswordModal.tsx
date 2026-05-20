@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/ds";
 import { useMutation } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { changePassword } from "../../api/profile.api";
+import styles from "./ProfileAccountComponents.module.css";
 
 const inputCls =
   "ds-input w-full";
@@ -107,12 +108,7 @@ export default function ChangePasswordModal({
           </Field>
           {msg && (
             <div
-              className="rounded-lg border px-3 py-2 text-sm"
-              style={{
-                borderColor: "color-mix(in srgb, var(--color-error) 35%, var(--color-border-divider))",
-                background: "color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg))",
-                color: "var(--color-error)",
-              }}
+              className={`rounded-lg border px-3 py-2 text-sm ${styles.passwordError}`}
             >
               {msg}
             </div>

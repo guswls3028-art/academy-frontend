@@ -7,11 +7,7 @@ import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
 import { Me, displayUsername, meToStaffRole } from "../../api/profile.api";
 import ProfileEditModal from "./ProfileEditModal";
-
-const VALUE_COLOR = "var(--color-text-primary)";
-const MUTED_COLOR = "var(--color-text-muted)";
-const SECONDARY_COLOR = "var(--color-text-secondary)";
-const VALUE_FONT = "15px";
+import styles from "./ProfileAccountComponents.module.css";
 
 function roleLabel(role: StaffRoleType): string {
   if (role === "owner") return "대표";
@@ -63,8 +59,7 @@ export default function ProfileInfoCard({
             <div aria-hidden className="ds-card-modal__accent" />
             <div className="ds-card-modal__header-inner">
               <div
-                className="ds-card-modal__header-icon"
-                style={{ color: "var(--color-brand-primary)" }}
+                className={`ds-card-modal__header-icon ${styles.headerIcon}`}
                 aria-hidden
               >
                 <FiUser size={16} strokeWidth={2} />
@@ -91,35 +86,24 @@ export default function ProfileInfoCard({
           </header>
 
           <div className="ds-card-modal__body">
-            <div className="modal-form-group" style={{ display: "block", flexDirection: "unset", gap: 0 }}>
+            <div className={`modal-form-group ${styles.infoGroup}`}>
               {/* 1행: 아바타 · 이름 · 직위 */}
-              <div className="flex flex-wrap items-center gap-4" style={{ padding: 0, marginBottom: "var(--space-5)" }}>
+              <div className={`flex flex-wrap items-center gap-4 ${styles.profileSummary}`}>
                 <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background: "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))",
-                    color: "var(--color-primary)",
-                  }}
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${styles.avatarShell}`}
                   aria-hidden
                 >
                   <StaffRoleAvatar role={role} size={28} className="text-[var(--color-primary)]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span
-                    className="font-semibold tracking-tight"
-                    style={{ fontSize: "20px", color: VALUE_COLOR, lineHeight: 1.3 }}
+                    className={`font-semibold tracking-tight ${styles.profileName}`}
                   >
                     {me.name || me.username}
                   </span>
                   <span
-                    className="ml-2 inline-flex items-center rounded-full px-3 py-1.5 text-sm font-bold"
-                    style={{
-                      background:
-                        role === "owner"
-                          ? "color-mix(in srgb, var(--color-primary) 18%, transparent)"
-                          : "var(--color-bg-surface-soft)",
-                      color: role === "owner" ? "var(--color-primary)" : SECONDARY_COLOR,
-                    }}
+                    className={`ml-2 inline-flex items-center rounded-full px-3 py-1.5 text-sm font-bold ${styles.roleBadge}`}
+                    data-role={role}
                   >
                     {roleLabel(role)}
                   </span>
@@ -128,36 +112,32 @@ export default function ProfileInfoCard({
 
               {/* 2행: 아이디 (아이콘 + 값) */}
               <div
-                className="flex flex-wrap items-center gap-3"
-                style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
+                className={`flex flex-wrap items-center gap-3 ${styles.infoRow}`}
                 role="group"
                 aria-label="아이디"
               >
                 <span
-                  className="flex items-center justify-center shrink-0"
-                  style={{ color: SECONDARY_COLOR }}
+                  className={`flex items-center justify-center shrink-0 ${styles.infoIcon}`}
                   aria-hidden
                 >
                   <FiAtSign size={18} strokeWidth={2} />
                 </span>
-                <span style={{ fontSize: VALUE_FONT, fontWeight: 700, color: VALUE_COLOR }}>{displayId || "—"}</span>
+                <span className={styles.infoValue}>{displayId || "—"}</span>
               </div>
 
               {/* 3행: 전화번호 (아이콘 + 값) */}
               <div
-                className="flex flex-wrap items-center gap-3"
-                style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
+                className={`flex flex-wrap items-center gap-3 ${styles.infoRow}`}
                 role="group"
                 aria-label="전화번호"
               >
                 <span
-                  className="flex items-center justify-center shrink-0"
-                  style={{ color: SECONDARY_COLOR }}
+                  className={`flex items-center justify-center shrink-0 ${styles.infoIcon}`}
                   aria-hidden
                 >
                   <FiPhone size={18} strokeWidth={2} />
                 </span>
-                <span style={{ fontSize: VALUE_FONT, fontWeight: 700, color: VALUE_COLOR }}>
+                <span className={styles.infoValue}>
                   {me.phone || "—"}
                 </span>
               </div>
@@ -168,8 +148,7 @@ export default function ProfileInfoCard({
           {(onPasswordClick != null || onLogout != null) && (
             <div className="ds-card-modal__footer">
               <span
-                className="flex items-center gap-2 text-[var(--text-sm)] font-medium"
-                style={{ color: MUTED_COLOR }}
+                className={`flex items-center gap-2 text-[var(--text-sm)] font-medium ${styles.footerSecurity}`}
                 aria-label="계정 · 보안"
               >
                 <FiShield size={14} aria-hidden />

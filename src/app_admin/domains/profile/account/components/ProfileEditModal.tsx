@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { FiLock, FiSave, FiPhone, FiUser } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import styles from "./ProfileAccountComponents.module.css";
 
 const LABEL_CLASS = "text-[var(--text-sm)] font-medium text-[var(--color-text-secondary)]";
 
@@ -76,7 +77,7 @@ export default function ProfileEditModal({
           {/* 이름 */}
           <div className="flex flex-col gap-1.5">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
-              <FiUser size={14} style={{ color: "var(--color-text-muted)" }} />
+              <FiUser size={14} className={styles.labelIcon} />
               이름
             </label>
             <input
@@ -92,7 +93,7 @@ export default function ProfileEditModal({
           {/* 전화번호 */}
           <div className="flex flex-col gap-1.5">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
-              <FiPhone size={14} style={{ color: "var(--color-text-muted)" }} />
+              <FiPhone size={14} className={styles.labelIcon} />
               전화번호
             </label>
             <input
@@ -110,16 +111,11 @@ export default function ProfileEditModal({
             <label className={LABEL_CLASS}>아이디</label>
             <input
               type="text"
-              className="ds-input w-full"
+              className={`ds-input w-full ${styles.readOnlyInput}`}
               value={displayUsername || ""}
               readOnly
               disabled
               aria-label="아이디 (변경 불가)"
-              style={{
-                background: "var(--color-bg-surface-soft)",
-                color: "var(--color-text-secondary)",
-                cursor: "default",
-              }}
             />
             <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
               아이디는 변경할 수 없습니다.
@@ -129,7 +125,7 @@ export default function ProfileEditModal({
           {/* 비밀번호 변경 */}
           <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-4">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
-              <FiLock size={14} style={{ color: "var(--color-text-muted)" }} />
+              <FiLock size={14} className={styles.labelIcon} />
               비밀번호 변경
             </label>
             <span className={`text-[11px] font-medium mb-1 ${invalidPassword ? "text-[var(--color-error)]" : "text-[var(--color-text-muted)]"}`}>
