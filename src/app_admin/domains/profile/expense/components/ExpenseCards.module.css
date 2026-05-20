@@ -1,0 +1,117 @@
+.summaryItem {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  box-shadow: var(--elevation-1);
+}
+
+.summaryItem[data-tone="danger"] {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+}
+
+.summaryLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-meta);
+}
+
+.summaryValue {
+  color: var(--color-text-primary);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.summaryValue[data-big="true"] {
+  font-size: var(--text-2xl);
+}
+
+.summaryValue[data-tone="danger"] {
+  color: var(--color-error);
+}
+
+.summaryUnit {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-meta);
+}
+
+.chartHeader {
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.chartTitle {
+  color: var(--color-text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-title);
+}
+
+.chartDescription {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-meta);
+}
+
+.chartBody {
+  height: 280px;
+  padding: var(--space-6);
+}
+
+.sortIcon {
+  color: var(--color-primary);
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+.sortIcon[data-active="true"] {
+  opacity: 1;
+}
+
+.tableHeadRow {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+.selectHeadCell,
+.selectCell,
+.primaryStrongCell,
+.memoCell,
+.amountCell,
+.actionsCell {
+  padding: var(--space-3) var(--space-4);
+}
+
+.selectHeadCell {
+  text-align: center;
+}
+
+.tableRow {
+  border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 35%, transparent);
+}
+
+.selectCell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.primaryStrongCell {
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.memoCell {
+  max-width: 300px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.amountCell {
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-title);
+  text-align: right;
+}
+
+.actionsCell {
+  text-align: center;
+}

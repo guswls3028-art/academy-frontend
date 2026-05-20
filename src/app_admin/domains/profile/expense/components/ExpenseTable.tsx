@@ -5,6 +5,7 @@ import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
+import styles from "./ExpenseCards.module.css";
 
 const PROFILE_EXPENSE_COLUMN_DEFS: TableColumnDef[] = [
   { key: "date", label: "날짜", defaultWidth: TABLE_COL.medium, minWidth: 80 },
@@ -46,7 +47,7 @@ function ExpenseSortableTh({
     >
       <span className="inline-flex items-center justify-center gap-2">
         {label}
-        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+        <span aria-hidden className={styles.sortIcon} data-active={isAsc || isDesc}>
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
       </span>
@@ -111,27 +112,16 @@ export default function ExpenseTable({
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
     >
       <colgroup>
-        <col style={{ width: TABLE_COL.checkbox }} />
-        <col style={{ width: columnWidths.date ?? TABLE_COL.medium }} />
-        <col style={{ width: columnWidths.title ?? TABLE_COL.subject }} />
-        <col style={{ width: columnWidths.memo ?? TABLE_COL.memo }} />
-        <col style={{ width: columnWidths.amount ?? TABLE_COL.medium }} />
-        <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
+        <col width={TABLE_COL.checkbox} />
+        <col width={columnWidths.date ?? TABLE_COL.medium} />
+        <col width={columnWidths.title ?? TABLE_COL.subject} />
+        <col width={columnWidths.memo ?? TABLE_COL.memo} />
+        <col width={columnWidths.amount ?? TABLE_COL.medium} />
+        <col width={columnWidths.actions ?? TABLE_COL.actions} />
       </colgroup>
       <thead>
-        <tr
-          style={{
-            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-          }}
-        >
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              width: TABLE_COL.checkbox,
-              textAlign: "center",
-            }}
-            className="ds-checkbox-cell"
-          >
+        <tr className={styles.tableHeadRow}>
+          <th className={`ds-checkbox-cell ${styles.selectHeadCell}`}>
             <input
               type="checkbox"
               checked={allSelected}
@@ -163,12 +153,9 @@ export default function ExpenseTable({
         {sortedRows.map((r) => (
           <tr
             key={r.id}
-            className="transition-colors"
-            style={{
-              borderTop: "1px solid color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
-            }}
+            className={`transition-colors ${styles.tableRow}`}
           >
-            <td style={{ padding: "var(--space-3) var(--space-4)", textAlign: "center", verticalAlign: "middle" }}>
+            <td className={styles.selectCell}>
               <input
                 type="checkbox"
                 checked={selectedSet.has(r.id)}
@@ -178,63 +165,30 @@ export default function ExpenseTable({
               />
             </td>
             {/* 날짜 */}
-            <td
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-              }}
-            >
+            <td className={styles.primaryStrongCell}>
               {r.date}
             </td>
 
             {/* 항목 */}
-            <td
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-              }}
-            >
+            <td className={styles.primaryStrongCell}>
               {r.title}
             </td>
 
             {/* 메모 */}
             <td
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                fontSize: "var(--text-sm)",
-                color: "var(--color-text-secondary)",
-                maxWidth: 300,
-              }}
-              className="truncate"
+              className={`truncate ${styles.memoCell}`}
               title={r.memo || undefined}
             >
               {r.memo || "-"}
             </td>
 
             {/* 금액 */}
-            <td
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                fontSize: "var(--text-sm)",
-                fontWeight: "var(--font-title)",
-                color: "var(--color-text-primary)",
-                textAlign: "right",
-              }}
-            >
+            <td className={styles.amountCell}>
               {r.amount.toLocaleString()}원
             </td>
 
             {/* 관리 */}
-            <td
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                textAlign: "center",
-              }}
-            >
+            <td className={styles.actionsCell}>
               <div className="flex justify-center gap-1">
                 <Button
                   type="button"
