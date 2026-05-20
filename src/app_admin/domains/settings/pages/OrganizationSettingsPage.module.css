@@ -1,0 +1,226 @@
+.modeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modeBadge[data-tone="primary"] {
+  color: var(--color-brand-primary);
+}
+
+.modeBadge[data-tone="warning"] {
+  color: var(--color-warning, #d97706);
+}
+
+.modeBadge[data-tone="success"] {
+  color: var(--color-success, #16a34a);
+}
+
+.modeDot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.rowLabelTop {
+  padding-top: 4px;
+}
+
+.academyNameInput {
+  max-width: 280px;
+}
+
+.academyPhoneInput {
+  max-width: 200px;
+}
+
+.ownerOnlyRow {
+  grid-template-columns: 1fr auto;
+}
+
+.ownerOnlyNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mutedIcon {
+  color: var(--color-text-muted);
+}
+
+.ownerOnlyText {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dangerTextButton {
+  color: var(--color-error);
+}
+
+.blockTop8 {
+  margin-top: 8px;
+}
+
+.blockTop12 {
+  margin-top: 12px;
+}
+
+.sectionHeaderSpaced {
+  margin-top: 32px;
+}
+
+.sectionIcon {
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+.ogPreviewLayout {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.ogPreviewCard {
+  flex-shrink: 0;
+  width: 280px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.ogImageBox,
+.ogImagePlaceholder {
+  width: 100%;
+  height: 140px;
+  background: var(--color-bg-surface-soft);
+}
+
+.ogImageBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ogImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ogImagePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.ogPreviewBody {
+  padding: 10px 14px 12px;
+}
+
+.ogTitle,
+.ogDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ogTitle {
+  margin-bottom: 3px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ogDescription {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ogHost {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.ogFormColumn {
+  flex: 1;
+  min-width: 260px;
+}
+
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.compactFormStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.fullWidthInput {
+  width: 100%;
+}
+
+.legalInput {
+  width: 100%;
+  max-width: 480px;
+}
+
+.inputHint {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.actionRow,
+.actionRowTop4 {
+  display: flex;
+  gap: 8px;
+}
+
+.actionRowTop4 {
+  margin-top: 4px;
+}
+
+.inlineField {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inlineFieldLabel {
+  width: 80px;
+  font-size: 13px;
+}
+
+.flexInput {
+  flex: 1;
+}
+
+.legalAlert {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.55;
+}

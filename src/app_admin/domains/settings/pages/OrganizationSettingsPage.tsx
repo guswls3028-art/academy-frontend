@@ -17,8 +17,13 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useProgram } from "@/shared/program";
 
 import s from "../components/SettingsSection.module.css";
+import styles from "./OrganizationSettingsPage.module.css";
 
 // ── 운영 모드 표시 (읽기 전용) — 학원 단위 설정 ─────────────────────────────
+type ModeBadgeTone = "primary" | "warning" | "success" | "muted";
+type EditableLegalConfig = Omit<LegalConfig, "terms_version" | "privacy_version" | "effective_date">;
+type LegalFieldKey = keyof EditableLegalConfig;
+
 function AcademyModeSection() {
   const { program } = useProgram();
   const ff = program?.feature_flags ?? {};
@@ -27,21 +32,21 @@ function AcademyModeSection() {
   const clinicMode = ff.clinic_mode === "regular" ? "regular" : "remediation";
   const schoolLevel = ff.school_level_mode === "elementary_middle" ? "elementary_middle" : "middle_high";
 
-  const badges: { label: string; value: string; color: string }[] = [
+  const badges: { label: string; value: string; tone: ModeBadgeTone }[] = [
     {
       label: "반 편성",
       value: sectionMode ? "A/B반 운영" : "기본 (반 없음)",
-      color: sectionMode ? "var(--color-brand-primary)" : "var(--color-text-muted)",
+      tone: sectionMode ? "primary" : "muted",
     },
     {
       label: "학생 대상",
       value: schoolLevel === "elementary_middle" ? "초중등" : "중고등",
-      color: schoolLevel === "elementary_middle" ? "var(--color-warning, #d97706)" : "var(--color-text-muted)",
+      tone: schoolLevel === "elementary_middle" ? "warning" : "muted",
     },
     {
       label: "클리닉",
       value: clinicMode === "regular" ? "정규형 (필수 클리닉)" : "보충형 (불합격 관리)",
-      color: clinicMode === "regular" ? "var(--color-success, #16a34a)" : "var(--color-text-muted)",
+      tone: clinicMode === "regular" ? "success" : "muted",
     },
   ];
 
@@ -55,22 +60,8 @@ function AcademyModeSection() {
         {badges.map((b) => (
           <div key={b.label} className={s.row}>
             <span className={s.rowLabel}>{b.label}</span>
-            <span style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: b.color,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}>
-              <span style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: b.color,
-                flexShrink: 0,
-                opacity: 0.8,
-              }} />
+            <span className={styles.modeBadge} data-tone={b.tone}>
+              <span className={styles.modeDot} />
               {b.value}
             </span>
           </div>
@@ -103,33 +94,31 @@ function AcademyRow({
 
   return (
     <div className={s.rowEdit}>
-      <div className={s.rowLabel} style={{ paddingTop: 4 }}>학원 정보</div>
+      <div className={`${s.rowLabel} ${styles.rowLabelTop}`}>학원 정보</div>
       <div className={s.rowEditRight}>
         <div className={s.rowEditInputs}>
           <div>
             <p className={s.fieldLabel}>학원명</p>
             <input
               type="text"
-              className="ds-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: OO학원"
               aria-label="학원명"
               disabled={saving}
-              style={{ maxWidth: 280 }}
+              className={`ds-input ${styles.academyNameInput}`}
             />
           </div>
           <div>
             <p className={s.fieldLabel}>학원문의 전화번호</p>
             <input
               type="tel"
-              className="ds-input"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="예: 02-1234-5678"
               aria-label="학원문의 전화번호"
               disabled={saving}
-              style={{ maxWidth: 200 }}
+              className={`ds-input ${styles.academyPhoneInput}`}
             />
           </div>
         </div>
@@ -244,10 +233,10 @@ export default function OrganizationSettingsPage() {
           <p className={s.sectionDescription}>학원명, 전화번호 등 학원 기본 정보를 관리합니다.</p>
         </div>
         <div className={s.rows}>
-          <div className={s.row} style={{ gridTemplateColumns: "1fr auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <FiLock size={14} style={{ color: "var(--color-text-muted)" }} aria-hidden />
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-muted)" }}>
+          <div className={`${s.row} ${styles.ownerOnlyRow}`}>
+            <div className={styles.ownerOnlyNotice}>
+              <FiLock size={14} className={styles.mutedIcon} aria-hidden />
+              <span className={styles.ownerOnlyText}>
                 학원 정보는 대표 계정에서만 수정할 수 있습니다.
               </span>
             </div>
@@ -301,8 +290,7 @@ export default function OrganizationSettingsPage() {
                         {list.length > 1 && (
                           <button
                             type="button"
-                            className={s.editBtn}
-                            style={{ color: "var(--color-error)" }}
+                            className={`${s.editBtn} ${styles.dangerTextButton}`}
                             onClick={() => handleRemove(index)}
                           >
                             제거
@@ -316,31 +304,29 @@ export default function OrganizationSettingsPage() {
 
               {adding && (
                 <div className={s.rowEdit}>
-                  <div className={s.rowLabel} style={{ paddingTop: 4 }}>새 학원</div>
+                  <div className={`${s.rowLabel} ${styles.rowLabelTop}`}>새 학원</div>
                   <div className={s.rowEditRight}>
                     <div className={s.rowEditInputs}>
                       <div>
                         <p className={s.fieldLabel}>학원명</p>
                         <input
                           type="text"
-                          className="ds-input"
+                          className={`ds-input ${styles.academyNameInput}`}
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
                           placeholder="예: OO학원"
                           disabled={updateMut.isPending}
-                          style={{ maxWidth: 280 }}
                         />
                       </div>
                       <div>
                         <p className={s.fieldLabel}>학원문의 전화번호</p>
                         <input
                           type="tel"
-                          className="ds-input"
+                          className={`ds-input ${styles.academyPhoneInput}`}
                           value={newPhone}
                           onChange={(e) => setNewPhone(e.target.value)}
                           placeholder="예: 02-1234-5678"
                           disabled={updateMut.isPending}
-                          style={{ maxWidth: 200 }}
                         />
                       </div>
                     </div>
@@ -377,7 +363,7 @@ export default function OrganizationSettingsPage() {
             </div>
 
             {!adding && (
-              <div style={{ marginTop: 12 }}>
+              <div className={styles.blockTop12}>
                 <Button
                   type="button"
                   intent="secondary"
@@ -451,9 +437,9 @@ function OgPreviewSection({
 
   return (
     <>
-      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+      <div className={`${s.sectionHeader} ${styles.sectionHeaderSpaced}`}>
         <h2 className={s.sectionTitle}>
-          <FiMessageCircle size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+          <FiMessageCircle size={16} className={styles.sectionIcon} />
           카카오톡 미리보기
         </h2>
         <p className={s.sectionDescription}>
@@ -463,135 +449,75 @@ function OgPreviewSection({
 
       <section className={s.section}>
         {/* 미리보기 카드 */}
-        <div
-          style={{
-            display: "flex",
-            gap: 20,
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className={styles.ogPreviewLayout}>
           {/* 카카오톡 스타일 미리보기 */}
-          <div
-            style={{
-              width: 280,
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: 12,
-              overflow: "hidden",
-              background: "var(--color-bg-surface)",
-              flexShrink: 0,
-            }}
-          >
+          <div className={styles.ogPreviewCard}>
             {ogImageUrl ? (
-              <div
-                style={{
-                  width: "100%",
-                  height: 140,
-                  background: `url(${ogImageUrl}) center/contain no-repeat var(--color-bg-surface-soft)`,
-                }}
-              />
+              <div className={styles.ogImageBox}>
+                <img className={styles.ogImage} src={ogImageUrl} alt="" />
+              </div>
             ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: 140,
-                  background: "var(--color-bg-surface-soft)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-text-muted)",
-                  fontSize: 12,
-                }}
-              >
+              <div className={styles.ogImagePlaceholder}>
                 이미지 미설정
               </div>
             )}
-            <div style={{ padding: "10px 14px 12px" }}>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "var(--color-text-primary)",
-                  marginBottom: 3,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+            <div className={styles.ogPreviewBody}>
+              <div className={styles.ogTitle}>
                 {displayTitle}
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  lineHeight: 1.4,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div className={styles.ogDescription}>
                 {displayDesc}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--color-text-muted)",
-                  marginTop: 4,
-                  opacity: 0.7,
-                }}
-              >
+              <div className={styles.ogHost}>
                 {location.hostname}
               </div>
             </div>
           </div>
 
           {/* 입력 폼 */}
-          <div style={{ flex: 1, minWidth: 260 }}>
+          <div className={styles.ogFormColumn}>
             {editing ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className={styles.formStack}>
                 <div>
                   <p className={s.fieldLabel}>제목</p>
                   <input
                     type="text"
-                    className="ds-input"
+                    className={`ds-input ${styles.fullWidthInput}`}
                     value={ogTitle}
                     onChange={(e) => setOgTitle(e.target.value)}
                     placeholder="비워두면 학원명 사용"
                     disabled={isSaving}
                     maxLength={100}
-                    style={{ width: "100%" }}
                   />
                 </div>
                 <div>
                   <p className={s.fieldLabel}>설명</p>
                   <input
                     type="text"
-                    className="ds-input"
+                    className={`ds-input ${styles.fullWidthInput}`}
                     value={ogDescription}
                     onChange={(e) => setOgDescription(e.target.value)}
                     placeholder="비워두면 '학원명 학습 플랫폼' 사용"
                     disabled={isSaving}
                     maxLength={300}
-                    style={{ width: "100%" }}
                   />
                 </div>
                 <div>
                   <p className={s.fieldLabel}>이미지 URL</p>
                   <input
                     type="text"
-                    className="ds-input"
+                    className={`ds-input ${styles.fullWidthInput}`}
                     value={ogImageUrl}
                     onChange={(e) => setOgImageUrl(e.target.value)}
                     placeholder="/tenants/xxx/logo.png 또는 https://..."
                     disabled={isSaving}
                     maxLength={500}
-                    style={{ width: "100%" }}
                   />
-                  <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
+                  <p className={styles.inputHint}>
                     /tenants/ 로 시작하면 사이트 내 이미지, https:// 로 시작하면 외부 이미지
                   </p>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className={styles.actionRow}>
                   <Button
                     type="button"
                     intent="primary"
@@ -642,7 +568,7 @@ function OgPreviewSection({
                     {ogImageUrl || "미설정"}
                   </span>
                 </div>
-                <div style={{ marginTop: 8 }}>
+                <div className={styles.blockTop8}>
                   <Button
                     type="button"
                     intent="secondary"
@@ -705,7 +631,7 @@ function PassFailLabelsSection({
 
   return (
     <>
-      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+      <div className={`${s.sectionHeader} ${styles.sectionHeaderSpaced}`}>
         <h2 className={s.sectionTitle}>합/불 라벨</h2>
         <p className={s.sectionDescription}>
           학생·학부모 화면에 표시되는 합격/불합격 라벨을 학원 스타일에 맞게 변경할 수 있습니다.
@@ -715,32 +641,30 @@ function PassFailLabelsSection({
 
       <section className={s.section}>
         {editing ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ width: 80, fontSize: 13 }}>합격 라벨</span>
+          <div className={styles.compactFormStack}>
+            <label className={styles.inlineField}>
+              <span className={styles.inlineFieldLabel}>합격 라벨</span>
               <input
                 type="text"
                 value={pass}
                 onChange={(e) => setPass(e.target.value.slice(0, 20))}
                 placeholder="합격"
-                className="ds-input"
-                style={{ flex: 1 }}
+                className={`ds-input ${styles.flexInput}`}
                 maxLength={20}
               />
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ width: 80, fontSize: 13 }}>불합격 라벨</span>
+            <label className={styles.inlineField}>
+              <span className={styles.inlineFieldLabel}>불합격 라벨</span>
               <input
                 type="text"
                 value={fail}
                 onChange={(e) => setFail(e.target.value.slice(0, 20))}
                 placeholder="불합격"
-                className="ds-input"
-                style={{ flex: 1 }}
+                className={`ds-input ${styles.flexInput}`}
                 maxLength={20}
               />
             </label>
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <div className={styles.actionRowTop4}>
               <Button
                 type="button"
                 intent="primary"
@@ -775,7 +699,7 @@ function PassFailLabelsSection({
               <span className={s.rowLabel}>불합격</span>
               <span className={s.rowValue}>{previewFail}</span>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div className={styles.blockTop8}>
               <Button type="button" intent="secondary" size="sm" onClick={() => setEditing(true)}>
                 수정
               </Button>
@@ -792,7 +716,7 @@ function PassFailLabelsSection({
 /*  법적 고지 정보 설정 섹션 (이용약관/개인정보처리방침 표시용)              */
 /* ------------------------------------------------------------------ */
 
-const LEGAL_FIELDS: { key: keyof Omit<LegalConfig, "terms_version" | "privacy_version" | "effective_date">; label: string; placeholder: string; maxLen: number }[] = [
+const LEGAL_FIELDS: { key: LegalFieldKey; label: string; placeholder: string; maxLen: number }[] = [
   { key: "company_name", label: "상호", placeholder: "예: 주식회사 OO교육", maxLen: 200 },
   { key: "representative", label: "대표자명", placeholder: "예: 홍길동", maxLen: 100 },
   { key: "business_number", label: "사업자등록번호", placeholder: "예: 123-45-67890", maxLen: 50 },
@@ -806,7 +730,7 @@ const LEGAL_FIELDS: { key: keyof Omit<LegalConfig, "terms_version" | "privacy_ve
 
 // 학부모/학생이 보는 법적 고지 페이지에서 가장 먼저 누락되면 안 되는 필드.
 // 미입력 시 운영사 default fallback이 노출되어 학원장 책임 경계가 흐려진다.
-const LEGAL_REQUIRED_KEYS: (keyof LegalConfig)[] = [
+const LEGAL_REQUIRED_KEYS: LegalFieldKey[] = [
   "company_name",
   "representative",
   "business_number",
@@ -826,21 +750,21 @@ function LegalInfoSection() {
   });
 
   const missingRequired = LEGAL_REQUIRED_KEYS.filter(
-    (k) => !((legalQ.data as any)?.[k] || "").trim(),
+    (key) => !(legalQ.data?.[key] || "").trim(),
   );
 
   useEffect(() => {
     if (legalQ.data) {
       const initial: Record<string, string> = {};
       for (const f of LEGAL_FIELDS) {
-        initial[f.key] = (legalQ.data as any)[f.key] || "";
+        initial[f.key] = legalQ.data[f.key] || "";
       }
       setForm(initial);
     }
   }, [legalQ.data]);
 
   const saveMut = useMutation({
-    mutationFn: (payload: Partial<LegalConfig>) => updateLegalConfig(payload),
+    mutationFn: (payload: Partial<EditableLegalConfig>) => updateLegalConfig(payload),
     onSuccess: (data) => {
       qc.setQueryData(["legal-config"], data);
       feedback.success("법적 고지 정보가 저장되었습니다.");
@@ -850,11 +774,11 @@ function LegalInfoSection() {
   });
 
   const handleSave = () => {
-    const payload: Record<string, string> = {};
+    const payload: Partial<EditableLegalConfig> = {};
     for (const f of LEGAL_FIELDS) {
       payload[f.key] = (form[f.key] || "").trim();
     }
-    saveMut.mutate(payload as any);
+    saveMut.mutate(payload);
   };
 
   const handleCancel = () => {
@@ -862,7 +786,7 @@ function LegalInfoSection() {
     if (legalQ.data) {
       const initial: Record<string, string> = {};
       for (const f of LEGAL_FIELDS) {
-        initial[f.key] = (legalQ.data as any)[f.key] || "";
+        initial[f.key] = legalQ.data[f.key] || "";
       }
       setForm(initial);
     }
@@ -872,9 +796,9 @@ function LegalInfoSection() {
 
   return (
     <>
-      <div className={s.sectionHeader} style={{ marginTop: 32 }}>
+      <div className={`${s.sectionHeader} ${styles.sectionHeaderSpaced}`}>
         <h2 className={s.sectionTitle}>
-          <FiFileText size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+          <FiFileText size={16} className={styles.sectionIcon} />
           법적 고지 정보
         </h2>
         <p className={s.sectionDescription}>
@@ -885,17 +809,7 @@ function LegalInfoSection() {
       {!legalQ.isLoading && missingRequired.length > 0 && (
         <div
           role="alert"
-          style={{
-            marginTop: 8,
-            marginBottom: 12,
-            padding: "12px 14px",
-            background: "#fef3c7",
-            border: "1px solid #f59e0b",
-            borderRadius: 8,
-            color: "#92400e",
-            fontSize: 13,
-            lineHeight: 1.55,
-          }}
+          className={styles.legalAlert}
         >
           <strong>법적 고지 필수 정보가 비어 있습니다 ({missingRequired.length}개 항목).</strong>
           <br />
@@ -908,23 +822,22 @@ function LegalInfoSection() {
         {legalQ.isLoading ? (
           <div className={s.loadingBox}>불러오는 중...</div>
         ) : editing ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className={styles.formStack}>
             {LEGAL_FIELDS.map((f) => (
               <div key={f.key}>
                 <p className={s.fieldLabel}>{f.label}</p>
                 <input
                   type="text"
-                  className="ds-input"
+                  className={`ds-input ${styles.legalInput}`}
                   value={form[f.key] || ""}
                   onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
                   placeholder={f.placeholder}
                   disabled={isSaving}
                   maxLength={f.maxLen}
-                  style={{ width: "100%", maxWidth: 480 }}
                 />
               </div>
             ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <div className={styles.actionRowTop4}>
               <Button
                 type="button"
                 intent="primary"
@@ -960,7 +873,7 @@ function LegalInfoSection() {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div className={styles.blockTop8}>
               <Button
                 type="button"
                 intent="secondary"
