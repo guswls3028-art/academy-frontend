@@ -1,9 +1,9 @@
 // PATH: src/app_teacher/domains/fees/pages/FeesInvoicesPage.tsx
 // 수납 청구서 목록 + 상세 BottomSheet + 결제 기록
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -18,6 +18,7 @@ import {
   type PaymentMethod,
 } from "../api";
 import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@admin/domains/fees/utils/feesStatus";
+import styles from "./FeesInvoicesPage.module.css";
 
 type FilterKey = "ALL" | "PENDING" | "PARTIAL" | "OVERDUE" | "PAID";
 
@@ -31,9 +32,25 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
 
 const STATUS_TONE: Record<InvoiceStatus, "success" | "danger" | "warning" | "info" | "neutral"> = FEES_STATUS_TONE;
 
-function formatKRW(n: number): string {
+function formatKRW(n: number | null | undefined): string {
   if (n == null) return "-";
   return new Intl.NumberFormat("ko-KR").format(Math.round(n));
+}
+
+function formatDate(date: string | null | undefined): string {
+  if (!date) return "-";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("ko-KR");
+}
+
+function getDetailMessage(error: unknown, fallback: string): string {
+  if (error != null && typeof error === "object" && "response" in error) {
+    const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
 }
 
 export default function FeesInvoicesPage() {
@@ -54,7 +71,7 @@ export default function FeesInvoicesPage() {
       }),
   });
 
-  const invoices = (data as any as StudentInvoice[]) ?? [];
+  const invoices: StudentInvoice[] = data ?? [];
 
   const setSelected = (id: number | null) => {
     const next = new URLSearchParams(searchParams);
@@ -67,42 +84,31 @@ export default function FeesInvoicesPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>
           청구서
         </h1>
       </div>
 
       {/* Search */}
-      <div className="flex items-center gap-2 rounded-xl"
-        style={{ padding: "8px 12px", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}>
-        <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+      <div className={`${styles.searchBox} flex items-center gap-2 rounded-xl`}>
+        <Search size={ICON.sm} className={styles.searchIcon} />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="학생 이름, 청구서 번호"
-          className="flex-1 text-sm"
-          style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }}
+          className={`${styles.searchInput} flex-1 text-sm`}
         />
       </div>
 
       {/* Filter tabs */}
-      <div className="flex overflow-x-auto" style={{ borderBottom: "1px solid var(--tc-border)", WebkitOverflowScrolling: "touch" }}>
+      <div className={`${styles.filterTabs} flex overflow-x-auto`}>
         {FILTER_TABS.map((t) => (
           <button
+            type="button"
             key={t.key}
             onClick={() => setFilter(t.key)}
-            className="shrink-0 text-[13px] cursor-pointer"
-            style={{
-              padding: "12px 14px",
-              minHeight: "var(--tc-touch-min)",
-              background: "none",
-              border: "none",
-              borderBottom: filter === t.key ? "2px solid var(--tc-primary)" : "2px solid transparent",
-              color: filter === t.key ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-              fontWeight: filter === t.key ? 700 : 500,
-              whiteSpace: "nowrap",
-            }}
+            className={`${styles.filterTab} ${filter === t.key ? styles.filterTabActive : ""} shrink-0 text-[13px] cursor-pointer`}
           >
             {t.label}
           </button>
@@ -117,41 +123,36 @@ export default function FeesInvoicesPage() {
         <div className="flex flex-col gap-1.5">
           {invoices.map((inv) => (
             <button
+              type="button"
               key={inv.id}
               onClick={() => setSelected(inv.id)}
-              className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
-              style={{
-                padding: "var(--tc-space-3) var(--tc-space-4)",
-                minHeight: "var(--tc-touch-min)",
-                background: "var(--tc-surface)",
-                border: "1px solid var(--tc-border)",
-              }}
+              className={`${styles.invoiceButton} flex items-center gap-3 rounded-xl w-full text-left cursor-pointer`}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                  <span className={`${styles.primaryText} text-sm font-semibold`}>
                     {inv.student_name}
                   </span>
                   <Badge tone={STATUS_TONE[inv.status]} size="xs">
                     {inv.status_display}
                   </Badge>
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
                   {inv.invoice_number} · {inv.billing_year}.{String(inv.billing_month).padStart(2, "0")} · 마감{" "}
                   {inv.due_date}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <div className="text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
+                <div className={`${styles.primaryText} text-sm font-bold tabular-nums`}>
                   {formatKRW(inv.total_amount)}
                 </div>
                 {inv.outstanding_amount > 0 && (
-                  <div className="text-[11px] tabular-nums" style={{ color: "var(--tc-danger)" }}>
+                  <div className={`${styles.dangerText} text-[11px] tabular-nums`}>
                     -{formatKRW(inv.outstanding_amount)}
                   </div>
                 )}
               </div>
-              <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
+              <ChevronRight size={ICON.xs} className={styles.chevron} />
             </button>
           ))}
         </div>
@@ -181,6 +182,16 @@ function InvoiceDetailSheet({
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("CARD");
   const [payNote, setPayNote] = useState("");
+  const payAmountNumber = Number(payAmount);
+  const canRecordPayment =
+    invoiceId != null && Number.isFinite(payAmountNumber) && payAmountNumber > 0;
+
+  useEffect(() => {
+    setPayMode(false);
+    setPayAmount("");
+    setPayMethod("CARD");
+    setPayNote("");
+  }, [invoiceId, open]);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["teacher-fees-invoice", invoiceId],
@@ -189,13 +200,15 @@ function InvoiceDetailSheet({
   });
 
   const payMut = useMutation({
-    mutationFn: () =>
-      recordPayment({
+    mutationFn: () => {
+      if (!canRecordPayment) throw new Error("결제 금액을 확인해 주세요.");
+      return recordPayment({
         invoice_id: invoiceId!,
-        amount: Number(payAmount),
+        amount: payAmountNumber,
         payment_method: payMethod,
         receipt_note: payNote,
-      }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-fees-invoices"] });
       qc.invalidateQueries({ queryKey: ["teacher-fees-invoice", invoiceId] });
@@ -206,9 +219,12 @@ function InvoiceDetailSheet({
       setPayAmount("");
       setPayNote("");
     },
-    onError: (e: any) =>
-      teacherToast.error(e?.response?.data?.detail ?? "기록에 실패했습니다."),
+    onError: (error: unknown) =>
+      teacherToast.error(getDetailMessage(error, "기록에 실패했습니다.")),
   });
+
+  const invoiceItems = invoice?.items ?? [];
+  const invoicePayments = invoice?.payments ?? [];
 
   return (
     <BottomSheet open={open} onClose={onClose} title={invoice?.invoice_number ?? "청구서 상세"}>
@@ -219,10 +235,10 @@ function InvoiceDetailSheet({
           <Card>
             <div className="flex justify-between items-center">
               <div>
-                <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                <div className={`${styles.primaryText} text-sm font-semibold`}>
                   {invoice.student_name}
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
                   {invoice.billing_year}.{String(invoice.billing_month).padStart(2, "0")} · 마감{" "}
                   {invoice.due_date}
                 </div>
@@ -234,60 +250,58 @@ function InvoiceDetailSheet({
               <StatBox
                 label="수납"
                 value={formatKRW(invoice.paid_amount)}
-                color="var(--tc-success)"
+                tone="success"
               />
               <StatBox
                 label="잔액"
                 value={formatKRW(invoice.outstanding_amount)}
-                color={invoice.outstanding_amount > 0 ? "var(--tc-danger)" : "var(--tc-text-muted)"}
+                tone={invoice.outstanding_amount > 0 ? "danger" : "muted"}
               />
             </div>
           </Card>
 
           {/* 상세 항목 */}
-          {invoice.items && invoice.items.length > 0 && (
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div className="text-[13px] font-bold" style={{ padding: "var(--tc-space-3) var(--tc-space-4)", borderBottom: "1px solid var(--tc-border)", color: "var(--tc-text)" }}>
+          {invoiceItems.length > 0 && (
+            <div className={styles.panelCard}>
+              <div className={`${styles.sectionHeader} text-[13px] font-bold`}>
                 청구 항목
               </div>
-              {invoice.items.map((it: any, idx: number) => (
-                <div key={it.id ?? idx} className="flex justify-between items-center"
-                  style={{
-                    padding: "var(--tc-space-3) var(--tc-space-4)",
-                    borderBottom: idx < (invoice.items!.length - 1) ? "1px solid var(--tc-border)" : "none",
-                  }}>
-                  <span className="text-sm" style={{ color: "var(--tc-text)" }}>{it.description}</span>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: "var(--tc-text)" }}>
+              {invoiceItems.map((it, idx) => (
+                <div
+                  key={it.id ?? idx}
+                  className={`${styles.detailRow} ${idx === invoiceItems.length - 1 ? styles.lastRow : ""} flex justify-between items-center`}
+                >
+                  <span className={`${styles.primaryText} text-sm`}>{it.description}</span>
+                  <span className={`${styles.primaryText} text-sm font-semibold tabular-nums`}>
                     {formatKRW(it.amount)}원
                   </span>
                 </div>
               ))}
-            </Card>
+            </div>
           )}
 
           {/* 결제 기록 */}
-          {invoice.payments && invoice.payments.length > 0 && (
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div className="text-[13px] font-bold" style={{ padding: "var(--tc-space-3) var(--tc-space-4)", borderBottom: "1px solid var(--tc-border)", color: "var(--tc-text)" }}>
+          {invoicePayments.length > 0 && (
+            <div className={styles.panelCard}>
+              <div className={`${styles.sectionHeader} text-[13px] font-bold`}>
                 결제 이력
               </div>
-              {invoice.payments.map((p: any, idx: number) => (
-                <div key={p.id} className="flex justify-between items-center"
-                  style={{
-                    padding: "var(--tc-space-3) var(--tc-space-4)",
-                    borderBottom: idx < (invoice.payments!.length - 1) ? "1px solid var(--tc-border)" : "none",
-                  }}>
+              {invoicePayments.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className={`${styles.detailRow} ${idx === invoicePayments.length - 1 ? styles.lastRow : ""} flex justify-between items-center`}
+                >
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px]" style={{ color: "var(--tc-text)" }}>
+                    <div className={`${styles.primaryText} text-[13px]`}>
                       {p.payment_method_display} · {formatKRW(p.amount)}원
                     </div>
-                    <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                      {new Date(p.paid_at || p.created_at).toLocaleDateString("ko-KR")}
+                    <div className={`${styles.mutedText} text-[11px]`}>
+                      {formatDate(p.paid_at || p.created_at)}
                     </div>
                   </div>
                 </div>
               ))}
-            </Card>
+            </div>
           )}
 
           {/* 결제 기록 버튼 / 폼 */}
@@ -295,22 +309,15 @@ function InvoiceDetailSheet({
             <>
               {!payMode ? (
                 <button
+                  type="button"
                   onClick={() => { setPayMode(true); setPayAmount(String(invoice.outstanding_amount)); }}
-                  className="text-sm font-bold cursor-pointer w-full"
-                  style={{
-                    padding: "14px",
-                    minHeight: "var(--tc-touch-min)",
-                    borderRadius: "var(--tc-radius)",
-                    border: "none",
-                    background: "var(--tc-primary)",
-                    color: "#fff",
-                  }}
+                  className={`${styles.primaryAction} text-sm font-bold cursor-pointer w-full`}
                 >
                   결제 기록하기
                 </button>
               ) : (
                 <Card>
-                  <div className="text-[13px] font-bold mb-2" style={{ color: "var(--tc-text)" }}>
+                  <div className={`${styles.primaryText} text-[13px] font-bold mb-2`}>
                     결제 기록
                   </div>
                   <div className="flex flex-col gap-2">
@@ -319,8 +326,7 @@ function InvoiceDetailSheet({
                         type="number"
                         value={payAmount}
                         onChange={(e) => setPayAmount(e.target.value)}
-                        className="w-full text-sm tabular-nums"
-                        style={fieldStyle}
+                        className={`${styles.fieldInput} w-full text-sm tabular-nums`}
                       />
                     </Field>
                     <Field label="수단">
@@ -330,20 +336,7 @@ function InvoiceDetailSheet({
                             key={m}
                             type="button"
                             onClick={() => setPayMethod(m)}
-                            className="text-[12px] font-semibold cursor-pointer"
-                            style={{
-                              padding: "8px 12px",
-                              minHeight: "var(--tc-touch-min)",
-                              borderRadius: "var(--tc-radius-sm)",
-                              border:
-                                payMethod === m
-                                  ? "2px solid var(--tc-primary)"
-                                  : "1px solid var(--tc-border)",
-                              background:
-                                payMethod === m ? "var(--tc-primary-bg)" : "var(--tc-surface)",
-                              color:
-                                payMethod === m ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                            }}
+                            className={`${styles.methodButton} ${payMethod === m ? styles.methodButtonActive : ""} text-[12px] font-semibold cursor-pointer`}
                           >
                             {PM_LABEL[m]}
                           </button>
@@ -355,37 +348,22 @@ function InvoiceDetailSheet({
                         type="text"
                         value={payNote}
                         onChange={(e) => setPayNote(e.target.value)}
-                        className="w-full text-sm"
-                        style={fieldStyle}
+                        className={`${styles.fieldInput} w-full text-sm`}
                       />
                     </Field>
                     <div className="flex gap-2 mt-1">
                       <button
+                        type="button"
                         onClick={() => setPayMode(false)}
-                        className="flex-1 text-sm font-semibold cursor-pointer"
-                        style={{
-                          padding: "12px",
-                          minHeight: "var(--tc-touch-min)",
-                          borderRadius: "var(--tc-radius)",
-                          border: "1px solid var(--tc-border)",
-                          background: "var(--tc-surface)",
-                          color: "var(--tc-text-secondary)",
-                        }}
+                        className={`${styles.secondaryAction} flex-1 text-sm font-semibold cursor-pointer`}
                       >
                         취소
                       </button>
                       <button
+                        type="button"
                         onClick={() => payMut.mutate()}
-                        disabled={payMut.isPending || !payAmount}
-                        className="flex-1 text-sm font-bold cursor-pointer disabled:opacity-50"
-                        style={{
-                          padding: "12px",
-                          minHeight: "var(--tc-touch-min)",
-                          borderRadius: "var(--tc-radius)",
-                          border: "none",
-                          background: "var(--tc-primary)",
-                          color: "#fff",
-                        }}
+                        disabled={payMut.isPending || !canRecordPayment}
+                        className={`${styles.submitAction} flex-1 text-sm font-bold cursor-pointer disabled:opacity-50`}
                       >
                         {payMut.isPending ? "저장 중…" : "저장"}
                       </button>
@@ -401,20 +379,27 @@ function InvoiceDetailSheet({
   );
 }
 
-function StatBox({ label, value, color = "var(--tc-text)" }: { label: string; value: string; color?: string }) {
+function StatBox({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: StatTone;
+}) {
   return (
-    <div className="rounded-lg flex flex-col items-center py-2"
-      style={{ background: "var(--tc-surface-soft)", border: "1px solid var(--tc-border)" }}>
-      <span className="text-[10px]" style={{ color: "var(--tc-text-muted)" }}>{label}</span>
-      <span className="text-[13px] font-bold tabular-nums" style={{ color }}>{value}</span>
+    <div className={`${styles.statBox} rounded-lg flex flex-col items-center py-2`}>
+      <span className={`${styles.mutedText} text-[10px]`}>{label}</span>
+      <span className={`${STAT_TONE_CLASS[tone]} text-[13px] font-bold tabular-nums`}>{value}</span>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+      <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>
         {label}
       </label>
       {children}
@@ -422,14 +407,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const fieldStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  minHeight: "var(--tc-touch-min)",
-  borderRadius: "var(--tc-radius-sm)",
-  border: "1px solid var(--tc-border-strong)",
-  background: "var(--tc-surface)",
-  color: "var(--tc-text)",
-  outline: "none",
+type StatTone = "default" | "success" | "danger" | "muted";
+
+const STAT_TONE_CLASS: Record<StatTone, string> = {
+  default: styles.statDefault,
+  success: styles.statSuccess,
+  danger: styles.statDanger,
+  muted: styles.mutedText,
 };
 
 const PM_LABEL: Record<PaymentMethod, string> = {
