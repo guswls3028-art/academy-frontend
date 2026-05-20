@@ -46,11 +46,11 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
   const [elapsed, setElapsed] = useState(0);
   const [projectorLocal, setProjectorLocal] = useState(false);
   const projector = projectorProp ?? projectorLocal;
-  const toggleProjector = () => {
+  const toggleProjector = useCallback(() => {
     const next = !projector;
     if (onProjectorChange) onProjectorChange(next);
     else setProjectorLocal(next);
-  };
+  }, [projector, onProjectorChange]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [laps, setLaps] = useState<Lap[]>([]);
 
@@ -106,11 +106,12 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      const target = containerRef.current ?? document.documentElement;
+      target.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
-  }, []);
+  }, [containerRef]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -146,7 +147,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [doToggle, doReset, doLap, toggleFullscreen]);
+  }, [doToggle, doReset, doLap, toggleFullscreen, toggleProjector]);
 
   // Track fullscreen state
   useEffect(() => {
@@ -160,7 +161,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     if (startFullscreen && containerRef.current) {
       containerRef.current.requestFullscreen().catch(() => {});
     }
-  }, [startFullscreen]);
+  }, [startFullscreen, containerRef]);
 
   // 진행/일시정지 중 모드 전환 시 사용자에게 확인 — 무경고로 기록 손실 방지.
   const handleModeChange = useCallback((next: Mode) => {
@@ -219,7 +220,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
         <div className={styles.topRight}>
           <button
             className={`${styles.projToggle} ${projector ? styles.projActive : ""}`}
-            onClick={() => toggleProjector()}
+            onClick={toggleProjector}
             type="button"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

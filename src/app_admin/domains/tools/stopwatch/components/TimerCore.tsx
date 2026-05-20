@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import styles from "./TimerCore.module.css";
 
 type Mode = "timer" | "stopwatch";
+type FontKey = "mono" | "classic" | "modern" | "round";
 
 interface Props {
   logoUrl?: string;
@@ -44,11 +45,18 @@ const PRESETS = [
   { label: "1시간", ms: 60 * 60_000 },
 ];
 
-const FONT_OPTIONS = [
-  { label: "기본", value: "'JetBrains Mono', 'Consolas', monospace" },
-  { label: "클래식", value: "'Georgia', 'Times New Roman', serif" },
-  { label: "모던", value: "'SF Pro Display', 'Segoe UI', system-ui, sans-serif" },
-  { label: "둥근", value: "'Pretendard', 'Apple SD Gothic Neo', sans-serif" },
+const FONT_CLASS_BY_KEY: Record<FontKey, string> = {
+  mono: styles.fontMono,
+  classic: styles.fontClassic,
+  modern: styles.fontModern,
+  round: styles.fontRound,
+};
+
+const FONT_OPTIONS_TYPED: Array<{ label: string; value: FontKey }> = [
+  { label: "기본", value: "mono" },
+  { label: "클래식", value: "classic" },
+  { label: "모던", value: "modern" },
+  { label: "둥근", value: "round" },
 ];
 
 /** Web Audio API beep for timer end */
@@ -81,14 +89,14 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   const [phase, setPhase] = useState<Phase>("setup");
   const [remaining, setRemaining] = useState(0);
   const [totalSet, setTotalSet] = useState(0);
-  const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
+  const [fontKey, setFontKey] = useState<FontKey>(FONT_OPTIONS_TYPED[0].value);
   const [projectorLocal, setProjectorLocal] = useState(false);
   const projector = projectorProp ?? projectorLocal;
-  const toggleProjector = () => {
+  const toggleProjector = useCallback(() => {
     const next = !projector;
     if (onProjectorChange) onProjectorChange(next);
     else setProjectorLocal(next);
-  };
+  }, [projector, onProjectorChange]);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Custom input
@@ -215,12 +223,12 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      // 전체 페이지 fullscreen — 윈도우 작업표시줄까지 가림
-      document.documentElement.requestFullscreen().catch(() => {});
+      const target = containerRef.current ?? document.documentElement;
+      target.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
-  }, []);
+  }, [containerRef]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -263,7 +271,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [doToggle, doReset, doAddMinute, doDismiss, toggleFullscreen, phase, handleCustomStart]);
+  }, [doToggle, doReset, doAddMinute, doDismiss, toggleFullscreen, toggleProjector, phase, handleCustomStart]);
 
   // Track fullscreen state
   useEffect(() => {
@@ -277,7 +285,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     if (startFullscreen && containerRef.current) {
       containerRef.current.requestFullscreen().catch(() => {});
     }
-  }, [startFullscreen]);
+  }, [startFullscreen, containerRef]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -361,7 +369,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
         <div className={styles.topRight}>
           <button
             className={`${styles.projToggle} ${projector ? styles.projActive : ""}`}
-            onClick={() => toggleProjector()}
+            onClick={toggleProjector}
             type="button"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -444,13 +452,12 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
             <div className={styles.fontSelector}>
               <span className={styles.fontSelectorLabel}>글꼴</span>
               <div className={styles.fontOptions}>
-                {FONT_OPTIONS.map((f) => (
+                {FONT_OPTIONS_TYPED.map((f) => (
                   <button
                     key={f.label}
-                    className={`${styles.fontBtn} ${fontFamily === f.value ? styles.fontBtnActive : ""}`}
-                    onClick={() => setFontFamily(f.value)}
+                    className={`${styles.fontBtn} ${FONT_CLASS_BY_KEY[f.value]} ${fontKey === f.value ? styles.fontBtnActive : ""}`}
+                    onClick={() => setFontKey(f.value)}
                     type="button"
-                    style={{ fontFamily: f.value }}
                   >
                     {f.label}
                   </button>
@@ -461,7 +468,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
         ) : (
           <>
             {/* Time display */}
-            <div className={displayCls} style={{ fontFamily }}>
+            <div className={`${displayCls} ${FONT_CLASS_BY_KEY[fontKey]}`}>
               <span className={styles.digit}>{t.h}</span>
               <span className={styles.sep}>:</span>
               <span className={styles.digit}>{t.m}</span>

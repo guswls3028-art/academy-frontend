@@ -562,6 +562,22 @@
   border-color: var(--sw-accent);
 }
 
+.fontMono {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+.fontClassic {
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+
+.fontModern {
+  font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+}
+
+.fontRound {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+}
+
 /* ── Keyboard Hints ── */
 .hints {
   position: absolute;
