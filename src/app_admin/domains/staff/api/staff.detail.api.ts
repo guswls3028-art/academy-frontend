@@ -1,9 +1,10 @@
 // PATH: src/app_admin/domains/staff/api/staff.detail.api.ts
 import api from "@/shared/api/axios";
-import { Staff, StaffSummary } from "./staff.api";
+import type { Staff, StaffSummary } from "./staff.api";
 
 /** Backend: StaffDetailSerializer (list fields + user, user_username, user_is_staff) */
-export type StaffDetail = Staff & {
+export type StaffDetail = Omit<Staff, "role"> & {
+  role: Staff["role"] | "OWNER";
   user: number | null;
   user_username: string | null;
   user_is_staff: boolean;

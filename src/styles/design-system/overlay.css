@@ -354,6 +354,11 @@
   flex-direction: column;
 }
 
+.ds-overlay-lock-banner {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, transparent);
+  background: var(--color-danger-soft);
+}
+
 .ds-overlay-body__grid {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -444,6 +449,10 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.ds-overlay-info-rows--summary {
+  margin-top: 4px;
 }
 
 .ds-overlay-info-row {
@@ -573,6 +582,28 @@
   max-width: 100%;
 }
 
+.ds-overlay-stat-grid--two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.ds-overlay-stat-card__unit {
+  margin-left: 2px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ds-overlay-stat-card__unit--currency {
+  font-size: 11px;
+}
+
+.ds-overlay-lock-state.is-locked {
+  color: var(--color-danger);
+}
+
+.ds-overlay-lock-state.is-open {
+  color: var(--color-success);
+}
+
 /* ── 사이드바 통합 카드 — 단일 카드 + 섹션 구분선 ── */
 .ds-overlay-sidebar-card {
   border-radius: var(--radius-lg);
@@ -680,6 +711,11 @@
   min-height: 0;
   overflow-y: auto;
   padding-top: var(--space-3);
+}
+
+.ds-overlay-tab-content {
+  min-height: 260px;
+  margin-top: 16px;
 }
 
 /* 오버레이 내 탭 — 균등 배분, full-width, 하단 보더로 구분 */

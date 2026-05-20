@@ -21,7 +21,6 @@ import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Badge, Button, CloseButton } from "@/shared/ui/ds";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useConfirm } from "@/shared/ui/confirm";
 
@@ -159,11 +158,7 @@ export default function StaffDetailOverlay() {
           {/* 월 마감 배너 — 학생 오버레이에는 없음, 직원 전용 */}
           {locked && (
             <div
-              className="px-6 py-3 border-b"
-              style={{
-                borderColor: "color-mix(in srgb, var(--color-danger) 55%, transparent)",
-                background: "var(--color-danger-soft)",
-              }}
+              className="ds-overlay-lock-banner px-6 py-3 border-b"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -185,7 +180,7 @@ export default function StaffDetailOverlay() {
                 <div className="ds-overlay-header__avatar-wrap" aria-hidden>
                   <span className="ds-overlay-header__avatar ds-overlay-header__avatar--icon">
                     <StaffRoleAvatar
-                      role={staffAvatarRole((staff as { role?: string }).role ?? "ASSISTANT")}
+                      role={staffAvatarRole(staff.role)}
                       size={40}
                       className="text-[var(--color-brand-primary)]"
                     />
@@ -276,9 +271,9 @@ export default function StaffDetailOverlay() {
                     <InfoRow
                       label="역할"
                       value={
-                        (staff as { role?: string }).role === "OWNER"
+                        staff.role === "OWNER"
                           ? "대표"
-                          : (staff as { role?: string }).role === "TEACHER"
+                          : staff.role === "TEACHER"
                             ? "강사"
                             : "조교"
                       }
@@ -295,7 +290,7 @@ export default function StaffDetailOverlay() {
                         )}
                       </span>
                     </div>
-                    <InfoRow label="등록일" value={(staff as any).created_at?.slice(0, 10)} />
+                    <InfoRow label="등록일" value={staff.created_at?.slice(0, 10)} />
                   </div>
                 </div>
 
@@ -307,29 +302,28 @@ export default function StaffDetailOverlay() {
                     </span>
                     이번달 요약
                   </div>
-                  <div className="ds-overlay-stat-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="ds-overlay-stat-grid ds-overlay-stat-grid--two">
                     <div className="ds-overlay-stat-card">
                       <div className="ds-overlay-stat-card__label">근무시간</div>
                       <div className="ds-overlay-stat-card__value ds-overlay-stat-card__value--brand">
-                        {summary?.work_hours ?? 0}<span style={{ fontSize: 12, fontWeight: 600, marginLeft: 2 }}>h</span>
+                        {summary?.work_hours ?? 0}<span className="ds-overlay-stat-card__unit">h</span>
                       </div>
                     </div>
                     <div className="ds-overlay-stat-card">
                       <div className="ds-overlay-stat-card__label">지급액</div>
                       <div className="ds-overlay-stat-card__value">
-                        {(summary?.total_amount ?? 0).toLocaleString()}<span style={{ fontSize: 11, fontWeight: 600, marginLeft: 2 }}>원</span>
+                        {(summary?.total_amount ?? 0).toLocaleString()}<span className="ds-overlay-stat-card__unit ds-overlay-stat-card__unit--currency">원</span>
                       </div>
                     </div>
                   </div>
-                  <div className="ds-overlay-info-rows" style={{ marginTop: 4 }}>
+                  <div className="ds-overlay-info-rows ds-overlay-info-rows--summary">
                     <div className="ds-overlay-info-row">
                       <span className="ds-overlay-info-row__label">마감상태</span>
                       <span className="ds-overlay-info-row__value">
                         <div className="flex items-center gap-2">
                           <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />
                           <span
-                            className="font-semibold"
-                            style={{ color: locked ? "var(--color-danger)" : "var(--color-success)" }}
+                            className={`font-semibold ds-overlay-lock-state ${locked ? "is-locked" : "is-open"}`}
                           >
                             {locked ? "급여 확정" : "진행중"}
                           </span>
@@ -359,7 +353,7 @@ export default function StaffDetailOverlay() {
                   </div>
                 </div>
 
-                <div style={{ minHeight: 260, marginTop: 16 }}>
+                <div className="ds-overlay-tab-content">
                   {tabItems.find((i) => i.key === tab)?.children}
                 </div>
               </div>
