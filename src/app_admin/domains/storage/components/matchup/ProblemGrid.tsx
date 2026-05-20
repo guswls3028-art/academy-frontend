@@ -1,10 +1,12 @@
 // PATH: src/app_admin/domains/storage/components/matchup/ProblemGrid.tsx
 // 문제 카드 그리드 — 선택된 문서의 추출 문제 표시
 
+import { useMemo } from "react";
 import { Loader2, AlertTriangle, Check, Clock, Layers, X, Crop, FileSearch, Trash2, Shield } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import ProblemCard from "./ProblemCard";
+import styles from "./ProblemGrid.module.css";
 
 type Props = {
   problems: MatchupProblem[];
@@ -50,6 +52,8 @@ const PIPELINE_STAGES: Array<{ label: string; threshold: number }> = [
   { label: "마무리", threshold: 100 },
 ];
 
+const EMPTY_SELECTED_IDS: number[] = [];
+
 /** 파일 크기 기반 예상 처리시간 문구 (휴리스틱, 보수적). */
 function estimateProcessingHint(sizeBytes?: number): string {
   if (!sizeBytes) return "보통 10~30초 정도 소요됩니다";
@@ -60,109 +64,92 @@ function estimateProcessingHint(sizeBytes?: number): string {
   return "큰 파일이라 2~3분까지 걸릴 수 있습니다";
 }
 
+function stageState(pct: number, threshold: number, index: number): "complete" | "current" | "pending" {
+  const prevThreshold = index === 0 ? 0 : PIPELINE_STAGES[index - 1].threshold;
+  if (pct >= threshold) return "complete";
+  if (pct >= prevThreshold) return "current";
+  return "pending";
+}
+
 export default function ProblemGrid({
   problems, loading, selectedProblemId, onSelectProblem, documentStatus,
   paperType,
   fileSizeBytes, progressPercent, progressStepName,
-  mergeMode = false, mergeSelectedIds = [],
+  mergeMode = false, mergeSelectedIds = EMPTY_SELECTED_IDS,
   onToggleMergeMode, onToggleMergeSelect, onClearMergeSelection, onConfirmMerge,
-  deleteMode = false, deleteSelectedIds = [],
+  deleteMode = false, deleteSelectedIds = EMPTY_SELECTED_IDS,
   onToggleDeleteMode, onToggleDeleteSelect, onClearDeleteSelection, onConfirmBulkDelete,
   onOpenManualCrop, onRetry,
   onDeleteProblem, onSplitProblem,
 }: Props) {
   const mergeSelectedCount = mergeSelectedIds.length;
-  const mergeOrderById = new Map<number, number>();
-  mergeSelectedIds.forEach((id, idx) => mergeOrderById.set(id, idx + 1));
+  const mergeOrderById = useMemo(
+    () => new Map(mergeSelectedIds.map((id, idx) => [id, idx + 1])),
+    [mergeSelectedIds],
+  );
   // Phase F — 다중 선택 삭제 모드 (mergeMode 와 mutually exclusive).
-  const deleteSelectedSet = new Set(deleteSelectedIds);
+  const deleteSelectedSet = useMemo(() => new Set(deleteSelectedIds), [deleteSelectedIds]);
   const deleteSelectedCount = deleteSelectedIds.length;
+  const problemById = useMemo(() => new Map(problems.map((p) => [p.id, p])), [problems]);
   // 삭제 대상 중 manual 보호 카드 개수 — toolbar 에 명시 (학원장이 보호 동작 인지).
-  const deleteProtectedCount = deleteSelectedIds.reduce((acc, id) => {
-    const p = problems.find((x) => x.id === id);
+  const deleteProtectedCount = useMemo(() => deleteSelectedIds.reduce((acc, id) => {
+    const p = problemById.get(id);
     if (!p) return acc;
     const meta = p.meta as Record<string, unknown> | null;
     return acc + (meta?.manual || meta?.manual_owner_pinned ? 1 : 0);
-  }, 0);
+  }, 0), [deleteSelectedIds, problemById]);
   // mode entry CTA 바 — 합치기/일괄삭제 진입 가능. 두 모드 진입 핸들러 둘 다 없으면 hidden.
   const canEnterAnyMode = (!!onToggleMergeMode || !!onToggleDeleteMode) && problems.length >= 2;
   const showModeEntryBar = canEnterAnyMode && !mergeMode && !deleteMode;
   const isProcessing = loading || documentStatus === "processing" || documentStatus === "pending";
   const hasProgress = typeof progressPercent === "number" && progressPercent > 0;
-  const pct = hasProgress ? Math.round(progressPercent!) : 0;
+  const pct = hasProgress ? Math.min(100, Math.max(0, Math.round(progressPercent ?? 0))) : 0;
 
   // 부분 결과 노출 — 재처리 또는 부분 저장된 케이스에서 이미 노출 가능한 문항 먼저 보여줌.
   // (현재 백엔드는 파이프라인 끝에 일괄 INSERT라 신규 업로드에서는 빈 배열이지만,
   //  reanalyze 중인 doc은 이전 problems가 그대로 남아 있어 사용자에게 즉시 컨텐츠 노출됨.)
   const showPartialResults = isProcessing && problems.length > 0;
+  const mergeSuspectCount = useMemo(() => problems.filter(
+    (p) => Boolean((p.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect),
+  ).length, [problems]);
+  const overThreshold = paperType === "side_notes" ? 30 : 60;
+  const showReviewGuide = problems.length >= overThreshold || mergeSuspectCount > 0;
+  const hasStickyActionBar = mergeMode || deleteMode;
 
   if (isProcessing && !showPartialResults) {
     return (
-      <div style={{
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        padding: "var(--space-6)", gap: "var(--space-3)",
-      }}>
-        <Loader2 size={ICON.xl} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />
-        <p style={{ fontSize: 14, color: "var(--color-text-primary)", margin: 0, fontWeight: 600 }}>
+      <div className={styles.processingState}>
+        <Loader2 size={ICON.xl} className={`animate-spin ${styles.primaryIcon}`} />
+        <p className={styles.processingTitle}>
           {hasProgress
             ? `${progressStepName || "처리 중"} · ${pct}%`
             : "AI가 문제를 분석하고 있습니다..."}
         </p>
-        <div style={{
-          width: 240, height: 4, borderRadius: 2,
-          background: "var(--color-bg-surface-soft)", overflow: "hidden",
-        }}>
-          <div style={{
-            width: `${hasProgress ? pct : 5}%`,
-            height: "100%", background: "var(--color-brand-primary)",
-            transition: "width 0.4s",
-            animation: hasProgress ? undefined : "matchup-progress-indeterminate 1.6s ease-in-out infinite",
-          }} />
-        </div>
+        {hasProgress ? (
+          <progress className={styles.progressBar} value={pct} max={100} aria-label="문제 분석 진행률" />
+        ) : (
+          <div className={styles.progressTrack} aria-hidden="true">
+            <div className={styles.progressIndeterminateFill} />
+          </div>
+        )}
         {/* 단계별 체크리스트 — 어느 단계 진행 중인지 명시 */}
         {hasProgress && (
-          <div style={{
-            display: "flex", flexDirection: "column", gap: 4,
-            paddingTop: 4, fontSize: 11, color: "var(--color-text-muted)",
-            minWidth: 240,
-          }}>
+          <div className={styles.stageList}>
             {PIPELINE_STAGES.map((stage, idx) => {
-              const prevThreshold = idx === 0 ? 0 : PIPELINE_STAGES[idx - 1].threshold;
-              const isComplete = pct >= stage.threshold;
-              const isCurrent = !isComplete && pct >= prevThreshold;
+              const state = stageState(pct, stage.threshold, idx);
               return (
-                <div
-                  key={stage.label}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    color: isComplete
-                      ? "var(--color-status-success)"
-                      : isCurrent
-                        ? "var(--color-brand-primary)"
-                        : "var(--color-text-muted)",
-                    fontWeight: isCurrent ? 700 : 500,
-                    opacity: isComplete || isCurrent ? 1 : 0.5,
-                  }}
-                >
-                  {isComplete ? <Check size={ICON.xs} /> : <Clock size={ICON.xs} />}
+                <div key={stage.label} className={styles.stageItem} data-state={state}>
+                  {state === "complete" ? <Check size={ICON.xs} /> : <Clock size={ICON.xs} />}
                   <span>{stage.label}</span>
-                  {isCurrent && <span style={{ opacity: 0.7 }}>· 진행 중</span>}
+                  {state === "current" && <span className={styles.stageCurrentText}>· 진행 중</span>}
                 </div>
               );
             })}
           </div>
         )}
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0, opacity: 0.7 }}>
+        <p className={styles.processingHint}>
           {hasProgress ? "완료되면 자동으로 문제 그리드로 바뀝니다" : estimateProcessingHint(fileSizeBytes)}
         </p>
-        <style>{`
-          @keyframes matchup-progress-indeterminate {
-            0%   { width: 5%; margin-left: 0%; }
-            50%  { width: 45%; margin-left: 55%; }
-            100% { width: 5%; margin-left: 95%; }
-          }
-        `}</style>
       </div>
     );
   }
@@ -172,23 +159,17 @@ export default function ProblemGrid({
     // 빈 상태에서도 학원장이 다음 행동을 즉시 할 수 있어야 한다.
     // 자동분리 0건 = 결과 없음으로 끝나면 안 되고, "직접 자르기"로 시작 가능 안내.
     return (
-      <div style={{
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        padding: "var(--space-8) var(--space-4)",
-        gap: "var(--space-3)",
-        textAlign: "center",
-      }}>
-        <FileSearch size={28} style={{ color: "var(--color-text-muted)", opacity: 0.5 }} />
-        <p style={{ fontSize: 14, color: "var(--color-text-secondary)", margin: 0, fontWeight: 600 }}>
+      <div className={styles.emptyState}>
+        <FileSearch size={28} className={styles.emptyIcon} />
+        <p className={styles.emptyTitle}>
           {isFailed ? "문제 추출에 실패했습니다" : "자동으로 인식된 문제가 없습니다"}
         </p>
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0, lineHeight: 1.5, maxWidth: 360 }}>
+        <p className={styles.emptyDescription}>
           {isFailed
             ? "재시도하거나, 원본 위에 직접 박스를 그려 문항을 추가할 수 있습니다."
             : "원본 PDF 위에 박스를 그리면 문항을 직접 추가할 수 있어요. 스캔 품질이 낮을 때 가장 정확합니다."}
         </p>
-        <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
+        <div className={styles.emptyActions}>
           {isFailed && onRetry && (
             <Button intent="ghost" size="sm" onClick={onRetry}>
               재시도
@@ -215,72 +196,33 @@ export default function ProblemGrid({
   //   side_notes (학습자료 본문, anchor 기반) = 30+ 시 즉시 가이드 (30~60 범위 워크북도
   //     본문 항목번호 over-extraction risk 큼)
   //   그 외 (시험지 등) = 60+ (정상 시험지 60문항 흔함)
-  const mergeSuspectCount = problems.filter(
-    (p) => Boolean((p.meta as { merge_suspect?: boolean } | undefined)?.merge_suspect),
-  ).length;
-  const overThreshold = paperType === "side_notes" ? 30 : 60;
-  const showReviewGuide = problems.length >= overThreshold || mergeSuspectCount > 0;
-
-  // narrow viewport (1100 미만 매치업 본문 너비) 에서 sticky bottom action bar
-  // (merge/delete 모드 진입 시) 가 마지막 행 카드를 가리는 회귀 보정 — grid 끝
-  // 에 액션바 height 만큼 buffer. 모드 미진입 시 0.
-  const stickyBufferPx = (mergeMode || deleteMode) ? 80 : 0;
-
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", gap: "var(--space-3)",
-      position: "relative",
-      paddingBottom: stickyBufferPx,
-    }}>
+    <div className={`${styles.root} ${hasStickyActionBar ? styles.rootWithActionBar : ""}`}>
       {/* Mode entry bar — 두 모드 모두 미진입일 때만. 합치기 + 일괄삭제 진입 CTA 동시 노출. */}
       {showModeEntryBar && (
-        <div style={/* eslint-disable-line no-restricted-syntax */ {
-          display: "flex", alignItems: "center", gap: "var(--space-2)",
-          flexWrap: "wrap",
-          padding: "var(--space-2) var(--space-3)",
-          background: "var(--color-bg-surface-soft)",
-          border: "1px solid var(--color-border-divider)",
-          borderRadius: "var(--radius-md)",
-          fontSize: 12,
-        }}>
-          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-text-muted)", flexShrink: 0,
-          }} />
-          <span style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-text-secondary)",
-            flex: 1, minWidth: 0, wordBreak: "keep-all",
-          }}>
+        <div className={styles.modeEntryBar}>
+          <Layers size={ICON.sm} className={styles.mutedIcon} />
+          <span className={styles.modeBarText}>
             <strong>여러 문항을 한 번에 정리</strong> — 쪼개진 문항을 합치거나, 잘못 잡힌 문항을 골라서 일괄 삭제할 수 있습니다.
           </span>
-          <div style={/* eslint-disable-line no-restricted-syntax */ {
-            marginLeft: "auto", display: "inline-flex", gap: 6, flexShrink: 0, flexWrap: "wrap",
-          }}>
+          <div className={styles.modeBarActions}>
             {onToggleMergeMode && (
-              <button type="button" onClick={onToggleMergeMode}
+              <button
+                type="button"
+                onClick={onToggleMergeMode}
                 data-testid="matchup-merge-mode-enter"
-                style={/* eslint-disable-line no-restricted-syntax */ {
-                  background: "var(--color-brand-primary)",
-                  color: "white", border: "none",
-                  borderRadius: 4, padding: "4px 12px",
-                  fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  whiteSpace: "nowrap",
-                }}>
+                className={styles.primarySmallButton}
+              >
                 <Layers size={ICON.xs} /> 쪼개진 문항 합치기
               </button>
             )}
             {onToggleDeleteMode && (
-              <button type="button" onClick={onToggleDeleteMode}
+              <button
+                type="button"
+                onClick={onToggleDeleteMode}
                 data-testid="matchup-bulk-select-mode-enter"
-                style={/* eslint-disable-line no-restricted-syntax */ {
-                  background: "var(--color-bg-surface)",
-                  color: "var(--color-text-secondary)",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 4, padding: "4px 12px",
-                  fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  whiteSpace: "nowrap",
-                }}>
+                className={styles.secondarySmallButton}
+              >
                 <Trash2 size={ICON.xs} /> 여러 문항 삭제
               </button>
             )}
@@ -290,37 +232,16 @@ export default function ProblemGrid({
 
       {/* Merge mode bar — 진입 시 안내 + 모드 종료 */}
       {mergeMode && (
-        <div style={/* eslint-disable-line no-restricted-syntax */ {
-          display: "flex", alignItems: "center", gap: "var(--space-2)",
-          flexWrap: "wrap",
-          padding: "var(--space-2) var(--space-3)",
-          background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-          border: "1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
-          borderRadius: "var(--radius-md)",
-          fontSize: 12,
-        }}>
-          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-brand-primary)", flexShrink: 0,
-          }} />
-          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)" }}>합치기 모드</strong>
-          <span style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-text-secondary)",
-            flex: 1, minWidth: 0, wordBreak: "keep-all",
-          }}>
-            — 합칠 문항을 위→아래 순서대로 클릭하세요
-          </span>
-          <button type="button" onClick={onToggleMergeMode}
+        <div className={`${styles.modeBar} ${styles.mergeModeBar}`}>
+          <Layers size={ICON.sm} className={styles.primaryModeIcon} />
+          <strong className={styles.primaryText}>합치기 모드</strong>
+          <span className={styles.modeBarText}>— 합칠 문항을 위→아래 순서대로 클릭하세요</span>
+          <button
+            type="button"
+            onClick={onToggleMergeMode}
             data-testid="matchup-merge-mode-exit"
-            style={/* eslint-disable-line no-restricted-syntax */ {
-              marginLeft: "auto",
-              background: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: 4, padding: "3px 10px",
-              color: "var(--color-text-secondary)",
-              fontSize: 11, fontWeight: 600, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 4,
-              whiteSpace: "nowrap", flexShrink: 0,
-            }}>
+            className={styles.modeExitButton}
+          >
             <X size={ICON.xs} /> 모드 종료
           </button>
         </div>
@@ -328,37 +249,16 @@ export default function ProblemGrid({
 
       {/* Delete mode bar — 진입 시 안내 + 모드 종료. */}
       {deleteMode && (
-        <div style={/* eslint-disable-line no-restricted-syntax */ {
-          display: "flex", alignItems: "center", gap: "var(--space-2)",
-          flexWrap: "wrap",
-          padding: "var(--space-2) var(--space-3)",
-          background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
-          border: "1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)",
-          borderRadius: "var(--radius-md)",
-          fontSize: 12,
-        }}>
-          <Trash2 size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-warning)", flexShrink: 0,
-          }} />
-          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)" }}>일괄 삭제 모드</strong>
-          <span style={/* eslint-disable-line no-restricted-syntax */ {
-            color: "var(--color-text-secondary)",
-            flex: 1, minWidth: 0, wordBreak: "keep-all",
-          }}>
-            — 삭제할 문항을 클릭해서 선택하세요. 직접 자른 문항은 자동 보호됩니다.
-          </span>
-          <button type="button" onClick={onToggleDeleteMode}
+        <div className={`${styles.modeBar} ${styles.deleteModeBar}`}>
+          <Trash2 size={ICON.sm} className={styles.warningModeIcon} />
+          <strong className={styles.warningText}>일괄 삭제 모드</strong>
+          <span className={styles.modeBarText}>— 삭제할 문항을 클릭해서 선택하세요. 직접 자른 문항은 자동 보호됩니다.</span>
+          <button
+            type="button"
+            onClick={onToggleDeleteMode}
             data-testid="matchup-bulk-select-mode-exit"
-            style={/* eslint-disable-line no-restricted-syntax */ {
-              marginLeft: "auto",
-              background: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: 4, padding: "3px 10px",
-              color: "var(--color-text-secondary)",
-              fontSize: 11, fontWeight: 600, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 4,
-              whiteSpace: "nowrap", flexShrink: 0,
-            }}>
+            className={styles.modeExitButton}
+          >
             <X size={ICON.xs} /> 모드 종료
           </button>
         </div>
@@ -375,34 +275,20 @@ export default function ProblemGrid({
           ? `${problems.length}개 문항 중 ${problems.length - partialCount}개 완료 · 나머지는 진행 중`
           : "이전 결과를 표시 중. 완료되면 자동으로 갱신됩니다.";
         return (
-          <div style={{
-            display: "flex", gap: "var(--space-2)", alignItems: "center",
-            padding: "var(--space-2) var(--space-3)",
-            background: "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent)",
-            borderRadius: "var(--radius-md)",
-            fontSize: 12, color: "var(--color-text-secondary)",
-          }}>
-            <Loader2 size={ICON.sm} className="animate-spin" style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+          <div className={styles.partialNotice}>
+            <Loader2 size={ICON.sm} className={`animate-spin ${styles.primarySmallIcon}`} />
             <div>
               <strong>{progressStepName || (isFreshUpload ? "분석 중" : "재분석 중")}</strong>
               {hasProgress && <span> · {pct}%</span>}
-              <span style={{ marginLeft: 6, opacity: 0.7 }}>· {guidance}</span>
+              <span className={styles.inlineMuted}>· {guidance}</span>
             </div>
           </div>
         );
       })()}
       {showReviewGuide && (
-        <div style={{
-          display: "flex", gap: "var(--space-2)", alignItems: "flex-start",
-          padding: "var(--space-2) var(--space-3)",
-          background: "color-mix(in srgb, var(--color-status-warning) 8%, var(--color-bg-surface))",
-          border: "1px solid color-mix(in srgb, var(--color-status-warning) 30%, transparent)",
-          borderRadius: "var(--radius-md)",
-          fontSize: 12, color: "var(--color-text-secondary)",
-        }}>
-          <AlertTriangle size={ICON.sm} style={{ color: "var(--color-status-warning)", flexShrink: 0, marginTop: 1 }} />
-          <div style={{ minWidth: 0, wordBreak: "keep-all", lineHeight: 1.5 }}>
+        <div className={styles.reviewGuide}>
+          <AlertTriangle size={ICON.sm} className={styles.reviewGuideIcon} />
+          <div className={styles.reviewGuideText}>
             {problems.length >= overThreshold && (
               <>
                 <strong>학습자료 자동분리 한계:</strong> 본문 항목번호를 문항으로 잘못 잡았을 수 있습니다 ({problems.length}개 검출). 정확한 매칭이 필요한 문항은
@@ -418,11 +304,7 @@ export default function ProblemGrid({
           </div>
         </div>
       )}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        gap: "var(--space-3)",
-      }}>
+      <div className={styles.grid}>
         {problems.map((p) => {
           const isInDeleteSelection = deleteMode && deleteSelectedSet.has(p.id);
           // bulk-select mode 일 때 카드의 selected 시각은 selection 멤버십.
@@ -451,60 +333,30 @@ export default function ProblemGrid({
 
       {/* Bulk delete action bar — 일괄삭제 모드 + 1개 이상 선택. */}
       {deleteMode && deleteSelectedCount > 0 && (
-        <div data-testid="matchup-bulk-delete-action-bar"
-          style={/* eslint-disable-line no-restricted-syntax */ {
-            position: "sticky", bottom: 0, zIndex: 5,
-            display: "flex", alignItems: "center", gap: "var(--space-2)",
-            flexWrap: "wrap",
-            padding: "var(--space-3) var(--space-4)",
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-warning)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            marginTop: "var(--space-2)",
-          }}>
-          <Trash2 size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", flexShrink: 0 }} />
-          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-warning)", fontSize: 13, flexShrink: 0 }}>
+        <div data-testid="matchup-bulk-delete-action-bar" className={`${styles.actionBar} ${styles.deleteActionBar}`}>
+          <Trash2 size={ICON.sm} className={styles.warningModeIcon} />
+          <strong className={styles.actionWarningCount}>
             {deleteSelectedCount}개 선택됨
           </strong>
           {deleteProtectedCount > 0 && (
-            <span data-testid="matchup-bulk-delete-protected-hint"
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                display: "inline-flex", alignItems: "center", gap: 4,
-                fontSize: 11, fontWeight: 600,
-                color: "var(--color-status-success)",
-                flexShrink: 0,
-              }}>
+            <span data-testid="matchup-bulk-delete-protected-hint" className={styles.protectedHint}>
               <Shield size={ICON.xs} />
               직접 자른 {deleteProtectedCount}개 자동 보호
             </span>
           )}
-          <span style={/* eslint-disable-line no-restricted-syntax */ {
-            fontSize: 11, color: "var(--color-text-muted)",
-            flex: 1, minWidth: 0, wordBreak: "keep-all",
-          }}>
+          <span className={styles.actionHint}>
             삭제는 되돌릴 수 없습니다 — 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.
           </span>
-          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8, flexShrink: 0 }}>
-            <button type="button" onClick={onClearDeleteSelection}
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: "var(--color-bg-surface-soft)",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 4, padding: "5px 12px",
-                color: "var(--color-text-secondary)",
-                fontSize: 11, fontWeight: 600, cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}>선택 해제</button>
-            <button type="button" onClick={onConfirmBulkDelete}
+          <div className={styles.actionButtons}>
+            <button type="button" onClick={onClearDeleteSelection} className={styles.secondaryActionButton}>
+              선택 해제
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmBulkDelete}
               data-testid="matchup-bulk-delete-confirm-action"
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: "var(--color-danger)",
-                color: "white", border: "none",
-                borderRadius: 4, padding: "5px 14px",
-                fontSize: 11, fontWeight: 700, cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 4,
-                whiteSpace: "nowrap",
-              }}>
+              className={styles.dangerActionButton}
+            >
               <Trash2 size={ICON.xs} />
               {deleteSelectedCount - deleteProtectedCount}개 삭제
             </button>
@@ -513,51 +365,25 @@ export default function ProblemGrid({
       )}
 
       {mergeMode && mergeSelectedCount > 0 && (
-        <div data-testid="matchup-merge-action-bar"
-          style={/* eslint-disable-line no-restricted-syntax */ {
-            position: "sticky", bottom: 0, zIndex: 5,
-            display: "flex", alignItems: "center", gap: "var(--space-2)",
-            flexWrap: "wrap",
-            padding: "var(--space-3) var(--space-4)",
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-brand-primary)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            marginTop: "var(--space-2)",
-          }}>
-          <Layers size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", flexShrink: 0 }} />
-          <strong style={/* eslint-disable-line no-restricted-syntax */ { color: "var(--color-brand-primary)", fontSize: 13, flexShrink: 0 }}>
+        <div data-testid="matchup-merge-action-bar" className={`${styles.actionBar} ${styles.mergeActionBar}`}>
+          <Layers size={ICON.sm} className={styles.primaryModeIcon} />
+          <strong className={styles.actionPrimaryCount}>
             {mergeSelectedCount}개 선택됨
           </strong>
-          <span style={/* eslint-disable-line no-restricted-syntax */ {
-            fontSize: 11, color: "var(--color-text-muted)",
-            flex: 1, minWidth: 0, wordBreak: "keep-all",
-          }}>
+          <span className={styles.actionHint}>
             {mergeSelectedCount < 2 ? "1개 더 선택하면 합칠 수 있습니다" : "위→아래 순서대로 합쳐집니다"}
           </span>
-          <div style={/* eslint-disable-line no-restricted-syntax */ { marginLeft: "auto", display: "flex", gap: 8, flexShrink: 0 }}>
-            <button type="button" onClick={onClearMergeSelection}
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: "var(--color-bg-surface-soft)",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 4, padding: "5px 12px",
-                color: "var(--color-text-secondary)",
-                fontSize: 11, fontWeight: 600, cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}>선택 해제</button>
-            <button type="button" onClick={onConfirmMerge}
+          <div className={styles.actionButtons}>
+            <button type="button" onClick={onClearMergeSelection} className={styles.secondaryActionButton}>
+              선택 해제
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmMerge}
               disabled={mergeSelectedCount < 2}
               data-testid="matchup-merge-open-modal"
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: mergeSelectedCount < 2 ? "var(--color-bg-surface-soft)" : "var(--color-brand-primary)",
-                color: mergeSelectedCount < 2 ? "var(--color-text-muted)" : "white",
-                border: "none",
-                borderRadius: 4, padding: "5px 14px",
-                fontSize: 11, fontWeight: 700,
-                cursor: mergeSelectedCount < 2 ? "not-allowed" : "pointer",
-                display: "inline-flex", alignItems: "center", gap: 4,
-                whiteSpace: "nowrap",
-              }}>
+              className={styles.mergeConfirmButton}
+            >
               <Layers size={ICON.xs} />
               {mergeSelectedCount}개를 1개로 합치기
             </button>

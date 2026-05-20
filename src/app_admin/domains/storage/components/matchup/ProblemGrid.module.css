@@ -1,0 +1,391 @@
+.processingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+
+.primaryIcon,
+.primarySmallIcon,
+.primaryModeIcon {
+  flex-shrink: 0;
+  color: var(--color-brand-primary);
+}
+
+.processingTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.progressBar,
+.progressTrack {
+  width: 240px;
+  height: 4px;
+  overflow: hidden;
+  background: var(--color-bg-surface-soft);
+  border: 0;
+  border-radius: 2px;
+}
+
+.progressBar::-webkit-progress-bar {
+  background: var(--color-bg-surface-soft);
+}
+
+.progressBar::-webkit-progress-value {
+  background: var(--color-brand-primary);
+  transition: width 0.4s;
+}
+
+.progressBar::-moz-progress-bar {
+  background: var(--color-brand-primary);
+}
+
+.progressIndeterminateFill {
+  width: 5%;
+  height: 100%;
+  background: var(--color-brand-primary);
+  animation: matchup-progress-indeterminate 1.6s ease-in-out infinite;
+}
+
+.stageList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 240px;
+  padding-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.stageItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.stageItem[data-state="complete"] {
+  color: var(--color-status-success);
+  opacity: 1;
+}
+
+.stageItem[data-state="current"] {
+  color: var(--color-brand-primary);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.stageItem[data-state="pending"] {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.stageCurrentText,
+.inlineMuted {
+  opacity: 0.7;
+}
+
+.processingHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.emptyDescription {
+  max-width: 360px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rootWithActionBar {
+  padding-bottom: 80px;
+}
+
+.modeEntryBar,
+.modeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.modeEntryBar {
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+}
+
+.mergeModeBar {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
+}
+
+.deleteModeBar {
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
+}
+
+.modeBarText {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  word-break: keep-all;
+}
+
+.modeBarActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.mutedIcon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.warningModeIcon {
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
+.primaryText {
+  color: var(--color-brand-primary);
+}
+
+.warningText {
+  color: var(--color-warning);
+}
+
+.primarySmallButton,
+.secondarySmallButton,
+.modeExitButton,
+.secondaryActionButton,
+.dangerActionButton,
+.mergeConfirmButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.primarySmallButton {
+  padding: 4px 12px;
+  color: white;
+  background: var(--color-brand-primary);
+  border: 0;
+}
+
+.secondarySmallButton {
+  padding: 4px 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+}
+
+.modeExitButton {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 3px 10px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  font-weight: 600;
+}
+
+.partialNotice,
+.reviewGuide {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.partialNotice {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.reviewGuide {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--color-status-warning) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-status-warning) 30%, transparent);
+}
+
+.reviewGuideIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-status-warning);
+}
+
+.reviewGuideText {
+  min-width: 0;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.deleteActionBar {
+  border: 1px solid var(--color-warning);
+}
+
+.mergeActionBar {
+  border: 1px solid var(--color-brand-primary);
+}
+
+.actionWarningCount,
+.actionPrimaryCount {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.actionWarningCount {
+  color: var(--color-warning);
+}
+
+.actionPrimaryCount {
+  color: var(--color-brand-primary);
+}
+
+.protectedHint {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-status-success);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.actionHint {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  word-break: keep-all;
+}
+
+.actionButtons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.secondaryActionButton {
+  padding: 5px 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+  font-weight: 600;
+}
+
+.dangerActionButton {
+  padding: 5px 14px;
+  color: white;
+  background: var(--color-danger);
+  border: 0;
+}
+
+.mergeConfirmButton {
+  padding: 5px 14px;
+  color: white;
+  background: var(--color-brand-primary);
+  border: 0;
+}
+
+.mergeConfirmButton:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  background: var(--color-bg-surface-soft);
+}
+
+@keyframes matchup-progress-indeterminate {
+  0% {
+    width: 5%;
+    margin-left: 0%;
+  }
+
+  50% {
+    width: 45%;
+    margin-left: 55%;
+  }
+
+  100% {
+    width: 5%;
+    margin-left: 95%;
+  }
+}
