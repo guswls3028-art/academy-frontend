@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";
+import styles from "./LectureExamGroup.module.css";
 
 export type ExamGroup = {
   key: string;
@@ -24,51 +25,40 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
   return (
     <div>
       <LectureGroupHeader label={group.label} count={group.exams.length} avgPct={group.avgPct} />
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+      <div className={styles.list}>
         {group.exams.map((e) => (
           <Link
             key={e.exam_id}
             to={`/student/exams/${e.exam_id}/result`}
-            className="stu-panel stu-panel--pressable stu-panel--accent"
-            style={{ textDecoration: "none", color: "inherit" }}
+            className={`stu-panel stu-panel--pressable stu-panel--accent ${styles.cardLink}`}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-4)" }}>
-              <div style={iconWrap}>
-                <IconExam style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+            <div className={styles.row}>
+              <div className={styles.iconWrap}>
+                <IconExam className={styles.examIcon} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</div>
-                <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
+              <div className={styles.content}>
+                <div className={styles.title}>{e.title}</div>
+                <div className={`stu-muted ${styles.meta}`}>
                   {e.session_title && `${e.session_title} · `}
                   {fmtScore(e.total_score, e.max_score)}
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+              <div className={styles.statusBlock}>
                 <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className={styles.statusMeta}>
                   {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "1px 6px",
-                        borderRadius: 999,
-                        background: "var(--stu-tint-primary)",
-                        color: "var(--stu-primary)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span className={styles.rankBadge}>
                       {e.rank}/{e.cohort_size}등
                     </span>
                   )}
                   {e.total_score != null && e.max_score > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--stu-text-muted)" }}>
+                    <span className={styles.scorePercent}>
                       {Math.round((e.total_score / e.max_score) * 100)}%
                     </span>
                   )}
                 </div>
               </div>
-              <IconChevronRight style={{ width: 18, height: 18, color: "var(--stu-text-muted)", flexShrink: 0 }} />
+              <IconChevronRight className={styles.chevron} />
             </div>
           </Link>
         ))}
@@ -79,27 +69,13 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
 
 function LectureGroupHeader({ label, count, avgPct }: { label: string; count: number; avgPct: number | null }) {
   return (
-    <div style={groupHeader}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--stu-text)" }}>{label}</div>
-        <div className="stu-muted" style={{ fontSize: 12, marginTop: 2 }}>
+    <div className={styles.groupHeader}>
+      <div className={styles.groupTitleBlock}>
+        <div className={styles.groupTitle}>{label}</div>
+        <div className={`stu-muted ${styles.groupMeta}`}>
           {count}건{avgPct != null ? ` · 평균 ${avgPct}점` : ""}
         </div>
       </div>
     </div>
   );
 }
-
-const iconWrap: React.CSSProperties = {
-  width: 44, height: 44, borderRadius: 12,
-  background: "var(--stu-surface-soft)", display: "grid", placeItems: "center", flexShrink: 0,
-};
-
-const groupHeader: React.CSSProperties = {
-  display: "flex", alignItems: "center",
-  padding: "var(--stu-space-4) var(--stu-space-5)",
-  marginBottom: "var(--stu-space-2)",
-  borderLeft: "4px solid var(--stu-primary)",
-  background: "var(--stu-tint-primary)",
-  borderRadius: "0 var(--stu-radius-xl) var(--stu-radius-xl) 0",
-};
