@@ -19,6 +19,7 @@ export type SubmissionSource =
   | "ai_match";
 
 export type SubmissionTargetType = "exam" | "homework";
+export type SubmissionJsonRecord = Record<string, unknown>;
 
 /**
  * ✅ Backend Submission 모델과 1:1 대응
@@ -38,8 +39,8 @@ export type Submission = {
   file_type?: string | null;
   file_size?: number | null;
 
-  payload?: any;
-  meta?: any;
+  payload?: SubmissionJsonRecord | null;
+  meta?: SubmissionJsonRecord | null;
   error_message?: string;
 
   created_at: string;

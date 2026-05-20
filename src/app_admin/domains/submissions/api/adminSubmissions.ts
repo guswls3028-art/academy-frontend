@@ -1,6 +1,74 @@
 // PATH: src/app_admin/domains/submissions/api/adminSubmissions.ts
 import api from "@/shared/api/axios";
-import type { Submission, SubmissionStatus } from "@admin/domains/submissions/types";
+import type { Submission, SubmissionJsonRecord, SubmissionStatus } from "@admin/domains/submissions/types";
+
+type AdminSubmissionsQuery = {
+  target_type?: "exam";
+  target_id?: number;
+  enrollment_id?: number;
+  status?: SubmissionStatus;
+  limit?: number;
+};
+
+export type RetrySubmissionResponse = {
+  submission_id?: number;
+  id?: number;
+  status?: SubmissionStatus;
+  detail?: string;
+};
+
+export type SubmissionManualReviewAnswer = {
+  question_id?: number;
+  question_no?: number;
+  answer?: string;
+  omr?: SubmissionJsonRecord | null;
+  meta?: SubmissionJsonRecord | null;
+};
+
+export type SubmissionManualReviewResponse = {
+  submission_id?: number;
+  submission_status?: SubmissionStatus;
+  enrollment_id?: number | null;
+  target_type?: Submission["target_type"];
+  target_id?: number;
+  identifier?: unknown;
+  answers?: SubmissionManualReviewAnswer[];
+  scan_image_url?: string;
+  meta?: SubmissionJsonRecord | null;
+};
+
+export type SaveSubmissionManualReviewPayload = {
+  identifier?: unknown;
+  answers: Array<{ question_id?: number; question_no?: number; answer: string }>;
+};
+
+export type SaveSubmissionManualReviewResponse = {
+  submission_id: number;
+  status: SubmissionStatus;
+  updated: number;
+  graded: boolean;
+  result_id?: number | null;
+  resolved_enrollment_id?: number | null;
+  enrollment_id?: number | null;
+  score?: number | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  detail?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function unwrapSubmissionList(data: unknown): Submission[] {
+  if (Array.isArray(data)) return data as Submission[];
+  const record = asRecord(data);
+  if (Array.isArray(record.results)) return record.results as Submission[];
+  if (Array.isArray(record.items)) return record.items as Submission[];
+  return [];
+}
 
 /**
  * Admin submission list
@@ -13,7 +81,7 @@ export async function fetchAdminSubmissions(params?: {
   status?: SubmissionStatus;
   limit?: number;
 }): Promise<Submission[]> {
-  const query: any = {};
+  const query: AdminSubmissionsQuery = {};
   if (Number.isFinite(params?.examId)) {
     query.target_type = "exam";
     query.target_id = params!.examId;
@@ -23,22 +91,13 @@ export async function fetchAdminSubmissions(params?: {
   if (Number.isFinite(params?.limit)) query.limit = params!.limit;
 
   const res = await api.get("/submissions/submissions/", { params: query });
-  const data = res.data;
-
-  if (Array.isArray(data)) return data as Submission[];
-  if (Array.isArray(data?.results)) return data.results as Submission[];
-  if (Array.isArray(data?.items)) return data.items as Submission[];
-  return [];
+  return unwrapSubmissionList(res.data);
 }
 
 /**
  * Unified retry (FAILED only)
  */
-export async function retryAnySubmission(submissionId: number): Promise<{
-  submission_id?: number;
-  id?: number;
-  status?: SubmissionStatus;
-} | any> {
+export async function retryAnySubmission(submissionId: number): Promise<RetrySubmissionResponse> {
   const res = await api.post(`/submissions/submissions/${submissionId}/retry/`, {});
   return res.data;
 }
@@ -46,16 +105,7 @@ export async function retryAnySubmission(submissionId: number): Promise<{
 /**
  * Manual review fetch
  */
-export async function fetchSubmissionManualReview(submissionId: number): Promise<{
-  identifier?: string | null;
-  answers?: Array<{
-    question_id?: number;
-    question_no?: number;
-    answer?: string;
-    meta?: any;
-  }>;
-  meta?: any;
-}> {
+export async function fetchSubmissionManualReview(submissionId: number): Promise<SubmissionManualReviewResponse> {
   const res = await api.get(`/submissions/submissions/${submissionId}/manual-edit/`);
   return res.data;
 }
@@ -63,10 +113,10 @@ export async function fetchSubmissionManualReview(submissionId: number): Promise
 /**
  * Manual review save + regrade
  */
-export async function saveSubmissionManualReview(submissionId: number, payload: {
-  identifier?: string | null;
-  answers: Array<{ question_id?: number; question_no?: number; answer: string }>;
-}): Promise<any> {
+export async function saveSubmissionManualReview(
+  submissionId: number,
+  payload: SaveSubmissionManualReviewPayload,
+): Promise<SaveSubmissionManualReviewResponse> {
   const res = await api.post(`/submissions/submissions/${submissionId}/manual-edit/`, payload);
   return res.data;
 }
