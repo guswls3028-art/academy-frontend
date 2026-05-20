@@ -67,6 +67,13 @@
   min-width: 0;
 }
 
+.tabCount {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
 .chevron {
   flex-shrink: 0;
   width: 14px;

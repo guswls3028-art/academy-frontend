@@ -70,14 +70,7 @@ export default function TemplateCategoryTree({
                     {TEMPLATE_CATEGORY_LABELS[cat.id]}
                   </span>
                   {count !== undefined && count > 0 && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--color-text-muted)",
-                        marginLeft: "auto",
-                        fontWeight: 400,
-                      }}
-                    >
+                    <span className={styles.tabCount}>
                       {count}
                     </span>
                   )}
