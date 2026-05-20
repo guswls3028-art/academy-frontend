@@ -1,0 +1,89 @@
+.backButton {
+  border: none;
+  background: none;
+  color: var(--tc-text-secondary);
+}
+
+.title {
+  color: var(--tc-text);
+}
+
+.mutedText,
+.description {
+  color: var(--tc-text-muted);
+}
+
+.description {
+  line-height: 1.5;
+}
+
+.primaryActionButton,
+.sheetPrimaryButton {
+  padding: 12px;
+  border: none;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.resultRow {
+  padding: 10px 12px;
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface-soft);
+}
+
+.scanButton {
+  min-height: var(--tc-touch-min);
+  padding: 10px 14px;
+  border: 1px solid var(--tc-primary);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.scanButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sheetBackdrop {
+  background: rgb(0 0 0 / 50%);
+}
+
+.sheetPanel {
+  padding: 20px 20px calc(20px + var(--tc-safe-bottom));
+  background: var(--tc-surface);
+}
+
+.sheetPrimaryButton {
+  padding: 14px;
+}
+
+.sheetSecondaryButton {
+  padding: 14px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+  color: var(--tc-text-secondary);
+}
+
+.sheetCancelButton {
+  padding: 10px;
+  border: none;
+  border-radius: var(--tc-radius);
+  background: none;
+  color: var(--tc-text-muted);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.numberInput {
+  padding: 8px 10px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  outline: none;
+  background: var(--tc-surface-soft);
+  color: var(--tc-text);
+}

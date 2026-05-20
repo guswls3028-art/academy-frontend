@@ -1,14 +1,26 @@
 // PATH: src/app_teacher/domains/exams/pages/OmrPage.tsx
 // OMR 관리 — 답안지 PDF 다운로드 + 카메라/파일로 스캔 업로드
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { fetchOMRDefaults, downloadOMRPdf, submitOMR, fetchExam, fetchExamResults } from "../api";
+import styles from "./OmrPage.module.css";
+
+type TeacherExamResultRow = {
+  id?: number | string | null;
+  enrollment?: number | string | null;
+  enrollment_id?: number | string | null;
+  submitted_at?: string | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  student_name?: string | null;
+  student?: { name?: string | null } | null;
+};
 
 export default function OmrPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -44,6 +56,7 @@ export default function OmrPage() {
     // 채점 대기 중이면 5초 폴링 — 결과 자동 갱신
     refetchInterval: pendingScoring.size > 0 ? 5000 : false,
   });
+  const resultRows = useMemo(() => (results ?? []) as TeacherExamResultRow[], [results]);
 
   // 결과가 갱신되면 채점 완료된 enrollment를 pendingScoring에서 제거
   // + 5분 경과한 미완료 항목도 강제 해제 (백엔드 영구 실패 시 무한 폴링 차단)
@@ -55,7 +68,7 @@ export default function OmrPage() {
       const next = new Set(prev);
       let changed = false;
       for (const eid of prev) {
-        const row = results ? (results as any[]).find((r) => (r.enrollment ?? r.enrollment_id) === eid) : null;
+        const row = resultRows.find((r) => getEnrollmentId(r) === eid);
         const completed = !!(row && row.total_score != null);
         const startedAt = pendingStartedAtRef.current.get(eid) ?? now;
         const expired = now - startedAt > TIMEOUT_MS;
@@ -70,7 +83,7 @@ export default function OmrPage() {
       }
       return changed ? next : prev;
     });
-  }, [results, pendingScoring]);
+  }, [resultRows, pendingScoring]);
 
   const pendingCount = pendingScoring.size;
 
@@ -100,18 +113,21 @@ export default function OmrPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className={`${styles.backButton} flex p-1 cursor-pointer`}
+        >
           <ChevronLeft size={ICON.lg} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>
           OMR · {defaults?.exam_title ?? exam?.title ?? "시험"}
         </h1>
       </div>
 
       {/* OMR 설정 */}
       <Card>
-        <div className="text-sm font-bold mb-2" style={{ color: "var(--tc-text)" }}>OMR 답안지 설정</div>
+        <div className={`${styles.title} text-sm font-bold mb-2`}>OMR 답안지 설정</div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
             <Fld label="객관식 문항 수" value={mcCount} onChange={setMcCount} />
@@ -120,9 +136,12 @@ export default function OmrPage() {
           <Fld label="객관식 선택지 수" value={nChoices} onChange={setNChoices} />
         </div>
 
-        <button onClick={() => downloadMut.mutate()} disabled={downloadMut.isPending}
-          className="flex items-center justify-center gap-2 w-full text-sm font-bold cursor-pointer mt-3"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+        <button
+          type="button"
+          onClick={() => downloadMut.mutate()}
+          disabled={downloadMut.isPending}
+          className={`${styles.primaryActionButton} flex items-center justify-center gap-2 w-full text-sm font-bold cursor-pointer mt-3`}
+        >
           <Download size={ICON.xs} /> {downloadMut.isPending ? "생성 중…" : "OMR PDF 다운로드"}
         </button>
       </Card>
@@ -130,26 +149,27 @@ export default function OmrPage() {
       {/* 학생 제출 목록 */}
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>스캔 업로드</div>
+          <div className={`${styles.title} text-sm font-bold`}>스캔 업로드</div>
           {pendingCount > 0 && (
             <Badge tone="info" size="xs">자동 채점 중 {pendingCount}건</Badge>
           )}
         </div>
-        <p className="text-[11px] mb-3" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
+        <p className={`${styles.description} text-[11px] mb-3`}>
           학생별로 작성된 OMR을 카메라로 찍거나 갤러리에서 선택하여 업로드하면 자동 채점됩니다. 업로드 후 화면이 자동 갱신됩니다.
         </p>
-        {results && results.length > 0 ? (
+        {resultRows.length > 0 ? (
           <div className="flex flex-col gap-1.5">
-            {results.map((r: any) => {
-              const enrollmentId = r.enrollment ?? r.enrollment_id;
+            {resultRows.map((r) => {
+              const enrollmentId = getEnrollmentId(r);
               const hasSubmission = !!(r.submitted_at || r.total_score != null);
-              const isScoring = pendingScoring.has(enrollmentId) && r.total_score == null;
+              const isScoring = enrollmentId != null && pendingScoring.has(enrollmentId) && r.total_score == null;
               return (
-                <div key={r.id ?? enrollmentId} className="flex items-center justify-between"
-                  style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)" }}>
+                <div key={r.id ?? enrollmentId} className={`${styles.resultRow} flex items-center justify-between`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>{r.student_name ?? r.student?.name ?? "학생"}</span>
+                      <span className={`${styles.title} text-[13px] font-semibold`}>
+                        {r.student_name ?? r.student?.name ?? "학생"}
+                      </span>
                       {isScoring ? (
                         <Badge tone="info" size="xs">채점 중…</Badge>
                       ) : hasSubmission ? (
@@ -157,23 +177,19 @@ export default function OmrPage() {
                       ) : null}
                     </div>
                     {r.total_score != null && (
-                      <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                      <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
                         점수: {r.total_score}/{r.max_score ?? 100}
                       </div>
                     )}
                   </div>
-                  <button onClick={() => setUploadTarget(enrollmentId)}
-                    disabled={isScoring}
-                    className="flex items-center gap-1 text-[12px] font-bold cursor-pointer shrink-0"
-                    style={{
-                      padding: "10px 14px",
-                      minHeight: "var(--tc-touch-min)",
-                      borderRadius: "var(--tc-radius-sm)",
-                      border: "1px solid var(--tc-primary)",
-                      background: "var(--tc-primary-bg)",
-                      color: "var(--tc-primary)",
-                      opacity: isScoring ? 0.5 : 1,
-                    }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (enrollmentId != null) setUploadTarget(enrollmentId);
+                    }}
+                    disabled={isScoring || enrollmentId == null}
+                    className={`${styles.scanButton} flex items-center gap-1 text-[12px] font-bold cursor-pointer shrink-0`}
+                  >
                     <Camera size={ICON.xs} /> 스캔
                   </button>
                 </div>
@@ -216,7 +232,7 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
       if (enrollmentId != null) onSubmitted?.(enrollmentId);
       onClose();
     },
-    onError: (e: any) => teacherToast.error(e?.response?.data?.detail ?? "업로드에 실패했습니다."),
+    onError: (e: unknown) => teacherToast.error(getUploadErrorMessage(e)),
   });
 
   if (!open) return null;
@@ -227,40 +243,50 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
-      <div className="w-full rounded-t-2xl"
+    <div className={`${styles.sheetBackdrop} fixed inset-0 z-40 flex items-end`} onClick={onClose}>
+      <div
+        className={`${styles.sheetPanel} w-full rounded-t-2xl`}
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: "20px 20px calc(20px + var(--tc-safe-bottom))", background: "var(--tc-surface)" }}>
+      >
         <div className="text-center mb-4">
-          <div className="text-[16px] font-bold" style={{ color: "var(--tc-text)" }}>OMR 스캔 업로드</div>
-          <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>촬영 또는 갤러리에서 선택</div>
+          <div className={`${styles.title} text-[16px] font-bold`}>OMR 스캔 업로드</div>
+          <div className={`${styles.mutedText} text-[11px] mt-1`}>촬영 또는 갤러리에서 선택</div>
         </div>
         <div className="flex flex-col gap-2">
-          <button onClick={() => pick(true)} disabled={submitMut.isPending}
-            className="flex items-center justify-center gap-2 text-sm font-bold cursor-pointer"
-            style={{ padding: "14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <button
+            type="button"
+            onClick={() => pick(true)}
+            disabled={submitMut.isPending}
+            className={`${styles.sheetPrimaryButton} flex items-center justify-center gap-2 text-sm font-bold cursor-pointer`}
+          >
             <Camera size={ICON.xs} /> 카메라로 촬영
           </button>
-          <button onClick={() => pick(false)} disabled={submitMut.isPending}
-            className="flex items-center justify-center gap-2 text-sm font-semibold cursor-pointer"
-            style={{ padding: "14px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+          <button
+            type="button"
+            onClick={() => pick(false)}
+            disabled={submitMut.isPending}
+            className={`${styles.sheetSecondaryButton} flex items-center justify-center gap-2 text-sm font-semibold cursor-pointer`}
+          >
             <Upload size={ICON.xs} /> 갤러리에서 선택
           </button>
-          <button onClick={onClose} disabled={submitMut.isPending}
-            className="text-sm font-semibold cursor-pointer"
-            style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: "none", color: "var(--tc-text-muted)" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitMut.isPending}
+            className={`${styles.sheetCancelButton} text-sm font-semibold cursor-pointer`}
+          >
             취소
           </button>
         </div>
 
         {submitMut.isPending && (
-          <div className="text-[12px] text-center mt-3" style={{ color: "var(--tc-text-muted)" }}>업로드 중…</div>
+          <div className={`${styles.mutedText} text-[12px] text-center mt-3`}>업로드 중…</div>
         )}
 
         {/* Hidden inputs */}
-        <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className={styles.hiddenInput}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) submitMut.mutate(f); if (cameraRef.current) cameraRef.current.value = ""; }} />
-        <input ref={galleryRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }}
+        <input ref={galleryRef} type="file" accept="image/*,application/pdf" className={styles.hiddenInput}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) submitMut.mutate(f); if (galleryRef.current) galleryRef.current.value = ""; }} />
       </div>
     </div>
@@ -270,10 +296,24 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
 function Fld({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex-1">
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+      <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>{label}</label>
       <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="w-full text-sm"
-        style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+        className={`${styles.numberInput} w-full text-sm`} />
     </div>
   );
+}
+
+function getEnrollmentId(row: TeacherExamResultRow): number | null {
+  const raw = row.enrollment ?? row.enrollment_id;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+  return null;
+}
+
+function getUploadErrorMessage(error: unknown): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  return typeof detail === "string" ? detail : "업로드에 실패했습니다.";
 }
