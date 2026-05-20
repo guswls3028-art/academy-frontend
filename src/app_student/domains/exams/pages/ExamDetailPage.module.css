@@ -1,0 +1,37 @@
+.loadingStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-4);
+}
+
+.loadingMain {
+  height: 120px;
+  border-radius: var(--stu-radius);
+}
+
+.loadingSub {
+  height: 80px;
+  border-radius: var(--stu-radius);
+}
+
+.pageStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeader {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.actionStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.hintText {
+  font-size: 13px;
+}

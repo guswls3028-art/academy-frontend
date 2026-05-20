@@ -14,6 +14,7 @@ import EmptyState from "../../../layout/EmptyState";
 import { useStudentExam } from "@student/domains/exams/hooks/useStudentExams";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import styles from "./ExamDetailPage.module.css";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
@@ -37,9 +38,9 @@ export default function ExamDetailPage() {
   if (examQ.isLoading) {
     return (
       <StudentPageShell title="시험">
-        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingMain}`} />
+          <div className={`stu-skel ${styles.loadingSub}`} />
         </div>
       </StudentPageShell>
     );
@@ -80,34 +81,34 @@ export default function ExamDetailPage() {
         </Link>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className={styles.pageStack}>
         {/* ===== Assets ===== */}
         {/* 다운로드 기능 제거됨 (의도적으로 미제공) */}
 
         {/* ===== Actions ===== */}
         <div className="stu-section">
-          <div className="stu-section-header" style={{ fontWeight: 700, fontSize: 15 }}>
+          <div className={`stu-section-header ${styles.sectionHeader}`}>
             시험 응시 및 결과
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <div className={styles.actionStack}>
             <Link to={`/student/exams/${exam.id}/result`} className="stu-cta-link">
               결과 보기
             </Link>
 
             {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가. 마감된 시험은 응시 불가 */}
             {isParent ? (
-              <div className="stu-muted" style={{ fontSize: 13 }}>학부모는 시험에 응시할 수 없습니다.</div>
+              <div className={`stu-muted ${styles.hintText}`}>학부모는 시험에 응시할 수 없습니다.</div>
             ) : isClosed ? (
-              <div className="stu-muted" style={{ fontSize: 13 }}>시험이 마감되었습니다</div>
+              <div className={`stu-muted ${styles.hintText}`}>시험이 마감되었습니다</div>
             ) : canRetake === null ? (
-              <div className="stu-muted" style={{ fontSize: 13 }}>확인 중…</div>
+              <div className={`stu-muted ${styles.hintText}`}>확인 중…</div>
             ) : canRetake ? (
               <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
                 답안 입력하기
               </Link>
             ) : (
-              <div className="stu-muted" style={{ fontSize: 13 }}>
+              <div className={`stu-muted ${styles.hintText}`}>
                 재시험 기회가 없습니다.
               </div>
             )}
@@ -121,4 +122,3 @@ export default function ExamDetailPage() {
 
 // 다운로드 기능 제거됨 (의도적으로 미제공)
 // Surface 기반 스타일은 base.css의 .stu-section 사용
-
