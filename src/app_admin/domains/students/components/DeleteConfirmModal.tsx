@@ -4,6 +4,8 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } 
 import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
+import styles from "./StudentUtilityModals.module.css";
 
 export default function DeleteConfirmModal({
   open,
@@ -27,8 +29,8 @@ export default function DeleteConfirmModal({
       await deleteStudent(id);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      feedback.error(err?.response?.data?.detail || err?.message || "삭제에 실패했습니다.");
+    } catch (err: unknown) {
+      feedback.error(getApiErrorMessage(err, "삭제에 실패했습니다."));
     } finally {
       setBusy(false);
     }
@@ -43,32 +45,11 @@ export default function DeleteConfirmModal({
       />
 
       <ModalBody>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 850,
-            color: "var(--color-text-secondary)",
-            lineHeight: 1.6,
-          }}
-        >
+        <div className={styles.deleteMessage}>
           해당 학생을 정말 삭제하시겠습니까?
         </div>
 
-        <div
-          style={{
-            marginTop: 12,
-            padding: "10px 12px",
-            borderRadius: 12,
-            border:
-              "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
-            background:
-              "color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface))",
-            color: "var(--color-text-secondary)",
-            fontSize: 12,
-            fontWeight: 850,
-            letterSpacing: "-0.12px",
-          }}
-        >
+        <div className={styles.deleteWarning}>
           삭제된 학생은 '삭제된 학생' 탭에서 30일 이내 복구할 수 있습니다.
         </div>
       </ModalBody>

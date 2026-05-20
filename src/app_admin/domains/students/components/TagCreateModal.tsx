@@ -6,6 +6,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import { createTag } from "../api/students.api";
+import styles from "./StudentUtilityModals.module.css";
 
 type Props = {
   open: boolean;
@@ -14,6 +15,13 @@ type Props = {
   /** 이미 사용 중인 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
   usedColors?: string[];
 };
+
+function getTagCreateErrorMessage(err: unknown): string {
+  const data = (err as { response?: { data?: { name?: unknown; detail?: unknown } } })?.response?.data;
+  const nameError = Array.isArray(data?.name) ? data.name[0] : null;
+  const msg = nameError ?? data?.detail ?? "태그 생성에 실패했습니다.";
+  return typeof msg === "string" ? msg : "태그 생성에 실패했습니다.";
+}
 
 export default function TagCreateModal({
   open,
@@ -46,12 +54,8 @@ export default function TagCreateModal({
       const tag = await createTag(trimmed, color);
       onSuccess(tag);
       onClose();
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.name?.[0] ||
-        err?.response?.data?.detail ||
-        "태그 생성에 실패했습니다.";
-      setError(typeof msg === "string" ? msg : "태그 생성에 실패했습니다.");
+    } catch (err: unknown) {
+      setError(getTagCreateErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -64,12 +68,12 @@ export default function TagCreateModal({
         description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
       />
       <ModalBody>
-        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+        <div className={`modal-scroll-body modal-scroll-body--compact ${styles.tagFormStack}`}>
           <div className="modal-form-group modal-form-group--compact">
             <label className="modal-section-label">태그 이름</label>
             <input
               type="text"
-              className="ds-input w-full"
+              className={`ds-input w-full ${styles.tagNameInput}`}
               placeholder="예: VIP, 재수생, 수학반"
               value={name}
               onChange={(e) => {
@@ -77,11 +81,10 @@ export default function TagCreateModal({
                 setError(null);
               }}
               maxLength={50}
-              style={{ fontSize: 14 }}
               autoFocus
             />
             {error && (
-              <div className="modal-hint" style={{ marginTop: "var(--space-2)", color: "var(--color-error)" }}>
+              <div className={`modal-hint ${styles.tagError}`}>
                 {error}
               </div>
             )}
