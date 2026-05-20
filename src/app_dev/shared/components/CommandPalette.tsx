@@ -1,12 +1,14 @@
 // PATH: src/app_dev/shared/components/CommandPalette.tsx
 // 글로벌 Cmd+K 검색 팔레트 — 테넌트 + 사용자 검색.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useImpersonate } from "@dev/domains/tenants/hooks/useTenants";
 import { useDevToast } from "@dev/shared/components/DevToast";
 import { beginImpersonation, abortImpersonation } from "@dev/shared/components/ImpersonationBanner";
+import styles from "./CommandPalette.module.css";
 
 type SearchResult = {
   tenants: Array<{
@@ -20,6 +22,8 @@ type SearchResult = {
 };
 
 const STAFF_ROLES = new Set(["owner", "admin", "staff", "teacher"]);
+type CommandItem = { kind: "tenant" | "user"; key: string; render: () => ReactNode; onSelect: () => void };
+type PillTone = "tenant" | "user" | "role" | "inactive";
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
@@ -80,19 +84,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   }, [open, onClose]);
 
   const items = useMemo(() => {
-    if (!data) return [] as Array<{ kind: "tenant" | "user"; key: string; render: () => React.ReactNode; onSelect: () => void }>;
-    const arr: Array<{ kind: "tenant" | "user"; key: string; render: () => React.ReactNode; onSelect: () => void }> = [];
+    if (!data) return [] as CommandItem[];
+    const arr: CommandItem[] = [];
     for (const t of data.tenants) {
       arr.push({
         kind: "tenant",
         key: `t-${t.id}`,
         render: () => (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Pill text="TENANT" color="#3b82f6" />
-            <span style={{ fontWeight: 600 }}>{t.name}</span>
-            <span style={{ color: "#94a3b8", fontSize: 12 }}>· {t.code}</span>
-            {t.primary_domain && <span style={{ color: "#94a3b8", fontSize: 12 }}>· {t.primary_domain}</span>}
-            {!t.is_active && <Pill text="INACTIVE" color="#ef4444" />}
+          <div className={styles.resultLine}>
+            <Pill text="TENANT" tone="tenant" />
+            <span className={styles.resultTitle}>{t.name}</span>
+            <span className={styles.resultMuted}>· {t.code}</span>
+            {t.primary_domain && <span className={styles.resultMuted}>· {t.primary_domain}</span>}
+            {!t.is_active && <Pill text="INACTIVE" tone="inactive" />}
           </div>
         ),
         onSelect: () => {
@@ -107,14 +111,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         kind: "user",
         key: `u-${u.id}`,
         render: () => (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Pill text="USER" color="#10b981" />
-            <span style={{ fontWeight: 600 }}>{u.username}</span>
-            {u.name && <span style={{ color: "#475569" }}>({u.name})</span>}
-            {u.phone && <span style={{ color: "#94a3b8", fontSize: 12 }}>· {u.phone}</span>}
-            <span style={{ color: "#94a3b8", fontSize: 12 }}>@ {u.tenant_code}</span>
-            {u.role && <Pill text={u.role.toUpperCase()} color="#475569" />}
-            {!u.is_active && <Pill text="INACTIVE" color="#ef4444" />}
+          <div className={`${styles.resultLine} ${styles.resultLineWrap}`}>
+            <Pill text="USER" tone="user" />
+            <span className={styles.resultTitle}>{u.username}</span>
+            {u.name && <span className={styles.resultSecondary}>({u.name})</span>}
+            {u.phone && <span className={styles.resultMuted}>· {u.phone}</span>}
+            <span className={styles.resultMuted}>@ {u.tenant_code}</span>
+            {u.role && <Pill text={u.role.toUpperCase()} tone="role" />}
+            {!u.is_active && <Pill text="INACTIVE" tone="inactive" />}
             {canImpersonate && (
               <button
                 type="button"
@@ -139,11 +143,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     toast("임퍼소네이션 실패: " + (e2.response?.data?.detail || String(err)), "error");
                   }
                 }}
-                style={{
-                  marginLeft: "auto", padding: "2px 8px", fontSize: 11, fontWeight: 600,
-                  background: "#3b82f6", color: "#fff", border: "none", borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                className={styles.impersonateButton}
               >
                 로그인
               </button>
@@ -186,57 +186,39 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   if (!open) return null;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.55)",
-        zIndex: 200, display: "flex", justifyContent: "center", paddingTop: "12vh",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(640px, 92vw)", maxHeight: "70vh", display: "flex", flexDirection: "column",
-          background: "#fff", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid #e2e8f0" }}>
-          <span style={{ fontSize: 14, color: "#94a3b8" }}>🔍</span>
+    <div onClick={onClose} className={styles.overlay}>
+      <div onClick={(e) => e.stopPropagation()} className={styles.panel}>
+        <div className={styles.searchRow}>
+          <Search className={styles.searchIcon} size={14} strokeWidth={1.8} />
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="테넌트 코드/이름/도메인 또는 사용자 ID/이름/전화…"
-            style={{
-              flex: 1, fontSize: 14, border: "none", outline: "none", padding: "4px 0",
-            }}
+            className={styles.searchInput}
           />
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>ESC</span>
+          <span className={styles.shortcut}>ESC</span>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div className={styles.results}>
           {!q.trim() ? (
-            <div style={{ padding: 24, fontSize: 13, color: "#94a3b8" }}>
+            <div className={styles.stateMessage}>
               테넌트 또는 사용자를 입력하세요. (↑↓ 이동, Enter 선택)
             </div>
           ) : loading ? (
-            <div style={{ padding: 24, fontSize: 13, color: "#94a3b8" }}>검색 중…</div>
+            <div className={styles.stateMessage}>검색 중…</div>
           ) : error ? (
-            <div style={{ padding: 24, fontSize: 13, color: "#ef4444" }}>{error}</div>
+            <div className={`${styles.stateMessage} ${styles.stateMessageError}`}>{error}</div>
           ) : items.length === 0 ? (
-            <div style={{ padding: 24, fontSize: 13, color: "#94a3b8" }}>결과 없음</div>
+            <div className={styles.stateMessage}>결과 없음</div>
           ) : (
             items.map((item, idx) => (
               <div
                 key={item.key}
                 onClick={item.onSelect}
                 onMouseEnter={() => setActiveIdx(idx)}
-                style={{
-                  padding: "10px 16px", fontSize: 13, cursor: "pointer",
-                  background: idx === activeIdx ? "#eff6ff" : "transparent",
-                  borderBottom: "1px solid #f1f5f9",
-                }}
+                className={styles.resultItem}
+                data-active={idx === activeIdx ? "true" : undefined}
               >
                 {item.render()}
               </div>
@@ -248,31 +230,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
-function Pill({ text, color }: { text: string; color: string }) {
+function Pill({ text, tone }: { text: string; tone: PillTone }) {
   return (
-    <span
-      style={{
-        display: "inline-block", padding: "1px 6px", borderRadius: 4,
-        fontSize: 9, fontWeight: 700, letterSpacing: "0.5px",
-        background: `${color}1a`, color,
-      }}
-    >
+    <span className={styles.pill} data-tone={tone}>
       {text}
     </span>
   );
-}
-
-/** 글로벌 Cmd+K 핫키 훅. DevLayout에서 사용. */
-export function useCommandPaletteHotkey(setOpen: (v: boolean) => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const cmd = e.metaKey || e.ctrlKey;
-      if (cmd && (e.key === "k" || e.key === "K")) {
-        e.preventDefault();
-        setOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setOpen]);
 }

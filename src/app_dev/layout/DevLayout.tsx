@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";
-import { CommandPalette, useCommandPaletteHotkey } from "@dev/shared/components/CommandPalette";
+import { CommandPalette } from "@dev/shared/components/CommandPalette";
+import { useCommandPaletteHotkey } from "@dev/shared/components/useCommandPaletteHotkey";
 import s from "./DevLayout.module.css";
 
 const NAV_ITEMS = [
@@ -47,17 +49,12 @@ export default function DevLayout() {
         <button
           type="button"
           onClick={() => setPaletteOpen(true)}
-          style={{
-            margin: "12px 12px 4px", padding: "8px 10px", borderRadius: 8,
-            background: "rgba(255,255,255,0.06)", color: "#94a3b8",
-            border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8, fontSize: 12,
-          }}
+          className={s.paletteButton}
           title="글로벌 검색 (Cmd/Ctrl+K)"
         >
-          <span>🔍</span>
-          <span style={{ flex: 1, textAlign: "left" }}>테넌트·사용자 검색</span>
-          <kbd style={{ fontSize: 10, padding: "1px 5px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4 }}>⌘K</kbd>
+          <Search size={14} strokeWidth={1.8} />
+          <span className={s.paletteLabel}>테넌트·사용자 검색</span>
+          <kbd className={s.paletteShortcut}>⌘K</kbd>
         </button>
 
         <nav className={s.sidebarNav}>
@@ -95,7 +92,7 @@ export default function DevLayout() {
       {/* ── Mobile Top Bar ── */}
       <header className={s.mobileTopBar}>
         <div className={s.mobileTopLeft}>
-          <div className={s.brandIcon} style={{ width: 24, height: 24, fontSize: 11 }}>A</div>
+          <div className={`${s.brandIcon} ${s.mobileBrandIcon}`}>A</div>
           <span className={s.mobileBrandName}>Academy <span className={s.brandTag}>DEV</span></span>
         </div>
         <button
