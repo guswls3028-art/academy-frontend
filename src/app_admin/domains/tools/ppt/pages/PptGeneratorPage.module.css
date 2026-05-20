@@ -1,0 +1,242 @@
+.page {
+  display: flex;
+  gap: 24px;
+  min-height: calc(100vh - 200px);
+}
+
+.mainColumn {
+  flex: 1;
+  min-width: 0;
+}
+
+.modeTabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 3px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-surface);
+}
+
+.clearAllRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.clearAllButton {
+  padding: 6px 14px;
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--color-error, #ef4444);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.clearAllButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pdfInfoCard {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+}
+
+.pdfInfoText {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sidebar {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 20px;
+  width: 320px;
+}
+
+.settingsCard {
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-surface);
+}
+
+.settingsTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.previewCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: #000;
+}
+
+.previewCard[data-bg="white"] {
+  background: #f8f8f8;
+}
+
+.previewCard[data-bg="dark_gray"] {
+  background: #1e1e1e;
+}
+
+.previewCard[data-ratio="16:9"] {
+  aspect-ratio: 16 / 9;
+}
+
+.previewCard[data-ratio="4:3"] {
+  aspect-ratio: 4 / 3;
+}
+
+.previewImage {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  transition: filter 0.2s;
+}
+
+.previewImage[data-fit="stretch"] {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+
+.previewImage[data-fit="cover"] {
+  object-fit: cover;
+}
+
+.previewBadge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-size: 10px;
+}
+
+.generateButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border: 0;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+
+.generateButton:disabled {
+  background: var(--color-bg-disabled, #aaa);
+  cursor: not-allowed;
+}
+
+.generateLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.generateProgress {
+  width: 80%;
+  height: 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  appearance: none;
+}
+
+.generateProgress::-webkit-progress-bar {
+  border-radius: 2px;
+  background: rgb(255 255 255 / 30%);
+}
+
+.generateProgress::-webkit-progress-value {
+  border-radius: 2px;
+  background: #fff;
+  transition: width 0.3s ease;
+}
+
+.generateProgress::-moz-progress-bar {
+  border-radius: 2px;
+  background: #fff;
+}
+
+.summary {
+  text-align: center;
+  line-height: 1.6;
+}
+
+.summaryTitle {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.summaryMeta {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.modeTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.modeTab[data-active="true"] {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.modeTab:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.spinner {
+  animation: pptSpin 1s linear infinite;
+}
+
+@keyframes pptSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

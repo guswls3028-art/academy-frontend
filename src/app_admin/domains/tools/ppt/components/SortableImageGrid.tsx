@@ -1,7 +1,8 @@
 // PATH: src/app_admin/domains/tools/ppt/components/SortableImageGrid.tsx
 // 드래그 앤 드롭 이미지 정렬 그리드 — 순수 HTML5 DnD (라이브러리 미사용)
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef } from "react";
+import styles from "./SortableImageGrid.module.css";
 
 export interface ImageItem {
   id: string;
@@ -73,27 +74,16 @@ export default function SortableImageGrid({
   if (items.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-      }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
+    <div className={styles.root}>
+      <div className={styles.header}>
+        <span className={styles.title}>
           슬라이드 ({items.length}장)
         </span>
-        <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+        <span className={styles.hint}>
           드래그하여 순서 변경
         </span>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <div className={styles.grid}>
         {items.map((item, idx) => (
           <div
             key={item.id}
@@ -102,32 +92,13 @@ export default function SortableImageGrid({
             onDragOver={handleDragOver(idx)}
             onDrop={handleDrop(idx)}
             onDragEnd={handleDragEnd}
-            style={{
-              position: "relative",
-              borderRadius: "var(--radius-md, 8px)",
-              border: overIdx === idx
-                ? "2px solid var(--color-primary)"
-                : "1px solid var(--color-border-divider)",
-              overflow: "hidden",
-              cursor: disabled ? "default" : "grab",
-              opacity: dragIdx === idx ? 0.4 : 1,
-              transition: "opacity 0.15s, border-color 0.15s",
-              background: "var(--bg-surface)",
-            }}
+            className={styles.item}
+            data-over={overIdx === idx ? "true" : "false"}
+            data-dragging={dragIdx === idx ? "true" : "false"}
+            data-disabled={disabled ? "true" : "false"}
           >
             {/* 슬라이드 번호 */}
-            <div style={{
-              position: "absolute",
-              top: 6,
-              left: 6,
-              background: "rgba(0,0,0,0.7)",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "2px 7px",
-              borderRadius: 4,
-              zIndex: 2,
-            }}>
+            <div className={styles.slideNumber}>
               {idx + 1}
             </div>
 
@@ -136,25 +107,8 @@ export default function SortableImageGrid({
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleInvert(item.id); }}
               title={item.invert ? "반전 해제" : "흑백 반전"}
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 34,
-                width: 24,
-                height: 24,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: item.invert ? "var(--color-primary)" : "rgba(0,0,0,0.5)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                zIndex: 2,
-                fontSize: 12,
-                fontWeight: 700,
-                padding: 0,
-              }}
+              className={`${styles.iconButton} ${styles.invertButton}`}
+              data-invert={item.invert ? "true" : "false"}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -168,62 +122,24 @@ export default function SortableImageGrid({
               type="button"
               onClick={(e) => { e.stopPropagation(); onRemove(item.id); }}
               title="삭제"
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                width: 24,
-                height: 24,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(220,38,38,0.85)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                zIndex: 2,
-                fontSize: 14,
-                fontWeight: 700,
-                lineHeight: 1,
-                padding: 0,
-              }}
+              className={`${styles.iconButton} ${styles.removeButton}`}
             >
               &times;
             </button>
 
             {/* 이미지 미리보기 */}
-            <div style={{
-              aspectRatio: "16/9",
-              background: "#1a1a1a",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}>
+            <div className={styles.imageFrame}>
               <img
                 src={item.previewUrl}
                 alt={`Slide ${idx + 1}`}
                 loading="lazy"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  filter: item.invert ? "invert(1)" : "none",
-                  transition: "filter 0.2s",
-                }}
+                className={styles.previewImage}
+                data-invert={item.invert ? "true" : "false"}
               />
             </div>
 
             {/* 파일명 */}
-            <div style={{
-              padding: "6px 8px",
-              fontSize: 11,
-              color: "var(--color-text-muted)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}>
+            <div className={styles.filename}>
               {item.file.name}
             </div>
           </div>

@@ -1,0 +1,125 @@
+.root {
+  margin-top: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.item {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  cursor: grab;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+.item[data-over="true"] {
+  border: 2px solid var(--color-primary);
+}
+
+.item[data-dragging="true"] {
+  opacity: 0.4;
+}
+
+.item[data-disabled="true"] {
+  cursor: default;
+}
+
+.slideNumber {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 70%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.iconButton {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.invertButton {
+  right: 34px;
+  background: rgb(0 0 0 / 50%);
+  font-size: 12px;
+}
+
+.invertButton[data-invert="true"] {
+  background: var(--color-primary);
+}
+
+.removeButton {
+  right: 6px;
+  background: rgb(220 38 38 / 85%);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.imageFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #1a1a1a;
+}
+
+.previewImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: filter 0.2s;
+}
+
+.previewImage[data-invert="true"] {
+  filter: invert(1);
+}
+
+.filename {
+  overflow: hidden;
+  padding: 6px 8px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

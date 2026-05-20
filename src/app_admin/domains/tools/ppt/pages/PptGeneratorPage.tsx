@@ -4,12 +4,14 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../api/ppt.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import ImageUploadArea from "../components/ImageUploadArea";
 import PdfUploadArea from "../components/PdfUploadArea";
 import SortableImageGrid, { type ImageItem } from "../components/SortableImageGrid";
 import SlideSettingsPanel from "../components/SlideSettingsPanel";
+import styles from "./PptGeneratorPage.module.css";
 
 type InputMode = "image" | "pdf";
 
@@ -198,11 +200,10 @@ export default function PptGeneratorPage() {
     setTimeout(() => a.remove(), 100);
   }
 
-  function handleGenerateError(err: any) {
+  function handleGenerateError(err: unknown) {
     setProgressPct(null);
     setProgressLabel("");
-    const msg = err?.response?.data?.detail || err?.message || "PPT 생성에 실패했습니다.";
-    feedback.error(msg);
+    feedback.error(getApiErrorMessage(err, "PPT 생성에 실패했습니다."));
   }
 
   const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending;
@@ -217,19 +218,11 @@ export default function PptGeneratorPage() {
   };
 
   return (
-    <div style={{ display: "flex", gap: 24, minHeight: "calc(100vh - 200px)" }}>
+    <div className={styles.page}>
       {/* 좌측: 모드 토글 + 업로드 영역 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className={styles.mainColumn}>
         {/* 모드 토글 */}
-        <div style={{
-          display: "inline-flex",
-          borderRadius: "var(--radius-lg, 12px)",
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--bg-surface)",
-          padding: 3,
-          marginBottom: 16,
-          gap: 2,
-        }}>
+        <div className={styles.modeTabs}>
           <ModeTab
             active={mode === "image"}
             onClick={() => handleModeChange("image")}
@@ -275,21 +268,12 @@ export default function PptGeneratorPage() {
             />
 
             {images.length > 0 && (
-              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+              <div className={styles.clearAllRow}>
                 <button
                   type="button"
                   onClick={handleClearAll}
                   disabled={isGenerating}
-                  style={{
-                    padding: "6px 14px",
-                    fontSize: 12,
-                    color: "var(--color-error, #ef4444)",
-                    background: "transparent",
-                    border: "1px solid var(--color-error, #ef4444)",
-                    borderRadius: "var(--radius-md, 8px)",
-                    cursor: isGenerating ? "not-allowed" : "pointer",
-                    opacity: isGenerating ? 0.5 : 1,
-                  }}
+                  className={styles.clearAllButton}
                 >
                   전체 삭제
                 </button>
@@ -307,14 +291,8 @@ export default function PptGeneratorPage() {
               disabled={isGenerating}
             />
             {pdfFile && (
-              <div style={{
-                marginTop: 16,
-                padding: "14px 18px",
-                background: "var(--bg-surface)",
-                borderRadius: "var(--radius-md, 8px)",
-                border: "1px solid var(--color-border-divider)",
-              }}>
-                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+              <div className={styles.pdfInfoCard}>
+                <div className={styles.pdfInfoText}>
                   PDF의 각 페이지가 자동으로 슬라이드로 변환됩니다.
                 </div>
               </div>
@@ -324,29 +302,9 @@ export default function PptGeneratorPage() {
       </div>
 
       {/* 우측: 설정 + 생성 버튼 */}
-      <div style={{
-        width: 320,
-        flexShrink: 0,
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-      }}>
-        <div style={{
-          background: "var(--bg-surface)",
-          borderRadius: "var(--radius-lg, 12px)",
-          border: "1px solid var(--color-border-divider)",
-          padding: 20,
-          overflow: "hidden",
-        }}>
-          <div style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: "var(--color-text-primary)",
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}>
+      <div className={styles.sidebar}>
+        <div className={styles.settingsCard}>
+          <div className={styles.settingsTitle}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -363,43 +321,25 @@ export default function PptGeneratorPage() {
 
         {/* 미리보기 카드 — 이미지 모드만 */}
         {mode === "image" && images.length > 0 && (
-          <div style={{
-            background: settings.background === "white" ? "#f8f8f8" : settings.background === "dark_gray" ? "#1e1e1e" : "#000",
-            borderRadius: "var(--radius-lg, 12px)",
-            border: "1px solid var(--color-border-divider)",
-            aspectRatio: settings.aspect_ratio === "16:9" ? "16/9" : "4/3",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            position: "relative",
-          }}>
+          <div
+            className={styles.previewCard}
+            data-bg={settings.background}
+            data-ratio={settings.aspect_ratio}
+          >
             <img
               src={images[0].previewUrl}
               alt="Preview"
+              className={styles.previewImage}
+              data-fit={settings.fit_mode}
+              // eslint-disable-next-line no-restricted-syntax
               style={{
-                maxWidth: settings.fit_mode === "stretch" ? "100%" : "90%",
-                maxHeight: settings.fit_mode === "stretch" ? "100%" : "90%",
-                width: settings.fit_mode === "stretch" ? "100%" : undefined,
-                height: settings.fit_mode === "stretch" ? "100%" : undefined,
-                objectFit: settings.fit_mode === "cover" ? "cover" : "contain",
                 filter: (images[0].invert || settings.invert ? "invert(1) " : "")
                   + (settings.grayscale ? "grayscale(1) " : "")
                   + (settings.brightness !== 1.0 ? `brightness(${settings.brightness}) ` : "")
                   + (settings.contrast !== 1.0 ? `contrast(${settings.contrast})` : ""),
-                transition: "filter 0.2s",
               }}
             />
-            <div style={{
-              position: "absolute",
-              bottom: 8,
-              right: 8,
-              background: "rgba(0,0,0,0.6)",
-              color: "#fff",
-              fontSize: 10,
-              padding: "2px 6px",
-              borderRadius: 4,
-            }}>
+            <div className={styles.previewBadge}>
               미리보기
             </div>
           </div>
@@ -410,53 +350,25 @@ export default function PptGeneratorPage() {
           type="button"
           onClick={handleGenerate}
           disabled={!canGenerate || isGenerating}
-          style={{
-            width: "100%",
-            padding: "14px 24px",
-            fontSize: 15,
-            fontWeight: 700,
-            color: "#fff",
-            background: !canGenerate || isGenerating
-              ? "var(--color-bg-disabled, #aaa)"
-              : "var(--color-primary)",
-            border: "none",
-            borderRadius: "var(--radius-lg, 12px)",
-            cursor: !canGenerate || isGenerating ? "not-allowed" : "pointer",
-            transition: "background 0.15s",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            flexDirection: "column",
-          }}
+          className={styles.generateButton}
         >
           {isGenerating ? (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className={styles.generateLabel}>
                 <Spinner />
                 {progressLabel || "PPT 생성 중..."}
               </div>
               {progressPct !== null && (
-                <div style={{
-                  width: "80%",
-                  height: 4,
-                  background: "rgba(255,255,255,0.3)",
-                  borderRadius: 2,
-                  overflow: "hidden",
-                  marginTop: 4,
-                }}>
-                  <div style={{
-                    width: `${progressPct}%`,
-                    height: "100%",
-                    background: "#fff",
-                    borderRadius: 2,
-                    transition: "width 0.3s ease",
-                  }} />
-                </div>
+                <progress
+                  className={styles.generateProgress}
+                  value={progressPct}
+                  max={100}
+                  aria-label="PPT 생성 진행률"
+                />
               )}
             </>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className={styles.generateLabel}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -470,21 +382,21 @@ export default function PptGeneratorPage() {
 
         {/* 상태 요약 */}
         {mode === "image" && images.length > 0 && (
-          <div style={{ textAlign: "center", lineHeight: 1.6 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+          <div className={styles.summary}>
+            <div className={styles.summaryTitle}>
               {images.length}장 슬라이드
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+            <div className={styles.summaryMeta}>
               {formatBytes(images.reduce((sum, i) => sum + i.file.size, 0))} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회"} 배경
             </div>
           </div>
         )}
         {mode === "pdf" && pdfFile && (
-          <div style={{ textAlign: "center", lineHeight: 1.6 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+          <div className={styles.summary}>
+            <div className={styles.summaryTitle}>
               PDF 변환 모드
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+            <div className={styles.summaryMeta}>
               {formatBytes(pdfFile.size)} · {settings.aspect_ratio} · {settings.background === "black" ? "검정" : settings.background === "white" ? "흰색" : "진회"} 배경
             </div>
           </div>
@@ -512,21 +424,8 @@ function ModeTab({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "8px 18px",
-        borderRadius: "var(--radius-md, 8px)",
-        border: "none",
-        background: active ? "var(--color-primary)" : "transparent",
-        color: active ? "#fff" : "var(--color-text-secondary)",
-        fontWeight: 600,
-        fontSize: 14,
-        cursor: disabled ? "not-allowed" : "pointer",
-        transition: "all 0.15s",
-        opacity: disabled ? 0.5 : 1,
-      }}
+      className={styles.modeTab}
+      data-active={active ? "true" : "false"}
     >
       {icon}
       {label}
@@ -536,10 +435,9 @@ function ModeTab({
 
 function Spinner() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ animation: "spin 1s linear infinite" }}>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={styles.spinner}>
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.3" />
       <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </svg>
   );
 }
