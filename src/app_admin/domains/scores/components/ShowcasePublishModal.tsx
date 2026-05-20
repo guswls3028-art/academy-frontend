@@ -21,6 +21,7 @@ import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 
 import {
@@ -76,9 +77,8 @@ export default function ShowcasePublishModal({ open, onClose, examId, examTitle,
       onPublished?.(data.id);
       onClose();
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.detail || "게시 실패. 잠시 후 다시 시도해주세요.";
-      feedback.error(msg);
+    onError: (err: unknown) => {
+      feedback.error(extractApiError(err, "게시 실패. 잠시 후 다시 시도해주세요."));
     },
   });
 

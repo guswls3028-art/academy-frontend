@@ -44,7 +44,6 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
   const [restoreChangeCount, setRestoreChangeCount] = useState(0);
 
   const lastAutosaveAtRef = useRef<number>(0);
-  const checkDraftOnEnterRef = useRef(false);
 
   const performSave = useCallback(async () => {
     const snapshot = panelRef.current?.getPendingSnapshot?.();
@@ -168,7 +167,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
       window.removeEventListener("beforeunload", handler);
       unblock(); // 편집 모드 해제 시 자동 리로드 허용
     };
-  }, [isEditMode, draftStatus, panelRef]);
+  }, [isEditMode, panelRef, sessionId]);
 
   return {
     draftStatus,

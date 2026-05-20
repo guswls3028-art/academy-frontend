@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { scoresQueryKeys } from "../api/queryKeys";
 import ShowcasePublishModal from "./ShowcasePublishModal";
@@ -63,8 +64,8 @@ export default function ExamHeaderQuickEdit({
       feedback.success(`${title || examTitle} 저장됨`);
       setOpen(false);
     },
-    onError: (e: any) => {
-      feedback.error(e?.message || e?.response?.data?.detail || "저장 실패");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "저장 실패"));
     },
   });
 

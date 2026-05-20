@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { deleteSessionExam } from "@admin/domains/sessions/api/deleteSessionExam";
 import { deleteSessionHomework } from "@admin/domains/sessions/api/deleteSessionHomework";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { Button } from "@/shared/ui/ds";
 
 type Props = {
@@ -38,8 +39,8 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
       feedback.success(type === "exam" ? "시험이 삭제되었습니다." : "과제가 삭제되었습니다.");
       setConfirmOpen(false);
       onDeleted();
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "삭제 실패");
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "삭제 실패"));
     } finally {
       setLoading(false);
     }
