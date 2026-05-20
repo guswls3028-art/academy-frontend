@@ -4,6 +4,7 @@
 import { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
+import styles from "./ToolsRoutes.module.css";
 
 const ToolsLayout = lazy(() => import("./ToolsLayout"));
 const PptGeneratorPage = lazy(() => import("./ppt/pages/PptGeneratorPage"));
@@ -13,7 +14,7 @@ const StopwatchPage = lazy(() => import("./stopwatch/pages/StopwatchPage"));
 
 function Fallback() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "var(--color-text-secondary)", fontSize: 14 }}>
+    <div className={styles.fallback}>
       불러오는 중…
     </div>
   );

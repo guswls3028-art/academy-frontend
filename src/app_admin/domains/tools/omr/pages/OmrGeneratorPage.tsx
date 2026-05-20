@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchToolsOMRPreview, downloadToolsOMRPdf } from "@admin/domains/exams/api/omr.api";
+import styles from "./OmrGeneratorPage.module.css";
+
+const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
 
 export default function OmrGeneratorPage() {
   const [examName, setExamName] = useState("제1회 단원평가");
@@ -17,6 +20,13 @@ export default function OmrGeneratorPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewRequestRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      previewRequestRef.current += 1;
+    };
+  }, []);
 
   const getParams = useCallback(() => ({
     exam_title: examName,
@@ -29,14 +39,22 @@ export default function OmrGeneratorPage() {
 
   const loadPreview = useCallback(async () => {
     if (mcCount + essayCount < 1) return;
+    const requestId = previewRequestRef.current + 1;
+    previewRequestRef.current = requestId;
     setPreviewLoading(true);
     try {
       const html = await fetchToolsOMRPreview(getParams());
-      setPreviewHtml(html);
+      if (previewRequestRef.current === requestId) {
+        setPreviewHtml(html);
+      }
     } catch {
-      setPreviewHtml("<html><body><p style='padding:20px;color:#999'>미리보기를 불러올 수 없습니다.</p></body></html>");
+      if (previewRequestRef.current === requestId) {
+        setPreviewHtml(PREVIEW_ERROR_HTML);
+      }
     } finally {
-      setPreviewLoading(false);
+      if (previewRequestRef.current === requestId) {
+        setPreviewLoading(false);
+      }
     }
   }, [getParams, mcCount, essayCount]);
 
@@ -61,7 +79,7 @@ export default function OmrGeneratorPage() {
   };
 
   return (
-    <div className="flex gap-6" style={{ minHeight: "calc(100vh - 200px)" }}>
+    <div className={`flex gap-6 ${styles.page}`}>
       {/* ── 설정 패널 ── */}
       <div className="w-[280px] flex-shrink-0 space-y-4">
         <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 space-y-3">
@@ -166,13 +184,12 @@ export default function OmrGeneratorPage() {
           <iframe
             ref={iframeRef}
             srcDoc={previewHtml}
-            className="w-full h-full border-0"
-            style={{ minHeight: 600 }}
+            className={`w-full h-full border-0 ${styles.previewFrame}`}
             title="OMR 답안지 미리보기"
             sandbox="allow-same-origin"
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]" style={{ minHeight: 600 }}>
+          <div className={`flex items-center justify-center h-full text-sm text-[var(--text-muted)] ${styles.previewEmpty}`}>
             {previewLoading ? "미리보기 로딩 중..." : "\"답안지 생성\"을 클릭하세요."}
           </div>
         )}
