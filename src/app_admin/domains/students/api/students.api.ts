@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/students/api/students.ts
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 /* ===============================
  * Types
@@ -65,12 +65,101 @@ export interface StudentTag {
   color: string;
 }
 
+export type StudentSchoolType = NonNullable<ClientStudent["schoolType"]>;
+export type StudentFilters = Record<string, unknown>;
+
+export type StudentFormInput = {
+  name?: string;
+  psNumber?: string;
+  gender?: string | null;
+  initialPassword?: string;
+  studentPhone?: string;
+  omrCode?: string;
+  parentPhone?: string;
+  schoolType?: StudentSchoolType | string | null;
+  school?: string | null;
+  grade?: string | number | null;
+  schoolClass?: string | null;
+  major?: string | null;
+  originMiddleSchool?: string | null;
+  address?: string | null;
+  memo?: string | null;
+  active?: boolean;
+  noPhone?: boolean;
+  sendWelcomeMessage?: boolean;
+};
+
+type RawRecord = Record<string, unknown>;
+type ListEnvelope = {
+  results?: unknown;
+  count?: unknown;
+  page_size?: unknown;
+};
+
+const SCHOOL_TYPES = new Set<StudentSchoolType>(["MIDDLE", "HIGH", "ELEMENTARY"]);
+const ENROLLMENT_STATUSES = new Set<NonNullable<ClientEnrollmentLite["status"]>>([
+  "ACTIVE",
+  "INACTIVE",
+  "PENDING",
+]);
+const SKIP_AUTH_CONFIG: ApiRequestConfig = { skipAuth: true };
+
 /* ===============================
  * Mapper
  * =============================== */
 
-function safeStr(v: any): string {
+function asRecord(value: unknown): RawRecord {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as RawRecord
+    : {};
+}
+
+function asList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const record = asRecord(value) as ListEnvelope;
+  return Array.isArray(record.results) ? record.results : [];
+}
+
+function safeStr(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+function nullableStr(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function numberOrNull(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function numberOrZero(value: unknown): number {
+  return numberOrNull(value) ?? 0;
+}
+
+function normalizeSchoolType(value: unknown, item?: RawRecord): StudentSchoolType | null {
+  if (typeof value === "string" && SCHOOL_TYPES.has(value as StudentSchoolType)) {
+    return value as StudentSchoolType;
+  }
+  if (item?.elementary_school) return "ELEMENTARY";
+  if (item?.middle_school) return "MIDDLE";
+  if (item?.high_school) return "HIGH";
+  return null;
+}
+
+function normalizeEnrollmentStatus(value: unknown): ClientEnrollmentLite["status"] {
+  return typeof value === "string" && ENROLLMENT_STATUSES.has(value as NonNullable<ClientEnrollmentLite["status"]>)
+    ? value as ClientEnrollmentLite["status"]
+    : null;
+}
+
+function mapTag(item: unknown): StudentTag {
+  const record = asRecord(item);
+  return {
+    id: numberOrZero(record.id),
+    name: safeStr(record.name),
+    color: safeStr(record.color),
+  };
 }
 
 /**
@@ -95,66 +184,60 @@ export function applyDisplayNames(students: ClientStudent[]): ClientStudent[] {
   return students;
 }
 
-export function mapStudent(item: any): ClientStudent {
-  const phone = item?.phone ?? null;
-  const omrCode = item?.omr_code ?? "";
+export function mapStudent(raw: unknown): ClientStudent {
+  const item = asRecord(raw);
+  const phone = nullableStr(item.phone);
+  const omrCode = item.omr_code ?? "";
 
   // 🔧 변경: UI에는 항상 phone만 전달
   const displayPhone = phone ?? null;
 
-  const schoolType: "MIDDLE" | "HIGH" | "ELEMENTARY" | null =
-    item?.school_type ??
-    (item?.elementary_school ? "ELEMENTARY" : item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
+  const schoolType = normalizeSchoolType(item.school_type, item);
 
   return {
-    id: Number(item?.id),
-    name: safeStr(item?.name),
-    displayName: safeStr(item?.name),
-    profilePhotoUrl: item?.profile_photo_url ?? null,
+    id: numberOrZero(item.id),
+    name: safeStr(item.name),
+    displayName: safeStr(item.name),
+    profilePhotoUrl: nullableStr(item.profile_photo_url),
 
-    psNumber: safeStr(item?.ps_number),
+    psNumber: safeStr(item.ps_number),
     omrCode: safeStr(omrCode),
 
     studentPhone: displayPhone ?? null,
-    parentPhone: item?.parent_phone ?? null,
-    usesIdentifier: !!item?.uses_identifier,
+    parentPhone: nullableStr(item.parent_phone),
+    usesIdentifier: item.uses_identifier === true,
 
-    school: item?.high_school ?? item?.middle_school ?? item?.elementary_school ?? null,
-    schoolClass: item?.high_school_class ?? null,
-    major: item?.major ?? null,
-    originMiddleSchool: item?.origin_middle_school ?? null,
+    school: nullableStr(item.high_school) ?? nullableStr(item.middle_school) ?? nullableStr(item.elementary_school),
+    schoolClass: nullableStr(item.high_school_class),
+    major: nullableStr(item.major),
+    originMiddleSchool: nullableStr(item.origin_middle_school),
 
-    grade: item?.grade ?? null,
-    gender: item?.gender ?? null,
+    grade: numberOrNull(item.grade),
+    gender: nullableStr(item.gender),
 
-    registeredAt: item?.created_at ?? null,
-    active: item?.is_managed ?? false,
-    memo: item?.memo ?? null,
-    address: item?.address ?? null,
+    registeredAt: nullableStr(item.created_at),
+    active: item.is_managed === true,
+    memo: nullableStr(item.memo),
+    address: nullableStr(item.address),
 
     schoolType,
 
-    tags: Array.isArray(item?.tags)
-      ? item.tags.map((t: any) => ({
-          id: Number(t?.id),
-          name: safeStr(t?.name),
-          color: safeStr(t?.color),
-        }))
-      : [],
+    tags: asList(item.tags).map(mapTag),
 
-    enrollments: Array.isArray(item?.enrollments)
-      ? item.enrollments.map((en: any) => ({
-          id: Number(en?.id),
-          lectureId: en?.lecture ?? en?.lecture_id ?? null,
-          lectureName: en?.lecture_name ?? null,
-          lectureColor: en?.lecture_color ?? "#3b82f6",
-          lectureChipLabel: en?.lecture_chip_label ?? null,
-          status: en?.status ?? null,
-          enrolledAt: en?.enrolled_at ?? null,
-        }))
-      : [],
-    deletedAt: item?.deleted_at ?? null,
-    nameHighlightClinicTarget: item?.name_highlight_clinic_target === true,
+    enrollments: asList(item.enrollments).map((entry) => {
+      const enrollment = asRecord(entry);
+      return {
+        id: numberOrZero(enrollment.id),
+        lectureId: numberOrNull(enrollment.lecture ?? enrollment.lecture_id),
+        lectureName: nullableStr(enrollment.lecture_name),
+        lectureColor: nullableStr(enrollment.lecture_color) ?? "#3b82f6",
+        lectureChipLabel: nullableStr(enrollment.lecture_chip_label),
+        status: normalizeEnrollmentStatus(enrollment.status),
+        enrolledAt: nullableStr(enrollment.enrolled_at),
+      };
+    }),
+    deletedAt: nullableStr(item.deleted_at),
+    nameHighlightClinicTarget: item.name_highlight_clinic_target === true,
   };
 }
 
@@ -194,11 +277,11 @@ function buildOrdering(sort: string): string | undefined {
 
 export async function fetchStudents(
   search: string,
-  filters: any = {},
+  filters: StudentFilters = {},
   sort: string = "",
   page: number = 1,
   deleted: boolean = false
-): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number; pageSize: number }> {
+): Promise<{ data: ClientStudent[]; count: number; pageSize: number }> {
   const ordering = buildOrdering(sort);
 
   const params: Record<string, unknown> = {
@@ -216,15 +299,12 @@ export async function fetchStudents(
     params.grade = Number(filters.grade);
   }
 
-  const res = await api.get("/students/", { params: params as any });
+  const res = await api.get("/students/", { params });
 
-  const items = Array.isArray(res.data?.results)
-    ? res.data.results
-    : Array.isArray(res.data)
-    ? res.data
-    : [];
-  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
-  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
+  const response = asRecord(res.data) as ListEnvelope;
+  const items = asList(res.data);
+  const count = typeof response.count === "number" ? response.count : items.length;
+  const pageSize = typeof response.page_size === "number" ? response.page_size : 50;
 
   return {
     data: applyDisplayNames(items.map(mapStudent)),
@@ -243,11 +323,11 @@ export async function getStudentDetail(id: number) {
  * =============================== */
 
 /** 전화번호를 백엔드 스펙(정규화: 숫자만 11자리)으로 정규화 */
-function normalizePhone(v: string): string {
+function normalizePhone(v: unknown): string {
   return String(v ?? "").replace(/\D/g, "").slice(0, 11);
 }
 
-export async function createStudent(form: any) {
+export async function createStudent(form: StudentFormInput) {
   const name = safeStr(form?.name).trim();
   const initialPassword = safeStr(form?.initialPassword).trim();
 
@@ -257,33 +337,34 @@ export async function createStudent(form: any) {
   const noPhone = !studentPhoneRaw;
 
   const phone = noPhone ? "" : normalizePhone(studentPhoneRaw);
+  const schoolType = normalizeSchoolType(form?.schoolType) ?? "HIGH";
 
   const payload: Record<string, unknown> = {
     name,
     initial_password: initialPassword,
     parent_phone: parentPhone,
-    school_type: form?.schoolType ?? "HIGH",
-    high_school: form?.schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
-    middle_school: form?.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
-    elementary_school: form?.schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null,
-    high_school_class: form?.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null,
-    major: form?.schoolType === "HIGH" ? (form?.major?.trim() || null) : null,
+    school_type: schoolType,
+    high_school: schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
+    middle_school: schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
+    elementary_school: schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null,
+    high_school_class: schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null,
+    major: schoolType === "HIGH" ? (form?.major?.trim() || null) : null,
     grade: form?.grade ? Number(form.grade) : null,
     gender: form?.gender || null,
     memo: form?.memo?.trim() || null,
     address: form?.address?.trim() || null,
-    origin_middle_school: form?.schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
+    origin_middle_school: schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
     is_managed: !!form?.active,
     send_welcome_message: !!form?.sendWelcomeMessage,
     no_phone: noPhone,
   };
 
   if (phone) {
-    (payload as any).phone = phone;
+    payload.phone = phone;
   }
 
   const psNumber = safeStr(form?.psNumber).trim();
-  if (psNumber) (payload as any).ps_number = psNumber;
+  if (psNumber) payload.ps_number = psNumber;
 
   const res = await api.post("/students/", payload);
   return mapStudent(res.data);
@@ -337,9 +418,7 @@ export async function uploadStudentBulkFromExcel(
   const form = new FormData();
   form.append("file", file);
   form.append("initial_password", initialPassword);
-  const res = await api.post("/students/bulk_create_from_excel/", form, {
-    headers: { "Content-Type": undefined } as any,
-  });
+  const res = await api.post("/students/bulk_create_from_excel/", form);
   return res.data as { job_id: string; status: string };
 }
 
@@ -347,8 +426,8 @@ export async function uploadStudentBulkFromExcel(
  * UPDATE
  * =============================== */
 
-export async function updateStudent(id: number, form: any) {
-  const payload: any = {
+export async function updateStudent(id: number, form: StudentFormInput) {
+  const payload: Record<string, unknown> = {
     grade: form?.grade ? Number(form.grade) : null,
     gender: form?.gender ?? null,
     memo: form?.memo ?? null,
@@ -379,15 +458,16 @@ export async function updateStudent(id: number, form: any) {
   }
 
   if (form?.schoolType) {
-    payload.school_type = form.schoolType;
-    payload.high_school = form.schoolType === "HIGH" ? (form?.school?.trim() || null) : null;
-    payload.middle_school = form.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null;
-    payload.elementary_school = form.schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null;
+    const schoolType = normalizeSchoolType(form.schoolType) ?? "HIGH";
+    payload.school_type = schoolType;
+    payload.high_school = schoolType === "HIGH" ? (form?.school?.trim() || null) : null;
+    payload.middle_school = schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null;
+    payload.elementary_school = schoolType === "ELEMENTARY" ? (form?.school?.trim() || null) : null;
     payload.high_school_class =
-      form.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
-    payload.major = form.schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
+      schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
+    payload.major = schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
     payload.origin_middle_school =
-      form.schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null;
+      schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -493,26 +573,31 @@ export interface ClientRegistrationRequest {
   studentId?: number | null;
 }
 
-function mapRegistrationRequest(item: any): ClientRegistrationRequest {
+function normalizeRegistrationStatus(value: unknown): ClientRegistrationRequest["status"] {
+  return value === "approved" || value === "rejected" ? value : "pending";
+}
+
+function mapRegistrationRequest(raw: unknown): ClientRegistrationRequest {
+  const item = asRecord(raw);
   return {
-    id: Number(item?.id),
-    status: item?.status ?? "pending",
-    name: safeStr(item?.name),
-    parentPhone: safeStr(item?.parent_phone),
-    phone: item?.phone ?? null,
-    schoolType: item?.school_type ?? "HIGH",
-    elementarySchool: item?.elementary_school ?? null,
-    highSchool: item?.high_school ?? null,
-    middleSchool: item?.middle_school ?? null,
-    highSchoolClass: item?.high_school_class ?? null,
-    major: item?.major ?? null,
-    grade: item?.grade ?? null,
-    gender: item?.gender ?? null,
-    memo: item?.memo ?? null,
-    address: item?.address ?? null,
-    originMiddleSchool: item?.origin_middle_school ?? null,
-    createdAt: item?.created_at ?? "",
-    studentId: item?.student ?? null,
+    id: numberOrZero(item.id),
+    status: normalizeRegistrationStatus(item.status),
+    name: safeStr(item.name),
+    parentPhone: safeStr(item.parent_phone),
+    phone: nullableStr(item.phone),
+    schoolType: nullableStr(item.school_type) ?? "HIGH",
+    elementarySchool: nullableStr(item.elementary_school),
+    highSchool: nullableStr(item.high_school),
+    middleSchool: nullableStr(item.middle_school),
+    highSchoolClass: nullableStr(item.high_school_class),
+    major: nullableStr(item.major),
+    grade: numberOrNull(item.grade),
+    gender: nullableStr(item.gender),
+    memo: nullableStr(item.memo),
+    address: nullableStr(item.address),
+    originMiddleSchool: nullableStr(item.origin_middle_school),
+    createdAt: nullableStr(item.created_at) ?? "",
+    studentId: numberOrNull(item.student),
   };
 }
 
@@ -529,9 +614,10 @@ export async function fetchRegistrationRequests(params?: {
       page_size: params?.page_size ?? 50,
     },
   });
-  const items = Array.isArray(res.data?.results) ? res.data.results : [];
-  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
-  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
+  const response = asRecord(res.data) as ListEnvelope;
+  const items = asList(response.results);
+  const count = typeof response.count === "number" ? response.count : items.length;
+  const pageSize = typeof response.page_size === "number" ? response.page_size : 50;
   return {
     data: items.map(mapRegistrationRequest),
     count,
@@ -572,8 +658,9 @@ export type RegistrationRequestSettings = { auto_approve: boolean };
 /** 스태프: 가입 신청 설정 조회 (자동 승인 여부) */
 export async function fetchRegistrationRequestSettings(): Promise<RegistrationRequestSettings> {
   const res = await api.get("/students/registration_requests/settings/");
+  const data = asRecord(res.data);
   return {
-    auto_approve: !!res.data?.auto_approve,
+    auto_approve: data.auto_approve === true,
   };
 }
 
@@ -582,8 +669,9 @@ export async function updateRegistrationRequestSettings(
   payload: { auto_approve: boolean }
 ): Promise<RegistrationRequestSettings> {
   const res = await api.patch("/students/registration_requests/settings/", payload);
+  const data = asRecord(res.data);
   return {
-    auto_approve: !!res.data?.auto_approve,
+    auto_approve: data.auto_approve === true,
   };
 }
 
@@ -624,9 +712,9 @@ export async function submitRegistrationRequest(form: {
     origin_middle_school: form.originMiddleSchool?.trim() || null,
   };
   if (form.phone && normalizePhone(String(form.phone)).length === 11) {
-    (payload as any).phone = normalizePhone(String(form.phone));
+    payload.phone = normalizePhone(String(form.phone));
   }
-  const res = await api.post("/students/registration_requests/", payload, { skipAuth: true } as any);
+  const res = await api.post("/students/registration_requests/", payload, SKIP_AUTH_CONFIG);
   return mapRegistrationRequest(res.data);
 }
 
@@ -651,7 +739,7 @@ export async function checkSignupDuplicate(params: {
   const res = await api.post<DuplicateCheckResult>(
     "/students/registration_requests/check_duplicate/",
     body,
-    { skipAuth: true } as any,
+    SKIP_AUTH_CONFIG,
   );
   return res.data;
 }
@@ -667,9 +755,7 @@ export async function sendExistingCredentials(params: {
   if (params.name?.trim()) {
     body.name = params.name.trim();
   }
-  const res = await api.post<{ message: string }>("/students/send_existing_credentials/", body, {
-    skipAuth: true,
-  } as any);
+  const res = await api.post<{ message: string }>("/students/send_existing_credentials/", body, SKIP_AUTH_CONFIG);
   return res.data;
 }
 
@@ -689,7 +775,7 @@ export async function requestPasswordFindCode(name: string, phone: string): Prom
       name: String(name ?? "").trim(),
       phone: p,
     },
-    { skipAuth: true } as any,
+    SKIP_AUTH_CONFIG,
   );
 }
 
@@ -710,7 +796,7 @@ export async function verifyPasswordFindCode(
       code: code.trim(),
       new_password: newPassword,
     },
-    { skipAuth: true } as any,
+    SKIP_AUTH_CONFIG,
   );
 }
 
@@ -754,26 +840,12 @@ export async function sendPasswordReset(params: {
 
 export async function getTags(): Promise<StudentTag[]> {
   const res = await api.get(`/students/tags/`);
-  const items = Array.isArray(res.data?.results)
-    ? res.data.results
-    : Array.isArray(res.data)
-    ? res.data
-    : [];
-  return items.map((t: any) => ({
-    id: Number(t?.id),
-    name: safeStr(t?.name),
-    color: safeStr(t?.color),
-  }));
+  return asList(res.data).map(mapTag);
 }
 
 export async function createTag(name: string, color: string): Promise<StudentTag> {
   const res = await api.post(`/students/tags/`, { name: name.trim(), color });
-  const t = res.data;
-  return {
-    id: Number(t?.id),
-    name: safeStr(t?.name),
-    color: safeStr(t?.color),
-  };
+  return mapTag(res.data);
 }
 
 export async function attachStudentTag(studentId: number, tagId: number) {
