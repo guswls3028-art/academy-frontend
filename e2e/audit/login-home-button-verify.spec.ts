@@ -44,7 +44,6 @@ for (const tc of TENANTS) {
     await setupMocks(page, tc, true);
     await page.goto(`http://localhost:5174/login/${tc}`);
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(600);
 
     const homeLink = page.getByRole("link", { name: "홈페이지" });
     const signupBtn = page.getByRole("button", { name: "회원가입" });
@@ -70,7 +69,6 @@ for (const tc of TENANTS) {
     await setupMocks(page, tc, false);
     await page.goto(`http://localhost:5174/login/${tc}`);
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(500);
 
     await expect(page.getByRole("button", { name: "회원가입" })).toBeVisible();
     expect(await page.getByRole("link", { name: "홈페이지" }).count()).toBe(0);

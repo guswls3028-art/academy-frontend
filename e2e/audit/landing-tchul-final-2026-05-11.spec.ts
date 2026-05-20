@@ -2,6 +2,7 @@
 // 외부 관전자(비로그인) + 학원장 동선 + 카드 클릭 PDF 검증.
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const PROD = "https://tchul.com";
 const OUT = "C:/academy/_artifacts/sessions/tchul-landing-2026-05-11";
@@ -10,8 +11,10 @@ test.describe("tchul.com 최종 시각 검수", () => {
   test("desktop 1920 — 외부 관전자 fullPage", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.locator("nav").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("강사 프로필").first()).toBeAttached({ timeout: 10_000 });
+    await expect(page.getByText("본문 PDF 보기").first()).toBeAttached({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/final-desktop-full.png`, fullPage: true });
 
     // 새 섹션 + nav 검증
@@ -32,16 +35,16 @@ test.describe("tchul.com 최종 시각 검수", () => {
   test("mobile 390 — 외부 관전자 fullPage", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.locator("nav").first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/final-mobile-full.png`, fullPage: true });
     await ctx.close();
   });
 
   test("학원장 nav role 검증 — 로그인 후 nav '관리실' 노출", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.getByRole("link", { name: /관리실/ }).first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/final-admin-landing.png`, fullPage: false });
     const adminNav = await page.getByRole("link", { name: /관리실/ }).count();
     const fab = await page.getByText("홈페이지 꾸미기").count();
@@ -52,8 +55,8 @@ test.describe("tchul.com 최종 시각 검수", () => {
   test("카드 클릭 → 새 탭 PDF 응답 검증", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.locator("nav").first()).toBeVisible({ timeout: 10_000 });
     // 직접 PDF URL 호출 (브라우저 새 탭 시뮬)
     const apiBase = "https://api.hakwonplus.com";
     const resp = await page.request.get(`${apiBase}/api/v1/matchup/landing/public/25/curated.pdf`, {

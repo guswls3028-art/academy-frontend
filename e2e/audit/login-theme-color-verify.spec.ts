@@ -45,14 +45,16 @@ for (const tc of TENANTS) {
     await setupMocks(page, true);
     await page.goto(`http://localhost:5174/login`);
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("link", { name: "홈페이지" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "회원가입" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "비밀번호 찾기" })).toBeVisible({ timeout: 10_000 });
 
     // localhost 라우팅 한계로 paramCode가 안 잡힘. setAttribute로 강제 주입 → CSS 셀렉터 평가는 정상 동작
     await page.evaluate((tenant) => {
       const root = document.querySelector('[data-app="auth"]') as HTMLElement | null;
       if (root) root.setAttribute("data-tenant", tenant);
     }, tc);
-    await page.waitForTimeout(200);
+    await expect(page.locator(`[data-app="auth"][data-tenant="${tc}"]`)).toBeAttached({ timeout: 5_000 });
 
     const colors = await page.evaluate(() => {
       const home = Array.from(document.querySelectorAll("a")).find((a) => a.textContent?.trim() === "홈페이지") as HTMLElement | null;
@@ -83,7 +85,8 @@ test("모바일 tchul — 로고 중앙 정렬 + 카드 좌측 치우침 없음"
   await setupMocks(page, true);
   await page.goto(`http://localhost:5174/login`);
   await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(400);
+  await expect(page.getByRole("link", { name: "홈페이지" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('img[class*="logo"]').first()).toBeVisible({ timeout: 10_000 });
 
   await page.evaluate(() => {
     const root = document.querySelector('[data-app="auth"]') as HTMLElement | null;
@@ -94,7 +97,15 @@ test("모바일 tchul — 로고 중앙 정렬 + 카드 좌측 치우침 없음"
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="%23eef" /><text x="200" y="120" text-anchor="middle" font-size="40" fill="%2300695c">TCHUL LOGO</text></svg>'
     );
   });
-  await page.waitForTimeout(300);
+  await page.waitForFunction(
+    () => {
+      const root = document.querySelector('[data-app="auth"]') as HTMLElement | null;
+      const img = document.querySelector('img[class*="logo"]') as HTMLImageElement | null;
+      return root?.getAttribute("data-tenant") === "tchul" && !!img && img.complete && img.naturalWidth > 0;
+    },
+    null,
+    { timeout: 5_000 },
+  );
 
   const layout = await page.evaluate(() => {
     const card = document.querySelector('div[class*="center"]') as HTMLElement | null;
