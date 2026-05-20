@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import "@/styles/design-system/components/AsyncStatusBar.css";
+import styles from "./VideoThumbnail.module.css";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
@@ -21,6 +22,15 @@ const PLACEHOLDER_FAILED =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect fill="#374151" width="320" height="180"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-size="14" font-family="sans-serif">실패</text></svg>'
   );
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
+function clampPercent(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
 
 /** 우하단 진행 상황 패널과 동일한 스타일의 인코딩 단계 정보 */
 export interface EncodingStepInfo {
@@ -101,7 +111,9 @@ export default function VideoThumbnail({
 
   const isEncoding = status === "PROCESSING" || status === "UPLOADED";
   const showProgressOverlay = isEncoding;
-  const progressNum = progress != null ? Math.round(progress) : null;
+  const progressNum = clampPercent(progress);
+  const encodingStepPercent = clampPercent(encodingStep?.percent);
+  const barPercent = encodingStepPercent ?? progressNum ?? 0;
   const isQueuedOrWaiting =
     status === "UPLOADED" && progressNum == null && !encodingStep && (remainingSeconds == null || !Number.isFinite(remainingSeconds));
   const remainingLabel =
@@ -112,13 +124,13 @@ export default function VideoThumbnail({
       : null;
 
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 shadow-sm relative">
+    <div className={styles.root}>
       {/* 인코딩 중이 아닐 때만 썸네일 이미지 표시 (인코딩 중엔 깨진/플레이스홀더 이미지 없음) */}
       {!showProgressOverlay && (
         <img
           src={src}
           alt={title || "영상 썸네일"}
-          className="h-full w-full object-cover"
+          className={styles.image}
           loading="lazy"
           decoding="async"
           onError={() => {
@@ -135,24 +147,15 @@ export default function VideoThumbnail({
             <img
               src={src}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-40"
+              className={styles.backgroundImage}
               aria-hidden
             />
           )}
           <div
-            className="video-thumbnail-encoding-overlay"
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: resolved
-                ? "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.85) 100%)"
-                : "linear-gradient(180deg, #1f2937 0%, #111827 100%)",
-              borderRadius: "inherit",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-end",
-              padding: 0,
-            }}
+            className={cx(
+              "video-thumbnail-encoding-overlay",
+              resolved ? styles.overlayWithImage : styles.overlayEmpty
+            )}
           >
             {/* 상단 왼쪽: 상태 뱃지 */}
             <div className="video-thumbnail-encoding-overlay__badge">
@@ -179,7 +182,7 @@ export default function VideoThumbnail({
                     <span className="video-thumbnail-encoding-overlay__step-index">
                       [{encodingStep.index}/{encodingStep.total}]
                     </span>{" "}
-                    {encodingStep.name} {encodingStep.percent}%
+                    {encodingStep.name} {encodingStepPercent ?? 0}%
                   </span>
                 ) : progressNum != null && progressNum < 100 ? (
                   <span className="video-thumbnail-encoding-overlay__step">전체 진행률</span>
@@ -195,16 +198,16 @@ export default function VideoThumbnail({
               </div>
               <div className="video-thumbnail-encoding-overlay__bar-wrap">
                 <div className="video-thumbnail-encoding-overlay__bar">
-                  <div
-                    className="video-thumbnail-encoding-overlay__bar-fill"
-                    style={{
-                      width: `${encodingStep ? encodingStep.percent : progressNum ?? 0}%`,
-                    }}
+                  <progress
+                    className={styles.progressBar}
+                    max={100}
+                    value={barPercent}
+                    aria-label="영상 처리 진행률"
                   />
                 </div>
                 <span className="video-thumbnail-encoding-overlay__bar-pct">
                   {encodingStep != null
-                    ? `${encodingStep.percent}%`
+                    ? `${encodingStepPercent ?? 0}%`
                     : progressNum != null
                       ? `${progressNum}%`
                       : "—"}
@@ -218,13 +221,7 @@ export default function VideoThumbnail({
       {/* 인코딩 완료(READY): 썸네일 좌상단에 시청가능 뱃지 — 초록 라이브 펄스 */}
       {status === "READY" && !showProgressOverlay && (
         <div
-          className="video-thumbnail-ready-badge"
-          style={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            zIndex: 2,
-          }}
+          className={cx("video-thumbnail-ready-badge", styles.readyBadge)}
         >
           <span className="video-ready-live-badge">
             <span className="video-ready-live-dot" />

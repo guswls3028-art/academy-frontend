@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchVideoDetail } from "../api/videos.api";
 import { fetchSession } from "@admin/domains/lectures/api/sessions";
+import styles from "./VideoIdToSessionRedirect.module.css";
 
 export default function VideoIdToSessionRedirect() {
   const { videoId } = useParams<{ videoId: string }>();
@@ -34,16 +35,7 @@ export default function VideoIdToSessionRedirect() {
 
   if (!done) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 200,
-          color: "var(--color-text-secondary)",
-          fontSize: 14,
-        }}
-      >
+      <div className={styles.redirecting}>
         이동 중…
       </div>
     );
