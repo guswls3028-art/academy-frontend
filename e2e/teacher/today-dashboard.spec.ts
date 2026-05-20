@@ -9,13 +9,20 @@
  *   pnpm exec playwright test e2e/teacher/today-dashboard.spec.ts
  */
 import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 } as const;
 const MOBILE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+async function gotoTeacherDashboard(page: Page) {
+  await gotoAndSettle(page, `${BASE}/teacher`, { timeout: 30_000 });
+  await expect(page.getByText("지금 처리할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
+}
 
 test.describe("선생앱 Today 대시보드", () => {
   test.use({ viewport: MOBILE_VIEWPORT, userAgent: MOBILE_UA });
@@ -33,8 +40,7 @@ test.describe("선생앱 Today 대시보드", () => {
       if (msg.type() === "error") errors.push(msg.text());
     });
 
-    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(2500);
+    await gotoTeacherDashboard(page);
 
     // 인사말 (관리자 로그인이라 user.name fallback "선생님" 가능)
     await expect(page.getByText(/안녕하세요/).first()).toBeVisible({ timeout: 8_000 });
@@ -65,11 +71,10 @@ test.describe("선생앱 Today 대시보드", () => {
   });
 
   test("처리할 일: 항목이 있으면 라벨 노출, 0건이면 친화 빈 카드", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(3500);
+    await gotoTeacherDashboard(page);
 
     // 헤더는 항상 보여야 함 (자리 일관성)
-    await expect(page.getByText("지금 처리할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("지금 처리할 일", { exact: true })).toBeVisible();
 
     const allowedLabels = [
       "답변 대기 질문",
