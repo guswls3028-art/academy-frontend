@@ -6,7 +6,8 @@
 import { useRef, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";
 import dayjs from "dayjs";
-import { TimeScrollPopover, format24To12Display } from "./TimeScrollPopover";
+import { TimeScrollPopover } from "./TimeScrollPopover";
+import { format24To12Display } from "./timeFormat";
 import "@/styles/design-system/components/TimeRangeInput.css";
 
 export interface TimeRangeInputProps {
@@ -85,17 +86,6 @@ function isCrossingMidnight(startStr: string, endStr: string): boolean {
   return eh * 60 + em < sh * 60 + sm;
 }
 
-const SLOT_MINUTES = 30; // 30분 단위 순환 선택
-const SLOTS = (() => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += SLOT_MINUTES) {
-      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-    }
-  }
-  return out;
-})();
-
 export default function TimeRangeInput({
   value,
   onChange,
@@ -168,8 +158,6 @@ export default function TimeRangeInput({
             {openStart && startAnchorRef.current && (
               <TimeScrollPopover
                 value={start || "00:00"}
-                slots={SLOTS}
-                slotMinutes={SLOT_MINUTES}
                 anchorEl={startAnchorRef.current}
                 onSelect={(v) => setStart(v)}
                 onClose={() => setOpenStart(false)}
@@ -235,8 +223,6 @@ export default function TimeRangeInput({
             {openEnd && endAnchorRef.current && (
               <TimeScrollPopover
                 value={end || "00:00"}
-                slots={SLOTS}
-                slotMinutes={SLOT_MINUTES}
                 anchorEl={endAnchorRef.current}
                 onSelect={(v) => setEnd(v)}
                 onClose={() => setOpenEnd(false)}

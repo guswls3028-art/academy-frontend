@@ -21,17 +21,6 @@ const ALL_SLOTS = (() => {
   return out;
 })();
 
-/** 24h "HH:mm" → "오전 9:30" / "오후 2:00" (오후 = +12h 표현) */
-export function format24To12Display(hhmm: string): string {
-  if (!hhmm) return "오전 12:00";
-  const [hStr, mStr] = hhmm.split(":");
-  const h = parseInt(hStr ?? "0", 10);
-  const m = parseInt(mStr ?? "0", 10);
-  const period = h < 12 ? "오전" : "오후";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${period} ${h12}:${String(m).padStart(2, "0")}`;
-}
-
 /** 24h "HH:mm" → 시:분만 "12:00", "1:30" (좌측 오전/오후와 중복 방지용) */
 function format24To12TimeOnly(hhmm: string): string {
   if (!hhmm) return "12:00";
@@ -70,8 +59,6 @@ function flipPeriod(idx: number): number {
 
 export interface TimeScrollPopoverProps {
   value: string;
-  slots: string[];
-  slotMinutes: number;
   anchorEl: HTMLElement;
   onSelect: (value: string) => void;
   onClose: () => void;
@@ -79,8 +66,6 @@ export interface TimeScrollPopoverProps {
 
 export function TimeScrollPopover({
   value,
-  slots: _slots,
-  slotMinutes: _slotMinutes,
   anchorEl,
   onSelect,
   onClose,
@@ -273,18 +258,19 @@ export function TimeScrollPopover({
     estimateWidth: anchorWidth,
   });
 
+  useLayoutEffect(() => {
+    const el = popoverRef.current;
+    if (!el) return;
+    el.style.left = `${pos?.left ?? 0}px`;
+    el.style.top = `${pos?.top ?? 0}px`;
+    el.style.width = `${anchorWidth}px`;
+    el.style.visibility = pos ? "visible" : "hidden";
+  }, [anchorWidth, pos]);
+
   const popoverContent = (
     <div
       ref={popoverRef}
-      className="time-picker time-picker--portaled"
-      style={{
-        position: "fixed",
-        left: pos?.left ?? 0,
-        top: pos?.top ?? 0,
-        width: anchorWidth,
-        zIndex: 1200,
-        visibility: pos ? "visible" : "hidden",
-      }}
+      className="time-picker time-picker--portaled time-picker--floating"
       role="listbox"
       aria-label="시간 선택"
     >
@@ -315,7 +301,6 @@ export function TimeScrollPopover({
           <div
             ref={listRef}
             className="time-picker__list"
-            style={{ height: VISIBLE_HEIGHT }}
           >
             {[0, 1, 2].map((block) =>
               ALL_SLOTS.map((slot, i) => (
@@ -323,7 +308,6 @@ export function TimeScrollPopover({
                   key={`${block}-${slot}`}
                   type="button"
                   className="time-picker__item"
-                  style={{ height: ROW_HEIGHT }}
                   onClick={() => {
                     scrollToIdx(i, { smooth: true });
                     onCloseRef.current();
