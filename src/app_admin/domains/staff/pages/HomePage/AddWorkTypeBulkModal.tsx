@@ -2,6 +2,7 @@
 // 선택한 직원 여러 명에게 시급 태그를 한 번에 추가
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import {
   AdminModal,
   ModalHeader,
@@ -13,6 +14,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
 
 import { contrastTextColor } from "@/shared/ui/domain/constants";
+import styles from "./AddWorkTypeBulkModal.module.css";
 
 type Props = {
   open: boolean;
@@ -86,18 +88,19 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
                   ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)`
                   : "";
               const label = `${name}${wageText}`;
+              const buttonStyle = {
+                "--work-type-bg": color,
+                "--work-type-fg": contrastTextColor(color),
+              } as CSSProperties;
+
               return (
                 <button
                   key={wt.id}
                   type="button"
                   disabled={addBulkM.isPending}
                   onClick={() => handleSelect(wt)}
-                  className="inline-flex items-center shrink-0 px-3 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
-                  style={{
-                    backgroundColor: color,
-                    color: contrastTextColor(color),
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-                  }}
+                  className={styles.workTypeButton}
+                  style={buttonStyle}
                 >
                   {addBulkM.isPending ? "…" : label}
                 </button>

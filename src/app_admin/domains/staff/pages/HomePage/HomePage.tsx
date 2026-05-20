@@ -3,8 +3,6 @@
 
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
-
-const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
@@ -22,6 +20,9 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
+import styles from "./HomePage.module.css";
+
+const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -29,7 +30,8 @@ export default function HomePage() {
   const confirm = useConfirm();
   const { openSendMessageModal } = useSendMessageModal();
   const { data: staffData, isLoading } = useStaffs();
-  const staffs = staffData?.staffs ?? [];
+  const rawStaffs = staffData?.staffs;
+  const staffs = useMemo(() => rawStaffs ?? [], [rawStaffs]);
   const meQ = useQuery({
     queryKey: ["staff-me"],
     queryFn: fetchStaffMe,
@@ -84,10 +86,8 @@ export default function HomePage() {
   const selectionBar = (
     <div className="staff-toolbar">
       <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-        }}
+        className={styles.selectionCount}
+        data-selected={selectedIds.length > 0 ? "true" : "false"}
       >
         {selectedIds.length}명 선택됨
       </span>
@@ -243,11 +243,10 @@ export default function HomePage() {
         }
         searchSlot={
           <input
-            className="ds-input"
+            className={`ds-input ${styles.searchInput}`}
             placeholder="이름 / 전화번호 검색"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ maxWidth: 360 }}
           />
         }
         primaryAction={

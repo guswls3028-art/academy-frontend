@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
+import styles from "./StaffReportTab.module.css";
 
 function todayISO() {
   const d = new Date();
@@ -53,8 +54,7 @@ export default function StaffReportTab() {
       </div>
 
       <div
-        className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4"
-        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+        className={`rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4 ${styles.summaryCard}`}
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Item label="근무시간" value={`${s.work_hours} h`} />

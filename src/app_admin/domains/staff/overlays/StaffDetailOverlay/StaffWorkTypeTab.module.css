@@ -1,0 +1,45 @@
+.wageBadge {
+  background: var(--wage-tag-bg);
+  border: none;
+  border-radius: 6px 6px 6px 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  color: var(--wage-tag-fg);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px 6px 12px;
+  text-shadow: var(--wage-tag-shadow);
+}
+
+.removeButton {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  font-size: 12px;
+  height: 16px;
+  line-height: 1;
+  margin-left: 4px;
+  padding: 0;
+  place-items: center;
+  width: 16px;
+}
+
+.removeButton[data-removing="true"] {
+  cursor: wait;
+}
+
+.sectionLabel {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.workTypeSelect {
+  font-size: 13px;
+  min-width: 160px;
+}

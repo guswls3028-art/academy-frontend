@@ -12,6 +12,7 @@ import {
 import { ActionButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./StaffCreateModal.module.css";
 
 type Props = {
   open: boolean;
@@ -80,7 +81,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className={styles.form}>
           <Field label="로그인 아이디 *">
             <input
               className="ds-input"
@@ -186,16 +187,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "grid", gap: 4 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 800,
-          color: "var(--color-text-muted)",
-        }}
-      >
-        {label}
-      </div>
+    <div className={styles.field}>
+      <div className={styles.label}>{label}</div>
       {children}
     </div>
   );

@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/staff/overlays/StaffDetailOverlay/StaffWorkTypeTab.tsx
 // 시급태그 — 학생 태그 디자인 카피 (뱃지 + 추가/제거)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import {
   fetchStaffWorkTypes,
   fetchWorkTypes,
@@ -10,6 +11,7 @@ import {
 import type { StaffWorkType } from "../../api/staffWorkType.api";
 
 import { isLightColor, contrastTextColor } from "@/shared/ui/domain/constants";
+import styles from "./StaffWorkTypeTab.module.css";
 
 function WageBadge({
   st,
@@ -27,21 +29,16 @@ function WageBadge({
     st.effective_hourly_wage ?? wt?.base_hourly_wage ?? null;
   const label =
     wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
+  const badgeStyle = {
+    "--wage-tag-bg": color,
+    "--wage-tag-fg": contrastTextColor(color),
+    "--wage-tag-shadow": isLightColor(color) ? "none" : "0 0 1px rgba(0,0,0,0.2)",
+  } as CSSProperties;
 
   return (
     <span
-      className="inline-flex items-center gap-1 group cursor-default"
-      style={{
-        padding: "6px 10px 6px 12px",
-        borderRadius: "6px 6px 6px 2px",
-        fontSize: 12,
-        fontWeight: 700,
-        background: color,
-        color: contrastTextColor(color),
-        border: "none",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-        textShadow: isLightColor(color) ? "none" : "0 0 1px rgba(0,0,0,0.2)",
-      }}
+      className={`inline-flex items-center gap-1 group cursor-default ${styles.wageBadge}`}
+      style={badgeStyle}
       title={wage != null ? `${wage.toLocaleString()}원/시` : name}
     >
       {label}
@@ -53,21 +50,8 @@ function WageBadge({
         }}
         disabled={isRemoving}
         aria-label={`${name} 근무유형 제거`}
-        style={{
-          marginLeft: 4,
-          padding: 0,
-          width: 16,
-          height: 16,
-          borderRadius: 999,
-          border: "none",
-          background: "rgba(0,0,0,0.2)",
-          color: "#fff",
-          fontSize: 12,
-          cursor: isRemoving ? "wait" : "pointer",
-          display: "grid",
-          placeItems: "center",
-          lineHeight: 1,
-        }}
+        className={styles.removeButton}
+        data-removing={isRemoving ? "true" : "false"}
       >
         ×
       </button>
@@ -115,16 +99,7 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
 
   return (
     <div className="space-y-4 max-w-[640px]">
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 800,
-          marginBottom: 8,
-          color: "var(--color-text-muted)",
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-        }}
-      >
+      <div className={styles.sectionLabel}>
         시급 · 근무유형
       </div>
 
@@ -159,8 +134,7 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
         <div className="flex flex-wrap gap-2 items-center">
           {availableToAdd.length > 0 ? (
             <select
-              className="ds-input"
-              style={{ fontSize: 13, minWidth: 160 }}
+              className={`ds-input ${styles.workTypeSelect}`}
               value=""
               onChange={(e) => {
                 const id = Number(e.target.value);
