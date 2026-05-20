@@ -1,0 +1,77 @@
+.backButton {
+  border: none;
+  background: none;
+  color: var(--tc-text-secondary);
+}
+
+.title {
+  color: var(--tc-text);
+}
+
+.mutedText,
+.legend,
+.statusEmpty {
+  color: var(--tc-text-muted);
+}
+
+.exportButton {
+  padding: 5px 10px;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface);
+  color: var(--tc-text-secondary);
+}
+
+.legendSuccess {
+  color: var(--tc-success);
+}
+
+.legendDanger {
+  color: var(--tc-danger);
+}
+
+.legendWarn {
+  color: var(--tc-warn);
+}
+
+.scrollArea {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.matrixLine {
+  width: max-content;
+  min-width: 100%;
+}
+
+.studentRow {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--tc-border-subtle);
+}
+
+.statusCell {
+  background: var(--tc-surface-soft);
+}
+
+.statusPresent {
+  background: var(--tc-success-bg);
+  color: var(--tc-success);
+}
+
+.statusAbsent {
+  background: var(--tc-danger-bg);
+  color: var(--tc-danger);
+}
+
+.statusLate {
+  background: var(--tc-warn-bg);
+  color: var(--tc-warn);
+}
+
+.summaryCard {
+  padding: var(--tc-space-3);
+  border: 1px solid var(--tc-border);
+  border-radius: 12px;
+  background: var(--tc-surface);
+  box-shadow: var(--tc-shadow-sm);
+}

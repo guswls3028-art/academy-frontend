@@ -2,60 +2,69 @@
 // 출석 매트릭스 — 모바일 개량: 학생별 카드 + 가로 스크롤 세션 컬럼
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download } from "@teacher/shared/ui/Icons";
-import { Card } from "@teacher/shared/ui/Card";
-import { Badge } from "@teacher/shared/ui/Badge";
 import { downloadAttendanceExcel, fetchAttendanceMatrix } from "../api";
+import type {
+  AttendanceMatrixSession,
+  AttendanceMatrixStudent,
+} from "@admin/domains/lectures/api/attendance";
+import styles from "./AttendanceMatrixPage.module.css";
 
 export default function AttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const navigate = useNavigate();
   const lid = Number(lectureId);
+  const isValidLectureId = Number.isFinite(lid);
 
   const { data: matrix, isLoading } = useQuery({
     queryKey: ["attendance-matrix", lid],
     queryFn: () => fetchAttendanceMatrix(lid),
-    enabled: Number.isFinite(lid),
+    enabled: isValidLectureId,
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
 
-  const sessions: any[] = matrix?.sessions ?? [];
-  const students: any[] = matrix?.students ?? [];
+  const sessions: AttendanceMatrixSession[] = matrix?.sessions ?? [];
+  const students: AttendanceMatrixStudent[] = matrix?.students ?? [];
 
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className={`${styles.backButton} flex p-1 cursor-pointer`}
+        >
           <ChevronLeft size={ICON.lg} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>출석 현황</h1>
-        <button onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
-          className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
-          style={{ padding: "5px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>출석 현황</h1>
+        <button
+          type="button"
+          onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
+          disabled={!isValidLectureId}
+          className={`${styles.exportButton} flex items-center gap-1 text-[11px] font-semibold cursor-pointer`}
+        >
           <Download size={12} /> 엑셀
         </button>
       </div>
 
       {/* Legend */}
-      <div className="flex gap-2 flex-wrap text-[10px]" style={{ color: "var(--tc-text-muted)" }}>
-        <span style={{ color: "var(--tc-success)" }}>● 출석</span>
-        <span style={{ color: "var(--tc-danger)" }}>● 결석</span>
-        <span style={{ color: "var(--tc-warn)" }}>● 지각</span>
+      <div className={`${styles.legend} flex gap-2 flex-wrap text-[10px]`}>
+        <span className={styles.legendSuccess}>● 출석</span>
+        <span className={styles.legendDanger}>● 결석</span>
+        <span className={styles.legendWarn}>● 지각</span>
         <span>○ 미기록</span>
       </div>
 
       {/* Session headers — fixed reference */}
       {sessions.length > 0 && (
-        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-          <div className="flex gap-1 pb-1" style={{ minWidth: sessions.length * 44 }}>
-            <div className="w-20 shrink-0 text-[10px] font-bold" style={{ color: "var(--tc-text-muted)" }}>학생</div>
-            {sessions.map((s: any, i: number) => (
-              <div key={s.id ?? i} className="w-10 shrink-0 text-center text-[9px] font-semibold"
-                style={{ color: "var(--tc-text-muted)" }}>
+        <div className={styles.scrollArea}>
+          <div className={`${styles.matrixLine} flex gap-1 pb-1`}>
+            <div className={`${styles.mutedText} w-20 shrink-0 text-[10px] font-bold`}>학생</div>
+            {sessions.map((s, i) => (
+              <div key={s.id ?? i} className={`${styles.mutedText} w-10 shrink-0 text-center text-[9px] font-semibold`}>
                 {s.order ?? i + 1}차
               </div>
             ))}
@@ -66,24 +75,19 @@ export default function AttendanceMatrixPage() {
       {/* Student rows */}
       {students.length > 0 ? (
         <div className="flex flex-col gap-0.5">
-          {students.map((student: any) => (
-            <div key={student.id ?? student.student_id} className="overflow-x-auto"
-              style={{ WebkitOverflowScrolling: "touch" }}>
-              <div className="flex items-center gap-1"
-                style={{ minWidth: sessions.length * 44, padding: "6px 0", borderBottom: "1px solid var(--tc-border-subtle)" }}>
-                <div className="w-20 shrink-0 text-[12px] font-medium truncate" style={{ color: "var(--tc-text)" }}>
-                  {student.name ?? student.student_name ?? "이름"}
+          {students.map((student) => (
+            <div key={student.student_id} className={styles.scrollArea}>
+              <div className={`${styles.studentRow} ${styles.matrixLine} flex items-center gap-1`}>
+                <div className={`${styles.title} w-20 shrink-0 text-[12px] font-medium truncate`}>
+                  {student.name || "이름"}
                 </div>
-                {sessions.map((session: any, si: number) => {
-                  const att = student.attendances?.[session.id] ?? student.attendance?.[si];
-                  const status = att?.status ?? att;
+                {sessions.map((session, si) => {
+                  const status = student.attendance?.[String(session.id)]?.status;
                   return (
-                    <div key={session.id ?? si}
-                      className="w-10 h-7 shrink-0 flex items-center justify-center rounded text-[10px] font-bold"
-                      style={{
-                        background: statusBg(status),
-                        color: statusColor(status),
-                      }}>
+                    <div
+                      key={session.id ?? si}
+                      className={`${styles.statusCell} ${statusClass(status)} w-10 h-7 shrink-0 flex items-center justify-center rounded text-[10px] font-bold`}
+                    >
                       {statusLabel(status)}
                     </div>
                   );
@@ -98,31 +102,27 @@ export default function AttendanceMatrixPage() {
 
       {/* Summary */}
       {students.length > 0 && (
-        <Card style={{ padding: "var(--tc-space-3)" }}>
-          <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
+        <div className={styles.summaryCard}>
+          <div className={`${styles.mutedText} text-[12px]`}>
             학생 {students.length}명 · 차시 {sessions.length}개
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
 }
 
-function statusColor(status: string | undefined): string {
+function statusClass(status: string | undefined): string {
   switch (status) {
-    case "PRESENT": case "ONLINE": return "var(--tc-success)";
-    case "ABSENT": return "var(--tc-danger)";
-    case "LATE": return "var(--tc-warn)";
-    default: return "var(--tc-text-muted)";
-  }
-}
-
-function statusBg(status: string | undefined): string {
-  switch (status) {
-    case "PRESENT": case "ONLINE": return "var(--tc-success-bg)";
-    case "ABSENT": return "var(--tc-danger-bg)";
-    case "LATE": return "var(--tc-warn-bg)";
-    default: return "var(--tc-surface-soft)";
+    case "PRESENT":
+    case "ONLINE":
+      return styles.statusPresent;
+    case "ABSENT":
+      return styles.statusAbsent;
+    case "LATE":
+      return styles.statusLate;
+    default:
+      return styles.statusEmpty;
   }
 }
 
