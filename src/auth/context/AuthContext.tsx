@@ -59,6 +59,18 @@ function getAccessToken(): string | null {
   }
 }
 
+function getResponseStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object" || !("response" in error)) {
+    return undefined;
+  }
+  const response = (error as { response?: { status?: unknown } }).response;
+  return typeof response?.status === "number" ? response.status : undefined;
+}
+
+function shouldClearAuthForStatus(status: number | undefined): boolean {
+  return status === 401 || status === 403 || status === 404;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,9 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = res.data ?? null;
       setUser(u);
       if (u) setSentryUser(u);
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status === 401 || status === 403 || status === 404) {
+    } catch (err: unknown) {
+      if (shouldClearAuthForStatus(getResponseStatus(err))) {
         clearAuth();
       }
       // 네트워크 오류(일시적 끊김 등)는 인증 상태를 유지 — axios 인터셉터의 refresh 메커니즘에 위임
@@ -118,9 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const u = res.data ?? null;
         setUser(u);
         if (u) setSentryUser(u);
-      } catch (err: any) {
-        const status = err?.response?.status;
-        if (status === 401 || status === 403 || status === 404) {
+      } catch (err: unknown) {
+        if (shouldClearAuthForStatus(getResponseStatus(err))) {
           clearAuth();
         }
         // 네트워크 오류(일시적 끊김)는 인증 상태 유지 — 로그아웃하지 않음
@@ -128,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     })();
-  }, []);
+  }, [clearAuth]);
 
   // 다른 탭/창에서 로그아웃·401로 clearAuth() 시 이 탭도 로그인 상태 해제 → ProtectedRoute가 로그인으로 보냄
   useEffect(() => {
@@ -177,9 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return newUser;
           });
         },
-        (err: any) => {
-          const status = err?.response?.status;
-          if (status === 401 || status === 403 || status === 404) {
+        (err: unknown) => {
+          if (shouldClearAuthForStatus(getResponseStatus(err))) {
             clearAuth();
           }
           // 네트워크 오류는 인증 상태 유지
@@ -203,6 +212,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// 기존 public import 경로를 유지한다. 대규모 학생 화면 style 부채와 분리해 처리하기 위한 예외.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
