@@ -221,7 +221,7 @@ export default function TermsPage() {
           <ol>
             <li>회사는 이용자의 개인정보를 관련 법령 및 회사의 개인정보 처리방침에 따라 보호합니다.</li>
             <li>개인정보 처리에 관한 세부 사항은 별도의{" "}
-              <Link to="/privacy" style={{ color: "#2563eb", textDecoration: "underline" }}>
+              <Link to="/privacy" className={styles.articleLink}>
                 개인정보 처리방침
               </Link>
               에서 정합니다.</li>
@@ -298,8 +298,8 @@ export default function TermsPage() {
           <p>본 약관은 2026년 3월 14일부터 시행합니다.</p>
 
           {/* 전자상거래법 제13조 사업자 정보 표시 */}
-          <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e5e7eb" }}>
-            <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>
+          <div className={styles.businessInfo}>
+            <p className={styles.businessInfoText}>
               <V value={c.company_name} />{" "}
               | 대표: <V value={c.representative} />{" "}
               | 사업자등록번호: <V value={c.business_number} />

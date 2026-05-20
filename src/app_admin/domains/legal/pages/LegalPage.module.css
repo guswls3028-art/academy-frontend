@@ -136,6 +136,33 @@
   color: #374151;
 }
 
+.articleLink {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.missingCoreNotice {
+  margin: 8px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #fde047;
+  border-radius: 8px;
+  background: #fef9c3;
+  color: #713f12;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.businessInfo {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.businessInfoText {
+  color: #9ca3af;
+  font-size: 0.8125rem;
+}
+
 .placeholder {
   background: #fef3c7;
   color: #92400e;

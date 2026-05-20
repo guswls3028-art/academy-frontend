@@ -123,10 +123,10 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
 
   // 직접선택으로 전환 시 시간이 비어 있으면 강의 기본 시간을 초기값으로 설정 (버튼 활성화용)
   useEffect(() => {
-    if ((timeMode === "custom" || sessionType === "supplement") && !timeInput.trim() && lectureTimeExtract) {
-      setTimeInput(lectureTimeExtract);
+    if ((timeMode === "custom" || sessionType === "supplement") && lectureTimeExtract) {
+      setTimeInput((prev) => (prev.trim() ? prev : lectureTimeExtract));
     }
-  }, [timeMode, sessionType, lectureTimeExtract]); // timeInput 제외하여 무한 루프 방지
+  }, [timeMode, sessionType, lectureTimeExtract]);
 
   // N+1 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
   useEffect(() => {

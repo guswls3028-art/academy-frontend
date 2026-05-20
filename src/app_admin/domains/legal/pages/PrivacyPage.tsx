@@ -67,16 +67,7 @@ export default function PrivacyPage() {
         {missingCore && (
           <div
             role="note"
-            style={{
-              margin: "8px 0 16px",
-              padding: "10px 14px",
-              background: "#fef9c3",
-              border: "1px solid #fde047",
-              borderRadius: 8,
-              color: "#713f12",
-              fontSize: 13,
-              lineHeight: 1.55,
-            }}
+            className={styles.missingCoreNotice}
           >
             본 학원은 사업자 정보 일부를 등록하지 않았습니다. 정확한 회사 정보 및
             개인정보 보호책임자 연락처는 학원 관리자에게 문의해 주세요. 아래 표시되는
@@ -389,13 +380,13 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li>개인정보 침해신고센터 (한국인터넷진흥원): (국번없이) 118 /{" "}
-              <a href="https://privacy.kisa.or.kr" target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>privacy.kisa.or.kr</a></li>
+              <a href="https://privacy.kisa.or.kr" target="_blank" rel="noopener noreferrer" className={styles.articleLink}>privacy.kisa.or.kr</a></li>
             <li>개인정보 분쟁조정위원회: (국번없이) 1833-6972 /{" "}
-              <a href="https://www.kopico.go.kr" target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>kopico.go.kr</a></li>
+              <a href="https://www.kopico.go.kr" target="_blank" rel="noopener noreferrer" className={styles.articleLink}>kopico.go.kr</a></li>
             <li>대검찰청 사이버범죄수사단: (국번없이) 1301 /{" "}
-              <a href="https://www.spo.go.kr" target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>spo.go.kr</a></li>
+              <a href="https://www.spo.go.kr" target="_blank" rel="noopener noreferrer" className={styles.articleLink}>spo.go.kr</a></li>
             <li>경찰청 사이버수사국: (국번없이) 182 /{" "}
-              <a href="https://ecrm.police.go.kr" target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>ecrm.police.go.kr</a></li>
+              <a href="https://ecrm.police.go.kr" target="_blank" rel="noopener noreferrer" className={styles.articleLink}>ecrm.police.go.kr</a></li>
           </ul>
 
           {/* ── 14. 변경 ── */}
@@ -416,8 +407,8 @@ export default function PrivacyPage() {
           <h2>제15조 (시행일)</h2>
           <p>본 개인정보 처리방침은 2026년 3월 14일부터 시행합니다.</p>
 
-          <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e5e7eb" }}>
-            <p style={{ fontSize: "0.8125rem", color: "#9ca3af" }}>
+          <div className={styles.businessInfo}>
+            <p className={styles.businessInfoText}>
               <V value={c.company_name} />{" "}
               | 대표: <V value={c.representative} />{" "}
               | 사업자등록번호: <V value={c.business_number} />
