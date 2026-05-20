@@ -2,7 +2,7 @@
 // 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제 지원
 
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
@@ -93,8 +93,8 @@ export default function MyStorageExplorer() {
   });
   const isLocked = quota?.plan === "standard";
 
-  const folders = data?.folders ?? [];
-  const files = data?.files ?? [];
+  const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
+  const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
   const subFiles = files.filter((f) => (f.folderId ?? null) === currentFolderId);
 
@@ -126,51 +126,45 @@ export default function MyStorageExplorer() {
       file: File;
       promoteToMatchup?: boolean;
     }) => {
-      try {
-        const res = await uploadFile({
-          scope: SCOPE,
-          folderId: currentFolderId,
-          displayName: payload.displayName,
-          description: payload.description,
-          icon: payload.icon,
-          file: payload.file,
-          promoteToMatchup: payload.promoteToMatchup,
-        });
-        qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
-        if (payload.promoteToMatchup) {
-          qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-        }
-        // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출.
-        // (이전엔 매 파일 업로드 후 close 호출 → 다중 업로드 첫 파일 성공 시 모달이 사라져
-        //  나머지 파일 진행률을 사용자가 못 봄.)
-        if (payload.promoteToMatchup) {
-          if (res.matchupPromoteFailed) {
-            feedback.warning(
-              `저장은 완료됐지만 매치업 등록에 실패했습니다. 매치업 페이지에서 다시 등록해 주세요.`
+      const res = await uploadFile({
+        scope: SCOPE,
+        folderId: currentFolderId,
+        displayName: payload.displayName,
+        description: payload.description,
+        icon: payload.icon,
+        file: payload.file,
+        promoteToMatchup: payload.promoteToMatchup,
+      });
+      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      if (payload.promoteToMatchup) {
+        qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      }
+      // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출.
+      // (이전엔 매 파일 업로드 후 close 호출 → 다중 업로드 첫 파일 성공 시 모달이 사라져
+      //  나머지 파일 진행률을 사용자가 못 봄.)
+      if (payload.promoteToMatchup) {
+        if (res.matchupPromoteFailed) {
+          feedback.warning(
+            `저장은 완료됐지만 매치업 등록에 실패했습니다. 매치업 페이지에서 다시 등록해 주세요.`
+          );
+        } else if (res.matchupDocumentId) {
+          // 우상단 작업박스에 등록 — 페이지 이탈해도 진행률 추적 가능
+          if (res.matchupAiJobId) {
+            asyncStatusStore.addWorkerJob(
+              `매치업 분석: ${payload.displayName || payload.file.name}`,
+              res.matchupAiJobId,
+              "matchup_analysis",
             );
-          } else if (res.matchupDocumentId) {
-            // 우상단 작업박스에 등록 — 페이지 이탈해도 진행률 추적 가능
-            if (res.matchupAiJobId) {
-              asyncStatusStore.addWorkerJob(
-                `매치업 분석: ${payload.displayName || payload.file.name}`,
-                res.matchupAiJobId,
-                "matchup_analysis",
-              );
-            } else {
-              // 과도기/지연 케이스: 문서 watch로 등록 후 ai_job_id 생성 시 자동 전환
-              asyncStatusStore.addWorkerJob(
-                `매치업 분석 준비 중: ${payload.displayName || payload.file.name}`,
-                `matchup-doc-${res.matchupDocumentId}`,
-                "matchup_document_watch",
-              );
-            }
-            feedback.success("저장 + 매치업 등록 완료. 우상단 작업 상자에서 분석 진행률 확인.");
+          } else {
+            // 과도기/지연 케이스: 문서 watch로 등록 후 ai_job_id 생성 시 자동 전환
+            asyncStatusStore.addWorkerJob(
+              `매치업 분석 준비 중: ${payload.displayName || payload.file.name}`,
+              `matchup-doc-${res.matchupDocumentId}`,
+              "matchup_document_watch",
+            );
           }
+          feedback.success("저장 + 매치업 등록 완료. 우상단 작업 상자에서 분석 진행률 확인.");
         }
-      } catch (e) {
-        // UploadModal이 자체 try/catch로 잡고 friendly 메시지로 토스트.
-        // 여기서는 다시 throw해서 UploadModal의 batch loop가 succeeded 카운트를 정확히 추적.
-        throw e;
       }
     },
     [currentFolderId, qc]
@@ -218,10 +212,6 @@ export default function MyStorageExplorer() {
     setSelectedFolderIds(new Set(subFolders.map((f) => f.id)));
     setSelectedFileIds(new Set(subFiles.map((f) => f.id)));
   }, [subFolders, subFiles]);
-
-  const isAllSelected = subFolders.length + subFiles.length > 0 &&
-    subFolders.every((f) => selectedFolderIds.has(f.id)) &&
-    subFiles.every((f) => selectedFileIds.has(f.id));
 
   // 폴더 통계 — 폴더와 그 하위 모든 폴더/파일 카운트, 매치업 doc 수, 총 사이즈.
   // recursive 삭제 confirm에 표시 + 결정 정보로 사용.
@@ -599,7 +589,7 @@ export default function MyStorageExplorer() {
         <div className={panelStyles.actions}>
           {hasSelection && (
             <>
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginRight: 4 }}>
+              <span className={styles.selectionCount}>
                 {selectionCount}개 선택
               </span>
               <Button type="button" intent="ghost" size="sm" onClick={clearSelection}>
@@ -666,20 +656,9 @@ export default function MyStorageExplorer() {
           {isInMatchupFolder && (
             <div
               data-testid="storage-matchup-folder-banner"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-                padding: "8px var(--space-3)",
-                margin: "var(--space-2) 0",
-                borderRadius: "var(--radius-sm)",
-                background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
-                fontSize: 12,
-                color: "var(--color-text-secondary)",
-              }}
+              className={styles.matchupFolderBanner}
             >
-              <Sparkles size={14} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+              <Sparkles size={14} className={styles.brandIcon} />
               <span>
                 매치업 자료가 자동 분류되는 폴더입니다. 파일 삭제 시 매치업 분석 결과도 함께 사라집니다.
               </span>
@@ -688,7 +667,7 @@ export default function MyStorageExplorer() {
                 intent="ghost"
                 size="sm"
                 onClick={() => navigate("/admin/storage/matchup")}
-                style={{ marginLeft: "auto", flexShrink: 0 }}
+                className={styles.bannerAction}
               >
                 AI 매치업 페이지로
               </Button>
@@ -777,7 +756,8 @@ export default function MyStorageExplorer() {
                   className={
                     styles.item +
                     (selectedFileIds.has(file.id) ? " " + styles.itemSelected : "") +
-                    (movingId === file.id ? " " + styles.itemMoving : "")
+                    (movingId === file.id ? " " + styles.itemMoving : "") +
+                    (file.matchup ? " " + styles.matchupFileItem : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -793,40 +773,18 @@ export default function MyStorageExplorer() {
                       ? `매치업 자료 (${file.matchup.status === "done" ? `${file.matchup.problemCount}문제 추출 완료` : file.matchup.status}) — 클릭하여 매치업 보기`
                       : (file.description || file.displayName)
                   }
-                  style={
-                    file.matchup
-                      ? {
-                          borderLeft: "3px solid var(--color-brand-primary)",
-                          background: "color-mix(in srgb, var(--color-brand-primary) 4%, transparent)",
-                        }
-                      : undefined
-                  }
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
                     e.dataTransfer.effectAllowed = "move";
                   }}
                 >
-                  <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                  <div className={styles.fileThumbWrap}>
                     <StorageFileThumbnail file={file} />
                     {file.matchup && (
                       <span
                         title={`매치업 자료 (${file.matchup.status === "done" ? `${file.matchup.problemCount}문제` : file.matchup.status})`}
                         data-testid={`storage-file-matchup-badge-${file.id}`}
-                        style={{
-                          position: "absolute",
-                          top: -6,
-                          right: -8,
-                          background: "var(--color-brand-primary)",
-                          color: "#fff",
-                          borderRadius: 999,
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          fontWeight: 700,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 2,
-                          boxShadow: "0 1px 2px rgba(0,0,0,.2)",
-                        }}
+                        className={styles.matchupBadge}
                       >
                         <Sparkles size={10} />
                         매치업
@@ -867,7 +825,7 @@ export default function MyStorageExplorer() {
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
               <span>추가</span>
-              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setAddChoiceOpen(false)}>
+              <button type="button" className={styles.popupCloseBtn} onClick={() => setAddChoiceOpen(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -878,7 +836,7 @@ export default function MyStorageExplorer() {
                 onClick={() => { setAddChoiceOpen(false); setNewFolderOpen(true); }}
               >
                 <div className={styles.addPopupBtnIcon}>
-                  <FolderPlus size={20} style={{ color: "var(--color-brand-primary)" }} />
+                  <FolderPlus size={20} className={styles.brandIcon} />
                 </div>
                 <div className={styles.addPopupBtnText}>
                   <span className={styles.addPopupBtnLabel}>폴더 생성</span>
@@ -891,7 +849,7 @@ export default function MyStorageExplorer() {
                 onClick={() => { setAddChoiceOpen(false); setUploadModalOpen(true); }}
               >
                 <div className={styles.addPopupBtnIcon}>
-                  <FilePlus size={20} style={{ color: "var(--color-brand-primary)" }} />
+                  <FilePlus size={20} className={styles.brandIcon} />
                 </div>
                 <div className={styles.addPopupBtnText}>
                   <span className={styles.addPopupBtnLabel}>파일 업로드</span>
@@ -908,7 +866,7 @@ export default function MyStorageExplorer() {
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
               <span>파일</span>
-              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setFileActionTarget(null)}>
+              <button type="button" className={styles.popupCloseBtn} onClick={() => setFileActionTarget(null)}>
                 <X size={18} />
               </button>
             </div>
@@ -922,7 +880,7 @@ export default function MyStorageExplorer() {
                   setFileActionTarget(null);
                 }}
               >
-                <Download size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                <Download size={18} className={styles.brandIcon} />
                 저장하기
               </button>
               {fileActionTarget.matchup ? (
@@ -936,27 +894,21 @@ export default function MyStorageExplorer() {
                     if (docId) navigate(`/admin/storage/matchup?docId=${docId}`);
                   }}
                 >
-                  <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                  <Sparkles size={18} className={styles.brandIcon} />
                   매치업 보기
                 </button>
               ) : isMatchupSupported(fileActionTarget) ? (
                 <button
                   type="button"
-                  className={styles.fileActionBtn}
+                  className={`${styles.fileActionBtn} ${styles.matchupActionBtn}`}
                   data-testid="storage-file-action-matchup-promote"
                   onClick={() => {
                     const target = fileActionTarget;
                     setFileActionTarget(null);
                     handlePromoteToMatchup(target);
                   }}
-                  style={{
-                    background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                    borderColor: "color-mix(in srgb, var(--color-brand-primary) 40%, transparent)",
-                    color: "var(--color-brand-primary)",
-                    fontWeight: 600,
-                  }}
                 >
-                  <Sparkles size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                  <Sparkles size={18} className={styles.brandIcon} />
                   매치업 자료로 등록 (AI 분석)
                 </button>
               ) : null}
@@ -968,7 +920,7 @@ export default function MyStorageExplorer() {
                   setFileActionTarget(null);
                 }}
               >
-                <Pencil size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+                <Pencil size={18} className={styles.brandIcon} />
                 이름 수정
               </button>
               <button
@@ -996,7 +948,7 @@ export default function MyStorageExplorer() {
                   }
                 }}
               >
-                <Trash2 size={18} style={{ flexShrink: 0 }} />
+                <Trash2 size={18} className={styles.dangerIcon} />
                 삭제하기
               </button>
             </div>

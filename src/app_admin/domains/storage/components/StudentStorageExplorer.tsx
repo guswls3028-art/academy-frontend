@@ -2,7 +2,7 @@
 // 학생 인벤토리 — 동일한 파일 탐색기 UI, scope=student
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제, 이름수정 지원
 
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
@@ -69,10 +69,13 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
   const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const QK = ["storage-inventory", SCOPE, studentPs] as const;
+  const QK = useMemo(
+    () => ["storage-inventory", SCOPE, studentPs] as const,
+    [studentPs]
+  );
 
   const { data, isLoading } = useQuery({
-    queryKey: [...QK],
+    queryKey: QK,
     queryFn: () => fetchInventoryList(SCOPE, studentPs),
   });
 
@@ -86,35 +89,29 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     if (!newFolderName.trim()) return;
     try {
       await createFolder(SCOPE, currentFolderId, newFolderName.trim(), studentPs);
-      qc.invalidateQueries({ queryKey: [...QK] });
+      qc.invalidateQueries({ queryKey: QK });
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
       feedback.error((e as Error).message);
     }
-  }, [currentFolderId, newFolderName, studentPs, qc]);
+  }, [currentFolderId, newFolderName, studentPs, qc, QK]);
 
   const handleUpload = useCallback(
     async (payload: { displayName: string; description: string; icon: string; file: File }) => {
-      try {
-        await uploadFile({
-          scope: SCOPE,
-          folderId: currentFolderId,
-          displayName: payload.displayName,
-          description: payload.description,
-          icon: payload.icon,
-          file: payload.file,
-          studentPs,
-        });
-        qc.invalidateQueries({ queryKey: [...QK] });
-        // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출 (다중 업로드 진행률 보존).
-      } catch (e) {
-        // UploadModal이 자체 catch로 friendly 메시지 토스트 처리. succeeded 카운트를
-        // 위해 다시 throw.
-        throw e;
-      }
+      await uploadFile({
+        scope: SCOPE,
+        folderId: currentFolderId,
+        displayName: payload.displayName,
+        description: payload.description,
+        icon: payload.icon,
+        file: payload.file,
+        studentPs,
+      });
+      qc.invalidateQueries({ queryKey: QK });
+      // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출 (다중 업로드 진행률 보존).
     },
-    [currentFolderId, studentPs, qc]
+    [currentFolderId, studentPs, qc, QK]
   );
 
   const selectionCount = selectedFolderIds.size + selectedFileIds.size;
@@ -158,10 +155,6 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     setSelectedFileIds(new Set(subFiles.map((f) => f.id)));
   }, [subFolders, subFiles]);
 
-  const isAllSelected = subFolders.length + subFiles.length > 0 &&
-    subFolders.every((f) => selectedFolderIds.has(f.id)) &&
-    subFiles.every((f) => selectedFileIds.has(f.id));
-
   const handleDeleteSelected = useCallback(async () => {
     const folderCount = selectedFolderIds.size;
     const fileCount = selectedFileIds.size;
@@ -184,11 +177,11 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     for (const id of selectedFileIds) {
       try { await deleteFile(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
     }
-    qc.invalidateQueries({ queryKey: [...QK] });
+    qc.invalidateQueries({ queryKey: QK });
     clearSelection();
     setIsDeleting(false);
     if (errorCount === 0) feedback.success(`${parts.join(", ")} 삭제 완료`);
-  }, [selectedFolderIds, selectedFileIds, studentPs, qc, confirm, clearSelection]);
+  }, [selectedFolderIds, selectedFileIds, studentPs, qc, confirm, clearSelection, QK]);
 
   const startRename = useCallback((type: "folder" | "file", id: string, currentName: string) => {
     setRenamingId({ type, id });
@@ -203,12 +196,12 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       } else {
         await renameFile(SCOPE, renamingId.id, renameValue.trim(), studentPs);
       }
-      qc.invalidateQueries({ queryKey: [...QK] });
+      qc.invalidateQueries({ queryKey: QK });
     } catch (e) {
       feedback.error((e as Error).message);
     }
     setRenamingId(null);
-  }, [renamingId, renameValue, studentPs, qc]);
+  }, [renamingId, renameValue, studentPs, qc, QK]);
 
   const handleMove = useCallback(
     async (
@@ -218,23 +211,23 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       onDuplicate?: "overwrite" | "rename"
     ) => {
       setMovingId(sourceId);
-      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([...QK]);
+      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(QK);
       const applyOptimistic = () => {
         if (!prev) return;
         if (type === "file") {
           const files = prev.files.map((f) => f.id === sourceId ? { ...f, folderId: targetFolderId } : f);
-          qc.setQueryData([...QK], { ...prev, files });
+          qc.setQueryData(QK, { ...prev, files });
         } else {
           const folders = prev.folders.map((f) => f.id === sourceId ? { ...f, parentId: targetFolderId } : f);
-          qc.setQueryData([...QK], { ...prev, folders });
+          qc.setQueryData(QK, { ...prev, folders });
         }
       };
       applyOptimistic();
       try {
         await moveInventoryItem({ scope: SCOPE, type, sourceId, targetFolderId, studentPs, onDuplicate });
-        await qc.invalidateQueries({ queryKey: [...QK] });
+        await qc.invalidateQueries({ queryKey: QK });
       } catch (e) {
-        if (prev) qc.setQueryData([...QK], prev);
+        if (prev) qc.setQueryData(QK, prev);
         const ce = e as MoveConflictError & Error;
         if (ce.status === 409 && ce.code === "duplicate") {
           setConflict({ type, sourceId, targetFolderId, existingName: ce.existing_name || "항목" });
@@ -245,7 +238,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         setMovingId(null);
       }
     },
-    [qc, studentPs]
+    [qc, studentPs, QK]
   );
 
   const resolveConflict = useCallback(
@@ -274,7 +267,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         <div className={panelStyles.actions}>
           {hasSelection && (
             <>
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginRight: 4 }}>
+              <span className={styles.selectionCount}>
                 {selectionCount}개 선택
               </span>
               <Button type="button" intent="ghost" size="sm" onClick={clearSelection}>
@@ -374,15 +367,15 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
               <span>추가</span>
-              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setAddChoiceOpen(false)}><X size={18} /></button>
+              <button type="button" className={styles.popupCloseBtn} onClick={() => setAddChoiceOpen(false)}><X size={18} /></button>
             </div>
             <div className={styles.addPopupBody}>
               <button type="button" className={styles.addPopupBtn} onClick={() => { setAddChoiceOpen(false); setNewFolderOpen(true); }}>
-                <div className={styles.addPopupBtnIcon}><FolderPlus size={20} style={{ color: "var(--color-brand-primary)" }} /></div>
+                <div className={styles.addPopupBtnIcon}><FolderPlus size={20} className={styles.brandIcon} /></div>
                 <div className={styles.addPopupBtnText}><span className={styles.addPopupBtnLabel}>폴더 생성</span><span className={styles.addPopupBtnDesc}>새 폴더를 만듭니다</span></div>
               </button>
               <button type="button" className={styles.addPopupBtn} onClick={() => { setAddChoiceOpen(false); setUploadModalOpen(true); }}>
-                <div className={styles.addPopupBtnIcon}><FilePlus size={20} style={{ color: "var(--color-brand-primary)" }} /></div>
+                <div className={styles.addPopupBtnIcon}><FilePlus size={20} className={styles.brandIcon} /></div>
                 <div className={styles.addPopupBtnText}><span className={styles.addPopupBtnLabel}>파일 업로드</span><span className={styles.addPopupBtnDesc}>파일을 선택하여 업로드합니다</span></div>
               </button>
             </div>
@@ -395,23 +388,23 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
               <span>파일</span>
-              <button type="button" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "grid", placeItems: "center" }} onClick={() => setFileActionTarget(null)}><X size={18} /></button>
+              <button type="button" className={styles.popupCloseBtn} onClick={() => setFileActionTarget(null)}><X size={18} /></button>
             </div>
             <div className={styles.fileActionFileName}>{fileActionTarget.displayName}</div>
             <div className={styles.addPopupBody}>
               <button type="button" className={styles.fileActionBtn} onClick={() => { openFileUrl(fileActionTarget.r2Key); setFileActionTarget(null); }}>
-                <Download size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />저장하기
+                <Download size={18} className={styles.brandIcon} />저장하기
               </button>
               <button type="button" className={styles.fileActionBtn} onClick={() => { startRename("file", fileActionTarget.id, fileActionTarget.displayName); setFileActionTarget(null); }}>
-                <Pencil size={18} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />이름 수정
+                <Pencil size={18} className={styles.brandIcon} />이름 수정
               </button>
               <button type="button" className={styles.fileActionBtnDanger} onClick={async () => {
                 const id = fileActionTarget.id; setFileActionTarget(null);
                 const ok = await confirm({ title: "파일 삭제", message: "정말 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 if (!ok) return;
-                try { await deleteFile(SCOPE, id, studentPs); qc.invalidateQueries({ queryKey: [...QK] }); } catch (e) { feedback.error((e as Error).message); }
+                try { await deleteFile(SCOPE, id, studentPs); qc.invalidateQueries({ queryKey: QK }); } catch (e) { feedback.error((e as Error).message); }
               }}>
-                <Trash2 size={18} style={{ flexShrink: 0 }} />삭제하기
+                <Trash2 size={18} className={styles.dangerIcon} />삭제하기
               </button>
             </div>
           </div>

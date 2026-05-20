@@ -8,17 +8,25 @@
 // - 폴더명을 카테고리로 자동 사용 토글 (백엔드 자동 추론 흐름과 일치)
 
 import { useEffect, useMemo, useState } from "react";
-import { Database, X, Search, FileText, FolderOpen, AlertCircle } from "lucide-react";
+import {
+  Database,
+  X,
+  Search,
+  FileText,
+  FolderOpen,
+  AlertCircle,
+} from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInventoryList } from "../../api/storage.api";
-import type { InventoryFile, InventoryFolder } from "../../api/storage.api";
+import type { InventoryFolder } from "../../api/storage.api";
 import {
   promoteInventoryToMatchup,
   type PromoteAlreadyExistsError,
 } from "../../api/matchup.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import "./PromoteFromInventoryModal.css";
 
 type Props = {
   onClose: () => void;
@@ -35,10 +43,17 @@ const ALLOWED_TYPES = new Set([
 
 // 매치업 자동 무시 폴더 (services._infer_category_from_folder와 일치)
 const MATCHUP_SYS_FOLDERS = new Set([
-  "매치업-업로드", "매치업업로드", "matchup-upload", "matchup_upload", "matchup",
+  "매치업-업로드",
+  "매치업업로드",
+  "matchup-upload",
+  "matchup_upload",
+  "matchup",
 ]);
 
-function buildFolderPath(folder: InventoryFolder | undefined, byId: Map<string, InventoryFolder>): string[] {
+function buildFolderPath(
+  folder: InventoryFolder | undefined,
+  byId: Map<string, InventoryFolder>
+): string[] {
   const parts: string[] = [];
   let cur = folder;
   let safety = 0;
@@ -54,7 +69,9 @@ function inferCategoryFromFolder(folderPath: string[]): string {
   // services.py와 동일 규칙: 매치업 시스템 폴더와 YYYY-MM 패턴 제외, 첫 의미 폴더 사용
   for (const name of folderPath) {
     const lower = name.toLowerCase();
-    if (MATCHUP_SYS_FOLDERS.has(name) || MATCHUP_SYS_FOLDERS.has(lower)) continue;
+    if (MATCHUP_SYS_FOLDERS.has(name) || MATCHUP_SYS_FOLDERS.has(lower)) {
+      continue;
+    }
     if (/^\d{4}-\d{2}$/.test(name)) continue;
     return name;
   }
@@ -70,9 +87,14 @@ export default function PromoteFromInventoryModal({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState(defaultCategory);
-  const [useFolderAsCategory, setUseFolderAsCategory] = useState(!defaultCategory);
+  const [useFolderAsCategory, setUseFolderAsCategory] = useState(
+    !defaultCategory
+  );
   const [submitting, setSubmitting] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["storage-inventory", "admin"],
@@ -83,16 +105,14 @@ export default function PromoteFromInventoryModal({
     const m = new Map<string, InventoryFolder>();
     (data?.folders ?? []).forEach((f) => m.set(f.id, f));
     return m;
-  }, [data]);
+  }, [data?.folders]);
 
-  // 표시 가능한 파일들 (PDF/PNG/JPG)
-  const allFiles = data?.files ?? [];
+  const allFiles = useMemo(() => data?.files ?? [], [data?.files]);
   const eligibleFiles = useMemo(
     () => allFiles.filter((f) => ALLOWED_TYPES.has(f.contentType)),
-    [allFiles],
+    [allFiles]
   );
 
-  // 검색 + 정렬: 미승격 → 승격됨 순서, 폴더 경로 가나다순
   const visibleFiles = useMemo(() => {
     const q = search.trim().toLowerCase();
     const enriched = eligibleFiles.map((f) => {
@@ -107,10 +127,12 @@ export default function PromoteFromInventoryModal({
       };
     });
     const filtered = q
-      ? enriched.filter((row) =>
-          row.file.displayName.toLowerCase().includes(q) ||
-          row.folderLabel.toLowerCase().includes(q) ||
-          row.inferredCategory.toLowerCase().includes(q))
+      ? enriched.filter(
+          (row) =>
+            row.file.displayName.toLowerCase().includes(q) ||
+            row.folderLabel.toLowerCase().includes(q) ||
+            row.inferredCategory.toLowerCase().includes(q)
+        )
       : enriched;
     return filtered.sort((a, b) => {
       if (a.isPromoted !== b.isPromoted) return a.isPromoted ? 1 : -1;
@@ -132,6 +154,7 @@ export default function PromoteFromInventoryModal({
       setSelected(new Set(selectableFiles.map((r) => r.file.id)));
     }
   };
+
   const toggleOne = (id: string) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
@@ -139,7 +162,6 @@ export default function PromoteFromInventoryModal({
     setSelected(next);
   };
 
-  // ESC로 닫기 (제출 중에는 무시)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !submitting) onClose();
@@ -156,15 +178,15 @@ export default function PromoteFromInventoryModal({
     let success = 0;
     let alreadyPromoted = 0;
     const failures: { name: string; reason: string }[] = [];
-
     const targets = visibleFiles.filter((r) => selected.has(r.file.id));
 
     let done = 0;
     await Promise.all(
       targets.map(async (row) => {
-        const desiredCategory = useFolderAsCategory && row.inferredCategory
-          ? row.inferredCategory
-          : category;
+        const desiredCategory =
+          useFolderAsCategory && row.inferredCategory
+            ? row.inferredCategory
+            : category;
         try {
           const doc = await promoteInventoryToMatchup({
             inventoryFileId: row.file.id,
@@ -176,13 +198,13 @@ export default function PromoteFromInventoryModal({
             asyncStatusStore.addWorkerJob(
               `매치업 분석: ${doc.title}`,
               doc.ai_job_id,
-              "matchup_analysis",
+              "matchup_analysis"
             );
           } else if (doc.id) {
             asyncStatusStore.addWorkerJob(
               `매치업 분석 준비 중: ${doc.title}`,
               `matchup-doc-${doc.id}`,
-              "matchup_document_watch",
+              "matchup_document_watch"
             );
           }
         } catch (e) {
@@ -199,7 +221,7 @@ export default function PromoteFromInventoryModal({
         }
         done += 1;
         setProgress({ done, total: selected.size });
-      }),
+      })
     );
 
     setSubmitting(false);
@@ -214,7 +236,9 @@ export default function PromoteFromInventoryModal({
       if (failures.length > 0) parts.push(`${failures.length}개 실패`);
       feedback.success(parts.join(" · "));
     } else if (alreadyPromoted > 0 && failures.length === 0) {
-      feedback.info(`선택한 ${alreadyPromoted}개 모두 이미 매치업에 등록된 파일입니다.`);
+      feedback.info(
+        `선택한 ${alreadyPromoted}개 모두 이미 매치업에 등록된 파일입니다.`
+      );
     } else if (failures.length > 0) {
       feedback.error(`가져오기 실패: ${failures[0].reason}`);
     }
@@ -224,244 +248,158 @@ export default function PromoteFromInventoryModal({
 
   return (
     <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
-      }}
+      className="matchup-promote-overlay"
       onClick={submitting ? undefined : onClose}
     >
       <div
         data-testid="matchup-promote-modal"
-        style={{
-          background: "var(--color-bg-surface)", borderRadius: "var(--radius-xl)",
-          width: 720, maxWidth: "94vw", maxHeight: "92vh",
-          display: "flex", flexDirection: "column",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        }}
+        className="matchup-promote-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{
-          padding: "var(--space-5) var(--space-6) var(--space-3)",
-          borderBottom: "1px solid var(--color-border-divider)",
-          flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <Database size={ICON.md} style={{ color: "var(--color-brand-primary)" }} />
+        <div className="matchup-promote-header">
+          <div className="matchup-promote-header-row">
+            <h3 className="matchup-promote-title">
+              <Database size={ICON.md} className="matchup-promote-brand-icon" />
               저장소에서 매치업으로 가져오기
             </h3>
             <button
+              type="button"
               onClick={onClose}
               disabled={submitting}
               title={submitting ? "처리 중..." : "닫기"}
-              style={{
-                background: "none", border: "none",
-                cursor: submitting ? "not-allowed" : "pointer",
-                color: submitting ? "var(--color-text-muted)" : "var(--color-text-secondary)",
-                opacity: submitting ? 0.4 : 1,
-              }}
+              className="matchup-promote-close"
             >
               <X size={ICON.md} />
             </button>
           </div>
-          <p style={{
-            margin: "var(--space-2) 0 0 0",
-            fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5,
-          }}>
+          <p className="matchup-promote-description">
             선생님 저장소(admin)에 있는 PDF·이미지를 매치업 분석 대상으로 가져옵니다.
             폴더명을 카테고리로 자동 사용하면 학교/세트별 정리가 그대로 유지됩니다.
           </p>
         </div>
 
-        {/* Body */}
-        <div style={{
-          padding: "var(--space-3) var(--space-6)",
-          overflow: "auto",
-          flex: 1,
-          display: "flex", flexDirection: "column", gap: "var(--space-3)",
-        }}>
-          {/* 검색 */}
-          <div style={{ position: "relative" }}>
-            <Search
-              size={ICON.sm}
-              style={{
-                position: "absolute",
-                left: 10, top: "50%", transform: "translateY(-50%)",
-                color: "var(--color-text-muted)", pointerEvents: "none",
-              }}
-            />
+        <div className="matchup-promote-body">
+          <div className="matchup-promote-search">
+            <Search size={ICON.sm} className="matchup-promote-search-icon" />
             <input
               data-testid="matchup-promote-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="파일명·폴더 검색"
-              style={{
-                width: "100%",
-                padding: "7px 28px 7px 30px",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 6,
-                fontSize: 13,
-                background: "var(--color-bg-surface)",
-                color: "var(--color-text-primary)",
-                outline: "none",
-              }}
+              className="matchup-promote-search-input"
             />
           </div>
 
-          {/* 선택 요약 + 전체 선택 */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            fontSize: 12, color: "var(--color-text-secondary)",
-          }}>
+          <div className="matchup-promote-summary">
             <span>
               가져올 파일 {selectableFiles.length}개 ·{" "}
-              <strong style={{ color: "var(--color-brand-primary)" }}>{selected.size}개 선택</strong>
+              <strong className="matchup-promote-strong">
+                {selected.size}개 선택
+              </strong>
             </span>
             <button
               type="button"
               onClick={toggleAll}
               disabled={selectableFiles.length === 0}
-              style={{
-                background: "transparent",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 4,
-                padding: "3px 8px",
-                fontSize: 11, fontWeight: 600,
-                color: "var(--color-text-secondary)",
-                cursor: selectableFiles.length === 0 ? "not-allowed" : "pointer",
-                opacity: selectableFiles.length === 0 ? 0.5 : 1,
-              }}
+              className="matchup-promote-select-all"
             >
               {allSelected ? "전체 해제" : "전체 선택"}
             </button>
           </div>
 
-          {/* 모두 이미 승격된 경우 명시적 가이드 */}
-          {!isLoading && !error && eligibleFiles.length > 0 && selectableFiles.length === 0 && (
-            <div
-              data-testid="matchup-promote-all-promoted"
-              style={{
-                padding: "8px 12px",
-                borderRadius: 4,
-                background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
-                fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5,
-              }}
-            >
-              저장소의 PDF·이미지가 모두 이미 매치업에 등록되어 있습니다.
-              새 자료를 가져오려면 먼저 저장소에 파일을 업로드하세요.
-            </div>
-          )}
+          {!isLoading &&
+            !error &&
+            eligibleFiles.length > 0 &&
+            selectableFiles.length === 0 && (
+              <div
+                data-testid="matchup-promote-all-promoted"
+                className="matchup-promote-info"
+              >
+                저장소의 PDF·이미지가 모두 이미 매치업에 등록되어 있습니다.
+                새 자료를 가져오려면 먼저 저장소에 파일을 업로드하세요.
+              </div>
+            )}
 
-          {/* 파일 목록 */}
-          <div style={{
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-bg-surface)",
-            maxHeight: 360,
-            overflow: "auto",
-          }}>
+          <div className="matchup-promote-list">
             {isLoading && (
-              <div style={{ padding: "var(--space-5)", textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
+              <div className="matchup-promote-empty">
                 저장소 목록을 불러오는 중...
               </div>
             )}
             {!isLoading && error && (
-              <div style={{ padding: "var(--space-5)", textAlign: "center", fontSize: 12, color: "var(--color-danger)" }}>
+              <div className="matchup-promote-empty matchup-promote-empty--danger">
                 저장소를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.
               </div>
             )}
             {!isLoading && !error && visibleFiles.length === 0 && (
-              <div style={{ padding: "var(--space-5)", textAlign: "center", fontSize: 12, color: "var(--color-text-muted)" }}>
+              <div className="matchup-promote-empty">
                 {search
                   ? "조건에 맞는 파일이 없습니다."
                   : "저장소에 PDF·이미지 파일이 없습니다. 먼저 저장소에 업로드하세요."}
               </div>
             )}
-            {!isLoading && !error && visibleFiles.map((row) => {
-              const isSelected = selected.has(row.file.id);
-              return (
-                <label
-                  key={row.file.id}
-                  data-testid="matchup-promote-row"
-                  data-file-id={row.file.id}
-                  data-promoted={row.isPromoted ? "true" : "false"}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "8px 12px",
-                    borderBottom: "1px solid var(--color-border-divider)",
-                    cursor: row.isPromoted ? "not-allowed" : "pointer",
-                    background: isSelected
-                      ? "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)"
-                      : undefined,
-                    opacity: row.isPromoted ? 0.55 : 1,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    disabled={row.isPromoted || submitting}
-                    onChange={() => toggleOne(row.file.id)}
-                    style={{ cursor: row.isPromoted ? "not-allowed" : "pointer", flexShrink: 0 }}
-                  />
-                  <FileText size={15} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      title={row.file.displayName}
-                      style={{
-                        fontSize: 13, fontWeight: 600,
-                        color: "var(--color-text-primary)",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}
-                    >
-                      {row.file.displayName}
+            {!isLoading &&
+              !error &&
+              visibleFiles.map((row) => {
+                const isSelected = selected.has(row.file.id);
+                return (
+                  <label
+                    key={row.file.id}
+                    data-testid="matchup-promote-row"
+                    data-file-id={row.file.id}
+                    data-promoted={row.isPromoted ? "true" : "false"}
+                    data-selected={isSelected ? "true" : "false"}
+                    className="matchup-promote-row"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={row.isPromoted || submitting}
+                      onChange={() => toggleOne(row.file.id)}
+                      className="matchup-promote-checkbox"
+                    />
+                    <FileText size={15} className="matchup-promote-file-icon" />
+                    <div className="matchup-promote-file-body">
+                      <div
+                        title={row.file.displayName}
+                        className="matchup-promote-file-name"
+                      >
+                        {row.file.displayName}
+                      </div>
+                      <div className="matchup-promote-file-meta">
+                        <FolderOpen
+                          size={ICON.xs}
+                          className="matchup-promote-meta-icon"
+                        />
+                        <span className="matchup-promote-folder-label">
+                          {row.folderLabel}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {(row.file.sizeBytes / 1024 / 1024).toFixed(1)}MB
+                        </span>
+                        {row.inferredCategory && (
+                          <>
+                            <span>·</span>
+                            <span className="matchup-promote-category">
+                              추정 카테고리: {row.inferredCategory}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6, marginTop: 2,
-                      fontSize: 11, color: "var(--color-text-muted)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      <FolderOpen size={ICON.xs} />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {row.folderLabel}
+                    {row.isPromoted && (
+                      <span className="matchup-promote-promoted">
+                        이미 등록됨
                       </span>
-                      <span>·</span>
-                      <span>{(row.file.sizeBytes / 1024 / 1024).toFixed(1)}MB</span>
-                      {row.inferredCategory && (
-                        <>
-                          <span>·</span>
-                          <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>
-                            추정 카테고리: {row.inferredCategory}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {row.isPromoted && (
-                    <span style={{
-                      fontSize: 10, padding: "2px 6px", borderRadius: 4,
-                      background: "var(--color-bg-surface-soft)",
-                      color: "var(--color-text-muted)", fontWeight: 700,
-                      flexShrink: 0,
-                    }}>
-                      이미 등록됨
-                    </span>
-                  )}
-                </label>
-              );
-            })}
+                    )}
+                  </label>
+                );
+              })}
           </div>
 
-          {/* 카테고리 정책 */}
-          <div style={{
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            padding: "var(--space-3) var(--space-4)",
-            display: "flex", flexDirection: "column", gap: 8,
-          }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <div className="matchup-promote-policy">
+            <label className="matchup-promote-folder-toggle">
               <input
                 type="checkbox"
                 checked={useFolderAsCategory}
@@ -469,18 +407,20 @@ export default function PromoteFromInventoryModal({
                 disabled={submitting}
                 data-testid="matchup-promote-use-folder"
               />
-              <span style={{ color: "var(--color-text-primary)" }}>
+              <span className="matchup-promote-policy-title">
                 폴더명을 카테고리로 자동 사용
               </span>
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 500 }}>
+              <span className="matchup-promote-policy-note">
                 (각 파일의 상위 폴더명. 매치업·YYYY-MM 폴더는 자동 제외)
               </span>
             </label>
-            <label style={{
-              fontSize: 12, fontWeight: 600,
-              color: useFolderAsCategory ? "var(--color-text-muted)" : "var(--color-text-secondary)",
-            }}>
-              {useFolderAsCategory ? "수동 카테고리 (폴더명 추정 실패 시 fallback)" : "선택한 모든 파일에 적용할 카테고리"}
+            <label
+              className="matchup-promote-category-label"
+              data-muted={useFolderAsCategory ? "true" : "false"}
+            >
+              {useFolderAsCategory
+                ? "수동 카테고리 (폴더명 추정 실패 시 fallback)"
+                : "선택한 모든 파일에 적용할 카테고리"}
               <input
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -488,47 +428,27 @@ export default function PromoteFromInventoryModal({
                 list="matchup-promote-category-suggestions"
                 disabled={submitting}
                 data-testid="matchup-promote-category-input"
-                style={{
-                  display: "block", width: "100%", marginTop: 4,
-                  padding: "6px 10px",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: 13,
-                  background: "var(--color-bg-surface)",
-                }}
+                className="matchup-promote-category-input"
               />
               <datalist id="matchup-promote-category-suggestions">
-                {categorySuggestions.map((c) => <option key={c} value={c} />)}
+                {categorySuggestions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
               </datalist>
             </label>
           </div>
 
           {selected.size > 0 && !useFolderAsCategory && !category.trim() && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 10px",
-              borderRadius: 4,
-              background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
-              color: "var(--color-warning)",
-              fontSize: 11, fontWeight: 600,
-            }}>
+            <div className="matchup-promote-warning">
               <AlertCircle size={ICON.xs} />
               카테고리 없이 진행하면 모두 미분류로 들어갑니다.
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div style={{
-          padding: "var(--space-3) var(--space-6) var(--space-4)",
-          borderTop: "1px solid var(--color-border-divider)",
-          flexShrink: 0,
-          display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", alignItems: "center",
-        }}>
+        <div className="matchup-promote-footer">
           {progress && (
-            <span style={{
-              fontSize: 12, color: "var(--color-brand-primary)", fontWeight: 600, marginRight: "auto",
-            }}>
+            <span className="matchup-promote-progress">
               가져오는 중... {progress.done}/{progress.total}
             </span>
           )}
