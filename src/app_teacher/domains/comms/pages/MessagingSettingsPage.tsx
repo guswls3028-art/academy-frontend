@@ -11,14 +11,47 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import {
   fetchMessagingInfo, updateMessagingInfo, verifySender, testCredentials,
-  fetchAutoSendConfigs, updateAutoSendConfigs, updateAutoSendConfig, fetchAllTemplates,
+  fetchAutoSendConfigs, updateAutoSendConfig, fetchAllTemplates,
   AUTO_SEND_TRIGGER_LABELS, MESSAGE_MODE_LABELS,
-  type MessagingProvider, type TestCredentialsResult,
+  type AutoSendConfig, type MessagingProvider, type TestCredentialsResult,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { useConfirm } from "@/shared/ui/confirm";
+import styles from "./MessagingSettingsPage.module.css";
 
 const SERVER_IP = "43.201.119.172";
+
+type MessageModeOption = "alimtalk" | "sms" | "alimtalk_sms_fallback";
+
+const MESSAGE_MODE_OPTIONS: Array<{ key: MessageModeOption; label: string }> = [
+  { key: "alimtalk", label: "알림톡" },
+  { key: "sms", label: "SMS" },
+  { key: "alimtalk_sms_fallback", label: "알림톡(대체 SMS)" },
+];
+
+function getErrorDetail(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+  }
+  return fallback;
+}
+
+function templateIdFromConfig(config: AutoSendConfig): number | null {
+  if (typeof config.template === "number") return config.template;
+  return config.template?.id ?? config.template_id ?? null;
+}
+
+function templateNameFromConfig(config: AutoSendConfig): string | undefined {
+  if (config.template_name) return config.template_name;
+  return typeof config.template === "object" && config.template ? config.template.name : undefined;
+}
+
+function normalizeMessageMode(value: string | null | undefined): MessageModeOption {
+  return MESSAGE_MODE_OPTIONS.some((option) => option.key === value)
+    ? (value as MessageModeOption)
+    : "alimtalk";
+}
 
 export default function MessagingSettingsPage() {
   const navigate = useNavigate();
@@ -58,7 +91,7 @@ export default function MessagingSettingsPage() {
   const verifyMut = useMutation({
     mutationFn: (phone: string) => verifySender(phone),
     onSuccess: (data) => setVerifyMsg({ ok: data.verified, msg: data.message }),
-    onError: (err: any) => setVerifyMsg({ ok: false, msg: err?.response?.data?.detail || "인증 확인에 실패했습니다." }),
+    onError: (err: unknown) => setVerifyMsg({ ok: false, msg: getErrorDetail(err, "인증 확인에 실패했습니다.") }),
   });
 
   const testMut = useMutation({
@@ -170,11 +203,10 @@ export default function MessagingSettingsPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button type="button" onClick={() => navigate(-1)} className={`${styles.backButton} flex p-1 cursor-pointer`}>
           <ChevronLeft size={ICON.lg} />
         </button>
-        <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>메시지 설정</h1>
+        <h1 className={`${styles.pageTitle} text-[17px] font-bold`}>메시지 설정</h1>
       </div>
 
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
@@ -183,16 +215,11 @@ export default function MessagingSettingsPage() {
         <>
           {/* 설정 완료 안내 */}
           {!allSetupDone && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: "var(--tc-radius)",
-              background: "var(--tc-warn-bg)",
-              border: "1px solid var(--tc-warn)",
-            }}>
-              <AlertCircle size={ICON.sm} style={{ color: "var(--tc-warn)", flexShrink: 0 }} />
-              <div className="text-[12px]" style={{ color: "var(--tc-text-secondary)", lineHeight: 1.5 }}>
-                <strong style={{ color: "var(--tc-text)" }}>메시지 발송 설정을 완료해 주세요.</strong>
-                <span style={{ marginLeft: 6 }}>
+            <div className={styles.setupNotice}>
+              <AlertCircle size={ICON.sm} className={styles.warnIcon} />
+              <div className={`${styles.setupNoticeText} text-[12px]`}>
+                <strong className={styles.setupNoticeTitle}>메시지 발송 설정을 완료해 주세요.</strong>
+                <span className={styles.setupNoticeTail}>
                   {setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.
                 </span>
               </div>
@@ -201,16 +228,16 @@ export default function MessagingSettingsPage() {
 
           {/* KPI 요약 — 2x2 */}
           <div className="grid grid-cols-2 gap-2">
-            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={canSend ? "ok" : "warn"} color="#6366f1" />
-            <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || "미등록"} status={hasSender ? "ok" : "warn"} color="#0ea5e9" />
-            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={hasPfid ? "사용 가능" : "미설정"} status={hasPfid ? "ok" : "none"} color="#f59e0b" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="SMS" value={info.sms_allowed ? "사용 가능" : "미설정"} status={info.sms_allowed ? "ok" : "warn"} color="#10b981" />
+            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={canSend ? "ok" : "warn"} tone="provider" />
+            <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || "미등록"} status={hasSender ? "ok" : "warn"} tone="sender" />
+            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={hasPfid ? "사용 가능" : "미설정"} status={hasPfid ? "ok" : "none"} tone="kakao" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="SMS" value={info.sms_allowed ? "사용 가능" : "미설정"} status={info.sms_allowed ? "ok" : "warn"} tone="sms" />
           </div>
 
           {/* 잔액 (보조 정보) */}
           {info.balance != null && (
-            <div className="text-[12px] text-center" style={{ color: "var(--tc-text-muted)" }}>
-              잔액: <span style={{ color: "var(--tc-text)", fontWeight: 600 }}>{info.balance.toLocaleString()}원</span>
+            <div className={`${styles.balanceText} text-[12px] text-center`}>
+              잔액: <span className={styles.balanceAmount}>{info.balance.toLocaleString()}원</span>
               {info.sms_price != null ? ` · SMS ${info.sms_price}원` : ""}
               {info.alimtalk_price != null ? ` · 알림톡 ${info.alimtalk_price}원` : ""}
             </div>
@@ -219,21 +246,17 @@ export default function MessagingSettingsPage() {
           {/* ① 공급자 선택 */}
           <Card>
             <SectionHeader icon={<Settings size={ICON.sm} />} title="메시지 공급자" desc="SMS·알림톡 발송에 사용할 공급자를 선택하세요." />
-            <div className="flex gap-0 rounded-lg overflow-hidden"
-              style={{ border: "1px solid var(--tc-border-strong)" }}>
+            <div className={`${styles.segmentControl} flex gap-0 rounded-lg overflow-hidden`}>
               {([
                 { k: "solapi" as const, l: "솔라피(Solapi)" },
                 { k: "ppurio" as const, l: "뿌리오(Ppurio)" },
               ]).map((opt) => (
-                <button key={opt.k} onClick={() => handleChangeProvider(opt.k)}
-                  className="flex-1 text-[13px] font-bold cursor-pointer"
-                  style={{
-                    padding: "8px 12px",
-                    border: "none",
-                    background: provider === opt.k ? "var(--tc-primary)" : "var(--tc-surface-soft)",
-                    color: provider === opt.k ? "#fff" : "var(--tc-text-secondary)",
-                    transition: "background 0.15s",
-                  }}>
+                <button
+                  key={opt.k}
+                  type="button"
+                  onClick={() => handleChangeProvider(opt.k)}
+                  className={`${styles.segmentButton} ${provider === opt.k ? styles.segmentButtonActive : ""} flex-1 text-[13px] font-bold cursor-pointer`}
+                >
                   {opt.l}
                 </button>
               ))}
@@ -259,22 +282,20 @@ export default function MessagingSettingsPage() {
                   placeholder={info.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "예: myacademy"} />
                 <InputField label="API 인증키" value={ownPpurioKey} onChange={setOwnPpurioKey}
                   placeholder={info.own_ppurio_api_key ? "현재 인증키가 저장되어 있습니다" : "뿌리오 연동개발 API 인증키"} type="password" />
-                <p className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                  뿌리오 [연동] → [연동관리] 에서 연동 IP <code style={{ padding: "1px 4px", borderRadius: 3, background: "var(--tc-surface-soft)", fontSize: 11 }}>{SERVER_IP}</code> 를 반드시 등록하세요.
+                <p className={`${styles.mutedText} text-[11px] mt-0.5`}>
+                  뿌리오 [연동] → [연동관리] 에서 연동 IP <code className={styles.inlineCode}>{SERVER_IP}</code> 를 반드시 등록하세요.
                 </p>
               </div>
             )}
 
             <div className="flex gap-2 mt-3 flex-wrap">
-              <button onClick={handleSaveOwnCreds} disabled={updateMut.isPending}
-                className="text-xs font-bold cursor-pointer"
-                style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+              <button type="button" onClick={handleSaveOwnCreds} disabled={updateMut.isPending}
+                className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}>
                 {updateMut.isPending ? "저장 중…" : "저장"}
               </button>
               {hasOwnCreds && (
-                <button onClick={handleClearOwnCreds} disabled={updateMut.isPending}
-                  className="text-xs font-semibold cursor-pointer"
-                  style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+                <button type="button" onClick={handleClearOwnCreds} disabled={updateMut.isPending}
+                  className={`${styles.secondaryButton} text-xs font-semibold cursor-pointer`}>
                   초기화
                 </button>
               )}
@@ -288,25 +309,21 @@ export default function MessagingSettingsPage() {
             <div className="flex flex-col gap-2">
               <input type="tel" value={sender} onChange={(e) => { setSender(e.target.value); setVerifyMsg(null); }}
                 placeholder="예: 01012345678"
-                className="w-full text-sm"
-                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+                className={`${styles.input} w-full text-sm`} />
               <div className="flex gap-2 flex-wrap">
                 {provider === "solapi" && (
-                  <button onClick={handleVerifySender} disabled={!sender.trim() || verifyMut.isPending}
-                    className="text-xs font-semibold cursor-pointer"
-                    style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+                  <button type="button" onClick={handleVerifySender} disabled={!sender.trim() || verifyMut.isPending}
+                    className={`${styles.secondaryButton} text-xs font-semibold cursor-pointer`}>
                     {verifyMut.isPending ? "확인 중…" : "인증 확인"}
                   </button>
                 )}
-                <button onClick={handleSaveSender} disabled={!sender.trim() || updateMut.isPending}
-                  className="text-xs font-bold cursor-pointer"
-                  style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+                <button type="button" onClick={handleSaveSender} disabled={!sender.trim() || updateMut.isPending}
+                  className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}>
                   {updateMut.isPending ? "저장 중…" : "저장"}
                 </button>
               </div>
               {verifyMsg && (
-                <p className="text-[12px] font-semibold flex items-center gap-1 m-0"
-                  style={{ color: verifyMsg.ok ? "var(--tc-success)" : "var(--tc-danger)" }}>
+                <p className={`${styles.statusMessage} ${verifyMsg.ok ? styles.statusMessageOk : styles.statusMessageError} text-[12px] font-semibold flex items-center gap-1`}>
                   {verifyMsg.ok ? <Check size={ICON.xs} /> : <AlertCircle size={ICON.xs} />}
                   {verifyMsg.msg}
                 </p>
@@ -322,19 +339,17 @@ export default function MessagingSettingsPage() {
             <div className="flex gap-2 flex-wrap">
               <input type="text" value={pfid} onChange={(e) => setPfid(e.target.value)}
                 placeholder="예: @yourChannel"
-                className="flex-1 text-sm"
-                style={{ minWidth: 0, padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-              <button onClick={handleSavePfid} disabled={!pfid.trim() || updateMut.isPending}
-                className="text-xs font-bold cursor-pointer shrink-0"
-                style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+                className={`${styles.input} ${styles.pfidInput} flex-1 text-sm`} />
+              <button type="button" onClick={handleSavePfid} disabled={!pfid.trim() || updateMut.isPending}
+                className={`${styles.primaryButton} text-xs font-bold cursor-pointer shrink-0`}>
                 {updateMut.isPending ? "저장 중…" : "저장"}
               </button>
             </div>
             {hasPfid && (
               <div className="flex items-center gap-2 mt-2">
                 <StatusChip ok label="연동됨" />
-                <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  현재 PFID: <code style={{ padding: "1px 4px", borderRadius: 3, background: "var(--tc-surface-soft)", fontSize: 11 }}>{info.kakao_pfid}</code>
+                <span className={`${styles.mutedText} text-[11px]`}>
+                  현재 PFID: <code className={styles.inlineCode}>{info.kakao_pfid}</code>
                 </span>
               </div>
             )}
@@ -344,9 +359,12 @@ export default function MessagingSettingsPage() {
           <Card>
             <SectionHeader icon={<CheckCircle size={ICON.sm} />} title="연동 테스트" desc="설정이 끝났다면 아래 버튼으로 연동 상태를 확인하세요." />
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => { setTestResult(null); testMut.mutate(); }} disabled={testMut.isPending}
-                className="text-xs font-bold cursor-pointer"
-                style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+              <button
+                type="button"
+                onClick={() => { setTestResult(null); testMut.mutate(); }}
+                disabled={testMut.isPending}
+                className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}
+              >
                 {testMut.isPending ? "테스트 중…" : "연동 상태 테스트"}
               </button>
               {testResult && <StatusChip ok={testResult.all_ok} label={testResult.all_ok ? "모두 정상" : "확인 필요"} />}
@@ -354,16 +372,11 @@ export default function MessagingSettingsPage() {
             {testResult && (
               <div className="flex flex-col gap-1.5 mt-2.5">
                 {testResult.checks.map((c, i) => (
-                  <div key={i} className="flex items-start gap-2"
-                    style={{
-                      padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
-                      background: c.ok ? "var(--tc-success-bg)" : "var(--tc-danger-bg)",
-                      border: `1px solid ${c.ok ? "var(--tc-success)" : "var(--tc-danger)"}`,
-                    }}>
+                  <div key={i} className={`${styles.testCheckRow} ${c.ok ? styles.testCheckRowOk : styles.testCheckRowError} flex items-start gap-2`}>
                     {c.ok
-                      ? <CheckCircle size={ICON.sm} style={{ color: "var(--tc-success)", marginTop: 2, flexShrink: 0 }} />
-                      : <AlertCircle size={ICON.sm} style={{ color: "var(--tc-danger)", marginTop: 2, flexShrink: 0 }} />}
-                    <span className="text-[12px]" style={{ color: "var(--tc-text)", lineHeight: 1.5 }}>{c.message}</span>
+                      ? <CheckCircle size={ICON.sm} className={`${styles.testCheckIcon} ${styles.testCheckIconOk}`} />
+                      : <AlertCircle size={ICON.sm} className={`${styles.testCheckIcon} ${styles.testCheckIconError}`} />}
+                    <span className={`${styles.testCheckMessage} text-[12px]`}>{c.message}</span>
                   </div>
                 ))}
               </div>
@@ -375,7 +388,7 @@ export default function MessagingSettingsPage() {
             <Card>
               <SectionHeader icon={<Send size={ICON.sm} />} title="자동 발송" desc="트리거별로 자동 발송 여부를 설정하세요." />
               <div className="flex flex-col gap-1.5">
-                {autoConfigs.map((cfg: any, i: number) => (
+                {autoConfigs.map((cfg, i) => (
                   <AutoSendRow key={cfg.id ?? i} config={cfg} />
                 ))}
               </div>
@@ -389,28 +402,31 @@ export default function MessagingSettingsPage() {
 
 /* ─── Sub-components ─── */
 
-function KpiStatCard({ icon, label, value, status, color }: {
-  icon: React.ReactNode; label: string; value: string; status: "ok" | "warn" | "none"; color: string;
+function KpiStatCard({ icon, label, value, status, tone }: {
+  icon: React.ReactNode; label: string; value: string; status: "ok" | "warn" | "none"; tone: "provider" | "sender" | "kakao" | "sms";
 }) {
-  const statusColor = status === "ok" ? "var(--tc-success)" : status === "warn" ? "var(--tc-warn)" : "var(--tc-text-muted)";
+  const toneClass = {
+    provider: styles.kpiProvider,
+    sender: styles.kpiSender,
+    kakao: styles.kpiKakao,
+    sms: styles.kpiSms,
+  }[tone];
+  const statusClass = {
+    ok: styles.kpiStatusOk,
+    warn: styles.kpiStatusWarn,
+    none: styles.kpiStatusNone,
+  }[status];
+
   return (
-    <div style={{
-      padding: "12px 14px", borderRadius: "var(--tc-radius)",
-      background: "var(--tc-surface)", border: "1px solid var(--tc-border)",
-      display: "flex", flexDirection: "column", gap: 6,
-    }}>
+    <div className={styles.kpiCard}>
       <div className="flex items-center gap-1.5">
-        <div style={{
-          width: 24, height: 24, borderRadius: 6,
-          display: "grid", placeItems: "center",
-          background: `color-mix(in srgb, ${color} 10%, transparent)`, color,
-        }}>{icon}</div>
-        <span className="text-[11px] font-semibold" style={{ color: "var(--tc-text-muted)" }}>{label}</span>
+        <div className={`${styles.kpiIcon} ${toneClass}`}>{icon}</div>
+        <span className={`${styles.kpiLabel} text-[11px] font-semibold`}>{label}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-[13px] font-bold truncate" style={{ color: "var(--tc-text)" }}>{value}</span>
+        <span className={`${styles.kpiValue} text-[13px] font-bold truncate`}>{value}</span>
         {status !== "none" && (
-          <span className="text-[10px] font-semibold flex items-center gap-0.5" style={{ color: statusColor }}>
+          <span className={`${statusClass} text-[10px] font-semibold flex items-center gap-0.5`}>
             {status === "ok" ? <Check size={9} /> : <AlertCircle size={9} />}
             {status === "ok" ? "연동" : "미설정"}
           </span>
@@ -424,16 +440,15 @@ function SectionHeader({ icon, title, desc, badge }: { icon: React.ReactNode; ti
   return (
     <div className="mb-2">
       <div className="flex items-center gap-1.5">
-        <span style={{ color: "var(--tc-primary)", display: "flex" }}>{icon}</span>
-        <span className="text-[14px] font-bold" style={{ color: "var(--tc-text)" }}>{title}</span>
+        <span className={styles.sectionIcon}>{icon}</span>
+        <span className={`${styles.sectionTitle} text-[14px] font-bold`}>{title}</span>
         {badge && (
-          <span className="text-[10px] font-semibold"
-            style={{ padding: "2px 6px", borderRadius: "var(--tc-radius-full)", background: "var(--tc-surface-soft)", color: "var(--tc-text-muted)" }}>
+          <span className={`${styles.sectionBadge} text-[10px] font-semibold`}>
             {badge}
           </span>
         )}
       </div>
-      {desc && <p className="text-[11px] mt-1 m-0" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>{desc}</p>}
+      {desc && <p className={`${styles.sectionDesc} text-[11px] mt-1 m-0`}>{desc}</p>}
     </div>
   );
 }
@@ -443,37 +458,29 @@ function InputField({ label, value, onChange, placeholder, type = "text" }: {
 }) {
   return (
     <div>
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+      <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full text-sm"
-        style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+        className={`${styles.input} w-full text-sm`} />
     </div>
   );
 }
 
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span className="text-[11px] font-semibold flex items-center gap-0.5"
-      style={{
-        padding: "2px 8px", borderRadius: "var(--tc-radius-full)",
-        background: ok ? "var(--tc-success-bg)" : "var(--tc-warn-bg)",
-        color: ok ? "var(--tc-success)" : "var(--tc-warn)",
-      }}>
+    <span className={`${styles.statusChip} ${ok ? styles.statusChipOk : styles.statusChipWarn} text-[11px] font-semibold flex items-center gap-0.5`}>
       {ok ? <Check size={10} /> : <AlertCircle size={10} />}
       {label}
     </span>
   );
 }
 
-function AutoSendRow({ config }: { config: any }) {
+function AutoSendRow({ config }: { config: AutoSendConfig }) {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const enabled = config.enabled ?? false;
 
   const toggleMut = useMutation({
-    mutationFn: () => config.id
-      ? updateAutoSendConfig(config.id, { enabled: !enabled })
-      : updateAutoSendConfigs([{ ...config, enabled: !enabled }]),
+    mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-auto-send-configs"] });
       teacherToast.success(!enabled ? "자동 발송을 켰습니다." : "자동 발송을 껐습니다.");
@@ -482,41 +489,36 @@ function AutoSendRow({ config }: { config: any }) {
 
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || config.trigger_label || config.trigger_name || triggerKey || "트리거";
-  const templateName = config.template_name || config.template?.name;
+  const templateName = templateNameFromConfig(config);
   const modeLabel = config.message_mode ? MESSAGE_MODE_LABELS[config.message_mode] || config.message_mode : null;
   const minutesBefore = config.minutes_before;
 
   return (
     <>
-      <div className="flex items-start gap-2"
-        style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface-soft)" }}>
+      <div className={`${styles.autoSendRow} flex items-start gap-2`}>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>{triggerLabel}</span>
+            <span className={`${styles.previewValue} text-[13px] font-semibold`}>{triggerLabel}</span>
             {modeLabel && <Badge tone="neutral" size="xs">{modeLabel}</Badge>}
             {minutesBefore != null && minutesBefore > 0 && (
               <Badge tone="neutral" size="xs">{minutesBefore}분 전</Badge>
             )}
           </div>
           {templateName && (
-            <div className="text-[11px] truncate mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+            <div className={`${styles.mutedText} text-[11px] truncate mt-0.5`}>
               템플릿: {templateName}
             </div>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => setEditOpen(true)} type="button"
-            className="flex p-1 cursor-pointer"
-            style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}
+            className={`${styles.iconButton} flex p-1 cursor-pointer`}
             title="설정 편집">
             <Pencil size={ICON.sm} />
           </button>
-          <button onClick={() => toggleMut.mutate()} type="button" className="cursor-pointer"
-            style={{ background: "none", border: "none", padding: 0 }}>
-            <div className="w-10 h-5 rounded-full relative"
-              style={{ background: enabled ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
-              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
-                style={{ left: enabled ? 20 : 2, transition: "left 150ms" }} />
+          <button onClick={() => toggleMut.mutate()} type="button" className={`${styles.toggleButton} cursor-pointer`}>
+            <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
+              <div className={`${styles.toggleKnob} ${enabled ? styles.toggleKnobOn : ""} absolute top-0.5 w-4 h-4 rounded-full bg-white shadow`} />
             </div>
           </button>
         </div>
@@ -527,20 +529,20 @@ function AutoSendRow({ config }: { config: any }) {
 }
 
 /* ─── Auto Send Edit Sheet ─── */
-function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: any }) {
+function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
   const qc = useQueryClient();
-  const [messageMode, setMessageMode] = useState<string>(config.message_mode ?? "alimtalk");
+  const [messageMode, setMessageMode] = useState<MessageModeOption>(normalizeMessageMode(config.message_mode));
   const [minutesBefore, setMinutesBefore] = useState<string>(
     config.minutes_before != null ? String(config.minutes_before) : ""
   );
-  const [templateId, setTemplateId] = useState<number | null>(config.template ?? config.template_id ?? null);
+  const [templateId, setTemplateId] = useState<number | null>(templateIdFromConfig(config));
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMessageMode(config.message_mode ?? "alimtalk");
+    setMessageMode(normalizeMessageMode(config.message_mode));
     setMinutesBefore(config.minutes_before != null ? String(config.minutes_before) : "");
-    setTemplateId(config.template ?? config.template_id ?? null);
+    setTemplateId(templateIdFromConfig(config));
   }, [open, config]);
 
   const { data: templates } = useQuery({
@@ -556,9 +558,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
         minutes_before: minutesBefore.trim() ? Number(minutesBefore) : null,
         template_id: templateId,
       };
-      return config.id
-        ? updateAutoSendConfig(config.id, payload)
-        : updateAutoSendConfigs([{ ...config, ...payload }]);
+      return updateAutoSendConfig(config.trigger, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-auto-send-configs"] });
@@ -570,32 +570,25 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
 
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || triggerKey;
-  const selectedTemplate = (templates ?? []).find((t: any) => t.id === templateId);
+  const selectedTemplate = (templates ?? []).find((t) => t.id === templateId);
   const showMinutesBefore = triggerKey.includes("minutes_before") || triggerKey.includes("reminder") || triggerKey.includes("days_before") || triggerKey.includes("hours_before");
 
   return (
     <>
       <BottomSheet open={open} onClose={onClose} title={triggerLabel}>
-        <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
+        <div className={`${styles.sheetContent} flex flex-col gap-3`}>
           {/* 메시지 모드 */}
           <div>
-            <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>발송 채널</label>
+            <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1.5`}>발송 채널</label>
             <div className="flex gap-1.5">
-              {([
-                { k: "alimtalk", l: "알림톡" },
-                { k: "sms", l: "SMS" },
-                { k: "alimtalk_sms_fallback", l: "알림톡(대체 SMS)" },
-              ]).map(({ k, l }) => (
-                <button key={k} onClick={() => setMessageMode(k)} type="button"
-                  className="flex-1 text-[12px] font-semibold cursor-pointer"
-                  style={{
-                    padding: "8px 8px",
-                    borderRadius: "var(--tc-radius-sm)",
-                    border: `1px solid ${messageMode === k ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
-                    background: messageMode === k ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                    color: messageMode === k ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                  }}>
-                  {l}
+              {MESSAGE_MODE_OPTIONS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setMessageMode(key)}
+                  type="button"
+                  className={`${styles.channelButton} ${messageMode === key ? styles.channelButtonActive : ""} flex-1 text-[12px] font-semibold cursor-pointer`}
+                >
+                  {label}
                 </button>
               ))}
             </div>
@@ -604,14 +597,13 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           {/* 분/시간 전 */}
           {showMinutesBefore && (
             <div>
-              <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+              <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>
                 {triggerKey.includes("hours_before") ? "시간 전" : triggerKey.includes("days_before") ? "일 전" : "분 전"}
               </label>
               <input type="number" value={minutesBefore} onChange={(e) => setMinutesBefore(e.target.value)}
                 placeholder="예: 10"
-                className="w-full text-sm"
-                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-              <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+                className={`${styles.input} w-full text-sm`} />
+              <p className={`${styles.mutedText} text-[11px] mt-1`}>
                 이벤트 발생 {minutesBefore || "--"} 단위 전에 자동 발송합니다.
               </p>
             </div>
@@ -620,43 +612,35 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           {/* 템플릿 선택 */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold" style={{ color: "var(--tc-text-muted)" }}>템플릿</label>
+              <label className={`${styles.fieldLabel} text-[11px] font-semibold`}>템플릿</label>
               {selectedTemplate && (
                 <button onClick={() => setPreviewOpen(true)} type="button"
-                  className="flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer"
-                  style={{ background: "none", border: "none", color: "var(--tc-primary)" }}>
+                  className={`${styles.templatePreviewButton} flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer`}>
                   <Eye size={ICON.xs} /> 미리보기
                 </button>
               )}
             </div>
             {templates && templates.length > 0 ? (
-              <div className="flex flex-col gap-1" style={{ maxHeight: 280, overflowY: "auto" }}>
-                {templates.map((t: any) => (
+              <div className={`${styles.templateList} flex flex-col gap-1`}>
+                {templates.map((t) => (
                   <button key={t.id} onClick={() => setTemplateId(t.id)} type="button"
-                    className="text-left cursor-pointer"
-                    style={{
-                      padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
-                      border: `1px solid ${templateId === t.id ? "var(--tc-primary)" : "var(--tc-border)"}`,
-                      background: templateId === t.id ? "var(--tc-primary-bg)" : "var(--tc-surface)",
-                    }}>
-                    <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>{t.name}</div>
+                    className={`${styles.templateOption} ${templateId === t.id ? styles.templateOptionActive : ""} text-left cursor-pointer`}>
+                    <div className={`${styles.templateName} text-[13px] font-semibold`}>{t.name}</div>
                     {t.category && (
-                      <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{t.category}</div>
+                      <div className={`${styles.mutedText} text-[11px]`}>{t.category}</div>
                     )}
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="text-[12px] text-center py-3"
-                style={{ color: "var(--tc-text-muted)", background: "var(--tc-surface-soft)", borderRadius: "var(--tc-radius-sm)" }}>
+              <div className={`${styles.emptyTemplates} text-[12px] text-center py-3`}>
                 등록된 템플릿이 없습니다.
               </div>
             )}
           </div>
 
-          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
-            className="w-full text-sm font-bold cursor-pointer mt-1"
-            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+            className={`${styles.fullSaveButton} w-full text-sm font-bold cursor-pointer mt-1`}>
             {saveMut.isPending ? "저장 중…" : "저장"}
           </button>
         </div>
@@ -665,25 +649,20 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
       {/* Preview */}
       {selectedTemplate && (
         <BottomSheet open={previewOpen} onClose={() => setPreviewOpen(false)} title="템플릿 미리보기">
-          <div className="flex flex-col gap-2" style={{ padding: "var(--tc-space-3) 0" }}>
+          <div className={`${styles.sheetContent} flex flex-col gap-2`}>
             <div>
-              <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>이름</div>
-              <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{selectedTemplate.name}</div>
+              <div className={`${styles.previewLabel} text-[11px]`}>이름</div>
+              <div className={`${styles.previewValue} text-sm font-semibold`}>{selectedTemplate.name}</div>
             </div>
             {selectedTemplate.subject && (
               <div>
-                <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>제목</div>
-                <div className="text-sm" style={{ color: "var(--tc-text)" }}>{selectedTemplate.subject}</div>
+                <div className={`${styles.previewLabel} text-[11px]`}>제목</div>
+                <div className={`${styles.previewValue} text-sm`}>{selectedTemplate.subject}</div>
               </div>
             )}
             <div>
-              <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>본문</div>
-              <div className="text-[13px] mt-1"
-                style={{
-                  padding: "10px 12px", borderRadius: "var(--tc-radius-sm)",
-                  background: "var(--tc-surface-soft)", color: "var(--tc-text)",
-                  whiteSpace: "pre-wrap", lineHeight: 1.6,
-                }}>
+              <div className={`${styles.previewLabel} text-[11px]`}>본문</div>
+              <div className={`${styles.previewBody} text-[13px] mt-1`}>
                 {selectedTemplate.body}
               </div>
             </div>
