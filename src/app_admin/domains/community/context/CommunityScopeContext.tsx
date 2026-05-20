@@ -1,22 +1,10 @@
 // PATH: src/app_admin/domains/community/context/CommunityScopeContext.tsx
 // 통합 | 강의별 | 세션별 scope + 선택된 강의/세션 (URL 쿼리와 동기화)
 
-import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { CommunityScope } from "../api/community.api";
-
-export type CommunityScopeContextValue = {
-  scope: CommunityScope;
-  setScope: (s: CommunityScope) => void;
-  lectureId: number | null;
-  setLectureId: (id: number | null) => void;
-  sessionId: number | null;
-  setSessionId: (id: number | null) => void;
-  /** 현재 scope에 따른 실제 사용할 lectureId (통합이면 null, 강의/세션별이면 선택된 강의) */
-  effectiveLectureId: number | null;
-};
-
-const CommunityScopeContext = createContext<CommunityScopeContextValue | null>(null);
+import { CommunityScopeContext, type CommunityScopeContextValue } from "./communityScopeCore";
 
 export function CommunityScopeProvider({ children }: { children: ReactNode }) {
   const [searchParams] = useSearchParams();
@@ -76,10 +64,4 @@ export function CommunityScopeProvider({ children }: { children: ReactNode }) {
       {children}
     </CommunityScopeContext.Provider>
   );
-}
-
-export function useCommunityScope() {
-  const ctx = useContext(CommunityScopeContext);
-  if (!ctx) throw new Error("useCommunityScope must be used within CommunityScopeProvider");
-  return ctx;
 }

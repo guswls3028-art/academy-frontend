@@ -102,7 +102,7 @@ export default function CounselAdminPage() {
   }, [filtered, selectedId, setSelectedId]);
 
   return (
-    <div className="qna-inbox" style={{ height: "calc(100vh - 180px)" }}>
+    <div className="qna-inbox qna-inbox--viewport">
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">상담 신청</h2>
@@ -306,8 +306,8 @@ function CounselThreadView({
       <header className="qna-inbox__thread-header">
         <div className="qna-inbox__thread-title-row">
           <div className="qna-inbox__thread-title-group">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <h1 className="qna-inbox__thread-title" style={{ margin: 0 }}>{post.title}</h1>
+            <div className="qna-inbox__thread-heading-row">
+              <h1 className="qna-inbox__thread-title qna-inbox__thread-title--inline">{post.title}</h1>
               <span className="counsel-type-badge">상담</span>
             </div>
             <div className="qna-inbox__thread-meta">
@@ -375,10 +375,10 @@ function CounselThreadView({
           <div className="qna-inbox__student-name">
             {studentName}
             {post.author_role === "parent" && (
-              <span style={{ fontWeight: 600, fontSize: 11, marginLeft: 6, padding: "2px 6px", borderRadius: 999, background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>학부모 작성</span>
+              <span className="counsel-author-badge">학부모 작성</span>
             )}
             {studentDetail?.school && (
-              <span style={{ fontWeight: 400, fontSize: 12, color: "var(--color-text-muted)", marginLeft: 6 }}>
+              <span className="counsel-student-school">
                 {studentDetail.school}{studentDetail.grade ? ` ${studentDetail.grade}학년` : ""}
               </span>
             )}
@@ -388,38 +388,31 @@ function CounselThreadView({
             {post.category_label && ` · ${post.category_label}`}
           </div>
           {studentDetail && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
+            <div className="counsel-student-contacts">
               {studentDetail.studentPhone && (
-                <a href={`tel:${studentDetail.studentPhone}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}>
-                  📱 학생 {formatPhone(studentDetail.studentPhone)}
+                <a href={`tel:${studentDetail.studentPhone}`} className="counsel-student-contact-link">
+                  학생 {formatPhone(studentDetail.studentPhone)}
                 </a>
               )}
               {studentDetail.parentPhone && (
-                <a href={`tel:${studentDetail.parentPhone}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}>
-                  👨‍👩‍👧 학부모 {formatPhone(studentDetail.parentPhone)}
+                <a href={`tel:${studentDetail.parentPhone}`} className="counsel-student-contact-link">
+                  학부모 {formatPhone(studentDetail.parentPhone)}
                 </a>
               )}
             </div>
           )}
           {studentDetail && studentDetail.enrollments.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+            <div className="counsel-enrollment-chips">
               {studentDetail.enrollments.slice(0, 6).map((en) => (
                 <span
                   key={en.id}
-                  style={{
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    background: en.lectureColor ? `${en.lectureColor}1a` : "var(--color-bg-surface-soft)",
-                    color: en.lectureColor || "var(--color-text-secondary)",
-                    border: `1px solid ${en.lectureColor ? `${en.lectureColor}55` : "var(--color-border-divider)"}`,
-                  }}
+                  className="counsel-enrollment-chip"
                 >
                   {en.lectureChipLabel || en.lectureName || "강의"}
                 </span>
               ))}
               {studentDetail.enrollments.length > 6 && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>+{studentDetail.enrollments.length - 6}</span>
+                <span className="counsel-enrollment-more">+{studentDetail.enrollments.length - 6}</span>
               )}
             </div>
           )}
@@ -476,4 +469,3 @@ function CounselThreadView({
     </>
   );
 }
-

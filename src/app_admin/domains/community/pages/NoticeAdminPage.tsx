@@ -4,7 +4,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCommunityScope } from "../context/CommunityScopeContext";
+import { useCommunityScope } from "../context/useCommunityScope";
 import {
   fetchScopeNodes,
   fetchAdminPosts,
@@ -28,7 +28,8 @@ import { Button, Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
-import ScopeBadge, { resolveScopeType } from "../components/ScopeBadge";
+import ScopeBadge from "../components/ScopeBadge";
+import { resolveScopeType } from "../utils/scopeBadge";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";

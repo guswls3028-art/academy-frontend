@@ -127,6 +127,29 @@
   margin-top: var(--space-1);
 }
 
+.community-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.community-settings-btn:hover,
+.community-settings-btn--active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
 /* ---- Section Panel (SSOT) ---- */
 .community-section {
   border-radius: var(--radius-xl);
