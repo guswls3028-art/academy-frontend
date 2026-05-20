@@ -74,13 +74,23 @@ export async function createClinicParticipant(payload: {
 }
 
 /* ─── Settings ─── */
-export async function fetchClinicSettings() {
-  const res = await api.get("/clinic/settings/");
+export type ClinicColorTuple = [string, string, string];
+
+export type ClinicSettingsPayload = {
+  auto_approve_booking?: boolean;
+  use_daily_random?: boolean;
+  colors?: ClinicColorTuple;
+};
+
+export type ClinicSettings = ClinicSettingsPayload & Record<string, unknown>;
+
+export async function fetchClinicSettings(): Promise<ClinicSettings> {
+  const res = await api.get<ClinicSettings>("/clinic/settings/");
   return res.data;
 }
 
-export async function updateClinicSettings(payload: { auto_approve_booking?: boolean; use_daily_random?: boolean }) {
-  const res = await api.patch("/clinic/settings/", payload);
+export async function updateClinicSettings(payload: ClinicSettingsPayload): Promise<ClinicSettings> {
+  const res = await api.patch<ClinicSettings>("/clinic/settings/", payload);
   return res.data;
 }
 

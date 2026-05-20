@@ -1,24 +1,60 @@
 // PATH: src/app_teacher/domains/clinic/pages/ClinicRemoteControlPage.tsx
 // 클리닉 리모컨 — 학생 패스카드 배경 3색 실시간 변경 (2초 폴링)
-import { useState, useRef } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, RefreshCw } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import type { ClinicColorTuple } from "../api";
 import { fetchClinicSettings, updateClinicSettings } from "../api";
+import styles from "./ClinicRemoteControlPage.module.css";
 
-const COLOR_PALETTE = [
-  "#ef4444", "#dc2626", "#b91c1c", "#991b1b",
-  "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af",
-  "#22c55e", "#16a34a", "#15803d", "#166534",
-  "#eab308", "#ca8a04", "#a16207", "#854d0e",
-  "#a855f7", "#9333ea", "#7e22ce", "#6b21a8",
-  "#ec4899", "#db2777", "#be185d", "#9f1239",
-  "#f97316", "#ea580c", "#c2410c", "#9a3412",
-  "#14b8a6", "#0d9488", "#0f766e", "#115e59",
+type CssVariableStyle<TName extends string> = CSSProperties & Record<TName, string>;
+
+type PaletteColor = {
+  value: string;
+  className: string;
+};
+
+const DEFAULT_COLORS: ClinicColorTuple = ["#ef4444", "#3b82f6", "#22c55e"];
+
+const COLOR_PALETTE: PaletteColor[] = [
+  { value: "#ef4444", className: styles.paletteRed1 },
+  { value: "#dc2626", className: styles.paletteRed2 },
+  { value: "#b91c1c", className: styles.paletteRed3 },
+  { value: "#991b1b", className: styles.paletteRed4 },
+  { value: "#3b82f6", className: styles.paletteBlue1 },
+  { value: "#2563eb", className: styles.paletteBlue2 },
+  { value: "#1d4ed8", className: styles.paletteBlue3 },
+  { value: "#1e40af", className: styles.paletteBlue4 },
+  { value: "#22c55e", className: styles.paletteGreen1 },
+  { value: "#16a34a", className: styles.paletteGreen2 },
+  { value: "#15803d", className: styles.paletteGreen3 },
+  { value: "#166534", className: styles.paletteGreen4 },
+  { value: "#eab308", className: styles.paletteYellow1 },
+  { value: "#ca8a04", className: styles.paletteYellow2 },
+  { value: "#a16207", className: styles.paletteYellow3 },
+  { value: "#854d0e", className: styles.paletteYellow4 },
+  { value: "#a855f7", className: styles.palettePurple1 },
+  { value: "#9333ea", className: styles.palettePurple2 },
+  { value: "#7e22ce", className: styles.palettePurple3 },
+  { value: "#6b21a8", className: styles.palettePurple4 },
+  { value: "#ec4899", className: styles.palettePink1 },
+  { value: "#db2777", className: styles.palettePink2 },
+  { value: "#be185d", className: styles.palettePink3 },
+  { value: "#9f1239", className: styles.palettePink4 },
+  { value: "#f97316", className: styles.paletteOrange1 },
+  { value: "#ea580c", className: styles.paletteOrange2 },
+  { value: "#c2410c", className: styles.paletteOrange3 },
+  { value: "#9a3412", className: styles.paletteOrange4 },
+  { value: "#14b8a6", className: styles.paletteTeal1 },
+  { value: "#0d9488", className: styles.paletteTeal2 },
+  { value: "#0f766e", className: styles.paletteTeal3 },
+  { value: "#115e59", className: styles.paletteTeal4 },
 ];
 
 export default function ClinicRemoteControlPage() {
@@ -36,10 +72,18 @@ export default function ClinicRemoteControlPage() {
     refetchIntervalInBackground: false,
   });
 
-  const colors: [string, string, string] = settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"];
+  const colors = settings?.colors ?? DEFAULT_COLORS;
+
+  useEffect(() => {
+    return () => {
+      if (colorDebounceRef.current) {
+        window.clearTimeout(colorDebounceRef.current);
+      }
+    };
+  }, []);
 
   const updateMut = useMutation({
-    mutationFn: (newColors: [string, string, string]) => updateClinicSettings({ colors: newColors } as any),
+    mutationFn: (newColors: ClinicColorTuple) => updateClinicSettings({ colors: newColors }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-clinic-settings"] });
       teacherToast.success("배경색이 반영되었습니다.");
@@ -49,7 +93,11 @@ export default function ClinicRemoteControlPage() {
 
   const handlePick = (color: string) => {
     if (pickerIndex === null) return;
-    const next: [string, string, string] = [...colors];
+    if (colorDebounceRef.current) {
+      window.clearTimeout(colorDebounceRef.current);
+      colorDebounceRef.current = null;
+    }
+    const next: ClinicColorTuple = [...colors];
     next[pickerIndex] = color;
     updateMut.mutate(next);
     setPickerIndex(null);
@@ -61,99 +109,96 @@ export default function ClinicRemoteControlPage() {
       const i = Math.floor(Math.random() * COLOR_PALETTE.length);
       if (!used.includes(i)) used.push(i);
     }
-    updateMut.mutate([COLOR_PALETTE[used[0]], COLOR_PALETTE[used[1]], COLOR_PALETTE[used[2]]]);
+    updateMut.mutate([
+      COLOR_PALETTE[used[0]].value,
+      COLOR_PALETTE[used[1]].value,
+      COLOR_PALETTE[used[2]].value,
+    ]);
+  };
+
+  const handleClosePicker = () => {
+    if (colorDebounceRef.current) {
+      window.clearTimeout(colorDebounceRef.current);
+      colorDebounceRef.current = null;
+    }
+    setPickerIndex(null);
   };
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
 
+  const previewStyle: CssVariableStyle<"--clinic-pass-gradient"> = {
+    "--clinic-pass-gradient": `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+  };
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <button onClick={() => navigate(-1)} className={styles.backButton} type="button">
           <ChevronLeft size={ICON.lg} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>클리닉 리모컨</h1>
+        <h1 className={styles.title}>클리닉 리모컨</h1>
       </div>
 
-      <div className="text-[12px] px-1" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
+      <div className={styles.description}>
         학생 클리닉 패스카드에 표시되는 3색 배경을 실시간으로 변경합니다. 2초마다 자동 갱신됩니다.
       </div>
 
       {/* Live preview */}
-      <div className="rounded-2xl"
-        style={{
-          height: 180,
-          background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
-          border: "1px solid var(--tc-border)",
-        }}>
-        <div className="h-full flex items-center justify-center">
-          <span className="text-white font-bold text-lg"
-            style={{ textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
-            PASS
-          </span>
+      <div
+        className={styles.preview}
+        style={previewStyle}
+      >
+        <div className={styles.previewInner}>
+          <span className={styles.previewText}>PASS</span>
         </div>
       </div>
 
       {/* Random button */}
       <button onClick={handleRandom} disabled={updateMut.isPending}
-        className="flex items-center justify-center gap-2 text-sm font-bold cursor-pointer"
-        style={{
-          padding: "14px",
-          borderRadius: "var(--tc-radius)",
-          border: "none",
-          background: "var(--tc-primary)",
-          color: "#fff",
-          opacity: updateMut.isPending ? 0.6 : 1,
-        }}>
+        className={styles.randomButton}
+        type="button">
         <RefreshCw size={ICON.xs} /> 랜덤 3색 배치
       </button>
 
       {/* Individual slots */}
       <Card>
-        <div className="text-sm font-bold mb-2" style={{ color: "var(--tc-text)" }}>개별 색상 변경</div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className={styles.sectionTitle}>개별 색상 변경</div>
+        <div className={styles.slotGrid}>
           {colors.map((c, i) => (
-            <button key={i} onClick={() => setPickerIndex(i)} type="button"
-              className="rounded-lg cursor-pointer"
-              style={{
-                aspectRatio: "1 / 1",
-                background: c,
-                border: "1px solid var(--tc-border)",
-                color: "#fff",
-                textShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                fontWeight: 700,
-                fontSize: 12,
-              }}>
+            <button
+              key={i}
+              onClick={() => setPickerIndex(i)}
+              type="button"
+              className={styles.slotButton}
+              style={{ "--clinic-slot-color": c } as CssVariableStyle<"--clinic-slot-color">}
+            >
               {i + 1}
-              <div className="text-[10px] mt-1 opacity-80">{c}</div>
+              <div className={styles.slotHex}>{c}</div>
             </button>
           ))}
         </div>
       </Card>
 
       {/* Color picker sheet */}
-      <BottomSheet open={pickerIndex !== null} onClose={() => setPickerIndex(null)} title={`색상 ${(pickerIndex ?? 0) + 1} 선택`}>
-        <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
+      <BottomSheet open={pickerIndex !== null} onClose={handleClosePicker} title={`색상 ${(pickerIndex ?? 0) + 1} 선택`}>
+        <div className={styles.sheetBody}>
           <div>
-            <div className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--tc-text-muted)" }}>추천 색상</div>
-            <div className="grid grid-cols-8 gap-1.5">
-              {COLOR_PALETTE.map((c) => (
-                <button key={c} onClick={() => handlePick(c)} type="button"
-                  style={{
-                    aspectRatio: "1 / 1",
-                    borderRadius: "var(--tc-radius-sm)",
-                    background: c,
-                    border: "1.5px solid var(--tc-border)",
-                    cursor: "pointer",
-                  }}
-                  title={c} />
+            <div className={styles.pickerLabel}>추천 색상</div>
+            <div className={styles.paletteGrid}>
+              {COLOR_PALETTE.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => handlePick(color.value)}
+                  type="button"
+                  className={`${styles.paletteButton} ${color.className}`}
+                  title={color.value}
+                />
               ))}
             </div>
           </div>
           <div>
-            <div className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--tc-text-muted)" }}>커스텀 색상</div>
-            <div className="flex items-center gap-2">
+            <div className={styles.pickerLabel}>커스텀 색상</div>
+            <div className={styles.customColorRow}>
               <input type="color" defaultValue={colors[pickerIndex ?? 0]}
                 onChange={(e) => {
                   // Debounce: 드래그 중 mutation 연타 방지 — 선택 완료 후 300ms 지연 발화
@@ -161,8 +206,8 @@ export default function ClinicRemoteControlPage() {
                   if (colorDebounceRef.current) window.clearTimeout(colorDebounceRef.current);
                   colorDebounceRef.current = window.setTimeout(() => handlePick(val), 300);
                 }}
-                style={{ width: 48, height: 40, borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", cursor: "pointer" }} />
-              <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>색상 팔레트로 원하는 색을 선택하세요</span>
+                className={styles.customColorInput} />
+              <span className={styles.customColorHint}>색상 팔레트로 원하는 색을 선택하세요</span>
             </div>
           </div>
         </div>

@@ -1,0 +1,284 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding: 2px 0;
+}
+
+.backButton {
+  display: flex;
+  padding: var(--tc-space-1);
+  color: var(--tc-text-secondary);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  color: var(--tc-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.description {
+  padding: 0 var(--tc-space-1);
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preview {
+  height: 180px;
+  overflow: hidden;
+  background: var(--clinic-pass-gradient);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-xl);
+}
+
+.previewInner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.previewText {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.randomButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tc-space-2);
+  padding: 14px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--tc-primary);
+  border: 0;
+  border-radius: var(--tc-radius);
+  cursor: pointer;
+}
+
+.randomButton:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.sectionTitle {
+  margin-bottom: var(--tc-space-2);
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tc-space-2);
+}
+
+.slotButton {
+  aspect-ratio: 1 / 1;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--clinic-slot-color);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-sm);
+  cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slotHex {
+  margin-top: var(--tc-space-1);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+  padding: var(--tc-space-3) 0;
+}
+
+.pickerLabel {
+  margin-bottom: 6px;
+  color: var(--tc-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.paletteGrid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.paletteButton {
+  aspect-ratio: 1 / 1;
+  background: var(--clinic-palette-color);
+  border: 1.5px solid var(--tc-border);
+  border-radius: var(--tc-radius-sm);
+  cursor: pointer;
+}
+
+.customColorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+}
+
+.customColorInput {
+  width: 48px;
+  height: 40px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  cursor: pointer;
+}
+
+.customColorHint {
+  color: var(--tc-text-muted);
+  font-size: 12px;
+}
+
+.paletteRed1 {
+  --clinic-palette-color: #ef4444;
+}
+
+.paletteRed2 {
+  --clinic-palette-color: #dc2626;
+}
+
+.paletteRed3 {
+  --clinic-palette-color: #b91c1c;
+}
+
+.paletteRed4 {
+  --clinic-palette-color: #991b1b;
+}
+
+.paletteBlue1 {
+  --clinic-palette-color: #3b82f6;
+}
+
+.paletteBlue2 {
+  --clinic-palette-color: #2563eb;
+}
+
+.paletteBlue3 {
+  --clinic-palette-color: #1d4ed8;
+}
+
+.paletteBlue4 {
+  --clinic-palette-color: #1e40af;
+}
+
+.paletteGreen1 {
+  --clinic-palette-color: #22c55e;
+}
+
+.paletteGreen2 {
+  --clinic-palette-color: #16a34a;
+}
+
+.paletteGreen3 {
+  --clinic-palette-color: #15803d;
+}
+
+.paletteGreen4 {
+  --clinic-palette-color: #166534;
+}
+
+.paletteYellow1 {
+  --clinic-palette-color: #eab308;
+}
+
+.paletteYellow2 {
+  --clinic-palette-color: #ca8a04;
+}
+
+.paletteYellow3 {
+  --clinic-palette-color: #a16207;
+}
+
+.paletteYellow4 {
+  --clinic-palette-color: #854d0e;
+}
+
+.palettePurple1 {
+  --clinic-palette-color: #a855f7;
+}
+
+.palettePurple2 {
+  --clinic-palette-color: #9333ea;
+}
+
+.palettePurple3 {
+  --clinic-palette-color: #7e22ce;
+}
+
+.palettePurple4 {
+  --clinic-palette-color: #6b21a8;
+}
+
+.palettePink1 {
+  --clinic-palette-color: #ec4899;
+}
+
+.palettePink2 {
+  --clinic-palette-color: #db2777;
+}
+
+.palettePink3 {
+  --clinic-palette-color: #be185d;
+}
+
+.palettePink4 {
+  --clinic-palette-color: #9f1239;
+}
+
+.paletteOrange1 {
+  --clinic-palette-color: #f97316;
+}
+
+.paletteOrange2 {
+  --clinic-palette-color: #ea580c;
+}
+
+.paletteOrange3 {
+  --clinic-palette-color: #c2410c;
+}
+
+.paletteOrange4 {
+  --clinic-palette-color: #9a3412;
+}
+
+.paletteTeal1 {
+  --clinic-palette-color: #14b8a6;
+}
+
+.paletteTeal2 {
+  --clinic-palette-color: #0d9488;
+}
+
+.paletteTeal3 {
+  --clinic-palette-color: #0f766e;
+}
+
+.paletteTeal4 {
+  --clinic-palette-color: #115e59;
+}
