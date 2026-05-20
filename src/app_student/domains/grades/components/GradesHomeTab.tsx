@@ -7,6 +7,7 @@ import EmptyState from "@student/layout/EmptyState";
 import LectureExamGroup, { type ExamGroup } from "./LectureExamGroup";
 import LectureHwGroup, { type HwGroup } from "./LectureHwGroup";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
+import styles from "./GradesHomeTab.module.css";
 
 type SubTab = "exams" | "homework";
 type SortMode = "lecture" | "recent";
@@ -92,9 +93,9 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const hwGroups = useMemo(() => groupHomeworks(homeworks), [homeworks]);
 
   return (
-    <div style={stack}>
+    <div className={styles.stack}>
       {/* 내부 토글: 시험 성적 / 과제 현황 */}
-      <div style={toggleBar}>
+      <div className={styles.toggleBar}>
         <ToggleBtn active={subTab === "exams"} onClick={() => setSubTab("exams")}
           label={`시험 성적${exams.length > 0 ? ` ${exams.length}` : ""}`} />
         <ToggleBtn active={subTab === "homework"} onClick={() => setSubTab("homework")}
@@ -108,18 +109,18 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
           ) : (
             <>
               {/* 정렬 옵션 — 강좌별(기본) / 최근순 */}
-              <div style={sortBar}>
+              <div className={styles.sortBar}>
                 <SortChip active={examSort === "lecture"} onClick={() => setExamSort("lecture")} label="강좌별" />
                 <SortChip active={examSort === "recent"} onClick={() => setExamSort("recent")} label="최근순" />
               </div>
               {examSort === "lecture" ? (
-                <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+                <div data-guide="grades-list" className={styles.gradeList}>
                   {examGroups.map((group) => (
                     <LectureExamGroup key={group.key} group={group} labels={labels} />
                   ))}
                 </div>
               ) : (
-                <div data-guide="grades-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+                <div data-guide="grades-list" className={styles.gradeList}>
                   <LectureExamGroup
                     key="__recent__"
                     group={{ key: "__recent__", label: "최근 응시 순", exams: sortedExams, avgPct: null }}
@@ -137,7 +138,7 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
           {homeworks.length === 0 ? (
             <EmptyState title="과제 성적이 아직 없습니다." description="과제 점수가 입력되면 여기에 표시됩니다." />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+            <div className={styles.gradeList}>
               {hwGroups.map((group) => (
                 <LectureHwGroup key={group.key} group={group} labels={labels} />
               ))}
@@ -154,17 +155,9 @@ function SortChip({ active, onClick, label }: { active: boolean; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      style={{
-        padding: "5px 12px",
-        background: active ? "var(--stu-primary-bg)" : "transparent",
-        border: `1px solid ${active ? "var(--stu-primary)" : "var(--stu-border)"}`,
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: active ? 700 : 500,
-        color: active ? "var(--stu-primary)" : "var(--stu-text-muted)",
-        cursor: "pointer",
-        transition: "all var(--stu-motion-base)",
-      }}
+      className={styles.sortChip}
+      data-active={active}
+      aria-pressed={active}
     >
       {label}
     </button>
@@ -176,37 +169,11 @@ function ToggleBtn({ active, onClick, label }: { active: boolean; onClick: () =>
     <button
       type="button"
       onClick={onClick}
-      style={{
-        flex: 1,
-        padding: "var(--stu-space-3) var(--stu-space-3)",
-        background: active ? "var(--stu-primary)" : "var(--stu-surface-soft)",
-        border: active ? "1px solid var(--stu-primary)" : "1px solid var(--stu-border)",
-        borderRadius: "var(--stu-radius)",
-        fontWeight: active ? 700 : 500,
-        fontSize: 13,
-        color: active ? "var(--stu-primary-contrast, #fff)" : "var(--stu-text-muted)",
-        cursor: "pointer",
-        transition: "all var(--stu-motion-base)",
-      }}
+      className={styles.toggleButton}
+      data-active={active}
+      aria-pressed={active}
     >
       {label}
     </button>
   );
 }
-
-const stack: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--stu-space-6)",
-};
-
-const toggleBar: React.CSSProperties = {
-  display: "flex",
-  gap: "var(--stu-space-2)",
-};
-
-const sortBar: React.CSSProperties = {
-  display: "flex",
-  gap: "var(--stu-space-2)",
-  marginBottom: "var(--stu-space-4)",
-};

@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/grades/components/GradeBadge.tsx
 
 import type { Achievement } from "../api/grades.api";
+import styles from "./GradeBadge.module.css";
 
 type GradeBadgeProps = {
   passed: boolean | null;
@@ -31,7 +32,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
   // 보강 합격 — 최고 우선순위
   if (achievement === "REMEDIATED") {
     return (
-      <span className={`stu-badge stu-badge--success${sizeClass}`} style={{ gap: 3 }}>
+      <span className={`stu-badge stu-badge--success${sizeClass} ${styles.withIcon}`}>
         {CHECK_SVG}
         보강 합격
       </span>
@@ -41,7 +42,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
   // 미응시 (NOT_SUBMITTED)
   if (achievement === "NOT_SUBMITTED") {
     return (
-      <span className={`stu-badge stu-badge--warn${sizeClass}`} style={{ gap: 3 }}>
+      <span className={`stu-badge stu-badge--warn${sizeClass} ${styles.withIcon}`}>
         {DASH_SVG}
         미응시
       </span>
@@ -52,7 +53,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
   if (passed === null || passed === undefined) {
     if (showNotSubmitted) {
       return (
-        <span className={`stu-badge stu-badge--neutral${sizeClass}`} style={{ gap: 3 }}>
+        <span className={`stu-badge stu-badge--neutral${sizeClass} ${styles.withIcon}`}>
           {DASH_SVG}
           미입력
         </span>

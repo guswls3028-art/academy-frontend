@@ -1,0 +1,55 @@
+.stack,
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-6);
+}
+
+.toggleBar,
+.sortBar {
+  display: flex;
+  gap: var(--stu-space-2);
+}
+
+.sortBar {
+  margin-bottom: var(--stu-space-4);
+}
+
+.sortChip {
+  padding: 5px 12px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--stu-border);
+  border-radius: 999px;
+  transition: all var(--stu-motion-base);
+}
+
+.sortChip[data-active="true"] {
+  color: var(--stu-primary);
+  font-weight: 700;
+  background: var(--stu-primary-bg);
+  border-color: var(--stu-primary);
+}
+
+.toggleButton {
+  flex: 1;
+  padding: var(--stu-space-3) var(--stu-space-3);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+  transition: all var(--stu-motion-base);
+}
+
+.toggleButton[data-active="true"] {
+  color: var(--stu-primary-contrast, #fff);
+  font-weight: 700;
+  background: var(--stu-primary);
+  border-color: var(--stu-primary);
+}
