@@ -3,12 +3,12 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ADMIN_NAV_BASE,
   ADMIN_NAV_GROUPS,
   NavIcon,
 } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
 import { useProgram } from "@/shared/program";
+import styles from "./Sidebar.module.css";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
 
@@ -73,27 +73,10 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="sidebar sidebar-shell"
-      style={{
-        height: "100%",
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        background:
-          "linear-gradient(180deg, var(--sidebar-bg), color-mix(in srgb, var(--sidebar-bg) 78%, var(--layout-canvas-bg)))",
-      }}
+      className={`sidebar sidebar-shell ${styles.shell}`}
     >
       <div
-        className="sidebar-scroll"
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          overscrollBehavior: "contain",
-          padding: "12px",
-        }}
+        className={`sidebar-scroll ${styles.scroll}`}
       >
         <div className="nav">
           {groups.map((g, gi) => (
@@ -112,19 +95,12 @@ export default function Sidebar() {
                     className={`nav-item ${active ? "active" : ""}`}
                     title={it.label}
                   >
-                    <span
-                      style={{
-                        display: "grid",
-                        placeItems: "center",
-                        width: 22,
-                        flex: "0 0 auto",
-                      }}
-                    >
+                    <span className={styles.iconSlot}>
                       <NavIcon d={it.iconPath} />
                     </span>
 
                     {!collapsed && (
-                      <span className="label" style={{ minWidth: 0, flex: 1 }}>
+                      <span className={`label ${styles.label}`}>
                         {it.label}
                       </span>
                     )}

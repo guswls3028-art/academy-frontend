@@ -39,7 +39,9 @@ function installChunkReloadHandler() {
       if (sessionStorage.getItem(KEY)) return;
       sessionStorage.setItem(KEY, "1");
       setTimeout(() => sessionStorage.removeItem(KEY), 10_000);
-    } catch {}
+    } catch {
+      // sessionStorage 접근이 막힌 환경에서도 새 번들 복구 reload는 진행한다.
+    }
     window.location.reload();
   };
   window.addEventListener("vite:preloadError", (e) => {
@@ -110,7 +112,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
 }
 
 /** BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이 */
-function AppInner() {
+export function AppInner() {
   useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
 
   // Sentry breadcrumb: 라우트 변경 추적

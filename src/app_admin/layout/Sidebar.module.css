@@ -1,0 +1,31 @@
+.shell {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    var(--sidebar-bg),
+    color-mix(in srgb, var(--sidebar-bg) 78%, var(--layout-canvas-bg))
+  );
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.iconSlot {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  place-items: center;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+}
