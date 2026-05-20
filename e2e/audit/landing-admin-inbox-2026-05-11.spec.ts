@@ -1,6 +1,7 @@
 // 어드민 상담 수신함 + honeypot 검증.
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const PROD = "https://tchul.com";
 const OUT = "C:/academy/_artifacts/sessions/tchul-landing-2026-05-11";
@@ -8,8 +9,8 @@ const OUT = "C:/academy/_artifacts/sessions/tchul-landing-2026-05-11";
 test.describe("어드민 상담 수신함 + honeypot", () => {
   test("학원장 진입 — settings 사이드바에 '상담 수신함' + 페이지 캡처", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${PROD}/admin/settings/consult`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/admin/settings/consult`, { timeout: 20_000 });
+    await expect(page.getByText(/^상담 수신함/).first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/v8-admin-inbox.png`, fullPage: true });
 
     const heading = await page.getByText(/^상담 수신함/).count();
@@ -25,14 +26,13 @@ test.describe("어드민 상담 수신함 + honeypot", () => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
     await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
     const honeypot = page.locator('input[name="website"]').first();
-    expect(await honeypot.count()).toBe(1);
+    await expect(honeypot).toBeAttached({ timeout: 10_000 });
     // bounding box 면적 0 (off-screen)
     const box = await honeypot.boundingBox();
     console.log("HONEYPOT_BOX:", JSON.stringify(box));
     expect(box).not.toBeNull();
-    expect(Math.abs(box!.x + box!.width)).toBeLessThan(0); // x is way off-screen (-9999 + 1)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(0); // x is off-screen to the left.
     await ctx.close();
   });
 
