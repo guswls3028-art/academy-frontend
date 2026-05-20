@@ -17,6 +17,7 @@ import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api"
 import type { DocProgressMap } from "../../hooks/useMatchupPolling";
 import { getDocumentIntent } from "./documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import styles from "./DocumentList.module.css";
 
 type Props = {
   documents: MatchupDocument[];
@@ -42,10 +43,10 @@ const UNCATEGORIZED_KEY = "__uncategorized__";
 const UNCATEGORIZED_LABEL = "미분류";
 
 const STATUS_ICON = {
-  pending: <Loader2 size={ICON.sm} style={{ color: "var(--color-text-muted)" }} />,
-  processing: <Loader2 size={ICON.sm} className="animate-spin" style={{ color: "var(--color-brand-primary)" }} />,
-  done: <CheckCircle2 size={ICON.sm} style={{ color: "var(--color-success)" }} />,
-  failed: <AlertCircle size={ICON.sm} style={{ color: "var(--color-danger)" }} />,
+  pending: <Loader2 size={ICON.sm} className={`${styles.statusIcon} ${styles.statusIconMuted}`} />,
+  processing: <Loader2 size={ICON.sm} className={`${styles.statusIcon} ${styles.statusIconBrand} animate-spin`} />,
+  done: <CheckCircle2 size={ICON.sm} className={`${styles.statusIcon} ${styles.statusIconSuccess}`} />,
+  failed: <AlertCircle size={ICON.sm} className={`${styles.statusIcon} ${styles.statusIconDanger}`} />,
 } as const;
 
 const STATUS_LABEL = {
@@ -55,12 +56,12 @@ const STATUS_LABEL = {
   failed: "실패",
 } as const;
 
-const SEG_META: Record<SegmentationMethod, { label: string; color: string; tip: string }> = {
-  text: { label: "텍스트", color: "var(--color-success)", tip: "PDF 텍스트 직접 추출" },
-  ocr: { label: "OCR", color: "var(--color-brand-primary)", tip: "스캔본 OCR로 텍스트 추출" },
-  mixed: { label: "혼합", color: "var(--color-brand-primary)", tip: "텍스트 + OCR 혼합 추출" },
-  image: { label: "이미지", color: "var(--color-text-secondary)", tip: "단일 이미지 업로드" },
-  none: { label: "미검출", color: "var(--color-warning)", tip: "문제 영역을 못 찾음 — 페이지 단위로 처리됨" },
+const SEG_META: Record<SegmentationMethod, { label: string; tone: "success" | "brand" | "secondary" | "warning"; tip: string }> = {
+  text: { label: "텍스트", tone: "success", tip: "PDF 텍스트 직접 추출" },
+  ocr: { label: "OCR", tone: "brand", tip: "스캔본 OCR로 텍스트 추출" },
+  mixed: { label: "혼합", tone: "brand", tip: "텍스트 + OCR 혼합 추출" },
+  image: { label: "이미지", tone: "secondary", tip: "단일 이미지 업로드" },
+  none: { label: "미검출", tone: "warning", tip: "문제 영역을 못 찾음 — 페이지 단위로 처리됨" },
 };
 
 function categoryKeyOf(doc: MatchupDocument): string {
@@ -85,32 +86,10 @@ function CategoryMenuItem({
       role="menuitem"
       onClick={onClick}
       data-testid="matchup-category-menu-item"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        width: "100%",
-        padding: "6px 10px",
-        background: "transparent",
-        border: "none",
-        borderRadius: "var(--radius-sm)",
-        textAlign: "left",
-        fontSize: 12,
-        fontWeight: 500,
-        color: danger ? "var(--color-danger)" : "var(--color-text-primary)",
-        cursor: "pointer",
-        fontFamily: "inherit",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = danger
-          ? "color-mix(in srgb, var(--color-danger) 10%, transparent)"
-          : "var(--color-bg-surface-soft)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
+      className={styles.categoryMenuItem}
+      data-danger={danger}
     >
-      <span style={{ flexShrink: 0, color: danger ? "var(--color-danger)" : "var(--color-text-secondary)", display: "flex" }}>
+      <span className={styles.categoryMenuIcon}>
         {icon}
       </span>
       <span>{label}</span>
@@ -281,19 +260,6 @@ export default function DocumentList({
     onRetry(id);
   };
 
-  const filterBtnStyle = (active: boolean, dimmed = false): React.CSSProperties => ({
-    background: active ? "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)" : "transparent",
-    border: "1px solid",
-    borderColor: active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
-    color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
-    fontSize: 11,
-    fontWeight: 600,
-    padding: "3px 8px",
-    borderRadius: 4,
-    cursor: "pointer",
-    opacity: dimmed ? 0.45 : 1,
-  });
-
   const renderDocRow = (doc: MatchupDocument) => {
     const segMethod = doc.meta?.segmentation_method;
     const segInfo = segMethod ? SEG_META[segMethod] : null;
@@ -314,10 +280,12 @@ export default function DocumentList({
     return (
       <div
         key={doc.id}
+        className={styles.docRow}
         data-testid="matchup-doc-row"
         data-doc-id={doc.id}
         data-doc-status={doc.status}
         data-doc-intent={intent}
+        data-selected={isSelected}
         onClick={() => { if (!isRenamingThis) onSelect(doc.id); }}
         onContextMenu={(e) => {
           // 일반 PC 사용자가 우클릭 시도 시 빈 OS 메뉴 대신 커스텀 메뉴 표시.
@@ -333,33 +301,9 @@ export default function DocumentList({
           onSelect(doc.id);
           openRowMenuAt(e.clientX, e.clientY);
         }}
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "var(--space-2)",
-          padding: "var(--space-2) var(--space-3)",
-          cursor: "pointer",
-          borderRadius: "var(--radius-md)",
-          margin: "0 var(--space-2) 2px var(--space-3)",
-          background: isSelected
-            ? "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))"
-            : doc.status === "failed"
-              ? "color-mix(in srgb, var(--color-danger) 4%, transparent)"
-              : intent === "test"
-                ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
-                : undefined,
-          borderLeft: isSelected
-            ? "3px solid var(--color-brand-primary)"
-            : doc.status === "failed"
-              ? "3px solid color-mix(in srgb, var(--color-danger) 40%, transparent)"
-              : intent === "test"
-                ? "3px solid color-mix(in srgb, var(--color-warning) 35%, transparent)"
-                : "3px solid transparent",
-          transition: "background 0.15s, border-color 0.15s",
-        }}
       >
-        <FileText size={ICON.sm} style={{ color: "var(--color-text-muted)", marginTop: 2, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <FileText size={ICON.sm} className={styles.docFileIcon} />
+        <div className={styles.docBody}>
           {isRenamingThis ? (
             <input
               autoFocus
@@ -381,52 +325,23 @@ export default function DocumentList({
                 }
               }}
               onBlur={() => setRenamingDocId(null)}
-              style={{
-                width: "100%",
-                fontSize: 12.5, fontWeight: 600,
-                padding: "2px 6px",
-                border: "1px solid var(--color-brand-primary)",
-                borderRadius: 4,
-                background: "var(--color-bg-surface)",
-                color: "var(--color-text-primary)",
-                outline: "none",
-              }}
+              className={styles.docRenameInput}
             />
           ) : (
             <div
+              className={styles.docTitle}
+              data-selected={isSelected}
               title={doc.title}
-              style={isSelected ? {
-                // 선택된 행은 작업 중인 문서이므로 전문 노출.
-                // wordBreak: break-all은 한글에서 단어 중간을 끊는다 (예: "1학기"→"1"+"학기").
-                // keep-all + overflowWrap으로 자연스러운 한글 줄바꿈 + 긴 영문 파일명 fallback.
-                fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
-                wordBreak: "keep-all",
-                overflowWrap: "break-word",
-                lineHeight: 1.35,
-              } : {
-                // 3줄 → 5줄 (자료명 잘림 결함 fix, 학원장 manual 작업 시 자료 식별 어려움)
-                fontSize: 12.5, fontWeight: 600, color: "var(--color-text-primary)",
-                overflow: "hidden", textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 5,
-                WebkitBoxOrient: "vertical",
-                wordBreak: "keep-all",
-                overflowWrap: "break-word",
-                lineHeight: 1.35,
-              }}
             >
               {doc.title}
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginTop: 2, flexWrap: "wrap" }}>
+          <div className={styles.docMetaRow}>
             {STATUS_ICON[doc.status]}
             <span
-              style={{
-                fontSize: 11,
-                color: doc.status === "failed" ? "var(--color-danger)" : "var(--color-text-muted)",
-                fontWeight: doc.status === "failed" ? 600 : 400,
-              }}
+              className={styles.statusText}
+              data-status={doc.status}
               title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
             >
               {doc.status === "done"
@@ -439,14 +354,8 @@ export default function DocumentList({
             {doc.status === "done" && segInfo && (
               <span
                 title={segInfo.tip}
-                style={{
-                  fontSize: 10,
-                  padding: "1px 6px",
-                  borderRadius: 4,
-                  background: `color-mix(in srgb, ${segInfo.color} 12%, transparent)`,
-                  color: segInfo.color,
-                  fontWeight: 600,
-                }}
+                className={styles.segBadge}
+                data-tone={segInfo.tone}
               >
                 {segInfo.label}
               </span>
@@ -455,12 +364,7 @@ export default function DocumentList({
             {doc.subject && (
               <span
                 title="과목"
-                style={{
-                  fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                  background: "var(--color-bg-surface-soft)",
-                  color: "var(--color-text-secondary)",
-                  border: "1px solid var(--color-border-divider)",
-                }}
+                className={styles.subjectBadge}
               >
                 {doc.subject}
               </span>
@@ -468,38 +372,25 @@ export default function DocumentList({
           </div>
 
           {doc.status === "processing" && progress && (
-            <div
-              style={{
-                marginTop: 6,
-                height: 4,
-                borderRadius: 2,
-                background: "var(--color-bg-surface-soft)",
-                overflow: "hidden",
-              }}
+            <progress
+              className={styles.progressBar}
+              data-testid="matchup-progress-bar"
+              max={100}
+              value={Math.min(100, Math.max(0, progress.percent))}
               title={`${progress.stepName} ${Math.round(progress.percent)}% — 자세한 단계는 우측 패널에서 확인할 수 있어요`}
-            >
-              <div
-                data-testid="matchup-progress-bar"
-                style={{
-                  width: `${Math.min(100, Math.max(0, progress.percent))}%`,
-                  height: "100%",
-                  background: "var(--color-brand-primary)",
-                  transition: "width 0.3s",
-                }}
-              />
-            </div>
+            />
           )}
         </div>
 
         <div
-          className="matchup-row-actions"
-          style={{ display: "flex", gap: 2, flexShrink: 0, marginTop: 2 }}
+          className={styles.rowActions}
         >
           {doc.status === "failed" && (
             <button
+              type="button"
+              className={`${styles.rowIconButton} ${styles.retryButton}`}
               onClick={(e) => handleRetry(e, doc.id)}
               title="재시도"
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", padding: 2 }}
             >
               <RefreshCw size={ICON.sm} />
             </button>
@@ -518,22 +409,16 @@ export default function DocumentList({
             }}
             title="더보기"
             data-testid="matchup-doc-row-more"
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--color-text-muted)", padding: 2,
-            }}
+            className={`${styles.rowIconButton} ${styles.rowMore}`}
           >
             <MoreVertical size={ICON.sm} />
           </button>
           {/* 휴지통은 hover로만 노출 — 마우스 이동 중 오클릭 위험 완화. */}
           <button
-            className="matchup-row-trash"
+            type="button"
+            className={`${styles.rowIconButton} ${styles.rowTrash}`}
             onClick={(e) => handleDelete(e, doc.id)}
             title="삭제"
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--color-text-muted)", padding: 2,
-            }}
           >
             <Trash2 size={ICON.sm} />
           </button>
@@ -560,35 +445,9 @@ export default function DocumentList({
 
   return (
     <>
-      {/* 행 hover 시 휴지통/더보기 노출 + 150ms 딜레이로 오클릭 완화.
-          touch 디바이스(@media hover:none)는 hover가 없으므로 항상 노출. */}
-      <style>{`
-        @media (hover: hover) {
-          [data-testid='matchup-doc-row'] .matchup-row-trash,
-          [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.15s ease 0.15s;
-          }
-          [data-testid='matchup-doc-row']:hover .matchup-row-trash,
-          [data-testid='matchup-doc-row']:hover [data-testid='matchup-doc-row-more'],
-          [data-testid='matchup-doc-row']:focus-within .matchup-row-trash,
-          [data-testid='matchup-doc-row']:focus-within [data-testid='matchup-doc-row-more'] {
-            opacity: 1;
-            pointer-events: auto;
-          }
-        }
-        @media (hover: none) {
-          [data-testid='matchup-doc-row'] .matchup-row-trash,
-          [data-testid='matchup-doc-row'] [data-testid='matchup-doc-row-more'] {
-            opacity: 1;
-            pointer-events: auto;
-          }
-        }
-      `}</style>
       <div className={css.treeNavHeader}>
         <span className={css.treeNavTitle}>전체 자료</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div className={styles.headerActions}>
           <Button
             intent="ghost"
             size="sm"
@@ -614,19 +473,11 @@ export default function DocumentList({
 
       {/* 검색 + 필터 */}
       {documents.length > 0 && (
-        <div style={{
-          padding: "var(--space-2) var(--space-3)",
-          borderBottom: "1px solid var(--color-border-divider)",
-          display: "flex", flexDirection: "column", gap: 6,
-        }}>
-          <div style={{ position: "relative" }}>
+        <div className={styles.filterPanel}>
+          <div className={styles.searchBox}>
             <Search
               size={ICON.xs}
-              style={{
-                position: "absolute",
-                left: 8, top: "50%", transform: "translateY(-50%)",
-                color: "var(--color-text-muted)", pointerEvents: "none",
-              }}
+              className={styles.searchIcon}
             />
             <input
               ref={searchInputRef}
@@ -636,53 +487,52 @@ export default function DocumentList({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="제목·카테고리·과목·학년 검색  (⌘K)"
               title="⌘/Ctrl + K 로 빠르게 검색창 포커스"
-              style={{
-                width: "100%",
-                padding: "5px 26px 5px 24px",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 6,
-                fontSize: 12,
-                background: "var(--color-bg-surface)",
-                color: "var(--color-text-primary)",
-                outline: "none",
-              }}
+              className={styles.searchInput}
             />
             {search && (
               <button
+                type="button"
                 onClick={() => setSearch("")}
-                style={{
-                  position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "var(--color-text-muted)", padding: 2, display: "flex",
-                }}
+                className={styles.searchClear}
                 title="지우기"
               >
                 <X size={ICON.xs} />
               </button>
             )}
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            <button style={filterBtnStyle(statusFilter === "all")} onClick={() => setStatusFilter("all")}>
+          <div className={styles.filterRow}>
+            <button
+              type="button"
+              className={styles.filterButton}
+              data-active={statusFilter === "all"}
+              onClick={() => setStatusFilter("all")}
+            >
               전체 {counts.all}
             </button>
             <button
-              style={filterBtnStyle(statusFilter === "processing", counts.processing === 0 && statusFilter !== "processing")}
+              type="button"
+              className={styles.filterButton}
+              data-active={statusFilter === "processing"}
+              data-dimmed={counts.processing === 0 && statusFilter !== "processing"}
               onClick={() => setStatusFilter("processing")}
               title={counts.processing === 0 ? "처리 중인 문서가 없습니다" : undefined}
             >
               처리중 {counts.processing}
             </button>
-            <button style={filterBtnStyle(statusFilter === "done")} onClick={() => setStatusFilter("done")}>
+            <button
+              type="button"
+              className={styles.filterButton}
+              data-active={statusFilter === "done"}
+              onClick={() => setStatusFilter("done")}
+            >
               완료 {counts.done}
             </button>
             <button
-              style={{
-                ...filterBtnStyle(statusFilter === "failed", counts.failed === 0 && statusFilter !== "failed"),
-                ...(counts.failed > 0 && statusFilter !== "failed" ? {
-                  borderColor: "color-mix(in srgb, var(--color-danger) 40%, var(--color-border-divider))",
-                  color: "var(--color-danger)",
-                } : {}),
-              }}
+              type="button"
+              className={styles.filterButton}
+              data-active={statusFilter === "failed"}
+              data-alert={counts.failed > 0 && statusFilter !== "failed"}
+              data-dimmed={counts.failed === 0 && statusFilter !== "failed"}
               onClick={() => setStatusFilter("failed")}
               title={counts.failed === 0 ? "실패한 문서가 없습니다" : undefined}
             >
@@ -690,32 +540,19 @@ export default function DocumentList({
             </button>
             {/* intent 카운트 — 시험지/참고자료 분리 노출. 별도 행 → 같은 행으로 통합해 시각 잡음 감소.
                 톤은 brand/info 계열. warning은 위험 의미라 분류 카운터엔 부적절. */}
-            <span style={{ flex: 1 }} aria-hidden />
-            <span title="등록된 시험지 전체 개수" style={{
-              display: "inline-flex", alignItems: "center", gap: 3,
-              fontSize: 11, fontWeight: 700,
-              color: "var(--color-brand-primary)",
-              padding: "3px 6px",
-            }}>
+            <span className={styles.filterSpacer} aria-hidden />
+            <span className={styles.intentCounter} data-tone="brand" title="등록된 시험지 전체 개수">
               <ClipboardList size={ICON.xs} />
               시험지 {counts.test}
             </span>
-            <span style={{ opacity: 0.4, alignSelf: "center" }}>·</span>
-            <span title="등록된 참고자료 전체 개수" style={{
-              display: "inline-flex", alignItems: "center", gap: 3,
-              fontSize: 11, fontWeight: 700,
-              color: "var(--color-text-secondary)",
-              padding: "3px 6px",
-            }}>
+            <span className={styles.counterDivider}>·</span>
+            <span className={styles.intentCounter} data-tone="secondary" title="등록된 참고자료 전체 개수">
               <BookOpen size={ICON.xs} />
               참고자료 {counts.reference}
             </span>
           </div>
           {(search || statusFilter !== "all") && (
-            <div style={{
-              fontSize: 11, color: "var(--color-text-muted)",
-              paddingTop: 2, textAlign: "right", opacity: 0.7,
-            }}>
+            <div className={styles.filterResult}>
               필터 결과 {filtered.length}건
             </div>
           )}
@@ -724,16 +561,16 @@ export default function DocumentList({
 
       <div className={css.treeScroll}>
         {documents.length === 0 && (
-          <div style={{ padding: "var(--space-6) var(--space-4)", textAlign: "center" }}>
-            <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
+          <div className={styles.emptyState}>
+            <p className={styles.emptyText}>
               업로드된 문서가 없습니다
             </p>
           </div>
         )}
 
         {documents.length > 0 && filtered.length === 0 && (
-          <div style={{ padding: "var(--space-5) var(--space-4)", textAlign: "center" }}>
-            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
+          <div className={styles.filteredEmptyState}>
+            <p className={styles.filteredEmptyText}>
               조건에 맞는 문서가 없습니다
             </p>
           </div>
@@ -801,34 +638,18 @@ export default function DocumentList({
           };
 
           return (
-            <div key={group.key} style={{ marginBottom: "var(--space-2)" }}>
+            <div key={group.key} className={styles.groupBlock}>
               {/* 카테고리(학교) 헤더 */}
               <div
                 data-testid="matchup-category-header"
                 data-category={headerCategory}
-                style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 2,
-                  width: "calc(100% - var(--space-4))",
-                  margin: "0 var(--space-2) var(--space-1)",
-                  padding: "7px 6px 7px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  background: isUncategorized
-                    ? "var(--color-bg-surface-soft)"
-                    : "color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface))",
-                  border: "1px solid",
-                  borderColor: isUncategorized
-                    ? "var(--color-border-divider)"
-                    : "color-mix(in srgb, var(--color-brand-primary) 25%, transparent)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--space-2)",
-                  fontFamily: "inherit",
-                }}
+                className={styles.categoryHeader}
+                data-uncategorized={isUncategorized}
               >
                 {/* 헤더 본문 — 클릭 시 접힘 토글. 인라인 편집/병합 중에는 토글 비활성. */}
                 <div
+                  className={styles.categoryHeaderBody}
+                  data-editing={isRenaming || isMerging}
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -842,31 +663,17 @@ export default function DocumentList({
                       toggleCollapse(group.key);
                     }
                   }}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "stretch",
-                    gap: 2,
-                    cursor: isRenaming || isMerging ? "default" : "pointer",
-                    textAlign: "left",
-                  }}
                 >
                   {/* 행 1: chevron · folder · 제목 — 제목이 카운트 없이 전체 폭을 차지 */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", minWidth: 0 }}>
+                  <div className={styles.categoryTitleRow}>
                   {isCollapsed
-                    ? <ChevronRight size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                    : <ChevronDown size={ICON.sm} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                    ? <ChevronRight size={ICON.sm} className={styles.categoryChevron} />
+                    : <ChevronDown size={ICON.sm} className={styles.categoryChevron} />
                   }
                   <FolderOpen
                     size={ICON.sm}
-                    style={{
-                      color: isUncategorized
-                        ? "var(--color-text-muted)"
-                        : "var(--color-brand-primary)",
-                      flexShrink: 0,
-                    }}
+                    className={styles.categoryFolderIcon}
+                    data-uncategorized={isUncategorized}
                   />
 
                   {isRenaming ? (
@@ -882,18 +689,7 @@ export default function DocumentList({
                         else if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
                       }}
                       maxLength={100}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        padding: "2px 6px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        border: "1px solid var(--color-brand-primary)",
-                        borderRadius: 4,
-                        background: "var(--color-bg-surface)",
-                        color: "var(--color-text-primary)",
-                        outline: "none",
-                      }}
+                      className={styles.categoryEditControl}
                     />
                   ) : isMerging ? (
                     <select
@@ -901,17 +697,7 @@ export default function DocumentList({
                       defaultValue=""
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => commitMerge(e.target.value)}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        padding: "2px 6px",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        border: "1px solid var(--color-brand-primary)",
-                        borderRadius: 4,
-                        background: "var(--color-bg-surface)",
-                        color: "var(--color-text-primary)",
-                      }}
+                      className={styles.categoryEditControl}
                     >
                       <option value="" disabled>합칠 대상 카테고리…</option>
                       {mergeCandidates.length === 0 && (
@@ -924,19 +710,8 @@ export default function DocumentList({
                   ) : (
                     <span
                       title={group.label}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 800,
-                        color: isUncategorized
-                          ? "var(--color-text-secondary)"
-                          : "var(--color-brand-primary)",
-                        flex: 1,
-                        minWidth: 0,
-                        // 한글 자연 줄바꿈 — 단어 중간이 아닌 공백에서 끊김 (overflowWrap은 긴 영문/URL fallback)
-                        wordBreak: "keep-all",
-                        overflowWrap: "break-word",
-                        lineHeight: 1.3,
-                      }}
+                      className={styles.categoryTitle}
+                      data-uncategorized={isUncategorized}
                     >
                       {group.label}
                     </span>
@@ -947,24 +722,15 @@ export default function DocumentList({
                   {!isRenaming && !isMerging && (group.tests.length > 0 || group.references.length > 0) && (
                     <div
                       title={`시험지 ${group.tests.length}건 · 참고자료 ${group.references.length}건`}
-                      style={{
-                        fontSize: 10.5,
-                        color: "var(--color-text-muted)",
-                        display: "flex",
-                        gap: 5,
-                        alignItems: "center",
-                        fontWeight: 700,
-                        // chevron(14) + folder(14) + gap×2 = 약 36px → 제목 시작 위치
-                        paddingLeft: 36,
-                      }}
+                      className={styles.categoryCounts}
                     >
                       {group.tests.length > 0 && (
-                        <span style={{ color: "var(--color-brand-primary)" }}>
+                        <span className={styles.categoryCountTest}>
                           시험지 {group.tests.length}
                         </span>
                       )}
                       {group.tests.length > 0 && group.references.length > 0 && (
-                        <span style={{ color: "var(--color-border-divider)" }}>·</span>
+                        <span className={styles.categoryCountDivider}>·</span>
                       )}
                       {group.references.length > 0 && (
                         <span>자료 {group.references.length}</span>
@@ -981,11 +747,7 @@ export default function DocumentList({
                       onClick={(e) => { e.stopPropagation(); commitRename(); }}
                       title="저장 (Enter)"
                       data-testid="matchup-category-rename-save"
-                      style={{
-                        background: "var(--color-brand-primary)", color: "white",
-                        border: "none", borderRadius: 4,
-                        padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
-                      }}
+                      className={`${styles.categoryActionButton} ${styles.categoryActionPrimary}`}
                     >
                       <Check size={ICON.xs} />
                     </button>
@@ -993,12 +755,7 @@ export default function DocumentList({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); cancelRename(); }}
                       title="취소 (Esc)"
-                      style={{
-                        background: "var(--color-bg-surface-soft)",
-                        border: "1px solid var(--color-border-divider)",
-                        borderRadius: 4, color: "var(--color-text-muted)",
-                        padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
-                      }}
+                      className={styles.categoryActionButton}
                     >
                       <X size={ICON.xs} />
                     </button>
@@ -1009,12 +766,7 @@ export default function DocumentList({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); cancelMerge(); }}
                     title="병합 취소"
-                    style={{
-                      background: "var(--color-bg-surface-soft)",
-                      border: "1px solid var(--color-border-divider)",
-                      borderRadius: 4, color: "var(--color-text-muted)",
-                      padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center",
-                    }}
+                    className={styles.categoryActionButton}
                   >
                     <X size={ICON.xs} />
                   </button>
@@ -1022,7 +774,7 @@ export default function DocumentList({
 
                 {/* ⋮ 액션 메뉴 — 편집 중 아닐 때만 */}
                 {!isRenaming && !isMerging && (
-                  <div data-category-menu style={{ position: "relative", flexShrink: 0 }}>
+                  <div data-category-menu className={styles.categoryMenuShell}>
                     <button
                       type="button"
                       data-testid="matchup-category-menu-trigger"
@@ -1031,15 +783,7 @@ export default function DocumentList({
                         setOpenMenuKey(isMenuOpen ? null : group.key);
                       }}
                       title="카테고리 작업"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid transparent",
-                        borderRadius: 4,
-                        padding: "2px 4px",
-                        cursor: "pointer",
-                        color: "var(--color-text-secondary)",
-                        display: "flex", alignItems: "center",
-                      }}
+                      className={styles.categoryMenuTrigger}
                     >
                       <MoreVertical size={ICON.sm} />
                     </button>
@@ -1047,21 +791,7 @@ export default function DocumentList({
                       <div
                         data-testid="matchup-category-menu"
                         role="menu"
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: "calc(100% + 4px)",
-                          zIndex: 50,
-                          minWidth: 220,
-                          background: "var(--color-bg-surface)",
-                          border: "1px solid var(--color-border-divider)",
-                          borderRadius: "var(--radius-md)",
-                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                          padding: 4,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 2,
-                        }}
+                        className={styles.categoryMenu}
                       >
                         <CategoryMenuItem
                           icon={<ClipboardList size={ICON.sm} />}
@@ -1094,7 +824,7 @@ export default function DocumentList({
                         )}
                         {!isUncategorized && (
                           <>
-                            <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
+                            <div className={styles.categoryMenuDivider} />
                             {onRenameCategory && (
                               <CategoryMenuItem
                                 icon={<Pencil size={ICON.sm} />}
@@ -1129,14 +859,7 @@ export default function DocumentList({
                 <>
                   {group.tests.length > 0 && (
                     <>
-                      <div style={{
-                        margin: "var(--space-1) var(--space-2) 4px var(--space-3)",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        color: "var(--color-warning)",
-                        letterSpacing: 0.3,
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                      }}>
+                      <div className={styles.intentSectionLabel} data-intent="test">
                         <ClipboardList size={ICON.xs} />
                         시험지 {group.tests.length}건
                       </div>
@@ -1145,14 +868,7 @@ export default function DocumentList({
                   )}
                   {group.references.length > 0 && (
                     <>
-                      <div style={{
-                        margin: "var(--space-2) var(--space-2) 4px var(--space-3)",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        color: "var(--color-brand-primary)",
-                        letterSpacing: 0.3,
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                      }}>
+                      <div className={styles.intentSectionLabel} data-intent="reference">
                         <BookOpen size={ICON.xs} />
                         참고자료 {group.references.length}건
                       </div>
@@ -1171,46 +887,24 @@ export default function DocumentList({
           data-row-menu
           role="dialog"
           aria-label="카테고리 변경"
-          style={{
-            position: "fixed",
-            top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 1001,
-            minWidth: 320,
-            maxWidth: 420,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.16)",
-            padding: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
+          className={styles.categoryDialog}
         >
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
+          <div className={styles.categoryDialogTitle}>
             카테고리 변경
           </div>
-          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: -6 }}>
+          <div className={styles.categoryDialogSubtitle}>
             {rowCategoryDoc.title}
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          <div className={styles.categoryChipRow}>
             <button
               type="button"
+              className={styles.categoryChip}
+              data-kind="uncategorized"
               onClick={async () => {
                 const id = rowCategoryEditId;
                 setRowCategoryEditId(null);
                 setRowMenu(null);
                 await onChangeDocumentCategory(id, "");
-              }}
-              style={{
-                fontSize: 11, padding: "3px 9px", borderRadius: 4,
-                background: "var(--color-bg-surface-soft)",
-                color: "var(--color-text-muted)",
-                border: "1px dashed var(--color-border-divider)",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontFamily: "inherit",
               }}
             >
               미분류
@@ -1219,6 +913,8 @@ export default function DocumentList({
               <button
                 key={c}
                 type="button"
+                className={styles.categoryChip}
+                data-selected={c === (rowCategoryDoc.category || "").trim()}
                 onClick={async () => {
                   const id = rowCategoryEditId;
                   setRowCategoryEditId(null);
@@ -1226,24 +922,12 @@ export default function DocumentList({
                   await onChangeDocumentCategory(id, c);
                 }}
                 disabled={c === (rowCategoryDoc.category || "").trim()}
-                style={{
-                  fontSize: 11, padding: "3px 9px", borderRadius: 4,
-                  background: c === (rowCategoryDoc.category || "").trim()
-                    ? "color-mix(in srgb, var(--color-brand-primary) 18%, transparent)"
-                    : "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-                  color: "var(--color-brand-primary)",
-                  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-                  cursor: c === (rowCategoryDoc.category || "").trim() ? "default" : "pointer",
-                  fontWeight: 600,
-                  fontFamily: "inherit",
-                  opacity: c === (rowCategoryDoc.category || "").trim() ? 0.7 : 1,
-                }}
               >
                 {c} {c === (rowCategoryDoc.category || "").trim() && "✓"}
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div className={styles.categoryDraftRow}>
             <input
               autoFocus
               value={rowCategoryDraft}
@@ -1262,28 +946,12 @@ export default function DocumentList({
                 }
               }}
               placeholder="새 카테고리 입력 후 Enter"
-              style={{
-                flex: 1,
-                fontSize: 12, padding: "5px 10px",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 4,
-                background: "var(--color-bg-surface)",
-                color: "var(--color-text-primary)",
-                outline: "none",
-              }}
+              className={styles.categoryDraftInput}
             />
             <button
               type="button"
               onClick={() => setRowCategoryEditId(null)}
-              style={{
-                fontSize: 11, padding: "5px 10px", borderRadius: 4,
-                background: "transparent",
-                color: "var(--color-text-muted)",
-                border: "1px solid var(--color-border-divider)",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontFamily: "inherit",
-              }}
+              className={styles.categoryDraftCancel}
             >
               취소
             </button>
@@ -1295,35 +963,14 @@ export default function DocumentList({
         <div
           data-row-menu
           role="menu"
+          className={styles.rowMenu}
+          // eslint-disable-next-line no-restricted-syntax
           style={{
-            position: "fixed",
             top: rowMenu.y,
             left: rowMenu.x,
-            zIndex: 1000,
-            minWidth: 200,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            padding: 4,
-            display: "flex",
-            flexDirection: "column",
-            gap: 1,
           }}
         >
-          <div style={{
-            padding: "6px 10px 4px",
-            fontSize: 10,
-            color: "var(--color-text-muted)",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: 0.4,
-            borderBottom: "1px solid var(--color-border-divider)",
-            marginBottom: 2,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
+          <div className={styles.rowMenuTitle}>
             {rowMenuDoc.title}
           </div>
           {onRenameDocument && (
@@ -1336,7 +983,7 @@ export default function DocumentList({
                 setRenamingDocId(rowMenuDoc.id);
                 setRowMenu(null);
               }}
-              style={menuItemStyle()}
+              className={styles.rowMenuItem}
             >
               <Pencil size={ICON.sm} />
               <span>이름 변경</span>
@@ -1352,7 +999,7 @@ export default function DocumentList({
                 setRowMenu(null);
                 await onChangeIntent(rowMenuDoc.id, next);
               }}
-              style={menuItemStyle()}
+              className={styles.rowMenuItem}
             >
               <FileText size={ICON.sm} />
               <span>{getDocumentIntent(rowMenuDoc) === "test" ? "참고자료로 변경" : "시험지로 변경"}</span>
@@ -1367,7 +1014,7 @@ export default function DocumentList({
                 setRowCategoryEditId(rowMenuDoc.id);
                 setRowCategoryDraft(rowMenuDoc.category || "");
               }}
-              style={menuItemStyle()}
+              className={styles.rowMenuItem}
             >
               <FolderInput size={ICON.sm} />
               <span>카테고리 변경 — {rowMenuDoc.category || "미분류"}</span>
@@ -1392,7 +1039,7 @@ export default function DocumentList({
                     cancelText: "닫기",
                   });
                 }}
-                style={menuItemStyle()}
+                className={styles.rowMenuItem}
               >
                 <AlertCircle size={ICON.sm} />
                 <span>에러 상세 보기</span>
@@ -1405,14 +1052,14 @@ export default function DocumentList({
                   setRowMenu(null);
                   onRetry(rowMenuDoc.id);
                 }}
-                style={menuItemStyle()}
+                className={styles.rowMenuItem}
               >
                 <RefreshCw size={ICON.sm} />
                 <span>재시도</span>
               </button>
             </>
           )}
-          <div style={{ height: 1, background: "var(--color-border-divider)", margin: "2px 0" }} />
+          <div className={styles.rowMenuDivider} />
           <button
             type="button"
             role="menuitem"
@@ -1428,7 +1075,8 @@ export default function DocumentList({
               });
               if (ok) onDelete(id);
             }}
-            style={menuItemStyle(true)}
+            className={styles.rowMenuItem}
+            data-danger
           >
             <Trash2 size={ICON.sm} />
             <span>삭제</span>
@@ -1437,23 +1085,4 @@ export default function DocumentList({
       )}
     </>
   );
-}
-
-function menuItemStyle(danger = false): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    width: "100%",
-    padding: "6px 10px",
-    background: "transparent",
-    border: "none",
-    borderRadius: "var(--radius-sm)",
-    textAlign: "left",
-    fontSize: 12,
-    fontWeight: 500,
-    color: danger ? "var(--color-danger)" : "var(--color-text-primary)",
-    cursor: "pointer",
-    fontFamily: "inherit",
-  };
 }
