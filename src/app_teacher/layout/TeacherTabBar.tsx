@@ -3,99 +3,53 @@
  * 하단 탭 — 대시보드 | 학생 | 강의 | 커뮤니티 (4탭, 사이드바는 헤더에서 열기)
  * 용어·순서: PC 사이드바 SSOT와 통일
  */
+import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Home, BookOpen, Users, MessageSquare } from "@teacher/shared/ui/Icons";
+import styles from "./TeacherTabBar.module.css";
+
+type TeacherTab = {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  end?: boolean;
+  hasBadge?: boolean;
+};
+
+const TABS: TeacherTab[] = [
+  { to: "/teacher", label: "대시보드", icon: <Home size={ICON.lg} />, end: true },
+  { to: "/teacher/students", label: "학생", icon: <Users size={ICON.lg} /> },
+  { to: "/teacher/classes", label: "강의", icon: <BookOpen size={ICON.lg} /> },
+  { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={ICON.lg} />, hasBadge: true },
+];
+
 export default function TeacherTabBar() {
   const { counts } = useTeacherPendingCounts();
   const badge = counts?.total ?? 0;
 
-  const tabs = [
-    { to: "/teacher", label: "대시보드", icon: <Home size={ICON.lg} />, end: true },
-    { to: "/teacher/students", label: "학생", icon: <Users size={ICON.lg} /> },
-    { to: "/teacher/classes", label: "강의", icon: <BookOpen size={ICON.lg} /> },
-    { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={ICON.lg} />, hasBadge: true },
-  ];
-
   return (
-    <nav
-      aria-label="하단 메뉴"
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: "var(--tc-z-tabbar)" as any,
-        paddingBottom: "var(--tc-safe-bottom)",
-        background: "var(--tc-tabbar-bg)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderTop: "1px solid var(--tc-border)",
-      }}
-    >
-      <div
-        style={{
-          height: "var(--tc-tabbar-h)",
-          display: "grid",
-          gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
-          alignItems: "center",
-          maxWidth: "var(--tc-page-max-w)",
-          margin: "0 auto",
-          padding: "0 var(--tc-space-2)",
-        }}
-      >
-        {tabs.map((t) => (
+    <nav aria-label="하단 메뉴" className={styles.nav}>
+      <div className={styles.inner}>
+        {TABS.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             end={t.end}
-            style={({ isActive }) => ({
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
-              height: "100%",
-              color: isActive ? "var(--tc-primary)" : "var(--tc-text-muted)",
-              textDecoration: "none",
-              transition: "color 100ms ease",
-            })}
+            className={({ isActive }) =>
+              isActive ? `${styles.link} ${styles.activeLink}` : styles.link
+            }
           >
-            <span
-              style={{
-                width: 22,
-                height: 22,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                position: "relative",
-              }}
-            >
+            <span className={styles.iconWrap}>
               {t.icon}
               {t.hasBadge && badge > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: -4,
-                    right: -8,
-                    minWidth: 14,
-                    height: 14,
-                    lineHeight: "14px",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    textAlign: "center",
-                    borderRadius: 7,
-                    padding: "0 3px",
-                    background: "var(--tc-danger)",
-                    color: "#fff",
-                  }}
-                >
+                <span className={styles.badge}>
                   {badge > 99 ? "99+" : badge}
                 </span>
               )}
             </span>
-            <span style={{ fontSize: 10, fontWeight: 600 }}>{t.label}</span>
+            <span className={styles.label}>{t.label}</span>
           </NavLink>
         ))}
       </div>

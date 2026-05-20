@@ -12,21 +12,11 @@ import TeacherTopBar from "./TeacherTopBar";
 import TeacherTabBar from "./TeacherTabBar";
 import TeacherDrawer from "./TeacherDrawer";
 import "../shared/ui/tokens.css";
+import styles from "./TeacherLayout.module.css";
 
 function TeacherRouteFallback() {
   return (
-    <div
-      role="status"
-      aria-label="불러오는 중"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: 200,
-        color: "var(--tc-text-muted)",
-        fontSize: 14,
-      }}
-    >
+    <div role="status" aria-label="불러오는 중" className={styles.routeFallback}>
       불러오는 중...
     </div>
   );
@@ -46,48 +36,16 @@ export default function TeacherLayout() {
     <div
       data-app="teacher"
       data-teacher-tenant={tenantCode || undefined}
-      style={{
-        height: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "var(--tc-bg)",
-        color: "var(--tc-text)",
-        paddingTop: "var(--tc-safe-top)",
-        overflow: "hidden",
-      }}
+      className={styles.shell}
     >
       {/* Header */}
-      <header
-        style={{
-          flexShrink: 0,
-          position: "sticky",
-          top: 0,
-          zIndex: "var(--tc-z-header)" as any,
-          background: "var(--tc-header-bg)",
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
-          borderBottom: "1px solid var(--tc-border)",
-        }}
-      >
+      <header className={styles.header}>
         <TeacherTopBar onMenuClick={openDrawer} />
       </header>
 
       {/* Main content */}
-      <main
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          WebkitOverflowScrolling: "touch",
-          paddingBottom: `calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + var(--tc-space-4))`,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "var(--tc-page-max-w)",
-            margin: "0 auto",
-            padding: "var(--tc-space-3)",
-          }}
-        >
+      <main className={styles.main}>
+        <div className={styles.content}>
           <Suspense fallback={<TeacherRouteFallback />}>
             <Outlet />
           </Suspense>

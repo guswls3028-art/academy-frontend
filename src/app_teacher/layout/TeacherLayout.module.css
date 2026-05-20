@@ -1,0 +1,41 @@
+.routeFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--tc-text-muted);
+  font-size: 14px;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  padding-top: var(--tc-safe-top);
+  background-color: var(--tc-bg);
+  color: var(--tc-text);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--tc-z-header);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--tc-border);
+  background: var(--tc-header-bg);
+  backdrop-filter: blur(14px);
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + var(--tc-space-4));
+  -webkit-overflow-scrolling: touch;
+}
+
+.content {
+  max-width: var(--tc-page-max-w);
+  margin: 0 auto;
+  padding: var(--tc-space-3);
+}
