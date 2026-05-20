@@ -133,9 +133,3 @@ export function useVersionChecker(): void {
     };
   }, []);
 }
-
-/** @deprecated 하위 호환용 — useVersionChecker() hook으로 대체 */
-export default function VersionChecker(): null {
-  useVersionChecker();
-  return null;
-}

@@ -24,6 +24,26 @@ import {
   getExamResultScore,
   invalidateTeacherExamResultQueries,
 } from "@teacher/domains/results/examResultContract";
+import styles from "./MobileScoreEntryPage.module.css";
+
+const cx = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
+
+type Tone = "success" | "warning" | "danger" | "muted";
+
+function scoreTone(value: number | null, maxScore: number): Tone | undefined {
+  if (value == null) return undefined;
+  if (value >= maxScore * 0.7) return "success";
+  if (value >= maxScore * 0.4) return "warning";
+  return undefined;
+}
+
+function rateTone(value: number | null): Tone | undefined {
+  if (value == null) return undefined;
+  if (value >= 70) return "success";
+  if (value >= 40) return "warning";
+  return "danger";
+}
 
 export default function MobileScoreEntryPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -58,7 +78,7 @@ export default function MobileScoreEntryPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
         <BackBtn onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>
+        <h1 className={cx("text-[17px] font-bold", styles.title)}>
           성적 입력
         </h1>
       </div>
@@ -68,20 +88,17 @@ export default function MobileScoreEntryPage() {
       ) : exams && exams.length > 0 ? (
         <>
           {/* Exam selector chips — 만점 라벨로 컨텍스트 부여 */}
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
+          <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.examTabs)}>
             {exams.map((exam) => {
               const active = exam.id === activeExamId;
               return (
                 <button
                   key={exam.id}
                   onClick={() => setSelectedExamId(exam.id)}
-                  className="rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
-                  style={{
-                    padding: "8px 14px",
-                    border: active ? "none" : "1px solid var(--tc-border)",
-                    background: active ? "var(--tc-primary)" : "transparent",
-                    color: active ? "#fff" : "var(--tc-text)",
-                  }}
+                  className={cx(
+                    "rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer",
+                    active ? styles.examTabActive : styles.examTab,
+                  )}
                 >
                   {exam.title}{exam.max_score != null ? ` · ${exam.max_score}점` : ""}
                 </button>
@@ -325,32 +342,22 @@ function ScoreEntryList({
         const showPass = examPassScore != null && examPassScore > 0;
         return (
           <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: showPass ? "repeat(3, 1fr)" : "repeat(2, 1fr)" }}
+            className={cx(
+              "grid gap-2",
+              showPass ? styles.kpiGridThree : styles.kpiGridTwo,
+            )}
           >
             <KpiTile label="입력" value={`${stats.entered}/${stats.total}`} />
             <KpiTile
               label="평균"
               value={stats.avg != null ? stats.avg.toFixed(1) : "-"}
-              color={
-                stats.avg != null && stats.avg >= examMaxScore * 0.7
-                  ? "var(--tc-success)"
-                  : stats.avg != null && stats.avg >= examMaxScore * 0.4
-                    ? "var(--tc-warn)"
-                    : "var(--tc-text)"
-              }
+              tone={scoreTone(stats.avg, examMaxScore)}
             />
             {showPass && (
               <KpiTile
                 label={`합격(≥${examPassScore})`}
                 value={stats.passRate != null ? `${stats.passRate}%` : "-"}
-                color={
-                  stats.passRate != null && stats.passRate >= 70
-                    ? "var(--tc-success)"
-                    : stats.passRate != null && stats.passRate >= 40
-                      ? "var(--tc-warn)"
-                      : "var(--tc-danger)"
-                }
+                tone={rateTone(stats.passRate)}
               />
             )}
           </div>
@@ -372,19 +379,14 @@ function ScoreEntryList({
         return (
           <div
             key={enrollmentId}
-            className="flex items-center gap-3 rounded-lg"
-            style={{
-              padding: "var(--tc-space-3) var(--tc-space-4)",
-              // 명시 success 색상 — 토큰이 옅을 경우 대비. 페이드인 180ms로 단축해 학원장이 다음 행으로 넘기기 전 visible
-              background: saved ? "rgba(34, 197, 94, 0.18)" : "var(--tc-surface)",
-              border: saved ? "1.5px solid #22c55e" : "1px solid var(--tc-border)",
-              transition: "background 180ms ease-out, border-color 180ms ease-out",
-              boxShadow: saved ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
-            }}
+            className={cx(
+              "flex items-center gap-3 rounded-lg",
+              styles.scoreRow,
+              saved && styles.scoreRowSaved,
+            )}
           >
             <span
-              className="ds-text-name font-semibold flex-1 min-w-0 truncate"
-              style={{ color: "var(--tc-text)" }}
+              className={cx("ds-text-name font-semibold flex-1 min-w-0 truncate", styles.title)}
             >
               {name}
             </span>
@@ -415,17 +417,13 @@ function ScoreEntryList({
                     focusNext(enrollmentId);
                   }
                 }}
-                className="text-center text-lg font-bold outline-none"
-                style={{
-                  width: 64,
-                  height: 40,
-                  border: isInvalid ? "1px solid var(--tc-danger)" : "1px solid var(--tc-border-strong)",
-                  borderRadius: "var(--tc-radius-sm)",
-                  background: isInvalid ? "var(--tc-danger-bg, #fef2f2)" : "var(--tc-surface-soft)",
-                  color: isInvalid ? "var(--tc-danger)" : "var(--tc-text)",
-                }}
+                className={cx(
+                  "text-center text-lg font-bold outline-none",
+                  styles.scoreInput,
+                  isInvalid && styles.scoreInputInvalid,
+                )}
               />
-              <span className="text-[13px]" style={{ color: "var(--tc-text-muted)" }}>
+              <span className={cx("text-[13px]", styles.mutedText)}>
                 / {maxScore}
               </span>
             </div>
@@ -440,50 +438,45 @@ function ScoreEntrySkeleton() {
   return (
     <div className="flex flex-col gap-2" aria-busy="true">
       <div
-        className="grid gap-2"
-        style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+        className={cx("grid gap-2", styles.kpiGridThree)}
       >
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            style={{
-              height: 56,
-              borderRadius: "var(--tc-radius)",
-              background: "var(--tc-surface-soft)",
-              animation: "pulse 1.5s ease-in-out infinite",
-            }}
+            className={styles.skeletonTile}
           />
         ))}
       </div>
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
-          style={{
-            height: 56,
-            borderRadius: "var(--tc-radius)",
-            background: "var(--tc-surface-soft)",
-            animation: "pulse 1.5s ease-in-out infinite",
-            animationDelay: `${i * 80}ms`,
-          }}
+          className={styles.skeletonRow}
         />
       ))}
     </div>
   );
 }
 
-function KpiTile({ label, value, color }: { label: string; value: string; color?: string }) {
+function KpiTile({ label, value, tone }: { label: string; value: string; tone?: Tone }) {
+  const valueClass =
+    tone === "success"
+      ? styles.successText
+      : tone === "warning"
+        ? styles.warningText
+        : tone === "danger"
+          ? styles.dangerText
+          : tone === "muted"
+            ? styles.mutedText
+            : styles.title;
+
   return (
     <div
-      className="rounded-lg flex flex-col items-center justify-center py-2"
-      style={{
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-      }}
+      className={cx("rounded-lg flex flex-col items-center justify-center py-2", styles.kpiTile)}
     >
-      <span className="text-base font-bold leading-tight" style={{ color: color ?? "var(--tc-text)" }}>
+      <span className={cx("text-base font-bold leading-tight", valueClass)}>
         {value}
       </span>
-      <span className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+      <span className={cx("text-[11px] mt-0.5", styles.mutedText)}>
         {label}
       </span>
     </div>
@@ -494,8 +487,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex p-1 cursor-pointer"
-      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
+      className={cx("flex p-1 cursor-pointer", styles.backButton)}
     >
       <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />

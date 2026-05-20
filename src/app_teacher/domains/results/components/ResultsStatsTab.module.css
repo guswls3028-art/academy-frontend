@@ -130,26 +130,50 @@
   background: var(--tc-surface-soft);
 }
 
-.submissionProgress {
+.submissionProgressStack {
+  position: relative;
+  width: 100%;
+  height: 8px;
+}
+
+.submissionProgressBase,
+.submissionProgressPassed {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 8px;
   overflow: hidden;
   border: 0;
   border-radius: var(--tc-radius-full);
+  appearance: none;
+}
+
+.submissionProgressBase::-webkit-progress-bar {
   background: var(--tc-surface-soft);
-  accent-color: var(--tc-primary);
 }
 
-.submissionProgress::-webkit-progress-bar {
-  background: var(--tc-surface-soft);
+.submissionProgressBase::-webkit-progress-value {
+  background: var(--tc-danger);
 }
 
-.submissionProgress::-webkit-progress-value {
-  background: var(--tc-primary);
+.submissionProgressBase::-moz-progress-bar {
+  background: var(--tc-danger);
 }
 
-.submissionProgress::-moz-progress-bar {
-  background: var(--tc-primary);
+.submissionProgressPassed {
+  background: transparent;
+}
+
+.submissionProgressPassed::-webkit-progress-bar {
+  background: transparent;
+}
+
+.submissionProgressPassed::-webkit-progress-value {
+  background: var(--tc-success);
+}
+
+.submissionProgressPassed::-moz-progress-bar {
+  background: var(--tc-success);
 }
 
 @keyframes results-stats-pulse {

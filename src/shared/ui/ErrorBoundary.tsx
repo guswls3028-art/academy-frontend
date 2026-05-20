@@ -2,6 +2,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
+import styles from "./ErrorBoundary.module.css";
 
 interface Props {
   children: ReactNode;
@@ -85,54 +86,23 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const { recurred, errorMessage } = this.state;
       return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-            gap: 12,
-            padding: 24,
-            fontFamily: "sans-serif",
-            color: "#333",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ fontSize: 18, margin: 0 }}>
+        <div className={styles.root}>
+          <p className={styles.message}>
             오류가 발생했습니다. 페이지를 새로고침해 주세요.
           </p>
           {recurred && (
-            <p style={{ fontSize: 13, color: "#888", margin: 0, maxWidth: 420 }}>
+            <p className={styles.hint}>
               문제가 계속되면 관리자에게 문의해 주세요.
             </p>
           )}
           <button
             onClick={() => hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })}
-            style={{
-              padding: "8px 24px",
-              fontSize: 14,
-              border: "1px solid #ccc",
-              borderRadius: 6,
-              background: "#fff",
-              cursor: "pointer",
-            }}
+            className={styles.button}
           >
             새로고침
           </button>
           {recurred && errorMessage && (
-            <code
-              style={{
-                marginTop: 8,
-                padding: "6px 10px",
-                fontSize: 11,
-                color: "#aaa",
-                background: "#f7f7f7",
-                borderRadius: 4,
-                maxWidth: 520,
-                overflowWrap: "anywhere",
-              }}
-            >
+            <code className={styles.errorCode}>
               {errorMessage}
             </code>
           )}

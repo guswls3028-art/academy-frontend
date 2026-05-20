@@ -29,6 +29,10 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import styles from "./ResultsStatsTab.module.css";
+
+const cx = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
 
 type LectureOption = {
   id: number;
@@ -173,10 +177,7 @@ export default function ResultsStatsTab() {
   return (
     <div className="flex flex-col gap-3">
       {/* ── 강의 선택 ── */}
-      <div
-        className="flex gap-2 overflow-x-auto pb-1"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
+      <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.scrollTabs)}>
         {lectureList.map((l) => (
           <button
             key={l.id}
@@ -184,21 +185,10 @@ export default function ResultsStatsTab() {
               setSelectedLecture(l.id);
               setSelectedExam(null);
             }}
-            className="shrink-0 flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer"
-            style={{
-              border:
-                selectedLecture === l.id
-                  ? "2px solid var(--tc-primary)"
-                  : "1px solid var(--tc-border)",
-              background:
-                selectedLecture === l.id
-                  ? "var(--tc-primary-bg)"
-                  : "var(--tc-surface)",
-              color:
-                selectedLecture === l.id
-                  ? "var(--tc-primary)"
-                  : "var(--tc-text-secondary)",
-            }}
+            className={cx(
+              "shrink-0 flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer",
+              selectedLecture === l.id ? styles.selectorButtonActive : styles.selectorButton,
+            )}
           >
             <LectureChip
               lectureName={l.title}
@@ -219,29 +209,15 @@ export default function ResultsStatsTab() {
       {selectedLecture != null && exams && (
         exams.length > 0 ? (
           <>
-            <div
-              className="flex gap-2 overflow-x-auto pb-1"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
+            <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.scrollTabs)}>
               {examList.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => setSelectedExam(e.id)}
-                  className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer"
-                  style={{
-                    border:
-                      selectedExam === e.id
-                        ? "2px solid var(--tc-primary)"
-                        : "1px solid var(--tc-border)",
-                    background:
-                      selectedExam === e.id
-                        ? "var(--tc-primary-bg)"
-                        : "var(--tc-surface)",
-                    color:
-                      selectedExam === e.id
-                        ? "var(--tc-primary)"
-                        : "var(--tc-text-secondary)",
-                  }}
+                  className={cx(
+                    "shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer",
+                    selectedExam === e.id ? styles.selectorButtonActive : styles.selectorButton,
+                  )}
                 >
                   {e.title}
                 </button>
@@ -259,12 +235,7 @@ export default function ResultsStatsTab() {
                   {[1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      style={{
-                        height: i === 1 ? 80 : 160,
-                        borderRadius: "var(--tc-radius)",
-                        background: "var(--tc-surface-soft)",
-                        animation: "pulse 1.5s ease-in-out infinite",
-                      }}
+                      className={i === 1 ? styles.skeletonShort : styles.skeletonTall}
                     />
                   ))}
                 </div>
@@ -315,16 +286,7 @@ export default function ResultsStatsTab() {
 
                   {/* ─ 소수 데이터 안내 ─ */}
                   {isSparse && (
-                    <div
-                      className="rounded-lg text-center"
-                      style={{
-                        background: "var(--tc-warn-bg)",
-                        color: "var(--tc-warn)",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        padding: "var(--tc-space-2) var(--tc-space-3)",
-                      }}
-                    >
+                    <div className={cx("rounded-lg text-center", styles.sparseNotice)}>
                       응시 인원이 {participantCount}명으로, 통계 해석에 주의가 필요합니다.
                     </div>
                   )}
@@ -332,19 +294,16 @@ export default function ResultsStatsTab() {
                   {/* ─ 점수 범위 / 최고·최저 ─ */}
                   <Card>
                     <SectionTitle>점수 분포</SectionTitle>
-                    <div
-                      className="flex items-center justify-between mt-1 mb-3"
-                      style={{ fontSize: 13, color: "var(--tc-text-secondary)" }}
-                    >
+                    <div className={cx("flex items-center justify-between mt-1 mb-3", styles.scoreRange)}>
                       <span>
                         최저{" "}
-                        <strong style={{ color: "var(--tc-danger)" }}>
+                        <strong className={styles.dangerText}>
                           {summary.min_score?.toFixed(0)}
                         </strong>
                       </span>
                       <span>
                         최고{" "}
-                        <strong style={{ color: "var(--tc-success)" }}>
+                        <strong className={styles.successText}>
                           {summary.max_score?.toFixed(0)}
                         </strong>
                       </span>
@@ -455,16 +414,7 @@ export default function ResultsStatsTab() {
                           .sort((a, b) => a.정답률 - b.정답률);
                         if (!weak.length) return null;
                         return (
-                          <div
-                            className="mt-3 rounded-lg"
-                            style={{
-                              background: "var(--tc-danger-bg)",
-                              padding: "var(--tc-space-3)",
-                              fontSize: 13,
-                              color: "var(--tc-danger)",
-                              fontWeight: 600,
-                            }}
-                          >
+                          <div className={cx("mt-3 rounded-lg", styles.weakQuestions)}>
                             주의 문항:{" "}
                             {weak
                               .slice(0, 5)
@@ -478,39 +428,29 @@ export default function ResultsStatsTab() {
 
                   {/* ─ 학생 석차 ─ */}
                   {rankedResults.length > 0 && (
-                    <Card style={{ padding: 0 }}>
-                      <div style={{ padding: "var(--tc-space-4) var(--tc-space-4) 0" }}>
+                    <div className={styles.studentCard}>
+                      <div className={styles.studentCardHeader}>
                         <SectionTitle>학생별 성적</SectionTitle>
                       </div>
-                      <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                      <div className={styles.studentList}>
                         {rankedResults.map((r, idx) => (
                           <div
                             key={getExamResultEnrollmentId(r) ?? r.id ?? idx}
-                            className="flex justify-between items-center"
-                            style={{
-                              padding: "var(--tc-space-3) var(--tc-space-4)",
-                              borderBottom: "1px solid var(--tc-border-subtle)",
-                              fontSize: 14,
-                            }}
+                            className={cx("flex justify-between items-center", styles.studentRow)}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span
-                                className="shrink-0 text-[12px] font-bold"
+                                className={cx(
+                                  "shrink-0 text-[12px] font-bold",
+                                  styles.rank,
+                                  typeof r.rank === "number" && r.rank <= 3 && styles.rankTop,
+                                )}
                                 title="서버 계산 석차(1차 점수 기준)"
-                                style={{
-                                  width: 24,
-                                  textAlign: "center",
-                                  color:
-                                    typeof r.rank === "number" && r.rank <= 3
-                                      ? "var(--tc-primary)"
-                                      : "var(--tc-text-muted)",
-                                }}
                               >
                                 {typeof r.rank === "number" ? r.rank : idx + 1}
                               </span>
                               <span
-                                className="truncate"
-                                style={{ color: "var(--tc-text)" }}
+                                className={cx("truncate", styles.primaryText)}
                               >
                                 {r.student_name ??
                                   r.enrollment_name ??
@@ -519,8 +459,7 @@ export default function ResultsStatsTab() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span
-                                className="font-bold text-[14px]"
-                                style={{ color: "var(--tc-text)" }}
+                                className={cx("font-bold text-[14px]", styles.primaryText)}
                               >
                                 {getExamResultScore(r) ?? "-"}/{getExamResultMaxScore(r, examMaxScore)}
                               </span>
@@ -532,7 +471,7 @@ export default function ResultsStatsTab() {
                           </div>
                         ))}
                       </div>
-                    </Card>
+                    </div>
                   )}
                 </div>
               )
@@ -586,46 +525,33 @@ export default function ResultsStatsTab() {
           {/* 진행 바 */}
           {hwStats.total > 0 && (
             <div className="mt-3">
-              <div
-                className="flex items-center justify-between mb-1"
-                style={{ fontSize: 12, color: "var(--tc-text-muted)" }}
-              >
+              <div className={cx("flex items-center justify-between mb-1", styles.homeworkMeta)}>
                 <span>제출 {hwStats.submitted} / 전체 {hwStats.total}</span>
                 <span>과제 {hwStats.homeworkCount}건</span>
               </div>
-              <div
-                className="rounded-full overflow-hidden flex"
-                style={{ height: 8, background: "var(--tc-surface-soft)" }}
-              >
-                <div
-                  style={{
-                    width: `${(hwStats.passed / hwStats.total) * 100}%`,
-                    background: "var(--tc-success)",
-                    transition: "width 0.4s ease",
-                  }}
+              <div className={styles.submissionProgressStack} aria-label="과제 제출 현황">
+                <progress
+                  className={styles.submissionProgressBase}
+                  max={hwStats.total}
+                  value={hwStats.submitted}
                 />
-                <div
-                  style={{
-                    width: `${((hwStats.submitted - hwStats.passed) / hwStats.total) * 100}%`,
-                    background: "var(--tc-danger)",
-                    transition: "width 0.4s ease",
-                  }}
+                <progress
+                  className={styles.submissionProgressPassed}
+                  max={hwStats.total}
+                  value={hwStats.passed}
                 />
               </div>
-              <div
-                className="flex items-center gap-4 mt-1"
-                style={{ fontSize: 11, color: "var(--tc-text-muted)" }}
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-success)" }} />
+              <div className={cx("flex items-center gap-4 mt-1", styles.legend)}>
+                <span className={styles.legendItem}>
+                  <span className={cx(styles.legendDot, styles.legendDotSuccess)} />
                   합격
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-danger)" }} />
+                <span className={styles.legendItem}>
+                  <span className={cx(styles.legendDot, styles.legendDotDanger)} />
                   불합격
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--tc-surface-soft)", border: "1px solid var(--tc-border)" }} />
+                <span className={styles.legendItem}>
+                  <span className={cx(styles.legendDot, styles.legendDotMuted)} />
                   미제출
                 </span>
               </div>
