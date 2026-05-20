@@ -14,9 +14,6 @@ concurrency:
   group: e2e-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -27,11 +24,11 @@ jobs:
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           # no cache: pnpm-lock.yaml is not committed
@@ -74,10 +71,11 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
             playwright-report/
             test-results/
           retention-days: 7
+          if-no-files-found: ignore
