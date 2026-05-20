@@ -6,6 +6,7 @@ import { useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import "../styles/templateEditor.css";
+import styles from "./AutoSendPreviewPopup.module.css";
 
 type Props = {
   open: boolean;
@@ -38,15 +39,7 @@ function renderBody(text: string) {
       return (
         <span
           key={i}
-          style={{
-            display: "inline-block",
-            background: "#fee500",
-            color: "#333",
-            borderRadius: 4,
-            padding: "1px 5px",
-            fontSize: 12,
-            fontWeight: 600,
-          }}
+          className={styles.variableBadge}
         >
           {m[1]}
         </span>
@@ -65,15 +58,15 @@ export default function AutoSendPreviewPopup({
   previewContext = {},
   anchorRef,
 }: Props) {
-  const popupRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       if (
-        popupRef.current &&
-        !popupRef.current.contains(e.target as Node) &&
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
         (!anchorRef?.current || !anchorRef.current.contains(e.target as Node))
       ) {
         onClose();
@@ -107,63 +100,24 @@ export default function AutoSendPreviewPopup({
 
   return (
     <div
-      ref={popupRef}
       role="dialog"
       aria-label={`${triggerLabel} 미리보기`}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1050,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.25)",
-        backdropFilter: "blur(2px)",
-      }}
+      className={styles.overlay}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        style={{
-          width: 340,
-          maxHeight: "80vh",
-          overflow: "auto",
-          borderRadius: 16,
-          background: "var(--color-bg-surface, #fff)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
+        ref={panelRef}
+        className={styles.panel}
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 16px 8px",
-            borderBottom: "1px solid var(--color-border-divider, #eee)",
-          }}
-        >
+        <div className={styles.header}>
           <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-              }}
-            >
+            <div className={styles.triggerLabel}>
               {triggerLabel}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--color-text-muted)",
-                marginTop: 2,
-              }}
-            >
+            <div className={styles.subtitle}>
               알림톡 미리보기
             </div>
           </div>
@@ -171,56 +125,35 @@ export default function AutoSendPreviewPopup({
             type="button"
             onClick={onClose}
             aria-label="닫기"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              color: "var(--color-text-muted)",
-              borderRadius: "var(--radius-sm)",
-            }}
+            className={styles.closeButton}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Kakao card preview */}
-        <div style={{ padding: 16 }}>
-          <div className="template-preview-kakao" style={{ maxWidth: "100%" }}>
+        <div className={styles.content}>
+          <div className={`template-preview-kakao ${styles.kakaoPreview}`}>
             <div className="template-preview-kakao__card">
               {resolvedSubject && (
                 <div
-                  className="template-preview-kakao__title"
-                  style={{ lineHeight: 1.7 }}
+                  className={`template-preview-kakao__title ${styles.previewText}`}
                 >
                   {resolvedSubject}
                 </div>
               )}
               <div
-                className="template-preview-kakao__body"
-                style={{ lineHeight: 1.7 }}
+                className={`template-preview-kakao__body ${styles.previewText}`}
               >
                 {body ? renderBody(resolvedBody) : (
-                  <span
-                    style={{
-                      color: "var(--color-text-muted)",
-                      fontStyle: "italic",
-                    }}
-                  >
+                  <span className={styles.emptyText}>
                     템플릿이 아직 설정되지 않았습니다.
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <p
-            style={{
-              marginTop: 8,
-              fontSize: 10,
-              color: "var(--color-text-muted)",
-              textAlign: "center",
-            }}
-          >
+          <p className={styles.footerNote}>
             카카오톡 알림톡 예시 (치환 변수는 샘플 값)
           </p>
         </div>

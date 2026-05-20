@@ -5,6 +5,7 @@ import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
+import styles from "./SheetsListPage.module.css";
 
 export default function SheetsListPage() {
   const qc = useQueryClient();
@@ -60,14 +61,14 @@ export default function SheetsListPage() {
               <thead>
                 <tr>
                   <th>시험지 이름</th>
-                  <th style={{ width: 96, textAlign: "right" }}>관리</th>
+                  <th className={styles.actionColumn}>관리</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((s: SheetEntity) => (
                   <tr key={s.id}>
                     <td>{s.title}</td>
-                    <td style={{ textAlign: "right" }}>
+                    <td className={styles.actionCell}>
                       <Button type="button" intent="secondary" size="sm" onClick={() => setEditingId(s.id)}>
                         편집
                       </Button>

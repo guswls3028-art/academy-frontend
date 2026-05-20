@@ -1,0 +1,82 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+}
+
+.panel {
+  width: min(340px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow: auto;
+  border-radius: 16px;
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--color-border-divider, #eee);
+}
+
+.triggerLabel {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.closeButton {
+  padding: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.content {
+  padding: 16px;
+}
+
+.kakaoPreview {
+  max-width: 100%;
+}
+
+.previewText {
+  line-height: 1.7;
+}
+
+.variableBadge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fee500;
+  color: #333;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.emptyText {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.footerNote {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-align: center;
+}
