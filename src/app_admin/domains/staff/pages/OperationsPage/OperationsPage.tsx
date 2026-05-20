@@ -11,10 +11,6 @@ import WorkRecordsPanel from "./WorkRecordsPanel";
 import ExpensesPanel from "./ExpensesPanel";
 import { SectionHeader, EmptyState } from "@/shared/ui/ds";
 
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
-
 function getThisMonth() {
   const d = new Date();
   return {

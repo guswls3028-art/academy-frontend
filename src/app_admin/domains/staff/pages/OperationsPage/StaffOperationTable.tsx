@@ -1,15 +1,23 @@
 // PATH: src/app_admin/domains/staff/pages/OperationsPage/StaffOperationTable.tsx
 // Design: docs/DESIGN_SSOT.md — Staff list: avatar + name only. Detail is in workspace header/tabs.
 
-import { useMemo, useState } from "react";
+import { Children, type ReactNode, useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Staff } from "../../api/staff.api";
+import type { Staff } from "../../api/staff.api";
 import { EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
+}
+
+const EMPTY_STAFFS: Staff[] = [];
+const ROLE_ORDER = { TEACHER: 0, ASSISTANT: 1 } as const;
+
+function byRoleThenName(a: Staff, b: Staff) {
+  const roleRank = (ROLE_ORDER[a.role] ?? 1) - (ROLE_ORDER[b.role] ?? 1);
+  return roleRank !== 0 ? roleRank : (a.name || "").localeCompare(b.name || "", "ko");
 }
 
 /** basePath: 해당 탭 경로 (attendance | expenses | month-lock 등) */
@@ -30,7 +38,10 @@ export default function StaffOperationTable({
   const [q, setQ] = useState("");
 
   /** 작업 콘솔은 Staff만 대상(원장 제외) */
-  const staffs: Staff[] = Array.isArray(data?.staffs) ? data!.staffs : [];
+  const staffs = useMemo(
+    () => (Array.isArray(data?.staffs) ? data.staffs : EMPTY_STAFFS),
+    [data?.staffs]
+  );
 
   // ✅ UX: 검색은 “필터링(선택)”이며 계산/추론이 아님
   const filtered = useMemo(() => {
@@ -43,13 +54,6 @@ export default function StaffOperationTable({
       return name.includes(needle) || phone.includes(needle);
     });
   }, [staffs, q]);
-
-  // ✅ 직급순 정렬(강사 → 조교), 동일 직급 시 이름순
-  const roleOrder = { TEACHER: 0, ASSISTANT: 1 } as const;
-  const byRoleThenName = (a: Staff, b: Staff) => {
-    const r = (roleOrder[a.role] ?? 1) - (roleOrder[b.role] ?? 1);
-    return r !== 0 ? r : (a.name || "").localeCompare(b.name || "", "ko");
-  };
 
   const active = useMemo(
     () => filtered.filter((s) => s.is_active).sort(byRoleThenName),
@@ -64,8 +68,8 @@ export default function StaffOperationTable({
     const next = new URLSearchParams(params);
     next.set("staffId", String(staffId));
     const now = new Date();
-    if (!next.has("year")) next.set("year", String(now.getFullYear()));
-    if (!next.has("month")) next.set("month", String(now.getMonth() + 1));
+    if (!next.has("year")) next.set("year", String(year ?? now.getFullYear()));
+    if (!next.has("month")) next.set("month", String(month ?? now.getMonth() + 1));
     navigate(`/admin/staff/${basePath}?${next.toString()}`);
   };
 
@@ -142,9 +146,9 @@ function Section({
 }: {
   title: string;
   emptyText: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  const hasItems = !!children && Array.isArray(children) ? children.length > 0 : true;
+  const hasItems = Children.count(children) > 0;
 
   return (
     <div className="space-y-1.5">
