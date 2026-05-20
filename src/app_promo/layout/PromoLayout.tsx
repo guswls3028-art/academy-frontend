@@ -11,7 +11,11 @@ const NAV_ITEMS = [
   { label: "문의하기", path: "/promo/contact" },
 ];
 
-function Header({ onLoginClick }: { onLoginClick: () => void }) {
+type PromoLocationState = {
+  openLogin?: boolean;
+};
+
+function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -181,7 +185,8 @@ export default function PromoLayout() {
 
   // /login → /promo 리다이렉트 시 로그인 모달 자동 오픈
   useEffect(() => {
-    if ((location.state as any)?.openLogin) {
+    const state = location.state as PromoLocationState | null;
+    if (state?.openLogin) {
       setLoginOpen(true);
       window.history.replaceState({}, "");
     }
@@ -189,7 +194,7 @@ export default function PromoLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <Header onLoginClick={() => setLoginOpen(true)} />
+      <Header />
       <main className="flex-1">
         <Outlet />
       </main>

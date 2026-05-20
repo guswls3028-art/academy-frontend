@@ -184,7 +184,7 @@ export default function LandingReviewsPage() {
           ) : (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-                {reviews.map((r) => <ReviewCard key={r.id} review={r} border={border} cardBg={cardBg} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} />)}
+                {reviews.map((r) => <ReviewCard key={r.id} review={r} border={border} cardBg={cardBg} accent={gold} textPrimary={textPrimary} textMuted={textMuted} />)}
               </div>
               <Pagination page={page} totalPages={totalPages} onChange={setPage} accent={gold} textPrimary={textPrimary} textSecondary={textSecondary} border={border} />
             </>
@@ -249,9 +249,9 @@ function renderStars(n: number, gold: string): React.ReactNode {
   );
 }
 
-function ReviewCard({ review, border, cardBg, accent, textPrimary, textSecondary, textMuted }: {
+function ReviewCard({ review, border, cardBg, accent, textPrimary, textMuted }: {
   review: PublicReview; border: string; cardBg: string; accent: string;
-  textPrimary: string; textSecondary: string; textMuted: string;
+  textPrimary: string; textMuted: string;
 }) {
   return (
     <Link to={`/landing/reviews/${review.id}`} data-testid={`landing-review-card-${review.id}`}
@@ -331,10 +331,6 @@ function Pagination({ page, totalPages, onChange, accent, textPrimary, textSecon
         style={{ ...btn, color: textSecondary, opacity: windowEnd === totalPages ? 0.35 : 1 }}>›</button>
     </nav>
   );
-}
-
-function EmptyBox({ children, border, cardBg, color }: { children: React.ReactNode; border: string; cardBg: string; color: string }) {
-  return <div style={{ padding: "56px 24px", borderRadius: 14, background: cardBg, border: `1px solid ${border}`, textAlign: "center", fontSize: 14, color }}>{children}</div>;
 }
 
 function FirstReviewInvite({ canWrite, onWrite, border, cardBg, accent, textPrimary, textSecondary }: {
