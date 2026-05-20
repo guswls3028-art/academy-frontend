@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/settings/components/ThemeGrid.tsx
 import type { ThemeKey, ThemeMeta } from "../constants/themes";
 import ThemeCard from "./ThemeCard";
+import styles from "./ThemeGrid.module.css";
 
 type Props = {
   themes: ThemeMeta[];
@@ -20,13 +21,7 @@ export default function ThemeGrid({
   const dirty = previewTheme !== currentTheme;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        gap: 14,
-      }}
-    >
+    <div className={styles.grid}>
       {themes.map((t) => (
         <ThemeCard
           key={t.key}

@@ -1,0 +1,145 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loadingGrid,
+.kpiGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.skeleton {
+  flex: 1 1 0;
+  min-width: 140px;
+  height: 90px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-soft);
+  animation: pulse 1.5s infinite;
+}
+
+.kpiBox {
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 16px 20px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.kpiBox[data-accent="true"] {
+  border: 0;
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, #000));
+  color: #fff;
+}
+
+.kpiLabel {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.kpiBox[data-accent="true"] .kpiLabel {
+  opacity: 0.85;
+}
+
+.kpiValue {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.kpiSub {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+.kpiBox[data-accent="true"] .kpiSub {
+  opacity: 0.75;
+}
+
+.details {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.summary {
+  padding: 10px 16px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.detailBody {
+  padding: 4px 16px 12px;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.detailLabel {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.detailValue {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.detailLabel[data-muted="true"],
+.detailValue[data-muted="true"] {
+  color: var(--color-text-muted);
+}
+
+.netRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 0;
+  margin-top: 4px;
+}
+
+.netLabel {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.netValue {
+  color: var(--color-primary);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}

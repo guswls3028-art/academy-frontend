@@ -48,18 +48,6 @@ function formatPrice(price: number): string {
   return price.toLocaleString("ko-KR") + "원";
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: "var(--color-semantic-success, #22c55e)",
-  grace: "var(--color-semantic-warning, #f59e0b)",
-  expired: "var(--color-semantic-danger, #ef4444)",
-};
-
-const PLAN_COLORS: Record<string, string> = {
-  standard: "#64748b",
-  pro: "var(--color-primary, #6366f1)",
-  max: "#f59e0b",
-};
-
 const BILLING_MODE_LABELS: Record<string, string> = {
   AUTO_CARD: "카드 자동결제",
   INVOICE_REQUEST: "세금계산서 청구",
@@ -90,8 +78,6 @@ export default function BillingSettingsPage() {
   }
 
   const isExpired = !data.is_subscription_active;
-  const statusColor = STATUS_COLORS[data.subscription_status] ?? "#9ca3af";
-  const planColor = PLAN_COLORS[data.plan] ?? "var(--color-primary)";
 
   return (
     <div className={styles.root}>
@@ -100,27 +86,19 @@ export default function BillingSettingsPage() {
 
       {/* Plan Badge */}
       <div className={styles.planSection}>
-        <div className={styles.planBadge} style={{ background: planColor }}>
+        <div className={styles.planBadge} data-plan={data.plan}>
           {data.plan_display}
         </div>
         <span className={styles.planPrice}>
           {data.is_promo ? (
             <>
-              <span style={{ textDecoration: "line-through", color: "var(--color-text-muted)", fontSize: "0.85em", marginRight: 6 }}>
+              <span className={styles.originalPrice}>
                 월 {formatPrice(data.original_price)}
               </span>
-              <span style={{ fontWeight: 700 }}>
+              <span className={styles.discountedPrice}>
                 월 {formatPrice(data.monthly_price)}
               </span>
-              <span style={{
-                marginLeft: 8,
-                padding: "2px 8px",
-                borderRadius: 12,
-                background: "var(--color-semantic-danger, #ef4444)",
-                color: "#fff",
-                fontSize: "0.75em",
-                fontWeight: 700,
-              }}>
+              <span className={styles.discountBadge}>
                 {data.discount_rate}% 할인
               </span>
             </>
@@ -134,7 +112,11 @@ export default function BillingSettingsPage() {
       <div className={styles.card}>
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>구독 상태</span>
-          <span className={styles.statusBadge} style={{ color: statusColor, borderColor: statusColor }}>
+          <span
+            className={styles.statusBadge}
+            data-status={data.subscription_status}
+            aria-label={`구독 상태: ${data.subscription_status_display}`}
+          >
             {data.subscription_status_display}
           </span>
         </div>
@@ -142,7 +124,7 @@ export default function BillingSettingsPage() {
         {data.cancel_at_period_end && !isExpired && (
           <div className={styles.cardRow}>
             <span className={styles.cardLabel} />
-            <span style={{ fontSize: "0.85em", color: "var(--color-semantic-warning, #f59e0b)" }}>
+            <span className={styles.cancelNotice}>
               현재 기간 종료 후 자동 해지 예정
             </span>
           </div>
@@ -161,8 +143,7 @@ export default function BillingSettingsPage() {
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>남은 이용일</span>
           <span
-            className={styles.cardValue}
-            style={{ fontWeight: 700, color: isExpired ? "var(--color-semantic-danger, #ef4444)" : undefined }}
+            className={`${styles.cardValue} ${styles.remainingDays} ${isExpired ? styles.remainingDaysExpired : ""}`}
           >
             {data.days_remaining != null
               ? isExpired
