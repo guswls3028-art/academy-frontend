@@ -28,6 +28,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
+import styles from "./AutoSendSettingsPanel.module.css";
 
 // ---------------------------------------------------------------------------
 // 트리거 설명 (모든 트리거 포함)
@@ -186,20 +187,6 @@ function TriggerCard({
   const hasTemplate = !!config.template;
   const status = config.template_solapi_status;
 
-  const statusColor =
-    status === "APPROVED"
-      ? "var(--color-status-success, #16a34a)"
-      : status === "PENDING"
-        ? "var(--color-status-warning, #d97706)"
-        : "var(--color-status-danger, #dc2626)";
-
-  const statusBg =
-    status === "APPROVED"
-      ? "color-mix(in srgb, var(--color-status-success, #16a34a) 10%, transparent)"
-      : status === "PENDING"
-        ? "color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent)"
-        : "color-mix(in srgb, var(--color-status-danger, #dc2626) 10%, transparent)";
-
   const statusLabel =
     status === "APPROVED"
       ? "승인"
@@ -241,82 +228,35 @@ function TriggerCard({
     : implStatus === "manual_only"
       ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
       : "";
+  const controlsLayout = channelMode
+    ? isReminder ? "channel-reminder" : "channel"
+    : isReminder ? "unified-reminder" : "unified";
 
   return (
     <div
-      className={panelStyles.contentCard}
-      style={{
-        background: channelActive
-          ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
-          : "var(--color-bg-surface-soft)",
-        boxShadow: channelActive
-          ? "inset 3px 0 0 var(--color-primary)"
-          : undefined,
-        opacity: isUnimplemented ? 0.65 : 1,
-        transition: "background 0.15s, box-shadow 0.15s, opacity 0.15s",
-      }}
+      className={`${panelStyles.contentCard} ${styles.triggerCard}`}
+      data-channel-active={channelActive ? "true" : "false"}
+      data-unimplemented={isUnimplemented ? "true" : "false"}
     >
       {/* Header: trigger name + enable toggle */}
       <div className={panelStyles.contentCardHeader}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-3)",
-          }}
-        >
+        <div className={styles.triggerHeaderInfo}>
           <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "var(--radius-md)",
-              background: channelActive
-                ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-                : "var(--color-bg-surface-soft)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: channelActive
-                ? "var(--color-primary)"
-                : "var(--color-text-muted)",
-              flexShrink: 0,
-              transition: "background 0.15s, color 0.15s",
-            }}
+            className={styles.triggerIcon}
+            data-channel-active={channelActive ? "true" : "false"}
           >
             <FiZap size={16} aria-hidden />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-                letterSpacing: "-0.1px",
-              }}
-            >
+            <div className={styles.triggerTitle}>
               {AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                marginTop: 2,
-                lineHeight: 1.45,
-              }}
-            >
+            <div className={styles.triggerDescription}>
               {TRIGGER_DESCRIPTIONS[config.trigger] ??
                 "해당 이벤트 발생 시 자동 발송합니다."}
             </div>
             {isUnimplemented && (
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--color-status-warning, #d97706)",
-                  marginTop: 4,
-                  lineHeight: 1.35,
-                }}
-              >
+              <div className={styles.unimplementedHint}>
                 ⚠ {unimplementedHint}
               </div>
             )}
@@ -324,14 +264,7 @@ function TriggerCard({
         </div>
 
         {/* Enable/disable toggle */}
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            flexShrink: 0,
-          }}
-        >
+        <div className={styles.cardActions}>
           <Switch
             checked={channelActive}
             onChange={handleChannelToggle}
@@ -339,13 +272,8 @@ function TriggerCard({
             size="small"
           />
           <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: channelActive
-                ? "var(--color-text-primary)"
-                : "var(--color-text-muted)",
-            }}
+            className={styles.channelState}
+            data-channel-active={channelActive ? "true" : "false"}
           >
             {channelActive ? "활성화" : "비활성화"}
           </span>
@@ -355,21 +283,7 @@ function TriggerCard({
               onClick={() => setShowPreview(true)}
               aria-label="미리보기"
               title="알림톡 미리보기"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-primary)",
-                background: "color-mix(in srgb, var(--color-primary) 8%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)",
-                borderRadius: "var(--radius-sm, 4px)",
-                cursor: "pointer",
-                transition: "background 0.12s",
-                whiteSpace: "nowrap",
-              }}
+              className={styles.previewButton}
             >
               <Eye size={12} />
               미리보기
@@ -380,82 +294,32 @@ function TriggerCard({
 
       {/* Controls area */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: channelMode
-            ? isReminder ? "1fr 120px" : "1fr"
-            : isReminder ? "1fr 120px 160px" : "1fr 160px",
-          gap: 16,
-          alignItems: "start",
-        }}
+        className={styles.controls}
+        data-layout={controlsLayout}
       >
         {/* Template — click to open edit modal */}
         <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-              marginBottom: 6,
-              textTransform: "uppercase" as const,
-              letterSpacing: "0.04em",
-            }}
-          >
+          <div className={styles.fieldLabel}>
             템플릿
           </div>
           <button
             type="button"
             onClick={handleEditClick}
             disabled={saving}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-              height: 36,
-              padding: "0 12px",
-              fontSize: 13,
-              fontWeight: 500,
-              textAlign: "left",
-              color: "var(--color-text-primary)",
-              background:
-                "color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface))",
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: "var(--radius-md)",
-              boxShadow:
-                "inset 0 2px 4px rgba(0,0,0,.06), inset 0 -1px 0 0 rgba(255,255,255,.04)",
-              cursor: "pointer",
-              transition: "border-color 120ms, box-shadow 120ms",
-            }}
+            className={styles.templateButton}
           >
             <FiEdit3
               size={13}
-              style={{ flexShrink: 0, color: "var(--color-primary)" }}
+              className={styles.templateEditIcon}
               aria-hidden
             />
-            <span
-              style={{
-                flex: 1,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <span className={styles.templateButtonText}>
               수정하기
             </span>
             {hasTemplate && status && (
               <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  padding: "3px 7px",
-                  borderRadius: 10,
-                  flexShrink: 0,
-                  background: statusBg,
-                  color: statusColor,
-                  letterSpacing: "-0.01em",
-                }}
+                className={styles.statusBadge}
+                data-status={status}
               >
                 {statusLabel}
               </span>
@@ -466,31 +330,16 @@ function TriggerCard({
         {/* Send timing (minutes before) — only for reminder triggers */}
         {isReminder && (
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 6,
-                textTransform: "uppercase" as const,
-                letterSpacing: "0.04em",
-              }}
-            >
+            <div className={styles.fieldLabel}>
               발송 시점
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div className={styles.reminderInputGroup}>
               <input
                 type="number"
                 min={0}
                 step={5}
                 placeholder="0"
-                className="ds-input"
-                style={{
-                  width: 72,
-                  fontSize: 13,
-                  textAlign: "right",
-                  paddingRight: 8,
-                }}
+                className={`ds-input ${styles.reminderInput}`}
                 value={config.minutes_before ?? ""}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -508,13 +357,7 @@ function TriggerCard({
                 disabled={saving}
                 aria-label={`발송 시점 (${getReminderUnit(config.trigger)})`}
               />
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <span className={styles.reminderUnit}>
                 {getReminderUnit(config.trigger)}
               </span>
             </div>
@@ -524,21 +367,11 @@ function TriggerCard({
         {/* Send mode — only in unified mode (no channelMode) */}
         {!channelMode && (
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-muted)",
-                marginBottom: 6,
-                textTransform: "uppercase" as const,
-                letterSpacing: "0.04em",
-              }}
-            >
+            <div className={styles.fieldLabel}>
               발송 채널
             </div>
             <select
-              className="ds-select"
-              style={{ width: "100%", fontSize: 13 }}
+              className={`ds-select ${styles.channelSelect}`}
               value="alimtalk"
               onChange={() =>
                 onUpdate({
@@ -555,33 +388,20 @@ function TriggerCard({
       </div>
       {/* 클리닉 출석/결석: 시간 표시 모드 토글 */}
       {(config.trigger === "clinic_check_in" || config.trigger === "clinic_absent") && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 8,
-            padding: "8px 12px",
-            borderRadius: 8,
-            background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-            border: "1px solid color-mix(in srgb, var(--color-primary) 10%, transparent)",
-          }}
-        >
+        <div className={styles.clinicTimeToggle}>
           <Switch
             size="small"
             checked={config.show_actual_time ?? false}
             onChange={(checked) => onUpdate({ ...config, show_actual_time: checked })}
             disabled={saving}
           />
-          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+          <span className={styles.clinicTimeText}>
             알림톡 <strong>시간 항목</strong>에 실제 {config.trigger === "clinic_check_in" ? "도착" : "처리"} 시각 표시
           </span>
-          <span style={{
-            fontSize: 10, fontWeight: 600,
-            color: config.show_actual_time ? "var(--color-primary)" : "var(--color-text-muted)",
-            marginLeft: "auto",
-            whiteSpace: "nowrap",
-          }}>
+          <span
+            className={styles.clinicTimeMode}
+            data-show-actual-time={config.show_actual_time ? "true" : "false"}
+          >
             {config.show_actual_time ? "→ 버튼 누른 시각" : "→ 수업 예정 시간"}
           </span>
         </div>
@@ -781,7 +601,7 @@ export default function AutoSendSettingsPanel({
           <h2 className={panelStyles.headerTitle}>{title}</h2>
           <p className={panelStyles.headerDesc}>{description}</p>
         </div>
-        <div style={{ padding: "var(--space-5)" }}>
+        <div className={styles.cardsBody}>
           <div className={panelStyles.contentInner}>
             {[1, 2, 3].map((i) => (
               <div key={i} className={panelStyles.skeletonCard} />
@@ -803,15 +623,15 @@ export default function AutoSendSettingsPanel({
         <div className={panelStyles.placeholder}>
           <FiZap
             size={36}
-            style={{ color: "var(--color-text-muted)", opacity: 0.5 }}
+            className={styles.placeholderIcon}
           />
-          <p className={panelStyles.placeholderTitle} style={{ marginTop: 16 }}>
+          <p className={`${panelStyles.placeholderTitle} ${styles.placeholderTitle}`}>
             자동발송 설정이 아직 구성되지 않았습니다
           </p>
           <p className={panelStyles.placeholderDesc}>
             메시지 &gt; 자동발송 페이지에서 기본 템플릿을 먼저 생성해 주세요.
           </p>
-          <div style={{ marginTop: 16 }}>
+          <div className={panelStyles.placeholderAction}>
             <Button
               type="button"
               intent="primary"
@@ -832,14 +652,7 @@ export default function AutoSendSettingsPanel({
       <div className={panelStyles.root}>
         {/* Section header with title, description, and master toggle */}
         <div className={panelStyles.header}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 16,
-            }}
-          >
+          <div className={styles.sectionHeaderRow}>
             <div>
               <h2 className={panelStyles.headerTitle}>{title}</h2>
               <p className={panelStyles.headerDesc}>{description}</p>
@@ -847,23 +660,8 @@ export default function AutoSendSettingsPanel({
 
             {/* Section-level on/off toggle */}
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 16px",
-                background: sectionEnabled
-                  ? "color-mix(in srgb, var(--color-status-success, #16a34a) 8%, var(--color-bg-surface))"
-                  : "var(--color-bg-surface-soft)",
-                border: `1px solid ${
-                  sectionEnabled
-                    ? "color-mix(in srgb, var(--color-status-success, #16a34a) 25%, var(--color-border-divider))"
-                    : "var(--color-border-divider)"
-                }`,
-                borderRadius: "var(--radius-md)",
-                flexShrink: 0,
-                transition: "background 0.15s, border-color 0.15s",
-              }}
+              className={styles.masterToggle}
+              data-enabled={sectionEnabled ? "true" : "false"}
             >
               <Switch
                 checked={sectionEnabled}
@@ -874,14 +672,8 @@ export default function AutoSendSettingsPanel({
                 size="small"
               />
               <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: sectionEnabled
-                    ? "var(--color-status-success, #16a34a)"
-                    : "var(--color-text-muted)",
-                  whiteSpace: "nowrap",
-                }}
+                className={styles.masterToggleText}
+                data-enabled={sectionEnabled ? "true" : "false"}
               >
                 {sectionEnabled ? "전체 활성화" : "전체 비활성화"}
               </span>
@@ -890,7 +682,7 @@ export default function AutoSendSettingsPanel({
         </div>
 
         {/* Trigger cards */}
-        <div style={{ padding: "var(--space-5)" }}>
+        <div className={styles.cardsBody}>
           <div className={panelStyles.contentInner}>
             {filteredConfigs.map((config) => (
               <TriggerCard

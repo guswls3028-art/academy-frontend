@@ -1,0 +1,309 @@
+.triggerCard {
+  background: var(--color-bg-surface-soft);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+}
+
+.triggerCard[data-channel-active="true"] {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.triggerCard[data-unimplemented="true"] {
+  opacity: 0.65;
+}
+
+.triggerHeaderInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.triggerIcon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.triggerIcon[data-channel-active="true"] {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.triggerTitle {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+
+.triggerDescription {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.unimplementedHint {
+  margin-top: 4px;
+  color: var(--color-status-warning, #d97706);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cardActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.channelState {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.channelState[data-channel-active="true"] {
+  color: var(--color-text-primary);
+}
+
+.previewButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.controls {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+}
+
+.controls[data-layout="channel"] {
+  grid-template-columns: 1fr;
+}
+
+.controls[data-layout="channel-reminder"] {
+  grid-template-columns: 1fr 120px;
+}
+
+.controls[data-layout="unified"] {
+  grid-template-columns: 1fr 160px;
+}
+
+.controls[data-layout="unified-reminder"] {
+  grid-template-columns: 1fr 120px 160px;
+}
+
+.fieldLabel {
+  margin-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.templateButton {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+
+.templateEditIcon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.templateButtonText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusBadge {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-status-danger, #dc2626) 10%, transparent);
+  color: var(--color-status-danger, #dc2626);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.statusBadge[data-status="APPROVED"] {
+  background: color-mix(in srgb, var(--color-status-success, #16a34a) 10%, transparent);
+  color: var(--color-status-success, #16a34a);
+}
+
+.statusBadge[data-status="PENDING"] {
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent);
+  color: var(--color-status-warning, #d97706);
+}
+
+.reminderInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reminderInput {
+  width: 72px;
+  padding-right: 8px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.reminderUnit {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.channelSelect {
+  width: 100%;
+  font-size: 13px;
+}
+
+.clinicTimeToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+}
+
+.clinicTimeText {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.clinicTimeMode {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clinicTimeMode[data-show-actual-time="true"] {
+  color: var(--color-primary);
+}
+
+.cardsBody {
+  padding: var(--space-5);
+}
+
+.placeholderIcon {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.placeholderTitle {
+  margin-top: 16px;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.masterToggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.masterToggle[data-enabled="true"] {
+  border-color: color-mix(in srgb, var(--color-status-success, #16a34a) 25%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-status-success, #16a34a) 8%, var(--color-bg-surface));
+}
+
+.masterToggleText {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.masterToggleText[data-enabled="true"] {
+  color: var(--color-status-success, #16a34a);
+}
+
+@media (max-width: 720px) {
+  .controls,
+  .controls[data-layout] {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeaderRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cardActions,
+  .clinicTimeToggle {
+    flex-wrap: wrap;
+  }
+
+  .clinicTimeMode {
+    width: 100%;
+    margin-left: 0;
+  }
+}
