@@ -5,11 +5,12 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { fetchLandingPublic } from "../api";
 import { createBoardPost, type BoardCategory } from "../api/publicCommunity";
 import HitReportPicker from "../components/HitReportPicker";
-import type { LandingPublicResponse } from "../types";
+import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
@@ -84,8 +85,8 @@ export default function LandingBoardWritePage() {
         meta: matchupReportIds.length > 0 ? { matchup_report_ids: matchupReportIds } : undefined,
       });
       navigate(`/landing/board/${created.id}`, { replace: true });
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "글 등록 실패. 잠시 후 다시 시도해주세요.");
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "글 등록 실패. 잠시 후 다시 시도해주세요."));
     } finally {
       setSubmitting(false);
     }
@@ -215,7 +216,7 @@ export default function LandingBoardWritePage() {
   }
 }
 
-function Shell({ cfg, children }: { cfg: any; children: React.ReactNode }) {
+function Shell({ cfg, children }: { cfg?: LandingConfig; children: React.ReactNode }) {
   if (!cfg) return <>{children}</>;
   return (
     <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#F5F1E8", fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>

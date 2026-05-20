@@ -15,8 +15,9 @@ import {
   fetchShowcaseDetail,
   fetchShowcaseList,
   type PublicExamShowcase,
+  type ShowcaseSummary,
 } from "../api/publicCommunity";
-import type { LandingPublicResponse } from "../types";
+import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
@@ -42,6 +43,15 @@ const TEXT_PRIMARY = "#F5F1E8";
 const TEXT_SECONDARY = "#9CA3AF";
 const TEXT_MUTED = "#6B7280";
 
+const EMPTY_SHOWCASE_SUMMARY: ShowcaseSummary = {
+  count: 0,
+  avg: 0,
+  max: 0,
+  min: 0,
+  max_score_full: 0,
+  exam_title: "",
+};
+
 function BrandMark({ name }: { name: string }) {
   const initial = (name || "").trim().charAt(0) || "•";
   return (
@@ -49,7 +59,7 @@ function BrandMark({ name }: { name: string }) {
   );
 }
 
-function Shell({ cfg, children }: { cfg: any; children: React.ReactNode }) {
+function Shell({ cfg, children }: { cfg: LandingConfig; children: React.ReactNode }) {
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT_PRIMARY, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />
@@ -127,7 +137,7 @@ export function LandingScoresListPage() {
 }
 
 function ShowcaseCard({ showcase }: { showcase: PublicExamShowcase }) {
-  const s = showcase.summary || ({} as any);
+  const s = showcase.summary ?? EMPTY_SHOWCASE_SUMMARY;
   const expiredBadge = showcase.expired;
   return (
     <Link to={`/landing/scores/${showcase.id}`} data-testid={`showcase-card-${showcase.id}`}
@@ -232,7 +242,7 @@ export function LandingScoresDetailPage() {
 
   if (!showcase) return <Shell cfg={cfg}><CenterSpin /></Shell>;
 
-  const s = showcase.summary || ({} as any);
+  const s = showcase.summary ?? EMPTY_SHOWCASE_SUMMARY;
   const expired = showcase.expired;
   const showRows = (showcase.rows && showcase.rows.length > 0);
 

@@ -6,9 +6,10 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { fetchLandingPublic } from "../api";
 import { createReview, uploadReviewPhoto } from "../api/publicCommunity";
-import type { LandingPublicResponse } from "../types";
+import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
@@ -83,8 +84,8 @@ export default function LandingReviewWritePage() {
         photos: photos.length > 0 ? photos : undefined,
       });
       navigate(`/landing/reviews/${created.id}`, { replace: true });
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "후기 등록 실패. 잠시 후 다시 시도해주세요.");
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "후기 등록 실패. 잠시 후 다시 시도해주세요."));
     } finally {
       setSubmitting(false);
     }
@@ -219,8 +220,8 @@ export default function LandingReviewWritePage() {
                       try {
                         const { url } = await uploadReviewPhoto(file);
                         setPhotos((prev) => [...prev, url].slice(0, 8));
-                      } catch (err: any) {
-                        window.alert(err?.response?.data?.detail || "사진 업로드 실패");
+                      } catch (error: unknown) {
+                        window.alert(getApiErrorMessage(error, "사진 업로드 실패"));
                       } finally {
                         setUploadingPhoto(false);
                       }
@@ -300,7 +301,7 @@ function StarPicker({ value, onChange, gold }: { value: number; onChange: (n: nu
   );
 }
 
-function Shell({ cfg, children }: { cfg: any; children: React.ReactNode }) {
+function Shell({ cfg, children }: { cfg?: LandingConfig; children: React.ReactNode }) {
   if (!cfg) return <>{children}</>;
   return (
     <div style={{ minHeight: "100vh", background: "#0A0E1A", color: "#F5F1E8", fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
