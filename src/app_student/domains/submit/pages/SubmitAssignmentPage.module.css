@@ -1,0 +1,190 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.errorMessage {
+  padding: var(--stu-space-3);
+  border: 1px solid var(--stu-danger-border);
+  border-radius: var(--stu-radius);
+  background: var(--stu-danger-bg);
+  color: var(--stu-danger-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--stu-space-3);
+  border-radius: var(--stu-radius);
+  background: var(--stu-success-bg);
+  color: var(--stu-success-text);
+  font-size: 14px;
+}
+
+.successLink {
+  color: var(--stu-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stepLabel {
+  margin-bottom: 8px;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.loadingText {
+  font-size: 13px;
+}
+
+.emptyTarget {
+  padding: var(--stu-space-4);
+  border-radius: var(--stu-radius);
+  background: var(--stu-surface-soft);
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.targetList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.targetItem {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+  background: var(--stu-surface);
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.targetItem[data-selected="true"] {
+  border-color: var(--stu-primary);
+  background: var(--stu-primary-bg);
+}
+
+.targetIcon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--stu-surface-soft);
+}
+
+.targetIconSvg {
+  width: 14px;
+  height: 14px;
+  color: var(--stu-primary);
+}
+
+.targetBadge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--stu-primary-bg);
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.targetTitle {
+  flex: 1;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.targetLecture {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.fileButton {
+  align-self: flex-start;
+}
+
+.selectedFile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: var(--stu-space-2) var(--stu-space-3);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+  background: var(--stu-surface);
+  font-size: 14px;
+}
+
+.selectedFileInfo {
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  gap: 6px;
+}
+
+.selectedFileIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--stu-text-muted);
+}
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.submitSummary {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+}
+
+.submitButton {
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  .successMessage,
+  .submitRow,
+  .selectedFile {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--stu-space-2);
+  }
+
+  .submitButton {
+    width: 100%;
+  }
+}

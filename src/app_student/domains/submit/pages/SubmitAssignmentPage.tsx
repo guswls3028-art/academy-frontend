@@ -19,6 +19,7 @@ import type { Submission } from "@admin/domains/submissions/types";
 import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import styles from "./SubmitAssignmentPage.module.css";
 
 const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
@@ -142,37 +143,37 @@ export default function SubmitAssignmentPage() {
       description="미완료 과제는 파일로, 시험은 온라인 답안으로 제출하세요."
       onBack={() => window.history.back()}
     >
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className={`stu-section stu-section--nested ${styles.section}`}>
         {/* 에러 / 성공 메시지 */}
         {(uploadMut.isError || error) && (
-          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+          <div role="alert" className={styles.errorMessage}>
             {error || (uploadMut.error instanceof Error ? uploadMut.error.message : "제출에 실패했습니다.")}
           </div>
         )}
         {uploadMut.isSuccess && (
-          <div style={{ padding: "var(--stu-space-3)", background: "var(--stu-success-bg)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-success-text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className={styles.successMessage}>
             <span>제출이 완료되었습니다.</span>
-            <Link to="/student/grades" style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-primary)" }}>성적 확인 →</Link>
+            <Link to="/student/grades" className={styles.successLink}>성적 확인 →</Link>
           </div>
         )}
 
         {/* STEP 1: 제출 대상 선택 */}
         <div data-guide="submit-target">
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 8 }}>
+          <div className={styles.stepLabel}>
             1. 제출 대상 선택
           </div>
 
           {gradesLoading && (
-            <div className="stu-muted" style={{ fontSize: 13 }}>불러오는 중…</div>
+            <div className={`stu-muted ${styles.loadingText}`}>불러오는 중…</div>
           )}
 
           {!gradesLoading && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && (
-            <div style={{ padding: "var(--stu-space-4)", background: "var(--stu-surface-soft)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-text-muted)", textAlign: "center" }}>
+            <div className={styles.emptyTarget}>
               제출할 미완료 과제·시험이 없습니다.
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className={styles.targetList}>
             {/* 미완료 과제 */}
             {unfinishedHomeworks.map((h: MyHomeworkGradeSummary) => {
               const isSelected = selected?.type === "homework" && selected.id === h.homework_id;
@@ -181,40 +182,20 @@ export default function SubmitAssignmentPage() {
                   key={`hw-${h.homework_id}`}
                   type="button"
                   onClick={() => setSelected({ type: "homework", id: h.homework_id, title: h.title, enrollmentId: h.enrollment_id })}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    background: isSelected ? "var(--stu-primary-bg)" : "var(--stu-surface)",
-                    border: `2px solid ${isSelected ? "var(--stu-primary)" : "var(--stu-border)"}`,
-                    borderRadius: "var(--stu-radius)",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                    transition: "border-color 0.15s",
-                  }}
+                  className={styles.targetItem}
+                  data-selected={isSelected}
                 >
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    width: 24, height: 24, borderRadius: 6,
-                    background: "var(--stu-surface-soft)", flexShrink: 0,
-                  }}>
-                    <IconClipboard style={{ width: 14, height: 14, color: "var(--stu-primary)" }} />
+                  <span className={styles.targetIcon}>
+                    <IconClipboard className={styles.targetIconSvg} />
                   </span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, color: "var(--stu-primary)",
-                    background: "var(--stu-primary-bg)", padding: "2px 8px", borderRadius: 999,
-                    flexShrink: 0, letterSpacing: "0.02em",
-                  }}>
+                  <span className={styles.targetBadge}>
                     과제
                   </span>
-                  <span style={{ flex: 1, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span className={styles.targetTitle}>
                     {h.title}
                   </span>
                   {h.lecture_title && (
-                    <span className="stu-muted" style={{ fontSize: 12, flexShrink: 0 }}>
+                    <span className={`stu-muted ${styles.targetLecture}`}>
                       {h.lecture_title}
                     </span>
                   )}
@@ -228,42 +209,19 @@ export default function SubmitAssignmentPage() {
                 <Link
                   key={`ex-${e.exam_id}`}
                   to={`/student/exams/${e.exam_id}/submit`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    background: "var(--stu-surface)",
-                    border: "2px solid var(--stu-border)",
-                    borderRadius: "var(--stu-radius)",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                    color: "inherit",
-                    textDecoration: "none",
-                    transition: "border-color 0.15s",
-                  }}
+                  className={styles.targetItem}
                 >
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    width: 24, height: 24, borderRadius: 6,
-                    background: "var(--stu-surface-soft)", flexShrink: 0,
-                  }}>
-                    <IconExam style={{ width: 14, height: 14, color: "var(--stu-primary)" }} />
+                  <span className={styles.targetIcon}>
+                    <IconExam className={styles.targetIconSvg} />
                   </span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, color: "var(--stu-primary)",
-                    background: "var(--stu-primary-bg)", padding: "2px 8px", borderRadius: 999,
-                    flexShrink: 0, letterSpacing: "0.02em",
-                  }}>
+                  <span className={styles.targetBadge}>
                     시험
                   </span>
-                  <span style={{ flex: 1, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span className={styles.targetTitle}>
                     {e.title}
                   </span>
                   {e.lecture_title && (
-                    <span className="stu-muted" style={{ fontSize: 12, flexShrink: 0 }}>
+                    <span className={`stu-muted ${styles.targetLecture}`}>
                       {e.lecture_title}
                     </span>
                   )}
@@ -276,7 +234,7 @@ export default function SubmitAssignmentPage() {
         {/* STEP 2: 파일 선택 */}
         {selected && (
           <div data-guide="submit-file">
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 8 }}>
+            <div className={styles.stepLabel}>
               2. 파일 선택
             </div>
 
@@ -285,30 +243,24 @@ export default function SubmitAssignmentPage() {
               type="file"
               accept={ACCEPT}
               onChange={onFileChange}
-              style={{ display: "none" }}
+              className={styles.hiddenInput}
             />
 
             <button
               type="button"
-              className="stu-btn stu-btn--secondary"
+              className={`stu-btn stu-btn--secondary ${styles.fileButton}`}
               onClick={() => fileInputRef.current?.click()}
-              style={{ alignSelf: "flex-start" }}
             >
               파일 선택 (동영상·사진, 최대 {MAX_SIZE_MB}MB)
             </button>
 
             {selectedFile && (
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "var(--stu-space-2) var(--stu-space-3)",
-                background: "var(--stu-surface)", border: "1px solid var(--stu-border)",
-                borderRadius: "var(--stu-radius)", fontSize: 14, marginTop: 8,
-              }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+              <div className={styles.selectedFile}>
+                <span className={styles.selectedFileInfo}>
                   {selectedFile.type.startsWith("video/")
-                    ? <IconVideo style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
-                    : <IconImage style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />}
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    ? <IconVideo className={styles.selectedFileIcon} />
+                    : <IconImage className={styles.selectedFileIcon} />}
+                  <span className={styles.fileName}>
                     {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
                   </span>
                 </span>
@@ -326,17 +278,16 @@ export default function SubmitAssignmentPage() {
 
         {/* STEP 3: 제출 */}
         {selected && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 13, color: "var(--stu-text-muted)" }}>
+          <div className={styles.submitRow}>
+            <div className={styles.submitSummary}>
               제출 대상: <b>과제 · {selected.title}</b>
             </div>
             <button
               type="button"
               data-guide="submit-btn"
-              className="stu-btn stu-btn--primary"
+              className={`stu-btn stu-btn--primary ${styles.submitButton}`}
               disabled={!canSubmit}
               onClick={() => uploadMut.mutate()}
-              style={{ minHeight: 44 }}
             >
               {uploadMut.isPending ? "제출 중…" : "제출하기"}
             </button>
