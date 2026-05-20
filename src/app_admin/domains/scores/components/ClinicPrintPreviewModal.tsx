@@ -1,18 +1,42 @@
 // PATH: src/app_admin/domains/scores/components/ClinicPrintPreviewModal.tsx
 // 클리닉 대상자 안내 미리보기 + PDF 다운로드 모달
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
+import { Download, FileText } from "lucide-react";
 import { buildClinicPdfHtml, downloadClinicPdf, type ClinicPdfParams } from "../utils/clinicPdfGenerator";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "./PrintPreviewModal.css";
 
 type Props = ClinicPdfParams & {
   open: boolean;
   onClose: () => void;
 };
 
-export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Props) {
+export default function ClinicPrintPreviewModal({
+  open,
+  onClose,
+  rows,
+  meta,
+  sessionTitle,
+  lectureTitle,
+  date,
+  attendanceMap,
+  schedule,
+}: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const params = useMemo<ClinicPdfParams>(
+    () => ({
+      rows,
+      meta,
+      sessionTitle,
+      lectureTitle,
+      date,
+      attendanceMap,
+      schedule,
+    }),
+    [rows, meta, sessionTitle, lectureTitle, date, attendanceMap, schedule]
+  );
 
   useEffect(() => {
     if (!open || !iframeRef.current) return;
@@ -22,7 +46,7 @@ export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Pr
     doc.open();
     doc.write(html);
     doc.close();
-  }, [open, params.rows, params.meta, params.sessionTitle, params.lectureTitle]);
+  }, [open, params]);
 
   if (!open) return null;
 
@@ -31,8 +55,8 @@ export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Pr
     try {
       await downloadClinicPdf(params);
       feedback.success("클리닉 대상자 PDF가 다운로드되었습니다.");
-    } catch (e: any) {
-      feedback.error(e?.message ?? "PDF 생성에 실패했습니다.");
+    } catch (e: unknown) {
+      feedback.error(e instanceof Error ? e.message : "PDF 생성에 실패했습니다.");
     } finally {
       setDownloading(false);
     }
@@ -47,16 +71,12 @@ export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Pr
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="bg-[var(--color-bg-surface)] rounded-lg shadow-2xl border border-[var(--color-border-divider)] flex flex-col"
-        style={{ width: "90vw", maxWidth: 900, height: "85vh" }}
+        className="print-preview-modal__panel print-preview-modal__panel--clinic bg-[var(--color-bg-surface)] rounded-lg shadow-2xl border border-[var(--color-border-divider)] flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border-divider)]">
           <div className="flex items-center gap-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-muted)]">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
+            <FileText size={20} strokeWidth={2} className="text-[var(--color-text-muted)]" aria-hidden />
             <h2 id="clinic-print-preview-title" className="text-base font-semibold text-[var(--color-text-primary)]">
               클리닉 대상자 미리보기
             </h2>
@@ -71,11 +91,7 @@ export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Pr
               disabled={downloading}
               className="h-9 px-5 rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <Download size={16} strokeWidth={2} aria-hidden />
               {downloading ? "PDF 생성 중…" : "PDF 다운로드"}
             </button>
             <button
@@ -90,19 +106,11 @@ export default function ClinicPrintPreviewModal({ open, onClose, ...params }: Pr
 
         {/* Preview area */}
         <div className="flex-1 overflow-auto bg-[#e5e7eb] p-4">
-          <div
-            className="mx-auto bg-white shadow-lg"
-            style={{
-              width: "210mm",
-              minHeight: "297mm",
-              transform: "scale(0.75)",
-              transformOrigin: "top center",
-            }}
-          >
+          <div className="print-preview-modal__paper print-preview-modal__paper--portrait mx-auto bg-white shadow-lg">
             <iframe
               ref={iframeRef}
               title="클리닉 대상자 미리보기"
-              style={{ width: "100%", height: "297mm", border: "none" }}
+              className="print-preview-modal__iframe print-preview-modal__iframe--portrait"
             />
           </div>
         </div>

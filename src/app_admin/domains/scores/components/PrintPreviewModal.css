@@ -1,0 +1,41 @@
+.print-preview-modal__panel {
+  width: 90vw;
+  height: 85vh;
+}
+
+.print-preview-modal__panel--score {
+  max-width: 1200px;
+}
+
+.print-preview-modal__panel--clinic {
+  max-width: 900px;
+}
+
+.print-preview-modal__paper {
+  transform-origin: top center;
+}
+
+.print-preview-modal__paper--landscape {
+  width: 297mm;
+  min-height: 210mm;
+  transform: scale(0.85);
+}
+
+.print-preview-modal__paper--portrait {
+  width: 210mm;
+  min-height: 297mm;
+  transform: scale(0.75);
+}
+
+.print-preview-modal__iframe {
+  width: 100%;
+  border: 0;
+}
+
+.print-preview-modal__iframe--landscape {
+  height: 210mm;
+}
+
+.print-preview-modal__iframe--portrait {
+  height: 297mm;
+}
