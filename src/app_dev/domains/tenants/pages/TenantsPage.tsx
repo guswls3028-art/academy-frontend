@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useTenantList, useCreateTenant, useUpdateTenant } from "@dev/domains/tenants/hooks/useTenants";
-import { useRegisterOwner } from "@dev/domains/tenants/hooks/useTenants";
+import { Search } from "lucide-react";
+import { useTenantList, useCreateTenant, useUpdateTenant, useRegisterOwner } from "@dev/domains/tenants/hooks/useTenants";
 import { useDevToast } from "@dev/shared/components/DevToast";
 import s from "@dev/layout/DevLayout.module.css";
+import styles from "./TenantsPage.module.css";
 
 export default function TenantsPage() {
   const navigate = useNavigate();
@@ -91,15 +92,15 @@ export default function TenantsPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>대시보드</Link>
+          <Link to="/dev/dashboard" className={styles.breadcrumbLink}>대시보드</Link>
           <span className={s.breadcrumbSep}>/</span>
           <span className={s.breadcrumbCurrent}>테넌트</span>
         </div>
       </header>
 
       <div className={s.content}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-          <div className={s.pageHeader} style={{ marginBottom: 0 }}>
+        <div className={styles.toolbar}>
+          <div className={`${s.pageHeader} ${styles.compactPageHeader}`}>
             <h1 className={s.pageTitle}>테넌트</h1>
             <p className={s.pageSub}>{tenants?.length ?? 0}개 테넌트 관리</p>
           </div>
@@ -120,7 +121,7 @@ export default function TenantsPage() {
                 <h2 className={s.modalTitle}>새 테넌트</h2>
                 <p className={s.modalSub}>새 테넌트를 생성합니다.</p>
               </div>
-              <div className={s.modalBody} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className={`${s.modalBody} ${styles.modalFields}`}>
                 <div>
                   <label className={s.inputLabel}>코드 *</label>
                   <input className={s.input} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="tchul" />
@@ -133,12 +134,12 @@ export default function TenantsPage() {
                   <label className={s.inputLabel}>도메인</label>
                   <input className={s.input} value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="tchul.com" />
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <label className={styles.ownerToggle}>
                   <input type="checkbox" checked={withOwner} onChange={(e) => setWithOwner(e.target.checked)} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>Owner 계정 함께 생성</span>
+                  <span className={styles.ownerToggleText}>Owner 계정 함께 생성</span>
                 </label>
                 {withOwner && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingLeft: 2 }}>
+                  <div className={styles.ownerGrid}>
                     <div>
                       <label className={s.inputLabel}>아이디 *</label>
                       <input className={s.input} value={ownerUser} onChange={(e) => setOwnerUser(e.target.value)} />
@@ -171,12 +172,9 @@ export default function TenantsPage() {
         {/* 검색 + 테이블 */}
         <div className={s.card}>
           <div className={s.cardHeader}>
-            <div className={s.searchWrap} style={{ flex: 1, maxWidth: 320 }}>
+            <div className={`${s.searchWrap} ${styles.searchWrap}`}>
               <span className={s.searchIcon}>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="7" cy="7" r="5.5" />
-                  <path d="M11 11l3.5 3.5" />
-                </svg>
+                <Search size={14} strokeWidth={1.5} />
               </span>
               <input
                 className={s.searchInput}
@@ -190,7 +188,7 @@ export default function TenantsPage() {
           {isLoading ? (
             <div className={s.cardBody}>
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className={s.skeleton} style={{ height: 44, marginBottom: 8 }} />
+                <div key={i} className={`${s.skeleton} ${styles.skeletonRow}`} />
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -204,12 +202,12 @@ export default function TenantsPage() {
             <table className={s.table}>
               <thead>
                 <tr>
-                  <th style={{ width: 48 }}>ID</th>
+                  <th className={styles.idColumn}>ID</th>
                   <th>이름</th>
                   <th>코드</th>
                   <th>도메인</th>
                   <th>상태</th>
-                  <th style={{ width: 100 }}>동작</th>
+                  <th className={styles.actionsColumn}>동작</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,10 +217,10 @@ export default function TenantsPage() {
                     className={s.tableRow}
                     onClick={() => navigate(`/dev/tenants/${t.id}`)}
                   >
-                    <td style={{ color: "var(--dev-text-muted)" }}>{t.id}</td>
-                    <td style={{ fontWeight: 600 }}>{t.name}</td>
+                    <td className={styles.mutedCell}>{t.id}</td>
+                    <td className={styles.tenantNameCell}>{t.name}</td>
                     <td><span className={s.code}>{t.code}</span></td>
-                    <td style={{ color: "var(--dev-text-secondary)" }}>{t.primaryDomain || "—"}</td>
+                    <td className={styles.domainCell}>{t.primaryDomain || "—"}</td>
                     <td>
                       <span className={`${s.badge} ${t.isActive ? s.badgeActive : s.badgeInactive}`}>
                         <span className={`${s.badgeDot} ${t.isActive ? s.badgeDotActive : s.badgeDotInactive}`} />

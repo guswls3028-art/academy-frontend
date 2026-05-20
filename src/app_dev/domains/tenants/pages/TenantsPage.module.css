@@ -1,0 +1,86 @@
+.breadcrumbLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.toolbar {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.compactPageHeader {
+  margin-bottom: 0;
+}
+
+.modalFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ownerToggle {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+}
+
+.ownerToggleText {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ownerGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-left: 2px;
+}
+
+.searchWrap {
+  flex: 1;
+  max-width: 320px;
+}
+
+.skeletonRow {
+  height: 44px;
+  margin-bottom: 8px;
+}
+
+.idColumn {
+  width: 48px;
+}
+
+.actionsColumn {
+  width: 100px;
+}
+
+.mutedCell {
+  color: var(--dev-text-muted);
+}
+
+.tenantNameCell {
+  font-weight: 600;
+}
+
+.domainCell {
+  color: var(--dev-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ownerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchWrap {
+    max-width: none;
+  }
+}
