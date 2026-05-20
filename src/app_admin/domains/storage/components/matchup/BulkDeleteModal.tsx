@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { Trash2, X, AlertTriangle, Shield } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
+import styles from "./BulkDeleteModal.module.css";
 
 type Props = {
   problems: MatchupProblem[];
@@ -99,6 +100,12 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
   }, [submitting, onClose]);
 
   const canSubmit = !!preview && preview.targetCount > 0 && !submitting;
+  const inputState =
+    parsed && parsed.ok === false
+      ? "error"
+      : preview && preview.targetCount > 0
+        ? "ready"
+        : "idle";
 
   const handleSubmit = async () => {
     if (!canSubmit || !preview) return;
@@ -119,12 +126,7 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
       aria-modal="true"
       aria-label="자동분리 잔존 일괄삭제"
       onClick={submitting ? undefined : onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 9500,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0, 0, 0, 0.45)",
-        padding: "var(--space-4)",
-      }}
+      className={styles.backdrop}
     >
       <div
         data-testid="matchup-bulk-delete-modal"
@@ -138,28 +140,12 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
             }
           }
         }}
-        style={{
-          background: "var(--color-bg-surface)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-          width: "min(520px, 100%)",
-          maxHeight: "calc(100vh - 64px)",
-          display: "flex", flexDirection: "column",
-          overflow: "hidden",
-        }}
+        className={styles.modal}
       >
         {/* 헤더 */}
-        <div style={{
-          padding: "var(--space-4) var(--space-5)",
-          borderBottom: "1px solid var(--color-border-divider)",
-          display: "flex", alignItems: "center", gap: "var(--space-2)",
-          flexShrink: 0,
-        }}>
-          <Trash2 size={ICON.md} style={{ color: "var(--color-danger)", flexShrink: 0 }} />
-          <h3 style={{
-            margin: 0, fontSize: 16, fontWeight: 700,
-            color: "var(--color-text-primary)", flex: 1, minWidth: 0,
-          }}>
+        <div className={styles.header}>
+          <Trash2 size={ICON.md} className={styles.dangerIcon} />
+          <h3 className={styles.title}>
             자동분리 잔존 일괄삭제
           </h3>
           <button
@@ -167,32 +153,23 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
             onClick={onClose}
             disabled={submitting}
             aria-label="닫기"
-            style={{
-              background: "none", border: "none",
-              color: "var(--color-text-secondary)",
-              cursor: submitting ? "not-allowed" : "pointer",
-              opacity: submitting ? 0.5 : 1,
-              padding: 4, display: "flex",
-            }}
+            className={styles.closeButton}
+            data-submitting={submitting ? "true" : "false"}
           >
             <X size={ICON.md} />
           </button>
         </div>
 
         {/* 본문 */}
-        <div style={{
-          padding: "var(--space-5)",
-          overflowY: "auto",
-          display: "flex", flexDirection: "column", gap: "var(--space-3)",
-        }}>
-          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+        <div className={styles.body}>
+          <div className={styles.description}>
             현재 자료 총 <strong>{problems.length}개</strong> 문항
             (번호 {minNum}~{maxNum}).
             <br />직접 자른 문항은 <strong>자동으로 보호</strong>됩니다.
           </div>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
+          <label className={styles.rangeLabel}>
+            <span className={styles.labelTitle}>
               삭제할 번호 범위
             </span>
             <input
@@ -204,24 +181,10 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
               placeholder="예: 162 (단방향)  또는  150-200 (구간)"
               data-testid="matchup-bulk-delete-input"
               disabled={submitting}
-              style={{
-                width: "100%",
-                padding: "9px 12px",
-                fontSize: 14,
-                border: `1px solid ${
-                  parsed && parsed.ok === false
-                    ? "var(--color-danger)"
-                    : preview && preview.targetCount > 0
-                      ? "var(--color-brand-primary)"
-                      : "var(--color-border-divider)"
-                }`,
-                borderRadius: "var(--radius-md)",
-                background: "var(--color-bg-surface)",
-                color: "var(--color-text-primary)",
-                outline: "none",
-              }}
+              className={styles.rangeInput}
+              data-state={inputState}
             />
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+            <span className={styles.hint}>
               · 단방향 입력 시 <strong>{maxNum}</strong>까지 자동 적용됩니다.
             </span>
           </label>
@@ -230,16 +193,9 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
           {parsed && parsed.ok === false && (
             <div
               data-testid="matchup-bulk-delete-error"
-              style={{
-                display: "flex", alignItems: "center", gap: "var(--space-2)",
-                padding: "var(--space-2) var(--space-3)",
-                background: "color-mix(in srgb, var(--color-danger) 6%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)",
-                borderRadius: "var(--radius-md)",
-                fontSize: 12, color: "var(--color-danger)",
-              }}
+              className={styles.errorBox}
             >
-              <AlertTriangle size={ICON.sm} />
+              <AlertTriangle size={ICON.sm} className={styles.inlineIcon} />
               <span>{parsed.reason}</span>
             </div>
           )}
@@ -247,27 +203,14 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
           {preview && (
             <div
               data-testid="matchup-bulk-delete-preview"
-              style={{
-                padding: "var(--space-3) var(--space-4)",
-                background: preview.targetCount > 0
-                  ? "color-mix(in srgb, var(--color-warning) 6%, transparent)"
-                  : "var(--color-bg-surface-soft)",
-                border: `1px solid ${
-                  preview.targetCount > 0
-                    ? "color-mix(in srgb, var(--color-warning) 30%, transparent)"
-                    : "var(--color-border-divider)"
-                }`,
-                borderRadius: "var(--radius-md)",
-                display: "flex", flexDirection: "column", gap: "var(--space-2)",
-              }}
+              className={styles.previewBox}
+              data-state={preview.targetCount > 0 ? "target" : "empty"}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                <span style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: preview.targetCount > 0
-                    ? "var(--color-warning)"
-                    : "var(--color-text-secondary)",
-                }}>
+              <div className={styles.previewHeader}>
+                <span
+                  className={styles.previewTitle}
+                  data-state={preview.targetCount > 0 ? "target" : "empty"}
+                >
                   {preview.from}~{preview.to}번 ·{" "}
                   {preview.targetCount > 0
                     ? `${preview.targetCount}개 삭제 예정`
@@ -276,43 +219,28 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
               </div>
 
               {preview.targetCount > 0 && (
-                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                <div className={styles.targetNumbers}>
                   대상 번호: {preview.sampleHead.join(", ")}
                   {preview.sampleLast !== null && `, ... ${preview.sampleLast}`}
                 </div>
               )}
 
               {preview.manualCount > 0 && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  fontSize: 11, color: "var(--color-status-success)", fontWeight: 600,
-                }}>
-                  <Shield size={ICON.xs} />
+                <div className={styles.protectedNote}>
+                  <Shield size={ICON.xs} className={styles.inlineIcon} />
                   직접 자른 {preview.manualCount}개 문항은 자동 보호됩니다
                 </div>
               )}
             </div>
           )}
 
-          <div style={{
-            padding: "var(--space-2) var(--space-3)",
-            background: "var(--color-bg-surface-soft)",
-            border: "1px dashed var(--color-border-divider)",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.6,
-          }}>
+          <div className={styles.irreversible}>
             ⚠ 이 작업은 되돌릴 수 없습니다.
           </div>
         </div>
 
         {/* 액션 */}
-        <div style={{
-          padding: "var(--space-3) var(--space-5)",
-          borderTop: "1px solid var(--color-border-divider)",
-          display: "flex", justifyContent: "flex-end", gap: "var(--space-2)",
-          flexShrink: 0,
-          background: "var(--color-bg-surface-soft)",
-        }}>
+        <div className={styles.footer}>
           <Button
             intent="ghost"
             size="md"
