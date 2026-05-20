@@ -10,6 +10,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import styles from "./EnrollStudentModal.module.css";
 
 interface Props {
   sessionId: number;
@@ -82,7 +83,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className={styles.body}>
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -91,15 +92,8 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
             autoFocus
           />
 
-          <div
-            style={{
-              borderRadius: 14,
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ maxHeight: "min(50vh, 320px)", overflow: "auto" }}>
+          <div className={styles.studentPanel}>
+            <div className={styles.studentScroller}>
               {isLoading ? (
                 <EmptyState mode="embedded" scope="panel" tone="loading" title="불러오는 중…" />
               ) : students.length === 0 ? (
@@ -110,40 +104,29 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                   description="검색어를 변경해 보세요."
                 />
               ) : (
-                <div style={{ display: "grid" }}>
+                <div className={styles.studentList}>
                   {students.map((st) => {
                     const checked = selectedIds.includes(st.id);
                     return (
-                      <Button
+                      <label
                         key={st.id}
-                        type="button"
-                        intent="ghost"
-                        size="md"
-                        onClick={() => toggleSelect(st.id)}
-                        className="!block !w-full !grid !grid-cols-[28px_1fr] !gap-2.5 !py-2.5 !px-3 !text-left !justify-start border-t border-[var(--color-border-divider)]"
-                        style={{
-                          background: checked ? "var(--color-bg-surface-soft)" : "transparent",
-                        }}
+                        className={`${styles.studentRow} ${checked ? styles.studentRowSelected : ""}`}
                       >
-                        <input type="checkbox" checked={checked} readOnly className="mt-0.5" />
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 900,
-                              color: "var(--color-text-primary)",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelect(st.id)}
+                          className={styles.studentCheckbox}
+                        />
+                        <div className={styles.studentMeta}>
+                          <div className={styles.studentName}>
                             {st.displayName}
                           </div>
-                          <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+                          <div className={styles.studentPhone}>
                             {formatPhone(st.phone)}
                           </div>
                         </div>
-                      </Button>
+                      </label>
                     );
                   })}
                 </div>
@@ -151,7 +134,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
             </div>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+          <div className={styles.selectionSummary}>
             선택: {selectedIds.length}명
           </div>
         </div>

@@ -1,0 +1,76 @@
+.body {
+  display: grid;
+  gap: 12px;
+}
+
+.studentPanel {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: var(--color-bg-surface);
+}
+
+.studentScroller {
+  max-height: min(50vh, 320px);
+  overflow: auto;
+}
+
+.studentList {
+  display: grid;
+}
+
+.studentRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  justify-content: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--color-border-divider);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 160ms ease;
+}
+
+.studentRow:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.studentRowSelected {
+  background: var(--color-bg-surface-soft);
+}
+
+.studentRowSelected:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.studentRow:has(.studentCheckbox:focus-visible) {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+.studentCheckbox {
+  margin-top: 2px;
+}
+
+.studentMeta {
+  min-width: 0;
+}
+
+.studentName {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studentPhone,
+.selectionSummary {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+}

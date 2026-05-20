@@ -15,6 +15,7 @@ import { lectureEnrollFromExcelUpload } from "../api/enrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import styles from "./LectureEnrollExcelModal.module.css";
 
 interface Props {
   lectureId: number;
@@ -112,12 +113,11 @@ export default function LectureEnrollExcelModal({
 
       <ModalBody>
         <div
-          className="modal-scroll-body modal-scroll-body--compact"
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
+          className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}
         >
           {!isConfirmStep ? (
             <>
-              <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
+              <div className={`modal-form-row modal-form-row--1-auto ${styles.downloadRow}`}>
                 <div />
                 <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
                   엑셀 양식 다운로드
@@ -127,17 +127,11 @@ export default function LectureEnrollExcelModal({
             </>
           ) : (
             <>
-              <div className="modal-form-group" style={{ marginBottom: 0 }}>
-                <div className="modal-section-label" style={{ marginBottom: 6 }}>
+              <div className={`modal-form-group ${styles.compactGroup}`}>
+                <div className={`modal-section-label ${styles.sectionLabelCompact}`}>
                   강의 일치 확인
                 </div>
-                <div
-                  className="rounded-md p-3 text-sm"
-                  style={{
-                    background: "var(--color-surface-subtle)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
+                <div className={`rounded-md p-3 text-sm ${styles.confirmPanel}`}>
                   <div className="flex flex-col gap-2">
                     <div>
                       <span className="text-[var(--color-text-muted)]">엑셀에 적힌 강의명: </span>
@@ -148,25 +142,24 @@ export default function LectureEnrollExcelModal({
                       <strong>{lectureTitle || "—"}</strong>
                     </div>
                   </div>
-                  <p className="mt-2 text-[13px]" style={{ color: "var(--color-text-muted)" }}>
+                  <p className={`mt-2 text-[13px] ${styles.confirmHint}`}>
                     다른 강의 엑셀을 올리지 않았는지 확인한 뒤, 맞으면 아래에서 초기 비밀번호를 입력하고 등록해 주세요.
                   </p>
                 </div>
               </div>
 
-              <div className="modal-form-group" style={{ marginBottom: 0 }}>
-                <label className="modal-section-label" style={{ marginBottom: 6 }}>
-                  신규 학생 초기 비밀번호 <span style={{ color: "var(--color-error)" }}>*</span>
+              <div className={`modal-form-group ${styles.compactGroup}`}>
+                <label className={`modal-section-label ${styles.sectionLabelCompact}`}>
+                  신규 학생 초기 비밀번호 <span className={styles.requiredMark}>*</span>
                 </label>
                 <input
                   type="text"
-                  className="ds-input"
+                  className={`ds-input ${styles.passwordInput}`}
                   value={initialPassword}
                   onChange={(e) => setInitialPassword(e.target.value)}
                   placeholder="4자 이상"
                   disabled={busy}
                   autoComplete="off"
-                  style={{ maxWidth: 280 }}
                 />
                 <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
                   엑셀에 새로 만들 학생의 로그인 비밀번호입니다. 학생들에게 안내해 주세요. 기본값 그대로 두셔도 됩니다.
@@ -174,7 +167,7 @@ export default function LectureEnrollExcelModal({
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="modal-section-label" style={{ marginBottom: 0 }}>
+                <span className={`modal-section-label ${styles.plannedCount}`}>
                   {parsed.rows.length}명 등록 예정
                 </span>
                 <Button
@@ -193,7 +186,7 @@ export default function LectureEnrollExcelModal({
 
       <ModalFooter
         left={
-          <span className="modal-hint" style={{ marginBottom: 0 }}>
+          <span className={`modal-hint ${styles.footerHint}`}>
             {isConfirmStep
               ? "맞으면 등록하기를 누르세요. 업로드 후 창을 닫아도 백그라운드에서 작업이 진행됩니다. 우하단에서 진행률을 확인할 수 있습니다."
               : "엑셀 파일 선택 후 강의명 확인 단계로 이동합니다."}

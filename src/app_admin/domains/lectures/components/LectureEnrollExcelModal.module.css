@@ -1,0 +1,39 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.downloadRow {
+  align-items: end;
+}
+
+.compactGroup {
+  margin-bottom: 0;
+}
+
+.sectionLabelCompact {
+  margin-bottom: 6px;
+}
+
+.confirmPanel {
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-surface-subtle);
+}
+
+.confirmHint {
+  color: var(--color-text-muted);
+}
+
+.requiredMark {
+  color: var(--color-error);
+}
+
+.passwordInput {
+  max-width: 280px;
+}
+
+.plannedCount,
+.footerHint {
+  margin-bottom: 0;
+}
