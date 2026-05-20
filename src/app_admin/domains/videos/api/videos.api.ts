@@ -59,9 +59,11 @@ export interface Video {
   title: string;
 
   file_key: string;
+  file_size?: number | null;
   duration: number | null;
   order: number;
   status: VideoStatus;
+  error_reason?: string | null;
 
   allow_skip: boolean;
   max_speed: number;

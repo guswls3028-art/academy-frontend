@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { deleteVideo, getRetryErrorMessage } from "../api/videos.api";
+import type { VideoStats } from "../api/videos.api";
 import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -26,6 +27,7 @@ import VideoEngagementBar from "@admin/domains/videos/components/features/video-
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
+import "./VideoDetailPage.css";
 
 function formatBytes(b?: number) {
   return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "\u2014";
@@ -46,6 +48,10 @@ function formatDuration(d?: string | number | null) {
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
+      className={[
+        "video-detail-chevron",
+        open && "video-detail-chevron--open",
+      ].filter(Boolean).join(" ")}
       width="16"
       height="16"
       viewBox="0 0 24 24"
@@ -54,10 +60,6 @@ function ChevronIcon({ open }: { open: boolean }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{
-        transition: "transform 0.2s",
-        transform: open ? "rotate(180deg)" : "rotate(0deg)",
-      }}
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
@@ -73,7 +75,6 @@ interface VideoDetailOverlayProps {
 
 export default function VideoDetailOverlay({
   videoId,
-  lectureId,
   sessionId,
   onClose,
 }: VideoDetailOverlayProps) {
@@ -145,11 +146,11 @@ export default function VideoDetailOverlay({
     },
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<VideoStats>({
     queryKey: ["video-stats", videoId],
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
-      return res.data;
+      return res.data as VideoStats;
     },
     enabled: !!videoId,
     retry: 1,
@@ -158,10 +159,10 @@ export default function VideoDetailOverlay({
   const video = data?.video;
   const students = data?.students ?? [];
   const total = students.length;
-  const completed100 = students.filter((s: any) => (Number(s.progress ?? 0) || 0) >= 1).length;
-  const progressSum = students.reduce((a: number, s: any) => a + (Number(s.progress ?? 0) || 0), 0);
+  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
+  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
   const avgProgress = total > 0 ? progressSum / total : 0;
-  const completed90 = students.filter((s: any) => (Number(s.progress ?? 0) || 0) >= 0.9).length;
+  const completed90 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 0.9).length;
 
   const openModal = (tab: TabKey) => {
     setPermissionTab(tab);
@@ -186,18 +187,9 @@ export default function VideoDetailOverlay({
           <div className="ds-overlay-body">
             {isLoading || !video ? (
               <div className="space-y-4 p-4 animate-pulse">
-                <div
-                  className="h-6 w-48 rounded"
-                  style={{ background: "var(--color-bg-surface-soft)" }}
-                />
-                <div
-                  className="h-4 w-72 rounded"
-                  style={{ background: "var(--color-bg-surface-soft)" }}
-                />
-                <div
-                  className="h-[320px] rounded-2xl"
-                  style={{ background: "#000" }}
-                />
+                <div className="video-detail-skeleton video-detail-skeleton--title" />
+                <div className="video-detail-skeleton video-detail-skeleton--subtitle" />
+                <div className="video-detail-skeleton video-detail-skeleton--player" />
               </div>
             ) : (
               <>
@@ -207,10 +199,10 @@ export default function VideoDetailOverlay({
                   <div className={styles.layout.left}>
                     {/* 1. Video Player — cinematic, no card wrapper */}
                     <VideoPreviewSection
-                      hlsSrc={video.hls_url}
+                      hlsSrc={video.hls_url ?? null}
                       status={video.status}
                       progressPercent={null}
-                      errorReason={(video as any).error_reason ?? null}
+                      errorReason={video.error_reason ?? null}
                       onRetry={
                         canShowRetryButton(video)
                           ? () => retryMutation.mutate()
@@ -220,66 +212,31 @@ export default function VideoDetailOverlay({
                     />
 
                     {/* 2. Title + Meta — YouTube style below player */}
-                    <div style={{ padding: "4px 0" }}>
-                      <h1
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 700,
-                          color: "var(--color-text-primary)",
-                          lineHeight: 1.4,
-                          letterSpacing: "-0.01em",
-                          margin: 0,
-                        }}
-                      >
+                    <div className="video-detail-title-block">
+                      <h1 className="video-detail-title">
                         {video.title}
                       </h1>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          marginTop: 6,
-                          fontSize: 13,
-                          color: "var(--color-text-muted)",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div className="video-detail-meta">
                         {video.created_at && (
                           <span>{video.created_at}</span>
                         )}
                         {formatDuration(video.duration) && (
                           <>
-                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span className="video-detail-dot">·</span>
                             <span>{formatDuration(video.duration)}</span>
                           </>
                         )}
                         {video.file_size && (
                           <>
-                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span className="video-detail-dot">·</span>
                             <span>{formatBytes(video.file_size)}</span>
                           </>
                         )}
-                        <span style={{ flex: 1 }} />
+                        <span className="video-detail-meta-spacer" />
                         <button
                           type="button"
                           onClick={() => setEditOpen(true)}
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--color-text-secondary)",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "var(--color-bg-surface-hover)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "none";
-                          }}
+                          className="video-detail-action"
                         >
                           수정
                         </button>
@@ -291,23 +248,7 @@ export default function VideoDetailOverlay({
                             deleteMutation.mutate();
                           }}
                           disabled={deleteMutation.isPending}
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--color-danger)",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "color-mix(in srgb, var(--color-danger) 10%, transparent)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "none";
-                          }}
+                          className="video-detail-action video-detail-action--danger"
                         >
                           {deleteMutation.isPending ? "\uC0AD\uC81C \uC911\u2026" : "\uC0AD\uC81C"}
                         </button>
@@ -321,44 +262,18 @@ export default function VideoDetailOverlay({
                     />
 
                     {/* 4. Comments — directly under engagement (YouTube style) */}
-                    <div
-                      style={{
-                        background: "var(--color-bg-surface)",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border-divider)",
-                        padding: "20px 24px",
-                      }}
-                    >
+                    <div className="video-detail-card video-detail-comments-card">
                       <AdminCommentSection videoId={videoId} />
                     </div>
 
                     {/* 5. Settings (Policy + Memo) — collapsible */}
-                    <div
-                      style={{
-                        background: "var(--color-bg-surface)",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border-divider)",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div className="video-detail-card video-detail-settings-card">
                       <button
                         type="button"
                         onClick={() => setSettingsOpen(!settingsOpen)}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "14px 20px",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="video-detail-settings-toggle"
                       >
-                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="video-detail-settings-label">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="3" />
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -369,20 +284,10 @@ export default function VideoDetailOverlay({
                       </button>
                       {settingsOpen && (
                         <div
-                          style={{
-                            borderTop: "1px solid var(--color-border-divider)",
-                            padding: "20px 24px",
-                          }}
+                          className="video-detail-settings-body"
                         >
-                          <div style={{ marginBottom: 24 }}>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: "var(--color-text-primary)",
-                                marginBottom: 12,
-                              }}
-                            >
+                          <div className="video-detail-settings-section">
+                            <div className="video-detail-settings-section-title">
                               학생 시청 정책
                             </div>
                             <VideoPolicySection
@@ -399,33 +304,24 @@ export default function VideoDetailOverlay({
                     </div>
 
                     {/* Bottom stats */}
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 16,
-                        fontSize: 12,
-                        color: "var(--color-text-muted)",
-                        padding: "4px 0",
-                      }}
-                    >
+                    <div className="video-detail-stats">
                       <span>
                         평균 진도율{" "}
-                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                        <strong className="video-detail-stats-value">
                           {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "\u2014"}
                         </strong>
                       </span>
-                      <span style={{ opacity: 0.3 }}>·</span>
+                      <span className="video-detail-stats-dot">·</span>
                       <span>
                         100% 완료{" "}
-                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                        <strong className="video-detail-stats-value">
                           {completed100}명
                         </strong>
                       </span>
-                      <span style={{ opacity: 0.3 }}>·</span>
+                      <span className="video-detail-stats-dot">·</span>
                       <span>
                         90% 이상{" "}
-                        <strong style={{ color: "var(--color-text-secondary)" }}>
+                        <strong className="video-detail-stats-value">
                           {completed90}명
                         </strong>
                       </span>
