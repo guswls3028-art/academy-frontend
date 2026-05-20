@@ -1,10 +1,28 @@
 // PATH: src/app_teacher/domains/exams/pages/HomeworkDetailPage.tsx
 // 과제 상세 — 제출 현황
+import type { ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { fetchHomework, fetchHomeworkSubmissions } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import {
+  normalizeHomework,
+  normalizeHomeworkSubmissions,
+  type HomeworkSubmission,
+} from "../normalizers";
+import styles from "./HomeworkDetailPage.module.css";
+
+function isSubmittedSubmission(submission: HomeworkSubmission): boolean {
+  return submission.submitted_at != null || submission.status === "submitted";
+}
+
+function formatDate(date: string | null): string {
+  if (!date) return "제출";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("ko-KR");
+}
 
 export default function HomeworkDetailPage() {
   const { homeworkId } = useParams<{ homeworkId: string }>();
@@ -13,13 +31,13 @@ export default function HomeworkDetailPage() {
 
   const { data: hw, isLoading: loadingHw } = useQuery({
     queryKey: ["teacher-homework", hid],
-    queryFn: () => fetchHomework(hid),
+    queryFn: async () => normalizeHomework(await fetchHomework(hid)),
     enabled: Number.isFinite(hid),
   });
 
   const { data: submissions, isLoading: loadingSub } = useQuery({
     queryKey: ["teacher-homework-submissions", hid],
-    queryFn: () => fetchHomeworkSubmissions(hid),
+    queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid)),
     enabled: Number.isFinite(hid),
   });
 
@@ -28,50 +46,46 @@ export default function HomeworkDetailPage() {
   if (!hw)
     return <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />;
 
-  // backend schema: due_date/max_score 는 meta JSON 안에 격리. root-level 도 폴백.
-  const dueDate = hw.due_date ?? hw.meta?.due_date ?? null;
-  const maxScore = hw.max_score ?? hw.meta?.default_max_score ?? hw.meta?.max_score ?? null;
-
-  const submitted = submissions?.filter((s: any) => s.submitted_at || s.status === "submitted") ?? [];
-  const pending = submissions?.filter((s: any) => !s.submitted_at && s.status !== "submitted") ?? [];
+  const dueDate = hw.due_date;
+  const maxScore = hw.max_score;
+  const submissionRows = submissions ?? [];
+  const submitted = submissionRows.filter(isSubmittedSubmission);
+  const pending = submissionRows.filter((s) => !isSubmittedSubmission(s));
 
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <BackBtn onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>
           {hw.title}
         </h1>
       </div>
 
       {/* Info */}
-      <div
-        className="rounded-xl flex flex-col gap-2"
-        style={{ padding: "var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
-      >
+      <div className={`${styles.panel} rounded-xl flex flex-col gap-2`}>
         {hw.session_title && (
           <div className="flex justify-between text-sm">
-            <span style={{ color: "var(--tc-text-muted)" }}>수업</span>
-            <span style={{ color: "var(--tc-text)" }}>{hw.session_title}</span>
+            <span className={styles.mutedText}>수업</span>
+            <span className={styles.title}>{hw.session_title}</span>
           </div>
         )}
         {dueDate && (
           <div className="flex justify-between text-sm">
-            <span style={{ color: "var(--tc-text-muted)" }}>마감일</span>
-            <span style={{ color: "var(--tc-text)" }}>{dueDate}</span>
+            <span className={styles.mutedText}>마감일</span>
+            <span className={styles.title}>{dueDate}</span>
           </div>
         )}
         {maxScore != null && (
           <div className="flex justify-between text-sm">
-            <span style={{ color: "var(--tc-text-muted)" }}>만점</span>
-            <span style={{ color: "var(--tc-text)" }}>{maxScore}점</span>
+            <span className={styles.mutedText}>만점</span>
+            <span className={styles.title}>{maxScore}점</span>
           </div>
         )}
         <div className="flex justify-between text-sm">
-          <span style={{ color: "var(--tc-text-muted)" }}>제출</span>
-          <span style={{ color: "var(--tc-primary)" }}>
-            {submitted.length} / {(submissions ?? []).length}
+          <span className={styles.mutedText}>제출</span>
+          <span className={styles.primaryText}>
+            {submitted.length} / {submissionRows.length}
           </span>
         </div>
       </div>
@@ -79,13 +93,13 @@ export default function HomeworkDetailPage() {
       {/* Submitted */}
       {submitted.length > 0 && (
         <Section title={`제출 완료 (${submitted.length})`}>
-          {submitted.map((s: any) => (
-            <div key={s.id} className="flex justify-between items-center py-2 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-              <span className="text-sm" style={{ color: "var(--tc-text)" }}>
-                {s.student_name ?? s.enrollment_name ?? "이름 없음"}
+          {submitted.map((s) => (
+            <div key={s.id} className={`${styles.row} flex justify-between items-center py-2`}>
+              <span className={`${styles.title} text-sm`}>
+                {s.student_name}
               </span>
-              <span className="text-xs font-semibold" style={{ color: "var(--tc-success)" }}>
-                {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString("ko-KR") : "제출"}
+              <span className={`${styles.successText} text-xs font-semibold`}>
+                {formatDate(s.submitted_at)}
               </span>
             </div>
           ))}
@@ -110,9 +124,13 @@ export default function HomeworkDetailPage() {
             const phone = s.student_phone ?? s.parent_phone;
             if (phone) {
               const cleaned = String(phone).replace(/[^0-9+]/g, "");
-              const body = encodeURIComponent(`[${hw.title}] 과제 미제출 안내드립니다.${dueDate ? ` 마감일: ${dueDate}` : ""}`);
-              window.location.href = `sms:${cleaned}?body=${body}`;
-            } else if (s.student_id && Number(s.student_id) > 0) {
+              if (cleaned) {
+                const body = encodeURIComponent(`[${hw.title}] 과제 미제출 안내드립니다.${dueDate ? ` 마감일: ${dueDate}` : ""}`);
+                window.location.href = `sms:${cleaned}?body=${body}`;
+                return;
+              }
+            }
+            if (s.student_id != null && s.student_id > 0) {
               navigate(`/teacher/students/${s.student_id}`);
             } else {
               teacherToast.error("연락처 정보가 없습니다.");
@@ -121,20 +139,17 @@ export default function HomeworkDetailPage() {
         />
       )}
 
-      {!submissions?.length && (
+      {submissionRows.length === 0 && (
         <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" />
       )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div
-      className="rounded-xl"
-      style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-4)" }}
-    >
-      <h3 className="text-sm font-bold mb-3" style={{ color: "var(--tc-text)" }}>{title}</h3>
+    <div className={`${styles.panel} rounded-xl`}>
+      <h3 className={`${styles.title} text-sm font-bold mb-3`}>{title}</h3>
       <div className="flex flex-col gap-0">{children}</div>
     </div>
   );
@@ -147,15 +162,15 @@ function PendingSection({
   onCopy,
   onContactStudent,
 }: {
-  pending: any[];
+  pending: HomeworkSubmission[];
   homeworkTitle: string;
   dueDate?: string;
-  onCopy: (text: string) => void;
-  onContactStudent: (s: any) => void;
+  onCopy: (text: string) => Promise<void> | void;
+  onContactStudent: (s: HomeworkSubmission) => void;
 }) {
   const handleCopyAll = () => {
-    const lines = pending.map((s: any) => {
-      const name = s.student_name ?? s.enrollment_name ?? "이름 없음";
+    const lines = pending.map((s) => {
+      const name = s.student_name;
       const phone = s.student_phone ?? s.parent_phone ?? "";
       return phone ? `${name} (${phone})` : name;
     });
@@ -164,56 +179,36 @@ function PendingSection({
   };
 
   return (
-    <div
-      className="rounded-xl"
-      style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-4)" }}
-    >
+    <div className={`${styles.panel} rounded-xl`}>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
+        <h3 className={`${styles.title} text-sm font-bold`}>
           미제출 ({pending.length})
         </h3>
         <button
           type="button"
           onClick={handleCopyAll}
-          className="text-[12px] font-semibold cursor-pointer"
-          style={{
-            padding: "6px 10px",
-            borderRadius: "var(--tc-radius-sm)",
-            border: "1px solid var(--tc-border-strong)",
-            background: "var(--tc-surface-soft)",
-            color: "var(--tc-text-secondary)",
-            minHeight: "var(--tc-touch-min, 32px)",
-          }}
+          className={`${styles.copyButton} text-[12px] font-semibold cursor-pointer`}
         >
           명단 복사
         </button>
       </div>
       <div className="flex flex-col gap-0">
-        {pending.map((s: any) => {
+        {pending.map((s) => {
           const phone = s.student_phone ?? s.parent_phone;
           return (
             <div
               key={s.id}
-              className="flex justify-between items-center py-2 border-b last:border-b-0"
-              style={{ borderColor: "var(--tc-border)" }}
+              className={`${styles.row} flex justify-between items-center py-2`}
             >
-              <span className="text-sm" style={{ color: "var(--tc-text)" }}>
-                {s.student_name ?? s.enrollment_name ?? "이름 없음"}
+              <span className={`${styles.title} text-sm`}>
+                {s.student_name}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold" style={{ color: "var(--tc-danger)" }}>미제출</span>
+                <span className={`${styles.dangerText} text-xs font-semibold`}>미제출</span>
                 <button
                   type="button"
                   onClick={() => onContactStudent(s)}
-                  className="text-[11px] font-semibold cursor-pointer"
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "var(--tc-radius-sm)",
-                    border: `1px solid ${phone ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
-                    background: phone ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                    color: phone ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                    minHeight: 28,
-                  }}
+                  className={`${styles.contactButton} ${phone ? styles.contactButtonSms : styles.contactButtonDetail} text-[11px] font-semibold cursor-pointer`}
                   title={phone ? "문자 보내기" : "학생 상세로 이동"}
                 >
                   {phone ? "문자" : "상세"}
@@ -230,9 +225,9 @@ function PendingSection({
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex p-1 cursor-pointer"
-      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
+      className={`${styles.backButton} flex p-1 cursor-pointer`}
     >
       <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />

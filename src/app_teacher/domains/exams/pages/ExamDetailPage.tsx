@@ -14,135 +14,15 @@ import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import { updateResult } from "@teacher/domains/scores/api";
 import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
 import ExamManageSheet from "../components/ExamManageSheet";
+import {
+  normalizeExam,
+  normalizeResultRows,
+  normalizeEnrollments,
+  normalizeSession,
+  type ExamResultRow,
+  type TeacherExamDetail,
+} from "../normalizers";
 import styles from "./ExamDetailPage.module.css";
-
-type TeacherExamDetail = {
-  id: number;
-  title: string;
-  max_score: number | null;
-  session_ids: number[];
-};
-
-type ExamResultRow = {
-  enrollment_id: number;
-  student_name: string;
-  exam_score: number | null;
-  final_score: number | null;
-  exam_max_score: number | null;
-  passed: boolean | null;
-  final_pass: boolean | null;
-  achievement: string | null;
-};
-
-type LectureEnrollment = {
-  id: number;
-  status: string | null;
-  student_name: string;
-};
-
-type TeacherSession = {
-  lecture_id: number | null;
-};
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value != null && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function unwrapList(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  const record = asRecord(data);
-  return Array.isArray(record.results) ? record.results : [];
-}
-
-function toNumber(value: unknown): number | null {
-  if (value == null || value === "") return null;
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
-}
-
-function toStringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-function toBoolean(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
-}
-
-function getStudentName(record: Record<string, unknown>): string {
-  const student = asRecord(record.student);
-  return (
-    toStringValue(record.student_name)
-    ?? toStringValue(student.name)
-    ?? toStringValue(record.name)
-    ?? "이름 없음"
-  );
-}
-
-function normalizeExam(value: unknown): TeacherExamDetail | null {
-  const record = asRecord(value);
-  const id = toNumber(record.id);
-  if (id == null) return null;
-  const sessionIds = Array.isArray(record.session_ids)
-    ? record.session_ids.map(toNumber).filter((v): v is number => v != null)
-    : [];
-
-  return {
-    id,
-    title: toStringValue(record.title) ?? "시험",
-    max_score: toNumber(record.max_score),
-    session_ids: sessionIds,
-  };
-}
-
-function normalizeResultRow(value: unknown): ExamResultRow | null {
-  const record = asRecord(value);
-  const enrollmentId = toNumber(record.enrollment_id ?? record.enrollment);
-  if (enrollmentId == null) return null;
-
-  return {
-    enrollment_id: enrollmentId,
-    student_name: getStudentName(record),
-    exam_score: toNumber(record.exam_score ?? record.score),
-    final_score: toNumber(record.final_score),
-    exam_max_score: toNumber(record.exam_max_score ?? record.max_score),
-    passed: toBoolean(record.passed),
-    final_pass: toBoolean(record.final_pass),
-    achievement: toStringValue(record.achievement),
-  };
-}
-
-function normalizeResultRows(value: unknown): ExamResultRow[] {
-  return unwrapList(value)
-    .map(normalizeResultRow)
-    .filter((row): row is ExamResultRow => row != null);
-}
-
-function normalizeEnrollment(value: unknown): LectureEnrollment | null {
-  const record = asRecord(value);
-  const id = toNumber(record.id);
-  if (id == null) return null;
-
-  return {
-    id,
-    status: toStringValue(record.status),
-    student_name: getStudentName(record),
-  };
-}
-
-function normalizeEnrollments(value: unknown): LectureEnrollment[] {
-  return unwrapList(value)
-    .map(normalizeEnrollment)
-    .filter((row): row is LectureEnrollment => row != null);
-}
-
-function normalizeSession(value: unknown): TeacherSession {
-  const record = asRecord(value);
-  return {
-    lecture_id: toNumber(record.lecture ?? record.lecture_id),
-  };
-}
 
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();

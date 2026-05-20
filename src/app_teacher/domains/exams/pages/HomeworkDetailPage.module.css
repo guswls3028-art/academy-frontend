@@ -1,0 +1,66 @@
+.title {
+  color: var(--tc-text);
+}
+
+.mutedText {
+  color: var(--tc-text-muted);
+}
+
+.primaryText {
+  color: var(--tc-primary);
+}
+
+.successText {
+  color: var(--tc-success);
+}
+
+.dangerText {
+  color: var(--tc-danger);
+}
+
+.panel {
+  padding: var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.row {
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.copyButton {
+  min-height: var(--tc-touch-min, 32px);
+  padding: 6px 10px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface-soft);
+  color: var(--tc-text-secondary);
+}
+
+.contactButton {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: var(--tc-radius-sm);
+}
+
+.contactButtonSms {
+  border: 1px solid var(--tc-primary);
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.contactButtonDetail {
+  border: 1px solid var(--tc-border-strong);
+  background: var(--tc-surface-soft);
+  color: var(--tc-text-secondary);
+}
+
+.backButton {
+  border: none;
+  background: none;
+  color: var(--tc-text-secondary);
+}
