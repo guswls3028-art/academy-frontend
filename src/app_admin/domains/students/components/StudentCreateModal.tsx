@@ -2,7 +2,6 @@
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -10,12 +9,12 @@ import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
-import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students.api";
+import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents, mapStudent, type ClientStudent } from "../api/students.api";
 import { downloadStudentExcelTemplate } from "../excel/studentExcel";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
-import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import type { ClientStudent } from "../api/students.api";
+import styles from "./StudentCreateModal.module.css";
 
 interface Props {
   open: boolean;
@@ -25,6 +24,55 @@ interface Props {
 }
 
 type RegisterMode = "choice" | "single" | "excel";
+type StudentCreateForm = {
+  name: string;
+  psNumber: string;
+  gender: string;
+  initialPassword: string;
+  studentPhone: string;
+  omrCode: string;
+  parentPhone: string;
+  schoolType: SchoolType;
+  school: string;
+  grade: string;
+  schoolClass: string;
+  major: string;
+  originMiddleSchool: string;
+  address: string;
+  memo: string;
+  active: boolean;
+};
+
+type EditableStudentCreateField = Exclude<keyof StudentCreateForm, "active">;
+
+const SCHOOL_TYPES = new Set<SchoolType>(["ELEMENTARY", "MIDDLE", "HIGH"]);
+
+function normalizeSchoolType(value: unknown, fallback: SchoolType): SchoolType {
+  return typeof value === "string" && SCHOOL_TYPES.has(value as SchoolType)
+    ? value as SchoolType
+    : fallback;
+}
+
+function createInitialForm(defaultSchoolType: SchoolType): StudentCreateForm {
+  return {
+    name: "",
+    psNumber: "",
+    gender: "",
+    initialPassword: "",
+    studentPhone: "",
+    omrCode: "",
+    parentPhone: "",
+    schoolType: defaultSchoolType,
+    school: "",
+    grade: "",
+    schoolClass: "",
+    major: "",
+    originMiddleSchool: "",
+    address: "",
+    memo: "",
+    active: true,
+  };
+}
 
 /* ── 가입 안내 알림톡 토글 (단순 on/off) ── */
 
@@ -39,49 +87,23 @@ function WelcomeMessageToggle({
 }) {
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-3)",
-        padding: "var(--space-3) var(--space-4)",
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--color-border-divider)",
-        background: checked
-          ? "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))"
-          : "var(--color-bg-surface-soft)",
-        boxShadow: checked ? "inset 3px 0 0 var(--color-primary)" : undefined,
-        transition: "background 0.15s, box-shadow 0.15s",
-      }}
+      className={styles.welcomeToggle}
+      data-checked={checked ? "true" : "false"}
     >
       <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: "var(--radius-md)",
-          background: checked
-            ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-            : "var(--color-bg-surface-soft)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: checked ? "var(--color-primary)" : "var(--color-text-muted)",
-          flexShrink: 0,
-          transition: "background 0.15s, color 0.15s",
-        }}
+        className={styles.welcomeIcon}
+        data-checked={checked ? "true" : "false"}
       >
         <FiMessageSquare size={15} aria-hidden />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className={styles.welcomeContent}>
         <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: checked ? "var(--color-text-primary)" : "var(--color-text-muted)",
-          }}
+          className={styles.welcomeTitle}
+          data-checked={checked ? "true" : "false"}
         >
           가입 안내 알림톡 발송
         </span>
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.3 }}>
+        <div className={styles.welcomeDescription}>
           {checked
             ? "학생·학부모에게 로그인 정보를 알림톡으로 보냅니다"
             : "켜면 학생·학부모에게 알림톡이 발송됩니다"}
@@ -117,27 +139,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [busy, setBusy] = useState(false);
   const [excelBulkPassword, setExcelBulkPassword] = useState("");
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
-  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: typeof form } | null>(null);
+  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm } | null>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(true);
-  const [form, setForm] = useState({
-    name: "",
-    psNumber: "",
-    gender: "",
-    initialPassword: "",
-    studentPhone: "",
-    omrCode: "",
-    parentPhone: "",
-    schoolType: slm.defaultSchoolType as string,
-    school: "",
-    grade: "",
-    schoolClass: "",
-    major: "",
-    originMiddleSchool: "",
-    address: "",
-    memo: "",
-    active: true,
-  });
+  const [form, setForm] = useState<StudentCreateForm>(() =>
+    createInitialForm(slm.defaultSchoolType)
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -147,27 +154,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     setExcelBulkPassword("");
     setSelectedExcelFile(null);
     setSendWelcomeMessage(true);
-    setForm({
-      name: "",
-      psNumber: "",
-      gender: "",
-      initialPassword: "",
-      studentPhone: "",
-      omrCode: "",
-      parentPhone: "",
-      schoolType: slm.defaultSchoolType,
-      school: "",
-      grade: "",
-      schoolClass: "",
-      major: "",
-      originMiddleSchool: "",
-      address: "",
-      memo: "",
-      active: true,
-    });
+    setForm(createInitialForm(slm.defaultSchoolType));
   }, [open, onBulkProgress, slm.defaultSchoolType]);
-
-  const qc = useQueryClient();
 
   function handleExcelFileSelect(file: File) {
     setSelectedExcelFile(file);
@@ -176,7 +164,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     setForm((p) => {
-      const next = { ...p, [name]: value };
+      const field = name as EditableStudentCreateField;
+      const next = { ...p, [field]: value };
       if (name === "school") {
         const t = String(value ?? "").trim();
         if (t.endsWith("고")) next.schoolType = "HIGH";
@@ -231,9 +220,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     } catch (e: unknown) {
       const err = e as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
       if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
-        const { mapStudent } = await import("../api/students.api");
         setDeletedStudentConflict({
-          student: mapStudent(err.response.data.deleted_student as any),
+          student: mapStudent(err.response.data.deleted_student),
           formData: { ...form },
         });
         setBusy(false);
@@ -416,18 +404,18 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         <>
           <ModalBody key={mode}>
             {deletedStudentConflict ? (
-          <div className="modal-scroll-body modal-scroll-body--compact" style={{ padding: "var(--space-4)" }}>
-            <div style={{ marginBottom: "var(--space-4)", fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+          <div className={`modal-scroll-body modal-scroll-body--compact ${styles.conflictPanel}`}>
+            <div className={styles.conflictTitle}>
               삭제 대기중인 학생입니다. 복구하시겠습니까?
             </div>
-            <div style={{ marginBottom: "var(--space-4)", padding: "var(--space-3)", background: "var(--color-surface-secondary)", borderRadius: 8, fontSize: 14 }}>
-              <div style={{ marginBottom: "var(--space-2)" }}>
+            <div className={styles.conflictCard}>
+              <div className={styles.conflictField}>
                 <strong>이름:</strong> {deletedStudentConflict.student.name || "-"}
               </div>
-              <div style={{ marginBottom: "var(--space-2)" }}>
+              <div className={styles.conflictField}>
                 <strong>PS 번호:</strong> {deletedStudentConflict.student.psNumber || "-"}
               </div>
-              <div style={{ marginBottom: "var(--space-2)" }}>
+              <div className={styles.conflictField}>
                 <strong>학부모 전화:</strong> {deletedStudentConflict.student.parentPhone || "-"}
               </div>
               {deletedStudentConflict.student.studentPhone && (
@@ -436,26 +424,26 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </div>
               )}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            <div className={styles.conflictActions}>
               <Button
                 intent="primary"
                 onClick={handleRestoreDeletedStudent}
                 disabled={busy}
-                style={{ width: "100%" }}
+                className={styles.fullWidth}
               >
                 복원
               </Button>
               <Button
                 onClick={handlePermanentDeleteAndReregister}
                 disabled={busy}
-                style={{ width: "100%" }}
+                className={styles.fullWidth}
               >
                 즉시삭제 후 재등록
               </Button>
               <Button
                 onClick={() => setDeletedStudentConflict(null)}
                 disabled={busy}
-                style={{ width: "100%" }}
+                className={styles.fullWidth}
               >
                 취소
               </Button>
@@ -464,26 +452,25 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
           {/* 알림톡 토글 */}
-          <div style={{ marginBottom: "var(--space-4)" }}>
+          <div className={styles.sectionSpacing}>
             <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
           </div>
 
           {/* 첫 블록: 이름(우측에 성별) · 로그인 아이디 · 초기 비밀번호 · 학부모 전화 */}
           <div className="modal-form-group">
-            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "center", gap: "var(--space-3)" }}>
+            <div className={`modal-form-row modal-form-row--1-auto ${styles.nameRow}`}>
               <input
                 name="name"
                 placeholder="이름"
                 value={form.name ?? ""}
                 onChange={handleChange}
-                className="ds-input"
-                style={{ flex: 1 }}
+                className={`ds-input ${styles.nameInput}`}
                 data-required="true"
                 data-invalid={!String(form.name || "").trim() ? "true" : "false"}
                 disabled={busy}
                 autoFocus
               />
-              <div className="modal-actions-inline" style={{ height: 36 }}>
+              <div className={`modal-actions-inline ${styles.genderActions}`}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                   <button
                     key={g.key}
@@ -556,30 +543,34 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 disabled={busy}
               />
               <select
-                className="ds-select"
+                className={`ds-select ${styles.schoolSelect}`}
                 value={form.schoolType || slm.defaultSchoolType}
-                onChange={(e) => setForm((p) => ({ ...p, schoolType: e.target.value, grade: "" }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    schoolType: normalizeSchoolType(e.target.value, p.schoolType),
+                    grade: "",
+                  }))
+                }
                 disabled={busy}
-                style={{ minWidth: 80 }}
               >
                 {slm.schoolTypes.map((st) => (
                   <option key={st} value={st}>{slm.getLabel(st)}</option>
                 ))}
               </select>
               <select
-                className="ds-select"
+                className={`ds-select ${styles.schoolSelect}`}
                 value={form.grade}
                 onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))}
                 disabled={busy}
-                style={{ minWidth: 80 }}
               >
                 <option value="">학년</option>
-                {slm.gradeRange(form.schoolType as any || slm.defaultSchoolType).map((g) => (
+                {slm.gradeRange(form.schoolType || slm.defaultSchoolType).map((g) => (
                   <option key={g} value={String(g)}>{g}학년</option>
                 ))}
               </select>
             </div>
-            {slm.showOriginMiddleSchool(form.schoolType as any) && (
+            {slm.showOriginMiddleSchool(form.schoolType) && (
               <input
                 name="originMiddleSchool"
                 placeholder="출신중학교 (선택)"
@@ -598,7 +589,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 className="ds-input"
                 disabled={busy}
               />
-              {slm.showTrack(form.schoolType as any) && (
+              {slm.showTrack(form.schoolType) && (
                 <input
                   name="major"
                   placeholder="계열"
@@ -623,33 +614,31 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               placeholder="메모"
               value={form.memo ?? ""}
               onChange={handleChange}
-              className="ds-textarea"
+              className={`ds-textarea ${styles.memoTextarea}`}
               disabled={busy}
-              style={{ minHeight: 40, maxHeight: 40, resize: "none" }}
             />
           </div>
 
         </div>
         ) : (
-        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+        <div className={`modal-scroll-body modal-scroll-body--compact ${styles.excelStack}`}>
           {/* 상단: 등록방식 변경 */}
-          <div style={{ marginBottom: "var(--space-3)" }}>
+          <div className={styles.backModeWrapper}>
             <button
               type="button"
               onClick={() => setMode("choice")}
-              className="modal-hint"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+              className={`modal-hint ${styles.modeBackButton}`}
             >
               &larr; 등록 방식 변경
             </button>
           </div>
 
           {/* 알림톡 토글 */}
-          <div style={{ marginBottom: "var(--space-4)" }}>
+          <div className={styles.sectionSpacing}>
             <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
           </div>
 
-          <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
+          <div className={`modal-form-row modal-form-row--1-auto ${styles.excelPasswordRow}`}>
             <div>
               <label className="modal-section-label">초기 비밀번호 (일괄)</label>
               <input
@@ -657,9 +646,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
                 value={excelBulkPassword ?? ""}
                 onChange={(e) => setExcelBulkPassword(e.target.value)}
-                className="ds-input"
+                className={`ds-input ${styles.fullWidth}`}
                 disabled={busy}
-                style={{ width: "100%" }}
               />
             </div>
             <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
@@ -674,7 +662,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             disabled={busy}
           />
 
-          <div className="modal-hint" style={{ marginTop: "var(--space-3)", lineHeight: 1.6 }}>
+          <div className={`modal-hint ${styles.excelHint}`}>
             학생 아이디는 자동 부여됩니다.<br />
             학부모 아이디는 학부모 전화번호이며, 초기 비밀번호는 0000입니다.
           </div>
@@ -687,7 +675,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       <ModalFooter
         left={
           mode === "choice" ? null : mode === "excel" ? (
-            <span className="modal-hint" style={{ marginBottom: 0 }}>
+            <span className={`modal-hint ${styles.footerHint}`}>
               {selectedExcelFile ? "초기 비밀번호 입력 후 등록" : "엑셀 파일 선택 후 등록"}
             </span>
           ) : null
