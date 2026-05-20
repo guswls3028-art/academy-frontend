@@ -31,6 +31,18 @@
   background: var(--color-bg-surface);
 }
 
+.permission-title {
+  font-size: var(--text-lg, 16px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.permission-subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
 /* ---- Body (soft surface) ---- */
 .permission-modal-body {
   @apply flex-1 min-h-0;
@@ -58,6 +70,12 @@
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.permission-count {
+  margin-left: auto;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-secondary);
+}
+
 /* ---- Table ---- */
 .permission-table-header {
   @apply flex items-center;
@@ -81,6 +99,10 @@
 }
 .permission-row:hover {
   background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+.permission-row-alt {
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface));
 }
 
 /* Focus-visible for keyboard navigation */
@@ -110,6 +132,18 @@
   background: var(--color-bg-surface);
 }
 
+.permission-right-title {
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.permission-right-subtitle {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
 .permission-right-actions {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle);
@@ -117,12 +151,14 @@
 }
 
 .permission-right-listWrap {
-  @apply flex-1 min-h-0 flex flex-col;
+  @apply h-full overflow-hidden flex flex-col min-h-0;
   background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
 }
 
 .permission-right-listHeader {
-  @apply flex items-center gap-3;
+  @apply grid grid-cols-12 px-3 py-2 font-semibold border-b;
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface-soft, var(--bg-surface-soft));
@@ -136,13 +172,16 @@
 }
 
 .permission-right-row {
-  @apply flex items-center gap-3;
-  padding: var(--space-3) var(--space-4);
+  @apply grid grid-cols-12 px-3 py-2 items-center border-b;
   border-bottom: 1px solid var(--color-border-subtle);
   transition: background 120ms ease;
 }
 .permission-right-row:hover {
   background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+.permission-right-row-alt {
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface));
 }
 
 .permission-right-footer {
@@ -176,6 +215,58 @@
   font-size: var(--text-xs, 11px);
   color: var(--color-text-secondary);
   @apply truncate;
+}
+
+.permission-empty {
+  @apply flex items-center justify-center;
+  padding: var(--space-8);
+  font-size: var(--text-sm, 13px);
+  color: var(--color-text-muted);
+}
+
+.permission-pending {
+  margin-left: var(--space-1);
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
+.permission-apply-note {
+  margin-top: var(--space-2);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.permission-selected-empty {
+  @apply flex flex-col items-center justify-center gap-1;
+  padding: var(--space-8);
+}
+
+.permission-selected-empty-title {
+  font-size: var(--text-sm, 13px);
+  color: var(--color-text-muted);
+}
+
+.permission-selected-empty-subtitle,
+.permission-selected-phone {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
+.permission-selected-name {
+  @apply font-semibold truncate;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-primary);
+}
+
+.permission-selected-phone {
+  @apply truncate;
+  font-size: 10px;
+}
+
+.permission-selected-parent-phone {
+  @apply col-span-3 truncate;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-secondary);
 }
 
 /* ---- Tab bar ---- */

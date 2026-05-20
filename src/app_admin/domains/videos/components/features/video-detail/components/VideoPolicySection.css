@@ -1,0 +1,36 @@
+/* PATH: src/app_admin/domains/videos/components/features/video-detail/components/VideoPolicySection.css */
+
+.video-policy-panel {
+  padding: var(--space-4);
+  background: var(--color-bg-surface-soft);
+  border-radius: var(--radius-lg);
+}
+
+.video-policy-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  font-size: var(--text-xs, 12px);
+  color: var(--color-text-secondary);
+}
+
+.video-policy-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.video-policy-input {
+  width: 4rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs, 12px);
+  color: var(--color-text-primary);
+  background: var(--color-bg-app);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+}
+
+.video-policy-speed {
+  min-width: 36px;
+  color: var(--color-text-muted);
+}

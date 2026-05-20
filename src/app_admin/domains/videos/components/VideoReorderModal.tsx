@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import "./VideoReorderModal.css";
 
 /** Minimal video shape — works with both Video (videos API) and MediaVideo (session tab) */
 interface ReorderVideo {
@@ -142,47 +143,21 @@ export default function VideoReorderModal({
       />
       <ModalBody>
         {isEmpty ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "32px 0",
-              color: "var(--color-text-muted)",
-              fontSize: 14,
-            }}
-          >
+          <div className="video-reorder-empty">
             영상이 없습니다
           </div>
         ) : isSingle ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "32px 0",
-              color: "var(--color-text-muted)",
-              fontSize: 14,
-            }}
-          >
+          <div className="video-reorder-empty">
             순서를 변경할 영상이 없습니다
           </div>
         ) : (
-          <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <div className="modal-scroll-body video-reorder-list">
             {/* Header */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "40px 60px 1fr 80px",
-                gap: 8,
-                padding: "6px 8px",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--color-text-muted)",
-                borderBottom: "1px solid var(--color-border-divider)",
-                marginBottom: 4,
-              }}
-            >
+            <div className="video-reorder-header">
               <span />
               <span>순서</span>
               <span>영상</span>
-              <span style={{ textAlign: "center" }}>이동</span>
+              <span className="video-reorder-header-action">이동</span>
             </div>
 
             {/* Video rows */}
@@ -196,117 +171,47 @@ export default function VideoReorderModal({
               return (
                 <div
                   key={video.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "40px 60px 1fr 80px",
-                    gap: 8,
-                    padding: "8px",
-                    alignItems: "center",
-                    borderRadius: 8,
-                    background:
-                      index % 2 === 0
-                        ? "transparent"
-                        : "var(--color-bg-surface-soft)",
-                    transition: "background 100ms",
-                  }}
+                  className={[
+                    "video-reorder-row",
+                    index % 2 === 1 && "video-reorder-row--alt",
+                  ].filter(Boolean).join(" ")}
                 >
                   {/* Grip icon (visual only) */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--color-text-disabled)",
-                    }}
-                  >
+                  <div className="video-reorder-grip">
                     <GripVertical size={16} />
                   </div>
 
                   {/* Order number */}
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "var(--color-text-secondary)",
-                      background: "var(--color-bg-surface-soft)",
-                      borderRadius: 6,
-                      padding: "2px 8px",
-                      textAlign: "center",
-                      lineHeight: "22px",
-                    }}
-                  >
+                  <span className="video-reorder-index">
                     #{index + 1}
                   </span>
 
                   {/* Video info */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      minWidth: 0,
-                    }}
-                  >
+                  <div className="video-reorder-info">
                     {/* Thumbnail */}
-                    <div
-                      style={{
-                        width: 60,
-                        height: 40,
-                        borderRadius: 6,
-                        overflow: "hidden",
-                        flexShrink: 0,
-                        background: "var(--color-bg-surface-soft)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
+                    <div className="video-reorder-thumb">
                       {video.thumbnail_url ? (
                         <img
                           src={video.thumbnail_url}
                           alt=""
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
+                          className="video-reorder-thumb-image"
                         />
                       ) : (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: "var(--color-text-disabled)",
-                          }}
-                        >
+                        <span className="video-reorder-thumb-empty">
                           없음
                         </span>
                       )}
                     </div>
 
                     {/* Title + meta */}
-                    <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="video-reorder-title-wrap">
                       <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--color-text-primary)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
+                        className="video-reorder-title"
                         title={video.title}
                       >
                         {video.title || "—"}
                       </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--color-text-muted)",
-                          marginTop: 2,
-                          display: "flex",
-                          gap: 6,
-                        }}
-                      >
+                      <div className="video-reorder-meta">
                         {dur && <span>{dur}</span>}
                         {sessionLabel && (
                           <>
@@ -319,37 +224,12 @@ export default function VideoReorderModal({
                   </div>
 
                   {/* Move buttons */}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 4,
-                      justifyContent: "center",
-                    }}
-                  >
+                  <div className="video-reorder-actions">
                     <button
                       type="button"
                       disabled={index === 0 || saveMutation.isPending}
                       onClick={() => moveUp(index)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "1px solid var(--color-border-divider)",
-                        borderRadius: 6,
-                        background:
-                          index === 0
-                            ? "var(--color-bg-surface-soft)"
-                            : "var(--color-bg-app)",
-                        color:
-                          index === 0
-                            ? "var(--color-text-disabled)"
-                            : "var(--color-text-secondary)",
-                        cursor: index === 0 ? "not-allowed" : "pointer",
-                        padding: 0,
-                        transition: "background 100ms, border-color 100ms",
-                      }}
+                      className="video-reorder-move"
                       title="위로 이동"
                     >
                       <ChevronUp size={14} />
@@ -361,29 +241,7 @@ export default function VideoReorderModal({
                         saveMutation.isPending
                       }
                       onClick={() => moveDown(index)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "1px solid var(--color-border-divider)",
-                        borderRadius: 6,
-                        background:
-                          index === orderedVideos.length - 1
-                            ? "var(--color-bg-surface-soft)"
-                            : "var(--color-bg-app)",
-                        color:
-                          index === orderedVideos.length - 1
-                            ? "var(--color-text-disabled)"
-                            : "var(--color-text-secondary)",
-                        cursor:
-                          index === orderedVideos.length - 1
-                            ? "not-allowed"
-                            : "pointer",
-                        padding: 0,
-                        transition: "background 100ms, border-color 100ms",
-                      }}
+                      className="video-reorder-move"
                       title="아래로 이동"
                     >
                       <ChevronDown size={14} />
@@ -395,18 +253,7 @@ export default function VideoReorderModal({
 
             {/* Change summary */}
             {changedCount > 0 && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  background: "var(--color-bg-surface-soft)",
-                  fontSize: 13,
-                  color: "var(--color-text-secondary)",
-                  fontWeight: 600,
-                  textAlign: "center",
-                }}
-              >
+              <div className="video-reorder-summary">
                 {changedCount}개 영상 순서가 변경됩니다
               </div>
             )}

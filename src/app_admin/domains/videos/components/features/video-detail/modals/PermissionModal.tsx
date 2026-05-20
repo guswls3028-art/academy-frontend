@@ -12,9 +12,20 @@ import PermissionSidePanel from "../../video-permission/components/PermissionSid
 import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
 import VideoLogTab from "../../video-analytics/VideoLogTab";
 
-import type { PermissionModalProps, TabKey } from "../../video-permission/permission.types";
+import type { AccessMode } from "@admin/domains/videos/types/access-mode";
+import type { PermissionModalProps, PermissionStudent, TabKey } from "../../video-permission/permission.types";
 
 import "../../video-permission/permission-modal.css";
+
+interface PermissionStatsResponse {
+  students?: PermissionStudent[];
+}
+
+interface BulkPermissionPayload {
+  video_id: number;
+  enrollments: number[];
+  access_mode: AccessMode;
+}
 
 /* ================= component ================= */
 
@@ -54,18 +65,18 @@ export default function PermissionModal({
 
   /* ================= query ================= */
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching } = useQuery<PermissionStatsResponse>({
     queryKey: ["video", videoId, "stats"],
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
-      return res.data;
+      return res.data as PermissionStatsResponse;
     },
     enabled: open && !!videoId && tab === "permission",
     staleTime: 5000,
     retry: 1,
   });
 
-  const studentsRaw = data?.students ?? [];
+  const studentsRaw = useMemo(() => data?.students ?? [], [data?.students]);
 
   /* ================= LEFT TABLE DATA ================= */
 
@@ -73,12 +84,12 @@ export default function PermissionModal({
     let list = studentsRaw;
 
     if (focusEnrollment) {
-      list = list.filter((s: any) => s.enrollment === focusEnrollment);
+      list = list.filter((s) => s.enrollment === focusEnrollment);
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
-      list = list.filter((s: any) =>
+      list = list.filter((s) =>
         String(s.student_name || "").toLowerCase().includes(q)
       );
     }
@@ -91,7 +102,7 @@ export default function PermissionModal({
   };
 
   const toggleAll = () => {
-    const ids = students.map((s: any) => s.enrollment);
+    const ids = students.map((s) => s.enrollment);
     if (!ids.length) return;
     setSelected(selected.length === ids.length ? [] : ids);
   };
@@ -102,26 +113,19 @@ export default function PermissionModal({
     if (!selected.length) return [];
     const set = new Set(selected);
     return [...studentsRaw]
-      .filter((s: any) => set.has(s.enrollment))
-      .sort((a: any, b: any) =>
+      .filter((s) => set.has(s.enrollment))
+      .sort((a, b) =>
         String(a.student_name || "").localeCompare(String(b.student_name || ""))
       );
   }, [studentsRaw, selected]);
 
   const mutate = useMutation({
-    mutationFn: async (ruleOrAccessMode: string) => {
-      const isAccessMode = ["FREE_REVIEW", "PROCTORED_CLASS", "BLOCKED"].includes(ruleOrAccessMode);
-
-      const payload: any = {
+    mutationFn: async (accessMode: AccessMode) => {
+      const payload: BulkPermissionPayload = {
         video_id: videoId,
         enrollments: selected,
+        access_mode: accessMode,
       };
-
-      if (isAccessMode) {
-        payload.access_mode = ruleOrAccessMode;
-      } else {
-        payload.rule = ruleOrAccessMode;
-      }
 
       await api.post(`/media/video-permissions/bulk_set/`, payload);
     },
@@ -142,16 +146,10 @@ export default function PermissionModal({
         <div className="permission-modal-header">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2
-                className="text-[var(--text-lg,16px)] font-semibold text-[var(--color-text-primary)]"
-                style={{ fontSize: "var(--text-lg, 16px)" }}
-              >
+              <h2 className="permission-title">
                 시청 권한 관리
               </h2>
-              <p
-                className="mt-0.5 text-[var(--color-text-muted)]"
-                style={{ fontSize: "var(--text-xs, 11px)" }}
-              >
+              <p className="permission-subtitle">
                 권한 설정 · 성취도 · 시청 로그
               </p>
             </div>
@@ -186,10 +184,7 @@ export default function PermissionModal({
                       onChange={(e) => setSearch(e.target.value)}
                     />
 
-                    <div
-                      className="ml-auto text-[var(--color-text-secondary)]"
-                      style={{ fontSize: "var(--text-sm, 12px)" }}
-                    >
+                    <div className="permission-count">
                       전체 <strong>{totalCount}</strong>명
                     </div>
                   </div>

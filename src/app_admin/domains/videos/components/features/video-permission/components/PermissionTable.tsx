@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/videos/components/features/video-permission/components/PermissionTable.tsx
 
 import PermissionRow from "./PermissionRow";
+import type { PermissionStudent } from "../permission.types";
 
 export default function PermissionTable({
   students,
@@ -8,7 +9,7 @@ export default function PermissionTable({
   toggle,
   toggleAll,
 }: {
-  students: any[];
+  students: PermissionStudent[];
   selected: number[];
   toggle: (id: number) => void;
   toggleAll: () => void;
@@ -41,7 +42,7 @@ export default function PermissionTable({
       </div>
 
       <div className="flex-1 overflow-auto">
-        {students.map((s: any, idx: number) => (
+        {students.map((s, idx) => (
           <PermissionRow
             key={s.enrollment}
             student={s}
@@ -52,14 +53,7 @@ export default function PermissionTable({
         ))}
 
         {students.length === 0 && (
-          <div
-            className="flex items-center justify-center"
-            style={{
-              padding: "var(--space-8)",
-              fontSize: "var(--text-sm, 13px)",
-              color: "var(--color-text-muted)",
-            }}
-          >
+          <div className="permission-empty">
             표시할 학생이 없습니다.
           </div>
         )}

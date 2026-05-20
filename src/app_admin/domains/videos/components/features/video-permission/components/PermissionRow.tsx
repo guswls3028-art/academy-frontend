@@ -5,6 +5,7 @@ import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge"
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge } from "@/shared/ui/ds";
 import { getAccessLabel, getAccessTone } from "../permission.constants";
+import type { PermissionStudent } from "../permission.types";
 
 export default function PermissionRow({
   student,
@@ -12,7 +13,7 @@ export default function PermissionRow({
   onToggle,
   isAlt,
 }: {
-  student: any;
+  student: PermissionStudent;
   selected: boolean;
   onToggle: () => void;
   isAlt?: boolean;
@@ -22,6 +23,7 @@ export default function PermissionRow({
       className={[
         "permission-row",
         selected && "permission-row-selected",
+        !selected && isAlt && "permission-row-alt",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -30,13 +32,6 @@ export default function PermissionRow({
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onToggle();
-      }}
-      style={{
-        background: selected
-          ? undefined
-          : isAlt
-            ? "color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface))"
-            : undefined,
       }}
     >
       {/* CHECK */}
@@ -52,11 +47,11 @@ export default function PermissionRow({
           avatarSize={24}
           lectures={
             student.lecture_title
-              ? [{ lectureName: student.lecture_title, color: student.lecture_color, chipLabel: (student as any).lecture_chip_label }]
+              ? [{ lectureName: student.lecture_title, color: student.lecture_color, chipLabel: student.lecture_chip_label }]
               : undefined
           }
           chipSize={14}
-          clinicHighlight={(student as any).name_highlight_clinic_target === true}
+          clinicHighlight={student.name_highlight_clinic_target === true}
         />
       </div>
 

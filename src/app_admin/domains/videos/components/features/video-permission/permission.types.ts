@@ -1,6 +1,16 @@
 // src/features/videos/components/permission/permission.types.ts
 
+import type { VideoStatsStudent } from "@admin/domains/videos/api/videos.api";
+
 export type TabKey = "permission" | "achievement" | "log";
+
+export type PermissionStudent = VideoStatsStudent & {
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean | null;
+};
 
 export interface PermissionModalProps {
   videoId: number;

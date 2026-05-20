@@ -5,6 +5,7 @@ import { updateVideo } from "@admin/domains/videos/api/videos.api";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "./VideoEditModal.css";
 
 interface VideoEditModalProps {
   open: boolean;
@@ -68,17 +69,9 @@ export default function VideoEditModal({
     >
       <ModalHeader title="영상 정보 수정" />
       <ModalBody>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="video-edit-form">
           <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-                marginBottom: 6,
-              }}
-            >
+            <label className="video-edit-label">
               영상 제목
             </label>
             <input
@@ -86,57 +79,22 @@ export default function VideoEditModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: 8,
-                fontSize: 14,
-                outline: "none",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-brand-primary)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border-divider)";
-              }}
+              className="video-edit-input video-edit-input--title"
             />
           </div>
           <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-                marginBottom: 6,
-              }}
-            >
+            <label className="video-edit-label">
               표시 순서
             </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="video-edit-order-row">
               <input
                 type="number"
                 min={1}
                 value={order}
                 onChange={(e) => setOrder(Math.max(1, parseInt(e.target.value) || 1))}
-                style={{
-                  width: 80,
-                  padding: "8px 12px",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  outline: "none",
-                  textAlign: "center",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-brand-primary)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-divider)";
-                }}
+                className="video-edit-input video-edit-input--order"
               />
-              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+              <span className="video-edit-help">
                 숫자가 작을수록 먼저 표시됩니다
               </span>
             </div>
