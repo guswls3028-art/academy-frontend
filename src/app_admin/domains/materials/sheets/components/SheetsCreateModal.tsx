@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { createSheetApi, type SheetEntity } from "../sheets.api";
 
 type Props = {
@@ -46,8 +47,8 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
       setSubject("");
       setQuestionCount(20);
     },
-    onError: (e: any) => {
-      feedback.error(e?.message || "시험지 생성 실패");
+    onError: (e) => {
+      feedback.error(extractApiError(e, "시험지 생성 실패"));
     },
   });
 

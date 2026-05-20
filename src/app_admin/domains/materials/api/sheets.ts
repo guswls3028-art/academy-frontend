@@ -1,5 +1,12 @@
 // PATH: src/app_admin/domains/materials/api/sheets.ts
 import api from "@/shared/api/axios";
+import {
+  booleanFromApiValue,
+  isApiRecord,
+  listFromApiResponse,
+  numberFromApiValue,
+  stringFromApiValue,
+} from "./normalizers";
 
 export type SheetEntity = {
   id: number; // ✅ backend Exam.id (template/regular)
@@ -17,11 +24,34 @@ export type SheetEntity = {
   updated_at?: string | null;
 };
 
-function normalizeList(data: any): SheetEntity[] {
-  if (Array.isArray(data)) return data as SheetEntity[];
-  if (Array.isArray(data?.items)) return data.items as SheetEntity[];
-  if (Array.isArray(data?.results)) return data.results as SheetEntity[];
-  return [];
+function examTypeFromApiValue(value: unknown): SheetEntity["exam_type"] | undefined {
+  return value === "template" || value === "regular" ? value : undefined;
+}
+
+function normalizeSheetEntity(value: unknown): SheetEntity | null {
+  if (!isApiRecord(value)) return null;
+  const id = numberFromApiValue(value.id);
+  if (!id || id <= 0) return null;
+
+  return {
+    id,
+    title: stringFromApiValue(value.title),
+    description: stringFromApiValue(value.description),
+    subject: stringFromApiValue(value.subject),
+    exam_type: examTypeFromApiValue(value.exam_type),
+    is_active: booleanFromApiValue(value.is_active),
+    allow_retake: booleanFromApiValue(value.allow_retake),
+    max_attempts: numberFromApiValue(value.max_attempts),
+    pass_score: numberFromApiValue(value.pass_score),
+    open_at: stringFromApiValue(value.open_at),
+    close_at: stringFromApiValue(value.close_at),
+    created_at: stringFromApiValue(value.created_at),
+    updated_at: stringFromApiValue(value.updated_at),
+  };
+}
+
+function normalizeList(data: unknown): SheetEntity[] {
+  return listFromApiResponse(data).map(normalizeSheetEntity).filter((sheet): sheet is SheetEntity => sheet !== null);
 }
 
 /**
@@ -38,7 +68,7 @@ export async function listSheets(): Promise<SheetEntity[]> {
 export async function getSheet(sheetId: number): Promise<SheetEntity | null> {
   if (!Number.isFinite(sheetId) || sheetId <= 0) return null;
   const res = await api.get(`/exams/${sheetId}/`);
-  return (res.data as any) ?? null;
+  return normalizeSheetEntity(res.data);
 }
 
 export async function createSheet(input: {
@@ -53,7 +83,7 @@ export async function createSheet(input: {
     exam_type: "template",
   });
 
-  const data = res.data as any;
-  if (!data?.id) throw new Error("시험지 생성 실패");
-  return data as SheetEntity;
+  const data = normalizeSheetEntity(res.data);
+  if (!data) throw new Error("시험지 생성 실패");
+  return data;
 }

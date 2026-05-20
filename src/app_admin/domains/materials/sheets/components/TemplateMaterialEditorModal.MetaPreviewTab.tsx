@@ -6,13 +6,15 @@
 
 import { useEffect, useState } from "react";
 import api from "@/shared/api/axios";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 const QUESTION_COUNTS = [10, 20, 30] as const;
 
 export function MetaPreviewTab() {
   const [questionCount, setQuestionCount] = useState<(typeof QUESTION_COUNTS)[number]>(20);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+  const previewText = data == null ? null : JSON.stringify(data, null, 2) ?? String(data);
 
   useEffect(() => {
     let alive = true;
@@ -23,8 +25,8 @@ export function MetaPreviewTab() {
           params: { question_count: questionCount },
         });
         if (alive) setData(res.data);
-      } catch (e: any) {
-        if (alive) setError(e?.response?.data?.detail || e?.message || "meta 조회 실패");
+      } catch (e: unknown) {
+        if (alive) setError(extractApiError(e, "meta 조회 실패"));
       }
     })();
     return () => {
@@ -54,9 +56,9 @@ export function MetaPreviewTab() {
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {data && (
+      {previewText && (
         <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-[400px]">
-{JSON.stringify(data, null, 2)}
+          {previewText}
         </pre>
       )}
     </div>

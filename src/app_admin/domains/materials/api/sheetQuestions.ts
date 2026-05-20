@@ -2,6 +2,12 @@
 // FILE: src/features/materials/api/sheetQuestions.ts  (SSOT ALIGN: /exams/<exam_id>/questions/)
 // ======================================================================================
 import api from "@/shared/api/axios";
+import {
+  isApiRecord,
+  listFromApiResponse,
+  numberFromApiValue,
+  stringFromApiValue,
+} from "./normalizers";
 
 export type SheetQuestionEntity = {
   id: number;
@@ -9,10 +15,30 @@ export type SheetQuestionEntity = {
   number: number;
   score: number;
   image?: string | null;
-  region_meta?: any; // backend stores bbox meta
+  region_meta?: Record<string, unknown> | null; // backend stores bbox meta
   created_at?: string;
   updated_at?: string;
 };
+
+function normalizeQuestion(value: unknown): SheetQuestionEntity | null {
+  if (!isApiRecord(value)) return null;
+  const id = numberFromApiValue(value.id);
+  const sheet = numberFromApiValue(value.sheet);
+  const number = numberFromApiValue(value.number);
+  const score = numberFromApiValue(value.score);
+  if (!id || !sheet || !number || score === null) return null;
+
+  return {
+    id,
+    sheet,
+    number,
+    score,
+    image: stringFromApiValue(value.image),
+    region_meta: isApiRecord(value.region_meta) ? value.region_meta : null,
+    created_at: stringFromApiValue(value.created_at) ?? undefined,
+    updated_at: stringFromApiValue(value.updated_at) ?? undefined,
+  };
+}
 
 /**
  * ✅ SSOT (backend):
@@ -23,12 +49,9 @@ export async function getExamQuestions(examId: number): Promise<SheetQuestionEnt
   if (!Number.isFinite(examId) || examId <= 0) return [];
 
   const res = await api.get(`/exams/${examId}/questions/`);
-  const data = res.data;
-
-  if (Array.isArray(data)) return data as SheetQuestionEntity[];
-  if (Array.isArray(data?.items)) return data.items as SheetQuestionEntity[];
-  if (Array.isArray(data?.results)) return data.results as SheetQuestionEntity[];
-  return [];
+  return listFromApiResponse(res.data)
+    .map(normalizeQuestion)
+    .filter((question): question is SheetQuestionEntity => question !== null);
 }
 
 /**
@@ -43,5 +66,7 @@ export async function patchQuestionScore(input: {
   const res = await api.patch(`/exams/questions/${input.questionId}/`, {
     score: input.score,
   });
-  return res.data as SheetQuestionEntity;
+  const data = normalizeQuestion(res.data);
+  if (!data) throw new Error("문항 배점 수정 실패");
+  return data;
 }

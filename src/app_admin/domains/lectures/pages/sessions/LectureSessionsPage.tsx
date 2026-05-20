@@ -9,6 +9,7 @@ import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import styles from "./LectureSessionsPage.module.css";
 
 const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
   { key: "order", label: "차시", defaultWidth: TABLE_COL.mediumAlt, minWidth: 60 },
@@ -75,7 +76,7 @@ export default function LectureSessionsPage() {
   );
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => {
+    setSelectedIds(() => {
       if (allSelected) {
         return [];
       } else {
@@ -92,10 +93,9 @@ export default function LectureSessionsPage() {
     () => (
       <div className="flex flex-wrap items-center gap-2 pl-1">
         <span
-          className="text-[13px] font-semibold"
-          style={{
-            color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-          }}
+          className={`text-[13px] font-semibold ${styles.selectionCount} ${
+            selectedIds.length > 0 ? styles.selectionCountActive : ""
+          }`}
         >
           {selectedIds.length}개 선택됨
         </span>
@@ -115,12 +115,6 @@ export default function LectureSessionsPage() {
       return colKey;
     });
   }, []);
-
-  const tableWidth =
-    TABLE_COL.checkbox +
-    (columnWidths.order ?? TABLE_COL.mediumAlt) +
-    (columnWidths.title ?? TABLE_COL.title) +
-    (columnWidths.date ?? TABLE_COL.timeRange);
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -153,7 +147,12 @@ export default function LectureSessionsPage() {
       >
         <span className="inline-flex items-center justify-center gap-2">
           {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          <span
+            aria-hidden
+            className={`${styles.sortIcon} ${
+              isAsc || isDesc ? styles.sortIconActive : styles.sortIconInactive
+            }`}
+          >
             {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
           </span>
         </span>
@@ -162,7 +161,7 @@ export default function LectureSessionsPage() {
   }
 
   if (!Number.isFinite(lecId)) {
-    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>강의 정보를 찾을 수 없습니다.</div>;
+    return <div className={`p-2 text-sm ${styles.invalidLecture}`}>강의 정보를 찾을 수 없습니다.</div>;
   }
 
   return (
@@ -197,21 +196,17 @@ export default function LectureSessionsPage() {
               belowSlot={selectionBar}
             />
             <DomainTable
-              tableClassName="ds-table--flat ds-table--center"
-              tableStyle={{
-                tableLayout: "fixed",
-                width: tableWidth,
-              }}
+              tableClassName={`ds-table--flat ds-table--center ${styles.sessionsTable}`}
             >
               <colgroup>
-                <col style={{ width: TABLE_COL.checkbox }} />
-                <col style={{ width: columnWidths.order ?? TABLE_COL.mediumAlt }} />
-                <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
-                <col style={{ width: columnWidths.date ?? TABLE_COL.timeRange }} />
+                <col width={TABLE_COL.checkbox} />
+                <col width={columnWidths.order ?? TABLE_COL.mediumAlt} />
+                <col width={columnWidths.title ?? TABLE_COL.title} />
+                <col width={columnWidths.date ?? TABLE_COL.timeRange} />
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
+                  <th scope="col" className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -247,7 +242,7 @@ export default function LectureSessionsPage() {
                     className={`cursor-pointer hover:bg-[var(--color-bg-surface-hover)] ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
                     onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)}
                   >
-                    <td className="ds-checkbox-cell" style={{ width: TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
+                    <td className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(s.id)}
@@ -260,7 +255,7 @@ export default function LectureSessionsPage() {
                     <td className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
                       <Link
                         to={`/admin/lectures/${lectureId}/sessions/${s.id}`}
-                        style={{ color: "inherit", textDecoration: "none" }}
+                        className={styles.sessionLink}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {formatSessionOrderLabel(s.order, s.title)}

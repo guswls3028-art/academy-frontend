@@ -20,6 +20,12 @@ import {
   upsertExamAnswerKey,
   type AnswerKeyEntity,
 } from "@admin/domains/materials/api/answerKeys";
+import {
+  isApiRecord,
+  listFromApiResponse,
+  numberFromApiValue,
+  stringFromApiValue,
+} from "@admin/domains/materials/api/normalizers";
 
 // ✅ Submissions domain SSOT wrapper (materials 내부에서만 사용)
 import {
@@ -61,13 +67,13 @@ export type OmrObjectiveMetaV1 = {
   version: "objective_v1" | string;
   units?: string;
   question_count: number;
-  page?: any;
-  identifier?: any;
+  page?: unknown;
+  identifier?: unknown;
   questions: Array<{
     question_number: number;
     axis?: "x" | "y";
     roi: { x: number; y: number; w: number; h: number };
-    choices?: any[];
+    choices?: unknown[];
   }>;
 };
 
@@ -101,20 +107,43 @@ export type ExamAssetEntity = {
  * INTERNAL HELPERS
  * ===================================================================================== */
 
-function pickSheetId(anyData: any): number | null {
+function pickSheetId(value: unknown): number | null {
+  if (!isApiRecord(value)) return null;
+  const sheet = isApiRecord(value.sheet) ? value.sheet : null;
   const candidates = [
-    anyData?.sheet_id,
-    anyData?.sheetId,
-    anyData?.sheet?.id,
-    anyData?.sheet?.pk,
-    anyData?.sheet?.sheet_id,
+    value.sheet_id,
+    value.sheetId,
+    sheet?.id,
+    sheet?.pk,
+    sheet?.sheet_id,
   ];
 
   for (const c of candidates) {
-    const n = Number(c);
-    if (Number.isFinite(n) && n > 0) return n;
+    const n = numberFromApiValue(c);
+    if (n && n > 0) return n;
   }
   return null;
+}
+
+function normalizeExamAsset(value: unknown): ExamAssetEntity | null {
+  if (!isApiRecord(value)) return null;
+  const id = numberFromApiValue(value.id);
+  const exam = numberFromApiValue(value.exam);
+  const assetType = value.asset_type;
+  const fileKey = stringFromApiValue(value.file_key);
+  if (!id || !exam || !fileKey || (assetType !== "problem_pdf" && assetType !== "omr_sheet")) return null;
+
+  return {
+    id,
+    exam,
+    asset_type: assetType,
+    file_key: fileKey,
+    file_type: stringFromApiValue(value.file_type),
+    file_size: numberFromApiValue(value.file_size),
+    download_url: stringFromApiValue(value.download_url),
+    created_at: stringFromApiValue(value.created_at) ?? undefined,
+    updated_at: stringFromApiValue(value.updated_at) ?? undefined,
+  };
 }
 
 async function resolveSheetIdByExamId(examId: number): Promise<number> {
@@ -192,7 +221,7 @@ export async function createSheetApi(input: {
     subject: input.subject,
   });
 
-  const examId = Number((created as any)?.id);
+  const examId = Number(created.id);
   if (!Number.isFinite(examId) || examId <= 0) {
     throw new Error("시험지 생성 실패");
   }
@@ -249,7 +278,7 @@ export async function getTemplateEditorSummaryApi(examId: number): Promise<Templ
   try {
     const res = await api.get(`/exams/${examId}/template-editor/`);
     return res.data as TemplateEditorSummary;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const s = err.response?.status;
       if (s === 400 || s === 404) return null;
@@ -262,7 +291,7 @@ export async function getTemplateValidationApi(examId: number): Promise<Template
   try {
     const res = await api.get(`/exams/${examId}/template-validation/`);
     return res.data as TemplateValidationResult;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       const s = err.response?.status;
       if (s === 400 || s === 404) return null;
@@ -277,11 +306,9 @@ export async function getTemplateValidationApi(examId: number): Promise<Template
 
 export async function listExamAssetsApi(examId: number): Promise<ExamAssetEntity[]> {
   const res = await api.get(`/exams/${examId}/assets/`);
-  const data = res.data;
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.results)) return data.results;
-  return [];
+  return listFromApiResponse(res.data)
+    .map(normalizeExamAsset)
+    .filter((asset): asset is ExamAssetEntity => asset !== null);
 }
 
 export async function uploadExamAssetApi(input: {
@@ -296,7 +323,9 @@ export async function uploadExamAssetApi(input: {
   const res = await api.post(`/exams/${input.examId}/assets/`, fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-  return res.data as ExamAssetEntity;
+  const data = normalizeExamAsset(res.data);
+  if (!data) throw new Error("시험지 파일 업로드 실패");
+  return data;
 }
 
 /**
@@ -311,7 +340,9 @@ export async function generateOmrSheetAssetApi(input: {
   const res = await api.post(`/exams/${input.templateExamId}/generate-omr/`, {
     question_count: input.questionCount,
   });
-  return res.data as ExamAssetEntity;
+  const data = normalizeExamAsset(res.data);
+  if (!data) throw new Error("OMR 생성 실패");
+  return data;
 }
 
 /**

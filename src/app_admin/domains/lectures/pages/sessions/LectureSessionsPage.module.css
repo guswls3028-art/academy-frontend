@@ -1,0 +1,35 @@
+.sessionsTable {
+  table-layout: fixed;
+  min-width: max-content;
+}
+
+.selectionCount {
+  color: var(--color-text-muted);
+}
+
+.selectionCountActive {
+  color: var(--color-primary);
+}
+
+.sortIcon {
+  color: var(--color-primary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sortIconActive {
+  opacity: 1;
+}
+
+.sortIconInactive {
+  opacity: 0.35;
+}
+
+.invalidLecture {
+  color: var(--color-error);
+}
+
+.sessionLink {
+  color: inherit;
+  text-decoration: none;
+}

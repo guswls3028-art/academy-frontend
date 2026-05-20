@@ -3,6 +3,12 @@
 // ======================================================================================
 import api from "@/shared/api/axios";
 import axios from "axios";
+import {
+  isApiRecord,
+  listFromApiResponse,
+  numberFromApiValue,
+  stringFromApiValue,
+} from "./normalizers";
 
 export type AnswerKeyEntity = {
   id: number;
@@ -12,11 +18,28 @@ export type AnswerKeyEntity = {
   updated_at?: string;
 };
 
-function normalizeArray(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.results)) return data.results;
-  return [];
+function normalizeAnswers(value: unknown): Record<string, string> {
+  if (!isApiRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, answer]) => typeof answer === "string" || typeof answer === "number" || typeof answer === "boolean")
+      .map(([key, answer]) => [key, String(answer)]),
+  );
+}
+
+function normalizeAnswerKey(value: unknown): AnswerKeyEntity | null {
+  if (!isApiRecord(value)) return null;
+  const id = numberFromApiValue(value.id);
+  const exam = numberFromApiValue(value.exam);
+  if (!id || !exam || id <= 0 || exam <= 0) return null;
+
+  return {
+    id,
+    exam,
+    answers: normalizeAnswers(value.answers),
+    created_at: stringFromApiValue(value.created_at) ?? undefined,
+    updated_at: stringFromApiValue(value.updated_at) ?? undefined,
+  };
 }
 
 /**
@@ -32,11 +55,9 @@ export async function getExamAnswerKey(examId: number): Promise<AnswerKeyEntity 
       params: { exam: examId },
     });
 
-    const arr = normalizeArray(res.data);
-    const first = arr?.[0];
-    if (!first) return null;
-    return first as AnswerKeyEntity;
-  } catch (err: any) {
+    const first = listFromApiResponse(res.data).map(normalizeAnswerKey).find((item) => item !== null);
+    return first ?? null;
+  } catch (err: unknown) {
     if (axios.isAxiosError(err) && err.response?.status === 404) {
       return null;
     }
@@ -57,7 +78,9 @@ export async function createAnswerKey(payload: {
     exam: payload.examId,
     answers: payload.answers,
   });
-  return res.data as AnswerKeyEntity;
+  const data = normalizeAnswerKey(res.data);
+  if (!data) throw new Error("정답 저장 실패");
+  return data;
 }
 
 export async function updateAnswerKey(payload: {
@@ -69,7 +92,9 @@ export async function updateAnswerKey(payload: {
     exam: payload.examId,
     answers: payload.answers,
   });
-  return res.data as AnswerKeyEntity;
+  const data = normalizeAnswerKey(res.data);
+  if (!data) throw new Error("정답 수정 실패");
+  return data;
 }
 
 export async function upsertExamAnswerKey(input: {
