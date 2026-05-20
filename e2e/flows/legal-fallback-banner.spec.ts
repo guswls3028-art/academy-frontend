@@ -10,6 +10,7 @@
  */
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
@@ -18,9 +19,7 @@ test.describe("법적 고지 fallback 배너", () => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
 
-    await page.goto(`${BASE}/admin/settings/organization`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${BASE}/admin/settings/organization`, { timeout: 20_000 });
 
     // 법적 고지 정보 섹션 헤더가 렌더되어야 한다.
     await expect(page.getByText("법적 고지 정보").first()).toBeVisible({ timeout: 20_000 });

@@ -3,6 +3,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
@@ -12,8 +13,7 @@ test.describe("선생앱 가이드", () => {
   });
 
   test("워크플로우 카드가 렌더링된다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/guide`, { waitUntil: "load" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/admin/guide`, { timeout: 20_000 });
 
     // 메인 영역에서 제목 확인 (사이드바와 구분)
     const main = page.locator("main");
@@ -32,15 +32,13 @@ test.describe("선생앱 가이드", () => {
   });
 
   test("카드 클릭 시 아코디언이 펼쳐진다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/guide`, { waitUntil: "load" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/admin/guide`, { timeout: 20_000 });
 
     const main = page.locator("main");
     const card = main.locator("text=학생 등록하기");
 
     if (await card.isVisible().catch(() => false)) {
       await card.click();
-      await page.waitForTimeout(500);
       await expect(main.locator("text=학생 관리로 이동")).toBeVisible();
       await expect(main.getByRole("button", { name: "직접 해보기" }).first()).toBeVisible();
     }
@@ -53,8 +51,7 @@ test.describe("학생앱 가이드", () => {
   });
 
   test("워크플로우 카드가 렌더링된다", async ({ page }) => {
-    await page.goto(`${BASE}/student/guide`, { waitUntil: "load" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/student/guide`, { timeout: 20_000 });
 
     // 제목은 h1 또는 일반 div로 렌더링될 수 있음
     await expect(page.locator("text=사용 가이드").first()).toBeVisible();
@@ -70,13 +67,11 @@ test.describe("학생앱 가이드", () => {
   });
 
   test("카드 클릭 시 아코디언이 펼쳐진다", async ({ page }) => {
-    await page.goto(`${BASE}/student/guide`, { waitUntil: "load" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/student/guide`, { timeout: 20_000 });
 
     const card = page.locator("button:has-text('시험 보기')");
     if (await card.isVisible().catch(() => false)) {
       await card.click();
-      await page.waitForTimeout(500);
       await expect(page.locator("text=시험 탭으로 이동")).toBeVisible();
       await expect(page.getByRole("button", { name: "직접 해보기" }).first()).toBeVisible();
     }
