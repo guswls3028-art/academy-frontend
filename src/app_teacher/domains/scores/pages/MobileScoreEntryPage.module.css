@@ -1,0 +1,112 @@
+.title {
+  color: var(--tc-text);
+}
+
+.mutedText {
+  color: var(--tc-text-muted);
+}
+
+.successText {
+  color: var(--tc-success);
+}
+
+.warningText {
+  color: var(--tc-warn);
+}
+
+.dangerText {
+  color: var(--tc-danger);
+}
+
+.examTabs {
+  -webkit-overflow-scrolling: touch;
+}
+
+.examTab {
+  padding: 8px 14px;
+  border: 1px solid var(--tc-border);
+  background: transparent;
+  color: var(--tc-text);
+}
+
+.examTabActive {
+  border: none;
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.kpiGridTwo {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.kpiGridThree {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.kpiTile {
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.scoreRow {
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+  transition:
+    background 180ms ease-out,
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+
+.scoreRowSaved {
+  border: 1.5px solid #22c55e;
+  background: rgb(34 197 94 / 18%);
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 12%);
+}
+
+.scoreInput {
+  width: 64px;
+  height: 40px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface-soft);
+  color: var(--tc-text);
+}
+
+.scoreInputInvalid {
+  border-color: var(--tc-danger);
+  background: var(--tc-danger-bg, #fef2f2);
+  color: var(--tc-danger);
+}
+
+.skeletonTile,
+.skeletonRow {
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface-soft);
+  animation: score-entry-pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonTile {
+  height: 56px;
+}
+
+.skeletonRow {
+  height: 56px;
+}
+
+.backButton {
+  border: none;
+  background: none;
+  color: var(--tc-text-secondary);
+}
+
+@keyframes score-entry-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}

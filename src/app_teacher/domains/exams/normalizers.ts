@@ -26,6 +26,13 @@ export type TeacherSession = {
   lecture_id: number | null;
 };
 
+export type TeacherScoreExam = {
+  id: number;
+  title: string;
+  max_score: number | null;
+  pass_score: number | null;
+};
+
 export type TeacherHomeworkDetail = {
   id: number;
   title: string;
@@ -148,6 +155,25 @@ export function normalizeSession(value: unknown): TeacherSession {
   return {
     lecture_id: toNumber(record.lecture ?? record.lecture_id),
   };
+}
+
+function normalizeScoreExam(value: unknown): TeacherScoreExam | null {
+  const record = asRecord(value);
+  const id = toNumber(record.id);
+  if (id == null) return null;
+
+  return {
+    id,
+    title: toStringValue(record.title) ?? "시험",
+    max_score: toNumber(record.max_score),
+    pass_score: toNumber(record.pass_score),
+  };
+}
+
+export function normalizeScoreExams(value: unknown): TeacherScoreExam[] {
+  return unwrapList(value)
+    .map(normalizeScoreExam)
+    .filter((exam): exam is TeacherScoreExam => exam != null);
 }
 
 export function normalizeHomework(value: unknown): TeacherHomeworkDetail | null {
