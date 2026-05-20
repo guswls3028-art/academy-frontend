@@ -6,10 +6,11 @@
  * - invalid_reason
  * - detected answer 등 "이유 설명"
  */
+import { type ResultAttemptMeta } from "../../types/results.types";
 
 type Props = {
   fact: {
-    meta?: any;
+    meta?: ResultAttemptMeta;
     answer?: string;
   } | null;
 };

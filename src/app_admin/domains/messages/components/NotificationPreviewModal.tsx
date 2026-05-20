@@ -9,6 +9,7 @@ import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   previewAttendanceNotification,
   confirmAttendanceNotification,
@@ -80,8 +81,8 @@ export default function NotificationPreviewModal(props: Props) {
       setConfirmed(false);
       setConfirmResult(null);
     },
-    onError: (err: any) => {
-      feedback.error(err?.response?.data?.detail || "미리보기를 불러오는데 실패했습니다.");
+    onError: (err: unknown) => {
+      feedback.error(extractApiError(err, "미리보기를 불러오는데 실패했습니다."));
     },
   });
 
@@ -96,8 +97,8 @@ export default function NotificationPreviewModal(props: Props) {
       setConfirmResult(data);
       feedback.success(`${data.sent_count}건 발송 완료`);
     },
-    onError: (err: any) => {
-      feedback.error(err?.response?.data?.detail || "발송에 실패했습니다.");
+    onError: (err: unknown) => {
+      feedback.error(extractApiError(err, "발송에 실패했습니다."));
     },
   });
 

@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/results/api/wrongNotes.ts
 import api from "@/shared/api/axios";
+import { type ResultAttemptMeta } from "../types/results.types";
 
 export type WrongNoteItem = {
   exam_id: number;
@@ -24,10 +25,10 @@ export type WrongNoteItem = {
   max_score: number;
 
   // ✅ 핵심: bbox 하이라이트, invalid_reason(LOW_CONFIDENCE 등) 표시용
-  meta?: any;
+  meta?: ResultAttemptMeta;
 
   // ✅ 확장 포인트 (해설/지문 등)
-  extra?: any;
+  extra?: Record<string, unknown> | null;
 };
 
 export type WrongNoteResponse = {

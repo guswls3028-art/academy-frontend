@@ -35,6 +35,39 @@ export type ResultItem = {
   source: string;
 };
 
+export type ResultAttemptBBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type ResultAttemptOmrMeta = {
+  bbox?: ResultAttemptBBox | null;
+  confidence?: number | null;
+  image_url?: string | null;
+  imageUrl?: string | null;
+  page_image_url?: string | null;
+  original_width?: number | null;
+  originalWidth?: number | null;
+};
+
+export type ResultAttemptGradingMeta = {
+  invalid_reason?: string | null;
+  total_score?: number | null;
+  total_max_score?: number | null;
+};
+
+export type ResultAttemptMeta = {
+  omr?: ResultAttemptOmrMeta | null;
+  grading?: ResultAttemptGradingMeta | null;
+  image_url?: string | null;
+  imageUrl?: string | null;
+  original_width?: number | null;
+  originalWidth?: number | null;
+  [key: string]: unknown;
+};
+
 export type StudentExamResult = {
   target_type: "exam" | "homework";
   target_id: number;
@@ -189,7 +222,7 @@ export type WrongNoteItem = {
   score: number;
   max_score: number;
 
-  meta?: unknown;
+  meta?: ResultAttemptMeta;
   extra?: unknown;
 };
 

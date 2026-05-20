@@ -1,5 +1,6 @@
 import BBoxOverlay from "../bbox/BBoxOverlay";
 import { BBoxMeta } from "../bbox/types";
+import { type ResultAttemptMeta } from "../../types/results.types";
 
 /**
  * ✅ AttemptOMRViewer
@@ -11,7 +12,7 @@ import { BBoxMeta } from "../bbox/types";
 type Props = {
   imageSrc: string;
   fact: {
-    meta?: any;
+    meta?: ResultAttemptMeta;
   } | null;
   originalWidth: number;
   displayWidth: number;
@@ -46,8 +47,8 @@ export default function AttemptOMRViewer({
     {
       bbox: omr.bbox,
       label: invalidReason ?? "OMR",
-      confidence: omr.confidence,
-      invalid_reason: invalidReason,
+      confidence: omr.confidence ?? undefined,
+      invalid_reason: invalidReason ?? undefined,
     },
   ];
 

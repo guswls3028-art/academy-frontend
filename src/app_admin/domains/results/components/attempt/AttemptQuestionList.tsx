@@ -6,11 +6,12 @@
  * - 정답/오답 상태 시각화
  * - 선택 상태 관리 (상위에서 제어)
  */
+import { type ResultAttemptMeta } from "../../types/results.types";
 
 type Fact = {
   question_id: number;
   is_correct: boolean;
-  meta?: any;
+  meta?: ResultAttemptMeta;
 };
 
 type Props = {

@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/results/components/WrongNotePanel.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchWrongNotes,
   createWrongNotePDF,
@@ -43,8 +44,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       setPdfFileUrl("");
       setPdfError("");
     },
-    onError: (e: any) => {
-      setPdfError(String(e?.message || "PDF 생성 요청 실패"));
+    onError: (e: unknown) => {
+      setPdfError(extractApiError(e, "PDF 생성 요청 실패"));
     },
   });
 
@@ -79,11 +80,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         if (!stopped) {
           setTimeout(tick, 1500);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!stopped) {
-          setPdfError(
-            String(err?.message || "PDF 상태 조회 실패")
-          );
+          setPdfError(extractApiError(err, "PDF 상태 조회 실패"));
           setTimeout(tick, 2000);
         }
       }

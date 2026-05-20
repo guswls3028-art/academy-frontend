@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import AttemptQuestionList from "./AttemptQuestionList";
 import AttemptOMRViewer from "./AttemptOMRViewer";
 import AttemptMetaPanel from "./AttemptMetaPanel";
+import { type ResultAttemptMeta } from "../../types/results.types";
 
 /**
  * ✅ AttemptViewerPanel
@@ -23,7 +24,7 @@ type Fact = {
   is_correct: boolean;
   score: number;
   max_score: number;
-  meta?: any;
+  meta?: ResultAttemptMeta;
 };
 
 type Props = {

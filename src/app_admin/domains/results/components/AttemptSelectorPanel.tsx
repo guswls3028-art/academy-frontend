@@ -19,6 +19,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { type ResultAttemptMeta } from "../types/results.types";
 
 type Attempt = {
   id: number;
@@ -28,12 +30,7 @@ type Attempt = {
   status: string; // ❗ string 그대로 받음
   created_at: string;
 
-  meta?: {
-    grading?: {
-      total_score?: number;
-      total_max_score?: number;
-    };
-  };
+  meta?: ResultAttemptMeta;
 };
 
 type Props = {
@@ -86,8 +83,8 @@ export default function AttemptSelectorPanel({ examId, enrollmentId, onChanged }
       onChanged?.();
     },
 
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "대표 attempt 변경 실패");
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "대표 attempt 변경 실패"));
     },
   });
 
