@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
@@ -14,6 +14,135 @@ import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import { updateResult } from "@teacher/domains/scores/api";
 import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
 import ExamManageSheet from "../components/ExamManageSheet";
+import styles from "./ExamDetailPage.module.css";
+
+type TeacherExamDetail = {
+  id: number;
+  title: string;
+  max_score: number | null;
+  session_ids: number[];
+};
+
+type ExamResultRow = {
+  enrollment_id: number;
+  student_name: string;
+  exam_score: number | null;
+  final_score: number | null;
+  exam_max_score: number | null;
+  passed: boolean | null;
+  final_pass: boolean | null;
+  achievement: string | null;
+};
+
+type LectureEnrollment = {
+  id: number;
+  status: string | null;
+  student_name: string;
+};
+
+type TeacherSession = {
+  lecture_id: number | null;
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function unwrapList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  const record = asRecord(data);
+  return Array.isArray(record.results) ? record.results : [];
+}
+
+function toNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function toStringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function toBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function getStudentName(record: Record<string, unknown>): string {
+  const student = asRecord(record.student);
+  return (
+    toStringValue(record.student_name)
+    ?? toStringValue(student.name)
+    ?? toStringValue(record.name)
+    ?? "이름 없음"
+  );
+}
+
+function normalizeExam(value: unknown): TeacherExamDetail | null {
+  const record = asRecord(value);
+  const id = toNumber(record.id);
+  if (id == null) return null;
+  const sessionIds = Array.isArray(record.session_ids)
+    ? record.session_ids.map(toNumber).filter((v): v is number => v != null)
+    : [];
+
+  return {
+    id,
+    title: toStringValue(record.title) ?? "시험",
+    max_score: toNumber(record.max_score),
+    session_ids: sessionIds,
+  };
+}
+
+function normalizeResultRow(value: unknown): ExamResultRow | null {
+  const record = asRecord(value);
+  const enrollmentId = toNumber(record.enrollment_id ?? record.enrollment);
+  if (enrollmentId == null) return null;
+
+  return {
+    enrollment_id: enrollmentId,
+    student_name: getStudentName(record),
+    exam_score: toNumber(record.exam_score ?? record.score),
+    final_score: toNumber(record.final_score),
+    exam_max_score: toNumber(record.exam_max_score ?? record.max_score),
+    passed: toBoolean(record.passed),
+    final_pass: toBoolean(record.final_pass),
+    achievement: toStringValue(record.achievement),
+  };
+}
+
+function normalizeResultRows(value: unknown): ExamResultRow[] {
+  return unwrapList(value)
+    .map(normalizeResultRow)
+    .filter((row): row is ExamResultRow => row != null);
+}
+
+function normalizeEnrollment(value: unknown): LectureEnrollment | null {
+  const record = asRecord(value);
+  const id = toNumber(record.id);
+  if (id == null) return null;
+
+  return {
+    id,
+    status: toStringValue(record.status),
+    student_name: getStudentName(record),
+  };
+}
+
+function normalizeEnrollments(value: unknown): LectureEnrollment[] {
+  return unwrapList(value)
+    .map(normalizeEnrollment)
+    .filter((row): row is LectureEnrollment => row != null);
+}
+
+function normalizeSession(value: unknown): TeacherSession {
+  const record = asRecord(value);
+  return {
+    lecture_id: toNumber(record.lecture ?? record.lecture_id),
+  };
+}
 
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -23,13 +152,13 @@ export default function ExamDetailPage() {
 
   const { data: exam, isLoading: loadingExam } = useQuery({
     queryKey: ["teacher-exam", eid],
-    queryFn: () => fetchExam(eid),
+    queryFn: async () => normalizeExam(await fetchExam(eid)),
     enabled: Number.isFinite(eid),
   });
 
   const { data: results, isLoading: loadingResults } = useQuery({
     queryKey: ["teacher-exam-results", eid],
-    queryFn: () => fetchExamResults(eid),
+    queryFn: async () => normalizeResultRows(await fetchExamResults(eid)),
     enabled: Number.isFinite(eid),
   });
 
@@ -40,13 +169,13 @@ export default function ExamDetailPage() {
     : null;
   const { data: firstSession } = useQuery({
     queryKey: ["teacher-exam-first-session", firstSessionId],
-    queryFn: () => fetchSession(firstSessionId!),
+    queryFn: async () => normalizeSession(await fetchSession(firstSessionId!)),
     enabled: firstSessionId != null,
   });
-  const lectureIdForEnrollments = firstSession?.lecture ?? firstSession?.lecture_id ?? null;
+  const lectureIdForEnrollments = firstSession?.lecture_id ?? null;
   const { data: enrollments } = useQuery({
     queryKey: ["teacher-exam-enrollments", lectureIdForEnrollments],
-    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
+    queryFn: async () => normalizeEnrollments(await fetchLectureEnrollments(lectureIdForEnrollments!)),
     enabled: Number.isFinite(lectureIdForEnrollments),
   });
 
@@ -54,22 +183,22 @@ export default function ExamDetailPage() {
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 찾을 수 없습니다" />;
 
-  const hasScore = (r: any) => (r.final_score ?? r.exam_score) != null;
+  const hasScore = (r: ExamResultRow) => (r.final_score ?? r.exam_score) != null;
 
   // result row(점수 매겨진 행) + enrollment fallback(미응시 학생) merge.
   // 우선순위: result(server) 있으면 result, 없으면 enrollment 기반 가상 행.
-  const resultByEnrollment = new Map<number, any>();
+  const resultByEnrollment = new Map<number, ExamResultRow>();
   for (const r of results ?? []) {
-    if (r?.enrollment_id != null) resultByEnrollment.set(r.enrollment_id, r);
+    resultByEnrollment.set(r.enrollment_id, r);
   }
-  const activeEnrollments = (enrollments ?? []).filter((e: any) => e.status === "ACTIVE" || e.status == null);
+  const activeEnrollments = (enrollments ?? []).filter((e) => e.status === "ACTIVE" || e.status == null);
   const merged = activeEnrollments.length > 0
-    ? activeEnrollments.map((e: any) => {
+    ? activeEnrollments.map((e) => {
         const fromResult = resultByEnrollment.get(e.id);
         if (fromResult) return fromResult;
         return {
           enrollment_id: e.id,
-          student_name: e.student_name ?? e.student?.name ?? e.name ?? "이름 없음",
+          student_name: e.student_name,
           exam_score: null,
           final_score: null,
           exam_max_score: exam.max_score ?? 100,
@@ -81,48 +210,47 @@ export default function ExamDetailPage() {
     : (results ?? []);
 
   const graded = merged.filter(hasScore);
-  const ungraded = merged.filter((r: any) => !hasScore(r));
+  const ungraded = merged.filter((r) => !hasScore(r));
 
   return (
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <BackBtn onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1 truncate" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>
           {exam.title}
         </h1>
-        <button onClick={() => navigate(`/teacher/exams/${eid}/omr`)}
-          className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
-          style={{ padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+        <button
+          type="button"
+          onClick={() => navigate(`/teacher/exams/${eid}/omr`)}
+          className={`${styles.omrButton} flex items-center gap-1 text-[11px] font-semibold cursor-pointer`}
+        >
           <Camera size={12} /> OMR
         </button>
-        <button onClick={() => setManageOpen(true)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
+        <button
+          type="button"
+          onClick={() => setManageOpen(true)}
+          className={`${styles.iconButton} flex p-1 cursor-pointer`}
+        >
           <Settings size={ICON.md} />
         </button>
       </div>
 
       {/* Summary */}
-      <div
-        className="grid grid-cols-3 gap-2 rounded-xl"
-        style={{ padding: "var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
-      >
+      <div className={`${styles.summaryPanel} grid grid-cols-3 gap-2 rounded-xl`}>
         <StatBox label="만점" value={exam.max_score ?? "-"} />
-        <StatBox label="학생" value={`${merged.length}`} color="var(--tc-primary)" />
-        <StatBox label="채점" value={`${graded.length}/${merged.length}`} color="var(--tc-success)" />
+        <StatBox label="학생" value={`${merged.length}`} tone="primary" />
+        <StatBox label="채점" value={`${graded.length}/${merged.length}`} tone="success" />
       </div>
 
       {/* Ungraded list */}
       {ungraded.length > 0 && (
-        <div
-          className="rounded-xl"
-          style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-4)" }}
-        >
-          <h3 className="text-sm font-bold mb-3" style={{ color: "var(--tc-text)" }}>
+        <div className={`${styles.sectionPanel} rounded-xl`}>
+          <h3 className={`${styles.title} text-sm font-bold mb-3`}>
             채점 대기 ({ungraded.length})
           </h3>
           <div className="flex flex-col gap-1">
-            {ungraded.map((r: any) => (
+            {ungraded.map((r) => (
               <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
             ))}
           </div>
@@ -131,15 +259,12 @@ export default function ExamDetailPage() {
 
       {/* Graded list */}
       {graded.length > 0 && (
-        <div
-          className="rounded-xl"
-          style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", padding: "var(--tc-space-4)" }}
-        >
-          <h3 className="text-sm font-bold mb-3" style={{ color: "var(--tc-text)" }}>
+        <div className={`${styles.sectionPanel} rounded-xl`}>
+          <h3 className={`${styles.title} text-sm font-bold mb-3`}>
             채점 완료 ({graded.length})
           </h3>
           <div className="flex flex-col gap-1">
-            {graded.map((r: any) => (
+            {graded.map((r) => (
               <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
             ))}
           </div>
@@ -155,7 +280,15 @@ export default function ExamDetailPage() {
   );
 }
 
-function ResultRow({ examId, result, exam }: { examId: number; result: any; exam: any }) {
+function ResultRow({
+  examId,
+  result,
+  exam,
+}: {
+  examId: number;
+  result: ExamResultRow;
+  exam: TeacherExamDetail;
+}) {
   const qc = useQueryClient();
   const name = result.student_name ?? "이름 없음";
   const enrollmentId = result.enrollment_id;
@@ -195,16 +328,15 @@ function ResultRow({ examId, result, exam }: { examId: number; result: any; exam
   };
 
   return (
-    <div className="flex justify-between items-center py-2 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-      <span className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--tc-text)" }}>{name}</span>
+    <div className={`${styles.resultRow} flex justify-between items-center py-2`}>
+      <span className={`${styles.title} text-sm flex-1 min-w-0 truncate`}>{name}</span>
       <div className="flex items-center gap-2 shrink-0">
         <AchievementBadge passed={result.final_pass ?? result.passed} achievement={result.achievement} />
         {editing ? (
           <div className="flex items-center gap-1.5">
             <input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              inputMode="decimal"
               autoFocus
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -214,28 +346,16 @@ function ResultRow({ examId, result, exam }: { examId: number; result: any; exam
                 if (e.key === "Escape") { setEditing(false); }
               }}
               placeholder="점수"
-              className="text-center text-sm font-bold outline-none"
-              style={{
-                width: 64, height: 36,
-                border: "1px solid var(--tc-primary)",
-                borderRadius: "var(--tc-radius-sm)",
-                background: "var(--tc-surface-soft)",
-                color: "var(--tc-text)",
-              }}
+              className={`${styles.scoreInput} text-center text-sm font-bold outline-none`}
             />
-            <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>/ {maxScore}</span>
+            <span className={`${styles.mutedText} text-[12px]`}>/ {maxScore}</span>
           </div>
         ) : (
           <button
+            type="button"
             onClick={startEdit}
             disabled={mutation.isPending}
-            className="text-sm font-semibold px-3 py-1 rounded cursor-pointer"
-            style={{
-              background: currentScore != null ? "var(--tc-success-bg)" : "var(--tc-primary-bg)",
-              color: currentScore != null ? "var(--tc-success)" : "var(--tc-primary)",
-              border: "none",
-              minHeight: "var(--tc-touch-min, 36px)",
-            }}
+            className={`${styles.scoreButton} ${currentScore != null ? styles.scoreButtonScored : styles.scoreButtonPending} text-sm font-semibold px-3 py-1 rounded cursor-pointer`}
           >
             {mutation.isPending ? "저장 중…" : currentScore != null ? `${currentScore}/${maxScore}` : "채점"}
           </button>
@@ -245,13 +365,21 @@ function ResultRow({ examId, result, exam }: { examId: number; result: any; exam
   );
 }
 
-function StatBox({ label, value, color }: { label: string; value: string | number; color?: string }) {
+function StatBox({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  tone?: StatTone;
+}) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-xl font-bold" style={{ color: color ?? "var(--tc-text)" }}>
+      <span className={`${STAT_TONE_CLASS[tone]} text-xl font-bold`}>
         {value}
       </span>
-      <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{label}</span>
+      <span className={`${styles.mutedText} text-[11px]`}>{label}</span>
     </div>
   );
 }
@@ -259,9 +387,9 @@ function StatBox({ label, value, color }: { label: string; value: string | numbe
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex p-1 cursor-pointer"
-      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
+      className={`${styles.backButton} flex p-1 cursor-pointer`}
     >
       <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />
@@ -269,3 +397,11 @@ function BackBtn({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+
+type StatTone = "default" | "primary" | "success";
+
+const STAT_TONE_CLASS: Record<StatTone, string> = {
+  default: styles.statDefault,
+  primary: styles.statPrimary,
+  success: styles.statSuccess,
+};

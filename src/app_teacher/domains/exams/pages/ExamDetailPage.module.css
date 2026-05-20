@@ -1,0 +1,80 @@
+.title,
+.statDefault {
+  color: var(--tc-text);
+}
+
+.mutedText,
+.iconButton {
+  color: var(--tc-text-muted);
+}
+
+.backButton {
+  border: none;
+  background: none;
+  color: var(--tc-text-secondary);
+}
+
+.omrButton {
+  padding: 6px 10px;
+  border: 1px solid var(--tc-primary);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.iconButton {
+  border: none;
+  background: none;
+}
+
+.summaryPanel,
+.sectionPanel {
+  padding: var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.resultRow {
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.resultRow:last-child {
+  border-bottom: none;
+}
+
+.scoreInput {
+  width: 64px;
+  height: 36px;
+  border: 1px solid var(--tc-primary);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface-soft);
+  color: var(--tc-text);
+}
+
+.scoreButton {
+  min-height: var(--tc-touch-min, 36px);
+  border: none;
+}
+
+.scoreButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.scoreButtonPending {
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.scoreButtonScored {
+  background: var(--tc-success-bg);
+  color: var(--tc-success);
+}
+
+.statPrimary {
+  color: var(--tc-primary);
+}
+
+.statSuccess {
+  color: var(--tc-success);
+}
