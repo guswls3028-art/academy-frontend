@@ -12,6 +12,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(120_000);
 
@@ -29,9 +30,8 @@ test("tchul park role label — production capture", async ({ page }) => {
   console.log("[ME RAW]", JSON.stringify(meResp, null, 2));
 
   // ── 프로필 페이지 진입 ──
-  await page.goto(`${BASE}/admin/settings/profile`, { waitUntil: "domcontentloaded" });
-  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-  await page.waitForTimeout(1500);
+  await gotoAndSettle(page, `${BASE}/admin/settings/profile`, { timeout: 20_000 });
+  await expect(page.locator("body")).toContainText(/대표|강사|조교/, { timeout: 10_000 });
 
   await page.screenshot({
     path: `e2e/reports/tchul-park-role/profile-full.png`,
@@ -52,8 +52,8 @@ test("tchul park role label — production capture", async ({ page }) => {
   }
 
   // ── 헤더 우상단 프로필 드롭다운 — 이름과 직책 함께 표시 ──
-  await page.goto(`${BASE}/admin/dashboard`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1200);
+  await gotoAndSettle(page, `${BASE}/admin/dashboard`, { timeout: 20_000 });
+  await expect(page.locator("body")).toBeVisible({ timeout: 10_000 });
   await page.screenshot({
     path: `e2e/reports/tchul-park-role/dashboard-with-header.png`,
     fullPage: false,

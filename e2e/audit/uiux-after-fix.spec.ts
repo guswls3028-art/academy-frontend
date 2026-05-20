@@ -4,6 +4,8 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+import type { Page } from "@playwright/test";
 
 test.setTimeout(180_000);
 
@@ -20,6 +22,11 @@ const CHANGED: { slug: string; path: string; title: string }[] = [
   { slug: "D1-settings-organization",path: "/admin/settings/organization",title: "학원 정보 (운영모드 추가)" },
 ];
 
+async function waitForRenderablePage(page: Page) {
+  await page.locator("body").waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator("main").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+}
+
 test("admin landings — after-fix capture", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginViaUI(page, "admin");
@@ -27,9 +34,8 @@ test("admin landings — after-fix capture", async ({ page }) => {
   for (const L of CHANGED) {
     const url = `${BASE}${L.path}`;
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await page.waitForTimeout(1500);
+      await gotoAndSettle(page, url, { timeout: 20_000 });
+      await waitForRenderablePage(page);
       await page.screenshot({
         path: `e2e/reports/uiux-after-fix/${L.slug}.png`,
         fullPage: true,

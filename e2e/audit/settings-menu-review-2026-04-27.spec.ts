@@ -9,6 +9,8 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+import type { Page } from "@playwright/test";
 
 test.setTimeout(180_000);
 
@@ -22,6 +24,11 @@ const SETTINGS_PAGES: { slug: string; path: string; title: string }[] = [
   { slug: "05-landing",      path: "/admin/settings/landing",      title: "랜딩페이지" },
 ];
 
+async function waitForRenderablePage(page: Page) {
+  await page.locator("body").waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator("main").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+}
+
 test("settings menu — full audit + small-viewport scroll check", async ({ page }) => {
   // ── 1. Login at standard desktop viewport ──
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -31,9 +38,8 @@ test("settings menu — full audit + small-viewport scroll check", async ({ page
   for (const p of SETTINGS_PAGES) {
     const url = `${BASE}${p.path}`;
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await page.waitForTimeout(1500);
+      await gotoAndSettle(page, url, { timeout: 20_000 });
+      await waitForRenderablePage(page);
       await page.screenshot({
         path: `e2e/reports/settings-review-2026-04-27/${p.slug}.png`,
         fullPage: true,
@@ -49,16 +55,16 @@ test("settings menu — full audit + small-viewport scroll check", async ({ page
   }
 
   // ── 3. 프로필 페이지 — 역할 라벨 텍스트 추출 ──
-  await page.goto(`${BASE}/admin/settings/profile`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1500);
+  await gotoAndSettle(page, `${BASE}/admin/settings/profile`, { timeout: 20_000 });
+  await expect(page.locator("body")).toContainText(/대표|강사|조교/, { timeout: 10_000 });
   const roleText = await page.locator("body").innerText();
   const roleMatch = roleText.match(/(대표|강사|조교)/);
   console.log(`[ROLE] currently displayed: ${roleMatch ? roleMatch[0] : "(unknown)"}`);
 
   // ── 4. 작은 화면 (1024x600) 사이드바 스크롤 검증 ──
   await page.setViewportSize({ width: 1024, height: 600 });
-  await page.goto(`${BASE}/admin/dashboard`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1500);
+  await gotoAndSettle(page, `${BASE}/admin/dashboard`, { timeout: 20_000 });
+  await expect(page.locator(".sidebar-scroll")).toBeVisible({ timeout: 10_000 });
 
   // 사이드바 풀 캡처
   await page.screenshot({
@@ -87,7 +93,14 @@ test("settings menu — full audit + small-viewport scroll check", async ({ page
     const el = document.querySelector(".sidebar-scroll");
     if (el) (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
   });
-  await page.waitForTimeout(500);
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector(".sidebar-scroll") as HTMLElement | null;
+      return !!el && Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight;
+    },
+    null,
+    { timeout: 5_000 },
+  ).catch(() => {});
   await page.screenshot({
     path: `e2e/reports/settings-review-2026-04-27/sidebar-1024x600-scrolled-bottom.png`,
     fullPage: false,

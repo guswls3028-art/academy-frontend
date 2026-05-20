@@ -10,6 +10,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -70,8 +71,8 @@ test("커뮤니티 공지 — 생성 → 수정 → 삭제", async ({ page }) =>
   expect(updated.content).toContain("수정된 본문");
 
   // UI 반영: 공지 탭에서 제목 확인
-  await page.goto("https://hakwonplus.com/admin/community/notice", { waitUntil: "load" });
-  await page.waitForTimeout(2500);
+  await gotoAndSettle(page, "https://hakwonplus.com/admin/community/notice", { timeout: 20_000 });
+  await expect(page.locator("body")).toContainText(`${tag} CRUD-test 공지 (수정됨)`, { timeout: 15_000 });
   const listText = await page.locator("body").innerText();
   expect(listText, "수정된 제목이 리스트에 반영되어야 함").toContain(`${tag} CRUD-test 공지 (수정됨)`);
   record(`[notice] UI 반영 확인 — 리스트에 수정된 제목 존재`);
@@ -136,8 +137,8 @@ test("메시지 템플릿 — 생성 → 수정 → 삭제", async ({ page }) =>
   expect(updated.name).toContain("(수정됨)");
 
   // UI 확인 — 메시지 템플릿 저장 탭
-  await page.goto("https://hakwonplus.com/admin/message", { waitUntil: "load" });
-  await page.waitForTimeout(2500);
+  await gotoAndSettle(page, "https://hakwonplus.com/admin/message", { timeout: 20_000 });
+  await expect(page.locator("body")).toContainText(`${tag} CRUD-test 템플릿 (수정됨)`, { timeout: 15_000 });
   const text = await page.locator("body").innerText();
   expect(text, "수정된 템플릿 이름이 리스트에 반영되어야 함").toContain(`${tag} CRUD-test 템플릿 (수정됨)`);
   record(`[template] UI 반영 확인`);

@@ -10,6 +10,8 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+import type { Page } from "@playwright/test";
 
 test.setTimeout(300_000);
 
@@ -51,6 +53,11 @@ const LANDINGS: { slug: string; path: string; title: string }[] = [
   { slug: "F0-developer",            path: "/admin/developer",            title: "개발자" },
 ];
 
+async function waitForRenderablePage(page: Page) {
+  await page.locator("body").waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator("main").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+}
+
 test("admin landings — full-page capture", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginViaUI(page, "admin");
@@ -58,10 +65,8 @@ test("admin landings — full-page capture", async ({ page }) => {
   for (const L of LANDINGS) {
     const url = `${BASE}${L.path}`;
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
-      // 데이터/lazy chunk 로딩 안정화
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await page.waitForTimeout(1500);
+      await gotoAndSettle(page, url, { timeout: 20_000 });
+      await waitForRenderablePage(page);
       await page.screenshot({
         path: `e2e/reports/uiux-landings/${L.slug}.png`,
         fullPage: true,
