@@ -24,6 +24,12 @@ const REASONS: { v: ReportReason; label: string }[] = [
   { v: "other", label: "기타" },
 ];
 
+function isConflictError(error: unknown): boolean {
+  if (error == null || typeof error !== "object" || !("response" in error)) return false;
+  const response = (error as { response?: { status?: number } }).response;
+  return response?.status === 409;
+}
+
 export default function ReportButton({ targetKind, targetId, asLink = false, color = "#9CA3AF" }: Props) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason>("spam");
@@ -37,8 +43,8 @@ export default function ReportButton({ targetKind, targetId, asLink = false, col
     try {
       await submitReport({ target_kind: targetKind, target_id: targetId, reason, description: description.trim() });
       setResult("ok");
-    } catch (e: any) {
-      if (e?.response?.status === 409) setResult("dup");
+    } catch (error: unknown) {
+      if (isConflictError(error)) setResult("dup");
       else setResult("fail");
     } finally {
       setSubmitting(false);

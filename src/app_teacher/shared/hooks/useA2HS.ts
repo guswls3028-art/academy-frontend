@@ -21,6 +21,10 @@ interface A2HSState {
   promptInstall: () => Promise<boolean>;
 }
 
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
 export function useA2HS(): A2HSState {
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -28,7 +32,7 @@ export function useA2HS(): A2HSState {
     if (typeof window === "undefined") return false;
     return (
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true
+      (window.navigator as NavigatorWithStandalone).standalone === true
     );
   });
 

@@ -42,7 +42,7 @@ export type MyExamResultItem = {
   score: number;
   max_score: number;
   is_correct: boolean;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 };
 
 export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
