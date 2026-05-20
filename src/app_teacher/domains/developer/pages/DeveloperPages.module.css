@@ -1,0 +1,91 @@
+.title,
+.primaryText {
+  color: var(--tc-text);
+}
+
+.mutedText {
+  color: var(--tc-text-muted);
+}
+
+.secondaryText,
+.uploadLabel {
+  color: var(--tc-text-secondary);
+}
+
+.noteButton {
+  min-height: var(--tc-touch-min);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.latestNoteButton {
+  border: 2px solid var(--tc-primary);
+}
+
+.patchEntry {
+  padding: var(--tc-space-2) var(--tc-space-3);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface-soft);
+}
+
+.field {
+  min-height: var(--tc-touch-min);
+  padding: 10px 12px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  outline: none;
+  background: var(--tc-surface);
+  color: var(--tc-text);
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.uploadLabel {
+  min-height: var(--tc-touch-min);
+  padding: 12px;
+  border: 1px dashed var(--tc-border-strong);
+  background: var(--tc-surface);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.previewItem {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface-soft);
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.removeImageButton {
+  top: 4px;
+  right: 4px;
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 14px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+}
+
+.submitButton {
+  min-height: var(--tc-touch-min);
+  padding: 14px;
+  border: none;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: #fff;
+}

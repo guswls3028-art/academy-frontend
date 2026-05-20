@@ -1,10 +1,10 @@
 // PATH: src/app_teacher/domains/developer/pages/DeveloperPages.tsx
 // To개발자 — 패치노트 · 버그 제보 · 피드백 (모바일)
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
+import { Card, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -18,6 +18,8 @@ import {
   type PatchNote,
   type NoteCategory,
 } from "@admin/domains/developer/pages/patchNotesData";
+import styles from "./DeveloperPages.module.css";
+
 const CATEGORY_LABEL: Record<NoteCategory, string> = {
   new: "NEW",
   fix: "FIX",
@@ -42,7 +44,7 @@ export function PatchNotesPage() {
     <div className="flex flex-col gap-3 pb-4">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>패치노트</h1>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>패치노트</h1>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -52,29 +54,24 @@ export function PatchNotesPage() {
           const isLatest = i === 0;
           return (
             <button
+              type="button"
               key={note.version}
               onClick={() => setSelected(note)}
-              className="flex flex-col items-start text-left cursor-pointer rounded-xl"
-              style={{
-                padding: "var(--tc-space-3) var(--tc-space-4)",
-                minHeight: "var(--tc-touch-min)",
-                background: "var(--tc-surface)",
-                border: isLatest ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-              }}
+              className={`${styles.noteButton} ${isLatest ? styles.latestNoteButton : ""} flex flex-col items-start text-left cursor-pointer rounded-xl`}
             >
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
+                <span className={`${styles.primaryText} text-sm font-bold`}>
                   {note.version}
                 </span>
                 {isLatest && <Badge tone="primary" size="xs">LATEST</Badge>}
-                <span className="text-[11px] ml-auto" style={{ color: "var(--tc-text-muted)" }}>
+                <span className={`${styles.mutedText} text-[11px] ml-auto`}>
                   {note.date}
                 </span>
               </div>
-              <div className="text-[13px] font-semibold mt-1" style={{ color: "var(--tc-text)" }}>
+              <div className={`${styles.primaryText} text-[13px] font-semibold mt-1`}>
                 {note.codename}
               </div>
-              <p className="text-[12px] mt-0.5 leading-snug" style={{ color: "var(--tc-text-muted)" }}>
+              <p className={`${styles.mutedText} text-[12px] mt-0.5 leading-snug`}>
                 {note.summary}
               </p>
               <div className="flex gap-1 mt-2 flex-wrap">
@@ -98,27 +95,22 @@ export function PatchNotesPage() {
       >
         {selected && (
           <div className="flex flex-col gap-2 pb-3">
-            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+            <div className={`${styles.mutedText} text-[11px]`}>
               {selected.date}
             </div>
-            <div className="text-[13px] leading-relaxed" style={{ color: "var(--tc-text-secondary)" }}>
+            <div className={`${styles.secondaryText} text-[13px] leading-relaxed`}>
               {selected.summary}
             </div>
             <div className="flex flex-col gap-1.5 mt-2">
               {selected.entries.map((e, idx) => (
                 <div
                   key={idx}
-                  className="flex items-start gap-2 rounded-lg"
-                  style={{
-                    padding: "var(--tc-space-2) var(--tc-space-3)",
-                    background: "var(--tc-surface-soft)",
-                    border: "1px solid var(--tc-border)",
-                  }}
+                  className={`${styles.patchEntry} flex items-start gap-2 rounded-lg`}
                 >
                   <Badge tone={CATEGORY_TONE[e.category]} size="xs">
                     {CATEGORY_LABEL[e.category]}
                   </Badge>
-                  <span className="text-[13px] leading-snug" style={{ color: "var(--tc-text)" }}>
+                  <span className={`${styles.primaryText} text-[13px] leading-snug`}>
                     {e.text}
                   </span>
                 </div>
@@ -151,6 +143,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
   const [content, setContent] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const previewUrlsRef = useRef<string[]>([]);
 
   const isBug = kind === "bug";
   const heading = isBug ? "버그 제보" : "피드백";
@@ -160,21 +153,25 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
     : "제목 (예: 바로가기에 수납 추가 요청)";
 
   const addImage = (file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlsRef.current = [...previewUrlsRef.current, previewUrl];
     setImages((p) => [...p, file]);
-    setPreviews((p) => [...p, URL.createObjectURL(file)]);
+    setPreviews((p) => [...p, previewUrl]);
   };
 
   const removeImage = (idx: number) => {
-    setPreviews((p) => {
-      URL.revokeObjectURL(p[idx]);
-      return p.filter((_, i) => i !== idx);
-    });
+    const previewUrl = previewUrlsRef.current[idx];
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrlsRef.current = previewUrlsRef.current.filter((_, i) => i !== idx);
+    setPreviews((p) => p.filter((_, i) => i !== idx));
     setImages((p) => p.filter((_, i) => i !== idx));
   };
 
   useEffect(() => {
-    return () => previews.forEach(URL.revokeObjectURL);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      previewUrlsRef.current.forEach(URL.revokeObjectURL);
+      previewUrlsRef.current = [];
+    };
   }, []);
 
   const submitMut = useMutation({
@@ -195,7 +192,8 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
       teacherToast.success(isBug ? "버그 제보가 등록되었습니다." : "피드백이 등록되었습니다.");
       setTitle("");
       setContent("");
-      previews.forEach(URL.revokeObjectURL);
+      previewUrlsRef.current.forEach(URL.revokeObjectURL);
+      previewUrlsRef.current = [];
       setImages([]);
       setPreviews([]);
       qc.invalidateQueries({ queryKey: ["dev-posts"] });
@@ -207,13 +205,13 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
     <div className="flex flex-col gap-3 pb-4">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>
           {heading}
         </h1>
       </div>
 
       <Card>
-        <div className="text-[12px] leading-relaxed" style={{ color: "var(--tc-text-muted)" }}>
+        <div className={`${styles.mutedText} text-[12px] leading-relaxed`}>
           {isBug
             ? "버그가 발생한 화면의 스크린샷을 함께 첨부해 주세요."
             : "불편한 점이나 개선 아이디어를 자유롭게 보내 주세요."}
@@ -221,7 +219,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
       </Card>
 
       <div>
-        <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+        <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>
           제목
         </label>
         <input
@@ -229,13 +227,12 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={placeholder}
-          className="w-full text-sm"
-          style={fieldStyle}
+          className={`${styles.field} w-full text-sm`}
         />
       </div>
 
       <div>
-        <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+        <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>
           상세 내용
         </label>
         <textarea
@@ -243,22 +240,14 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
           onChange={(e) => setContent(e.target.value)}
           placeholder={isBug ? "언제·무엇을 했을 때 어떤 현상이 나타났는지" : "자유롭게 작성해 주세요"}
           rows={6}
-          className="w-full text-sm"
-          style={{ ...fieldStyle, minHeight: 140, resize: "vertical" }}
+          className={`${styles.field} ${styles.textarea} w-full text-sm`}
         />
       </div>
 
       {/* 이미지 업로드 */}
       <div className="flex flex-col gap-2">
         <label
-          className="flex items-center justify-center gap-2 cursor-pointer rounded-xl"
-          style={{
-            padding: "12px",
-            minHeight: "var(--tc-touch-min)",
-            background: "var(--tc-surface)",
-            border: "1px dashed var(--tc-border-strong)",
-            color: "var(--tc-text-secondary)",
-          }}
+          className={`${styles.uploadLabel} flex items-center justify-center gap-2 cursor-pointer rounded-xl`}
         >
           <ImagePlus size={ICON.sm} />
           <span className="text-[13px] font-semibold">스크린샷 / 사진 첨부</span>
@@ -266,7 +255,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
             type="file"
             accept="image/*"
             multiple
-            style={{ display: "none" }}
+            className={styles.hiddenInput}
             onChange={(e) => {
               const files = e.target.files;
               if (!files) return;
@@ -281,24 +270,12 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
         {previews.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {previews.map((src, i) => (
-              <div key={i} className="relative rounded-lg overflow-hidden"
-                style={{ border: "1px solid var(--tc-border)", aspectRatio: "1/1", background: "var(--tc-surface-soft)" }}>
-                <img src={src} alt={`첨부 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div key={src} className={`${styles.previewItem} relative rounded-lg overflow-hidden`}>
+                <img src={src} alt={`첨부 ${i + 1}`} className={styles.previewImage} />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
-                  className="absolute cursor-pointer"
-                  style={{
-                    top: 4, right: 4,
-                    width: 28, height: 28,
-                    borderRadius: 14,
-                    background: "rgba(0,0,0,0.6)",
-                    color: "#fff",
-                    border: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  className={`${styles.removeImageButton} absolute cursor-pointer`}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -309,17 +286,10 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
       </div>
 
       <button
+        type="button"
         onClick={() => submitMut.mutate()}
         disabled={submitMut.isPending || !title.trim()}
-        className="flex items-center justify-center gap-2 text-sm font-bold cursor-pointer w-full disabled:opacity-50"
-        style={{
-          padding: "14px",
-          minHeight: "var(--tc-touch-min)",
-          borderRadius: "var(--tc-radius)",
-          border: "none",
-          background: "var(--tc-primary)",
-          color: "#fff",
-        }}
+        className={`${styles.submitButton} flex items-center justify-center gap-2 text-sm font-bold cursor-pointer w-full disabled:opacity-50`}
       >
         <Send size={ICON.xs} />
         {submitMut.isPending ? "전송 중…" : "보내기"}
@@ -327,13 +297,3 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
     </div>
   );
 }
-
-const fieldStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  minHeight: "var(--tc-touch-min)",
-  borderRadius: "var(--tc-radius-sm)",
-  border: "1px solid var(--tc-border-strong)",
-  background: "var(--tc-surface)",
-  color: "var(--tc-text)",
-  outline: "none",
-};
