@@ -2,15 +2,12 @@
 
 import ToggleSwitch from "@admin/domains/videos/ui/ToggleSwitch";
 import { useVideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
+import type { VideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
 import { Button } from "@/shared/ui/ds";
 
 interface Props {
   videoId: number;
-  initial: {
-    allow_skip: boolean;
-    max_speed: number;
-    show_watermark: boolean;
-  };
+  initial: VideoPolicy;
 }
 
 export default function VideoPolicySection({ videoId, initial }: Props) {
@@ -18,7 +15,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
     useVideoPolicy({
       videoId,
       initial,
-    } as any);
+    });
 
   return (
     <div className="space-y-4">

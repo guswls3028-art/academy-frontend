@@ -6,8 +6,8 @@ import { Badge } from "@/shared/ui/ds";
 interface Props {
   open: boolean;
   title: string;
-  payload: any;
-  snapshot: any;
+  payload: unknown;
+  snapshot: unknown;
   onClose: () => void;
 }
 

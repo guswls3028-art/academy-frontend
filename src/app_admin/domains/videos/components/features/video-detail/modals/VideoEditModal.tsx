@@ -21,7 +21,6 @@ export default function VideoEditModal({
   videoId,
   initialTitle,
   initialOrder,
-  sessionId,
 }: VideoEditModalProps) {
   const qc = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
