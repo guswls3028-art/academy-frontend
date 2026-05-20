@@ -119,10 +119,11 @@ export function useFloatingPosition(
       setPos(null);
       return;
     }
+    const positionOptions = { placement, gap, margin, estimateHeight, estimateWidth, alignRight };
     const compute = () => {
       if (!triggerRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
-      setPos(computeFloatingPosition(rect, popoverRef.current, opts));
+      setPos(computeFloatingPosition(rect, popoverRef.current, positionOptions));
     };
     compute();
 
@@ -151,8 +152,7 @@ export function useFloatingPosition(
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, placement, gap, margin, estimateHeight, estimateWidth, alignRight]);
+  }, [open, triggerRef, popoverRef, placement, gap, margin, estimateHeight, estimateWidth, alignRight]);
 
   return pos;
 }

@@ -405,6 +405,7 @@ export function useWorkerJobPoller(
   onPptSuccessRef.current = options?.onPptSuccess;
 
   const currentTenant = getTenantCodeForApiRequest() ?? "";
+  const pendingIdsKey = pending.map((p) => p.id).join(",");
   const pollStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -498,5 +499,5 @@ export function useWorkerJobPoller(
         intervalRef.current = null;
       }
     };
-  }, [currentTenant, pending.length, pending.map((p) => p.id).join(",")]);
+  }, [currentTenant, pending.length, pendingIdsKey]);
 }

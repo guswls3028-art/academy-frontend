@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/modal/AdminModal.tsx
-import { Modal } from "antd";
+import { Modal, type ModalProps } from "antd";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -30,8 +30,6 @@ type AdminModalProps = {
   noMinimize?: boolean;
   children: React.ReactNode;
 };
-
-type ModalStyles = NonNullable<React.ComponentProps<typeof Modal>["styles"]>;
 
 export default function AdminModal({
   open,
@@ -95,8 +93,7 @@ export default function AdminModal({
     return () => {
       ctx?.remove(modalId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalId]);
+  }, [ctx, modalId]);
 
   const actuallyOpen = open && !minimized;
   useModalKeyboard(actuallyOpen, onClose, onEnterConfirm);
@@ -105,7 +102,7 @@ export default function AdminModal({
   const baseClass = className
     ? `admin-modal admin-modal--${type} ${className}`
     : `admin-modal admin-modal--${type}`;
-  const modalStyles: ModalStyles = {
+  const modalStyles: NonNullable<ModalProps["styles"]> = {
     body: {
       padding: 0,
       overflow: "hidden",
