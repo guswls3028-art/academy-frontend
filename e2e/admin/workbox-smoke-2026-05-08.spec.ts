@@ -7,6 +7,7 @@
 // destructive 동작(실 task 삭제) 절대 X — UI 노출 + DOM 존재만 확인.
 
 import { test, expect } from "@playwright/test";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -43,19 +44,16 @@ test.describe("작업상태바 smoke", () => {
     }, { access: tokens.access, refresh: tokens.refresh });
 
     // 매치업 페이지 진입 — processing doc 있으면 작업박스에 자동 등록됨
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
 
     // 작업박스 트리거 버튼 — aria-label 기반 (testid 없음)
     const trigger = page.getByRole("button", { name: /작업박스/ }).first();
-    const triggerCount = await trigger.count();
-    console.error("[VERIFY] workbox trigger count =", triggerCount);
-    expect(triggerCount).toBeGreaterThan(0);
+    await expect(trigger).toBeVisible({ timeout: 10_000 });
 
     // 트리거 click → 패널 펼침
     await trigger.click();
-    await page.waitForTimeout(500);
+    const panel = page.locator(".alarm-panel--workbox-style").first();
+    await expect(panel).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: `${ARTIFACTS}/01-workbox-open.png`, fullPage: true });
 
     // 패널 안 task 행 (.async-status-bar__item)
@@ -72,7 +70,6 @@ test.describe("작업상태바 smoke", () => {
     if (itemCount > 0) {
       // 첫 행 hover → 액션 버튼 (.async-status-bar__item-actions) 노출 확인
       await items.first().hover();
-      await page.waitForTimeout(300);
       const actions = page.locator(".async-status-bar__item-actions").first();
       const actionsCount = await actions.count();
       console.error("[VERIFY] item-actions count =", actionsCount);
@@ -92,7 +89,7 @@ test.describe("작업상태바 smoke", () => {
 
     // 닫기 — ESC 또는 외부 클릭
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
+    await expect(panel).toBeHidden({ timeout: 5_000 });
     await page.screenshot({ path: `${ARTIFACTS}/04-workbox-closed.png`, fullPage: true });
   });
 });

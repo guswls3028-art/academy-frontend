@@ -14,6 +14,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
@@ -27,8 +28,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── PPT ──────────────────────────────────────────
 
   test("PPT-1. 미지원 형식 드롭 시 toast 노출 (P0-1)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/ppt`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/ppt`);
 
     // hidden input에 .txt 파일 강제 주입 (드래그 불가환경 회피)
     const fileInput = page.locator('input[type="file"][accept*="image"]');
@@ -44,14 +44,13 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("PPT-2. PDF 모드 — 잘못된 형식 toast (P0-2)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/ppt`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/ppt`);
 
     // PDF 탭 전환
     await page.getByRole("button", { name: "PDF" }).click();
-    await page.waitForTimeout(300);
 
     const fileInput = page.locator('input[type="file"][accept="application/pdf"]');
+    await expect(fileInput).toBeAttached({ timeout: 5_000 });
     await fileInput.setInputFiles({
       name: "test.txt",
       mimeType: "text/plain",
@@ -65,8 +64,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── OMR ──────────────────────────────────────────
 
   test("OMR-1. mc 한도 초과 입력 → 45 자동 보정 + toast (P1-1)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/omr`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
 
     const mc = page.locator('input[type="number"]').first();
     await mc.fill("99");
@@ -83,8 +81,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("OMR-2. 입력 변경 → 700ms 후 미리보기 자동 갱신 (P1-2)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/omr`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
 
     const examInput = page.getByPlaceholder("제1회 단원평가");
     await examInput.fill("실사용리뷰_E2E_시험명");
@@ -98,8 +95,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("OMR-3. PDF 다운로드 골든패스 — %PDF- 매직", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/omr`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
 
     const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
     await page.getByRole("button", { name: /PDF 다운로드/ }).click();
@@ -117,8 +113,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── Clinic ──────────────────────────────────────────
 
   test("CLN-1. 잘못된 paste → 가이드 toast (P1-5)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/clinic`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("이건 형식 안 맞는 무작위 텍스트입니다");
@@ -129,8 +124,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("CLN-2. 카테고리 paste → 미리보기 + 다운로드 버튼 활성화 (P0-3/P0-4)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/clinic`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("시험+과제: [E2E-tools] 홍길동, 김철수\n시험: [E2E-tools] 이영희\n과제: [E2E-tools] 박민수");
@@ -149,13 +143,12 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("CLN-3. PDF 다운로드 → %PDF- 매직", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/clinic`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("시험+과제: [E2E-tools] 홍길동\n시험: [E2E-tools] 이영희");
     await page.getByRole("button", { name: /^생성$/ }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("button", { name: /PDF 다운로드/ })).toBeEnabled({ timeout: 5_000 });
 
     const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
     await page.getByRole("button", { name: /PDF 다운로드/ }).click();
@@ -172,8 +165,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── Timer ──────────────────────────────────────────
 
   test("TMR-1. ZIP endpoint 호출 OK", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/stopwatch`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/stopwatch`);
 
     const respPromise = page.waitForResponse(
       (r) => r.url().includes("/tools/timer/download/") && r.request().method() === "GET",
@@ -188,25 +180,17 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("TMR-2. 타이머 진행 후 모드 전환 → confirm dialog (P1-4)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/tools/stopwatch`, { waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/tools/stopwatch`);
 
     // 1분 프리셋 클릭 → ready phase
     await page.getByRole("button", { name: /^1분$/ }).click();
-    await page.waitForTimeout(300);
-
-    // confirm dialog 핸들러 — 결과 캡처 후 dismiss
-    let dialogShown = false;
-    page.on("dialog", async (d) => {
-      dialogShown = true;
-      expect(d.message()).toMatch(/타이머가 진행 중|시간이 사라/i);
-      await d.dismiss();
-    });
+    await expect(page.getByText("READY")).toBeVisible({ timeout: 5_000 });
 
     // 모드 토글 — '스톱워치' 버튼 클릭
+    const dialogPromise = page.waitForEvent("dialog", { timeout: 5_000 });
     await page.getByRole("button", { name: /^스톱워치$/ }).click();
-    await page.waitForTimeout(500);
-
-    expect(dialogShown).toBe(true);
+    const dialog = await dialogPromise;
+    expect(dialog.message()).toMatch(/타이머가 진행 중|시간이 사라/i);
+    await dialog.dismiss();
   });
 });
