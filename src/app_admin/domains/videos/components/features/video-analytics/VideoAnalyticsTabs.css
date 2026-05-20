@@ -1,0 +1,346 @@
+/* PATH: src/app_admin/domains/videos/components/features/video-analytics/VideoAnalyticsTabs.css */
+
+.video-analytics-header,
+.video-analytics-control,
+.video-analytics-panel-header,
+.video-analytics-pagination {
+  display: flex;
+  align-items: center;
+}
+
+.video-analytics-header,
+.video-analytics-panel-header,
+.video-analytics-pagination {
+  justify-content: space-between;
+}
+
+.video-analytics-control {
+  gap: var(--space-2);
+}
+
+.video-analytics-title,
+.video-analytics-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.video-analytics-description {
+  margin-top: var(--space-1);
+}
+
+.video-analytics-muted {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
+.video-analytics-sync {
+  font-weight: 400;
+}
+
+.video-analytics-control-label,
+.video-analytics-page-label {
+  white-space: nowrap;
+}
+
+.video-analytics-select {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.video-analytics-kpi {
+  padding: var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+}
+
+.video-analytics-kpi--accent {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-border-divider));
+}
+
+.video-analytics-kpi-label {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
+.video-analytics-kpi-value {
+  margin-top: var(--space-1);
+  font-size: var(--text-xl, 20px);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.video-analytics-kpi-sub {
+  margin-top: var(--space-1);
+}
+
+.video-analytics-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.video-analytics-progress-meter {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  appearance: none;
+  background: color-mix(in srgb, var(--color-border-divider) 30%, var(--color-bg-surface));
+  border: none;
+  border-radius: 3px;
+}
+
+.video-analytics-progress-meter::-webkit-progress-bar {
+  background: color-mix(in srgb, var(--color-border-divider) 30%, var(--color-bg-surface));
+}
+
+.video-analytics-progress-meter::-webkit-progress-value {
+  background: var(--video-analytics-progress-color);
+  border-radius: 3px;
+  transition: width 400ms ease;
+}
+
+.video-analytics-progress-meter::-moz-progress-bar {
+  background: var(--video-analytics-progress-color);
+  border-radius: 3px;
+  transition: width 400ms ease;
+}
+
+.video-analytics-progress-meter[data-tone="success"] {
+  --video-analytics-progress-color: var(--color-success);
+}
+
+.video-analytics-progress-meter[data-tone="primary"] {
+  --video-analytics-progress-color: var(--color-brand-primary);
+}
+
+.video-analytics-progress-meter[data-tone="warning"] {
+  --video-analytics-progress-color: var(--color-warning);
+}
+
+.video-analytics-progress-meter[data-tone="danger"] {
+  --video-analytics-progress-color: var(--color-danger);
+}
+
+.video-analytics-progress-value {
+  min-width: 36px;
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-analytics-card {
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+}
+
+.video-analytics-card--flush {
+  padding: 0;
+}
+
+.video-analytics-panel-header {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.video-analytics-panel-section {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.video-analytics-table-header {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.video-analytics-row {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs, 11px);
+  cursor: pointer;
+  background: var(--color-bg-surface);
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.video-analytics-row--alt {
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface));
+}
+
+.video-analytics-row:hover,
+.video-analytics-row:focus-visible {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+}
+
+.video-analytics-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+.video-analytics-primary-text {
+  font-size: var(--text-sm, 13px);
+  color: var(--color-text-primary);
+}
+
+.video-analytics-secondary-text {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-secondary);
+}
+
+.video-analytics-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  font-size: var(--text-sm, 13px);
+  color: var(--color-text-muted);
+}
+
+.video-analytics-hint,
+.video-analytics-chart-note,
+.video-analytics-dash {
+  font-size: 10px;
+}
+
+.video-analytics-chart-note {
+  margin-top: var(--space-2);
+}
+
+.video-analytics-range-tab {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs, 11px);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.video-analytics-range-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
+}
+
+.video-analytics-range-tab[data-active="true"] {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+.video-analytics-hint-block {
+  padding: var(--space-2) var(--space-4);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.video-analytics-scroll-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: auto;
+}
+
+.video-analytics-risk-card {
+  display: block;
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+  cursor: pointer;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.video-analytics-risk-card:hover,
+.video-analytics-risk-card:focus-visible {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
+  border-color: var(--color-border-default);
+  box-shadow: var(--elevation-1);
+}
+
+.video-analytics-risk-card:focus-visible {
+  outline: none;
+}
+
+.video-analytics-risk-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+  font-size: var(--text-xs, 11px);
+}
+
+.video-analytics-risk-stat[data-tone="danger"] {
+  color: var(--color-danger);
+}
+
+.video-analytics-risk-stat[data-tone="warning"] {
+  color: var(--color-warning);
+}
+
+.video-analytics-risk-time {
+  margin-top: var(--space-1);
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-analytics-footer,
+.video-analytics-pagination {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.video-analytics-footer {
+  font-weight: 600;
+}
+
+.video-analytics-pagination {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.video-analytics-event-score {
+  color: var(--color-text-muted);
+}
+
+.video-analytics-event-score--danger {
+  color: var(--color-danger);
+}
+
+.video-analytics-session-id {
+  font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
