@@ -2,7 +2,22 @@
  * E2E: DNB 테넌트 성적 통계 검증 — 실데이터 다수 학생
  */
 import { test, expect } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
+
+async function waitForResultsReady(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await expect(page.getByText(/불러오는 중|loading/i).first()).not.toBeVisible({ timeout: 10_000 });
+}
+
+async function waitForScrollSettled(page: Page) {
+  await page.waitForFunction(
+    () => window.scrollY > 0 || document.body.scrollHeight <= window.innerHeight,
+    undefined,
+    { timeout: 5_000 },
+  );
+}
 
 test.describe("DNB 성적 통계", () => {
   test.beforeEach(async ({ page }) => {
@@ -10,14 +25,14 @@ test.describe("DNB 성적 통계", () => {
   });
 
   test("DNB 강좌에서 통계 데이터가 정상 표시된다", async ({ page }) => {
-    await page.goto("https://dnbacademy.co.kr/teacher/results", { waitUntil: "load" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, "https://dnbacademy.co.kr/teacher/results", { timeout: 20_000 });
+    await waitForResultsReady(page);
 
     // 1. 통계 탭 클릭
     const statsTab = page.getByRole("button", { name: "통계", exact: true });
     await expect(statsTab).toBeVisible({ timeout: 10000 });
     await statsTab.click();
-    await page.waitForTimeout(500);
+    await waitForResultsReady(page);
 
     await page.screenshot({
       path: "e2e/screenshots/dnb-stats-01-tab.png",
@@ -35,7 +50,7 @@ test.describe("DNB 성적 통계", () => {
     }
 
     await lectureChips.first().click();
-    await page.waitForTimeout(1500);
+    await waitForResultsReady(page);
 
     // 3. 시험 유무 확인
     const noExamMsg = page.getByText("이 강의에 시험이 없습니다");
@@ -43,7 +58,7 @@ test.describe("DNB 성적 통계", () => {
       // 다른 강의 시도
       if (lectureCount > 1) {
         await lectureChips.nth(1).click();
-        await page.waitForTimeout(1500);
+        await waitForResultsReady(page);
       } else {
         console.log("DNB 시험 없음");
         return;
@@ -58,7 +73,7 @@ test.describe("DNB 성적 통계", () => {
 
       if (examChipCount > 0) {
         await examChips.first().click();
-        await page.waitForTimeout(3000);
+        await waitForResultsReady(page);
 
         // 5. KPI 확인
         const hasParticipant = await page.getByText("응시").isVisible().catch(() => false);
@@ -85,7 +100,7 @@ test.describe("DNB 성적 통계", () => {
 
         // 스크롤 다운
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await page.waitForTimeout(500);
+        await waitForScrollSettled(page);
         await page.screenshot({
           path: "e2e/screenshots/dnb-stats-03-scrolled.png",
           fullPage: true,

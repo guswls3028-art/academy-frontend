@@ -243,11 +243,10 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
     const menuBtn = page.locator("button[aria-label*='메뉴'], header button").first();
     await menuBtn.click().catch(() => {});
-    // drawer transition (280ms) 완료 대기. 미루지 않으면 panel 슬라이드 중 캡처되어 라벨이 절반만 보임.
-    await page.waitForTimeout(600);
+    await expect(page.getByText("메뉴", { exact: true }).first()).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: `${SCREEN_DIR}/15-drawer.png`, fullPage: true });
 
-    for (const label of ["대시보드", "학생", "강의", "클리닉", "시험 / 과제", "성적 조회", "영상", "커뮤니티", "내 자료", "근태 / 지출", "스톱워치", "내 프로필", "패치노트"]) {
+    for (const label of ["대시보드", "학생", "강의", "클리닉", "시험", "성적", "영상", "커뮤니티", "자료 저장소", "근태 / 지출", "타이머", "프로필", "패치노트"]) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible({ timeout: 3_000 });
     }
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
