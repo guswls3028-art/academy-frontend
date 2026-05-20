@@ -4,14 +4,9 @@
  * 날짜별 상태 색상: 예정/진행=파랑, 임박=빨강, 완료=회색
  */
 import { useState, useMemo } from "react";
+import styles from "./ScheduleCalendar.module.css";
 
 export type DateStatusColor = "action" | "danger" | "complete";
-
-const STATUS_COLORS: Record<DateStatusColor, string> = {
-  action: "var(--stu-primary, #3b82f6)",
-  danger: "#ef4444",
-  complete: "#94a3b8",
-};
 
 type Props = {
   selectedDate: string | null;
@@ -57,7 +52,7 @@ export default function ScheduleCalendar({
       isSelectable: boolean;
       dateStr: string;
       hasSession: boolean;
-      statusColor: string | null;
+      statusKey: DateStatusColor | null;
     }> = [];
     const cur = new Date(start);
     while (cur <= end) {
@@ -65,7 +60,6 @@ export default function ScheduleCalendar({
       const m = String(cur.getMonth() + 1).padStart(2, "0");
       const d = String(cur.getDate()).padStart(2, "0");
       const dateStr = `${y}-${m}-${d}`;
-      const isPast = dateStr < today;
       const statusKey = dateStatusMap?.[dateStr];
       days.push({
         dayNum: cur.getDate(),
@@ -74,7 +68,7 @@ export default function ScheduleCalendar({
         isSelectable: cur.getMonth() === month,
         dateStr,
         hasSession: sessionsSet.has(dateStr),
-        statusColor: statusKey ? STATUS_COLORS[statusKey] : null,
+        statusKey: statusKey ?? null,
       });
       cur.setDate(cur.getDate() + 1);
     }
@@ -94,23 +88,9 @@ export default function ScheduleCalendar({
   const hasStatusColors = dateStatusMap && Object.keys(dateStatusMap).length > 0;
 
   return (
-    <div
-      className="stu-section stu-section--nested"
-      style={{
-        background: "var(--stu-surface)",
-        borderRadius: "var(--stu-radius-md)",
-        padding: "var(--stu-space-3) var(--stu-space-2)",
-      }}
-    >
+    <div className={`stu-section stu-section--nested ${styles.calendar}`}>
       {/* 달력 헤더 — primary 원형 아이콘 버튼 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "var(--stu-space-4)",
-        }}
-      >
+      <div className={styles.header}>
         <button
           type="button"
           className="stu-icon-btn stu-icon-btn--primary"
@@ -121,7 +101,7 @@ export default function ScheduleCalendar({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <div style={{ fontWeight: 600, fontSize: 17, letterSpacing: "-0.02em" }}>{monthLabel}</div>
+        <div className={styles.monthLabel}>{monthLabel}</div>
         <button
           type="button"
           className="stu-icon-btn stu-icon-btn--primary"
@@ -135,24 +115,11 @@ export default function ScheduleCalendar({
       </div>
 
       {/* 요일 헤더 — 클리닉과 동일 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 2,
-          marginBottom: "var(--stu-space-2)",
-        }}
-      >
+      <div className={styles.weekdays}>
         {WEEKDAYS.map((day) => (
           <div
             key={day}
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              fontWeight: 600,
-              color: day === "일" ? "var(--stu-danger)" : day === "토" ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              padding: "var(--stu-space-1)",
-            }}
+            className={`${styles.weekday} ${day === "일" ? styles.sunday : ""} ${day === "토" ? styles.saturday : ""}`}
           >
             {day}
           </div>
@@ -160,17 +127,24 @@ export default function ScheduleCalendar({
       </div>
 
       {/* 달력 그리드 — 클리닉과 동일 스타일 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 2,
-        }}
-      >
+      <div className={styles.dayGrid}>
         {calendarDays.map((day, idx) => {
           const isSelected = selectedDate === day.dateStr;
           const isClickable = day.isSelectable;
-          const sc = day.statusColor;
+          const statusKey = day.statusKey;
+          const dayClassName = [
+            styles.dayButton,
+            isClickable ? styles.clickable : styles.disabled,
+            day.isCurrentMonth ? styles.currentMonth : styles.outsideMonth,
+            day.isToday ? styles.today : "",
+            isSelected ? styles.selected : "",
+            statusKey ? statusClassName(statusKey) : "",
+          ].filter(Boolean).join(" ");
+          const dotClassName = [
+            styles.sessionDot,
+            statusKey ? styles.dotOnStatus : "",
+            !statusKey && isSelected ? styles.dotSelected : "",
+          ].filter(Boolean).join(" ");
 
           return (
             <button
@@ -182,69 +156,10 @@ export default function ScheduleCalendar({
                 if (isClickable) onDateSelect(day.dateStr);
               }}
               disabled={!isClickable}
-              style={{
-                aspectRatio: "1",
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "var(--stu-radius)",
-                border: isSelected
-                  ? "2px solid var(--stu-primary)"
-                  : day.isToday
-                    ? "1px solid var(--stu-primary)"
-                    : day.isCurrentMonth
-                      ? "1px solid var(--stu-border-subtle, rgba(0,0,0,0.05))"
-                      : "1px solid transparent",
-                background: sc
-                  ? sc
-                  : isSelected
-                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
-                    : "transparent",
-                color: sc
-                  ? "#ffffff"
-                  : !day.isCurrentMonth
-                    ? "var(--stu-text-muted)"
-                    : isSelected
-                      ? "var(--stu-primary)"
-                      : "var(--stu-text)",
-                fontWeight: day.isToday ? 700 : isSelected ? 600 : 400,
-                fontSize: 14,
-                cursor: isClickable ? "pointer" : "default",
-                opacity: !day.isCurrentMonth ? 0.3 : 1,
-                transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
-                position: "relative",
-                zIndex: 10,
-                touchAction: "manipulation",
-              }}
-              onMouseEnter={(e) => {
-                if (isClickable && !sc && !isSelected) {
-                  e.currentTarget.style.background = "var(--stu-surface-soft)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (isClickable && !sc) {
-                  e.currentTarget.style.background = isSelected
-                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
-                    : "transparent";
-                }
-              }}
+              className={dayClassName}
             >
               <span>{day.dayNum}</span>
-              {day.hasSession && (
-                <span
-                  style={{
-                    position: "absolute",
-                    bottom: 2,
-                    width: 4,
-                    height: 4,
-                    borderRadius: "50%",
-                    background: sc ? "#fff" : isSelected ? "var(--stu-primary)" : "var(--stu-text-muted)",
-                    opacity: 0.8,
-                  }}
-                />
-              )}
+              {day.hasSession && <span className={dotClassName} />}
             </button>
           );
         })}
@@ -252,32 +167,27 @@ export default function ScheduleCalendar({
 
       {/* 범례 */}
       {hasStatusColors && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "var(--stu-space-4)",
-            marginTop: "var(--stu-space-4)",
-            paddingTop: "var(--stu-space-4)",
-            borderTop: "1px solid var(--stu-border)",
-            fontSize: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.action }} />
+        <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchAction}`} />
             <span className="stu-muted">예정</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.danger }} />
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchDanger}`} />
             <span className="stu-muted">임박</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: STATUS_COLORS.complete }} />
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchComplete}`} />
             <span className="stu-muted">완료</span>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function statusClassName(status: DateStatusColor): string {
+  if (status === "danger") return styles.statusDanger;
+  if (status === "complete") return styles.statusComplete;
+  return styles.statusAction;
 }
