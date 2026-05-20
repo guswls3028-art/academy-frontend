@@ -1,0 +1,279 @@
+.loadingStack,
+.pageStack,
+.formStack,
+.sessionList,
+.bookingList {
+  display: flex;
+  flex-direction: column;
+}
+
+.loadingStack {
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-4);
+}
+
+.loadingCard {
+  height: 80px;
+  border-radius: var(--stu-radius);
+}
+
+.retryWrap {
+  margin-top: var(--stu-space-4);
+  text-align: center;
+}
+
+.pageStack {
+  gap: var(--stu-space-4);
+}
+
+.tabBar {
+  display: flex;
+  gap: 0;
+  padding: 3px;
+  margin-bottom: var(--stu-space-2);
+  border-radius: 10px;
+  background: var(--stu-surface-soft, #f1f5f9);
+}
+
+.tabButton {
+  flex: 1;
+  min-height: 44px;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--stu-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 150ms, color 150ms, box-shadow 150ms;
+}
+
+.tabButtonActive {
+  background: var(--stu-surface, #fff);
+  color: var(--stu-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tabBadge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.sectionTitle {
+  margin-bottom: var(--stu-space-4);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.currentBookingPanel {
+  padding: var(--stu-space-4);
+  margin-bottom: var(--stu-space-4);
+  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-soft);
+}
+
+.currentBookingPanelApproved {
+  border-color: var(--stu-success);
+  background: var(--stu-success-bg);
+}
+
+.requestTitle,
+.currentBookingTitle,
+.sessionTitle {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.smallMuted {
+  font-size: 12px;
+}
+
+.formStack {
+  gap: var(--stu-space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-2);
+}
+
+.fieldLabel {
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.emptySessionPanel {
+  padding: var(--stu-space-4);
+  border: 1px dashed var(--stu-border);
+  background: var(--stu-surface-soft);
+  color: var(--stu-text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+.sessionList {
+  gap: var(--stu-space-2);
+  margin-bottom: var(--stu-space-3);
+}
+
+.sessionButton {
+  position: relative;
+  padding: var(--stu-space-3);
+  border: 1px solid var(--stu-border);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sessionButtonSelected {
+  border: 2px solid var(--stu-primary);
+}
+
+.sessionButtonFull {
+  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-soft);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sessionRow,
+.requestRow,
+.scheduleHeader {
+  display: flex;
+  gap: 8px;
+}
+
+.sessionRow {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.sessionMeta {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.sessionAside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fullBadge {
+  padding: 2px 8px;
+  border-radius: var(--stu-radius);
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--stu-danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.errorText {
+  color: var(--stu-danger);
+  font-size: 13px;
+}
+
+.scheduleHeader {
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--stu-space-4);
+  flex-wrap: wrap;
+}
+
+.scheduleTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.scheduleCount {
+  font-size: 13px;
+}
+
+.bookingGroup {
+  margin-bottom: var(--stu-space-4);
+}
+
+.rejectedGroup {
+  margin-top: var(--stu-space-4);
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--stu-space-2);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bookingList {
+  gap: var(--stu-space-2);
+}
+
+.pendingPanel,
+.approvedPanel,
+.rejectedPanel {
+  padding: var(--stu-space-3);
+}
+
+.pendingPanel {
+  border-color: var(--stu-warn-border);
+  border-style: dashed;
+  background: var(--stu-warn-bg);
+}
+
+.approvedPanel {
+  border: 1px solid var(--stu-success);
+  background: var(--stu-success-bg);
+}
+
+.rejectedPanel {
+  border: 1px solid var(--stu-danger);
+  background: var(--stu-danger-bg, rgba(239, 68, 68, 0.08));
+}
+
+.requestRow {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cancelButton {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  color: var(--stu-danger);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.statusPill {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.confirmedPill {
+  background: var(--stu-success-bg);
+  color: var(--stu-success-text, #065f46);
+}
+
+.rejectedPill {
+  background: var(--stu-danger-bg, rgba(239, 68, 68, 0.08));
+  color: var(--stu-danger);
+}

@@ -6,7 +6,6 @@
  * - 캘린더 + 예약 신청
  */
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 
@@ -21,10 +20,10 @@ import {
   createClinicBookingRequest,
   cancelClinicBookingRequest,
   changeClinicBooking,
-  type ClinicBookingRequest,
 } from "../api/clinicBooking.api";
 import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import EmptyState from "@student/layout/EmptyState";
+import styles from "./ClinicPage.module.css";
 
 function formatTime(time: string): string {
   return time.slice(0, 5);
@@ -240,14 +239,6 @@ export default function ClinicPage() {
     return result;
   }, [sessions]);
 
-  // 선택한 날짜의 예약 정보
-  const selectedDateBooking = useMemo(() => {
-    if (!selectedDate) return null;
-    return myRequests.find(
-      (r) => r.session_date === selectedDate && ["pending", "booked", "approved"].includes(r.status)
-    );
-  }, [selectedDate, myRequests]);
-
   // 선택한 날짜의 세션 정보
   const selectedDateSessions = useMemo(() => {
     if (!selectedDate) return [];
@@ -273,14 +264,17 @@ export default function ClinicPage() {
   }, [selectedDate, myRequests]);
 
   const isChangeMode = existingBookingForDate != null;
+  const existingBookingIsApproved =
+    existingBookingForDate?.status === "booked" || existingBookingForDate?.status === "approved";
+  const activeBookingCount = pendingBookings.length + approvedBookings.length;
 
   if (isLoading) {
     return (
       <StudentPageShell title="클리닉">
-        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingCard}`} />
+          <div className={`stu-skel ${styles.loadingCard}`} />
+          <div className={`stu-skel ${styles.loadingCard}`} />
         </div>
       </StudentPageShell>
     );
@@ -294,7 +288,7 @@ export default function ClinicPage() {
           title="클리닉 정보를 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 다시 시도해 주세요."
         />
-        <div style={{ textAlign: "center", marginTop: "var(--stu-space-4)" }}>
+        <div className={styles.retryWrap}>
           <button
             type="button"
             className="stu-btn stu-btn--secondary"
@@ -309,58 +303,30 @@ export default function ClinicPage() {
 
   return (
     <StudentPageShell title="클리닉">
-      <div data-guide="clinic-list" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div data-guide="clinic-list" className={styles.pageStack}>
         {/* 탭 바 */}
-        <div style={{
-          display: "flex", gap: 0, borderRadius: 10,
-          background: "var(--stu-surface-soft, #f1f5f9)",
-          padding: 3, marginBottom: "var(--stu-space-2)",
-        }}>
+        <div className={styles.tabBar}>
           <button
             type="button"
             onClick={() => setActiveTab("book")}
-            style={{
-              flex: 1, padding: "12px 0", borderRadius: 8,
-              border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 600, minHeight: 44,
-              background: activeTab === "book" ? "var(--stu-surface, #fff)" : "transparent",
-              color: activeTab === "book" ? "var(--stu-text)" : "var(--stu-text-muted)",
-              boxShadow: activeTab === "book" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              transition: "all 0.15s",
-            }}
+            className={`${styles.tabButton} ${activeTab === "book" ? styles.tabButtonActive : ""}`}
           >
             예약
-            {(pendingBookings.length + approvedBookings.length) > 0 && (
-              <span style={{
-                marginLeft: 6, fontSize: 11, fontWeight: 700,
-                background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
-                borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
-              }}>
-                {pendingBookings.length + approvedBookings.length}
+            {activeBookingCount > 0 && (
+              <span className={styles.tabBadge}>
+                {activeBookingCount}
               </span>
             )}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("schedule")}
-            style={{
-              flex: 1, padding: "12px 0", borderRadius: 8,
-              border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 600, minHeight: 44,
-              background: activeTab === "schedule" ? "var(--stu-surface, #fff)" : "transparent",
-              color: activeTab === "schedule" ? "var(--stu-text)" : "var(--stu-text-muted)",
-              boxShadow: activeTab === "schedule" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              transition: "all 0.15s",
-            }}
+            className={`${styles.tabButton} ${activeTab === "schedule" ? styles.tabButtonActive : ""}`}
           >
             내 일정
-            {(pendingBookings.length + approvedBookings.length) > 0 && (
-              <span style={{
-                marginLeft: 6, fontSize: 11, fontWeight: 700,
-                background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
-                borderRadius: 999, padding: "1px 6px", verticalAlign: "middle",
-              }}>
-                {pendingBookings.length + approvedBookings.length}
+            {activeBookingCount > 0 && (
+              <span className={styles.tabBadge}>
+                {activeBookingCount}
               </span>
             )}
           </button>
@@ -380,63 +346,41 @@ export default function ClinicPage() {
         {/* 선택한 날짜의 예약 필드 */}
         {selectedDate && (
           <div className="stu-section stu-section--nested">
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+            <div className={styles.sectionTitle}>
               {formatYmd(selectedDate)} {isChangeMode ? "일정 변경" : "예약하기"}
             </div>
 
             {existingBookingForDate && (
               <div
-                className="stu-panel"
-                style={{
-                  marginBottom: "var(--stu-space-4)",
-                  padding: "var(--stu-space-4)",
-                  background:
-                    existingBookingForDate.status === "booked" || existingBookingForDate.status === "approved"
-                      ? "var(--stu-success-bg)"
-                      : "var(--stu-surface-soft)",
-                  border:
-                    existingBookingForDate.status === "booked" || existingBookingForDate.status === "approved"
-                      ? "1px solid var(--stu-success)"
-                      : "1px solid var(--stu-border)",
-                }}
+                className={`stu-panel ${styles.currentBookingPanel} ${existingBookingIsApproved ? styles.currentBookingPanelApproved : ""}`}
               >
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                <div className={styles.currentBookingTitle}>
                   현재 예약: {formatTime(existingBookingForDate.session_start_time)}
                   {existingBookingForDate.session_location && ` @ ${existingBookingForDate.session_location}`}
                 </div>
-                <div className="stu-muted" style={{ fontSize: 12 }}>
+                <div className={`stu-muted ${styles.smallMuted}`}>
                   상태:{" "}
-                  {existingBookingForDate.status === "booked" || existingBookingForDate.status === "approved"
-                    ? "승인됨"
-                    : "승인 대기"}
+                  {existingBookingIsApproved ? "승인됨" : "승인 대기"}
                 </div>
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+            <div className={styles.formStack}>
               {/* 시간 선택 — 해당 날짜에 열린 클리닉만 표시, 정원 마감 시 비활성 + 시각 효과 */}
               <div>
-                <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>
                     클리닉 시간
                   </span>
 
                   {selectedDateSessions.length === 0 ? (
                     <div
-                      className="stu-panel"
-                      style={{
-                        padding: "var(--stu-space-4)",
-                        textAlign: "center",
-                        background: "var(--stu-surface-soft)",
-                        border: "1px dashed var(--stu-border)",
-                        color: "var(--stu-text-muted)",
-                        fontSize: 14,
-                      }}
+                      className={`stu-panel ${styles.emptySessionPanel}`}
                     >
                       이 날짜에는 등록 가능한 클리닉이 없습니다. 다른 날짜를 선택해주세요.
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
+                    <div className={styles.sessionList}>
                       {selectedDateSessions.map((session) => {
                         const isFull =
                           session.max_participants != null &&
@@ -452,50 +396,30 @@ export default function ClinicPage() {
                             key={session.id}
                             type="button"
                             disabled={isFull}
-                            className={`stu-panel ${isFull ? "" : "stu-panel--pressable"} ${isSelected && !isFull ? "stu-panel--accent" : ""}`}
+                            className={`stu-panel ${styles.sessionButton} ${isFull ? styles.sessionButtonFull : "stu-panel--pressable"} ${isSelected && !isFull ? `stu-panel--accent ${styles.sessionButtonSelected}` : ""}`}
                             onClick={() => {
                               if (isFull) return;
                               setSelectedSessionId(session.id);
                             }}
-                            style={{
-                              textAlign: "left",
-                              padding: "var(--stu-space-3)",
-                              border: isSelected && !isFull
-                                ? "2px solid var(--stu-primary)"
-                                : "1px solid var(--stu-border)",
-                              opacity: isFull ? 0.65 : 1,
-                              cursor: isFull ? "not-allowed" : "pointer",
-                              position: "relative",
-                              background: isFull ? "var(--stu-surface-soft)" : undefined,
-                            }}
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                            <div className={styles.sessionRow}>
                               <div>
-                                <div style={{ fontWeight: 600, fontSize: 14 }}>
+                                <div className={styles.sessionTitle}>
                                   {formatTime(session.start_time)}
                                   {session.title ? ` — ${session.title}` : ""}
                                 </div>
-                                <div className="stu-muted" style={{ fontSize: 12, marginTop: 2 }}>
+                                <div className={`stu-muted ${styles.sessionMeta}`}>
                                   {session.location}
                                   {session.target_grade ? ` · ${session.target_grade}학년` : ""}
                                 </div>
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div className={styles.sessionAside}>
                                 {isFull ? (
-                                  <span
-                                    style={{
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      color: "var(--stu-danger)",
-                                      padding: "2px 8px",
-                                      borderRadius: "var(--stu-radius)",
-                                      background: "rgba(239, 68, 68, 0.12)",
-                                    }}
-                                  >
+                                  <span className={styles.fullBadge}>
                                     정원 마감
                                   </span>
                                 ) : remaining != null ? (
-                                  <span className="stu-muted" style={{ fontSize: 12 }}>
+                                  <span className={`stu-muted ${styles.smallMuted}`}>
                                     잔여 {remaining}명
                                   </span>
                                 ) : null}
@@ -511,17 +435,16 @@ export default function ClinicPage() {
 
                 {/* 메모 입력 */}
                 <div>
-                  <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>
                       메모 (선택)
                     </span>
                     <textarea
                       value={memo}
                       onChange={(e) => setMemo(e.target.value)}
                       placeholder="예약 시 참고사항을 입력해주세요."
-                      className="stu-textarea"
+                      className={`stu-textarea ${styles.fullWidth}`}
                       rows={3}
-                      style={{ width: "100%" }}
                     />
                   </label>
                 </div>
@@ -530,10 +453,9 @@ export default function ClinicPage() {
               {!existingBookingForDate && (
                 <button
                   type="button"
-                  className="stu-btn stu-btn--primary"
+                  className={`stu-btn stu-btn--primary ${styles.fullWidth}`}
                   disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending || changeMutation.isPending}
                   onClick={handleBooking}
-                  style={{ width: "100%" }}
                 >
                   {bookingMutation.isPending ? "처리 중…" : "예약 신청하기"}
                 </button>
@@ -542,10 +464,9 @@ export default function ClinicPage() {
               {existingBookingForDate && (
                 <button
                   type="button"
-                  className="stu-btn stu-btn--secondary"
+                  className={`stu-btn stu-btn--secondary ${styles.fullWidth}`}
                   disabled={!selectedSessionId || selectedSessionIsFull || changeMutation.isPending || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
                   onClick={handleChangeRequest}
-                  style={{ width: "100%" }}
                 >
                   {changeMutation.isPending
                     ? "처리 중…"
@@ -554,7 +475,7 @@ export default function ClinicPage() {
               )}
 
               {(bookingMutation.isError || cancelMutation.isError || changeMutation.isError) && (
-                <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+                <div className={`stu-muted ${styles.errorText}`}>
                   {isChangeMode ? "일정 변경에 실패했습니다. 기존 예약은 유지됩니다." : "예약 신청에 실패했습니다."} 다시 시도해주세요.
                 </div>
               )}
@@ -568,10 +489,10 @@ export default function ClinicPage() {
         {activeTab === "schedule" && (<>
         {/* 내 예약 현황 (클리닉 신청자 실데이터) */}
         <div className="stu-section stu-section--nested">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>내 예약 현황</div>
+          <div className={styles.scheduleHeader}>
+            <div className={styles.scheduleTitle}>내 예약 현황</div>
             {(pendingBookings.length > 0 || approvedBookings.length > 0) && (
-              <span className="stu-muted" style={{ fontSize: 13 }}>
+              <span className={`stu-muted ${styles.scheduleCount}`}>
                 승인 대기 {pendingBookings.length}건 · 승인됨 {approvedBookings.length}건
               </span>
             )}
@@ -579,32 +500,26 @@ export default function ClinicPage() {
 
           {/* 승인 대기 */}
           {pendingBookings.length > 0 && (
-            <div style={{ marginBottom: "var(--stu-space-4)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+            <div className={styles.bookingGroup}>
+              <div className={styles.groupTitle}>
                 승인 대기
                 <span className="stu-badge stu-badge--warn stu-badge--sm">{pendingBookings.length}</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              <div className={styles.bookingList}>
                 {pendingBookings.map((request) => (
-                  <div key={request.id} className="stu-panel" style={{
-                    padding: "var(--stu-space-3)",
-                    background: "var(--stu-warn-bg)",
-                    borderStyle: "dashed",
-                    borderColor: "var(--stu-warn-border)",
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div key={request.id} className={`stu-panel ${styles.pendingPanel}`}>
+                    <div className={styles.requestRow}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                        <div className={styles.requestTitle}>
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
-                        <div className="stu-muted" style={{ fontSize: 12 }}>
+                        <div className={`stu-muted ${styles.smallMuted}`}>
                           {request.session_location}
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="stu-btn stu-btn--secondary"
-                        style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, color: "var(--stu-danger)" }}
+                        className={`stu-btn stu-btn--secondary ${styles.cancelButton}`}
                         disabled={cancelMutation.isPending}
                         onClick={async () => {
                           if (await confirm({ title: "예약 취소", message: "예약을 취소할까요?", confirmText: "취소", danger: true })) {
@@ -624,37 +539,26 @@ export default function ClinicPage() {
           {/* 승인됨 — 취소 불가 (백엔드 정책: 승인 후 취소는 선생님만 가능) */}
           {approvedBookings.length > 0 && (
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+              <div className={styles.groupTitle}>
                 승인됨
                 <span className="stu-badge stu-badge--success stu-badge--sm">{approvedBookings.length}</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              <div className={styles.bookingList}>
                 {approvedBookings.map((request) => (
                   <div
                     key={request.id}
-                    className="stu-panel"
-                    style={{
-                      padding: "var(--stu-space-3)",
-                      background: "var(--stu-success-bg)",
-                      border: "1px solid var(--stu-success)",
-                    }}
+                    className={`stu-panel ${styles.approvedPanel}`}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div className={styles.requestRow}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                        <div className={styles.requestTitle}>
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
-                        <div className="stu-muted" style={{ fontSize: 12 }}>
+                        <div className={`stu-muted ${styles.smallMuted}`}>
                           {request.session_location}
                         </div>
                       </div>
-                      <span
-                        style={{
-                          fontSize: 12, fontWeight: 600, padding: "3px 10px",
-                          borderRadius: 6, background: "var(--stu-success-bg)",
-                          color: "var(--stu-success-text, #065f46)", whiteSpace: "nowrap",
-                        }}
-                      >
+                      <span className={`${styles.statusPill} ${styles.confirmedPill}`}>
                         확정
                       </span>
                     </div>
@@ -666,40 +570,28 @@ export default function ClinicPage() {
 
           {/* 거절됨 */}
           {rejectedBookings.length > 0 && (
-            <div style={{ marginTop: "var(--stu-space-4)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-2)" }}>
+            <div className={styles.rejectedGroup}>
+              <div className={styles.groupTitle}>
                 거절됨 ({rejectedBookings.length})
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              <div className={styles.bookingList}>
                 {rejectedBookings.map((request) => (
                   <div
                     key={request.id}
-                    className="stu-panel"
-                    style={{
-                      padding: "var(--stu-space-3)",
-                      background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
-                      border: "1px solid var(--stu-danger)",
-                    }}
+                    className={`stu-panel ${styles.rejectedPanel}`}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div className={styles.requestRow}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                        <div className={styles.requestTitle}>
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
                         {request.session_location && (
-                          <div className="stu-muted" style={{ fontSize: 12 }}>
+                          <div className={`stu-muted ${styles.smallMuted}`}>
                             {request.session_location}
                           </div>
                         )}
                       </div>
-                      <span
-                        style={{
-                          fontSize: 12, fontWeight: 600, padding: "3px 10px",
-                          borderRadius: 6,
-                          background: "var(--stu-danger-bg, rgba(239, 68, 68, 0.08))",
-                          color: "var(--stu-danger)", whiteSpace: "nowrap",
-                        }}
-                      >
+                      <span className={`${styles.statusPill} ${styles.rejectedPill}`}>
                         거절됨
                       </span>
                     </div>

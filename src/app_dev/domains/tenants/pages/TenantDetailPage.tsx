@@ -8,9 +8,10 @@ import {
 import { useTenantBranding, useUploadLogo, usePatchBranding } from "@dev/domains/tenants/hooks/useBranding";
 import { useDevToast } from "@dev/shared/components/DevToast";
 import { getTenantBranding as getStaticBranding, getTenantIdFromCode } from "@/shared/tenant/config";
-import type { TenantDetailDto, TenantUsageDto, TenantActivityEntry } from "@dev/domains/tenants/api/tenants.api";
+import type { TenantDetailDto, TenantActivityEntry } from "@dev/domains/tenants/api/tenants.api";
 import { beginImpersonation, abortImpersonation } from "@dev/shared/components/ImpersonationBanner";
 import s from "@dev/layout/DevLayout.module.css";
+import styles from "./TenantDetailPage.module.css";
 
 type TabId = "overview" | "usage" | "activity" | "branding" | "domains" | "owners";
 
@@ -35,14 +36,14 @@ export default function TenantDetailPage() {
       <>
         <header className={s.header}>
           <div className={s.headerLeft}>
-            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
+            <Link to="/dev/tenants" className={styles.breadcrumbLink}>테넌트</Link>
             <span className={s.breadcrumbSep}>/</span>
             <span className={s.breadcrumbCurrent}>불러오는 중...</span>
           </div>
         </header>
         <div className={s.content}>
-          <div className={s.skeleton} style={{ width: 200, height: 28, marginBottom: 16 }} />
-          <div className={s.skeleton} style={{ height: 400 }} />
+          <div className={`${s.skeleton} ${styles.skeletonTitle}`} />
+          <div className={`${s.skeleton} ${styles.skeletonTall}`} />
         </div>
       </>
     );
@@ -53,7 +54,7 @@ export default function TenantDetailPage() {
       <>
         <header className={s.header}>
           <div className={s.headerLeft}>
-            <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
+            <Link to="/dev/tenants" className={styles.breadcrumbLink}>테넌트</Link>
             <span className={s.breadcrumbSep}>/</span>
             <span className={s.breadcrumbCurrent}>찾을 수 없음</span>
           </div>
@@ -71,13 +72,13 @@ export default function TenantDetailPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>대시보드</Link>
+          <Link to="/dev/dashboard" className={styles.breadcrumbLink}>대시보드</Link>
           <span className={s.breadcrumbSep}>/</span>
-          <Link to="/dev/tenants" style={{ color: "inherit", textDecoration: "none" }}>테넌트</Link>
+          <Link to="/dev/tenants" className={styles.breadcrumbLink}>테넌트</Link>
           <span className={s.breadcrumbSep}>/</span>
           <span className={s.breadcrumbCurrent}>{tenant.name}</span>
         </div>
-        <div className={s.headerRight} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className={`${s.headerRight} ${styles.headerActions}`}>
           <span className={`${s.badge} ${tenant.isActive ? s.badgeActive : s.badgeInactive}`}>
             <span className={`${s.badgeDot} ${tenant.isActive ? s.badgeDotActive : s.badgeDotInactive}`} />
             {tenant.isActive ? "활성" : "비활성"}
@@ -129,8 +130,7 @@ function AdminJumpButton({ tenant }: { tenant: TenantDetailDto }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-      style={{ textDecoration: "none" }}
+      className={`${s.btn} ${s.btnSecondary} ${s.btnSm} ${styles.adminLink}`}
       title={`${url} 새 탭에서 열기`}
     >
       ↗ /admin 열기
@@ -163,7 +163,7 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
     : [];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    <div className={styles.splitGrid}>
       <div className={s.card}>
         <div className={s.cardHeader}>
           <h3 className={s.cardTitle}>테넌트 정보</h3>
@@ -194,10 +194,10 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
           <h3 className={s.cardTitle}>설정</h3>
         </div>
         <div className={s.cardBody}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className={styles.settingsRow}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>테넌트 상태</div>
-              <div style={{ fontSize: 12, color: "var(--dev-text-muted)", marginTop: 2 }}>
+              <div className={styles.settingsTitle}>테넌트 상태</div>
+              <div className={styles.settingsDesc}>
                 {tenant.isActive ? "로그인·가입 가능" : "신규 접속 제한"}
               </div>
             </div>
@@ -213,17 +213,17 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
             </button>
           </div>
           {domains.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--dev-text-muted)", marginBottom: 8 }}>도메인</div>
+            <div className={styles.domainBlock}>
+              <div className={styles.sectionLabel}>도메인</div>
               {domains.map((d) => (
-                <div key={d.host} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--dev-border-light)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div key={d.host} className={styles.domainRow}>
                   <span>
                     {d.host}
                     {d.isPrimary && (
-                      <span className={`${s.badge} ${s.badgeActive}`} style={{ fontSize: 10, marginLeft: 8 }}>대표</span>
+                      <span className={`${s.badge} ${s.badgeActive} ${styles.badgeSmall}`}>대표</span>
                     )}
                   </span>
-                  <span className={`${s.badge} ${s.badgeActive}`} style={{ fontSize: 10 }}>활성 · SSL</span>
+                  <span className={`${s.badge} ${s.badgeActive} ${styles.badgeTiny}`}>활성 · SSL</span>
                 </div>
               ))}
             </div>
@@ -306,11 +306,11 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   const logoUrl = branding?.logoUrl ?? fallback?.logoUrl ?? null;
 
   if (isLoading) {
-    return <div className={s.skeleton} style={{ height: 300 }} />;
+    return <div className={`${s.skeleton} ${styles.skeletonPanel}`} />;
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    <div className={styles.splitGrid}>
       {/* 로고 */}
       <div className={s.card}>
         <div className={s.cardHeader}>
@@ -318,7 +318,7 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
         </div>
         <div className={s.cardBody}>
           <label className={s.logoUpload}>
-            <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoChange} />
+            <input type="file" accept="image/*" className={styles.hiddenInput} onChange={handleLogoChange} />
             {logoUrl ? (
               <>
                 <img src={logoUrl} alt="로고" className={s.logoUploadImg} />
@@ -337,7 +337,7 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
         <div className={s.cardHeader}>
           <h3 className={s.cardTitle}>표시 설정</h3>
         </div>
-        <div className={s.cardBody} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className={`${s.cardBody} ${styles.cardBodyStack}`}>
           <div>
             <label className={s.inputLabel}>표시 이름</label>
             <input className={s.input} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="헤더에 표시될 이름" />
@@ -405,10 +405,10 @@ function DomainsTab({ tenant }: { tenant: TenantDetailDto }) {
           <tbody>
             {domains.map((d) => (
               <tr key={d.host}>
-                <td style={{ fontWeight: 500 }}>{d.host}</td>
+                <td className={styles.hostCell}>{d.host}</td>
                 <td>
                   {d.isPrimary && (
-                    <span className={`${s.badge} ${s.badgeActive}`} style={{ fontSize: 10 }}>대표</span>
+                    <span className={`${s.badge} ${s.badgeActive} ${styles.badgeTiny}`}>대표</span>
                   )}
                 </td>
                 <td>
@@ -487,12 +487,12 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
   }
 
   if (isLoading) {
-    return <div className={s.skeleton} style={{ height: 200 }} />;
+    return <div className={`${s.skeleton} ${styles.skeletonShort}`} />;
   }
 
   return (
     <>
-      <div className={s.card} style={{ marginBottom: 16 }}>
+      <div className={`${s.card} ${styles.cardSpacing}`}>
         <div className={s.cardHeader}>
           <h3 className={s.cardTitle}>소유자 ({owners?.length ?? 0})</h3>
           <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => setShowAdd(!showAdd)}>
@@ -501,8 +501,8 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
         </div>
 
         {showAdd && (
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--dev-border-light)", background: "var(--dev-bg)" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <div className={styles.ownerCreatePanel}>
+            <div className={styles.ownerFormGrid}>
               <div>
                 <label className={s.inputLabel}>아이디 *</label>
                 <input className={s.input} value={newUser} onChange={(e) => setNewUser(e.target.value)} placeholder="admin97" />
@@ -520,7 +520,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                 <input className={s.input} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className={styles.ownerFormActions}>
               <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => setShowAdd(false)}>취소</button>
               <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={handleAdd} disabled={registerOwner.isPending}>
                 {registerOwner.isPending ? "생성 중..." : "생성"}
@@ -541,7 +541,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                 <th>이름</th>
                 <th>전화번호</th>
                 <th>역할</th>
-                <th style={{ width: 120 }}>동작</th>
+                <th className={styles.tableActionsHeader}>동작</th>
               </tr>
             </thead>
             <tbody>
@@ -549,12 +549,12 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                 <tr key={o.userId}>
                   {editId === o.userId ? (
                     <>
-                      <td style={{ fontWeight: 600 }}>{o.username}</td>
-                      <td><input className={s.input} value={editName} onChange={(e) => setEditName(e.target.value)} style={{ height: 32 }} /></td>
-                      <td><input className={s.input} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} style={{ height: 32 }} /></td>
+                      <td className={styles.strongCell}>{o.username}</td>
+                      <td><input className={`${s.input} ${styles.compactInput}`} value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
+                      <td><input className={`${s.input} ${styles.compactInput}`} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
                       <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
                       <td>
-                        <div style={{ display: "flex", gap: 4 }}>
+                        <div className={styles.tableActions}>
                           <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => handleSaveEdit(o.userId)}>저장</button>
                           <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => setEditId(null)}>취소</button>
                         </div>
@@ -562,12 +562,12 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                     </>
                   ) : (
                     <>
-                      <td style={{ fontWeight: 600 }}>{o.username}</td>
+                      <td className={styles.strongCell}>{o.username}</td>
                       <td>{o.name || "—"}</td>
-                      <td style={{ color: "var(--dev-text-secondary)" }}>{o.phone || "—"}</td>
+                      <td className={styles.mutedCell}>{o.phone || "—"}</td>
                       <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
                       <td>
-                        <div style={{ display: "flex", gap: 4 }}>
+                        <div className={styles.tableActions}>
                           <button
                             type="button"
                             className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
@@ -621,7 +621,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
         )}
       </div>
 
-      <div style={{ padding: "12px 16px", background: "var(--dev-primary-subtle)", borderRadius: "var(--dev-radius)", fontSize: 12, color: "var(--dev-primary)" }}>
+      <div className={styles.ownerNotice}>
         이 계정은 <strong>{tenantName}</strong> 전용입니다. 다른 테넌트에서는 로그인할 수 없습니다.
       </div>
     </>
@@ -631,25 +631,25 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
 /* ===== 사용량 탭 ===== */
 function UsageTab({ tenantId }: { tenantId: number }) {
   const { data, isLoading } = useTenantUsage(tenantId);
-  if (isLoading) return <div className={s.skeleton} style={{ height: 300 }} />;
+  if (isLoading) return <div className={`${s.skeleton} ${styles.skeletonPanel}`} />;
   if (!data) return <div className={s.empty}><div className={s.emptyText}>사용량 데이터 없음</div></div>;
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+      <div className={styles.usageStatsGrid}>
         <UsageStat label="학생" value={data.users.students} />
         <UsageStat label="교사" value={data.users.teachers} />
         <UsageStat label="학부모" value={data.users.parents} />
         <UsageStat label="영상 (활성)" value={data.videos.active} sub={`전체 ${data.videos.total}`} />
-        <UsageStat label="영상 처리중" value={data.videos.processing} accent={data.videos.processing > 0 ? "var(--dev-warning)" : undefined} />
-        <UsageStat label="영상 실패" value={data.videos.failed} accent={data.videos.failed > 0 ? "var(--dev-danger)" : undefined} />
+        <UsageStat label="영상 처리중" value={data.videos.processing} tone={data.videos.processing > 0 ? "warning" : undefined} />
+        <UsageStat label="영상 실패" value={data.videos.failed} tone={data.videos.failed > 0 ? "danger" : undefined} />
         <UsageStat label="메시지 30일" value={data.messaging.sent_30d} sub={`실패 ${data.messaging.failed_30d}`} />
       </div>
 
       <StorageCard tenantId={tenantId} />
 
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className={styles.usageDetailGrid}>
         <div className={s.card}>
           <div className={s.cardHeader}>
             <h3 className={s.cardTitle}>결제</h3>
@@ -672,12 +672,12 @@ function UsageTab({ tenantId }: { tenantId: number }) {
                 {data.billing.cancel_at_period_end && (
                   <>
                     <div className={s.infoLabel}>해지 예약</div>
-                    <div className={s.infoValue}><span className={`${s.badge}`} style={{ background: "var(--dev-warning-subtle)", color: "var(--dev-warning)" }}>예약됨</span></div>
+                    <div className={s.infoValue}><span className={`${s.badge} ${styles.warningBadge}`}>예약됨</span></div>
                   </>
                 )}
               </div>
             ) : (
-              <div style={{ color: "var(--dev-text-muted)" }}>결제 정보 없음 (Program 미존재)</div>
+              <div className={styles.noBilling}>결제 정보 없음 (Program 미존재)</div>
             )}
           </div>
         </div>
@@ -693,15 +693,15 @@ function UsageTab({ tenantId }: { tenantId: number }) {
                 {data.users.last_login_at ? new Date(data.users.last_login_at).toLocaleString("ko-KR") : "기록 없음"}
               </div>
             </div>
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--dev-text-muted)", marginBottom: 8 }}>역할별 멤버십</div>
+            <div className={styles.roleBlock}>
+              <div className={styles.sectionLabel}>역할별 멤버십</div>
               {Object.entries(data.users.memberships_by_role).length === 0 ? (
-                <div style={{ color: "var(--dev-text-muted)", fontSize: 12 }}>없음</div>
+                <div className={styles.roleEmpty}>없음</div>
               ) : (
                 Object.entries(data.users.memberships_by_role).map(([role, n]) => (
-                  <div key={role} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
+                  <div key={role} className={styles.roleRow}>
                     <span className={s.code}>{role}</span>
-                    <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{n}</span>
+                    <span className={styles.roleCount}>{n}</span>
                   </div>
                 ))
               )}
@@ -713,14 +713,16 @@ function UsageTab({ tenantId }: { tenantId: number }) {
   );
 }
 
-function UsageStat({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: string }) {
+function UsageStat({ label, value, sub, tone }: { label: string; value: number; sub?: string; tone?: "warning" | "danger" }) {
+  const toneClass = tone === "warning" ? styles.statValueWarning : tone === "danger" ? styles.statValueDanger : "";
+
   return (
     <div className={s.stat}>
       <div className={s.statLabel}>{label}</div>
-      <div className={s.statValue} style={{ fontVariantNumeric: "tabular-nums", ...(accent ? { color: accent } : {}) }}>
+      <div className={`${s.statValue} ${styles.statValueNumeric} ${toneClass}`}>
         {value.toLocaleString("ko-KR")}
       </div>
-      {sub && <div style={{ fontSize: 11, color: "var(--dev-text-muted)", marginTop: 2 }}>{sub}</div>}
+      {sub && <div className={styles.statSub}>{sub}</div>}
     </div>
   );
 }
@@ -732,11 +734,11 @@ function StorageCard({ tenantId }: { tenantId: number }) {
   const { toast } = useDevToast();
 
   return (
-    <div className={s.card} style={{ marginBottom: 16 }}>
+    <div className={`${s.card} ${styles.cardSpacing}`}>
       <div className={s.cardHeader}>
         <div>
           <h3 className={s.cardTitle}>R2 영상 스토리지</h3>
-          <div style={{ fontSize: 11, color: "var(--dev-text-muted)", marginTop: 2 }}>
+          <div className={styles.storageMeta}>
             {data ? (
               <>
                 <span className={s.code}>{data.prefix}</span>
@@ -767,11 +769,11 @@ function StorageCard({ tenantId }: { tenantId: number }) {
       </div>
       <div className={s.cardBody}>
         {isLoading ? (
-          <div className={s.skeleton} style={{ height: 60 }} />
+          <div className={`${s.skeleton} ${styles.skeletonStorage}`} />
         ) : error ? (
-          <div style={{ color: "var(--dev-danger)", fontSize: 13 }}>R2 조회 실패. 자격증명/버킷 설정 확인 필요.</div>
+          <div className={styles.storageError}>R2 조회 실패. 자격증명/버킷 설정 확인 필요.</div>
         ) : data ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+          <div className={styles.storageGrid}>
             <UsageStat
               label="총 사용량"
               value={Number((data.bytes / (1024 ** 3)).toFixed(2))}
@@ -796,14 +798,14 @@ function formatBytes(n: number): string {
 /* ===== 활동 탭 ===== */
 function ActivityTab({ tenantId }: { tenantId: number }) {
   const { data, isLoading } = useTenantActivity(tenantId);
-  if (isLoading) return <div className={s.skeleton} style={{ height: 300 }} />;
+  if (isLoading) return <div className={`${s.skeleton} ${styles.skeletonPanel}`} />;
 
   const items: TenantActivityEntry[] = data?.results ?? [];
   return (
     <div className={s.card}>
       <div className={s.cardHeader}>
         <h3 className={s.cardTitle}>감사 로그</h3>
-        <span style={{ fontSize: 13, color: "var(--dev-text-muted)" }}>최근 {items.length}건</span>
+        <span className={styles.activityCount}>최근 {items.length}건</span>
       </div>
       {items.length === 0 ? (
         <div className={s.empty}>
@@ -813,36 +815,29 @@ function ActivityTab({ tenantId }: { tenantId: number }) {
         <table className={s.table}>
           <thead>
             <tr>
-              <th style={{ width: 140 }}>시각</th>
-              <th style={{ width: 100 }}>실행자</th>
-              <th style={{ width: 140 }}>작업</th>
+              <th className={styles.colTime}>시각</th>
+              <th className={styles.colActor}>실행자</th>
+              <th className={styles.colAction}>작업</th>
               <th>요약</th>
-              <th style={{ width: 60 }}>결과</th>
+              <th className={styles.colResult}>결과</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td style={{ fontSize: 12, color: "var(--dev-text-muted)" }}>
+                <td className={styles.activityTime}>
                   {item.created_at ? new Date(item.created_at).toLocaleString("ko-KR") : "—"}
                 </td>
-                <td style={{ fontSize: 12 }}>{item.actor}</td>
+                <td className={styles.activityActor}>{item.actor}</td>
                 <td><span className={s.code}>{item.action}</span></td>
-                <td style={{ fontSize: 13 }}>
+                <td className={styles.activitySummary}>
                   {item.summary || "—"}
                   {item.error && (
-                    <div style={{ fontSize: 11, color: "var(--dev-danger)", marginTop: 2 }}>{item.error}</div>
+                    <div className={styles.activityError}>{item.error}</div>
                   )}
                 </td>
                 <td>
-                  <span
-                    style={{
-                      display: "inline-block", padding: "2px 6px", borderRadius: 4,
-                      fontSize: 10, fontWeight: 700,
-                      background: item.result === "failed" ? "var(--dev-danger-subtle)" : "var(--dev-success-subtle)",
-                      color: item.result === "failed" ? "var(--dev-danger)" : "var(--dev-success)",
-                    }}
-                  >
+                  <span className={`${styles.resultBadge} ${item.result === "failed" ? styles.resultFail : styles.resultOk}`}>
                     {item.result === "failed" ? "FAIL" : "OK"}
                   </span>
                 </td>
