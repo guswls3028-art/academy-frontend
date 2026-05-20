@@ -42,13 +42,11 @@ test.describe("M1 /landing", () => {
       await page.waitForSelector("h1, .hero, [class*='hero'], [class*='landing']", {
         timeout: 10_000,
       }).catch(() => {});
-      await page.waitForTimeout(1500);
-
-      await shot(page, `M1-landing-${vp.name}`);
 
       // Basic DOM assertions
       const h1 = page.locator("h1").first();
       await expect(h1).toBeVisible();
+      await shot(page, `M1-landing-${vp.name}`);
 
       // Check no horizontal overflow
       const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -78,13 +76,11 @@ test.describe("M2 /admin/storage/hit-reports", () => {
         waitUntil: "networkidle",
         timeout: 30_000,
       });
-      await page.waitForTimeout(2000);
-
-      await shot(page, `M2-hit-reports-${vp.name}`);
 
       // Check table / card list is visible
       const tableOrCard = page.locator("table, [class*='card'], [class*='row'], [class*='list']").first();
       await expect(tableOrCard).toBeVisible({ timeout: 8_000 });
+      await shot(page, `M2-hit-reports-${vp.name}`);
 
       // Check horizontal overflow
       const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -111,9 +107,6 @@ test.describe("M3 /landing/share (incognito)", () => {
       const page = await ctx.newPage();
 
       await page.goto(SHARE_URL, { waitUntil: "networkidle", timeout: 30_000 });
-      await page.waitForTimeout(2000);
-
-      await shot(page, `M3-share-${vp.name}`);
 
       // KPI 적중률 visible
       const kpi = page
@@ -124,6 +117,7 @@ test.describe("M3 /landing/share (incognito)", () => {
       await expect(kpi).toBeVisible({ timeout: 8_000 }).catch(() => {
         console.log(`[M3-${vp.name}] KPI selector not matched — checking page loaded`);
       });
+      await shot(page, `M3-share-${vp.name}`);
 
       // Check overflow
       const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -151,13 +145,11 @@ test.describe("M4 /admin/community/board", () => {
         waitUntil: "networkidle",
         timeout: 30_000,
       });
-      await page.waitForTimeout(2000);
-
-      await shot(page, `M4-board-${vp.name}`);
 
       // Board panel visible
       const panel = page.locator("[class*='board'], [class*='pane'], [class*='tree'], table, [class*='list']").first();
       await expect(panel).toBeVisible({ timeout: 8_000 });
+      await shot(page, `M4-board-${vp.name}`);
 
       const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
       console.log(

@@ -17,13 +17,11 @@ test.describe("학생 도메인 탭 리팩토링", () => {
     await expect(page.getByRole("tab", { name: "통계" })).toBeVisible();
     // 통계 탭 클릭
     await page.getByRole("tab", { name: "통계" }).click();
-    await page.waitForTimeout(500);
     // ?tab=stats searchParam 확인
-    expect(page.url()).toContain("tab=stats");
+    await expect(page).toHaveURL(/tab=stats/);
     // 홈 탭 복귀
     await page.getByRole("tab", { name: "홈" }).click();
-    await page.waitForTimeout(500);
-    expect(page.url()).not.toContain("tab=stats");
+    await expect(page).not.toHaveURL(/tab=stats/);
   });
 
   test("시험탭 — 홈/통계 탭 전환", async ({ page }) => {
@@ -31,8 +29,7 @@ test.describe("학생 도메인 탭 리팩토링", () => {
     await expect(page.getByRole("tab", { name: "홈" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "통계" })).toBeVisible();
     await page.getByRole("tab", { name: "통계" }).click();
-    await page.waitForTimeout(500);
-    expect(page.url()).toContain("tab=stats");
+    await expect(page).toHaveURL(/tab=stats/);
   });
 
   test("영상탭 — 홈/통계 탭 전환", async ({ page }) => {
@@ -40,8 +37,7 @@ test.describe("학생 도메인 탭 리팩토링", () => {
     await expect(page.getByRole("tab", { name: "홈" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "통계" })).toBeVisible();
     await page.getByRole("tab", { name: "통계" }).click();
-    await page.waitForTimeout(500);
-    expect(page.url()).toContain("tab=stats");
+    await expect(page).toHaveURL(/tab=stats/);
   });
 
   test("저장소탭 — 홈/통계 탭 전환", async ({ page }) => {
@@ -49,7 +45,6 @@ test.describe("학생 도메인 탭 리팩토링", () => {
     await expect(page.getByRole("tab", { name: "홈" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "통계" })).toBeVisible();
     await page.getByRole("tab", { name: "통계" }).click();
-    await page.waitForTimeout(500);
-    expect(page.url()).toContain("tab=stats");
+    await expect(page).toHaveURL(/tab=stats/);
   });
 });

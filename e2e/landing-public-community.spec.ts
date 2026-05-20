@@ -90,8 +90,8 @@ test("3. 메인 /landing — LandingCommunityShowcase 노출 + 적중사례 stic
   // sticky strip 라벨 "적중 사례" 통일 (hit_reports section enabled이면)
   // scroll 200px+ 시점에 strip 나타남
   await page.evaluate(() => window.scrollTo({ top: 600, behavior: "instant" as ScrollBehavior }));
-  await page.waitForTimeout(400);
   const strip = page.getByTestId("landing-section-tabs");
+  await expect(strip).toBeVisible({ timeout: 5_000 }).catch(() => {});
   if (await strip.isVisible()) {
     // hit_reports chip이 있다면 라벨이 "적중 사례"
     const hitChip = strip.locator('[data-stab="hit_reports"]');
