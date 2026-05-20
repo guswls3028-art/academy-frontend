@@ -1,0 +1,273 @@
+.breadcrumbLink {
+  color: var(--dev-text-muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.breadcrumbSeparator {
+  color: var(--dev-text-muted);
+  margin: 0 6px;
+}
+
+.breadcrumbCurrent {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-bottom: 20px;
+}
+
+.summaryCard {
+  background: var(--dev-surface);
+  border: 1px solid var(--dev-border);
+  border-radius: var(--dev-radius);
+  box-shadow: var(--dev-shadow-sm);
+  padding: 14px 16px;
+}
+
+.summaryLabel {
+  color: var(--dev-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  color: var(--dev-text);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.summaryValue[data-warn="true"] {
+  color: var(--dev-danger);
+}
+
+.tabBar {
+  border-bottom: 1px solid var(--dev-border);
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.tabButton {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--dev-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 8px 16px;
+}
+
+.tabButton[data-active="true"] {
+  border-bottom-color: var(--dev-primary);
+  color: var(--dev-primary);
+  font-weight: 600;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filters .filterSelect {
+  min-width: 120px;
+  width: auto;
+}
+
+.checkboxLabel {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 4px;
+}
+
+.loadingSkeleton {
+  height: 200px;
+}
+
+.tableScroller {
+  overflow-x: auto;
+}
+
+.exemptRow {
+  opacity: 0.6;
+}
+
+.tenantCell {
+  font-weight: 600;
+}
+
+.tenantNameLine {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.tenantCode {
+  color: var(--dev-text-muted);
+  font-size: 11px;
+}
+
+.cancelNotice {
+  color: var(--dev-warning);
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.dateCell,
+.numericCell {
+  font-size: 13px;
+}
+
+.billingModeCell,
+.mutedSmallCell {
+  color: var(--dev-text-muted);
+  font-size: 12px;
+}
+
+.periodCell {
+  font-size: 12px;
+}
+
+.invoiceNumberCell {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.numericCell {
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  gap: 4px;
+}
+
+.emptyCell {
+  color: var(--dev-text-muted);
+  padding: 32px;
+  text-align: center;
+}
+
+.modalIntro {
+  margin-bottom: 8px;
+}
+
+.modalMeta {
+  color: var(--dev-text-muted);
+  font-size: 13px;
+}
+
+.statusBadge,
+.invoiceStatusBadge {
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #94a3b8;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+.statusBadge[data-status="active"] {
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+}
+
+.statusBadge[data-status="grace"] {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning);
+}
+
+.statusBadge[data-status="expired"] {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.invoiceStatusBadge[data-status="scheduled"],
+.invoiceStatusBadge[data-status="void"] {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.invoiceStatusBadge[data-status="pending"] {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.invoiceStatusBadge[data-status="paid"] {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.invoiceStatusBadge[data-status="failed"],
+.invoiceStatusBadge[data-status="overdue"] {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.invoiceStatusBadge[data-status="void"] {
+  color: #94a3b8;
+}
+
+.daysCell {
+  color: var(--dev-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.daysCell[data-tone="muted"] {
+  color: var(--dev-text-muted);
+  font-weight: 400;
+}
+
+.daysCell[data-tone="warning"] {
+  color: var(--dev-warning);
+}
+
+.daysCell[data-tone="danger"] {
+  color: var(--dev-danger);
+}
+
+.tenantTypeBadge {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #94a3b8;
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+
+.tenantTypeBadge[data-kind="live"] {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #ef4444;
+}
+
+.liveWarning {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+}

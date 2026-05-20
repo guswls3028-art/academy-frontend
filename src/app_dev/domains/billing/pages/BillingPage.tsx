@@ -1,7 +1,7 @@
 // PATH: src/dev_app/pages/BillingPage.tsx
 // Billing admin dashboard — tenant subscription overview + actions
 
-import { useState, useMemo } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   useBillingTenants,
@@ -14,6 +14,7 @@ import {
 import { useDevToast } from "@dev/shared/components/DevToast";
 import type { TenantSubscriptionDto, InvoiceDto } from "@dev/domains/billing/api/billing.api";
 import s from "@dev/layout/DevLayout.module.css";
+import b from "./BillingPage.module.css";
 
 // Exempt tenant IDs — 개발/테스트/시스템 (backend BILLING_EXEMPT_TENANT_IDS와 동일)
 const EXEMPT_TENANT_IDS = new Set([1, 2, 9999]);
@@ -33,10 +34,10 @@ function formatPrice(n: number): string {
   return n.toLocaleString("ko-KR");
 }
 
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  active: { bg: "var(--dev-success-subtle)", color: "var(--dev-success)", label: "Active" },
-  grace: { bg: "var(--dev-warning-subtle)", color: "var(--dev-warning)", label: "Grace" },
-  expired: { bg: "var(--dev-danger-subtle)", color: "var(--dev-danger)", label: "Expired" },
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  grace: "Grace",
+  expired: "Expired",
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -45,16 +46,11 @@ const PLAN_LABELS: Record<string, string> = {
   max: "Max",
 };
 
-const INVOICE_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  SCHEDULED: { bg: "#f1f5f9", color: "#475569" },
-  PENDING: { bg: "#eff6ff", color: "#3b82f6" },
-  PAID: { bg: "#ecfdf5", color: "#10b981" },
-  FAILED: { bg: "#fef2f2", color: "#ef4444" },
-  OVERDUE: { bg: "#fef2f2", color: "#ef4444" },
-  VOID: { bg: "#f1f5f9", color: "#94a3b8" },
-};
-
 type Tab = "tenants" | "invoices";
+
+function statusKey(status: string): string {
+  return status.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+}
 
 // ── Main Component ──
 
@@ -151,18 +147,18 @@ export default function BillingPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "var(--dev-text-muted)", textDecoration: "none", fontSize: 13 }}>
+          <Link to="/dev/dashboard" className={b.breadcrumbLink}>
             Dashboard
           </Link>
-          <span style={{ margin: "0 6px", color: "var(--dev-text-muted)" }}>/</span>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Billing</span>
+          <span className={b.breadcrumbSeparator}>/</span>
+          <span className={b.breadcrumbCurrent}>Billing</span>
         </div>
       </header>
 
       <div className={s.content}>
         {/* ── Dashboard Summary ── */}
         {dashboard && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+          <div className={b.summaryGrid}>
             <SummaryCard label="MRR" value={`${formatPrice(dashboard.mrr)}won`} />
             <SummaryCard label="Total Tenants" value={String(dashboard.total_tenants)} />
             <SummaryCard label="Expiring Soon" value={String(dashboard.expiring_soon)} warn={dashboard.expiring_soon > 0} />
@@ -171,7 +167,7 @@ export default function BillingPage() {
         )}
 
         {/* ── Tab Bar ── */}
-        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--dev-border)", marginBottom: 16 }}>
+        <div className={b.tabBar}>
           <TabBtn active={tab === "tenants"} onClick={() => setTab("tenants")}>Tenants</TabBtn>
           <TabBtn active={tab === "invoices"} onClick={() => setTab("invoices")}>Invoices</TabBtn>
         </div>
@@ -180,22 +176,22 @@ export default function BillingPage() {
         {tab === "tenants" && (
           <>
             {/* Filters */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-              <select className={s.input} style={{ width: "auto", minWidth: 120 }}
+            <div className={b.filters}>
+              <select className={`${s.input} ${b.filterSelect}`}
                 value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="grace">Grace</option>
                 <option value="expired">Expired</option>
               </select>
-              <select className={s.input} style={{ width: "auto", minWidth: 120 }}
+              <select className={`${s.input} ${b.filterSelect}`}
                 value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
                 <option value="">All Plans</option>
                 <option value="standard">Standard</option>
                 <option value="pro">Pro</option>
                 <option value="max">Max</option>
               </select>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}>
+              <label className={b.checkboxLabel}>
                 <input type="checkbox" checked={expiringOnly} onChange={(e) => setExpiringOnly(e.target.checked)} />
                 Expiring 7d
               </label>
@@ -203,9 +199,9 @@ export default function BillingPage() {
 
             <div className={s.card}>
               {tenantsLoading ? (
-                <div className={s.skeleton} style={{ height: 200 }} />
+                <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
               ) : (
-                <div style={{ overflowX: "auto" }}>
+                <div className={b.tableScroller}>
                   <table className={s.table}>
                     <thead>
                       <tr>
@@ -222,36 +218,36 @@ export default function BillingPage() {
                     </thead>
                     <tbody>
                       {filtered.map((t) => (
-                        <tr key={t.tenant_id} style={isExempt(t.tenant_id) ? { opacity: 0.6 } : undefined}>
-                          <td style={{ fontWeight: 600 }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <tr key={t.tenant_id} className={isExempt(t.tenant_id) ? b.exemptRow : undefined}>
+                          <td className={b.tenantCell}>
+                            <span className={b.tenantNameLine}>
                               {t.tenant_name || t.tenant_code}
                               <TenantTypeBadge exempt={isExempt(t.tenant_id)} />
                             </span>
-                            <div style={{ fontSize: 11, color: "var(--dev-text-muted)" }}>{t.tenant_code}</div>
+                            <div className={b.tenantCode}>{t.tenant_code}</div>
                           </td>
                           <td>{PLAN_LABELS[t.plan] || t.plan}</td>
                           <td>
                             <StatusBadge status={t.subscription_status} />
                             {t.cancel_at_period_end && (
-                              <span style={{ display: "block", fontSize: 10, color: "var(--dev-warning)", marginTop: 2 }}>
+                              <span className={b.cancelNotice}>
                                 Cancel scheduled
                               </span>
                             )}
                           </td>
-                          <td style={{ fontSize: 13 }}>{formatDate(t.subscription_expires_at)}</td>
+                          <td className={b.dateCell}>{formatDate(t.subscription_expires_at)}</td>
                           <td>
                             <DaysCell days={t.days_remaining} />
                           </td>
-                          <td style={{ fontSize: 13 }}>{formatDate(t.next_billing_at)}</td>
-                          <td style={{ fontSize: 12, color: "var(--dev-text-muted)" }}>
+                          <td className={b.dateCell}>{formatDate(t.next_billing_at)}</td>
+                          <td className={b.billingModeCell}>
                             {t.billing_mode === "AUTO_CARD" ? "Card" : "Invoice"}
                           </td>
-                          <td style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+                          <td className={b.numericCell}>
                             {formatPrice(t.monthly_price)}
                           </td>
                           <td>
-                            <div style={{ display: "flex", gap: 4 }}>
+                            <div className={b.rowActions}>
                               <button className={`${s.btn} ${s.btnSm}`}
                                 onClick={() => { setExtendModal(t); setExtendDays("30"); }}>
                                 Extend
@@ -265,7 +261,7 @@ export default function BillingPage() {
                         </tr>
                       ))}
                       {filtered.length === 0 && (
-                        <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--dev-text-muted)", padding: 32 }}>
+                        <tr><td colSpan={9} className={b.emptyCell}>
                           No matching tenants
                         </td></tr>
                       )}
@@ -280,8 +276,8 @@ export default function BillingPage() {
         {/* ── Invoices Tab ── */}
         {tab === "invoices" && (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <select className={s.input} style={{ width: "auto", minWidth: 120 }}
+            <div className={b.filters}>
+              <select className={`${s.input} ${b.filterSelect}`}
                 value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value)}>
                 <option value="">All Status</option>
                 <option value="SCHEDULED">Scheduled</option>
@@ -295,9 +291,9 @@ export default function BillingPage() {
 
             <div className={s.card}>
               {invoicesLoading ? (
-                <div className={s.skeleton} style={{ height: 200 }} />
+                <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
               ) : (
-                <div style={{ overflowX: "auto" }}>
+                <div className={b.tableScroller}>
                   <table className={s.table}>
                     <thead>
                       <tr>
@@ -314,13 +310,13 @@ export default function BillingPage() {
                     <tbody>
                       {invoicesData?.results.map((inv) => (
                         <tr key={inv.id}>
-                          <td style={{ fontWeight: 500, fontSize: 13 }}>{inv.invoice_number}</td>
+                          <td className={b.invoiceNumberCell}>{inv.invoice_number}</td>
                           <td>{inv.tenant_code}</td>
-                          <td style={{ fontVariantNumeric: "tabular-nums" }}>{formatPrice(inv.total_amount)}</td>
-                          <td style={{ fontSize: 12 }}>{inv.period_start} ~ {inv.period_end}</td>
-                          <td style={{ fontSize: 13 }}>{inv.due_date}</td>
+                          <td className={b.numericCell}>{formatPrice(inv.total_amount)}</td>
+                          <td className={b.periodCell}>{inv.period_start} ~ {inv.period_end}</td>
+                          <td className={b.dateCell}>{inv.due_date}</td>
                           <td><InvoiceStatusBadge status={inv.status} /></td>
-                          <td style={{ fontSize: 12, color: "var(--dev-text-muted)" }}>
+                          <td className={b.mutedSmallCell}>
                             {inv.paid_at ? inv.paid_at.split("T")[0] : "-"}
                           </td>
                           <td>
@@ -337,7 +333,7 @@ export default function BillingPage() {
                         </tr>
                       ))}
                       {(!invoicesData?.results || invoicesData.results.length === 0) && (
-                        <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--dev-text-muted)", padding: 32 }}>
+                        <tr><td colSpan={8} className={b.emptyCell}>
                           No invoices
                         </td></tr>
                       )}
@@ -358,11 +354,11 @@ export default function BillingPage() {
               <h2 className={s.modalTitle}>Extend Subscription</h2>
             </div>
             <div className={s.modalBody}>
-              <p style={{ marginBottom: 8 }}>
+              <p className={b.modalIntro}>
                 <strong>{extendModal.tenant_name || extendModal.tenant_code}</strong>
                 {" "}<TenantTypeBadge exempt={isExempt(extendModal.tenant_id)} />
                 <br />
-                <span style={{ fontSize: 13, color: "var(--dev-text-muted)" }}>
+                <span className={b.modalMeta}>
                   Current: {extendModal.subscription_status} / expires {formatDate(extendModal.subscription_expires_at)}
                   {extendModal.days_remaining !== null && ` (${extendModal.days_remaining}d left)`}
                 </span>
@@ -393,11 +389,11 @@ export default function BillingPage() {
               <h2 className={s.modalTitle}>Change Plan</h2>
             </div>
             <div className={s.modalBody}>
-              <p style={{ marginBottom: 8 }}>
+              <p className={b.modalIntro}>
                 <strong>{planModal.tenant_name || planModal.tenant_code}</strong>
                 {" "}<TenantTypeBadge exempt={isExempt(planModal.tenant_id)} />
                 <br />
-                <span style={{ fontSize: 13, color: "var(--dev-text-muted)" }}>
+                <span className={b.modalMeta}>
                   Current: {planModal.plan_display} ({formatPrice(planModal.monthly_price)}won)
                 </span>
               </p>
@@ -427,18 +423,11 @@ export default function BillingPage() {
 
 function SummaryCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <div style={{
-      background: "var(--dev-surface)", border: "1px solid var(--dev-border)",
-      borderRadius: "var(--dev-radius)", padding: "14px 16px",
-      boxShadow: "var(--dev-shadow-sm)",
-    }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--dev-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+    <div className={b.summaryCard}>
+      <div className={b.summaryLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 22, fontWeight: 700, marginTop: 4, fontVariantNumeric: "tabular-nums",
-        color: warn ? "var(--dev-danger)" : "var(--dev-text)",
-      }}>
+      <div className={b.summaryValue} data-warn={warn ? "true" : undefined}>
         {value}
       </div>
     </div>
@@ -446,44 +435,30 @@ function SummaryCard({ label, value, warn }: { label: string; value: string; war
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] || { bg: "#f1f5f9", color: "#94a3b8", label: status };
   return (
-    <span style={{
-      display: "inline-block", padding: "2px 8px", borderRadius: 6,
-      fontSize: 11, fontWeight: 600, background: style.bg, color: style.color,
-    }}>
-      {style.label}
+    <span className={b.statusBadge} data-status={statusKey(status)}>
+      {STATUS_LABELS[status] || status}
     </span>
   );
 }
 
 function InvoiceStatusBadge({ status }: { status: string }) {
-  const style = INVOICE_STATUS_STYLES[status] || { bg: "#f1f5f9", color: "#94a3b8" };
   return (
-    <span style={{
-      display: "inline-block", padding: "2px 8px", borderRadius: 6,
-      fontSize: 11, fontWeight: 600, background: style.bg, color: style.color,
-    }}>
+    <span className={b.invoiceStatusBadge} data-status={statusKey(status)}>
       {status}
     </span>
   );
 }
 
 function DaysCell({ days }: { days: number | null }) {
-  if (days === null) return <span style={{ color: "var(--dev-text-muted)" }}>unlimited</span>;
-  const color = days <= 3 ? "var(--dev-danger)" : days <= 7 ? "var(--dev-warning)" : "var(--dev-text)";
-  return <span style={{ fontWeight: 600, color, fontVariantNumeric: "tabular-nums" }}>{days}d</span>;
+  if (days === null) return <span className={b.daysCell} data-tone="muted">unlimited</span>;
+  const tone = days <= 3 ? "danger" : days <= 7 ? "warning" : "default";
+  return <span className={b.daysCell} data-tone={tone}>{days}d</span>;
 }
 
 function TenantTypeBadge({ exempt }: { exempt: boolean }) {
   return (
-    <span style={{
-      display: "inline-block", padding: "1px 6px", borderRadius: 4, fontSize: 9,
-      fontWeight: 700, letterSpacing: "0.5px", verticalAlign: "middle",
-      background: exempt ? "#f1f5f9" : "#fef2f2",
-      color: exempt ? "#94a3b8" : "#ef4444",
-      border: `1px solid ${exempt ? "#e2e8f0" : "#fecaca"}`,
-    }}>
+    <span className={b.tenantTypeBadge} data-kind={exempt ? "dev" : "live"}>
       {exempt ? "DEV" : "LIVE"}
     </span>
   );
@@ -491,26 +466,23 @@ function TenantTypeBadge({ exempt }: { exempt: boolean }) {
 
 function LiveWarning({ action }: { action: string }) {
   return (
-    <div style={{
-      padding: "8px 12px", borderRadius: 6, marginBottom: 12,
-      background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12,
-      color: "#dc2626", lineHeight: 1.5,
-    }}>
-      <strong>LIVE tenant</strong> &mdash; 이 작업은 운영 테넌트의 실제 구독 상태를 변경합니다.
+    <div className={b.liveWarning}>
+      <strong>LIVE tenant</strong> - 이 작업은 운영 테넌트의 실제 구독 상태를 변경합니다.
       {action === "extend" && " 구독 만료일이 실제로 연장됩니다."}
       {action === "change plan" && " 요금제와 월 결제액이 실제로 변경됩니다."}
     </div>
   );
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button onClick={onClick} style={{
-      padding: "8px 16px", fontSize: 13, fontWeight: active ? 600 : 400, border: "none",
-      borderBottom: active ? "2px solid var(--dev-primary)" : "2px solid transparent",
-      background: "transparent", color: active ? "var(--dev-primary)" : "var(--dev-text-muted)",
-      cursor: "pointer",
-    }}>
+    <button
+      type="button"
+      className={b.tabButton}
+      data-active={active ? "true" : undefined}
+      aria-pressed={active}
+      onClick={onClick}
+    >
       {children}
     </button>
   );
