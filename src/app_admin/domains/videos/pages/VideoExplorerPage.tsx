@@ -19,6 +19,7 @@ import VideoDetailOverlay from "./VideoDetailOverlay";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import styles from "./VideoExplorerPage.module.css";
 
 export default function VideoExplorerPage() {
   const [, setSearchParams] = useSearchParams();
@@ -81,15 +82,11 @@ export default function VideoExplorerPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6" style={{ padding: 0 }}>
+    <div className={styles.root}>
       {/* 1) 요약 지표 */}
       <DashboardWidget title="요약 지표" description="영상 운영 현황">
         <div
-          style={{
-            display: "grid",
-            gap: "var(--space-3)",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          }}
+          className={styles.kpiGrid}
           data-testid="videos-kpi-grid"
         >
           <KPI
@@ -124,7 +121,7 @@ export default function VideoExplorerPage() {
       >
         {(data?.processing_top.length ?? 0) > 0 ? (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            className={styles.inboxList}
             data-testid="videos-processing-inbox"
           >
             {data!.processing_top.map((v) => (
@@ -147,7 +144,7 @@ export default function VideoExplorerPage() {
       >
         {(data?.failed_top.length ?? 0) > 0 ? (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            className={styles.inboxList}
             data-testid="videos-failed-inbox"
           >
             {data!.failed_top.map((v) => (
@@ -224,49 +221,20 @@ function VideoRow({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onClick();
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
       }}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-        width: "100%",
-        padding: "12px 16px",
-        cursor: "pointer",
-        background: "var(--color-bg-surface-soft, #f9fafb)",
-        border: "1px solid var(--color-border-divider)",
-        borderRadius: 10,
-      }}
+      className={styles.videoRow}
     >
-      <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <span className={styles.rowBody}>
+        <span className={styles.rowHeader}>
           <VideoStatusBadge status={v.status as VideoStatus} />
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--color-text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {v.title || "(제목 없음)"}
-          </span>
+          <span className={styles.rowTitle}>{v.title || "(제목 없음)"}</span>
         </span>
         {subtitle && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {subtitle}
-          </span>
+          <span className={styles.rowSubtitle}>{subtitle}</span>
         )}
       </span>
       {rightAction ? (
@@ -279,15 +247,7 @@ function VideoRow({
           {rightLabel}
         </Button>
       ) : (
-        <span
-          style={{
-            flexShrink: 0,
-            fontSize: 14,
-            fontWeight: 700,
-            color: "var(--color-primary)",
-            letterSpacing: "-0.01em",
-          }}
-        >
+        <span className={styles.rightLabel}>
           {rightLabel} →
         </span>
       )}

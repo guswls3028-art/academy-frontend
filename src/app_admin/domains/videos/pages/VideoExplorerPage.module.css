@@ -1,0 +1,77 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 0;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.inboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.videoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface-soft, #f9fafb);
+  cursor: pointer;
+}
+
+.videoRow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.rowBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.rowHeader {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.rowTitle,
+.rowSubtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowTitle {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rowSubtitle {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.rightLabel {
+  flex-shrink: 0;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}

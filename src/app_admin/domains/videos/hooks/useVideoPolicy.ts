@@ -21,6 +21,12 @@ export interface VideoPolicy {
   show_watermark: boolean;
 }
 
+const DEFAULT_POLICY: VideoPolicy = {
+  allow_skip: false,
+  max_speed: 1.0,
+  show_watermark: true,
+};
+
 interface Options {
   videoId: number;
   initial?: VideoPolicy | null;
@@ -28,15 +34,15 @@ interface Options {
 
 export function useVideoPolicy({ videoId, initial }: Options) {
   const qc = useQueryClient();
+  const hasInitialPolicy = initial != null;
+  const initialAllowSkip = initial?.allow_skip;
+  const initialMaxSpeed = initial?.max_speed;
+  const initialShowWatermark = initial?.show_watermark;
 
   // -------------------------------
   // State
   // -------------------------------
-  const [policy, setPolicy] = useState<VideoPolicy>({
-    allow_skip: false,
-    max_speed: 1.0,
-    show_watermark: true,
-  });
+  const [policy, setPolicy] = useState<VideoPolicy>(DEFAULT_POLICY);
 
   const [dirty, setDirty] = useState(false);
 
@@ -44,16 +50,20 @@ export function useVideoPolicy({ videoId, initial }: Options) {
   // Init from server
   // -------------------------------
   useEffect(() => {
-    if (!initial) return;
+    if (!hasInitialPolicy) {
+      setPolicy(DEFAULT_POLICY);
+      setDirty(false);
+      return;
+    }
 
     setPolicy({
-      allow_skip: Boolean(initial.allow_skip),
-      max_speed: Number(initial.max_speed ?? 1),
-      show_watermark: Boolean(initial.show_watermark),
+      allow_skip: Boolean(initialAllowSkip),
+      max_speed: Number(initialMaxSpeed ?? 1),
+      show_watermark: Boolean(initialShowWatermark),
     });
 
     setDirty(false);
-  }, [initial?.allow_skip, initial?.max_speed, initial?.show_watermark]);
+  }, [hasInitialPolicy, initialAllowSkip, initialMaxSpeed, initialShowWatermark]);
 
   // -------------------------------
   // Helpers
