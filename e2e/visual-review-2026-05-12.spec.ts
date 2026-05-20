@@ -18,7 +18,11 @@ const OUT = "C:/academy/_artifacts/sessions/visual-review-2026-05-12";
 
 async function shot(page: Page, name: string) {
   await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await page.locator("body").waitFor({ state: "visible", timeout: 8000 });
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
 }
 

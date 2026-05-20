@@ -1,6 +1,5 @@
 // PATH: e2e/audit/useconfirm-ssot-verify-2026-05-14.spec.ts
 // useConfirm SSOT 7곳 변환 production 시각 검증 (2026-05-14, commit 9f2bc30f).
-/* eslint-disable no-restricted-syntax */
 //
 // Tenant 1 admin97 로그인 → 매치업 콘솔 게시판 관리 진입 → 삭제 버튼 클릭 →
 // useConfirm DS 모달 (브라우저 window.confirm 아님) 캡처.
@@ -10,6 +9,7 @@
 
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth.ts";
+import { gotoAndSettle } from "../helpers/wait";
 
 test("useConfirm SSOT — 매치업 게시판 삭제 모달 DS 렌더", async ({ page }) => {
   let nativeConfirmFired = false;
@@ -19,9 +19,8 @@ test("useConfirm SSOT — 매치업 게시판 삭제 모달 DS 렌더", async ({
   });
 
   await loginViaUI(page, "admin");
-  await page.goto("https://hakwonplus.com/landing/admin/matchup-board");
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(1200);
+  await gotoAndSettle(page, "https://hakwonplus.com/landing/admin/matchup-board", { timeout: 30_000 });
+  await expect(page.locator("body")).toContainText(/매치업|게시판|삭제/, { timeout: 10_000 });
 
   await page.screenshot({ path: "_artifacts/useconfirm-1-admin-list.png", fullPage: true });
 
@@ -34,11 +33,11 @@ test("useConfirm SSOT — 매치업 게시판 삭제 모달 DS 렌더", async ({
     // 첫 row 의 "삭제" 버튼 click
     const deleteBtn = rows.first().locator("button", { hasText: "삭제" });
     await deleteBtn.click();
-    await page.waitForTimeout(600);
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: "_artifacts/useconfirm-2-delete-modal.png", fullPage: true });
 
     // useConfirm DS 모달 DOM 신호: dialog role 또는 confirm-dialog className
-    const dialog = page.locator('[role="dialog"]');
     const dialogVisible = await dialog.isVisible().catch(() => false);
     console.log("dialog role visible:", dialogVisible);
 
@@ -47,7 +46,7 @@ test("useConfirm SSOT — 매치업 게시판 삭제 모달 DS 렌더", async ({
       const cancelBtn = dialog.locator("button", { hasText: "취소" });
       if (await cancelBtn.isVisible().catch(() => false)) {
         await cancelBtn.click();
-        await page.waitForTimeout(400);
+        await expect(dialog).toBeHidden({ timeout: 5000 });
       }
     }
   }
