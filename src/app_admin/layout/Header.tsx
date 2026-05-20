@@ -25,7 +25,7 @@ import {
 import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
-import { useAdminLayout } from "@admin/layout/AdminLayoutContext";
+import { useAdminLayout } from "@admin/layout/useAdminLayout";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";

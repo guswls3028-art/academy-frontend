@@ -1,0 +1,41 @@
+.drawer :global(.ant-drawer-body) {
+  padding: 8px 0;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.navIcon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  place-items: center;
+}
+
+.teacherReturn {
+  padding: 12px 12px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border-divider, #eee);
+}
+
+.teacherReturnButton {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-brand-primary, #3b82f6);
+  border-radius: 12px;
+  background: none;
+  color: var(--color-brand-primary, #3b82f6);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.teacherReturnButton:hover {
+  background: color-mix(in srgb, var(--color-brand-primary, #3b82f6) 8%, transparent);
+}
