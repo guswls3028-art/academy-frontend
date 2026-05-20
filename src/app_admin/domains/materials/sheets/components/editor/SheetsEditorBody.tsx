@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   getSheetApi,
   getSheetQuestionsApi,
@@ -68,47 +69,47 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
 
   // ✅ AnswerKey payload: key=ExamQuestion.id (string)
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const serverAnswers = akQ.data?.answers;
 
   // ✅ 서버에서 내려온 answer key를 최초/재조회 시 반영 (사용자 입력을 덮어쓰지 않도록 단순 merge)
   useEffect(() => {
-    const server = akQ.data?.answers;
-    if (!server || typeof server !== "object") return;
+    if (!serverAnswers || typeof serverAnswers !== "object") return;
 
     setAnswers((prev) => {
       const next: Record<string, string> = { ...prev };
-      for (const [k, v] of Object.entries(server)) {
+      for (const [k, v] of Object.entries(serverAnswers)) {
         if (next[k] == null || String(next[k]).length === 0) {
           next[String(k)] = String(v);
         }
       }
       return next;
     });
-  }, [akQ.data?.id]);
+  }, [serverAnswers]);
 
   const [omrQuestionCount, setOmrQuestionCount] = useState<(typeof QUESTION_COUNTS)[number]>(20);
 
   const scoreMut = useMutation({
     mutationFn: patchSheetQuestionScoreApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
-    onError: (e: any) => feedback.error(e?.message || "배점 저장 실패"),
+    onError: (e) => feedback.error(extractApiError(e, "배점 저장 실패")),
   });
 
   const answerKeyMut = useMutation({
     mutationFn: upsertSheetAnswerKeyApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-answerkey", id] }),
-    onError: (e: any) => feedback.error(e?.message || "정답 저장 실패"),
+    onError: (e) => feedback.error(extractApiError(e, "정답 저장 실패")),
   });
 
   const autoGenMut = useMutation({
     mutationFn: autoGenerateQuestionsApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
-    onError: (e: any) => feedback.error(e?.message || "문항 자동 복구 실패"),
+    onError: (e) => feedback.error(extractApiError(e, "문항 자동 복구 실패")),
   });
 
   const genOmrMut = useMutation({
     mutationFn: generateOmrSheetAssetApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-assets", id] }),
-    onError: (e: any) => feedback.error(e?.message || "OMR 생성 실패"),
+    onError: (e) => feedback.error(extractApiError(e, "OMR 생성 실패")),
   });
 
   if (id <= 0) {

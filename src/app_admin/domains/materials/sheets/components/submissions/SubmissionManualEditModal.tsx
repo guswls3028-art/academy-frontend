@@ -3,7 +3,7 @@
 // - manual-edit: POST /submissions/submissions/<submission_id>/manual-edit/
 //   payload:
 //     {
-//       identifier: any,
+//       identifier: object | null,
 //       answers: [{ exam_question_id, answer }],
 //       note: string
 //     }
@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import { manualEditSubmissionApi } from "./submissions.api";
 
@@ -72,7 +73,7 @@ export default function SubmissionManualEditModal({
       feedback.success("수동 수정이 반영되었습니다. 채점이 재시도되었을 수 있습니다(서버 로직).");
       onDone();
     },
-    onError: (e: any) => feedback.error(e?.message || "수동 수정 실패"),
+    onError: (e) => feedback.error(extractApiError(e, "수동 수정 실패")),
   });
 
   if (!open) return null;
