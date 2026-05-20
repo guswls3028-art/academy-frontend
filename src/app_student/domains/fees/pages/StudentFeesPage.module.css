@@ -1,0 +1,170 @@
+.loadingStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.loadingCard {
+  height: 100px;
+  border-radius: var(--stu-radius);
+}
+
+.loadingTitle {
+  width: 30%;
+  height: 20px;
+  border-radius: var(--stu-radius-sm);
+}
+
+.loadingRow {
+  height: 64px;
+  border-radius: var(--stu-radius);
+}
+
+.pageStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-6);
+}
+
+.currentCard {
+  padding: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)) 0%,
+    var(--stu-surface-1) 55%
+  );
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 18%, transparent);
+  border-radius: var(--stu-radius-lg, 12px);
+}
+
+.currentPeriod {
+  margin-bottom: 6px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.currentMain,
+.invoiceHeader,
+.paymentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.currentTotal {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.outstandingAmount {
+  margin-top: 4px;
+  color: var(--stu-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dueDate {
+  margin-top: 8px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+}
+
+.sectionTitle {
+  margin-bottom: var(--stu-space-3);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.listStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-2);
+}
+
+.invoiceButton {
+  text-align: left;
+  cursor: pointer;
+}
+
+.invoiceButton[data-selected="true"] {
+  border-color: var(--stu-primary);
+}
+
+.invoicePeriod {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.invoiceTotal {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.invoiceDetail {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--stu-border);
+}
+
+.invoiceItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.invoiceItemDesc {
+  color: var(--stu-text-muted);
+}
+
+.invoiceItemAmount,
+.paymentAmount {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.paymentMeta {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+}
+
+.paymentDone {
+  color: var(--stu-success-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.statusBadge[data-status="pending"] {
+  color: var(--stu-warn-text);
+  background: var(--stu-warn-bg);
+}
+
+.statusBadge[data-status="partial"] {
+  color: var(--stu-primary);
+  background: color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+.statusBadge[data-status="paid"] {
+  color: var(--stu-success-text);
+  background: var(--stu-success-bg);
+}
+
+.statusBadge[data-status="overdue"] {
+  color: var(--stu-danger-text);
+  background: var(--stu-danger-bg);
+}
+
+.statusBadge[data-status="cancelled"] {
+  color: var(--stu-text-muted);
+  background: var(--stu-surface-soft);
+}

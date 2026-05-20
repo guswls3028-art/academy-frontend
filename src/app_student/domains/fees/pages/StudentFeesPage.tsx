@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
+import styles from "./StudentFeesPage.module.css";
 
 type InvoiceStatus = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
 
@@ -41,14 +42,6 @@ interface Payment {
 function formatKRW(n: number) {
   return `${n.toLocaleString("ko-KR")}원`;
 }
-
-const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  PENDING: { bg: "var(--stu-warn-bg)", color: "var(--stu-warn-text)" },
-  PARTIAL: { bg: "color-mix(in srgb, var(--stu-primary) 12%, transparent)", color: "var(--stu-primary)" },
-  PAID: { bg: "var(--stu-success-bg)", color: "var(--stu-success-text)" },
-  OVERDUE: { bg: "var(--stu-danger-bg)", color: "var(--stu-danger-text)" },
-  CANCELLED: { bg: "var(--stu-surface-soft)", color: "var(--stu-text-muted)" },
-};
 
 export default function StudentFeesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -90,11 +83,11 @@ export default function StudentFeesPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-          <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 20, width: "30%", borderRadius: "var(--stu-radius-sm)" }} />
-          <div className="stu-skel" style={{ height: 64, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 64, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingCard}`} />
+          <div className={`stu-skel ${styles.loadingTitle}`} />
+          <div className={`stu-skel ${styles.loadingRow}`} />
+          <div className={`stu-skel ${styles.loadingRow}`} />
         </div>
       </StudentPageShell>
     );
@@ -114,32 +107,25 @@ export default function StudentFeesPage() {
 
   return (
     <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+      <div className={styles.pageStack}>
         {/* Current Month Card */}
         {current && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: "var(--stu-radius-lg, 12px)",
-              background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 55%)",
-              border: "1.5px solid color-mix(in srgb, var(--stu-primary) 18%, transparent)",
-            }}
-          >
-            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", fontWeight: 600, marginBottom: 6, letterSpacing: "0.03em" }}>
+          <div className={styles.currentCard}>
+            <div className={styles.currentPeriod}>
               {current.billing_year}년 {current.billing_month}월
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className={styles.currentMain}>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em" }}>{formatKRW(current.total_amount)}</div>
+                <div className={styles.currentTotal}>{formatKRW(current.total_amount)}</div>
                 {current.outstanding_amount > 0 && (
-                  <div style={{ fontSize: 13, color: "var(--stu-danger)", marginTop: 4, fontWeight: 600 }}>
+                  <div className={styles.outstandingAmount}>
                     미납: {formatKRW(current.outstanding_amount)}
                   </div>
                 )}
               </div>
               <StatusBadge status={current.status} label={current.status_display} />
             </div>
-            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 8 }}>
+            <div className={styles.dueDate}>
               납부기한: {current.due_date}
             </div>
           </div>
@@ -147,7 +133,7 @@ export default function StudentFeesPage() {
 
         {/* Invoice List */}
         <section>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>청구서 내역</div>
+          <div className={styles.sectionTitle}>청구서 내역</div>
           {!invoices?.length ? (
             <EmptyState
               title="청구서가 없습니다"
@@ -155,37 +141,35 @@ export default function StudentFeesPage() {
               compact
             />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            <div className={styles.listStack}>
               {invoices.map((inv) => (
                 <button
                   key={inv.id}
                   type="button"
                   onClick={() => setSelectedId(selectedId === inv.id ? null : inv.id)}
-                  className="stu-panel stu-panel--pressable"
-                  style={{ textAlign: "left", cursor: "pointer", borderColor: selectedId === inv.id ? "var(--stu-primary)" : undefined }}
+                  className={`stu-panel stu-panel--pressable ${styles.invoiceButton}`}
+                  data-selected={selectedId === inv.id}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div className={styles.invoiceHeader}>
+                    <span className={styles.invoicePeriod}>
                       {inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}
                     </span>
                     <StatusBadge status={inv.status} label={inv.status_display} />
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
+                  <div className={styles.invoiceTotal}>
                     {formatKRW(inv.total_amount)}
                   </div>
 
                   {/* Expanded detail */}
                   {selectedId === inv.id && detail && (
-                    <div
-                      style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--stu-border)" }}
-                    >
+                    <div className={styles.invoiceDetail}>
                       {detail.items?.map((item) => (
                         <div
                           key={item.id}
-                          style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "4px 0" }}
+                          className={styles.invoiceItem}
                         >
-                          <span style={{ color: "var(--stu-text-muted)" }}>{item.description}</span>
-                          <span style={{ fontWeight: 600 }}>{formatKRW(item.amount)}</span>
+                          <span className={styles.invoiceItemDesc}>{item.description}</span>
+                          <span className={styles.invoiceItemAmount}>{formatKRW(item.amount)}</span>
                         </div>
                       ))}
                     </div>
@@ -199,27 +183,22 @@ export default function StudentFeesPage() {
         {/* Payment History */}
         {payments && payments.length > 0 && (
           <section>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>납부 내역</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            <div className={styles.sectionTitle}>납부 내역</div>
+            <div className={styles.listStack}>
               {payments.map((pay) => (
                 <div
                   key={pay.id}
-                  className="stu-panel"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
+                  className={`stu-panel ${styles.paymentRow}`}
                 >
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    <div className={styles.paymentAmount}>
                       {formatKRW(pay.amount)}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
+                    <div className={styles.paymentMeta}>
                       {pay.payment_method_display} · {new Date(pay.paid_at).toLocaleDateString("ko-KR")}
                     </div>
                   </div>
-                  <span style={{ fontSize: 12, color: "var(--stu-success-text)", fontWeight: 700 }}>완료</span>
+                  <span className={styles.paymentDone}>완료</span>
                 </div>
               ))}
             </div>
@@ -231,19 +210,19 @@ export default function StudentFeesPage() {
 }
 
 function StatusBadge({ status, label }: { status: string; label: string }) {
-  const style = STATUS_STYLE[status] ?? STATUS_STYLE.CANCELLED;
   return (
     <span
-      style={{
-        padding: "4px 10px",
-        borderRadius: 6,
-        fontSize: 12,
-        fontWeight: 700,
-        backgroundColor: style.bg,
-        color: style.color,
-      }}
+      className={styles.statusBadge}
+      data-status={normalizeStatus(status)}
     >
       {label}
     </span>
   );
+}
+
+function normalizeStatus(status: string) {
+  if (status === "PENDING" || status === "PARTIAL" || status === "PAID" || status === "OVERDUE") {
+    return status.toLowerCase();
+  }
+  return "cancelled";
 }
