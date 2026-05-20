@@ -3,10 +3,12 @@
  */
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useGuideTour } from "@/shared/ui/guide";
 import type { GuideWorkflow } from "@/shared/ui/guide";
 import { ADMIN_WORKFLOWS } from "../data/adminWorkflows";
+import styles from "./AdminGuidePage.module.css";
 
 /* ================================================================
    워크플로우 카드 (아코디언)
@@ -30,19 +32,10 @@ function WorkflowCard({
   }, [wf, startTour, navigate]);
 
   return (
-    <div
-      style={{
-        borderRadius: 14,
-        border: `1.5px solid ${open ? "var(--color-brand-primary)" : "var(--color-border-divider)"}`,
-        background: "var(--color-bg-surface)",
-        transition: "border-color 200ms, box-shadow 200ms",
-        boxShadow: open ? "0 2px 12px rgba(0,0,0,0.06)" : "none",
-        overflow: "hidden",
-      }}
-    >
+    <div className={`${styles.card} ${open ? styles.cardOpen : ""}`}>
       {/* 헤더 — 클릭으로 펼침/접힘. 우측 「시작」 버튼은 stopPropagation으로 분리 */}
       <div
-        className="guide-card-header"
+        className={styles.cardHeader}
         role="button"
         tabIndex={0}
         aria-expanded={open}
@@ -54,42 +47,13 @@ function WorkflowCard({
             onToggle();
           }
         }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          width: "100%",
-          padding: "16px 18px",
-          cursor: "pointer",
-          color: "var(--color-text-primary)",
-          textAlign: "left",
-        }}
       >
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 10,
-            background:
-              "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
-            color: "var(--color-brand-primary)",
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-          }}
-        >
+        <div className={styles.iconBox}>
           {wf.icon}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{wf.title}</div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--color-text-secondary)",
-              marginTop: 2,
-              lineHeight: 1.5,
-            }}
-          >
+        <div className={styles.headerText}>
+          <div className={styles.cardTitle}>{wf.title}</div>
+          <div className={styles.cardSummary}>
             {wf.summary}
           </div>
         </div>
@@ -101,139 +65,41 @@ function WorkflowCard({
               handleTour();
             }}
             aria-label={`${wf.title} 투어 시작`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "none",
-              background: "var(--color-brand-primary)",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "opacity 150ms",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+            className={styles.startButton}
           >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
+            <Play size={11} fill="currentColor" aria-hidden="true" />
             시작
           </button>
         ) : null}
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--color-text-muted)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            flexShrink: 0,
-            transition: "transform 250ms ease",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          }}
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        <ChevronDown
+          size={20}
+          aria-hidden="true"
+          className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`}
+        />
       </div>
 
       {/* 아코디언 본문 — grid-template-rows 트랜지션 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: open ? "1fr" : "0fr",
-          transition: "grid-template-rows 300ms ease",
-        }}
-      >
-        <div style={{ overflow: "hidden" }}>
-          <div
-            style={{
-              padding: "0 18px 18px",
-              borderTop: "1px solid var(--color-border-divider)",
-            }}
-          >
+      <div className={`${styles.contentGrid} ${open ? styles.contentGridOpen : ""}`}>
+        <div className={styles.contentClip}>
+          <div className={styles.contentInner}>
             {/* 단계 목록 */}
-            <div style={{ marginTop: 16 }}>
+            <div className={styles.stepList}>
               {wf.steps.map((step, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    marginBottom: i < wf.steps.length - 1 ? 14 : 0,
-                    position: "relative",
-                  }}
-                >
+                <div key={i} className={styles.stepItem}>
                   {/* 번호 원 + 연결선 */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: "50%",
-                        background:
-                          "color-mix(in srgb, var(--color-brand-primary) 12%, transparent)",
-                        color: "var(--color-brand-primary)",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        display: "grid",
-                        placeItems: "center",
-                        flexShrink: 0,
-                      }}
-                    >
+                  <div className={styles.stepRail}>
+                    <div className={styles.stepNumber}>
                       {i + 1}
                     </div>
                     {i < wf.steps.length - 1 && (
-                      <div
-                        style={{
-                          width: 2,
-                          flex: 1,
-                          minHeight: 10,
-                          background:
-                            "color-mix(in srgb, var(--color-brand-primary) 15%, transparent)",
-                          marginTop: 4,
-                        }}
-                      />
+                      <div className={styles.stepConnector} />
                     )}
                   </div>
-                  <div style={{ paddingTop: 2 }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 14,
-                        color: "var(--color-text-primary)",
-                        marginBottom: 2,
-                      }}
-                    >
+                  <div className={styles.stepBody}>
+                    <div className={styles.stepTitle}>
                       {step.title}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        lineHeight: 1.6,
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
+                    <div className={styles.stepDescription}>
                       {step.description}
                     </div>
                   </div>
@@ -244,38 +110,12 @@ function WorkflowCard({
             {/* 직접 해보기 버튼 */}
             {wf.tourPath && wf.tourSteps?.length ? (
               <button
+                type="button"
                 onClick={handleTour}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 18,
-                  padding: "8px 18px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: "var(--color-brand-primary)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "opacity 150ms",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                className={styles.tryButton}
               >
                 직접 해보기
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
+                <ArrowRight size={14} strokeWidth={2.5} aria-hidden="true" />
               </button>
             ) : null}
           </div>
@@ -301,14 +141,7 @@ export default function AdminGuidePage() {
       title="사용 가이드"
       description="핵심 업무를 단계별로 안내합니다. 카드를 눌러 자세한 방법을 확인하고, '직접 해보기'로 실제 화면에서 따라해 보세요."
     >
-      <style>{`
-        .guide-card-header:focus-visible {
-          outline: 2px solid var(--color-brand-primary);
-          outline-offset: -2px;
-        }
-        .guide-card-header:focus:not(:focus-visible) { outline: none; }
-      `}</style>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 720 }}>
+      <div className={styles.workflowList}>
         {ADMIN_WORKFLOWS.map((wf) => (
           <WorkflowCard
             key={wf.id}

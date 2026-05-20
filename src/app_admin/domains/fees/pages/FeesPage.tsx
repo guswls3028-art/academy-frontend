@@ -5,6 +5,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useProgram } from "@/shared/program";
+import styles from "./FeesPage.module.css";
 
 const TABS: DomainTab[] = [
   { key: "dashboard", label: "수납 현황", path: "/admin/fees", exact: true },
@@ -20,9 +21,9 @@ export default function FeesPage() {
   if (isLoading) {
     return (
       <div className="p-6 flex flex-col gap-3" aria-label="로딩 중">
-        <div className="skeleton" style={{ height: 36, width: 220, borderRadius: 8 }} />
-        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
-        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+        <div className={`skeleton ${styles.skeletonTitle}`} />
+        <div className={`skeleton ${styles.skeletonMedium}`} />
+        <div className={`skeleton ${styles.skeletonLarge}`} />
       </div>
     );
   }

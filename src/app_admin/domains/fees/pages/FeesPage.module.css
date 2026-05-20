@@ -1,0 +1,15 @@
+.skeletonTitle {
+  width: 220px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.skeletonMedium {
+  height: 80px;
+  border-radius: 12px;
+}
+
+.skeletonLarge {
+  height: 220px;
+  border-radius: 12px;
+}

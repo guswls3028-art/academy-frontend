@@ -1,0 +1,189 @@
+.card {
+  overflow: hidden;
+  border: 1.5px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: var(--color-bg-surface);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.cardOpen {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 14px;
+  padding: 16px 18px;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardHeader:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+.cardHeader:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.iconBox {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cardSummary {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.startButton,
+.tryButton {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: var(--color-brand-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.startButton:hover,
+.tryButton:hover {
+  opacity: 0.88;
+}
+
+.startButton {
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 250ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease;
+}
+
+.contentGridOpen {
+  grid-template-rows: 1fr;
+}
+
+.contentClip {
+  overflow: hidden;
+}
+
+.contentInner {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.stepList {
+  margin-top: 16px;
+}
+
+.stepItem {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.stepItem:last-child {
+  margin-bottom: 0;
+}
+
+.stepRail {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepNumber {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stepConnector {
+  width: 2px;
+  min-height: 10px;
+  flex: 1;
+  margin-top: 4px;
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+}
+
+.stepBody {
+  padding-top: 2px;
+}
+
+.stepTitle {
+  margin-bottom: 2px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stepDescription {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tryButton {
+  gap: 6px;
+  margin-top: 18px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.workflowList {
+  display: flex;
+  max-width: 720px;
+  flex-direction: column;
+  gap: 10px;
+}
