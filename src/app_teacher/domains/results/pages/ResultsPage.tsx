@@ -4,15 +4,33 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { SectionTitle, Card, TabBar } from "@teacher/shared/ui/Card";
-import { Badge, AchievementBadge } from "@teacher/shared/ui/Badge";
+import { SectionTitle, TabBar } from "@teacher/shared/ui/Card";
+import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams } from "@teacher/domains/exams/api";
 // 사이드바 성적은 admin endpoint schema(enrollment_id) 사용 — statsApi SSOT
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
+import styles from "./ResultsPage.module.css";
 
 type Tab = "list" | "stats";
+
+type TeacherExamOption = {
+  id: number;
+  title: string;
+};
+
+type ResultRow = {
+  enrollment_id: number | string;
+  student_name?: string | null;
+  final_score?: number | string | null;
+  exam_score?: number | string | null;
+  exam_max_score?: number | string | null;
+  max_score?: number | string | null;
+  final_pass?: boolean | null;
+  passed?: boolean | null;
+  achievement?: string | null;
+};
 
 export default function ResultsPage() {
   const [tab, setTab] = useState<Tab>("list");
@@ -26,18 +44,18 @@ export default function ResultsPage() {
 
   const { data: exams } = useQuery({
     queryKey: ["results-exams", selectedLecture],
-    queryFn: () => fetchExams({ lecture_id: selectedLecture! }),
+    queryFn: async (): Promise<TeacherExamOption[]> => fetchExams({ lecture_id: selectedLecture! }),
     enabled: selectedLecture != null && tab === "list",
   });
 
   const { data: results } = useQuery({
     queryKey: ["results-detail", selectedExam],
-    queryFn: () => fetchExamResults(selectedExam!),
+    queryFn: async (): Promise<ResultRow[]> => fetchExamResults(selectedExam!),
     enabled: selectedExam != null && tab === "list",
   });
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={styles.page}>
       <SectionTitle>성적</SectionTitle>
 
       <TabBar<Tab>
@@ -53,85 +71,83 @@ export default function ResultsPage() {
 
       {tab === "list" && (
         <>
-      {/* 조회 탭 원본 시작 */}
-
-      {/* Lecture selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
-        {(lectures ?? []).map((l: any) => (
-          <button
-            key={l.id}
-            onClick={() => { setSelectedLecture(l.id); setSelectedExam(null); }}
-            className="shrink-0 flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer"
-            style={{
-              border: selectedLecture === l.id ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-              background: selectedLecture === l.id ? "var(--tc-primary-bg)" : "var(--tc-surface)",
-              color: selectedLecture === l.id ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-            }}
-          >
-            <LectureChip lectureName={l.title} color={l.color} chipLabel={l.chip_label ?? l.chipLabel} size={20} />
-            {l.title}
-          </button>
-        ))}
-      </div>
-
-      {selectedLecture == null && (
-        <EmptyState scope="panel" tone="empty" title="강의를 선택하세요" />
-      )}
-
-      {/* Exam selector */}
-      {selectedLecture != null && exams && (
-        exams.length > 0 ? (
-          <>
-            <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
-              {exams.map((e: any) => (
+          <div className={styles.selectorScroller}>
+            {(lectures ?? []).map((lecture) => {
+              const isSelected = selectedLecture === lecture.id;
+              return (
                 <button
-                  key={e.id}
-                  onClick={() => setSelectedExam(e.id)}
-                  className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer"
-                  style={{
-                    border: selectedExam === e.id ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-                    background: selectedExam === e.id ? "var(--tc-primary-bg)" : "var(--tc-surface)",
-                    color: selectedExam === e.id ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                  }}
+                  key={lecture.id}
+                  onClick={() => { setSelectedLecture(lecture.id); setSelectedExam(null); }}
+                  className={`${styles.lectureChipButton} ${isSelected ? styles.selectedChipButton : ""}`}
+                  type="button"
                 >
-                  {e.title}
+                  <LectureChip
+                    lectureName={lecture.title}
+                    color={lecture.color ?? undefined}
+                    chipLabel={lecture.chip_label ?? lecture.chipLabel}
+                    size={20}
+                  />
+                  {lecture.title}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
-            {/* Results — admin endpoint schema(enrollment_id 기반) SSOT */}
-            {selectedExam != null && results && (
-              results.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  {results.map((r: any) => {
-                    const score = r.final_score ?? r.exam_score;
-                    const max = r.exam_max_score ?? r.max_score ?? 100;
+          {selectedLecture == null && (
+            <EmptyState scope="panel" tone="empty" title="강의를 선택하세요" />
+          )}
+
+          {selectedLecture != null && exams && (
+            exams.length > 0 ? (
+              <>
+                <div className={styles.selectorScroller}>
+                  {exams.map((exam) => {
+                    const isSelected = selectedExam === exam.id;
                     return (
-                      <div key={r.enrollment_id} className="flex justify-between items-center py-2.5 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-                        <span className="text-sm" style={{ color: "var(--tc-text)" }}>{r.student_name ?? "이름 없음"}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
-                            {score != null ? `${score}/${max}` : "-"}
-                          </span>
-                          <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
-                        </div>
-                      </div>
+                      <button
+                        key={exam.id}
+                        onClick={() => setSelectedExam(exam.id)}
+                        className={`${styles.examChipButton} ${isSelected ? styles.selectedChipButton : ""}`}
+                        type="button"
+                      >
+                        {exam.title}
+                      </button>
                     );
                   })}
                 </div>
-              ) : (
-                <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
-              )
-            )}
 
-            {selectedExam == null && (
-              <EmptyState scope="panel" tone="empty" title="시험을 선택하세요" />
-            )}
-          </>
-        ) : (
-          <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
-        )
-      )}
+                {selectedExam != null && results && (
+                  results.length > 0 ? (
+                    <div className={styles.resultList}>
+                      {results.map((result) => {
+                        const score = result.final_score ?? result.exam_score;
+                        const max = result.exam_max_score ?? result.max_score ?? 100;
+                        return (
+                          <div key={result.enrollment_id} className={styles.resultRow}>
+                            <span className={styles.studentName}>{result.student_name ?? "이름 없음"}</span>
+                            <div className={styles.scoreGroup}>
+                              <span className={styles.scoreText}>
+                                {score != null ? `${score}/${max}` : "-"}
+                              </span>
+                              <AchievementBadge passed={result.final_pass ?? result.passed} achievement={result.achievement} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
+                  )
+                )}
+
+                {selectedExam == null && (
+                  <EmptyState scope="panel" tone="empty" title="시험을 선택하세요" />
+                )}
+              </>
+            ) : (
+              <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
+            )
+          )}
         </>
       )}
     </div>

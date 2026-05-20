@@ -1,0 +1,72 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.selectorScroller {
+  display: flex;
+  gap: var(--tc-space-2);
+  padding-bottom: var(--tc-space-1);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lectureChipButton,
+.examChipButton {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tc-surface);
+  border: 1px solid var(--tc-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lectureChipButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.selectedChipButton {
+  color: var(--tc-primary);
+  background: var(--tc-primary-bg);
+  border: 2px solid var(--tc-primary);
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-1);
+}
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--tc-space-1);
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.resultRow:last-child {
+  border-bottom: 0;
+}
+
+.studentName,
+.scoreText {
+  color: var(--tc-text);
+  font-size: 14px;
+}
+
+.scoreGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+}
+
+.scoreText {
+  font-weight: 700;
+}
