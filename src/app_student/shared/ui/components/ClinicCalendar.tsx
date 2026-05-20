@@ -5,17 +5,12 @@
  * - 내 예약 있으면 점 표시 (bookings)
  */
 import { useState, useMemo } from "react";
-import { formatYmd, todayYmd } from "@student/shared/utils/date";
+import { todayYmd } from "@student/shared/utils/date";
 import type { ClinicBookingRequest } from "@student/domains/clinic/api/clinicBooking.api";
+import styles from "./ClinicCalendar.module.css";
 
 /** 날짜별 정원 상태: 풀면(여유)=초록, 차면=노랑, 다차면=빨강 */
 export type DateCapacityStatus = "green" | "yellow" | "red";
-
-const CAPACITY_COLORS: Record<DateCapacityStatus, string> = {
-  green: "#22c55e",
-  yellow: "#fbbf24",
-  red: "#ef4444",
-};
 
 type Props = {
   selectedDate: string | null; // YYYY-MM-DD
@@ -100,7 +95,9 @@ export default function ClinicCalendar({
       const booking = bookingByDate.get(dateStr);
       const isAvailable = availableDateSet.has(dateStr);
       const isPast = dateStr < today;
-      const isSelectable = isCurrentMonth && !isPast;
+      const isBeforeMin = minDate ? dateStr < minDate : false;
+      const isAfterMax = maxDate ? dateStr > maxDate : false;
+      const isSelectable = isCurrentMonth && !isPast && !isBeforeMin && !isAfterMax;
 
       days.push({
         dateStr,
@@ -116,7 +113,7 @@ export default function ClinicCalendar({
     }
 
     return days;
-  }, [currentMonth, bookingByDate, availableDateSet, today]);
+  }, [currentMonth, bookingByDate, availableDateSet, today, minDate, maxDate]);
 
   const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 
@@ -128,17 +125,17 @@ export default function ClinicCalendar({
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
-  const getDateStatusColor = (dateStr: string, booking?: ClinicBookingRequest) => {
+  const getDateStatus = (dateStr: string, booking?: ClinicBookingRequest): DateCapacityStatus | "booked" | "pending" | null => {
     // 1) 정원 상태 우선: dateCapacityStatus가 있으면 해당 날짜 색상 사용
     const capacityStatus = dateCapacityStatus?.[dateStr];
-    if (capacityStatus) return CAPACITY_COLORS[capacityStatus];
+    if (capacityStatus) return capacityStatus;
     // 2) 없으면 기존: 내 예약 상태로 색상 (하위 호환)
     if (!booking) return null;
     if (booking.status === "booked" || booking.status === "approved") {
-      return "#22c55e"; // 초록색 (승인됨)
+      return "booked";
     }
     if (booking.status === "pending") {
-      return "#fbbf24"; // 노란색 (대기 중)
+      return "pending";
     }
     return null;
   };
@@ -146,23 +143,9 @@ export default function ClinicCalendar({
   const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
 
   return (
-    <div
-      className="stu-section stu-section--nested"
-      style={{
-        background: "var(--stu-surface)",
-        borderRadius: "var(--stu-radius-md)",
-        padding: "var(--stu-space-3) var(--stu-space-2)",
-      }}
-    >
+    <div className={`stu-section stu-section--nested ${styles.calendar}`}>
       {/* 달력 헤더 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "var(--stu-space-4)",
-        }}
-      >
+      <div className={styles.header}>
         <button
           type="button"
           className="stu-icon-btn stu-icon-btn--primary"
@@ -173,7 +156,7 @@ export default function ClinicCalendar({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <div style={{ fontWeight: 600, fontSize: 17, letterSpacing: "-0.02em" }}>{monthLabel}</div>
+        <div className={styles.monthLabel}>{monthLabel}</div>
         <button
           type="button"
           className="stu-icon-btn stu-icon-btn--primary"
@@ -187,24 +170,11 @@ export default function ClinicCalendar({
       </div>
 
       {/* 요일 헤더 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 2,
-          marginBottom: "var(--stu-space-2)",
-        }}
-      >
+      <div className={styles.weekdays}>
         {weekDays.map((day) => (
           <div
             key={day}
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              fontWeight: 600,
-              color: day === "일" ? "var(--stu-danger)" : day === "토" ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              padding: "var(--stu-space-1)",
-            }}
+            className={`${styles.weekday} ${day === "일" ? styles.sunday : ""} ${day === "토" ? styles.saturday : ""}`}
           >
             {day}
           </div>
@@ -212,17 +182,23 @@ export default function ClinicCalendar({
       </div>
 
       {/* 달력 그리드 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 2,
-        }}
-      >
-      {calendarDays.map((day, idx) => {
-        const isSelected = selectedDate === day.dateStr;
-          const statusColor = getDateStatusColor(day.dateStr, day.booking);
+      <div className={styles.dayGrid}>
+        {calendarDays.map((day, idx) => {
+          const isSelected = selectedDate === day.dateStr;
+          const status = getDateStatus(day.dateStr, day.booking);
           const isClickable = day.isSelectable;
+          const dayClassName = [
+            styles.dayButton,
+            isClickable ? styles.clickable : styles.disabled,
+            day.isCurrentMonth ? styles.currentMonth : styles.outsideMonth,
+            day.isToday ? styles.today : "",
+            isSelected ? styles.selected : "",
+            status ? statusClassName(status) : "",
+          ].filter(Boolean).join(" ");
+          const dotClassName = [
+            styles.eventDot,
+            status ? styles.dotOnStatus : styles.dotAvailable,
+          ].filter(Boolean).join(" ");
 
           return (
             <button
@@ -236,72 +212,11 @@ export default function ClinicCalendar({
                 }
               }}
               disabled={!isClickable}
-              style={{
-                minHeight: 44,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "var(--stu-radius)",
-                border: isSelected
-                  ? "2px solid var(--stu-primary)"
-                  : day.isToday
-                  ? "1px solid var(--stu-primary)"
-                  : day.isCurrentMonth
-                    ? "1px solid var(--stu-border-subtle, rgba(0,0,0,0.05))"
-                    : "1px solid transparent",
-                background: statusColor
-                  ? statusColor
-                  : isSelected
-                  ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
-                  : "transparent",
-                color: statusColor
-                  ? "#ffffff"
-                  : !day.isCurrentMonth
-                  ? "var(--stu-text-muted)"
-                  : isSelected
-                  ? "var(--stu-primary)"
-                  : "var(--stu-text)",
-                fontWeight: day.isToday ? 700 : isSelected ? 600 : 400,
-                fontSize: 14,
-                cursor: isClickable ? "pointer" : "not-allowed",
-                opacity: !day.isCurrentMonth ? 0.3 : day.isSelectable ? 1 : 0.5,
-                transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
-                position: "relative",
-                zIndex: 10,
-                pointerEvents: isClickable ? "auto" : "none",
-                touchAction: "manipulation",
-              }}
-              onMouseEnter={(e) => {
-                if (isClickable && !statusColor && !isSelected) {
-                  e.currentTarget.style.background = "var(--stu-surface-soft)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (isClickable && !statusColor) {
-                  e.currentTarget.style.background = isSelected
-                    ? "color-mix(in srgb, var(--stu-primary) 10%, transparent)"
-                    : "transparent";
-                }
-              }}
+              className={dayClassName}
             >
               <span>{day.dayNum}</span>
               {/* 일정 있는 날짜 — 하단 dot 표시 */}
-              {(day.isAvailable || day.booking) && (
-                <span
-                  style={{
-                    position: "absolute",
-                    bottom: 3,
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    background: day.booking
-                      ? (statusColor ? "#fff" : "var(--stu-primary)")
-                      : "var(--stu-primary)",
-                    opacity: 0.9,
-                  }}
-                />
-              )}
+              {(day.isAvailable || day.booking) && <span className={dotClassName} />}
             </button>
           );
         })}
@@ -309,54 +224,38 @@ export default function ClinicCalendar({
 
       {/* 범례: 정원 상태 (dateCapacityStatus 사용 시) */}
       {dateCapacityStatus && Object.keys(dateCapacityStatus).length > 0 ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "var(--stu-space-4)",
-            marginTop: "var(--stu-space-4)",
-            paddingTop: "var(--stu-space-4)",
-            borderTop: "1px solid var(--stu-border)",
-            fontSize: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.green }} />
+        <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchGreen}`} />
             <span className="stu-muted">정원 여유</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.yellow }} />
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchYellow}`} />
             <span className="stu-muted">일부 참</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.red }} />
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchRed}`} />
             <span className="stu-muted">정원 마감</span>
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "var(--stu-space-4)",
-            marginTop: "var(--stu-space-4)",
-            paddingTop: "var(--stu-space-4)",
-            borderTop: "1px solid var(--stu-border)",
-            fontSize: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: "#fbbf24" }} />
+        <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchYellow}`} />
             <span className="stu-muted">승인 대기</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: "#22c55e" }} />
+          <div className={styles.legendItem}>
+            <div className={`${styles.swatch} ${styles.swatchGreen}`} />
             <span className="stu-muted">승인됨</span>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function statusClassName(status: DateCapacityStatus | "booked" | "pending"): string {
+  if (status === "red") return styles.statusRed;
+  if (status === "yellow" || status === "pending") return styles.statusYellow;
+  return styles.statusGreen;
 }
