@@ -2,7 +2,7 @@
 /**
  * 시험 답안 입력 페이지 — 문항별 1, 2, 3, 4, 5 입력 후 제출
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -15,6 +15,7 @@ import {
 } from "@student/domains/exams/api/exams.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import styles from "./ExamSubmitPage.module.css";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
@@ -33,7 +34,7 @@ export default function ExamSubmitPage() {
     queryFn: () => fetchStudentExamQuestions(safeId),
     enabled: !isParent && Number.isFinite(safeId),
   });
-  const questions = questionsQ.data ?? [];
+  const questions = useMemo(() => questionsQ.data ?? [], [questionsQ.data]);
   const loadingQuestions = questionsQ.isLoading;
 
   // 학부모일 땐 draft 자체를 저장/복원하지 않음 — 자녀 draft 오염 방지.
@@ -51,6 +52,12 @@ export default function ExamSubmitPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const answeredCount = questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
+  const totalQuestions = questions.length;
+  const progressPct = totalQuestions > 0
+    ? clampPercent(Math.round((answeredCount / totalQuestions) * 100))
+    : 0;
+  const isComplete = totalQuestions > 0 && answeredCount === totalQuestions;
 
   // Save draft to localStorage on answer change
   const updateAnswers = useCallback(
@@ -141,12 +148,12 @@ export default function ExamSubmitPage() {
   if (examQ.isLoading) {
     return (
       <StudentPageShell title="시험 입력">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 24, width: "60%", borderRadius: "var(--stu-radius-sm)" }} />
-          <div className="stu-skel" style={{ height: 6, borderRadius: 3 }} />
-          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingTitle}`} />
+          <div className={`stu-skel ${styles.loadingTrack}`} />
+          <div className={`stu-skel ${styles.loadingQuestion}`} />
+          <div className={`stu-skel ${styles.loadingQuestion}`} />
+          <div className={`stu-skel ${styles.loadingQuestion}`} />
         </div>
       </StudentPageShell>
     );
@@ -176,7 +183,7 @@ export default function ExamSubmitPage() {
           title="이미 제출된 시험입니다"
           description="결과 페이지에서 확인하세요."
         />
-        <div style={{ padding: 16 }}>
+        <div className={styles.emptyActionPad}>
           <Link to={`/student/exams/${safeId}/result`} className="stu-cta-link">
             결과 보기
           </Link>
@@ -197,7 +204,7 @@ export default function ExamSubmitPage() {
           title="시험이 마감되었습니다"
           description="마감 시간이 지나 더 이상 답안을 제출할 수 없습니다."
         />
-        <div style={{ padding: 16 }}>
+        <div className={styles.emptyActionPad}>
           <Link to={`/student/exams/${safeId}`} className="stu-cta-link">
             시험 상세로 돌아가기
           </Link>
@@ -213,18 +220,17 @@ export default function ExamSubmitPage() {
       actions={
         <Link
           to={`/student/exams/${safeId}`}
-          className="stu-cta-link"
-          style={{ fontSize: 14 }}
+          className={`stu-cta-link ${styles.backAction}`}
         >
           뒤로
         </Link>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className={styles.pageStack}>
         {loadingQuestions && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+          <div className={styles.loadingStack}>
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="stu-skel" style={{ height: 52, borderRadius: "var(--stu-radius)" }} />
+              <div key={i} className={`stu-skel ${styles.loadingQuestion}`} />
             ))}
           </div>
         )}
@@ -232,13 +238,7 @@ export default function ExamSubmitPage() {
         {(error || questionsQ.isError) && (
           <div
             role="alert"
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "var(--stu-surface-soft)",
-              color: "var(--stu-danger)",
-              fontSize: 14,
-            }}
+            className={styles.alert}
           >
             {error ?? "문항을 불러오지 못했습니다."}
           </div>
@@ -251,75 +251,48 @@ export default function ExamSubmitPage() {
         {!loadingQuestions && questions.length > 0 && (
           <>
             {/* Progress indicator */}
-            {(() => {
-              const answered = questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
-              const total = questions.length;
-              const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
-              return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600 }}>
-                    <span style={{ color: "var(--stu-text-muted)" }}>입력 진행</span>
-                    <span style={{ color: answered === total ? "var(--stu-success-text)" : "var(--stu-primary)" }}>
-                      {answered}/{total}문항 ({pct}%)
-                    </span>
-                  </div>
-                  <div style={{ height: 6, borderRadius: 3, background: "var(--stu-surface-soft)", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        width: `${pct}%`,
-                        height: "100%",
-                        borderRadius: 3,
-                        background: answered === total ? "var(--stu-success)" : "var(--stu-primary)",
-                        transition: "width 0.3s ease, background 0.3s ease",
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
+            <div className={styles.progressStack}>
+              <div className={styles.progressHeader}>
+                <span className={styles.progressLabel}>입력 진행</span>
+                <span className={styles.progressValue} data-complete={isComplete}>
+                  {answeredCount}/{totalQuestions}문항 ({progressPct}%)
+                </span>
+              </div>
+              <svg
+                className={styles.progressBar}
+                viewBox="0 0 100 6"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <rect width="100" height="6" rx="3" fill="var(--stu-surface-soft)" />
+                <rect
+                  className={styles.progressFill}
+                  width={progressPct}
+                  height="6"
+                  rx="3"
+                  fill={isComplete ? "var(--stu-success)" : "var(--stu-primary)"}
+                />
+              </svg>
+            </div>
 
             <div className="stu-section">
-              <div
-                className="stu-section-header"
-                style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}
-              >
+              <div className={`stu-section-header ${styles.sectionHeader}`}>
                 문항별 답 입력 (1 ~ {questions.length})
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "var(--stu-space-3)",
-                }}
-              >
+              <div className={styles.answerList}>
                 {questions.map((q) => (
                   <div
                     key={q.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 12px",
-                      borderRadius: "var(--stu-radius-md)",
-                      background: "var(--stu-surface-soft)",
-                      border: "1px solid var(--stu-border)",
-                    }}
+                    className={styles.answerRow}
                   >
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 16,
-                        minWidth: 32,
-                        color: "var(--stu-primary)",
-                      }}
-                    >
+                    <span className={styles.questionNumber}>
                       {q.number}
                     </span>
-                    <span className="stu-muted" style={{ fontSize: 13 }}>
+                    <span className={`stu-muted ${styles.scoreLabel}`}>
                       배점 {q.score}
                     </span>
                     <input
-                      className="stu-input"
+                      className={`stu-input ${styles.answerInput}`}
                       type="text"
                       value={answers[q.id] ?? ""}
                       onChange={(e) => {
@@ -331,7 +304,6 @@ export default function ExamSubmitPage() {
                       }}
                       placeholder="1~5, O/X, 단답"
                       maxLength={20}
-                      style={{ flex: 1, minHeight: 40 }}
                       aria-label={`${q.number}번 답`}
                     />
                   </div>
@@ -342,10 +314,9 @@ export default function ExamSubmitPage() {
             <div className="stu-sticky-submit">
               <button
                 type="button"
-                className="stu-btn stu-btn--primary stu-btn--lg"
+                className={`stu-btn stu-btn--primary stu-btn--lg ${styles.submitButton}`}
                 onClick={handleSubmit}
                 disabled={submitting}
-                style={{ width: "100%" }}
               >
                 {submitting ? "제출 중…" : "제출하기"}
               </button>
@@ -355,4 +326,8 @@ export default function ExamSubmitPage() {
       </div>
     </StudentPageShell>
   );
+}
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value));
 }
