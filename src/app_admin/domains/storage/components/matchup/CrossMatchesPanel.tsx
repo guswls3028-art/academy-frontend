@@ -2,11 +2,12 @@
 // "이 시험지 → 자료 매치 매트릭스" — 선택된 doc의 모든 문제별 cross-doc 최고 매치를
 // 자료(document_title)별로 그룹핑해서 한눈에 보여주는 패널.
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import { fetchDocumentCrossMatches, type CrossMatchProblem } from "../../api/matchup.api";
+import styles from "./CrossMatchesPanel.module.css";
 
 type DocGroup = {
   documentId: number;
@@ -49,6 +50,20 @@ function groupByDoc(matches: CrossMatchProblem[]): DocGroup[] {
   });
 }
 
+function similarityLevel(similarity: number): "high" | "medium" | "low" {
+  if (similarity >= 0.8) return "high";
+  if (similarity >= 0.6) return "medium";
+  return "low";
+}
+
+function PanelMessage({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "danger" }) {
+  return (
+    <div className={styles.message} data-tone={tone}>
+      {children}
+    </div>
+  );
+}
+
 type Props = {
   docId: number | null;
   enabled: boolean; // status === "done" 일 때만
@@ -70,55 +85,38 @@ export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = 
     const hint = selectedDocIntent === "reference"
       ? "시험지로 등록된 문서에만 표시됩니다. 좌측 헤더의 시험지/참고자료 토글로 변경할 수 있어요."
       : "분석이 끝나면 자료별 매치 결과가 여기에 표시됩니다.";
-    return (
-      <div style={{ padding: "var(--space-3)", color: "var(--color-text-muted)", fontSize: 12, lineHeight: 1.6 }}>
-        {hint}
-      </div>
-    );
+    return <PanelMessage>{hint}</PanelMessage>;
   }
 
   if (isLoading) {
-    return (
-      <div style={{ padding: "var(--space-3)", color: "var(--color-text-muted)", fontSize: 12 }}>
-        자료별 매치 결과 불러오는 중…
-      </div>
-    );
+    return <PanelMessage>자료별 매치 결과 불러오는 중…</PanelMessage>;
   }
 
   if (isError || !data) {
     return (
-      <div style={{ padding: "var(--space-3)", color: "var(--color-danger)", fontSize: 12, lineHeight: 1.6 }}>
+      <PanelMessage tone="danger">
         결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
-      </div>
+      </PanelMessage>
     );
   }
 
   if (data.problem_count === 0) {
-    return (
-      <div style={{ padding: "var(--space-3)", color: "var(--color-text-muted)", fontSize: 12, lineHeight: 1.6 }}>
-        이 시험지에는 아직 분석된 문항이 없습니다.
-      </div>
-    );
+    return <PanelMessage>이 시험지에는 아직 분석된 문항이 없습니다.</PanelMessage>;
   }
 
   if (groups.length === 0) {
     return (
-      <div style={{ padding: "var(--space-3)", color: "var(--color-text-muted)", fontSize: 12, lineHeight: 1.6 }}>
+      <PanelMessage>
         다른 자료에서 비슷한 문제를 찾지 못했습니다. 참고자료를 더 등록하면 매치율이 올라갑니다.
-      </div>
+      </PanelMessage>
     );
   }
 
   const totalPairs = groups.reduce((s, g) => s + g.pairs.length, 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", paddingBottom: "var(--space-4)" }}>
-      <div style={{
-        fontSize: 11, color: "var(--color-text-muted)",
-        padding: "6px var(--space-3)",
-        background: "var(--color-bg-surface-soft)",
-        borderRadius: "var(--radius-sm)",
-      }}>
+    <div className={styles.panel}>
+      <div className={styles.summary}>
         시험지 <strong>{data.problem_count}</strong>문항 → <strong>{groups.length}</strong>개 자료에서 <strong>{totalPairs}</strong>개 유사 매치
       </div>
 
@@ -129,111 +127,55 @@ export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = 
         const topPct = Math.round(
           Math.max(...g.pairs.map((p) => p.similarity)) * 100,
         );
+        const sortedPairs = [...g.pairs].sort((a, b) => b.similarity - a.similarity);
         return (
         <div
           key={g.documentId}
+          className={styles.docCard}
           data-testid={`cross-match-doc-${g.documentId}`}
-          style={{
-            border: "1px solid var(--color-border-divider)",
-            borderRadius: "var(--radius-md)",
-            overflow: "hidden",
-            background: "var(--color-bg-surface)",
-          }}
         >
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "8px var(--space-3)",
-            background: "color-mix(in srgb, var(--color-brand-primary) 5%, transparent)",
-            borderBottom: "1px solid var(--color-border-divider)",
-          }}>
-            <BookOpen size={ICON.sm} style={{ color: "var(--color-brand-primary)", flexShrink: 0 }} />
+          <div className={styles.docHeader}>
+            <BookOpen size={ICON.sm} className={styles.docIcon} />
             <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-              }}
+              className={styles.docTitle}
               title={g.documentTitle}
             >
               {g.documentTitle || `자료 #${g.documentId}`}
             </span>
             <span
+              className={styles.docStats}
               title={`최고 ${topPct}% / 평균 ${avgPct}% 유사`}
-              style={{
-                fontSize: 11, fontWeight: 700,
-                color: "var(--color-brand-primary)",
-                flexShrink: 0,
-                display: "inline-flex", alignItems: "center", gap: 6,
-              }}
             >
               <span>{g.pairs.length}건</span>
-              <span style={{ opacity: 0.5 }}>·</span>
-              <span style={{ color: topPct >= 80 ? "var(--color-success)" : "var(--color-brand-primary)" }}>
+              <span className={styles.dot}>·</span>
+              <span className={styles.topScore} data-level={topPct >= 80 ? "high" : "normal"}>
                 최고 {topPct}%
               </span>
             </span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {g.pairs
-              .sort((a, b) => b.similarity - a.similarity)
-              .map((p, idx) => (
+          <div className={styles.pairList}>
+            {sortedPairs
+              .map((p) => (
                 <button
-                  key={idx}
+                  key={`${p.sourceProblemId}-${p.targetProblemNumber}`}
+                  className={styles.pairButton}
                   type="button"
                   onClick={() => onSelectProblem?.(p.sourceProblemId)}
                   title={p.sourceTextPreview ? `Q${p.sourceProblemNumber}: ${p.sourceTextPreview}` : undefined}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "auto auto auto 1fr auto",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px var(--space-3)",
-                    border: "none",
-                    background: idx % 2 === 0 ? "transparent" : "var(--color-bg-surface-soft)",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    color: "var(--color-text-primary)",
-                  }}
                 >
-                  <span style={{ fontWeight: 800, color: "var(--color-warning)", minWidth: 32 }}>
+                  <span className={styles.sourceNumber}>
                     Q{p.sourceProblemNumber}
                   </span>
-                  <ArrowRight size={ICON.xs} style={{ color: "var(--color-text-muted)" }} />
-                  <span style={{ fontWeight: 700, color: "var(--color-brand-primary)", minWidth: 32 }}>
+                  <ArrowRight size={ICON.xs} className={styles.arrowIcon} />
+                  <span className={styles.targetNumber}>
                     Q{p.targetProblemNumber}
                   </span>
-                  <span
-                    style={{
-                      color: "var(--color-text-secondary)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      fontSize: 11, lineHeight: 1.4,
-                    }}
-                  >
+                  <span className={styles.preview}>
                     {p.sourceTextPreview || ""}
                   </span>
                   <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "2px 7px",
-                      borderRadius: 999,
-                      background: p.similarity >= 0.8
-                        ? "color-mix(in srgb, var(--color-success) 12%, transparent)"
-                        : p.similarity >= 0.6
-                          ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)"
-                          : "var(--color-bg-surface-soft)",
-                      color: p.similarity >= 0.8
-                        ? "var(--color-success)"
-                        : p.similarity >= 0.6
-                          ? "var(--color-brand-primary)"
-                          : "var(--color-text-muted)",
-                      flexShrink: 0,
-                    }}
+                    className={styles.scoreBadge}
+                    data-level={similarityLevel(p.similarity)}
                   >
                     {(p.similarity * 100).toFixed(0)}%
                   </span>
