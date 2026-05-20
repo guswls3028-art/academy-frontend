@@ -4,6 +4,7 @@ import { FileSearch, MessageCircle, BookOpen, ClipboardList, FolderOpen, Info } 
 import { useNavigate } from "react-router-dom";
 import { ICON, Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import styles from "./MatchupEmptyState.module.css";
 
 type Props = { onUpload: (intent?: "reference" | "test") => void };
 
@@ -15,7 +16,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         <FileSearch size={28} />
       </div>
       <h3 className={css.placeholderTitle}>AI 매치업</h3>
-      <p className={css.placeholderDesc} style={{ maxWidth: 480 }}>
+      <p className={`${css.placeholderDesc} ${styles.description}`}>
         <strong>교재·기출(참고 자료)</strong>을 먼저 등록한 뒤, 학생이 본 <strong>시험지</strong>를 올리면<br />
         AI가 자료에서 유사 문제를 찾아드립니다.
       </p>
@@ -23,42 +24,25 @@ export default function MatchupEmptyState({ onUpload }: Props) {
       {/* 카드 결정 전 컨텍스트 — 어떤 카드를 누르든 같은 목록에 들어가 자동 비교된다는 사실을
           *위쪽*에 두어, 학원장이 "두 카드 중 어느 쪽을 골라야 하지?" 망설이는 시간을 줄인다.
           (이전 위치는 카드 *밑*이라 결정 후에야 보이는 결함.) */}
-      <div style={{
-        marginTop: "var(--space-2)",
-        padding: "8px var(--space-3)",
-        borderRadius: "var(--radius-sm)",
-        background: "var(--color-bg-surface-soft)",
-        display: "flex", alignItems: "flex-start", gap: 8,
-        maxWidth: 540, fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5,
-      }}>
-        <Info size={ICON.sm} style={{ flexShrink: 0, marginTop: 2 }} />
+      <div className={styles.contextNote}>
+        <Info size={ICON.sm} className={styles.contextIcon} />
         <span>두 종류 모두 같은 자료 목록에 등록되며 서로 자동 비교됩니다. 무엇부터 올릴지만 고르면 됩니다.</span>
       </div>
 
       {/* 두 가지 진입점 — 사용자 의도 가시화 (시스템 동작은 동일) */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: "var(--space-3)", maxWidth: 540, width: "100%", marginTop: "var(--space-2)",
-      }}>
+      <div className={styles.uploadGrid}>
         <button
           type="button"
           onClick={() => onUpload("reference")}
           data-testid="matchup-empty-reference-btn"
-          style={{
-            display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
-            padding: "var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            background: "color-mix(in srgb, var(--color-brand-primary) 6%, transparent)",
-            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          className={styles.uploadCard}
+          data-kind="reference"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-brand-primary)" }}>
+          <div className={styles.uploadCardTitle} data-kind="reference">
             <BookOpen size={ICON.md} />
-            <span style={{ fontSize: 14, fontWeight: 700 }}>참고 자료 업로드</span>
+            <span>참고 자료 업로드</span>
           </div>
-          <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+          <span className={styles.uploadCardDesc}>
             교재·기출 PDF를 등록해 두면 학생 시험지와 비교할 풀이 만들어집니다.
           </span>
         </button>
@@ -67,21 +51,14 @@ export default function MatchupEmptyState({ onUpload }: Props) {
           type="button"
           onClick={() => onUpload("test")}
           data-testid="matchup-empty-test-btn"
-          style={{
-            display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
-            padding: "var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-bg-surface-soft)",
-            border: "1px solid var(--color-border-divider)",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          className={styles.uploadCard}
+          data-kind="test"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-primary)" }}>
+          <div className={styles.uploadCardTitle} data-kind="test">
             <ClipboardList size={ICON.md} />
-            <span style={{ fontSize: 14, fontWeight: 700 }}>학생 시험지 업로드</span>
+            <span>학생 시험지 업로드</span>
           </div>
-          <span style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+          <span className={styles.uploadCardDesc}>
             분석할 시험지를 올리면 등록된 자료에서 유사 문제를 찾아 추천합니다.
           </span>
         </button>
@@ -93,7 +70,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
         onClick={() => navigate("/admin/storage/files")}
         data-testid="matchup-empty-storage-link"
         leftIcon={<FolderOpen size={ICON.sm} />}
-        style={{ marginTop: "var(--space-2)" }}
+        className={styles.storageLink}
       >
         저장소에서 가져오기
       </Button>
@@ -114,17 +91,9 @@ export default function MatchupEmptyState({ onUpload }: Props) {
       </div>
 
       {/* Q&A 연동 안내 */}
-      <div style={{
-        marginTop: "var(--space-5)",
-        padding: "var(--space-3) var(--space-4)",
-        borderRadius: "var(--radius-md)",
-        background: "var(--color-bg-surface-soft)",
-        border: "1px solid color-mix(in srgb, var(--color-border-divider) 60%, transparent)",
-        display: "flex", alignItems: "center", gap: "var(--space-3)",
-        maxWidth: 400,
-      }}>
-        <MessageCircle size={ICON.md} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+      <div className={styles.qnaNote}>
+        <MessageCircle size={ICON.md} className={styles.qnaIcon} />
+        <span className={styles.qnaText}>
           학생이 QnA에 문제 사진을 올리면, 매치업에 등록된 유사 문제를 자동으로 찾아 선생님 화면에 표시해 줍니다.
         </span>
       </div>
