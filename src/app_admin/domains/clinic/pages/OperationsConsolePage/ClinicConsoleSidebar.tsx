@@ -120,10 +120,7 @@ export default function ClinicConsoleSidebar({
 
   return (
     <>
-      <div
-        className="clinic-scheduler-panel__nav"
-        style={{ padding: "0 var(--space-4) var(--space-3)" }}
-      >
+      <div className="clinic-scheduler-panel__nav clinic-scheduler-panel__nav--sidebar">
         <button
           type="button"
           className="clinic-scheduler-panel__nav-btn"
@@ -144,10 +141,7 @@ export default function ClinicConsoleSidebar({
           <ChevronRight size={16} />
         </button>
       </div>
-      <div
-        className="clinic-scheduler-panel__mini-cal"
-        style={{ padding: "0 var(--space-4) var(--space-4)" }}
-      >
+      <div className="clinic-scheduler-panel__mini-cal clinic-scheduler-panel__mini-cal--sidebar">
         <div className="clinic-scheduler-panel__mini-cal-dow">
           {DOW.map((d) => (
             <span key={d} className="clinic-scheduler-panel__mini-cal-dow-cell">
@@ -194,13 +188,7 @@ export default function ClinicConsoleSidebar({
 
       {showSectionFilter && sectionOptions.length > 0 && (
         <div
-          style={{
-            borderTop: "1px solid var(--color-border-divider)",
-            padding: "var(--space-3) var(--space-4)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-          }}
+          className="clinic-sidebar__section-filter"
           role="group"
           aria-label="반 필터"
         >
@@ -216,20 +204,10 @@ export default function ClinicConsoleSidebar({
                 key={opt.value ?? "all"}
                 type="button"
                 onClick={() => onSectionFilterChange?.(opt.value)}
-                style={{
-                  padding: "3px 10px",
-                  fontSize: 11,
-                  fontWeight: active ? 700 : 500,
-                  borderRadius: 999,
-                  border: `1px solid ${
-                    active ? "var(--color-brand-primary)" : "var(--color-border-divider)"
-                  }`,
-                  background: active
-                    ? "color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface))"
-                    : "var(--color-bg-surface)",
-                  color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
-                  cursor: "pointer",
-                }}
+                className={cx(
+                  "clinic-sidebar__section-filter-chip",
+                  active && "clinic-sidebar__section-filter-chip--active"
+                )}
               >
                 {opt.label}
               </button>
@@ -238,12 +216,7 @@ export default function ClinicConsoleSidebar({
         </div>
       )}
 
-      <div
-        style={{
-          borderTop: "1px solid var(--color-border-divider)",
-          padding: "var(--space-2) 0",
-        }}
-      >
+      <div className="clinic-sidebar__session-section">
         <div className="clinic-sidebar__section-header">
           <div className="clinic-sidebar__section-label">
             클리닉 수업
@@ -275,19 +248,12 @@ export default function ClinicConsoleSidebar({
         </div>
         {sessionsForDay.length === 0 ? (
           <p
-            className="clinic-empty-state__text"
-            style={{ padding: "var(--space-4)", fontSize: 13, margin: 0 }}
+            className="clinic-empty-state__text clinic-sidebar__empty-text"
           >
             {selectedDay === todayISO ? "오늘 일정 없음" : "해당 날짜 일정 없음"}
           </p>
         ) : (
-          <ul
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: "0 var(--space-2) var(--space-2)",
-            }}
-          >
+          <ul className="clinic-sidebar__session-list">
             {sessionsForDay.map((s) => {
               const time = (s.start_time || "").slice(0, 5) || "—";
               const isActive = selectedSessionId === s.id;
@@ -300,6 +266,7 @@ export default function ClinicConsoleSidebar({
               const attended = Math.max(0, total - booked - noShow);
               const progressPct =
                 total > 0 ? ((attended + noShow) / total) * 100 : 0;
+              const progressValue = Math.min(100, progressPct);
 
               return (
                 <li key={s.id}>
@@ -323,15 +290,7 @@ export default function ClinicConsoleSidebar({
                           </span>
                           {showSectionFilter && s.section_label && (
                             <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: "1px 6px",
-                                borderRadius: 4,
-                                background: "color-mix(in srgb, var(--color-brand-primary) 16%, transparent)",
-                                color: "var(--color-brand-primary)",
-                                lineHeight: 1.4,
-                              }}
+                              className="clinic-sidebar__session-section-badge"
                               aria-label={`${s.section_label}반`}
                             >
                               {s.section_label}반
@@ -342,7 +301,7 @@ export default function ClinicConsoleSidebar({
                               <MapPin
                                 size={11}
                                 aria-hidden
-                                style={{ opacity: 0.6 }}
+                                className="clinic-console__sidebar-session-location-icon"
                               />
                               <span className="clinic-console__sidebar-session-location">
                                 {s.location}
@@ -352,12 +311,12 @@ export default function ClinicConsoleSidebar({
                         </div>
                         {/* Mini progress bar */}
                         {total > 0 && (
-                          <div className="clinic-sidebar__mini-progress">
-                            <div
-                              className="clinic-sidebar__mini-progress-fill"
-                              style={{ width: `${Math.min(100, progressPct)}%` }}
-                            />
-                          </div>
+                          <progress
+                            className="clinic-sidebar__mini-progress"
+                            value={progressValue}
+                            max={100}
+                            aria-label={`처리율 ${Math.round(progressValue)}%`}
+                          />
                         )}
                       </div>
                       <div className="clinic-console__sidebar-session-meta">

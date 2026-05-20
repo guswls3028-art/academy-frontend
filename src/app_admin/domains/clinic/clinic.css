@@ -121,6 +121,10 @@
   gap: var(--space-2);
 }
 
+.clinic-scheduler-panel__nav--sidebar {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
 .clinic-scheduler-panel__nav-btn {
   width: 32px;
   height: 32px;
@@ -152,6 +156,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.clinic-scheduler-panel__mini-cal--sidebar {
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 .clinic-scheduler-panel__mini-cal-dow {
@@ -3001,6 +3009,11 @@ details[open] > .clinic-tree__summary {
   font-size: 12px;
 }
 
+.clinic-console__sidebar-session-location-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
 .clinic-console__sidebar-session-badge {
   font-size: 11px;
   font-weight: 600;
@@ -5755,6 +5768,66 @@ details[open] > .clinic-tree__summary {
   color: #fff;
 }
 
+.clinic-sidebar__section-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-3) var(--space-4);
+}
+
+.clinic-sidebar__section-filter-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.clinic-sidebar__section-filter-chip:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.clinic-sidebar__section-filter-chip--active {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
+
+.clinic-sidebar__session-section {
+  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-2) 0;
+}
+
+.clinic-sidebar__empty-text {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: 13px;
+}
+
+.clinic-sidebar__session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.clinic-sidebar__session-section-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 /* 세션 항목 래퍼: 버튼 + 인라인 액션 가로 배치 */
 .clinic-console__sidebar-session-wrap {
   display: flex;
@@ -5809,17 +5882,30 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-sidebar__mini-progress {
+  display: block;
+  width: 100%;
   height: 2px;
+  border: 0;
   border-radius: 1px;
   background: var(--color-border-divider);
   overflow: hidden;
+  appearance: none;
 }
 
-.clinic-sidebar__mini-progress-fill {
-  height: 100%;
+.clinic-sidebar__mini-progress::-webkit-progress-bar {
+  border-radius: 1px;
+  background: var(--color-border-divider);
+}
+
+.clinic-sidebar__mini-progress::-webkit-progress-value {
   border-radius: 1px;
   background: var(--color-success);
   transition: width 0.3s ease;
+}
+
+.clinic-sidebar__mini-progress::-moz-progress-bar {
+  border-radius: 1px;
+  background: var(--color-success);
 }
 
 /* Session meta: pending dot + count */
