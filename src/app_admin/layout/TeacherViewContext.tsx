@@ -1,11 +1,10 @@
 /**
  * 선생앱: 모바일/PC 버전 강제 보기. 상단 "모바일 버전으로 보기" / "PC 버전으로 보기" 토글용.
  */
-import { createContext, useContext, useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { TeacherViewContext, type ForceView } from "./teacherViewState";
 
 const STORAGE_KEY = "teacher-app-view";
-
-export type ForceView = "mobile" | "desktop" | null;
 
 function readStored(): ForceView {
   try {
@@ -26,13 +25,6 @@ function writeStored(v: ForceView) {
   }
 }
 
-type TeacherViewContextValue = {
-  forceView: ForceView;
-  setForceView: (v: ForceView) => void;
-};
-
-const TeacherViewContext = createContext<TeacherViewContextValue | null>(null);
-
 export function TeacherViewProvider({ children }: { children: React.ReactNode }) {
   const [forceView, setState] = useState<ForceView>(readStored);
 
@@ -49,8 +41,4 @@ export function TeacherViewProvider({ children }: { children: React.ReactNode })
       {children}
     </TeacherViewContext.Provider>
   );
-}
-
-export function useTeacherView() {
-  return useContext(TeacherViewContext);
 }
