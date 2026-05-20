@@ -23,6 +23,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import "./HomeworkEnrollmentManageModal.css";
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -151,35 +152,23 @@ export default function HomeworkEnrollmentManageModal({
 
       <ModalBody>
         <div
-          className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
-          style={{
-            gridTemplateColumns: "1fr 220px",
-            minHeight: 380,
-          }}
+          className="homework-enrollment-modal__layout grid gap-4 min-h-0 overflow-hidden ds-split-layout"
         >
           {/* 좌측: 검색 + 툴바 + 테이블 */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
-            <div className="flex flex-col gap-3" style={{ marginBottom: 12 }}>
+            <div className="homework-enrollment-modal__toolbar flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "var(--color-text-primary)",
-                    paddingRight: 12,
-                    borderRight: "1px solid var(--color-border-divider)",
-                    marginRight: 4,
-                  }}
+                  className="homework-enrollment-modal__count"
                 >
                   총 {rows.length}명
                 </span>
-                <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
+                <div className="homework-enrollment-modal__search-wrap flex items-center gap-2 flex-1 min-w-0">
                   <input
-                    className="ds-input flex-1 min-w-0"
+                    className="homework-enrollment-modal__search-input ds-input flex-1 min-w-0"
                     placeholder="이름 / 전화번호 / 학교명 / 학년(예: 3학년)"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
-                    style={{ maxWidth: 360 }}
                     disabled={!canInteract}
                     aria-label="학생 이름 검색"
                   />
@@ -194,23 +183,14 @@ export default function HomeworkEnrollmentManageModal({
 
             {error && (
               <div
-                className="rounded-lg border px-3 py-2 text-sm"
-                style={{
-                  borderColor: "var(--color-danger)",
-                  background: "var(--color-danger-soft)",
-                  color: "var(--color-danger)",
-                }}
+                className="homework-enrollment-modal__error rounded-lg border px-3 py-2 text-sm"
               >
                 {error}
               </div>
             )}
 
             <div
-              className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
-              }}
+              className="homework-enrollment-modal__table-panel rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
             >
               <div className="modal-inner-table overflow-auto flex-1 min-h-0">
                 {loading ? (
@@ -222,27 +202,24 @@ export default function HomeworkEnrollmentManageModal({
                   />
                 ) : (
                   <table
-                    className="w-full border-collapse"
-                    style={{ tableLayout: "fixed" }}
+                    className="homework-enrollment-modal__table w-full border-collapse"
                     role="grid"
                     aria-label="전체 학생 명단"
                   >
                     <colgroup>
-                      <col style={{ width: TABLE_COL.checkbox }} />
-                      <col style={{ width: TABLE_COL.nameCompactModal }} />
-                      <col style={{ width: TABLE_COL.phoneCompact }} />
-                      <col style={{ width: TABLE_COL.phoneCompact }} />
-                      <col style={{ width: TABLE_COL.mediumModal }} />
-                      <col style={{ width: TABLE_COL.shortModal }} />
+                      <col width={TABLE_COL.checkbox} />
+                      <col width={TABLE_COL.nameCompactModal} />
+                      <col width={TABLE_COL.phoneCompact} />
+                      <col width={TABLE_COL.phoneCompact} />
+                      <col width={TABLE_COL.mediumModal} />
+                      <col width={TABLE_COL.shortModal} />
                     </colgroup>
                     <thead>
                       <tr
-                        className="sticky top-0 z-10"
-                        style={{ background: "var(--color-bg-surface)" }}
+                        className="homework-enrollment-modal__header-row sticky top-0 z-10"
                       >
                         <th
-                          className="modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]"
                         >
                           <input
                             type="checkbox"
@@ -263,32 +240,27 @@ export default function HomeworkEnrollmentManageModal({
                           />
                         </th>
                         <th
-                          className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                         >
                           이름
                         </th>
                         <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                         >
                           부모님 전화
                         </th>
                         <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                         >
                           학생 전화
                         </th>
                         <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                         >
                           학교
                         </th>
                         <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
+                          className="homework-enrollment-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
                         >
                           학년
                         </th>
@@ -312,8 +284,7 @@ export default function HomeworkEnrollmentManageModal({
                           return (
                             <tr
                               key={r.enrollment_id}
-                              className={`border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
-                              style={{ borderColor: "var(--color-border-divider)" }}
+                              className={`homework-enrollment-modal__row border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
                             >
                               <td
                                 className="modal-inner-table__checkbox-cell py-1.5 pl-2 pr-1"
@@ -360,8 +331,7 @@ export default function HomeworkEnrollmentManageModal({
               {/* 테이블 하단 총계 (차시 수강생 등록 모달과 동일) */}
               {(filtered.length > 0 || rows.length > 0) && (
                 <div
-                  className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
-                  style={{ borderColor: "var(--color-border-divider)" }}
+                  className="homework-enrollment-modal__table-footer flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
                 >
                   <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                     총 {rows.length}명
@@ -373,22 +343,13 @@ export default function HomeworkEnrollmentManageModal({
 
           {/* 우측: 선택 목록 (차시 수강생 등록 모달과 동일 구조) */}
           <div
-            className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
-            style={{
-              borderColor: "var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-            }}
+            className="homework-enrollment-modal__selected-panel flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
           >
             <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
                 <span
-                  className="text-[13px] font-semibold"
-                  style={{
-                    color:
-                      selectedIds.size > 0
-                        ? "var(--color-brand-primary)"
-                        : "var(--color-text-muted)",
-                  }}
+                  className="homework-enrollment-modal__selected-count text-[13px] font-semibold"
+                  data-selected={selectedIds.size > 0 ? "true" : "false"}
                 >
                   {selectedIds.size}명 선택됨
                 </span>
@@ -404,12 +365,7 @@ export default function HomeworkEnrollmentManageModal({
                 </Button>
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
-                style={{
-                  borderColor: "var(--color-border-divider)",
-                  background: "var(--color-bg-surface-soft)",
-                  WebkitOverflowScrolling: "touch",
-                }}
+                className="homework-enrollment-modal__selected-list min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
               >
                 {selectedRows.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">

@@ -1,0 +1,65 @@
+.homework-enrollment-modal__layout {
+  grid-template-columns: 1fr 220px;
+  min-height: 380px;
+}
+
+.homework-enrollment-modal__toolbar {
+  margin-bottom: 12px;
+}
+
+.homework-enrollment-modal__count {
+  border-right: 1px solid var(--color-border-divider);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  margin-right: 4px;
+  padding-right: 12px;
+}
+
+.homework-enrollment-modal__search-wrap {
+  max-width: 420px;
+}
+
+.homework-enrollment-modal__search-input {
+  max-width: 360px;
+}
+
+.homework-enrollment-modal__error {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.homework-enrollment-modal__table-panel,
+.homework-enrollment-modal__selected-panel {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-divider);
+}
+
+.homework-enrollment-modal__table {
+  table-layout: fixed;
+}
+
+.homework-enrollment-modal__header-row {
+  background: var(--color-bg-surface);
+}
+
+.homework-enrollment-modal__header-cell,
+.homework-enrollment-modal__row,
+.homework-enrollment-modal__table-footer {
+  border-color: var(--color-border-divider);
+}
+
+.homework-enrollment-modal__selected-count {
+  color: var(--color-text-muted);
+}
+
+.homework-enrollment-modal__selected-count[data-selected="true"] {
+  color: var(--color-brand-primary);
+}
+
+.homework-enrollment-modal__selected-list {
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-bg-surface-soft);
+  border-color: var(--color-border-divider);
+}
