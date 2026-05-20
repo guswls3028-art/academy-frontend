@@ -2,21 +2,26 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Attendance,
+  type Attendance,
+  type AttendanceMutationPayload,
+  type AttendanceSummary,
   createAttendance,
   deleteAttendance,
   fetchAttendanceSummary,
   fetchMyAttendance,
   updateAttendance,
-  AttendanceSummary,
 } from "../../api/profile.api";
 
 /** 백엔드가 배열 or {results: []} 형태로 와도 방어 */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
 function normalizeRows(data: unknown): Attendance[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object" && "results" in data) {
-    const r = (data as any).results;
-    return Array.isArray(r) ? r : [];
+  if (Array.isArray(data)) return data as Attendance[];
+  if (isRecord(data)) {
+    const rows = data.results;
+    return Array.isArray(rows) ? rows as Attendance[] : [];
   }
   return [];
 }
@@ -48,7 +53,8 @@ export function useAttendanceDomain(month: string, range: { from: string; to: st
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => updateAttendance(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<AttendanceMutationPayload> }) =>
+      updateAttendance(id, data),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["my-attendance", month] });
       await qc.invalidateQueries({ queryKey: ["my-attendance-summary", month] });
@@ -110,11 +116,19 @@ export function useAttendanceDomain(month: string, range: { from: string; to: st
     setEditing(null);
   };
 
-  const submit = async (form: any) => {
+  const submit = async (form: AttendanceMutationPayload) => {
+    const payload: AttendanceMutationPayload = {
+      date: form.date,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      work_type: form.work_type.trim() || "근무",
+      memo: form.memo?.trim() || undefined,
+    };
+
     if (editing) {
-      await updateMut.mutateAsync({ id: editing.id, data: form });
+      await updateMut.mutateAsync({ id: editing.id, data: payload });
     } else {
-      await createMut.mutateAsync(form);
+      await createMut.mutateAsync(payload);
     }
     close();
   };

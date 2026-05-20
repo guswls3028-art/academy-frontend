@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Panel } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
-import { Expense } from "../../api/profile.api";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { type Expense } from "../../api/profile.api";
 
 type Form = {
   date: string;
@@ -82,8 +83,8 @@ export default function ExpenseFormModal({
         title: form.title.trim(),
         amount: Number(form.amount) || 0,
       });
-    } catch (e: any) {
-      setErr(e?.response?.data?.detail || "저장 실패");
+    } catch (e: unknown) {
+      setErr(extractApiError(e, "저장 실패"));
     }
   };
 

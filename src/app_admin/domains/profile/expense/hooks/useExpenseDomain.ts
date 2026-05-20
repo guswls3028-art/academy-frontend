@@ -2,18 +2,23 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Expense,
+  type Expense,
+  type ExpenseMutationPayload,
   createExpense,
   deleteExpense,
   fetchMyExpenses,
   updateExpense,
 } from "../../api/profile.api";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
 function normalizeRows(data: unknown): Expense[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object" && "results" in data) {
-    const r = (data as any).results;
-    return Array.isArray(r) ? r : [];
+  if (Array.isArray(data)) return data as Expense[];
+  if (isRecord(data)) {
+    const rows = data.results;
+    return Array.isArray(rows) ? rows as Expense[] : [];
   }
   return [];
 }
@@ -51,7 +56,8 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) => updateExpense(id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<ExpenseMutationPayload> }) =>
+      updateExpense(id, payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["my-expenses", month] });
     },
@@ -82,8 +88,8 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
     setEditing(null);
   };
 
-  const submit = async (form: { date: string; title: string; amount: number; memo: string }) => {
-    const payload = {
+  const submit = async (form: ExpenseMutationPayload) => {
+    const payload: ExpenseMutationPayload = {
       date: form.date,
       title: form.title.trim(),
       amount: Number(form.amount) || 0,

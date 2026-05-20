@@ -15,8 +15,6 @@ export default function ProfileAttendancePage() {
   const {
     month,
     range,
-    setRangeFrom,
-    setRangeTo,
     resetRangeToMonth,
   } = useOutletContext<ProfileOutletContext>();
 
@@ -32,8 +30,6 @@ export default function ProfileAttendancePage() {
       <div className="flex flex-col gap-[var(--space-6)]">
         <AttendanceHeader
           range={range}
-          setRangeFrom={setRangeFrom}
-          setRangeTo={setRangeTo}
           resetRangeToMonth={resetRangeToMonth}
           rowsForExcel={domain.allRows}
           onCreate={domain.openCreate}

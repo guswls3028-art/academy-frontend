@@ -107,6 +107,14 @@ export type AttendanceSummary = {
   total_after_tax: number;
 };
 
+export type AttendanceMutationPayload = {
+  date: string;
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  work_type: string;
+  memo?: string;
+};
+
 export async function fetchMyAttendance(month?: string) {
   const { data } = await api.get<Attendance[]>("/core/profile/attendance/", {
     params: month ? { month } : {},
@@ -122,26 +130,14 @@ export async function fetchAttendanceSummary(month?: string) {
   return data;
 }
 
-export async function createAttendance(payload: {
-  date: string;
-  start_time: string; // "HH:MM"
-  end_time: string; // "HH:MM"
-  work_type: string;
-  memo?: string;
-}) {
+export async function createAttendance(payload: AttendanceMutationPayload) {
   const { data } = await api.post<Attendance>("/core/profile/attendance/", payload);
   return data;
 }
 
 export async function updateAttendance(
   id: number,
-  payload: Partial<{
-    date: string;
-    start_time: string; // "HH:MM"
-    end_time: string; // "HH:MM"
-    work_type: string;
-    memo?: string;
-  }>
+  payload: Partial<AttendanceMutationPayload>
 ) {
   const { data } = await api.patch<Attendance>(`/core/profile/attendance/${id}/`, payload);
   return data;
@@ -165,6 +161,13 @@ export type Expense = {
   updated_at?: string;
 };
 
+export type ExpenseMutationPayload = {
+  date: string;
+  title: string;
+  amount: number;
+  memo?: string;
+};
+
 export async function fetchMyExpenses(month?: string) {
   const { data } = await api.get<Expense[]>("/core/profile/expenses/", {
     params: month ? { month } : {},
@@ -172,12 +175,7 @@ export async function fetchMyExpenses(month?: string) {
   return data;
 }
 
-export async function createExpense(payload: {
-  date: string;
-  title: string;
-  amount: number;
-  memo?: string;
-}) {
+export async function createExpense(payload: ExpenseMutationPayload) {
   const { data } = await api.post<Expense>("/core/profile/expenses/", payload);
   return data;
 }
@@ -185,12 +183,7 @@ export async function createExpense(payload: {
 // ✅ 실사용 핵심: 지출 수정(편집)
 export async function updateExpense(
   id: number,
-  payload: Partial<{
-    date: string;
-    title: string;
-    amount: number;
-    memo?: string;
-  }>
+  payload: Partial<ExpenseMutationPayload>
 ) {
   const { data } = await api.patch<Expense>(`/core/profile/expenses/${id}/`, payload);
   return data;

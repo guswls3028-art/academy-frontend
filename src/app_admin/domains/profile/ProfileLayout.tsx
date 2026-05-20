@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/profile/layout/ProfileLayout.tsx
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DomainLayout } from "@/shared/ui/layout";
 
 export type DateRange = {
@@ -10,13 +10,7 @@ export type DateRange = {
 
 export type ProfileOutletContext = {
   month: string;
-  setMonth: (v: string) => void;
-
   range: DateRange;
-  setRange: (r: DateRange) => void;
-  setRangeFrom: (v: string) => void;
-  setRangeTo: (v: string) => void;
-
   resetRangeToMonth: (m?: string) => void;
 };
 
@@ -39,8 +33,6 @@ const PROFILE_TABS = [
 ];
 
 export default function ProfileLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -49,31 +41,23 @@ export default function ProfileLayout() {
     getMonthBounds(month)
   );
 
-  const resetRangeToMonth = (m?: string) => {
-    setRange(getMonthBounds(m ?? month));
-  };
+  const resetRangeToMonth = useCallback((m?: string) => {
+    const nextMonth = m ?? month;
+    setMonth(nextMonth);
+    setRange(getMonthBounds(nextMonth));
+  }, [month]);
 
   useEffect(() => {
     setRange(getMonthBounds(month));
   }, [month]);
 
-  const setRangeFrom = (v: string) =>
-    setRange({ from: v, to: range.to });
-
-  const setRangeTo = (v: string) =>
-    setRange({ from: range.from, to: v });
-
   const ctx = useMemo(
     () => ({
       month,
-      setMonth,
       range,
-      setRange,
-      setRangeFrom,
-      setRangeTo,
       resetRangeToMonth,
     }),
-    [month, range]
+    [month, range, resetRangeToMonth]
   );
 
   return (

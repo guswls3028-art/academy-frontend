@@ -6,15 +6,11 @@ import { FiPlus, FiDownload } from "react-icons/fi";
 
 export default function AttendanceHeader({
   range,
-  setRangeFrom,
-  setRangeTo,
   resetRangeToMonth,
   rowsForExcel,
   onCreate,
 }: {
   range: { from: string; to: string };
-  setRangeFrom: (v: string) => void;
-  setRangeTo: (v: string) => void;
   resetRangeToMonth: (m?: string) => void;
   rowsForExcel: Attendance[];
   onCreate: () => void;
@@ -26,13 +22,7 @@ export default function AttendanceHeader({
     <Panel variant="subtle">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
-          <div
-            style={{
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-primary)",
-            }}
-          >
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">
             기간 선택
           </div>
           <Button
@@ -48,8 +38,7 @@ export default function AttendanceHeader({
             type="month"
             value={monthValue}
             onChange={(e) => resetRangeToMonth(e.target.value)}
-            className="ds-input"
-            style={{ width: 160 }}
+            className="ds-input w-40"
           />
         </div>
 

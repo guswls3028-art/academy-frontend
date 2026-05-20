@@ -16,8 +16,6 @@ export default function ProfileExpensePage() {
   const {
     month,
     range,
-    setRangeFrom,
-    setRangeTo,
     resetRangeToMonth,
   } = useOutletContext<ProfileOutletContext>();
 
@@ -29,8 +27,6 @@ export default function ProfileExpensePage() {
       <div className="flex flex-col gap-[var(--space-6)]">
         <ExpenseHeader
           range={range}
-          setRangeFrom={setRangeFrom}
-          setRangeTo={setRangeTo}
           resetRangeToMonth={resetRangeToMonth}
           rowsForExcel={domain.allRows}
           onCreate={domain.openCreate}

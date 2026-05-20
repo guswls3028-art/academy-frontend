@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Panel } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
-import { Attendance } from "../../api/profile.api";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { type Attendance } from "../../api/profile.api";
 
 type Form = {
   date: string;
@@ -80,8 +81,8 @@ export default function AttendanceFormModal({
     setErr("");
     try {
       await onSubmit(form);
-    } catch (e: any) {
-      setErr(e?.response?.data?.detail || "저장 실패");
+    } catch (e: unknown) {
+      setErr(extractApiError(e, "저장 실패"));
     }
   };
 

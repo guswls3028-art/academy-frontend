@@ -5,12 +5,12 @@ export function downloadWorkbook(workbook: XLSX.WorkBook, filename: string) {
   XLSX.writeFile(workbook, filename);
 }
 
-export function createSheet<T extends Record<string, any>>(
+export function createSheet<T extends object>(
   rows: T[] | unknown,
   headers: { key: keyof T; label: string }[]
 ) {
   /** ✅ rows 방어 */
-  const safeRows = Array.isArray(rows) ? rows : [];
+  const safeRows = Array.isArray(rows) ? rows as T[] : [];
 
   const data = [
     headers.map((h) => h.label),
