@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuditLog, useCronList, useTriggerCron } from "@dev/domains/automation/hooks/useAutomation";
-import { useDevToast } from "@dev/shared/components/DevToast";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { AuditFilters } from "@dev/domains/automation/api/automation.api";
 import s from "@dev/layout/DevLayout.module.css";
 import page from "./AutomationPage.module.css";

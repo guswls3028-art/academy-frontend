@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useTenantList, useCreateTenant, useUpdateTenant, useRegisterOwner } from "@dev/domains/tenants/hooks/useTenants";
-import { useDevToast } from "@dev/shared/components/DevToast";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import s from "@dev/layout/DevLayout.module.css";
 import styles from "./TenantsPage.module.css";
 

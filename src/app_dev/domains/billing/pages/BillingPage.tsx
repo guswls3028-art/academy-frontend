@@ -11,7 +11,7 @@ import {
   useChangePlan,
   useMarkInvoicePaid,
 } from "@dev/domains/billing/hooks/useBilling";
-import { useDevToast } from "@dev/shared/components/DevToast";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { TenantSubscriptionDto, InvoiceDto } from "@dev/domains/billing/api/billing.api";
 import s from "@dev/layout/DevLayout.module.css";
 import b from "./BillingPage.module.css";

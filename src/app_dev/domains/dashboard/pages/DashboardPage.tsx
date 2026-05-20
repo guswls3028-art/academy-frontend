@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { useDashboardSummary } from "@dev/domains/dashboard/hooks/useDashboard";
 import { useToggleMaintenance } from "@dev/domains/maintenance/hooks/useMaintenance";
-import { useDevToast } from "@dev/shared/components/DevToast";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { DashboardSummary } from "@dev/domains/dashboard/api/dashboard.api";
 import s from "@dev/layout/DevLayout.module.css";
 

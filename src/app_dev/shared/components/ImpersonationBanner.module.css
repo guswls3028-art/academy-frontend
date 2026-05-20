@@ -1,0 +1,32 @@
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #f97316 0%, #ef4444 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.returnButton {
+  padding: 3px 10px;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.returnButton:hover {
+  background: #fff7ed;
+}

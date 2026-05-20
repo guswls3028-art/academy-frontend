@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useInboxPosts, useCreateInboxReply, useDeleteInboxReply } from "@dev/domains/inbox/hooks/useInbox";
 import { getInboxAttachmentUrl } from "@dev/domains/inbox/api/inbox.api";
-import { useDevToast } from "@dev/shared/components/DevToast";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { InboxPost } from "@dev/domains/inbox/api/inbox.api";
 import s from "@dev/layout/DevLayout.module.css";
 import i from "./InboxPage.module.css";

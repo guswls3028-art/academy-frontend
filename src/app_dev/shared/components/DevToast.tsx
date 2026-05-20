@@ -1,14 +1,6 @@
-import { useEffect, createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import s from "@dev/layout/DevLayout.module.css";
-
-type ToastKind = "success" | "error";
-type ToastItem = { id: number; message: string; kind: ToastKind };
-
-type ToastContextType = {
-  toast: (message: string, kind?: ToastKind) => void;
-};
-
-const ToastContext = createContext<ToastContextType>({ toast: () => {} });
+import { ToastContext, type ToastItem, type ToastKind } from "@dev/shared/components/useDevToast";
 
 let nextId = 0;
 
@@ -32,10 +24,6 @@ export function DevToastProvider({ children }: { children: ReactNode }) {
       ))}
     </ToastContext.Provider>
   );
-}
-
-export function useDevToast() {
-  return useContext(ToastContext);
 }
 
 function ToastNotification({ item, onDismiss }: { item: ToastItem; onDismiss: (id: number) => void }) {

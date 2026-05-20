@@ -6,10 +6,10 @@ import {
   useTenantStorage, useRefreshTenantStorage,
 } from "@dev/domains/tenants/hooks/useTenants";
 import { useTenantBranding, useUploadLogo, usePatchBranding } from "@dev/domains/tenants/hooks/useBranding";
-import { useDevToast } from "@dev/shared/components/DevToast";
 import { getTenantBranding as getStaticBranding, getTenantIdFromCode } from "@/shared/tenant/config";
 import type { TenantDetailDto, TenantActivityEntry } from "@dev/domains/tenants/api/tenants.api";
-import { beginImpersonation, abortImpersonation } from "@dev/shared/components/ImpersonationBanner";
+import { abortImpersonation, beginImpersonation } from "@dev/shared/components/impersonationSession";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import s from "@dev/layout/DevLayout.module.css";
 import styles from "./TenantDetailPage.module.css";
 

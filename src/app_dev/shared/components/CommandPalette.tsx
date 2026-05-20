@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useImpersonate } from "@dev/domains/tenants/hooks/useTenants";
-import { useDevToast } from "@dev/shared/components/DevToast";
-import { beginImpersonation, abortImpersonation } from "@dev/shared/components/ImpersonationBanner";
+import { abortImpersonation, beginImpersonation } from "@dev/shared/components/impersonationSession";
+import { useDevToast } from "@dev/shared/components/useDevToast";
 import styles from "./CommandPalette.module.css";
 
 type SearchResult = {
