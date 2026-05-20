@@ -65,3 +65,15 @@
   background: color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg));
   color: var(--color-error);
 }
+
+.tenantLoadingBody {
+  padding: var(--space-4);
+}
+
+.tenantNameInput {
+  max-width: 280px;
+}
+
+.tenantPhoneInput {
+  max-width: 200px;
+}

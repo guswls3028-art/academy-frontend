@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTenantInfo, updateTenantInfo } from "../../api/profile.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import styles from "./ProfileAccountComponents.module.css";
 
 export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
   const qc = useQueryClient();
@@ -41,7 +42,7 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
   if (isLoading || !info) {
     return (
       <div className="ds-card-modal ds-card-modal--narrow">
-        <div className="ds-card-modal__body" style={{ padding: "var(--space-4)" }}>
+        <div className={`ds-card-modal__body ${styles.tenantLoadingBody}`}>
           <span className="text-sm text-[var(--color-text-muted)]">불러오는 중…</span>
         </div>
       </div>
@@ -56,8 +57,7 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
         <div aria-hidden className="ds-card-modal__accent" />
         <div className="ds-card-modal__header-inner">
           <div
-            className="ds-card-modal__header-icon"
-            style={{ color: "var(--color-brand-primary)" }}
+            className={`ds-card-modal__header-icon ${styles.headerIcon}`}
             aria-hidden
           >
             <FaBuilding size={16} />
@@ -83,12 +83,11 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
                 <label className="text-xs font-medium text-[var(--color-text-muted)]">학원명</label>
                 <input
                   type="text"
-                  className="ds-input mt-1"
+                  className={`ds-input mt-1 ${styles.tenantNameInput}`}
                   placeholder="예: OO학원"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={updateMut.isPending}
-                  style={{ maxWidth: 280 }}
                   aria-label="학원명"
                 />
               </div>
@@ -96,12 +95,11 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
                 <label className="text-xs font-medium text-[var(--color-text-muted)]">학원문의 전화번호</label>
                 <input
                   type="tel"
-                  className="ds-input mt-1"
+                  className={`ds-input mt-1 ${styles.tenantPhoneInput}`}
                   placeholder="예: 02-1234-5678"
                   value={headquartersPhone}
                   onChange={(e) => setHeadquartersPhone(e.target.value)}
                   disabled={updateMut.isPending}
-                  style={{ maxWidth: 200 }}
                   aria-label="학원문의 전화번호"
                 />
               </div>

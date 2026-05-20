@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/profile/attendance/components/AttendanceSummaryCard.tsx
 import { Panel } from "@/shared/ui/ds";
 import { AttendanceSummary } from "../../api/profile.api";
+import styles from "./AttendanceCards.module.css";
 
 export default function AttendanceSummaryCard({
   summary,
@@ -42,45 +43,19 @@ function Item({
 }) {
   return (
     <div
-      className="rounded-xl border px-5 py-4 transition-all"
-      style={{
-        borderColor: "var(--color-border-divider)",
-        background: tone === "primary"
-          ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
-          : "var(--color-bg-surface-soft)",
-        boxShadow: "var(--elevation-1)",
-      }}
+      className={`rounded-xl border px-5 py-4 transition-all ${styles.summaryItem}`}
+      data-tone={tone ?? "normal"}
     >
-      <div
-        style={{
-          fontSize: "var(--text-xs)",
-          fontWeight: "var(--font-meta)",
-          color: "var(--color-text-muted)",
-        }}
-      >
+      <div className={styles.summaryLabel}>
         {label}
       </div>
       <div
-        className="mt-2 flex items-baseline gap-1"
-        style={{
-          fontSize: "var(--text-2xl)",
-          fontWeight: 700,
-          letterSpacing: "-0.4px",
-          color:
-            tone === "primary"
-              ? "var(--color-primary)"
-              : "var(--color-text-primary)",
-        }}
+        className={`mt-2 flex items-baseline gap-1 ${styles.summaryValue}`}
+        data-tone={tone ?? "normal"}
       >
         <span>{typeof value === "number" ? value.toLocaleString() : value}</span>
         {unit && (
-          <span
-            style={{
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-meta)",
-              color: "var(--color-text-muted)",
-            }}
-          >
+          <span className={styles.summaryUnit}>
             {unit}
           </span>
         )}
