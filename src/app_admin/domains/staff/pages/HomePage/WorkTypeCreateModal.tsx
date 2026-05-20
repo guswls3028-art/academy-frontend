@@ -15,6 +15,7 @@ import { ActionButton } from "@/shared/ui/ds";
 import { ColorPickerField } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchWorkTypes,
   updateWorkType,
@@ -91,12 +92,8 @@ export default function WorkTypeCreateModal({
       setView("list");
       setForm(EMPTY_FORM);
     },
-    onError: (e: any) => {
-      feedback.error(
-        e?.response?.data?.detail ??
-          e?.response?.data?.message ??
-          "시급태그 생성 실패"
-      );
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "시급태그 생성 실패"));
     },
   });
 
@@ -117,12 +114,8 @@ export default function WorkTypeCreateModal({
       setEditTarget(null);
       setForm(EMPTY_FORM);
     },
-    onError: (e: any) => {
-      feedback.error(
-        e?.response?.data?.detail ??
-          e?.response?.data?.message ??
-          "시급태그 수정 실패"
-      );
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "시급태그 수정 실패"));
     },
   });
 
@@ -132,12 +125,8 @@ export default function WorkTypeCreateModal({
       invalidate();
       feedback.success("시급태그가 삭제되었습니다.");
     },
-    onError: (e: any) => {
-      feedback.error(
-        e?.response?.data?.detail ??
-          e?.response?.data?.message ??
-          "시급태그 삭제 실패"
-      );
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "시급태그 삭제 실패"));
     },
   });
 
@@ -196,6 +185,7 @@ export default function WorkTypeCreateModal({
                 >
                   <span
                     className="inline-block h-3 w-3 rounded-full shrink-0"
+                    // eslint-disable-next-line no-restricted-syntax -- 시급태그 색상은 서버 저장값을 그대로 표시해야 한다.
                     style={{ backgroundColor: wt.color }}
                   />
                   <div className="flex-1 min-w-0">
