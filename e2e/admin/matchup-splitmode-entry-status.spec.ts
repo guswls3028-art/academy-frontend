@@ -7,6 +7,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -39,28 +40,27 @@ test("매치업 splitMode 부분 실패 → entry 행 상태 ❌/✓ 표시 + �
     }
   });
 
-  await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-    waitUntil: "load",
-    timeout: 20_000,
-  });
-  await page.waitForTimeout(1500);
+  await gotoAndSettle(page, "https://hakwonplus.com/admin/storage/matchup", { timeout: 20_000 });
 
   await page.getByTestId("matchup-upload-button").click();
   await expect(page.getByTestId("matchup-upload-modal")).toBeVisible({ timeout: 5_000 });
 
+  const entries = page.getByTestId("matchup-upload-entry");
   await page.getByTestId("matchup-file-input").setInputFiles([PDF, PDF]);
-  await page.waitForTimeout(800);
+  await waitForCondition(
+    async () => (await entries.count()) === 2,
+    { timeoutMs: 5_000, description: "two matchup upload entries rendered" },
+  );
 
   // splitMode on — 두 옵션 라디오 UI(2026-04-29 사고 후 toggle→radio).
   // PDF 2개면 자동 split-on이지만 사용자 명시 클릭으로 splitModeTouched=true 검증.
   await page.getByTestId("matchup-split-mode-toggle").click();
-  await page.waitForTimeout(200);
+  await expect(page.getByTestId("matchup-upload-submit")).toBeEnabled({ timeout: 5_000 });
 
   // submit (라벨: "2개 ... 동시 업로드")
   await page.getByTestId("matchup-upload-submit").click();
 
   // 두 entry 모두 처리 끝날 때까지 wait — 두번째가 failed 상태로 멈춰야 함
-  const entries = page.getByTestId("matchup-upload-entry");
   await expect(async () => {
     const statuses = await entries.evaluateAll((els) =>
       els.map((el) => el.getAttribute("data-entry-status")),
