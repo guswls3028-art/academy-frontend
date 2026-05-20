@@ -18,7 +18,8 @@ test("V3-diag console errors on /landing/reports", async ({ page }) => {
   page.on("requestfailed", (req) => networkFails.push(`${req.url()} — ${req.failure()?.errorText}`));
 
   await page.goto(`${TCHUL}/landing/reports`, { waitUntil: "load", timeout: 30000 });
-  await page.waitForTimeout(4000);
+  await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+  await page.locator("body").waitFor({ state: "visible", timeout: 10000 });
 
   console.log("=== CONSOLE ERRORS ===");
   errors.forEach((e) => console.log(e));
@@ -47,16 +48,18 @@ test("V3-diag /landing then click 전체보기", async ({ page }) => {
 
   await page.goto(`${TCHUL}/landing`, { waitUntil: "load", timeout: 30000 });
   await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(2000);
 
   // Click "전체 보기 →"
   const viewAllBtn = page.locator("a, button").filter({ hasText: /전체 보기|전체보기|보기 →/ }).first();
   const visible = await viewAllBtn.isVisible().catch(() => false);
   console.log("전체보기 btn visible:", visible);
   if (visible) {
-    await viewAllBtn.click();
+    await Promise.all([
+      page.waitForURL(/\/landing\/reports/, { timeout: 15000 }).catch(() => {}),
+      viewAllBtn.click(),
+    ]);
     await page.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
     console.log("URL after click:", page.url());
     console.log("=== ERRORS AFTER NAV ===");
     errors.forEach((e) => console.log(e));
