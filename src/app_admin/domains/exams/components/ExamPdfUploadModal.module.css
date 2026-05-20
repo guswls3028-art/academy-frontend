@@ -1,0 +1,31 @@
+.body {
+  min-height: 200px;
+}
+
+.progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-bg-secondary);
+  appearance: none;
+}
+
+.progress::-webkit-progress-bar {
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-bg-secondary);
+}
+
+.progress::-webkit-progress-value {
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-brand-primary);
+  transition: width 500ms ease;
+}
+
+.progress::-moz-progress-bar {
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-brand-primary);
+  transition: width 500ms ease;
+}

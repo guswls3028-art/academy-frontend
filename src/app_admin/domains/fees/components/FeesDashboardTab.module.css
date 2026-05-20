@@ -1,0 +1,106 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.loadingRoot,
+.errorRoot {
+  padding: 24px;
+}
+
+.skeletonMedium {
+  height: 80px;
+  border-radius: 12px;
+}
+
+.skeletonLarge {
+  height: 220px;
+  border-radius: 12px;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.feeTypeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.feeTypeCard {
+  min-width: 120px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.feeTypeLabel {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.feeTypeValue {
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.amountCell {
+  text-align: right;
+}
+
+.outstandingCell {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusPending {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.statusPartial {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.statusPaid {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.statusOverdue {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.statusCancelled {
+  background: var(--color-neutral-bg);
+  color: var(--color-text-muted);
+}
+
+.statusUnknown {
+  background: var(--color-neutral-bg, #eee);
+  color: var(--color-text-muted, #999);
+}

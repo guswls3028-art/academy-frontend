@@ -15,6 +15,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import styles from "./ExamResultsViewerPanel.module.css";
 
 type Props = { examId: number };
 
@@ -86,8 +87,14 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   });
 
   const summary = summaryQ.data ?? null;
-  const results: AdminExamResultRow[] = resultsQ.data ?? [];
-  const questionStats: QuestionStat[] = statsQ.data ?? [];
+  const results = useMemo<AdminExamResultRow[]>(
+    () => resultsQ.data ?? [],
+    [resultsQ.data]
+  );
+  const questionStats = useMemo<QuestionStat[]>(
+    () => statsQ.data ?? [],
+    [statsQ.data]
+  );
 
   const scores = useMemo(
     () =>
@@ -105,7 +112,14 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
       count: scores.filter((s) => s >= b.min && s <= b.max).length,
     }));
   }, [scores]);
-  const maxHist = Math.max(1, ...histogram.map((h) => h.count));
+  const maxHist = useMemo(
+    () => Math.max(1, ...histogram.map((h) => h.count)),
+    [histogram]
+  );
+  const sortedQuestionStats = useMemo(
+    () => [...questionStats].sort((a, b) => a.question_id - b.question_id),
+    [questionStats]
+  );
   const passScore = exam?.pass_score ?? 0;
 
   const isLoading = summaryQ.isLoading || resultsQ.isLoading;
@@ -171,21 +185,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
                 <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포</div>
                 <div className="flex items-end gap-1 rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
                   {histogram.map((h) => (
-                    <div
-                      key={h.label}
-                      className="flex flex-1 flex-col items-center gap-1"
-                      title={`${h.label}: ${h.count}명`}
-                    >
-                      <div
-                        className="w-full min-h-[4px] rounded-t"
-                        style={{
-                          height: maxHist > 0 ? `${(h.count / maxHist) * 80}px` : 0,
-                          background: "var(--color-primary)",
-                        }}
-                      />
-                      <span className="text-[10px] text-[var(--color-text-muted)]">{h.label}</span>
-                      <span className="text-xs font-medium">{h.count}</span>
-                    </div>
+                    <HistogramBar key={h.label} label={h.label} count={h.count} max={maxHist} />
                   ))}
                 </div>
               </div>
@@ -234,29 +234,18 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {questionStats
-                  .sort((a, b) => a.question_id - b.question_id)
-                  .map((q) => (
-                    <tr key={q.question_id} className="border-b border-[var(--border-divider)]">
-                      <td className="px-3 py-2 font-medium">{q.question_id}번</td>
-                      <td className="px-3 py-2 text-right">
-                        <span
-                          style={{
-                            color:
-                              q.accuracy >= 0.8
-                                ? "var(--color-success)"
-                                : q.accuracy >= 0.5
-                                  ? "var(--color-text-secondary)"
-                                  : "var(--color-status-warning)",
-                          }}
-                        >
-                          {(q.accuracy * 100).toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right">{q.correct}</td>
-                      <td className="px-3 py-2 text-right">{q.attempts}</td>
-                    </tr>
-                  ))}
+                {sortedQuestionStats.map((q) => (
+                  <tr key={q.question_id} className="border-b border-[var(--border-divider)]">
+                    <td className="px-3 py-2 font-medium">{q.question_id}번</td>
+                    <td className="px-3 py-2 text-right">
+                      <span className={getAccuracyClassName(q.accuracy)}>
+                        {(q.accuracy * 100).toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">{q.correct}</td>
+                    <td className="px-3 py-2 text-right">{q.attempts}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -275,6 +264,34 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
       </section>
     </div>
   );
+}
+
+function HistogramBar({ label, count, max }: { label: string; count: number; max: number }) {
+  const height = count > 0 ? Math.max(4, Math.round((count / max) * 80)) : 4;
+  const y = 80 - height;
+
+  return (
+    <div
+      className="flex flex-1 flex-col items-center gap-1"
+      title={`${label}: ${count}명`}
+    >
+      <svg className={styles.histogramBar} viewBox="0 0 16 80" preserveAspectRatio="none" aria-hidden="true">
+        <rect className={styles.histogramBarFill} x="2" y={y} width="12" height={height} rx="2" />
+      </svg>
+      <span className="text-[10px] text-[var(--color-text-muted)]">{label}</span>
+      <span className="text-xs font-medium">{count}</span>
+    </div>
+  );
+}
+
+function getAccuracyClassName(accuracy: number): string {
+  if (accuracy >= 0.8) {
+    return `${styles.accuracy} ${styles.accuracyHigh}`;
+  }
+  if (accuracy >= 0.5) {
+    return `${styles.accuracy} ${styles.accuracyMid}`;
+  }
+  return `${styles.accuracy} ${styles.accuracyLow}`;
 }
 
 function KpiCard({ label, value }: { label: string; value: string }) {

@@ -8,37 +8,29 @@ import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
 import { FEES_STATUS_LABEL, type InvoiceStatus } from "../utils/feesStatus";
+import styles from "./FeesDashboardTab.module.css";
 
 function formatKRW(n: number) {
   return `${n.toLocaleString("ko-KR")}원`;
 }
 
-const STATUS_COLOR: Record<InvoiceStatus, { bg: string; color: string }> = {
-  PENDING: { bg: "var(--color-warning-bg)", color: "var(--color-warning)" },
-  PARTIAL: { bg: "var(--color-info-bg)", color: "var(--color-info)" },
-  PAID: { bg: "var(--color-success-bg)", color: "var(--color-success)" },
-  OVERDUE: { bg: "var(--color-danger-bg)", color: "var(--color-danger)" },
-  CANCELLED: { bg: "var(--color-neutral-bg)", color: "var(--color-text-muted)" },
+const STATUS_CLASS: Record<InvoiceStatus, string> = {
+  PENDING: styles.statusPending,
+  PARTIAL: styles.statusPartial,
+  PAID: styles.statusPaid,
+  OVERDUE: styles.statusOverdue,
+  CANCELLED: styles.statusCancelled,
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const key = status as InvoiceStatus;
-  const label = FEES_STATUS_LABEL[key] ?? status;
-  const tone = STATUS_COLOR[key] ?? { bg: "#eee", color: "#999" };
-  const s = { ...tone, label };
+  const isKnownStatus = status in FEES_STATUS_LABEL;
+  const key = isKnownStatus ? (status as InvoiceStatus) : null;
+  const label = key ? FEES_STATUS_LABEL[key] : status;
+  const toneClass = key ? STATUS_CLASS[key] : styles.statusUnknown;
+
   return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 12,
-        fontWeight: 600,
-        backgroundColor: s.bg,
-        color: s.color,
-      }}
-    >
-      {s.label}
+    <span className={`${styles.statusBadge} ${toneClass}`}>
+      {label}
     </span>
   );
 }
@@ -67,34 +59,28 @@ export default function FeesDashboardTab() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }} aria-label="로딩 중">
-        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
-        <div className="skeleton" style={{ height: 80, borderRadius: 12 }} />
-        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+      <div className={`${styles.root} ${styles.loadingRoot}`} aria-label="로딩 중">
+        <div className={`skeleton ${styles.skeletonMedium}`} />
+        <div className={`skeleton ${styles.skeletonMedium}`} />
+        <div className={`skeleton ${styles.skeletonLarge}`} />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className={styles.errorRoot}>
         <EmptyState title="수납 데이터를 불러올 수 없습니다" description="잠시 후 다시 시도해 주세요." />
       </div>
     );
   }
 
-  const s = stats ?? {} as DashboardStats;
+  const s = (stats ?? {}) as DashboardStats;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+    <div className={styles.root}>
       {/* KPI Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "var(--space-3)",
-        }}
-      >
+      <div className={styles.kpiGrid}>
         <KPI label="이번 달 청구 총액" value={formatKRW(s.total_billed ?? 0)} />
         <KPI label="수납 총액" value={formatKRW(s.total_paid ?? 0)} />
         <KPI
@@ -114,37 +100,21 @@ export default function FeesDashboardTab() {
       {/* Fee Type Breakdown */}
       {s.by_fee_type && s.by_fee_type.length > 0 && (
         <div>
-          <h3
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--color-text-primary)",
-              marginBottom: "var(--space-2)",
-            }}
-          >
+          <h3 className={styles.sectionTitle}>
             비목별 청구 현황
           </h3>
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+          <div className={styles.feeTypeList}>
             {s.by_fee_type.map((ft: { fee_type: string; total: number }) => {
               const labels: Record<string, string> = {
                 TUITION: "수강료", TEXTBOOK: "교재비", HANDOUT: "판서/프린트",
                 REGISTRATION: "등록비", MATERIAL: "재료비", OTHER: "기타",
               };
               return (
-                <div
-                  key={ft.fee_type}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    border: "1px solid var(--color-border-divider)",
-                    background: "var(--bg-surface)",
-                    minWidth: 120,
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                <div key={ft.fee_type} className={styles.feeTypeCard}>
+                  <div className={styles.feeTypeLabel}>
                     {labels[ft.fee_type] ?? ft.fee_type}
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>
+                  <div className={styles.feeTypeValue}>
                     {formatKRW(ft.total)}
                   </div>
                 </div>
@@ -156,14 +126,7 @@ export default function FeesDashboardTab() {
 
       {/* Overdue Table */}
       <div>
-        <h3
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-            marginBottom: "var(--space-2)",
-          }}
-        >
+        <h3 className={styles.sectionTitle}>
           연체 학생
         </h3>
         {!overdueList?.length ? (
@@ -175,8 +138,8 @@ export default function FeesDashboardTab() {
                 <tr>
                   <th>학생</th>
                   <th>청구월</th>
-                  <th style={{ textAlign: "right" }}>청구액</th>
-                  <th style={{ textAlign: "right" }}>미납액</th>
+                  <th className={styles.amountCell}>청구액</th>
+                  <th className={styles.amountCell}>미납액</th>
                   <th>납부기한</th>
                   <th>상태</th>
                 </tr>
@@ -186,8 +149,8 @@ export default function FeesDashboardTab() {
                   <tr key={inv.id}>
                     <td>{inv.student_name}</td>
                     <td>{inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}</td>
-                    <td style={{ textAlign: "right" }}>{formatKRW(inv.total_amount)}</td>
-                    <td style={{ textAlign: "right", fontWeight: 600, color: "var(--color-danger)" }}>
+                    <td className={styles.amountCell}>{formatKRW(inv.total_amount)}</td>
+                    <td className={`${styles.amountCell} ${styles.outstandingCell}`}>
                       {formatKRW(inv.outstanding_amount)}
                     </td>
                     <td>{inv.due_date}</td>

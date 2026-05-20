@@ -1,0 +1,9 @@
+.root {
+  border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-surface));
+  color: var(--color-danger);
+}
+
+.description {
+  color: var(--color-text-secondary);
+}

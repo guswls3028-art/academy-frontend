@@ -1,0 +1,26 @@
+.histogramBar {
+  display: block;
+  width: 100%;
+  height: 80px;
+  min-height: 80px;
+}
+
+.histogramBarFill {
+  fill: var(--color-primary);
+}
+
+.accuracy {
+  font-weight: 600;
+}
+
+.accuracyHigh {
+  color: var(--color-success);
+}
+
+.accuracyMid {
+  color: var(--color-text-secondary);
+}
+
+.accuracyLow {
+  color: var(--color-status-warning);
+}

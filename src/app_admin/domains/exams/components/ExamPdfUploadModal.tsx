@@ -10,6 +10,7 @@ import {
   usePdfQuestionExtract,
   type PdfExtractStatus,
 } from "../hooks/usePdfQuestionExtract";
+import styles from "./ExamPdfUploadModal.module.css";
 
 type Props = {
   open: boolean;
@@ -51,6 +52,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   const isDone = status === "done";
   const isFailed = status === "failed";
   const isBusy = isUploading || isProcessing;
+  const progressValue = Math.min(100, Math.max(0, progress.percent));
 
   return (
     <AdminModal
@@ -66,7 +68,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
       />
 
       <ModalBody>
-        <div className="modal-scroll-body modal-scroll-body--compact" style={{ minHeight: 200 }}>
+        <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
           <FileUploadZone
             titleLabel="시험지 PDF"
             accept=".pdf,.png,.jpg,.jpeg"
@@ -115,12 +117,9 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
               {/* 프로그레스 바 (처리 중일 때) */}
               {isBusy && (
                 <div className="mt-2">
-                  <div className="h-1.5 rounded-full bg-[var(--color-bg-secondary)] overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[var(--color-brand-primary)] transition-all duration-500"
-                      style={{ width: `${progress.percent}%` }}
-                    />
-                  </div>
+                  <progress className={styles.progress} value={progressValue} max={100}>
+                    {progressValue}%
+                  </progress>
                   {progress.stepName && (
                     <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {progress.stepName}

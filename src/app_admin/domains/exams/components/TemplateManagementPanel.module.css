@@ -166,21 +166,6 @@
   background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
 }
 
-.chipDot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-}
-
-.chipLabel {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  min-width: 24px;
-}
-
 .chipTitle {
   flex: 1;
   font-size: 13px;

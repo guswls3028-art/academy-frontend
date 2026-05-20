@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 import { EmptyState } from "@/shared/ui/ds";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import {
   fetchTemplatesWithUsage,
   type TemplateWithUsage,
@@ -116,15 +117,12 @@ function TemplateCard({
                 onClick={() => onNavigate(`/admin/lectures/${lec.lecture_id}`)}
                 title={`${lec.lecture_title} — 클릭하여 강의로 이동`}
               >
-                <span
-                  className={styles.chipDot}
-                  style={{
-                    background: lec.color || "var(--color-brand-primary)",
-                  }}
+                <LectureChip
+                  lectureName={lec.lecture_title}
+                  color={lec.color}
+                  chipLabel={lec.chip_label}
+                  size={18}
                 />
-                <span className={styles.chipLabel}>
-                  {lec.chip_label || lec.lecture_title.slice(0, 2)}
-                </span>
                 <span className={styles.chipTitle}>{lec.lecture_title}</span>
                 {lec.last_used_date && (
                   <span className={styles.chipDate}>

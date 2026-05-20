@@ -5,7 +5,7 @@
 // 사용자 spec(2026-05-11 추가 cycle #9): 부적절한 글/댓글을 학원장이 검토.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
@@ -48,7 +48,7 @@ export default function ReportsAdminPage() {
   const [pending, setPending] = useState<number | null>(null);
   const [error, setError] = useState(false);
 
-  const fetchList = () => {
+  const fetchList = useCallback(() => {
     setItems(null); setError(false);
     const params: Record<string, string | number> = { page, page_size: 20 };
     if (statusFilter !== "all") params.status = statusFilter;
@@ -59,10 +59,14 @@ export default function ReportsAdminPage() {
         setCount(typeof data?.count === "number" ? data.count : 0);
       })
       .catch(() => { setError(true); setItems([]); });
-  };
+  }, [page, statusFilter]);
 
-  useEffect(() => { setPage(1); }, [statusFilter]);
-  useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [page, statusFilter]);
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  const onSelectStatusFilter = (next: ReportStatus | "all") => {
+    setStatusFilter(next);
+    setPage(1);
+  };
 
   const onBlockUser = async (userId: number, name: string | null) => {
     const reason = window.prompt(`작성자 "${name || "이 사용자"}"를 학원 커뮤니티에서 차단하시겠습니까?\n사유(선택, 학원 내부 메모):`, "");
@@ -111,7 +115,7 @@ export default function ReportsAdminPage() {
             <button
               key={f.key}
               type="button"
-              onClick={() => setStatusFilter(f.key)}
+              onClick={() => onSelectStatusFilter(f.key)}
               style={{
                 padding: "8px 14px", borderRadius: 999, border: "none",
                 background: on ? "rgba(37,99,235,0.10)" : "transparent",
