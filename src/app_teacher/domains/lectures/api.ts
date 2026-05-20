@@ -2,13 +2,37 @@
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
 
+export type TeacherLecture = {
+  id: number;
+  title: string;
+  name?: string | null;
+  subject?: string | null;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  lecture_time?: string | null;
+  lectureTime?: string | null;
+  color?: string | null;
+  chip_label?: string | null;
+  chipLabel?: string | null;
+  is_active?: boolean;
+  isActive?: boolean;
+};
+
+function extractList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (!raw || typeof raw !== "object") return [];
+
+  const { results } = raw as { results?: unknown };
+  return Array.isArray(results) ? (results as T[]) : [];
+}
+
 /** 강의 목록 */
-export async function fetchLectures(active?: boolean) {
+export async function fetchLectures(active?: boolean): Promise<TeacherLecture[]> {
   const res = await api.get("/lectures/lectures/", {
     params: { is_active: active, page_size: 100 },
   });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return extractList<TeacherLecture>(res.data as unknown);
 }
 
 /** 강의 단건 */

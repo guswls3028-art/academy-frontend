@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ChevronRight, Plus } from "@teacher/shared/ui/Icons";
 import { TabBar, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "../api";
 import LectureFormSheet from "../components/LectureFormSheet";
+import styles from "./LectureListPage.module.css";
 
 type Tab = "active" | "past";
 
@@ -33,12 +34,10 @@ export default function LectureListPage() {
   const isLoading = tab === "active" ? loadingActive : loadingPast;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+    <div className={styles.page}>
+      <div className={styles.header}>
         <SectionTitle>강의 관리</SectionTitle>
-        <button onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+        <button onClick={() => setCreateOpen(true)} className={styles.createButton} type="button">
           <Plus size={ICON.xs} /> 강의 추가
         </button>
       </div>
@@ -55,32 +54,33 @@ export default function LectureListPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : lectures && lectures.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {lectures.map((l: any) => {
+        <div className={styles.list}>
+          {lectures.map((l) => {
             const chipLabel = l.chip_label ?? l.chipLabel;
             const time = l.lecture_time ?? l.lectureTime;
             const dateRange = l.start_date && l.end_date ? `${l.start_date} ~ ${l.end_date}` : l.start_date;
+            const isActive = l.is_active ?? l.isActive ?? true;
 
             return (
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/classes/${l.id}`)}
-                className="flex gap-3 rounded-xl w-full text-left cursor-pointer"
-                style={{ padding: "var(--tc-space-3) var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)" }}
+                className={styles.lectureButton}
+                type="button"
               >
-                <LectureChip lectureName={l.title} color={l.color} chipLabel={chipLabel} size={40} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="ds-text-name font-semibold truncate" style={{ color: "var(--tc-text)" }}>{l.title}</span>
-                    {!l.is_active && <Badge tone="neutral" size="xs">종료</Badge>}
+                <LectureChip lectureName={l.title} color={l.color ?? undefined} chipLabel={chipLabel} size={40} />
+                <div className={styles.content}>
+                  <div className={styles.titleRow}>
+                    <span className={`ds-text-name font-semibold truncate ${styles.title}`}>{l.title}</span>
+                    {!isActive && <Badge tone="neutral" size="xs">종료</Badge>}
                   </div>
-                  {l.subject && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{l.subject}</div>}
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                  {l.subject && <div className={styles.subject}>{l.subject}</div>}
+                  <div className={styles.meta}>
                     {time && <span>{time}</span>}
                     {dateRange && <span>{dateRange}</span>}
                   </div>
                 </div>
-                <ChevronRight size={ICON.sm} className="shrink-0 self-center" style={{ color: "var(--tc-text-muted)" }} />
+                <ChevronRight size={ICON.sm} className={styles.chevron} />
               </button>
             );
           })}

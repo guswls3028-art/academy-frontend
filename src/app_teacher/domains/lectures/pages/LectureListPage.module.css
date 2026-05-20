@@ -1,0 +1,80 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.createButton {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-1);
+  padding: 6px 12px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--tc-primary);
+  border: 0;
+  border-radius: var(--tc-radius);
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-2);
+}
+
+.lectureButton {
+  display: flex;
+  gap: var(--tc-space-3);
+  width: 100%;
+  padding: var(--tc-space-3) var(--tc-space-4);
+  text-align: left;
+  background: var(--tc-surface);
+  border: 1px solid var(--tc-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.title {
+  color: var(--tc-text);
+}
+
+.subject {
+  margin-top: 2px;
+  color: var(--tc-text-muted);
+  font-size: 12px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--tc-space-3);
+  row-gap: 2px;
+  margin-top: var(--tc-space-1);
+  color: var(--tc-text-muted);
+  font-size: 11px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--tc-text-muted);
+}
