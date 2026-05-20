@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
+import "./AdminHlsPreview.css";
 
 export default function AdminHlsPreview({ src }: { src: string }) {
   const ref = useRef<HTMLVideoElement | null>(null);
@@ -12,9 +13,7 @@ export default function AdminHlsPreview({ src }: { src: string }) {
 
     if (!src) {
       video.removeAttribute("src");
-      try {
-        video.load();
-      } catch {}
+      video.load();
       return;
     }
 
@@ -37,26 +36,14 @@ export default function AdminHlsPreview({ src }: { src: string }) {
   }, [src]);
 
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        overflow: "hidden",
-        background: "#000",
-        position: "relative",
-      }}
-    >
+    <div className="admin-hls-preview">
       <video
         ref={ref}
         controls
         autoPlay
         muted
         playsInline
-        style={{
-          width: "100%",
-          maxHeight: 520,
-          objectFit: "contain",
-          display: "block",
-        }}
+        className="admin-hls-preview__video"
         controlsList="nodownload noremoteplayback"
       />
     </div>
