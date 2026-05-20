@@ -11,6 +11,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
 import path from "node:path";
 
 const BASE = getBaseUrl("admin");
@@ -19,10 +20,7 @@ const SHOT_DIR = path.join(process.cwd(), "_e2e_review_screenshots", "community-
 test.describe("커뮤니티 알림톡 실사용 검증", () => {
   test("1. admin 자동발송 페이지에 qna_answered / counsel_answered 카드 노출", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/message/auto-send`);
-    await page.waitForLoadState("networkidle");
-    // 데이터 로딩 + provisioning 대기
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${BASE}/admin/message/auto-send`);
 
     // 페이지 전체 스크린샷 (진입 직후 — 가입/등록 기본 카테고리)
     await page.screenshot({ path: path.join(SHOT_DIR, "01-page-default-category.png"), fullPage: true });
@@ -32,10 +30,6 @@ test.describe("커뮤니티 알림톡 실사용 검증", () => {
     const communityNav = page.getByRole("button", { name: "커뮤니티" }).last();
     await expect(communityNav, "카테고리 트리 커뮤니티").toBeVisible({ timeout: 10_000 });
     await communityNav.click();
-    await page.waitForTimeout(1500);
-
-    // 진입 후 전체 스크린샷
-    await page.screenshot({ path: path.join(SHOT_DIR, "02-community-section.png"), fullPage: true });
 
     // qna_answered 카드 (description 텍스트로 매칭)
     const qnaCard = page.locator("text=/QnA 답변이 등록되면/").first();
@@ -45,14 +39,17 @@ test.describe("커뮤니티 알림톡 실사용 검증", () => {
     const counselCard = page.locator("text=/상담 답변이 등록되면/").first();
     await expect(counselCard).toBeVisible({ timeout: 10_000 });
 
+    // 진입 후 전체 스크린샷
+    await page.screenshot({ path: path.join(SHOT_DIR, "02-community-section.png"), fullPage: true });
+
     // qna_answered 카드 클로즈업
     await qnaCard.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
+    await expect(qnaCard).toBeInViewport({ timeout: 5_000 });
     await page.screenshot({ path: path.join(SHOT_DIR, "03-qna-card-closeup.png") });
 
     // counsel_answered 카드 클로즈업
     await counselCard.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
+    await expect(counselCard).toBeInViewport({ timeout: 5_000 });
     await page.screenshot({ path: path.join(SHOT_DIR, "04-counsel-card-closeup.png") });
   });
 
@@ -60,9 +57,8 @@ test.describe("커뮤니티 알림톡 실사용 검증", () => {
     await loginViaUI(page, "admin");
 
     // provision 트리거 — auto-send 페이지 1회 진입
-    await page.goto(`${BASE}/admin/message/auto-send`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${BASE}/admin/message/auto-send`);
+    await expect(page.getByRole("button", { name: "커뮤니티" }).last()).toBeVisible({ timeout: 10_000 });
 
     const resp = await apiCall(page, "GET", "/messaging/auto-send/");
     expect(resp.status, "auto-send 목록 조회").toBe(200);
