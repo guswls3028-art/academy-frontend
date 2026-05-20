@@ -7,14 +7,14 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
 test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
   test("관리자 상담 인박스 — 라벨 통일 + 답변하기 CTA", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/community/counsel`);
-    await page.waitForLoadState("networkidle");
+    await gotoAndSettle(page, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
 
     // 필터 라벨 통일
     await expect(page.getByRole("button", { name: /답변 대기/ })).toBeVisible();
@@ -27,8 +27,7 @@ test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
 
   test("관리자 상담 — 첫 항목 선택 시 답변하기 CTA + 학생 패널", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/community/counsel`);
-    await page.waitForLoadState("networkidle");
+    await gotoAndSettle(page, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
 
     const firstCard = page.locator(".qna-inbox__card").first();
     const cardCount = await firstCard.count();
@@ -50,8 +49,7 @@ test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
 
   test("관리자 QnA — 라벨 통일 유지", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/community/qna`);
-    await page.waitForLoadState("networkidle");
+    await gotoAndSettle(page, `${BASE}/admin/community/qna`, { timeout: 20_000 });
 
     await expect(page.getByRole("button", { name: /답변 필요/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /답변 완료/ })).toBeVisible();
@@ -59,21 +57,19 @@ test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
 
   test("학생 커뮤니티 — 상담 신청 폼 카테고리 사전 옵션", async ({ page }) => {
     await loginViaUI(page, "student");
-    await page.goto(`${BASE}/student/community`);
-    await page.waitForLoadState("networkidle");
+    await gotoAndSettle(page, `${BASE}/student/community`, { timeout: 20_000 });
 
     // 상담 탭 클릭
     const counselTab = page.locator("button").filter({ hasText: /^상담$/ }).first();
     await counselTab.click();
-    await page.waitForTimeout(800);
+    await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
 
     // "상담 신청하기" 버튼 클릭
     const applyBtn = page.locator("button").filter({ hasText: /상담 신청하기/ }).first();
-    if ((await applyBtn.count()) === 0) {
+    if (!(await applyBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
       test.skip(true, "학부모 읽기 전용 또는 폼 진입 불가");
     }
     await applyBtn.click();
-    await page.waitForTimeout(500);
 
     // 카테고리 select 옵션 — 강의가 아닌 상담 분야 사전
     const select = page.locator("select").first();

@@ -9,6 +9,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 const TIMESTAMP = Date.now();
@@ -45,8 +46,7 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
 
-    await adminPage.goto(`${BASE}/admin/community/counsel`);
-    await adminPage.waitForLoadState("load");
+    await gotoAndSettle(adminPage, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
 
     const card = adminPage.locator(`text=${C_TITLE}`).first();
     await expect(card).toBeVisible({ timeout: 30_000 });
@@ -74,20 +74,16 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
   });
 
   test("5. 학생이 상담 상세에서 답변을 확인한다", async () => {
-    await studentPage.goto(`${BASE}/student/community`);
-    await studentPage.waitForLoadState("load");
-    await studentPage.waitForTimeout(1500);
+    await gotoAndSettle(studentPage, `${BASE}/student/community`, { timeout: 20_000 });
 
     // 상담 탭 클릭
     const counselTab = studentPage.locator("button").filter({ hasText: /^상담$/ }).first();
     await counselTab.waitFor({ state: "visible", timeout: 10000 });
     await counselTab.click();
-    await studentPage.waitForTimeout(1500);
 
     const myCounsel = studentPage.locator(`text=${C_TITLE}`).first();
     await expect(myCounsel).toBeVisible({ timeout: 15000 });
     await myCounsel.click();
-    await studentPage.waitForTimeout(2000);
 
     // "선생님 답변" 라벨 통일 검증
     await expect(studentPage.locator("text=/선생님 답변/")).toBeVisible({ timeout: 10000 });

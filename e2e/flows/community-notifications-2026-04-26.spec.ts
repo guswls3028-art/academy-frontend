@@ -7,6 +7,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 const TIMESTAMP = Date.now();
@@ -42,27 +43,20 @@ test.describe.serial("커뮤니티 알림 — counsel pending/답변", () => {
     await loginViaUI(adminPage, "admin");
 
     // 헤더 종 클릭 → 드롭다운 노출. 알림 카운터는 60초~2분 폴링이라 추가 새로고침 시도.
-    await adminPage.goto(`${BASE}/admin`);
-    await adminPage.waitForLoadState("networkidle");
+    await gotoAndSettle(adminPage, `${BASE}/admin`, { timeout: 20_000 });
 
-    // 최대 3회 재시도: 폴링 주기 우회를 위해 새로고침 + 종 클릭
-    let found = false;
-    for (let attempt = 0; attempt < 3 && !found; attempt++) {
-      if (attempt > 0) {
-        await adminPage.waitForTimeout(15_000);
-        await adminPage.reload();
-        await adminPage.waitForLoadState("networkidle");
-      }
+    // 폴링 주기 우회를 위해 새로고침 + 종 클릭을 조건 충족까지 재시도.
+    await waitForCondition(async () => {
+      await adminPage.reload({ waitUntil: "load" });
+      await adminPage.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       const bell = adminPage.getByRole("button", { name: "알림" }).first();
       await bell.click();
-      try {
-        await expect(adminPage.locator("text=답변 대기 상담").first()).toBeVisible({ timeout: 10_000 });
-        found = true;
-      } catch {
+      const found = await adminPage.locator("text=답변 대기 상담").first().isVisible({ timeout: 5_000 }).catch(() => false);
+      if (!found) {
         await adminPage.keyboard.press("Escape").catch(() => {});
       }
-    }
-    expect(found, "관리자 헤더 드롭다운에 '답변 대기 상담' 항목 노출").toBeTruthy();
+      return found;
+    }, { timeoutMs: 50_000, intervalMs: 15_000, description: "관리자 헤더 드롭다운에 '답변 대기 상담' 항목 노출" });
   });
 
   test("2. 관리자 답변 등록", async () => {
@@ -74,9 +68,7 @@ test.describe.serial("커뮤니티 알림 — counsel pending/답변", () => {
   });
 
   test("3. 학생 알림 페이지 → '상담 답변' 섹션에 신규 카드 노출 + 상세 진입", async () => {
-    await studentPage.goto(`${BASE}/student/notifications`);
-    await studentPage.waitForLoadState("networkidle");
-    await studentPage.waitForTimeout(1500);
+    await gotoAndSettle(studentPage, `${BASE}/student/notifications`, { timeout: 20_000 });
 
     const counselSection = studentPage.locator("h3", { hasText: /상담 답변/ });
     await expect(counselSection).toBeVisible({ timeout: 15_000 });

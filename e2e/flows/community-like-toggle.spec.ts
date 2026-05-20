@@ -199,9 +199,8 @@ test.describe("커뮤니티 좋아요 토글 E2E", () => {
     await expect(shareBtn).toContainText("복사됨", { timeout: 3_000 });
     await screenshot(page, "s3-share-done");
 
-    // 2초 후 revert
-    await page.waitForTimeout(2500);
-    await expect(shareBtn).toContainText("주소복사");
+    // 복사 완료 상태가 원래 라벨로 되돌아오는지 확인
+    await expect(shareBtn).toContainText("주소복사", { timeout: 5_000 });
     await screenshot(page, "s3-share-reverted");
   });
 

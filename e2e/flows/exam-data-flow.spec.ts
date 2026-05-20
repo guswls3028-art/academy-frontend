@@ -13,6 +13,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
@@ -41,11 +42,7 @@ test.describe.serial("Exam domain data flow", () => {
     await loginViaUI(adminPage, "admin");
 
     // Navigate to exam explorer
-    await adminPage.goto(`${BASE}/admin/exams`, {
-      waitUntil: "load",
-      timeout: 15000,
-    });
-    await adminPage.waitForTimeout(2000);
+    await gotoAndSettle(adminPage, `${BASE}/admin/exams`, { timeout: 15_000 });
 
     // The page should render without error — check for the DomainLayout wrapper
     const pageContent = adminPage.locator("[data-app], main, #root").first();
@@ -148,11 +145,7 @@ test.describe.serial("Exam domain data flow", () => {
     await loginViaUI(studentPage, "student");
 
     // Navigate to student exams page
-    await studentPage.goto(`${BASE}/student/exams`, {
-      waitUntil: "load",
-      timeout: 15000,
-    });
-    await studentPage.waitForTimeout(2000);
+    await gotoAndSettle(studentPage, `${BASE}/student/exams`, { timeout: 15_000 });
 
     // Verify URL
     expect(studentPage.url()).toContain("/student/exams");
@@ -242,11 +235,7 @@ test.describe.serial("Exam domain data flow", () => {
     const examId = existingExamId;
     test.skip(!examId, "No exam available for detail view");
 
-    await studentPage.goto(`${BASE}/student/exams/${examId}`, {
-      waitUntil: "load",
-      timeout: 15000,
-    });
-    await studentPage.waitForTimeout(2000);
+    await gotoAndSettle(studentPage, `${BASE}/student/exams/${examId}`, { timeout: 15_000 });
 
     // Should not be loading
     const hasSkeletons = await studentPage
@@ -394,11 +383,7 @@ test.describe.serial("Exam domain data flow", () => {
     if (resultResp.status === 404) {
       console.log("  No result exists for this exam (not yet submitted)");
       // Navigate to result page and verify it shows appropriate empty state
-      await studentPage.goto(`${BASE}/student/exams/${examId}/result`, {
-        waitUntil: "load",
-        timeout: 15000,
-      });
-      await studentPage.waitForTimeout(2000);
+      await gotoAndSettle(studentPage, `${BASE}/student/exams/${examId}/result`, { timeout: 15_000 });
 
       const hasEmptyMsg = await studentPage
         .locator("text=결과를 불러오지 못했습니다")
@@ -424,11 +409,7 @@ test.describe.serial("Exam domain data flow", () => {
     );
 
     // Navigate to result page UI
-    await studentPage.goto(`${BASE}/student/exams/${examId}/result`, {
-      waitUntil: "load",
-      timeout: 15000,
-    });
-    await studentPage.waitForTimeout(2000);
+    await gotoAndSettle(studentPage, `${BASE}/student/exams/${examId}/result`, { timeout: 15_000 });
 
     // Should not be loading
     const hasSkeletons = await studentPage
@@ -477,11 +458,7 @@ test.describe.serial("Exam domain data flow", () => {
   // 10. Student: Grades page
   // ══════════════════════════════════════════════════════
   test("10. Student: grades page shows real data", async () => {
-    await studentPage.goto(`${BASE}/student/grades`, {
-      waitUntil: "load",
-      timeout: 15000,
-    });
-    await studentPage.waitForTimeout(2000);
+    await gotoAndSettle(studentPage, `${BASE}/student/grades`, { timeout: 15_000 });
 
     expect(studentPage.url()).toContain("/student/grades");
 
