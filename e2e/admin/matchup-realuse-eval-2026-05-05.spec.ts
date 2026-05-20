@@ -6,12 +6,15 @@
  *
  * read-only — 새 doc 업로드/삭제/edit/submit 없음. PDF/ZIP은 다운로드만, 발송 없음.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://tchul.com";
+const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
+const HIT_REPORTS_URL = `${BASE}/admin/hit-reports`;
 const SHOT_DIR = "e2e/_artifacts/matchup-realuse-eval-2026-05-05";
 const DOWNLOAD_DIR = path.join(SHOT_DIR, "downloads");
 
@@ -21,17 +24,53 @@ test.beforeAll(() => {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 });
 
+async function openMatchup(page: Page): Promise<void> {
+  await gotoAndSettle(page, MATCHUP_URL, { timeout: 60_000 });
+  await waitForCondition(
+    async () => (await page.locator('[data-testid="matchup-doc-row"]').count()) > 0,
+    { timeoutMs: 15_000, description: "matchup document rows visible" },
+  );
+}
+
+async function waitForDocDetailSettle(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator('[data-testid="document-guidance-banner"]').count()) > 0 ||
+      (await page.locator('[data-testid="matchup-problem-grid"]').count()) > 0 ||
+      (await page.locator('[data-testid="matchup-right-panel"]').count()) > 0,
+    { timeoutMs: 10_000, description: "matchup document detail settled" },
+  ).catch(() => {});
+}
+
+async function openHitReports(page: Page): Promise<void> {
+  await gotoAndSettle(page, HIT_REPORTS_URL, { timeout: 60_000 });
+  await waitForCondition(
+    async () => {
+      const bodyText = await page.locator("body").innerText().catch(() => "");
+      return (await page.locator('[role="button"]').count()) > 0 || /적중|보고서|작성|제출/.test(bodyText);
+    },
+    { timeoutMs: 15_000, description: "hit report list settled" },
+  ).catch(() => {});
+}
+
+async function waitForHitReportEditor(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator('[data-testid^="hit-q-"]').count()) > 0 ||
+      (await page.locator("body").getByText(/후보|문항|편집/).count()) > 0,
+    { timeoutMs: 15_000, description: "hit report editor settled" },
+  ).catch(() => {});
+}
+
 test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
   });
 
   test("01 매치업 메인 — doc 리스트 + 카테고리 분포", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
-    await page.waitForTimeout(3000);
+    await openMatchup(page);
     await page.screenshot({
       path: `${SHOT_DIR}/01-matchup-main.png`,
       fullPage: true,
@@ -49,11 +88,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
 
   test("02 doc detail — 검수 UI / 결함 doc 시각", async ({ page }) => {
     const titles = ["통합과학", "은광", "중대부고", "언남", "박철"];
-    await page.goto(`${BASE}/admin/storage/matchup`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
-    await page.waitForTimeout(2000);
+    await openMatchup(page);
 
     let opened = 0;
     for (const t of titles) {
@@ -66,7 +101,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
         continue;
       }
       await row.click();
-      await page.waitForTimeout(2500);
+      await waitForDocDetailSettle(page);
       const safe = t.replace(/[^\w가-힣]/g, "_");
       await page.screenshot({
         path: `${SHOT_DIR}/02-doc-${safe}.png`,
@@ -80,11 +115,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
   });
 
   test("03 HitReport 리스트 — 진행률 + draft alert", async ({ page }) => {
-    await page.goto(`${BASE}/admin/hit-reports`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
-    await page.waitForTimeout(2500);
+    await openHitReports(page);
     await page.screenshot({
       path: `${SHOT_DIR}/03-hit-reports-list.png`,
       fullPage: true,
@@ -99,11 +130,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
   });
 
   test("04 HitReport 편집기 — 2-pane + 후보 리스트", async ({ page }) => {
-    await page.goto(`${BASE}/admin/hit-reports`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
-    await page.waitForTimeout(2500);
+    await openHitReports(page);
 
     const card = page.locator('[role="button"]').filter({ hasText: /작성|제출/ }).first();
     const visible = await card.isVisible().catch(() => false);
@@ -113,7 +140,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
       return;
     }
     await card.click();
-    await page.waitForTimeout(4000);
+    await waitForHitReportEditor(page);
     await page.screenshot({
       path: `${SHOT_DIR}/04-editor-overview.png`,
       fullPage: true,
@@ -125,7 +152,8 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
     console.log(`[04] q items: ${qCount}`);
     if (qCount >= 2) {
       await qList.nth(1).click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      await expect(qList.nth(1)).toBeVisible();
       await page.screenshot({
         path: `${SHOT_DIR}/04-editor-q2.png`,
         fullPage: true,
@@ -134,11 +162,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
   });
 
   test("05 PDF/ZIP 산출물 다운로드 시도", async ({ page }) => {
-    await page.goto(`${BASE}/admin/hit-reports`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
-    await page.waitForTimeout(2500);
+    await openHitReports(page);
 
     const card = page.locator('[role="button"]').filter({ hasText: /작성|제출/ }).first();
     if (!(await card.isVisible().catch(() => false))) {
@@ -146,7 +170,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
       return;
     }
     await card.click();
-    await page.waitForTimeout(4000);
+    await waitForHitReportEditor(page);
 
     const accessToken = await page.evaluate(() => localStorage.getItem("access"));
     expect(accessToken).toBeTruthy();

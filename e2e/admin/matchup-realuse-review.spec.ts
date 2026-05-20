@@ -10,6 +10,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { clickAndExpect, gotoAndSettle, waitForCondition } from "../helpers/wait";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -26,8 +27,7 @@ test.describe("매치업 실사용 리뷰", () => {
   });
 
   test("상단 진입: 매치업 탭 구조와 시험지/참고자료 분리 진입", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle").catch(() => {});
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     // 페이지 초기 스크린샷
     await page.screenshot({ path: path.join(SHOTS, "01-matchup-landing.png"), fullPage: true });
@@ -56,7 +56,7 @@ test.describe("매치업 실사용 리뷰", () => {
   });
 
   test("문서 목록: 시험지 vs 참고자료 분리 + 카테고리 표시 + 행 클릭 패널", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     const docs = page.locator("[data-testid='matchup-doc-row']");
     const count = await docs.count();
@@ -78,8 +78,11 @@ test.describe("매치업 실사용 리뷰", () => {
 
     // 첫 행 클릭 → 디테일/패널 열리는지
     await docs.first().click();
-    await page.waitForTimeout(400);
     const drawer = page.locator("[data-testid='matchup-doc-drawer'], [role='dialog']").first();
+    await waitForCondition(
+      async () => (await drawer.count()) > 0,
+      { timeoutMs: 3_000, description: "matchup document drawer visible after row click" },
+    ).catch(() => {});
     if (await drawer.count() > 0) {
       await expect(drawer).toBeVisible();
       await page.screenshot({ path: path.join(SHOTS, "04-doc-drawer.png"), fullPage: true });
@@ -91,7 +94,7 @@ test.describe("매치업 실사용 리뷰", () => {
   });
 
   test("매치 매트릭스: 시험지 기준 매치 보기 진입 가능 + 행/열 구조", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     const matrixEntry = page.locator(
       "[data-testid='matchup-matrix-entry'], [data-testid='matchup-cross-match-button'], button:has-text('매치 매트릭스'), button:has-text('교차 매치')",
@@ -103,17 +106,14 @@ test.describe("매치업 실사용 리뷰", () => {
       return;
     }
 
-    await matrixEntry.click();
-    await page.waitForTimeout(800);
-    await page.screenshot({ path: path.join(SHOTS, "05-match-matrix.png"), fullPage: true });
-
     const matrix = page.locator("[data-testid='matchup-matrix'], [data-testid='match-matrix'], table").first();
-    await expect(matrix).toBeVisible({ timeout: 10000 });
+    await clickAndExpect(matrixEntry, matrix, { timeout: 10_000 });
+    await page.screenshot({ path: path.join(SHOTS, "05-match-matrix.png"), fullPage: true });
     console.log("[REVIEW] 매트릭스 컴포넌트 노출 OK");
   });
 
   test("수동 크롭 모달 진입 (액션 버튼 → 모달 노출)", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
     const cropEntry = page.locator(
       "[data-testid='matchup-manual-crop-button'], [data-testid='matchup-crop-modal-trigger'], button:has-text('수동 크롭'), button:has-text('수동 자르기'), button:has-text('수동 분할')",
@@ -125,10 +125,8 @@ test.describe("매치업 실사용 리뷰", () => {
       return;
     }
 
-    await cropEntry.click();
-    await page.waitForTimeout(800);
     const modal = page.locator("[data-testid='matchup-crop-modal'], [role='dialog']:has-text('크롭'), [role='dialog']:has-text('자르기')").first();
-    await expect(modal).toBeVisible({ timeout: 8000 });
+    await clickAndExpect(cropEntry, modal, { timeout: 8_000 });
     await page.screenshot({ path: path.join(SHOTS, "06-crop-modal.png"), fullPage: true });
     console.log("[REVIEW] 수동 크롭 모달 노출 OK");
   });
