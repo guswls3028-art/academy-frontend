@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import BBoxLayer from "./BBoxLayer";
 import { BBoxMeta } from "./types";
+import "./BBoxOverlay.css";
 
 type Props = {
   src: string;                // image or rendered PDF page
@@ -22,8 +23,8 @@ export default function BBoxOverlay({
   );
 
   return (
-    <div className="relative">
-      <img src={src} style={{ width }} />
+    <div className="bbox-overlay">
+      <img src={src} width={width} className="bbox-overlay__image" alt="" />
 
       {boxes.map((b) => (
         <BBoxLayer

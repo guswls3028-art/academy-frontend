@@ -11,7 +11,8 @@ export default function BBoxLayer({ meta, scale }: Props) {
 
   return (
     <div
-      className="absolute border-2 border-red-500 bg-red-200/20 pointer-events-none"
+      className="bbox-layer"
+      // eslint-disable-next-line no-restricted-syntax -- bbox geometry is calculated from backend coordinates and image scale.
       style={{
         left: bbox.x * scale,
         top: bbox.y * scale,
@@ -20,7 +21,7 @@ export default function BBoxLayer({ meta, scale }: Props) {
       }}
     >
       {meta.label && (
-        <div className="absolute -top-5 left-0 rounded bg-red-600 px-1 text-[10px] text-white">
+        <div className="bbox-layer__label">
           {meta.label}
         </div>
       )}

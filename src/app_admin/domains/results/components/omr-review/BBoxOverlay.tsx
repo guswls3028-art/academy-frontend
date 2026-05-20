@@ -101,6 +101,7 @@ export default function BBoxOverlay({
         return (
           <g key={answer.question_id} className="orw-bbox-overlay__group">
             <rect
+              className={`orw-bbox-overlay__rect ${onPickQuestion ? "orw-bbox-overlay__rect--pickable" : ""}`}
               x={rect.x}
               y={rect.y}
               width={rect.w}
@@ -111,17 +112,16 @@ export default function BBoxOverlay({
               strokeWidth={strokeWidth}
               rx={4}
               ry={4}
-              style={{ cursor: onPickQuestion ? "pointer" : "default", pointerEvents: "visibleStroke" }}
               onClick={onPickQuestion ? () => onPickQuestion(answer.question_id) : undefined}
             />
             {(focused || flagged) && (
               <text
+                className="orw-bbox-overlay__text"
                 x={rect.x + 4}
                 y={rect.y + 14}
                 fill={stroke}
                 fontSize={Math.max(12, Math.min(rect.h * 0.25, 18))}
                 fontWeight={700}
-                style={{ pointerEvents: "none", userSelect: "none" }}
               >
                 {answer.question_no ?? answer.question_id}
               </text>

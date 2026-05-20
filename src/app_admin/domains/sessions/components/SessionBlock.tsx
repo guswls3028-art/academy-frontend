@@ -15,6 +15,7 @@ import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/share
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import styles from "./SessionBlock.module.css";
 
 interface Props {
   lectureId: number;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 type SessionItem = { id: number; order?: number; date?: string | null; title?: string | null; section?: number | null };
+type SessionRowTone = "primary" | "warning" | "muted";
 
 /** 차시 블록 우상단 톱니바퀴 → 수정/삭제/반변경 팝오버 */
 function SessionGearMenu({
@@ -109,14 +111,15 @@ function SessionGearMenu({
       {!editing && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg py-1 min-w-[120px]"
-          style={{ left: anchor.left, top: anchor.top, transform: "translateX(-100%)", zIndex: 10000 }}
+          className={`${styles.dropdown} ${styles.dropdownList}`}
+          // eslint-disable-next-line no-restricted-syntax -- floating menu position is computed from the trigger geometry.
+          style={{ left: anchor.left, top: anchor.top }}
           onClick={(e) => e.stopPropagation()}
         >
           <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={() => setEditing(true)}>수정</button>
           {sections && sections.length > 0 && (
             <>
-              <div className="border-t my-0.5" style={{ borderColor: "var(--color-border-divider)" }} />
+              <div className={styles.dropdownDivider} />
               <div className="px-3 py-1 text-[11px] text-[var(--color-text-muted)]">반 이동</div>
               {session.section && (
                 <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
@@ -124,7 +127,7 @@ function SessionGearMenu({
               {sections.filter(s => s.id !== session.section).map(s => (
                 <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.section_type === "CLASS" ? "수업" : "클리닉"} ${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
               ))}
-              <div className="border-t my-0.5" style={{ borderColor: "var(--color-border-divider)" }} />
+              <div className={styles.dropdownDivider} />
             </>
           )}
           <button type="button" className="w-full text-left px-3 py-1.5 text-sm text-[var(--color-error)] hover:bg-[var(--color-bg-surface-hover)]" onClick={handleDelete} disabled={busy}>삭제</button>
@@ -134,8 +137,9 @@ function SessionGearMenu({
       {editing && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] rounded-lg shadow-lg p-3 min-w-[200px]"
-          style={{ left: anchor.left, top: anchor.top, transform: "translateX(-100%)", zIndex: 9999 }}
+          className={`${styles.dropdown} ${styles.dropdownEdit}`}
+          // eslint-disable-next-line no-restricted-syntax -- floating menu position is computed from the trigger geometry.
+          style={{ left: anchor.left, top: anchor.top }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-2">
@@ -155,8 +159,8 @@ function SessionGearMenu({
   ) : null;
 
   return (
-    <div className="absolute top-1 right-1 z-10" style={{ opacity: open ? 1 : undefined }}>
-      <button ref={gearRef} type="button" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }} className="session-block__gear" aria-label="차시 설정">
+    <div className={styles.gearWrap}>
+      <button ref={gearRef} type="button" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }} className={`session-block__gear ${open ? styles.gearOpen : ""}`} aria-label="차시 설정">
         <Settings size={14} strokeWidth={2.5} />
       </button>
       {dropdownContent}
@@ -231,18 +235,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
     return (
       <>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            paddingBottom: "var(--space-4)",
-            marginBottom: "var(--space-4)",
-            borderBottom: "1px solid var(--color-border-divider)",
-          }}
-        >
+        <div className={styles.sectionModeStack}>
           {isLoading ? (
-            <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
+            <span className={styles.loadingText}>불러오는 중…</span>
           ) : !hasAnySections ? (
             <EmptySectionNotice
               onGoToSections={() => navigate(`/admin/lectures/${lectureId}/sections`)}
@@ -255,12 +250,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                 <SessionRow
                   label={clinicMode === "regular" ? "반 미지정 (정리 필요)" : "반 미지정"}
                   sublabel={clinicMode === "regular" ? "기어 메뉴에서 반으로 이동하세요" : undefined}
-                  labelBg={clinicMode === "regular"
-                    ? "color-mix(in srgb, var(--color-warning, #d97706) 12%, var(--color-bg-surface))"
-                    : "color-mix(in srgb, var(--color-text-muted) 10%, var(--color-bg-surface))"}
-                  labelColor={clinicMode === "regular"
-                    ? "var(--color-warning, #d97706)"
-                    : "var(--color-text-muted)"}
+                  tone={clinicMode === "regular" ? "warning" : "muted"}
                   sessions={commonSessions}
                   sections={sections}
                   lectureId={lectureId}
@@ -283,10 +273,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     key={sec.id}
                     label={`${isClinic ? "클리닉" : "수업"} ${sec.label}반`}
                     sublabel={`${sec.day_of_week_display} ${sec.start_time?.slice(0, 5) ?? ""}`}
-                    labelBg={isClinic
-                      ? "color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-surface))"
-                      : "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))"}
-                    labelColor={isClinic ? "var(--color-warning, #d97706)" : "var(--color-brand-primary)"}
+                    tone={isClinic ? "warning" : "primary"}
                     sessions={secSessions}
                     sections={sections}
                     lectureId={lectureId}
@@ -310,15 +297,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   // --- 렌더: 기존 (section_mode OFF) ---
   return (
     <>
-      <div
-        style={{
-          display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap",
-          paddingBottom: "var(--space-4)", marginBottom: "var(--space-4)",
-          borderBottom: "1px solid var(--color-border-divider)",
-        }}
-      >
+      <div className={styles.legacyBar}>
         {isLoading ? (
-          <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
+          <span className={styles.loadingText}>불러오는 중…</span>
         ) : (
           <>
             {(sessions as SessionItem[]).map((s) => {
@@ -345,43 +326,19 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 /** 반 편성 모드이지만 반이 하나도 없을 때의 온보딩 안내 */
 function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "var(--space-3)",
-        padding: "var(--space-4)",
-        borderRadius: 12,
-        border: "1px dashed var(--color-border-divider)",
-        background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
+    <div className={styles.emptyNotice}>
+      <div className={styles.emptyNoticeText}>
+        <span className={styles.emptyNoticeTitle}>
           이 강의에 반이 아직 없습니다
         </span>
-        <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+        <span className={styles.emptyNoticeBody}>
           수업 반(A, B…)과 클리닉 반을 만들면 차시를 반별로 관리할 수 있습니다.
         </span>
       </div>
       <button
         type="button"
         onClick={onGoToSections}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#fff",
-          background: "var(--color-brand-primary)",
-          border: "none",
-          borderRadius: 8,
-          padding: "8px 14px",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
+        className={styles.emptyNoticeButton}
       >
         <Users size={14} /> 반 편성 열기
       </button>
@@ -391,13 +348,12 @@ function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) 
 
 /** 한 줄: 라벨 + 차시 블록들 + 추가 버튼 */
 function SessionRow({
-  label, sublabel, labelBg, labelColor, sessions, sections, lectureId, currentSessionId, navigate, invalidate, onAdd,
+  label, sublabel, tone, sessions, sections, lectureId, currentSessionId, navigate, invalidate, onAdd,
   sectionType, isUnassigned,
 }: {
   label: string;
   sublabel?: string;
-  labelBg: string;
-  labelColor: string;
+  tone: SessionRowTone;
   sessions: Session[];
   sections?: SectionType[];
   lectureId: number;
@@ -408,85 +364,24 @@ function SessionRow({
   sectionType?: "CLASS" | "CLINIC";
   isUnassigned?: boolean;
 }) {
-  const [hovered, setHovered] = useState(false);
   const LabelIcon = sectionType === "CLINIC" ? Stethoscope : isUnassigned ? Layers : BookOpen;
   const iconSize = 13;
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-2)",
-        flexWrap: "wrap",
-        padding: "8px 10px",
-        borderRadius: 10,
-        background: hovered ? "var(--color-bg-surface-hover)" : "transparent",
-        transition: "background 160ms ease",
-        marginLeft: -10,
-        marginRight: -10,
-      }}
-    >
+    <div className={styles.sessionRow}>
       {/* Lane header: icon + label + schedule */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          minWidth: isUnassigned ? 80 : 120,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            fontSize: 12,
-            fontWeight: 700,
-            padding: "4px 10px",
-            borderRadius: 8,
-            background: labelBg,
-            color: labelColor,
-            letterSpacing: "-0.01em",
-            lineHeight: 1,
-            border: `1px solid color-mix(in srgb, ${labelColor} 15%, transparent)`,
-            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          <LabelIcon size={iconSize} strokeWidth={2.2} style={{ opacity: 0.85, flexShrink: 0 }} />
+      <div className={styles.rowHeader} data-unassigned={isUnassigned ? "true" : undefined}>
+        <span className={styles.labelChip} data-tone={tone}>
+          <LabelIcon size={iconSize} strokeWidth={2.2} className={styles.labelIcon} />
           {label}
         </span>
         {sublabel && (
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--color-text-tertiary)",
-              letterSpacing: "-0.01em",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span className={styles.sublabel}>
             {sublabel}
           </span>
         )}
         {isUnassigned && sessions.length > 0 && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 3,
-              fontSize: 10,
-              fontWeight: 500,
-              color: "var(--color-text-muted)",
-              background: "var(--color-bg-surface-hover)",
-              padding: "2px 6px",
-              borderRadius: 4,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span className={styles.moveHint}>
             <ArrowRightLeft size={10} strokeWidth={2} />
             반 이동
           </span>
@@ -508,33 +403,11 @@ function SessionRow({
       {/* Empty state or add button */}
       {sessions.length === 0 ? (
         <button
+          type="button"
           onClick={onAdd}
           aria-label={`${label} 차시 추가`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "1.5px dashed var(--color-border-subtle)",
-            background: "transparent",
-            color: "var(--color-text-muted)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            transition: "border-color 160ms ease, color 160ms ease, background 160ms ease",
-            minHeight: 52,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = labelColor;
-            e.currentTarget.style.color = labelColor;
-            e.currentTarget.style.background = "var(--color-bg-surface-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-border-subtle)";
-            e.currentTarget.style.color = "var(--color-text-muted)";
-            e.currentTarget.style.background = "transparent";
-          }}
+          className={styles.emptyAddButton}
+          data-tone={tone}
         >
           <Plus size={15} strokeWidth={2.2} />
           차시를 추가하세요

@@ -290,6 +290,16 @@
   pointer-events: visibleStroke;
   transition: stroke-width 0.12s, fill-opacity 0.12s;
 }
+.orw-bbox-overlay__rect {
+  cursor: default;
+}
+.orw-bbox-overlay__rect--pickable {
+  cursor: pointer;
+}
+.orw-bbox-overlay__text {
+  pointer-events: none;
+  user-select: none;
+}
 .orw-bbox-overlay__group rect:hover {
   stroke-width: 5 !important;
 }

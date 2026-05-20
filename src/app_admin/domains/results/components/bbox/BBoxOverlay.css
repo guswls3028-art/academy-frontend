@@ -1,0 +1,28 @@
+.bbox-overlay {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.bbox-overlay__image {
+  display: block;
+  height: auto;
+}
+
+.bbox-layer {
+  position: absolute;
+  border: 2px solid #ef4444;
+  background: rgba(254, 202, 202, 0.2);
+  pointer-events: none;
+}
+
+.bbox-layer__label {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+}

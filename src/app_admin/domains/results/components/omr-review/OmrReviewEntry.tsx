@@ -122,7 +122,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
             {badge.autoRate !== null && (
               <span className="omr-entry__metric">
                 자동 인식 {badge.autoRate}%
-                <small style={{ opacity: 0.7, marginLeft: 4 }}>
+                <small className="omr-entry__metric-count">
                   ({badge.answerOk}/{badge.answerTotal})
                 </small>
               </span>

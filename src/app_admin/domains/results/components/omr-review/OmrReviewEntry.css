@@ -73,6 +73,11 @@
   font-weight: 600;
 }
 
+.omr-entry__metric-count {
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
 .omr-entry__metric--noid {
   color: #b45309;
 }
