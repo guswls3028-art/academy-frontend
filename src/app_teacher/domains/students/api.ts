@@ -1,48 +1,92 @@
 // PATH: src/app_teacher/domains/students/api.ts
 // 학생 API — 기존 students API 래핑 (모바일 전용 정규화)
 import api from "@/shared/api/axios";
+import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
+import { applyDisplayNames, mapStudent } from "@admin/domains/students/api/students.api";
+import type { ClientStudent, ClientStudentTag } from "@admin/domains/students/api/students.api";
+
+export type TeacherStudentsResponse = {
+  data: ClientStudent[];
+  count: number;
+};
+
+export type TeacherStudentExamResult = {
+  id: number | string;
+  exam_title?: string | null;
+  title?: string | null;
+  homework_title?: string | null;
+  session_title?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  total_score?: number | null;
+  score?: number | null;
+  max_score?: number | null;
+  is_pass?: boolean | null;
+  passed?: boolean | null;
+  achievement?: string | null;
+  retake_count?: number | null;
+  submitted_at?: string | null;
+  homework_id?: number | string | null;
+  type?: string | null;
+};
+
+export type SendPasswordResetParams = {
+  target: "student" | "parent";
+  student_name: string;
+  student_ps_number?: string;
+  parent_phone?: string;
+  temp_password?: string;
+  skip_notify?: boolean;
+};
 
 /** 학생 목록 (페이지네이션) */
 export async function fetchStudents(params?: {
   search?: string;
   page?: number;
   page_size?: number;
-}) {
+  grade?: number;
+  gender?: string;
+  status?: string;
+  is_managed?: boolean;
+}): Promise<TeacherStudentsResponse> {
+  const { status, ...rest } = params ?? {};
+  const normalizedParams = {
+    page_size: 50,
+    ...rest,
+    ...(status === "active" ? { is_managed: true } : {}),
+    ...(status === "inactive" ? { is_managed: false } : {}),
+  };
   const res = await api.get("/students/", {
-    params: { page_size: 50, ...params },
+    params: normalizedParams,
   });
   const raw = res.data;
-  const items = Array.isArray(raw?.results)
-    ? raw.results
-    : Array.isArray(raw)
-      ? raw
-      : [];
-  const count = typeof raw?.count === "number" ? raw.count : items.length;
-  return { data: items, count };
+  const items = listFromApiResponse(raw);
+  const count = countFromApiResponse(raw, items.length);
+  return { data: applyDisplayNames(items.map(mapStudent)), count };
 }
 
 /** 학생 단건 */
-export async function fetchStudent(studentId: number) {
+export async function fetchStudent(studentId: number): Promise<ClientStudent> {
   const res = await api.get(`/students/${studentId}/`);
-  return res.data;
+  return mapStudent(res.data);
 }
 
 /** 학생 시험 성적 */
-export async function fetchStudentExamResults(studentId: number) {
-  const res = await api.get("/results/", {
-    params: { student: studentId, page_size: 200, ordering: "-created_at" },
+export async function fetchStudentExamResults(studentId: number): Promise<TeacherStudentExamResult[]> {
+  const res = await api.get("/results/admin/student-grades/", {
+    params: { student_id: studentId },
   });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return Array.isArray(raw?.exams) ? raw.exams : [];
 }
 
 /** 학생 출석 이력 */
 export async function fetchStudentAttendance(studentId: number) {
-  const res = await api.get("/lectures/attendances/", {
+  const res = await api.get("/lectures/attendance/", {
     params: { student: studentId, page_size: 200, ordering: "-date" },
   });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return listFromApiResponse(res.data);
 }
 
 /* ─── 학생 편집 ─── */
@@ -50,23 +94,46 @@ export async function updateStudent(studentId: number, payload: {
   name?: string;
   phone?: string;
   parent_phone?: string;
+  school_type?: "ELEMENTARY" | "MIDDLE" | "HIGH" | null;
   school?: string;
+  school_class?: string;
   grade?: string;
   memo?: string;
 }) {
-  const res = await api.patch(`/students/${studentId}/`, payload);
+  const { school, school_class, school_type, ...rest } = payload;
+  const normalized: Record<string, unknown> = { ...rest };
+  const effectiveSchoolType = school_type ?? "HIGH";
+  if (school !== undefined) {
+    normalized.school_type = effectiveSchoolType;
+    normalized.elementary_school = effectiveSchoolType === "ELEMENTARY" ? school || null : null;
+    normalized.middle_school = effectiveSchoolType === "MIDDLE" ? school || null : null;
+    normalized.high_school = effectiveSchoolType === "HIGH" ? school || null : null;
+  }
+  if (school_class !== undefined) {
+    normalized.high_school_class = effectiveSchoolType === "HIGH" ? school_class || null : null;
+  }
+  const res = await api.patch(`/students/${studentId}/`, normalized);
   return res.data;
 }
 
 /* ─── 엑셀 내보내기 ─── */
 export async function exportStudentsExcel() {
-  const res = await api.get("/students/export/", { responseType: "blob" });
-  const url = window.URL.createObjectURL(res.data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `students-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  a.click();
-  window.URL.revokeObjectURL(url);
+  const mod = await import("@admin/domains/students/excel/studentExcel");
+  const pageSize = 500;
+  let page = 1;
+  let allData: ClientStudent[] = [];
+  let expectedCount: number | null = null;
+  while (true) {
+    const chunk = await fetchStudents({ page, page_size: pageSize });
+    allData = [...allData, ...chunk.data];
+    expectedCount = chunk.count;
+    if (chunk.data.length < pageSize || allData.length >= chunk.count) break;
+    page += 1;
+  }
+  mod.downloadStudentsExcel(
+    expectedCount != null ? allData.slice(0, expectedCount) : allData,
+    `students-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  );
 }
 
 /* ─── 엑셀 벌크 업로드 ─── */
@@ -74,9 +141,7 @@ export async function uploadStudentBulkExcel(file: File, initialPassword: string
   const formData = new FormData();
   formData.append("file", file);
   formData.append("initial_password", initialPassword);
-  const res = await api.post("/students/bulk-upload/", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const res = await api.post("/students/bulk_create_from_excel/", formData);
   return res.data;
 }
 
@@ -86,27 +151,26 @@ export async function deleteStudent(studentId: number) {
 }
 
 /* ─── 활성/비활성 토글 ─── */
-export async function toggleStudentActive(studentId: number) {
-  const res = await api.post(`/students/${studentId}/toggle-active/`);
-  return res.data;
+export async function toggleStudentActive(studentId: number, nextActive: boolean) {
+  const res = await api.patch(`/students/${studentId}/`, { is_managed: nextActive });
+  return mapStudent(res.data);
 }
 
 /* ─── 태그 관리 ─── */
-export async function fetchTags() {
+export async function fetchTags(): Promise<ClientStudentTag[]> {
   const res = await api.get("/students/tags/", { params: { page_size: 200 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return listFromApiResponse<ClientStudentTag>(res.data);
 }
 
 export async function attachTag(studentId: number, tagId: number) {
-  await api.post(`/students/${studentId}/tags/`, { tag_id: tagId });
+  await api.post(`/students/${studentId}/add_tag/`, { tag_id: tagId });
 }
 
 export async function detachTag(studentId: number, tagId: number) {
-  await api.delete(`/students/${studentId}/tags/${tagId}/`);
+  await api.post(`/students/${studentId}/remove_tag/`, { tag_id: tagId });
 }
 
-export async function createTag(name: string) {
+export async function createTag(name: string): Promise<ClientStudentTag> {
   const res = await api.post("/students/tags/", { name });
   return res.data;
 }
@@ -152,14 +216,7 @@ export async function bulkDetachTag(studentIds: number[], tagId: number): Promis
   return { ok, fail };
 }
 
-export async function sendPasswordReset(params: {
-  target: "student" | "parent";
-  student_name: string;
-  student_ps_number?: string;
-  parent_phone?: string;
-  temp_password?: string;
-  skip_notify?: boolean;
-}): Promise<{ message: string }> {
+export async function sendPasswordReset(params: SendPasswordResetParams): Promise<{ message: string }> {
   const body: Record<string, string | boolean> = {
     target: params.target,
     student_name: params.student_name.trim(),

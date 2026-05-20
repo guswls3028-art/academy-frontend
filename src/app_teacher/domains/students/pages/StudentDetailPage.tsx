@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentDetailPage.tsx
 // 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
 import { useState, useEffect } from "react";
@@ -7,23 +7,42 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import { Phone, Mail, User, Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
+import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
-import { Badge, AchievementBadge, AttendanceBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
+import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
+import type { TeacherStudentExamResult } from "../api";
+import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@admin/domains/students/api/students.api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
+import { listFromApiResponse } from "@/shared/api/response";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
+
+type ClinicParticipantRow = {
+  id: number | string;
+  session_title?: string | null;
+  session_date?: string | null;
+  session_start_time?: string | null;
+  session_location?: string | null;
+  clinic_reason?: string | null;
+  status?: string | null;
+};
+
+type CommunityQuestionRow = {
+  id: number | string;
+  post_type?: string | null;
+  title?: string | null;
+  created_at?: string | null;
+  replies_count?: number | null;
+};
 
 export default function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const confirm = useConfirm();
   const sid = Number(studentId);
   const [tab, setTab] = useState<Tab>("enrollments");
 
@@ -31,8 +50,6 @@ export default function StudentDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
   const [pwResetOpen, setPwResetOpen] = useState(false);
-  const [memoEditing, setMemoEditing] = useState(false);
-  const [memoText, setMemoText] = useState("");
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", sid],
@@ -50,8 +67,7 @@ export default function StudentDetailPage() {
     queryKey: ["student-clinic", sid],
     queryFn: async () => {
       const res = await api.get("/clinic/participants/", { params: { student: sid, page_size: 100 } });
-      const raw = res.data;
-      return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+      return listFromApiResponse<ClinicParticipantRow>(res.data);
     },
     enabled: Number.isFinite(sid) && tab === "clinic",
   });
@@ -60,8 +76,7 @@ export default function StudentDetailPage() {
     queryKey: ["student-questions", sid],
     queryFn: async () => {
       const res = await api.get("/community/posts/", { params: { created_by: sid, page_size: 50, ordering: "-created_at" } });
-      const raw = res.data;
-      return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+      return listFromApiResponse<CommunityQuestionRow>(res.data);
     },
     enabled: Number.isFinite(sid) && tab === "questions",
   });
@@ -71,13 +86,16 @@ export default function StudentDetailPage() {
     return <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" />;
 
   const name = student.name ?? student.displayName ?? "이름 없음";
-  const parentPhone = student.parentPhone ?? student.parent_phone;
-  const studentPhone = student.studentPhone ?? student.student_phone ?? student.phone;
-  const enrollments = student.enrollments ?? [];
-  const tags = student.tags ?? [];
-  const exams = examResults ?? [];
-  const passCount = exams.filter((r: any) => r.is_pass).length;
-  const failCount = exams.filter((r: any) => r.is_pass === false).length;
+  const parentPhone = student.parentPhone;
+  const studentPhone = student.studentPhone;
+  const enrollments: ClientEnrollmentLite[] = student.enrollments ?? [];
+  const tags: ClientStudentTag[] = student.tags ?? [];
+  const exams: TeacherStudentExamResult[] = examResults ?? [];
+  const passCount = exams.filter((result) => result.is_pass).length;
+  const failCount = exams.filter((result) => result.is_pass === false).length;
+  const averageScore = exams.length > 0
+    ? Math.round(exams.reduce((sum, result) => sum + (result.total_score ?? result.score ?? 0), 0) / exams.length)
+    : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -96,8 +114,8 @@ export default function StudentDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-lg font-bold" style={{ color: "var(--tc-text)" }}>{name}</span>
-              {enrollments.map((e: any) => (
-                <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={ICON.lg} />
+              {enrollments.map((e) => (
+                <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? ""} color={e.lectureColor ?? undefined} chipLabel={e.lectureChipLabel ?? undefined} size={ICON.lg} />
               ))}
             </div>
             {student.psNumber && (
@@ -115,7 +133,7 @@ export default function StudentDetailPage() {
 
         {/* Tags — with management */}
         <div className="flex flex-wrap items-center gap-1 mt-3">
-          {tags.map((t: any) => (
+          {tags.map((t) => (
             <Badge key={t.id} tone="neutral" pill>{t.name}</Badge>
           ))}
           <button onClick={() => setTagSheetOpen(true)}
@@ -129,7 +147,6 @@ export default function StudentDetailPage() {
         <div className="flex gap-2 mt-3">
           {parentPhone && <ContactBtn href={`tel:${parentPhone}`} label={`부모 ${formatPhone(parentPhone)}`} />}
           {studentPhone && <ContactBtn href={`tel:${studentPhone}`} label={`학생 ${formatPhone(studentPhone)}`} />}
-          {parentPhone && <ContactBtn href={`sms:${parentPhone}`} label="문자" />}
         </div>
       </Card>
 
@@ -152,8 +169,8 @@ export default function StudentDetailPage() {
 
       {/* Summary KPI */}
       <div className="grid grid-cols-3 gap-2">
-        <KpiCard label="수강" value={enrollments.filter((e: any) => e.status === "ACTIVE").length} sub={`/${enrollments.length}`} />
-        <KpiCard label="시험" value={exams.length} sub={exams.length > 0 ? `평균 ${Math.round(exams.reduce((s: number, r: any) => s + (r.total_score ?? r.score ?? 0), 0) / exams.length)}` : undefined} />
+        <KpiCard label="수강" value={enrollments.filter((e) => e.status === "ACTIVE").length} sub={`/${enrollments.length}`} />
+        <KpiCard label="시험" value={exams.length} sub={averageScore != null ? `평균 ${averageScore}` : undefined} />
         <KpiCard label="합격률" value={exams.length ? `${Math.round((passCount / exams.length) * 100)}%` : "-"} color={passCount > failCount ? "var(--tc-success)" : undefined} />
       </div>
 
@@ -173,7 +190,7 @@ export default function StudentDetailPage() {
       {/* Tab content */}
       {tab === "enrollments" && <EnrollmentList enrollments={enrollments} />}
       {tab === "exams" && <ExamList results={exams} />}
-      {tab === "homework" && <HomeworkList results={exams.filter((r: any) => r.homework_id || r.type === "homework")} />}
+      {tab === "homework" && <HomeworkList results={exams.filter((result) => result.homework_id || result.type === "homework")} />}
       {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
 
@@ -193,16 +210,16 @@ export default function StudentDetailPage() {
 
 /* === Tabs === */
 
-function EnrollmentList({ enrollments }: { enrollments: any[] }) {
+function EnrollmentList({ enrollments }: { enrollments: ClientEnrollmentLite[] }) {
   if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강 이력 없음" />;
   return (
     <div className="flex flex-col gap-1.5">
-      {enrollments.map((e: any) => (
+      {enrollments.map((e) => (
         <Card key={e.id ?? e.lectureId} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
-            <LectureChip lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={ICON.lg} />
+            <LectureChip lectureName={e.lectureName ?? ""} color={e.lectureColor ?? undefined} chipLabel={e.lectureChipLabel ?? undefined} size={ICON.lg} />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{e.lectureName ?? e.lecture_title}</div>
+              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{e.lectureName}</div>
               {e.enrolledAt && <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{new Date(e.enrolledAt).toLocaleDateString("ko-KR")}</div>}
             </div>
             <Badge tone={e.status === "ACTIVE" ? "success" : "neutral"}>{e.status === "ACTIVE" ? "수강 중" : e.status === "PENDING" ? "대기" : "비활성"}</Badge>
@@ -213,18 +230,18 @@ function EnrollmentList({ enrollments }: { enrollments: any[] }) {
   );
 }
 
-function ExamList({ results }: { results: any[] }) {
+function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
   if (!results.length) return <EmptyState scope="panel" tone="empty" title="시험 성적 없음" />;
   return (
     <div className="flex flex-col gap-1.5">
-      {results.map((r: any) => (
+      {results.map((r) => (
         <Card key={r.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
-            {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label} size={20} />}
+            {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label ?? undefined} size={20} />}
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.exam_title ?? r.title}</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                {r.session_title}{r.retake_count > 0 ? ` · 재시험 ${r.retake_count}회` : ""}{r.submitted_at ? ` · ${new Date(r.submitted_at).toLocaleDateString("ko-KR")}` : ""}
+                {r.session_title}{(r.retake_count ?? 0) > 0 ? ` · 재시험 ${r.retake_count ?? 0}회` : ""}{r.submitted_at ? ` · ${new Date(r.submitted_at).toLocaleDateString("ko-KR")}` : ""}
               </div>
             </div>
             <div className="flex flex-col items-end shrink-0">
@@ -238,14 +255,14 @@ function ExamList({ results }: { results: any[] }) {
   );
 }
 
-function HomeworkList({ results }: { results: any[] }) {
+function HomeworkList({ results }: { results: TeacherStudentExamResult[] }) {
   if (!results.length) return <EmptyState scope="panel" tone="empty" title="과제 이력 없음" />;
   return (
     <div className="flex flex-col gap-1.5">
-      {results.map((r: any) => (
+      {results.map((r) => (
         <Card key={r.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
-            {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label} size={20} />}
+            {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label ?? undefined} size={20} />}
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.title ?? r.homework_title}</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{r.session_title}</div>
@@ -261,11 +278,11 @@ function HomeworkList({ results }: { results: any[] }) {
   );
 }
 
-function ClinicList({ items }: { items: any[] }) {
+function ClinicList({ items }: { items: ClinicParticipantRow[] }) {
   if (!items.length) return <EmptyState scope="panel" tone="empty" title="클리닉 이력 없음" />;
   return (
     <div className="flex flex-col gap-1.5">
-      {items.map((c: any) => (
+      {items.map((c) => (
         <Card key={c.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
@@ -275,7 +292,7 @@ function ClinicList({ items }: { items: any[] }) {
                 {c.clinic_reason ? ` · ${c.clinic_reason}` : ""}
               </div>
             </div>
-            <ClinicStatusBadge status={c.status} />
+            <ClinicStatusBadge status={c.status ?? ""} />
           </div>
         </Card>
       ))}
@@ -283,27 +300,30 @@ function ClinicList({ items }: { items: any[] }) {
   );
 }
 
-function QuestionList({ items }: { items: any[] }) {
+function QuestionList({ items }: { items: CommunityQuestionRow[] }) {
   if (!items.length) return <EmptyState scope="panel" tone="empty" title="질문 이력 없음" />;
   const typeLabel: Record<string, string> = { qna: "질문", board: "게시글", notice: "공지", counsel: "상담", materials: "자료" };
   return (
     <div className="flex flex-col gap-1.5">
-      {items.map((p: any) => (
+      {items.map((p) => {
+        const postType = p.post_type ?? "board";
+        return (
         <Card key={p.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <Badge tone="primary" size="xs">{typeLabel[p.post_type] ?? p.post_type}</Badge>
-                <span className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{p.title}</span>
+                <Badge tone="primary" size="xs">{typeLabel[postType] ?? postType}</Badge>
+                <span className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{p.title ?? "제목 없음"}</span>
               </div>
               <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                 {p.created_at ? new Date(p.created_at).toLocaleDateString("ko-KR") : ""}
-                {p.replies_count > 0 ? ` · 답변 ${p.replies_count}` : ""}
+                {(p.replies_count ?? 0) > 0 ? ` · 답변 ${p.replies_count ?? 0}개` : ""}
               </div>
             </div>
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -387,20 +407,30 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
 
 /* ─── Edit Student BottomSheet ─── */
 function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenPasswordReset }: {
-  open: boolean; onClose: () => void; student: any; studentId: number; onDelete: () => void; onOpenPasswordReset: () => void;
+  open: boolean; onClose: () => void; student: ClientStudent; studentId: number; onDelete: () => void; onOpenPasswordReset: () => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [name, setName] = useState(student?.name ?? "");
-  const [phone, setPhone] = useState(student?.studentPhone ?? student?.student_phone ?? student?.phone ?? "");
-  const [parentPhone, setParentPhone] = useState(student?.parentPhone ?? student?.parent_phone ?? "");
+  const [phone, setPhone] = useState(student?.studentPhone ?? "");
+  const [parentPhone, setParentPhone] = useState(student?.parentPhone ?? "");
   const [school, setSchool] = useState(student?.school ?? "");
-  const [grade, setGrade] = useState(student?.grade ?? "");
+  const schoolType = student?.schoolType ?? "HIGH";
+  const [grade, setGrade] = useState(student?.grade != null ? String(student.grade) : "");
 
   const mutation = useMutation({
-    mutationFn: () => updateStudent(studentId, { name, phone, parent_phone: parentPhone, school, grade }),
+    mutationFn: () => updateStudent(studentId, {
+      name,
+      phone,
+      parent_phone: parentPhone,
+      school_type: schoolType,
+      school,
+      school_class: student?.schoolClass ?? "",
+      grade,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", studentId] });
+      qc.invalidateQueries({ queryKey: ["students-mobile"] });
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
       teacherToast.success(`${name} 학생 정보가 수정되었습니다.`);
       onClose();
@@ -409,16 +439,17 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
   });
 
   const toggleMut = useMutation({
-    mutationFn: () => toggleStudentActive(studentId),
+    mutationFn: () => toggleStudentActive(studentId, !isActive),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", studentId] });
+      qc.invalidateQueries({ queryKey: ["students-mobile"] });
       qc.invalidateQueries({ queryKey: ["teacher-students"] });
       teacherToast.success(isActive ? "학생이 비활성화되었습니다." : "학생이 활성화되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
 
-  const isActive = student?.is_active !== false;
+  const isActive = student?.active !== false;
 
   return (
     <BottomSheet open={open} onClose={onClose} title="학생 정보 편집">
@@ -495,7 +526,7 @@ function EditField({ label, value, onChange, type = "text" }: {
 
 /* ─── Tag Management BottomSheet ─── */
 function TagManagementSheet({ open, onClose, studentId, currentTags }: {
-  open: boolean; onClose: () => void; studentId: number; currentTags: any[];
+  open: boolean; onClose: () => void; studentId: number; currentTags: ClientStudentTag[];
 }) {
   const qc = useQueryClient();
   const [newTagName, setNewTagName] = useState("");
@@ -520,7 +551,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
 
   const createMut = useMutation({
     mutationFn: () => createTag(newTagName.trim()),
-    onSuccess: (tag: any) => {
+    onSuccess: (tag) => {
       setNewTagName("");
       qc.invalidateQueries({ queryKey: ["all-tags"] });
       attachMut.mutate(tag.id);
@@ -528,8 +559,8 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
   });
 
-  const currentTagIds = new Set(currentTags.map((t: any) => t.id));
-  const availableTags = (allTags ?? []).filter((t: any) => !currentTagIds.has(t.id));
+  const currentTagIds = new Set(currentTags.map((t) => t.id));
+  const availableTags = (allTags ?? []).filter((t) => !currentTagIds.has(t.id));
 
   return (
     <BottomSheet open={open} onClose={onClose} title="태그 관리">
@@ -541,7 +572,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
             {currentTags.length === 0 && (
               <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>태그 없음</span>
             )}
-            {currentTags.map((t: any) => (
+            {currentTags.map((t) => (
               <button key={t.id} onClick={() => detachMut.mutate(t.id)}
                 className="flex items-center gap-1 text-[12px] font-medium cursor-pointer"
                 style={{ padding: "4px 10px", borderRadius: "var(--tc-radius-full)", border: "1px solid var(--tc-danger)", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
@@ -556,7 +587,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
           <div>
             <div className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--tc-text-muted)" }}>추가 가능</div>
             <div className="flex flex-wrap gap-1">
-              {availableTags.map((t: any) => (
+              {availableTags.map((t) => (
                 <button key={t.id} onClick={() => attachMut.mutate(t.id)}
                   className="flex items-center gap-1 text-[12px] font-medium cursor-pointer"
                   style={{ padding: "4px 10px", borderRadius: "var(--tc-radius-full)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
@@ -588,7 +619,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
 type PwTarget = "student" | "parent" | "both";
 
 function PasswordResetSheet({ open, onClose, student }: {
-  open: boolean; onClose: () => void; student: any;
+  open: boolean; onClose: () => void; student: ClientStudent;
 }) {
   const [target, setTarget] = useState<PwTarget>("student");
   const [tempPassword, setTempPassword] = useState("");
@@ -601,8 +632,8 @@ function PasswordResetSheet({ open, onClose, student }: {
   }, [open]);
 
   const name = student?.name ?? student?.displayName ?? "";
-  const psNumber = student?.psNumber ?? student?.ps_number ?? "";
-  const parentPhone = student?.parentPhone ?? student?.parent_phone ?? "";
+  const psNumber = student?.psNumber ?? "";
+  const parentPhone = student?.parentPhone ?? "";
   const hasStudentAccount = !!psNumber;
   const hasParent = !!parentPhone;
 

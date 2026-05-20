@@ -12,6 +12,7 @@ import "../shared/ui/theme/tokens.css";
 import "../shared/ui/theme/tenants/index.css";
 import "../shared/ui/theme/dark.css";
 import "../shared/ui/theme/video.css";
+import "./StudentLayout.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
@@ -62,6 +63,23 @@ function StudentLayoutInner() {
   const useLimglishTheme = tenantCode != null && LIMGLISH_THEME_TENANTS.includes(String(tenantCode));
   const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
+  const { user } = useAuthContext();
+
+  const [parentSelectionReady, setParentSelectionReady] = useState(false);
+
+  useEffect(() => {
+    if (user?.tenantRole !== "parent") {
+      setParentSelectionReady(true);
+      return;
+    }
+    const ids = user.linkedStudents?.map((s) => s.id) ?? [];
+    if (!ids.length) {
+      setParentSelectionReady(true);
+      return;
+    }
+    initParentStudentId(ids);
+    setParentSelectionReady(true);
+  }, [user?.tenantRole, user?.linkedStudents]);
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
   useEffect(() => {
@@ -73,14 +91,6 @@ function StudentLayoutInner() {
     return () => clearTimeout(t);
   }, []);
 
-  // 학부모 로그인 시 선택 자녀 ID 초기화 (linkedStudents 기준)
-  const { user } = useAuthContext();
-  useEffect(() => {
-    if (user?.tenantRole === "parent" && user?.linkedStudents?.length) {
-      initParentStudentId(user.linkedStudents.map((s) => s.id));
-    }
-  }, [user?.tenantRole, user?.linkedStudents]);
-
   // 사이드 드로어 상태
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
@@ -91,24 +101,15 @@ function StudentLayoutInner() {
 
   return (
     <div
+      className="student-layout"
       data-app="student"
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useLimglishTheme ? "limglish" : useHakwonplusTheme ? "hakwonplus" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
       data-student-dark={isDark ? "true" : undefined}
-      style={{
-        minHeight: "100dvh",
-        height: "100dvh",
-        overflow: "visible",
-        backgroundColor: "var(--stu-bg)",
-        color: "var(--stu-text)",
-        display: "flex",
-        flexDirection: "column",
-        paddingTop: "var(--stu-safe-top)",
-      }}
     >
       {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useLimglishTheme || useHakwonplusTheme || useCommonTheme) && (
-        <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
+        <svg aria-hidden width={0} height={0} className="student-layout__defs">
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#0d47a1" />
@@ -148,38 +149,18 @@ function StudentLayoutInner() {
           </defs>
         </svg>
       )}
-      <header
-        style={{
-          flexShrink: 0,
-          position: "sticky",
-          top: 0,
-          zIndex: "var(--stu-z-header)",
-          background: "var(--stu-header-bg)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--stu-border)",
-          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
-        }}
-      >
-        <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
-        <ParentChildSwitcher />
+      <header className="student-layout__header">
+        {parentSelectionReady && (
+          <>
+            <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
+            <ParentChildSwitcher />
+          </>
+        )}
       </header>
 
-      <main
-        style={{
-          flex: 1,
-          overflow: "auto",
-          scrollbarWidth: "none",
-          paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
-        }}
-      >
-        <div style={{
-          maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)",
-          margin: "0 auto",
-          padding: isVideoPage ? 0 : "var(--stu-space-4)",
-          overflow: "visible",
-          height: "auto",
-        }}>
-          <Outlet />
+      <main className="student-layout__main">
+        <div className="student-layout__content">
+          {parentSelectionReady && <Outlet />}
         </div>
       </main>
 

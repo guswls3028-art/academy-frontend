@@ -196,13 +196,25 @@ export interface MessageTemplatePayload {
   body: string;
 }
 
+function normalizeTemplateCategory(category?: string): MessageTemplateCategory | undefined {
+  if (!category) return undefined;
+  return (category === "student" ? "default" : category) as MessageTemplateCategory;
+}
+
+function normalizeTemplatePayload<T extends Partial<MessageTemplatePayload>>(payload: T): T {
+  const category = normalizeTemplateCategory((payload as { category?: string }).category);
+  if (!category) return payload;
+  return { ...payload, category };
+}
+
 export async function fetchMessageTemplates(
   category?: MessageTemplateCategory,
   /** true이면 오너 테넌트의 승인 알림톡 템플릿도 포함 (시스템 기본 채널 폴백용) */
   includeSystem?: boolean,
 ): Promise<MessageTemplateItem[]> {
   const params: Record<string, string> = {};
-  if (category) params.category = category;
+  const normalizedCategory = normalizeTemplateCategory(category);
+  if (normalizedCategory) params.category = normalizedCategory;
   if (includeSystem) params.include_system = "true";
   const res = await api.get<MessageTemplateItem[]>(`${PREFIX}/templates/`, { params });
   return res.data;
@@ -216,7 +228,7 @@ export async function fetchMessageTemplate(id: number): Promise<MessageTemplateI
 export async function createMessageTemplate(
   payload: MessageTemplatePayload
 ): Promise<MessageTemplateItem> {
-  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/`, payload);
+  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/`, normalizeTemplatePayload(payload));
   return res.data;
 }
 
@@ -224,7 +236,7 @@ export async function updateMessageTemplate(
   id: number,
   payload: Partial<MessageTemplatePayload>
 ): Promise<MessageTemplateItem> {
-  const res = await api.patch<MessageTemplateItem>(`${PREFIX}/templates/${id}/`, payload);
+  const res = await api.patch<MessageTemplateItem>(`${PREFIX}/templates/${id}/`, normalizeTemplatePayload(payload));
   return res.data;
 }
 

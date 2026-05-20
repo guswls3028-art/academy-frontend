@@ -5,8 +5,8 @@
 // R-11 baseline 임시 file-level disable (2026-05-14): 학원장 limglish 변수 누락 즉시 fix(712656a2)
 // 가 file에 line 추가/수정 → baseline file:line 매칭 깨져 기존 22 errors 새 fail로 분류 → CI 차단.
 // line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
-// (백로그: any/unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
+// (백로그: unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
+/* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
@@ -18,7 +18,6 @@ import {
   downloadAttendanceExcel,
   bulkSetPresent,
 } from "@admin/domains/lectures/api/attendance";
-import { sortSessionsByDateDesc } from "@admin/domains/lectures/api/sessions";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
@@ -36,7 +35,6 @@ import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api"
 import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@admin/domains/scores/utils/generateScoreReport";
 import { fetchSessionScores } from "@admin/domains/scores/api/sessionScores";
 import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -48,14 +46,13 @@ type SessionAttendancePageProps = {
   onOpenEnrollModal?: () => void;
 };
 
-function matchSearch(att: any, q: string): boolean {
-  if (!q.trim()) return true;
-  const k = q.trim().toLowerCase();
-  const digits = q.trim().replace(/\D/g, "");
-  const name = (att.name ?? "").toLowerCase();
-  const phone = (formatPhone(att.phone ?? att.student_phone ?? "") ?? "").replace(/\D/g, "");
-  const parentPhone = (formatPhone(att.parent_phone ?? "") ?? "").replace(/\D/g, "");
-  return name.includes(k) || (digits.length >= 2 && (phone.includes(digits) || parentPhone.includes(digits)));
+function toAttendanceStatus(status: string | null | undefined): AttendanceStatus {
+  const value = status as AttendanceStatus;
+  return ORDERED_ATTENDANCE_STATUS.includes(value) ? value : "INACTIVE";
+}
+
+function attendanceStatusRank(status: string | null | undefined): number {
+  return ORDERED_ATTENDANCE_STATUS.indexOf(toAttendanceStatus(status));
 }
 
 export default function SessionAttendancePage({
@@ -149,7 +146,7 @@ export default function SessionAttendancePage({
   const pageSize = attendanceResult?.pageSize ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const { data: lecture } = useQuery({
+  const { data: lecture } = useQuery<{ title?: string; name?: string; color?: string | null; chip_label?: string | null }>({
     queryKey: ["lecture", lectureId],
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: lectureId != null && Number.isFinite(lectureId),
@@ -173,13 +170,13 @@ export default function SessionAttendancePage({
     const list = [...filtered];
     const key = sort.startsWith("-") ? sort.slice(1) : sort;
     const asc = !sort.startsWith("-");
-    list.sort((a: any, b: any) => {
+    list.sort((a, b) => {
       if (key === "name") {
         const va = (a.name ?? "").localeCompare(b.name ?? "", "ko");
         return asc ? va : -va;
       }
       if (key === "status") {
-        const order = ORDERED_ATTENDANCE_STATUS.indexOf(a.status) - ORDERED_ATTENDANCE_STATUS.indexOf(b.status);
+        const order = attendanceStatusRank(a.status) - attendanceStatusRank(b.status);
         return asc ? order : -order;
       }
       if (key === "phone") {
@@ -219,13 +216,13 @@ export default function SessionAttendancePage({
   const tableWidth = fixedColsWidth;
 
   // 영상(ONLINE) 학생 — 전체 페이지 데이터 기준 (hook은 early return 앞에 배치)
-  const onlineRows = useMemo(() => sorted.filter((att: any) => att.status === "ONLINE"), [sorted]);
+  const onlineRows = useMemo(() => sorted.filter((att) => att.status === "ONLINE"), [sorted]);
   const onlineCount = onlineRows.length;
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
 
-  const allIds = sorted.map((att: any) => att.id);
+  const allIds = sorted.map((att) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((attendanceId: number) => selectedSet.has(attendanceId));
 
   function toggleSelect(id: number) {
@@ -239,10 +236,10 @@ export default function SessionAttendancePage({
 
   const handleMessageSend = () => {
     if (selectedIds.length === 0) return;
-    const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
+    const selectedRows = sorted.filter((att) => selectedSet.has(att.id));
     const studentIds = selectedRows
-      .map((att: any) => att.student_id)
-      .filter((id: unknown) => id != null && Number.isFinite(id)) as number[];
+      .map((att) => att.student_id)
+      .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
     const _lectureName = lecture?.title ?? lecture?.name ?? "";
     const _sessionQ = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
     const _sessionTitle = _sessionQ?.title ?? "";
@@ -251,7 +248,7 @@ export default function SessionAttendancePage({
     const recomputePerStudentVars = (currentBody: string) => {
       const result: Record<number, Record<string, string>> = {};
       for (const sid of studentIds) {
-        const row = selectedRows.find((r: any) => r.student_id === sid);
+        const row = selectedRows.find((r) => r.student_id === sid);
         if (!row || !sid) continue;
         const studentName = (row.student_name ?? row.name ?? "") as string;
         let subst = currentBody;
@@ -281,7 +278,7 @@ export default function SessionAttendancePage({
 
   /** 영상 학생 선택: ONLINE 상태 학생만 체크 */
   const handleSelectOnlineStudents = () => {
-    const onlineIds = onlineRows.map((att: any) => att.id);
+    const onlineIds = onlineRows.map((att) => att.id);
     setSelectedIds(onlineIds);
   };
 
@@ -289,11 +286,11 @@ export default function SessionAttendancePage({
   const handleVideoMessageSend = () => {
     // 선택된 학생 중 발송 (선택이 없으면 전체 ONLINE 학생)
     const targetRows = selectedIds.length > 0
-      ? sorted.filter((att: any) => selectedSet.has(att.id))
+      ? sorted.filter((att) => selectedSet.has(att.id))
       : onlineRows;
     const studentIds = targetRows
-      .map((att: any) => att.student_id)
-      .filter((id: unknown) => id != null && Number.isFinite(id)) as number[];
+      .map((att) => att.student_id)
+      .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
     if (studentIds.length === 0) {
       feedback.info("영상 수강 학생이 없습니다.");
       return;
@@ -306,7 +303,7 @@ export default function SessionAttendancePage({
     const recomputePerStudentVars = (currentBody: string) => {
       const result: Record<number, Record<string, string>> = {};
       for (const sid of studentIds) {
-        const row = targetRows.find((r: any) => r.student_id === sid);
+        const row = targetRows.find((r) => r.student_id === sid);
         if (!row || !sid) continue;
         const studentName = (row.student_name ?? row.name ?? "") as string;
         let subst = currentBody;
@@ -394,8 +391,10 @@ export default function SessionAttendancePage({
       </Button>
       <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={async () => {
-        const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
-        const studentIds = selectedRows.map((att: any) => att.student_id).filter((id: unknown) => id != null && Number.isFinite(id));
+        const selectedRows = sorted.filter((att) => selectedSet.has(att.id));
+        const studentIds = selectedRows
+          .map((att) => att.student_id)
+          .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
         if (studentIds.length === 0) return;
         // SSOT (2026-05-14): qc cache는 폴백, 진짜는 fetchSessionScores 응답 meta.
         // 직전 결함: 출결 화면에서 lecture/session-detail useQuery cache miss → sessionTitle 빈 → 본문에 차시명 빠짐.
@@ -411,15 +410,14 @@ export default function SessionAttendancePage({
             fetchSessionScores(sessionId),
           ]);
           // backend SSOT meta 1순위 → qc cache → ""
-          const meta: any = scoresData.meta;
           const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
           const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
-          lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
-          sessionTitle = meta?.session_title ?? session?.title ?? "";
+          lectureName = scoresData.meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+          sessionTitle = scoresData.meta?.session_title ?? session?.title ?? "";
 
           const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-          const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-          const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
+          const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
+          const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
           const chosenTpl = userDefault ?? userWithScoreVars;
 
           const firstRow = scoresData.rows.find((r) => r.student_id === studentIds[0]);
@@ -656,7 +654,7 @@ export default function SessionAttendancePage({
     <div className="flex flex-col gap-4 relative">
       {/* 출결 상태 선택 팝오버: 테이블 외부, 가로 나열, 상태필터와 동일 스타일 */}
       {openStatusRowAttId != null && statusRowPopoverAnchor != null && (() => {
-        const att = sorted.find((a: any) => a.id === openStatusRowAttId);
+        const att = sorted.find((a) => a.id === openStatusRowAttId);
         if (!att) return null;
         return createPortal(
           <div
@@ -789,7 +787,7 @@ export default function SessionAttendancePage({
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((att: any) => (
+                {sorted.map((att) => (
                   <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
                     <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
@@ -808,13 +806,13 @@ export default function SessionAttendancePage({
                         avatarSize={24}
                         lectures={
                           att.lecture_title
-                            ? [{ lectureName: att.lecture_title, color: att.lecture_color, chipLabel: (att as any).lecture_chip_label }]
+                            ? [{ lectureName: att.lecture_title, color: att.lecture_color ?? undefined, chipLabel: att.lecture_chip_label ?? undefined }]
                             : lecture
-                              ? [{ lectureName: lecture.title, color: lecture.color, chipLabel: (lecture as any).chip_label }]
+                              ? [{ lectureName: lecture.title ?? "", color: lecture.color ?? undefined, chipLabel: lecture.chip_label ?? undefined }]
                               : undefined
                         }
                         chipSize={16}
-                        clinicHighlight={(att as any).name_highlight_clinic_target === true}
+                        clinicHighlight={att.name_highlight_clinic_target === true}
                       />
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
@@ -834,7 +832,7 @@ export default function SessionAttendancePage({
                         aria-label={`${att.name ?? ""} 출결 상태 변경`}
                         aria-expanded={openStatusRowAttId === att.id}
                       >
-                        <AttendanceStatusBadge status={att.status} variant="2ch" selected />
+                        <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
                       </button>
                     </td>
                     <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>

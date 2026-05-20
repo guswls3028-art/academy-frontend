@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/comms/api/index.ts
 // 소통 도메인 API — community + registration + messaging
 import api from "@/shared/api/axios";
+import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
 
 /* ─── Types ─── */
 export interface Post {
@@ -61,18 +62,15 @@ export interface ScopeNode {
 
 export async function fetchScopeNodes(): Promise<ScopeNode[]> {
   const res = await api.get("/community/scope-nodes/", { params: { page_size: 500 } });
-  const data = res.data;
-  if (data != null && Array.isArray(data.results)) return data.results;
-  return Array.isArray(data) ? data : [];
+  return listFromApiResponse<ScopeNode>(res.data);
 }
 
 /* ─── Community ─── */
 export async function fetchPosts(postType: string, pageSize = 30, search?: string): Promise<Post[]> {
   const res = await api.get("/community/posts/", {
-    params: { post_type: postType, page_size: pageSize, ordering: "-created_at", search: search || undefined },
+    params: { post_type: postType, page_size: pageSize, ordering: "-created_at", q: search || undefined },
   });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return listFromApiResponse<Post>(res.data);
 }
 
 export async function fetchPostDetail(postId: number): Promise<Post> {
@@ -82,7 +80,7 @@ export async function fetchPostDetail(postId: number): Promise<Post> {
 
 export async function fetchPostReplies(postId: number): Promise<Reply[]> {
   const res = await api.get(`/community/posts/${postId}/replies/`);
-  return Array.isArray(res.data) ? res.data : [];
+  return listFromApiResponse<Reply>(res.data);
 }
 
 export async function createReply(postId: number, content: string): Promise<Reply> {
@@ -106,7 +104,12 @@ export async function createPost(data: {
   return res.data;
 }
 
-export async function updatePost(postId: number, data: { title?: string; content?: string }): Promise<Post> {
+export async function updatePost(postId: number, data: {
+  title?: string;
+  content?: string;
+  is_urgent?: boolean;
+  is_pinned?: boolean;
+}): Promise<Post> {
   const res = await api.patch(`/community/posts/${postId}/`, data);
   return res.data;
 }
@@ -121,12 +124,10 @@ export async function togglePostPin(postId: number, isPinned: boolean): Promise<
 }
 
 /* ─── Attachments ─── */
-export async function uploadPostAttachment(postId: number, file: File): Promise<any> {
+export async function uploadPostAttachment(postId: number, file: File): Promise<unknown> {
   const formData = new FormData();
-  formData.append("file", file);
-  const res = await api.post(`/community/posts/${postId}/attachments/`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  formData.append("files", file);
+  const res = await api.post(`/community/posts/${postId}/attachments/`, formData);
   return res.data;
 }
 
@@ -143,9 +144,10 @@ export async function fetchRegistrationRequests(
   const res = await api.get("/students/registration_requests/", {
     params: { status, page, page_size: pageSize },
   });
+  const results = listFromApiResponse<RegistrationRequest>(res.data);
   return {
-    results: Array.isArray(res.data?.results) ? res.data.results : [],
-    count: res.data?.count ?? 0,
+    results,
+    count: countFromApiResponse(res.data, results.length),
   };
 }
 
@@ -160,17 +162,18 @@ export async function rejectRegistration(id: number): Promise<void> {
 /* ─── Messaging ─── */
 export async function fetchMessageTemplates(): Promise<MessageTemplate[]> {
   const res = await api.get("/messaging/templates/", { params: { page_size: 100 } });
-  return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
+  return listFromApiResponse<MessageTemplate>(res.data);
 }
 
 export async function sendMessage(payload: {
   student_ids: number[];
   send_to: "student" | "parent";
-  message_mode: "sms" | "alimtalk";
+  message_mode: "alimtalk";
   raw_body: string;
   raw_subject?: string;
   template_id?: number;
-}): Promise<{ queued: number }> {
+  block_category?: string;
+}): Promise<{ detail: string; enqueued: number; enqueue_failed?: number; skipped_no_phone?: number }> {
   const res = await api.post("/messaging/send/", payload);
   return res.data;
 }
@@ -190,7 +193,8 @@ export interface MessageLogItem {
 
 export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ results: MessageLogItem[]; count: number }> {
   const res = await api.get("/messaging/log/", { params: { page, page_size: pageSize } });
-  return { results: res.data?.results ?? [], count: res.data?.count ?? 0 };
+  const results = listFromApiResponse<MessageLogItem>(res.data);
+  return { results, count: countFromApiResponse(res.data, results.length) };
 }
 
 /* ─── Messaging Info & Templates ─── */
@@ -251,13 +255,36 @@ export interface MsgTemplate {
   subject?: string;
   body: string;
   is_default?: boolean;
+  is_user_default?: boolean;
   is_system?: boolean;
 }
 
+export interface AutoSendConfig {
+  id: number | null;
+  trigger: string;
+  template: number | MsgTemplate | null;
+  template_id?: number | null;
+  template_name?: string;
+  template_subject?: string;
+  template_body?: string;
+  template_solapi_status?: string;
+  enabled?: boolean;
+  message_mode?: "alimtalk";
+  minutes_before?: number | null;
+  delay_mode?: "immediate" | "delay_minutes" | "scheduled_hour";
+  delay_value?: number | null;
+  show_actual_time?: boolean;
+  trigger_label?: string;
+  trigger_name?: string;
+  policy_mode?: "SYSTEM_AUTO" | "AUTO_DEFAULT" | "MANUAL_DEFAULT" | "DISABLED" | string;
+  implementation_status?: "implemented" | "manual_only" | "disabled" | string;
+}
+
+type AutoSendConfigPatch = Partial<AutoSendConfig> & { trigger: string };
+
 export async function fetchAllTemplates(): Promise<MsgTemplate[]> {
   const res = await api.get("/messaging/templates/", { params: { page_size: 200 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return listFromApiResponse<MsgTemplate>(res.data);
 }
 
 export async function createTemplate(payload: { name: string; category: string; body: string; subject?: string }): Promise<MsgTemplate> {
@@ -275,37 +302,54 @@ export async function deleteTemplate(id: number): Promise<void> {
 }
 
 /* ─── Auto-send configs (데스크탑과 동일 계약) ─── */
-export async function fetchAutoSendConfigs() {
+export async function fetchAutoSendConfigs(): Promise<AutoSendConfig[]> {
   try {
     const res = await api.get("/messaging/auto-send/");
     const raw = res.data;
     return Array.isArray(raw?.configs) ? raw.configs : Array.isArray(raw) ? raw : [];
-  } catch (e: any) {
-    if (e?.response?.status === 404) return [];
+  } catch (e: unknown) {
+    if (isHttp404(e)) return [];
     throw e;
   }
 }
 
 /** 자동발송 설정 일괄 업데이트. payload 필드명은 백엔드가 기대하는 형식: template_id, minutes_before 등 */
-export async function updateAutoSendConfigs(configs: any[]) {
-  const payload = configs.map((c) => ({
-    trigger: c.trigger,
-    template_id: c.template_id ?? c.template ?? null,
-    enabled: c.enabled,
-    message_mode: c.message_mode,
-    minutes_before: c.minutes_before ?? undefined,
-    delay_mode: c.delay_mode ?? undefined,
-    delay_value: c.delay_value ?? undefined,
-    show_actual_time: c.show_actual_time ?? undefined,
-  }));
+export async function updateAutoSendConfigs(configs: AutoSendConfigPatch[]): Promise<AutoSendConfig[]> {
+  const payload = configs.map((c) => {
+    const item: Record<string, unknown> = { trigger: c.trigger };
+    if ("template_id" in c || "template" in c) {
+      item.template_id = c.template_id ?? templateIdFromRef(c.template) ?? null;
+    }
+    if ("enabled" in c) item.enabled = c.enabled;
+    if ("message_mode" in c) item.message_mode = c.message_mode;
+    if ("minutes_before" in c) item.minutes_before = c.minutes_before ?? undefined;
+    if ("delay_mode" in c) item.delay_mode = c.delay_mode ?? undefined;
+    if ("delay_value" in c) item.delay_value = c.delay_value ?? undefined;
+    if ("show_actual_time" in c) item.show_actual_time = c.show_actual_time ?? undefined;
+    return item;
+  });
   const res = await api.patch("/messaging/auto-send/", { configs: payload });
   return res.data;
 }
 
 /** 단일 트리거 수정 시도 내부적으로 configs 배열로 wrap */
-export async function updateAutoSendConfig(triggerOrId: number | string, payload: Record<string, unknown>) {
-  const key = typeof triggerOrId === "string" ? { trigger: triggerOrId } : { id: triggerOrId };
-  return updateAutoSendConfigs([{ ...key, ...payload }]);
+export async function updateAutoSendConfig(
+  trigger: string,
+  payload: Omit<AutoSendConfigPatch, "trigger">,
+): Promise<AutoSendConfig[]> {
+  return updateAutoSendConfigs([{ trigger, ...payload }]);
+}
+
+function templateIdFromRef(template: AutoSendConfig["template"] | undefined): number | null {
+  if (typeof template === "number") return template;
+  if (template && typeof template === "object") return template.id ?? null;
+  return null;
+}
+
+function isHttp404(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("response" in error)) return false;
+  const response = (error as { response?: { status?: number } }).response;
+  return response?.status === 404;
 }
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
@@ -337,8 +381,6 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
 
 export const MESSAGE_MODE_LABELS: Record<string, string> = {
   alimtalk: "알림톡",
-  sms: "SMS",
-  alimtalk_sms_fallback: "알림톡(SMS 대체)",
 };
 
 /* ─── Notification Summary (BFF) ─── */

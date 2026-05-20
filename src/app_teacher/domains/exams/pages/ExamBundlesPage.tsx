@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/exams/pages/ExamBundlesPage.tsx
 // 시험 번들 — 여러 시험/과제 템플릿을 묶어 차시에 일괄 적용하는 CRUD
 import { useState, useEffect } from "react";
@@ -98,7 +98,7 @@ export default function ExamBundlesPage() {
 }
 
 /* ─── Bundle Form Sheet ─── */
-type BundleItem = { kind: "exam" | "homework"; template_id: number; title?: string };
+type BundleItem = NonNullable<ExamBundle["items"]>[number];
 
 function BundleFormSheet({ open, onClose, editData }: {
   open: boolean; onClose: () => void; editData: ExamBundle | null;
@@ -122,10 +122,10 @@ function BundleFormSheet({ open, onClose, editData }: {
     if (isEdit && fullBundle) {
       setName(fullBundle.name ?? "");
       setDescription(fullBundle.description ?? "");
-      setItems((fullBundle.items ?? []).map((it: any) => ({
-        kind: it.kind ?? "exam",
-        template_id: it.template_id ?? it.exam_template_id ?? it.homework_template_id,
-        title: it.title ?? it.template_title,
+      setItems((fullBundle.items ?? []).map((it) => ({
+        kind: it.kind,
+        template_id: it.template_id,
+        title: it.title ?? undefined,
       })));
     } else if (!isEdit) {
       setName(""); setDescription(""); setItems([]);
@@ -232,17 +232,20 @@ function TemplatePickerSheet({ open, onClose, onPick }: {
         />
         {list && list.length > 0 ? (
           <div className="flex flex-col gap-1">
-            {list.map((t: any) => (
-              <button key={t.id} onClick={() => onPick({ kind: pickerTab, template_id: t.id, title: t.title ?? t.name })}
-                type="button"
-                className="text-left cursor-pointer"
-                style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)" }}>
-                <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{t.title ?? t.name}</div>
-                {(t.subject ?? t.category) && (
-                  <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{t.subject ?? t.category}</div>
-                )}
-              </button>
-            ))}
+            {list.map((t) => {
+              const title = (t.title ?? t.name ?? "").trim();
+              return (
+                <button key={t.id} onClick={() => onPick({ kind: pickerTab, template_id: t.id, title: title || undefined })}
+                  type="button"
+                  className="text-left cursor-pointer"
+                  style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)" }}>
+                  <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{title || `#${t.id}`}</div>
+                  {(t.subject ?? t.category) && (
+                    <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{t.subject ?? t.category}</div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ) : <EmptyState scope="panel" tone="empty" title="템플릿이 없습니다" />}
       </div>

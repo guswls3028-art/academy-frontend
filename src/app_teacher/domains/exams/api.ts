@@ -1,6 +1,8 @@
 // PATH: src/app_teacher/domains/exams/api.ts
 // 시험/과제 API — 기존 admin API 재사용
 import api from "@/shared/api/axios";
+import axios from "axios";
+import { listFromApiResponse } from "@/shared/api/response";
 
 /** 선생님이 담당하는 시험 목록 (최근순) */
 export async function fetchExams(params?: { session_id?: number; lecture_id?: number }) {
@@ -78,24 +80,30 @@ export async function fetchTemplates() {
 }
 
 /** 템플릿 + 적용 강의 사용 현황. 백엔드 미배포(404) 시 빈 배열 — graceful. */
-export async function fetchTemplatesWithUsage() {
+export type TeacherTemplateWithUsage = {
+  id: number;
+  title?: string | null;
+  name?: string | null;
+  subject?: string | null;
+  category?: string | null;
+};
+
+export async function fetchTemplatesWithUsage(): Promise<TeacherTemplateWithUsage[]> {
   try {
     const res = await api.get("/exams/templates/with-usage/", { params: { page_size: 200 } });
-    const raw = res.data;
-    return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
-  } catch (e: any) {
-    if (e?.response?.status === 404) return [];
+    return listFromApiResponse<TeacherTemplateWithUsage>(res.data);
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
     throw e;
   }
 }
 
-export async function fetchHomeworkTemplatesWithUsage() {
+export async function fetchHomeworkTemplatesWithUsage(): Promise<TeacherTemplateWithUsage[]> {
   try {
     const res = await api.get("/homeworks/templates/with-usage/", { params: { page_size: 200 } });
-    const raw = res.data;
-    return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
-  } catch (e: any) {
-    if (e?.response?.status === 404) return [];
+    return listFromApiResponse<TeacherTemplateWithUsage>(res.data);
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
     throw e;
   }
 }
@@ -114,8 +122,8 @@ export async function fetchBundles(): Promise<ExamBundle[]> {
     const res = await api.get("/exams/bundles/", { params: { page_size: 100 } });
     const raw = res.data;
     return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
-  } catch (e: any) {
-    if (e?.response?.status === 404) return [];
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
     throw e;
   }
 }
@@ -192,7 +200,7 @@ export async function submitOMR(examId: number, payload: {
   sheet_id?: string;
   file_key?: string;
   file?: File;
-}): Promise<any> {
+}): Promise<Record<string, unknown>> {
   if (payload.file) {
     const form = new FormData();
     form.append("file", payload.file);

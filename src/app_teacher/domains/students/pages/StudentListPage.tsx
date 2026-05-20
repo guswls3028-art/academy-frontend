@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-expressions */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentListPage.tsx
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
 import { useState, useDeferredValue } from "react";
@@ -16,6 +16,7 @@ import {
   fetchStudents, exportStudentsExcel, uploadStudentBulkExcel,
   bulkDeleteStudents, bulkAttachTag, fetchTags, createTag, sendPasswordReset,
 } from "../api";
+import type { ClientStudent } from "@admin/domains/students/api/students.api";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 import { sendMessage } from "@teacher/domains/comms/api";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -27,6 +28,12 @@ type FilterState = {
 };
 
 type BulkAction = "delete" | "message" | "tag" | "password" | null;
+type MessageRecipient = "student" | "parent";
+
+const MESSAGE_RECIPIENT_OPTIONS: { value: MessageRecipient; label: string }[] = [
+  { value: "student", label: "학생" },
+  { value: "parent", label: "학부모" },
+];
 
 export default function StudentListPage() {
   const navigate = useNavigate();
@@ -60,14 +67,18 @@ export default function StudentListPage() {
 
   const students = data?.data ?? [];
   const selectedCount = selectedIds.size;
-  const selectedStudents = students.filter((s: any) => selectedIds.has(s.id));
+  const selectedStudents = students.filter((s) => selectedIds.has(s.id));
 
   const toggleSelect = (id: number) => {
     const next = new Set(selectedIds);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     setSelectedIds(next);
   };
-  const selectAll = () => setSelectedIds(new Set(students.map((s: any) => s.id)));
+  const selectAll = () => setSelectedIds(new Set(students.map((s) => s.id)));
   const clearSelection = () => setSelectedIds(new Set());
   const exitSelectMode = () => { setSelectMode(false); clearSelection(); };
 
@@ -188,6 +199,7 @@ export default function StudentListPage() {
             <div className="flex gap-1.5 flex-wrap">
               {filters.grade && <Badge tone="primary" pill>{filters.grade}학년</Badge>}
               {filters.gender && <Badge tone="primary" pill>{filters.gender === "M" ? "남" : "여"}</Badge>}
+              {filters.status && <Badge tone="primary" pill>{filters.status === "active" ? "활성" : "비활성"}</Badge>}
               <button onClick={() => setFilters({})} className="text-[11px] cursor-pointer" style={{ color: "var(--tc-danger)", background: "none", border: "none" }}>초기화</button>
             </div>
           )}
@@ -203,11 +215,11 @@ export default function StudentListPage() {
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : students.length > 0 ? (
         <div className="flex flex-col gap-1.5" style={{ paddingBottom: selectMode ? 80 : 0 }}>
-          {students.map((s: any) => {
+          {students.map((s) => {
             const name = s.name ?? s.displayName ?? "이름 없음";
             const enrollments = s.enrollments ?? [];
-            const parentPhone = s.parentPhone ?? s.parent_phone;
-            const studentPhone = s.studentPhone ?? s.student_phone ?? s.phone;
+            const parentPhone = s.parentPhone;
+            const studentPhone = s.studentPhone;
             const sub = [s.grade != null ? `${s.grade}학년` : null, s.school].filter(Boolean).join(" · ");
             const isSelected = selectedIds.has(s.id);
 
@@ -236,8 +248,8 @@ export default function StudentListPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="ds-text-name font-semibold" style={{ color: "var(--tc-text)" }}>{name}</span>
-                    {enrollments.map((e: any) => (
-                      <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? e.lecture_title ?? ""} color={e.lectureColor ?? e.lecture_color} chipLabel={e.lectureChipLabel ?? e.lecture_chip_label} size={20} />
+                    {enrollments.map((e) => (
+                      <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? ""} color={e.lectureColor ?? undefined} chipLabel={e.lectureChipLabel ?? undefined} size={20} />
                     ))}
                   </div>
                   {sub && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{sub}</div>}
@@ -269,7 +281,7 @@ export default function StudentListPage() {
             zIndex: 230,
           }}>
           <div className="flex gap-2">
-            <BulkBtn icon={<MessageSquare size={ICON.xs} />} label="문자" onClick={() => setBulkAction("message")} />
+            <BulkBtn icon={<MessageSquare size={ICON.xs} />} label="알림톡" onClick={() => setBulkAction("message")} />
             <BulkBtn icon={<Tag size={ICON.xs} />} label="태그" onClick={() => setBulkAction("tag")} />
             <BulkBtn icon={<Lock size={ICON.xs} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={ICON.xs} />} label="삭제" tone="danger"
@@ -328,73 +340,89 @@ function BulkBtn({ icon, label, onClick, tone }: { icon: React.ReactNode; label:
 
 /* ─── Bulk Message Sheet ─── */
 function BulkMessageSheet({ open, onClose, students, onDone }: {
-  open: boolean; onClose: () => void; students: any[]; onDone: () => void;
+  open: boolean; onClose: () => void; students: ClientStudent[]; onDone: () => void;
 }) {
+  const confirm = useConfirm();
   const [body, setBody] = useState("");
-  const [sendTo, setSendTo] = useState<"student" | "parent">("parent");
-  const [mode, setMode] = useState<"sms" | "alimtalk">("sms");
+  const [sendTo, setSendTo] = useState<MessageRecipient>("parent");
+  const tooManyRecipients = students.length > 200;
+  const recipientLabel = sendTo === "parent" ? "학부모" : "학생";
 
   const sendMut = useMutation({
     mutationFn: () => sendMessage({
       student_ids: students.map((s) => s.id),
       send_to: sendTo,
-      message_mode: mode,
+      message_mode: "alimtalk",
       raw_body: body,
+      block_category: "student",
     }),
     onSuccess: (res) => {
-      teacherToast.success(`${res.queued}건 발송 요청되었습니다.`);
+      teacherToast.success(`${res.enqueued}건 발송 요청되었습니다.`);
       setBody("");
       onDone();
       onClose();
     },
-    onError: () => teacherToast.error("발송에 실패했습니다."),
+    onError: (e) => teacherToast.error(extractApiError(e, "발송에 실패했습니다.")),
   });
 
+  const requestSend = async () => {
+    if (!body.trim() || sendMut.isPending || tooManyRecipients) return;
+    const ok = await confirm({
+      title: "알림톡 발송",
+      message: `${recipientLabel} ${students.length}명에게 알림톡을 발송할까요?`,
+      confirmText: "발송",
+    });
+    if (ok) sendMut.mutate();
+  };
+
   return (
-    <BottomSheet open={open} onClose={onClose} title={`${students.length}명에게 메시지`}>
+    <BottomSheet open={open} onClose={onClose} title={`${students.length}명에게 알림톡`}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>수신자</label>
           <div className="flex gap-1.5">
-            {[["student", "학생"], ["parent", "학부모"]].map(([v, l]) => (
-              <button key={v} onClick={() => setSendTo(v as any)} type="button"
+            {MESSAGE_RECIPIENT_OPTIONS.map(({ value, label }) => (
+              <button key={value} onClick={() => setSendTo(value)} type="button"
                 className="flex-1 text-[12px] font-semibold cursor-pointer"
                 style={{
                   padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
-                  border: `1px solid ${sendTo === v ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
-                  background: sendTo === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                  color: sendTo === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                }}>{l}</button>
+                  border: `1px solid ${sendTo === value ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                  background: sendTo === value ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                  color: sendTo === value ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                }}>{label}</button>
             ))}
           </div>
         </div>
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>채널</label>
           <div className="flex gap-1.5">
-            {[["sms", "SMS"], ["alimtalk", "알림톡"]].map(([v, l]) => (
-              <button key={v} onClick={() => setMode(v as any)} type="button"
-                className="flex-1 text-[12px] font-semibold cursor-pointer"
-                style={{
-                  padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
-                  border: `1px solid ${mode === v ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
-                  background: mode === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                  color: mode === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                }}>{l}</button>
-            ))}
+            <button type="button"
+              className="flex-1 text-[12px] font-semibold cursor-default"
+              style={{
+                padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
+                border: "1px solid var(--tc-primary)",
+                background: "var(--tc-primary-bg)",
+                color: "var(--tc-primary)",
+              }}>알림톡</button>
           </div>
         </div>
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>메시지 본문</label>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>알림톡 본문</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-            placeholder="메시지 내용을 입력하세요"
+            placeholder="알림톡 내용을 입력하세요"
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
           <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{body.length}자</div>
         </div>
-        <button onClick={() => sendMut.mutate()} disabled={!body.trim() || sendMut.isPending}
+        {tooManyRecipients && (
+          <div className="text-[11px] font-semibold" style={{ color: "var(--tc-danger)" }}>
+            한 번에 최대 200명까지 발송할 수 있습니다.
+          </div>
+        )}
+        <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || tooManyRecipients}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() ? "#fff" : "var(--tc-text-muted)" }}>
-          {sendMut.isPending ? "발송 중…" : `${students.length}명에게 발송`}
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients ? "#fff" : "var(--tc-text-muted)" }}>
+          {sendMut.isPending ? "발송 중…" : `${students.length}명에게 알림톡 발송`}
         </button>
       </div>
     </BottomSheet>
@@ -403,7 +431,7 @@ function BulkMessageSheet({ open, onClose, students, onDone }: {
 
 /* ─── Bulk Tag Sheet ─── */
 function BulkTagSheet({ open, onClose, students, onDone }: {
-  open: boolean; onClose: () => void; students: any[]; onDone: () => void;
+  open: boolean; onClose: () => void; students: ClientStudent[]; onDone: () => void;
 }) {
   const qc = useQueryClient();
   const [newTagName, setNewTagName] = useState("");
@@ -423,7 +451,7 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
 
   const createMut = useMutation({
     mutationFn: () => createTag(newTagName.trim()),
-    onSuccess: (tag: any) => { setNewTagName(""); qc.invalidateQueries({ queryKey: ["all-tags"] }); attachMut.mutate(tag.id); },
+    onSuccess: (tag) => { setNewTagName(""); qc.invalidateQueries({ queryKey: ["all-tags"] }); attachMut.mutate(tag.id); },
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
   });
 
@@ -434,7 +462,7 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
           <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>기존 태그 선택</label>
           {tags && tags.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {tags.map((t: any) => (
+              {tags.map((t) => (
                 <button key={t.id} onClick={() => attachMut.mutate(t.id)} disabled={attachMut.isPending}
                   className="flex items-center gap-1 text-[12px] font-medium cursor-pointer"
                   style={{ padding: "6px 12px", borderRadius: "var(--tc-radius-full)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
@@ -464,7 +492,7 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
 
 /* ─── Bulk Password Reset Sheet ─── */
 function BulkPasswordSheet({ open, onClose, students, onDone }: {
-  open: boolean; onClose: () => void; students: any[]; onDone: () => void;
+  open: boolean; onClose: () => void; students: ClientStudent[]; onDone: () => void;
 }) {
   const [target, setTarget] = useState<"student" | "parent" | "both">("student");
   const [tempPw, setTempPw] = useState("");
@@ -483,21 +511,27 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
       for (const s of students) {
         for (const t of targets) {
           try {
-            const params: any = {
-              target: t,
+            const baseParams = {
               student_name: s.name ?? s.displayName ?? "",
               ...(tempPw.trim() ? { temp_password: tempPw.trim() } : {}),
               ...(!notify ? { skip_notify: true } : {}),
             };
             if (t === "student") {
-              if (!s.psNumber && !s.ps_number) { fail++; continue; }
-              params.student_ps_number = s.psNumber ?? s.ps_number;
+              if (!s.psNumber) { fail++; continue; }
+              await sendPasswordReset({
+                ...baseParams,
+                target: "student",
+                student_ps_number: s.psNumber,
+              });
             } else {
-              const pp = s.parentPhone ?? s.parent_phone;
+              const pp = s.parentPhone;
               if (!pp) { fail++; continue; }
-              params.parent_phone = pp;
+              await sendPasswordReset({
+                ...baseParams,
+                target: "parent",
+                parent_phone: pp,
+              });
             }
-            await sendPasswordReset(params);
             ok++;
           } catch { fail++; }
         }

@@ -7,6 +7,26 @@ import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
  * GET /api/v1/lectures/attendance/?session={id}&page=1&page_size=50
  * 응답: { count, next, previous, results } (DRF 페이지네이션)
  * ======================================================= */
+export type AttendanceRow = {
+  id: number;
+  status: string;
+  name?: string | null;
+  phone?: string | null;
+  student_phone?: string | null;
+  parent_phone?: string | null;
+  profile_photo_url?: string | null;
+  student_name?: string | null;
+  student_id?: number | null;
+  enrollment_id?: number | null;
+  enrollment?: {
+    student_id?: number | null;
+  } | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean | null;
+};
+
 export type AttendanceListResponse = {
   data: AttendanceListItem[];
   count: number;
