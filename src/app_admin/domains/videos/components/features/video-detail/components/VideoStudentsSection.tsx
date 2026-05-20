@@ -3,9 +3,10 @@
 import { FiSettings, FiBarChart2, FiClock } from "react-icons/fi";
 import { KPI, Button } from "@/shared/ui/ds";
 import StudentWatchPanel from "./StudentWatchPanel";
+import type { StudentWatchRow } from "./StudentWatchPanel";
 
 interface Props {
-  students: any[];
+  students: StudentWatchRow[];
   onOpenPermission: () => void;
   onOpenAchievement?: () => void;
   onOpenLog?: () => void;

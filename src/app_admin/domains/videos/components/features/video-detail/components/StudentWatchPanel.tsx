@@ -1,11 +1,12 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/components/StudentWatchPanel.tsx
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { Badge, Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { VideoStatsStudent } from "@admin/domains/videos/api/videos.api";
 import {
   getAccessShortLabel,
   getAccessTone,
@@ -13,8 +14,16 @@ import {
 
 const PAGE_SIZE = 10;
 
+export type StudentWatchRow = VideoStatsStudent & {
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean | null;
+};
+
 interface Props {
-  students: any[];
+  students: StudentWatchRow[];
   onOpenPermission: () => void;
   selectedEnrollmentId?: number | null;
   onSelectPreviewStudent?: (enrollmentId: number) => void;
@@ -40,8 +49,9 @@ export default function StudentWatchPanel({
   const paged = sorted.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   // Reset page when student list changes
-  const resetKey = students.length;
-  useMemo(() => setPage(0), [resetKey]);
+  useEffect(() => {
+    setPage(0);
+  }, [students.length]);
 
   return (
     <div className="w-full flex flex-col gap-3">
@@ -57,7 +67,7 @@ export default function StudentWatchPanel({
 
       {/* LIST */}
       <div className="flex flex-col gap-2">
-        {paged.map((s: any) => {
+        {paged.map((s) => {
           const progress = Math.round((Number(s.progress ?? 0) || 0) * 100);
           const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
           const clickable = selectable && s.enrollment;
@@ -94,11 +104,11 @@ export default function StudentWatchPanel({
                   avatarSize={24}
                   lectures={
                     s.lecture_title
-                      ? [{ lectureName: s.lecture_title, color: s.lecture_color, chipLabel: (s as any).lecture_chip_label }]
+                      ? [{ lectureName: s.lecture_title, color: s.lecture_color, chipLabel: s.lecture_chip_label }]
                       : undefined
                   }
                   chipSize={14}
-                  clinicHighlight={(s as any).name_highlight_clinic_target === true}
+                  clinicHighlight={s.name_highlight_clinic_target === true}
                 />
               </div>
 
@@ -122,6 +132,7 @@ export default function StudentWatchPanel({
                 <div className="flex-1 h-[6px] rounded-full bg-[var(--color-bg-surface-soft)] overflow-hidden">
                   <div
                     className="h-full rounded-full transition-[width] duration-300 ease-out"
+                    // eslint-disable-next-line no-restricted-syntax -- progress width/color is data-driven per student row.
                     style={{
                       width: `${barWidth}%`,
                       background: progress >= 100
