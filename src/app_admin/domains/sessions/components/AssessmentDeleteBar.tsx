@@ -20,6 +20,9 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
   const [loading, setLoading] = useState(false);
 
   const label = type === "exam" ? "시험 삭제하기" : "과제 삭제하기";
+  const confirmMessage = type === "exam"
+    ? "이 차시에서 시험을 제거합니다. 다른 차시에 연결된 같은 시험은 유지됩니다."
+    : "정말로 삭제하시겠습니까? 연결된 모든 데이터가 삭제됩니다.";
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
@@ -29,14 +32,14 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
     setLoading(true);
     try {
       if (type === "exam") {
-        await deleteSessionExam(id);
+        await deleteSessionExam(id, sessionId);
         invalidateExams();
       } else {
         await deleteSessionHomework(id);
         invalidateHomeworks();
       }
       invalidateScores();
-      feedback.success(type === "exam" ? "시험이 삭제되었습니다." : "과제가 삭제되었습니다.");
+      feedback.success(type === "exam" ? "시험이 이 차시에서 제거되었습니다." : "과제가 삭제되었습니다.");
       setConfirmOpen(false);
       onDeleted();
     } catch (e: unknown) {
@@ -72,7 +75,7 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
               삭제 확인
             </h3>
             <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              정말로 삭제하시겠습니까? 연결된 모든 데이터가 삭제됩니다.
+              {confirmMessage}
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <Button

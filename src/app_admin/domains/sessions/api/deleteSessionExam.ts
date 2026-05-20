@@ -7,7 +7,9 @@
 
 import api from "@/shared/api/axios";
 
-export async function deleteSessionExam(examId: number) {
-  const res = await api.delete(`/exams/${examId}/`);
+export async function deleteSessionExam(examId: number, sessionId?: number) {
+  const res = await api.delete(`/exams/${examId}/`, {
+    params: sessionId ? { session_id: sessionId } : undefined,
+  });
   return res.data;
 }
