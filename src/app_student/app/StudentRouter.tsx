@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import StudentLayout from "@student/layout/StudentLayout";
+import styles from "./StudentRouter.module.css";
 
 const DashboardPage = lazy(() => import("@student/domains/dashboard/pages/DashboardPage"));
 const VideoHomePage = lazy(() => import("@student/domains/video/pages/VideoHomePage"));
@@ -61,14 +62,7 @@ function StudentRouteFallback() {
     <div
       role="status"
       aria-label="불러오는 중"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: 200,
-        color: "var(--stu-muted)",
-        fontSize: 14,
-      }}
+      className={styles.routeFallback}
     >
       불러오는 중…
     </div>

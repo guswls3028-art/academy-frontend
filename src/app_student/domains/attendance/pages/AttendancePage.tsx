@@ -7,6 +7,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import api from "@student/shared/api/student.api";
 import { formatYmd } from "@student/shared/utils/date";
+import styles from "./AttendancePage.module.css";
 
 type AttendanceSummary = {
   summary: {
@@ -39,14 +40,16 @@ const STATUS_LABEL: Record<string, string> = {
   SECESSION: "탈퇴",
 };
 
-const STATUS_TONE: Record<string, string> = {
-  PRESENT: "var(--stu-success)",
-  ONLINE: "var(--stu-success)",
-  SUPPLEMENT: "var(--stu-success)",
-  LATE: "var(--stu-warn)",
-  EARLY_LEAVE: "var(--stu-warn)",
-  ABSENT: "var(--stu-danger)",
-  RUNAWAY: "var(--stu-danger)",
+type AttendanceTone = "success" | "warn" | "danger" | "neutral";
+
+const STATUS_TONE: Partial<Record<string, AttendanceTone>> = {
+  PRESENT: "success",
+  ONLINE: "success",
+  SUPPLEMENT: "success",
+  LATE: "warn",
+  EARLY_LEAVE: "warn",
+  ABSENT: "danger",
+  RUNAWAY: "danger",
 };
 
 async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
@@ -64,9 +67,9 @@ export default function AttendancePage() {
   if (isLoading) {
     return (
       <StudentPageShell title="출결 현황">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 88, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 240, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingSummary}`} />
+          <div className={`stu-skel ${styles.loadingList}`} />
         </div>
       </StudentPageShell>
     );
@@ -91,54 +94,38 @@ export default function AttendancePage() {
           description="수업이 시작되면 차시별 출결이 표시됩니다."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        <div className={styles.contentStack}>
           {/* KPI */}
-          <section
-            className="stu-panel"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "var(--stu-space-2)",
-              padding: "var(--stu-space-4)",
-            }}
-          >
+          <section className={`stu-panel ${styles.kpiGrid}`}>
             <KpiCell label="전체" value={summary.total} />
-            <KpiCell label="출석" value={summary.present} color="var(--stu-success)" />
-            <KpiCell label="지각" value={summary.late + summary.early_leave} color="var(--stu-warn)" />
-            <KpiCell label="결석" value={summary.absent + summary.runaway} color="var(--stu-danger)" />
+            <KpiCell label="출석" value={summary.present} tone="success" />
+            <KpiCell label="지각" value={summary.late + summary.early_leave} tone="warn" />
+            <KpiCell label="결석" value={summary.absent + summary.runaway} tone="danger" />
           </section>
 
           {/* 최근 출결 */}
           <section>
-            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: "var(--stu-space-3)" }}>
+            <h3 className={styles.sectionTitle}>
               최근 출결 ({recent.length})
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            <div className={styles.recentList}>
               {recent.map((row) => (
                 <Link
                   key={row.session_id}
                   to={`/student/sessions/${row.session_id}`}
-                  className="stu-panel stu-panel--pressable"
-                  style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: "var(--stu-space-3)" }}
+                  className={`stu-panel stu-panel--pressable ${styles.recentLink}`}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div className={styles.recentContent}>
+                    <div className={styles.recentTitle}>
                       {row.lecture_title || row.session_title || "차시"}
                     </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
+                    <div className={`stu-muted ${styles.recentMeta}`}>
                       {row.session_title} · {row.date ? formatYmd(row.date) : "-"}
                     </div>
                   </div>
                   <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      background: STATUS_TONE[row.status] ? `${STATUS_TONE[row.status]}22` : "var(--stu-surface-soft)",
-                      color: STATUS_TONE[row.status] || "var(--stu-text-muted)",
-                      whiteSpace: "nowrap",
-                    }}
+                    className={styles.statusPill}
+                    data-tone={STATUS_TONE[row.status] ?? "neutral"}
                   >
                     {STATUS_LABEL[row.status] || row.status}
                   </span>
@@ -152,11 +139,11 @@ export default function AttendancePage() {
   );
 }
 
-function KpiCell({ label, value, color }: { label: string; value: number; color?: string }) {
+function KpiCell({ label, value, tone = "neutral" }: { label: string; value: number; tone?: AttendanceTone }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: color || "var(--stu-text)" }}>{value}</div>
-      <div style={{ fontSize: 11, color: "var(--stu-text-muted)" }}>{label}</div>
+    <div className={styles.kpiCell}>
+      <div className={styles.kpiValue} data-tone={tone}>{value}</div>
+      <div className={styles.kpiLabel}>{label}</div>
     </div>
   );
 }
