@@ -105,7 +105,7 @@ export default function QnaInboxPage() {
   }, [filtered, selectedId, setSelectedId]);
 
   return (
-    <div className="qna-inbox" style={{ height: "calc(100vh - 180px)" }}>
+    <div className="qna-inbox qna-inbox--viewport">
       <aside className="qna-inbox__list" ref={listRef}>
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">질의응답</h2>
@@ -434,23 +434,8 @@ function ThreadView({
               const isPolling = hasImage && Date.now() - createdAt < 5 * 60 * 1000;
               if (isPolling) {
                 return (
-                  <div style={{
-                    marginTop: "var(--space-3)",
-                    padding: "var(--space-3) var(--space-4)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px dashed var(--color-border-divider)",
-                    background: "var(--color-bg-surface-soft)",
-                    fontSize: 12,
-                    color: "var(--color-text-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}>
-                    <span style={{
-                      width: 10, height: 10, borderRadius: "50%",
-                      background: "var(--color-brand-primary)",
-                      animation: "pulse 1.5s ease-in-out infinite",
-                    }} aria-hidden />
+                  <div className="qna-matchup-results__pending">
+                    <span className="qna-matchup-results__pending-dot" aria-hidden />
                     AI 매치업 분석 중… (이미지 첨부 자동 탐색)
                   </div>
                 );
@@ -496,4 +481,3 @@ function ThreadView({
     </>
   );
 }
-

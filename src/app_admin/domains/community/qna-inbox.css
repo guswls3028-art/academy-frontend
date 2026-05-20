@@ -684,6 +684,27 @@
   white-space: nowrap;
 }
 
+.qna-matchup-results__pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.qna-matchup-results__pending-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
 /* ── Reply actions — revealed on hover ── */
 .qna-inbox__message-actions {
   display: flex;
