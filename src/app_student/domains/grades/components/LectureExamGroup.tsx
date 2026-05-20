@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";
-import styles from "./LectureExamGroup.module.css";
+import styles from "./LectureGradeGroup.module.css";
 
 export type ExamGroup = {
   key: string;
@@ -34,7 +34,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
           >
             <div className={styles.row}>
               <div className={styles.iconWrap}>
-                <IconExam className={styles.examIcon} />
+                <IconExam className={styles.itemIcon} />
               </div>
               <div className={styles.content}>
                 <div className={styles.title}>{e.title}</div>

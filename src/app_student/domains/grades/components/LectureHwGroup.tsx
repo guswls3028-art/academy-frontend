@@ -4,6 +4,7 @@
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import type { MyHomeworkGradeSummary } from "../api/grades.api";
+import styles from "./LectureGradeGroup.module.css";
 
 export type HwGroup = {
   key: string;
@@ -15,27 +16,27 @@ export type HwGroup = {
 export default function LectureHwGroup({ group, labels }: { group: HwGroup; labels?: { pass?: string; fail?: string } }) {
   return (
     <div>
-      <div style={groupHeader}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--stu-text)" }}>{group.label}</div>
-          <div className="stu-muted" style={{ fontSize: 12, marginTop: 2 }}>
+      <div className={styles.groupHeader}>
+        <div className={styles.groupTitleBlock}>
+          <div className={styles.groupTitle}>{group.label}</div>
+          <div className={`stu-muted ${styles.groupMeta}`}>
             {group.homeworks.length}건{group.avgPct != null ? ` · 평균 ${group.avgPct}점` : ""}
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+      <div className={styles.list}>
         {group.homeworks.map((h, idx) => (
           <div
             key={`${h.homework_id}-${h.lecture_title ?? ""}-${idx}`}
             className="stu-panel stu-panel--accent"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-4)" }}>
-              <div style={iconWrap}>
-                <IconClipboard style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+            <div className={styles.row}>
+              <div className={styles.iconWrap}>
+                <IconClipboard className={styles.itemIcon} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{h.title}</div>
-                <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
+              <div className={styles.content}>
+                <div className={styles.title}>{h.title}</div>
+                <div className={`stu-muted ${styles.meta}`}>
                   {h.session_title && `${h.session_title} · `}
                   {h.max_score != null && h.max_score > 0
                     ? `${h.score}/${h.max_score}점`
@@ -50,17 +51,3 @@ export default function LectureHwGroup({ group, labels }: { group: HwGroup; labe
     </div>
   );
 }
-
-const iconWrap: React.CSSProperties = {
-  width: 44, height: 44, borderRadius: 12,
-  background: "var(--stu-surface-soft)", display: "grid", placeItems: "center", flexShrink: 0,
-};
-
-const groupHeader: React.CSSProperties = {
-  display: "flex", alignItems: "center",
-  padding: "var(--stu-space-4) var(--stu-space-5)",
-  marginBottom: "var(--stu-space-2)",
-  borderLeft: "4px solid var(--stu-primary)",
-  background: "var(--stu-tint-primary)",
-  borderRadius: "0 var(--stu-radius-xl) var(--stu-radius-xl) 0",
-};
