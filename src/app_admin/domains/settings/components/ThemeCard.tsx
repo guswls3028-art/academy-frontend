@@ -3,6 +3,7 @@ import type React from "react";
 import { Button } from "@/shared/ui/ds";
 import type { ThemeMeta } from "../constants/themes";
 import MiniAdminPreview from "./MiniAdminPreview";
+import "./ThemeCard.css";
 
 type Props = {
   theme: ThemeMeta;
@@ -22,9 +23,7 @@ export default function ThemeCard({
   disabled,
 }: Props) {
   const isActive = previewed;
-  const frameBorder = isActive
-    ? "2px solid var(--color-border-focus)"
-    : "1px solid var(--color-border-divider)";
+  const showPreviewBadge = dirty && previewed && !selected;
 
   return (
     <Button
@@ -33,30 +32,15 @@ export default function ThemeCard({
       size="md"
       onClick={onSelect}
       disabled={disabled}
-      className="!block !w-full !text-left !justify-start !rounded-lg !p-2 !min-h-0"
-      style={{
-        border: frameBorder,
-        opacity: disabled ? 0.6 : 1,
-        display: "grid",
-        gridTemplateRows: "auto auto",
-        gap: 7,
-      }}
+      className="theme-card !block !w-full !text-left !justify-start !rounded-lg !p-2 !min-h-0"
+      data-active={isActive ? "true" : "false"}
     >
       {/* Inner frame — 4:3 */}
-      <div
-        style={{
-          borderRadius: 6,
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface)",
-          overflow: "hidden",
-          padding: 4,
-        }}
-      >
-        <div style={{ width: "100%", aspectRatio: "4 / 3" }}>
+      <div className="theme-card__frame">
+        <div className="theme-card__ratio">
           <div
-            className="theme-preview"
+            className="theme-card__preview theme-preview"
             data-theme={theme.key}
-            style={{ width: "100%", height: "100%" }}
           >
             <MiniAdminPreview />
           </div>
@@ -64,35 +48,19 @@ export default function ThemeCard({
       </div>
 
       {/* Meta */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingInline: 1 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            flex: 1,
-          }}
-        >
+      <div className="theme-card__meta">
+        <div className="theme-card__name">
           {theme.name}
         </div>
 
         {selected && (
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--color-text-inverse)",
-              background: "var(--color-brand-primary)",
-              borderRadius: 999,
-              padding: "2px 6px",
-              flexShrink: 0,
-            }}
-          >
+          <span className="theme-card__badge theme-card__badge--current">
             현재
+          </span>
+        )}
+        {showPreviewBadge && (
+          <span className="theme-card__badge theme-card__badge--preview">
+            미리보기
           </span>
         )}
       </div>
