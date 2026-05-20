@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
-import { fetchDashboard, fetchOverdueInvoices } from "../api";
+import { fetchDashboard, fetchOverdueInvoices, type FeeType, type StudentInvoice } from "../api";
+import styles from "./FeesDashboardPage.module.css";
 
-function formatKRW(n: number): string {
+function formatKRW(n: number | null | undefined): string {
   if (n == null) return "-";
   return new Intl.NumberFormat("ko-KR").format(Math.round(n));
 }
@@ -34,20 +35,13 @@ export default function FeesDashboardPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>
           수납 관리 · {year}.{String(month).padStart(2, "0")}
         </h1>
         <button
+          type="button"
           onClick={() => navigate("/teacher/fees/invoices")}
-          className="text-[12px] font-bold cursor-pointer"
-          style={{
-            padding: "8px 12px",
-            minHeight: "var(--tc-touch-min)",
-            borderRadius: "var(--tc-radius)",
-            border: "1px solid var(--tc-border)",
-            background: "var(--tc-surface)",
-            color: "var(--tc-primary)",
-          }}
+          className={`${styles.invoiceLink} text-[12px] font-bold cursor-pointer`}
         >
           청구서 →
         </button>
@@ -57,23 +51,16 @@ export default function FeesDashboardPage() {
 
       {isError && !isLoading && (
         <Card>
-          <div className="text-[13px] font-semibold mb-1" style={{ color: "var(--tc-danger)" }}>
+          <div className={`${styles.errorTitle} text-[13px] font-semibold mb-1`}>
             대시보드를 불러오지 못했습니다.
           </div>
-          <div className="text-[12px] leading-relaxed mb-3" style={{ color: "var(--tc-text-muted)" }}>
+          <div className={`${styles.mutedText} text-[12px] leading-relaxed mb-3`}>
             네트워크나 서버 문제일 수 있습니다. 잠시 후 다시 시도해 주세요.
           </div>
           <button
+            type="button"
             onClick={() => refetch()}
-            className="text-[13px] font-bold cursor-pointer"
-            style={{
-              padding: "10px 14px",
-              minHeight: "var(--tc-touch-min)",
-              borderRadius: "var(--tc-radius)",
-              border: "1px solid var(--tc-border-strong)",
-              background: "var(--tc-surface)",
-              color: "var(--tc-text)",
-            }}
+            className={`${styles.retryButton} text-[13px] font-bold cursor-pointer`}
           >
             다시 시도
           </button>
@@ -95,14 +82,14 @@ export default function FeesDashboardPage() {
 
           {/* 상태별 건수 */}
           <Card>
-            <div className="text-[11px] font-semibold mb-2" style={{ color: "var(--tc-text-muted)" }}>
+            <div className={`${styles.sectionCaption} text-[11px] font-semibold mb-2`}>
               청구서 건수
             </div>
             <div className="flex justify-around">
               <Stat label="발행" value={dashboard.invoice_count} />
-              <Stat label="미납" value={dashboard.pending_count} color="var(--tc-warn)" />
-              <Stat label="완납" value={dashboard.paid_count} color="var(--tc-success)" />
-              <Stat label="연체" value={dashboard.overdue_count} color="var(--tc-danger)" />
+              <Stat label="미납" value={dashboard.pending_count} tone="warn" />
+              <Stat label="완납" value={dashboard.paid_count} tone="success" />
+              <Stat label="연체" value={dashboard.overdue_count} tone="danger" />
             </div>
           </Card>
 
@@ -110,28 +97,21 @@ export default function FeesDashboardPage() {
           {dashboard.by_fee_type?.length > 0 && (
             <>
               <SectionTitle>비목별 청구</SectionTitle>
-              <Card style={{ padding: 0, overflow: "hidden" }}>
+              <div className={styles.breakdownCard}>
                 {dashboard.by_fee_type.map((row, i) => (
                   <div
                     key={row.fee_type}
-                    className="flex justify-between items-center"
-                    style={{
-                      padding: "var(--tc-space-3) var(--tc-space-4)",
-                      borderBottom:
-                        i < dashboard.by_fee_type.length - 1
-                          ? "1px solid var(--tc-border)"
-                          : "none",
-                    }}
+                    className={`${styles.breakdownRow} ${i === dashboard.by_fee_type.length - 1 ? styles.lastRow : ""} flex justify-between items-center`}
                   >
-                    <span className="text-sm" style={{ color: "var(--tc-text)" }}>
+                    <span className={`${styles.primaryText} text-sm`}>
                       {FEE_TYPE_LABEL[row.fee_type] ?? row.fee_type}
                     </span>
-                    <span className="text-sm font-semibold tabular-nums" style={{ color: "var(--tc-text)" }}>
+                    <span className={`${styles.primaryText} text-sm font-semibold tabular-nums`}>
                       {formatKRW(row.total)}원
                     </span>
                   </div>
                 ))}
-              </Card>
+              </div>
             </>
           )}
         </>
@@ -143,32 +123,27 @@ export default function FeesDashboardPage() {
       </SectionTitle>
       {overdue && overdue.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          {overdue.slice(0, 20).map((inv: any) => (
+          {overdue.slice(0, 20).map((inv: StudentInvoice) => (
             <button
+              type="button"
               key={inv.id}
               onClick={() => navigate(`/teacher/fees/invoices?id=${inv.id}`)}
-              className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
-              style={{
-                padding: "var(--tc-space-3) var(--tc-space-4)",
-                minHeight: "var(--tc-touch-min)",
-                background: "var(--tc-surface)",
-                border: "1px solid var(--tc-border)",
-              }}
+              className={`${styles.overdueButton} flex items-center gap-3 rounded-xl w-full text-left cursor-pointer`}
             >
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                <div className={`${styles.primaryText} text-sm font-semibold truncate`}>
                   {inv.student_name}
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
                   {inv.invoice_number} · 마감 {inv.due_date}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <div className="text-sm font-bold tabular-nums" style={{ color: "var(--tc-danger)" }}>
+                <div className={`${styles.dangerText} text-sm font-bold tabular-nums`}>
                   {formatKRW(inv.outstanding_amount)}원
                 </div>
               </div>
-              <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
+              <ChevronRight size={ICON.xs} className={styles.chevron} />
             </button>
           ))}
         </div>
@@ -182,25 +157,34 @@ export default function FeesDashboardPage() {
 function Stat({
   label,
   value,
-  color = "var(--tc-text)",
+  tone = "default",
 }: {
   label: string;
   value: number;
-  color?: string;
+  tone?: StatTone;
 }) {
   return (
     <div className="flex flex-col items-center">
-      <span className="text-[18px] font-bold tabular-nums" style={{ color }}>
+      <span className={`${styles.statValue} ${STAT_TONE_CLASS[tone]} text-[18px] font-bold tabular-nums`}>
         {value ?? 0}
       </span>
-      <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+      <span className={`${styles.mutedText} text-[11px]`}>
         {label}
       </span>
     </div>
   );
 }
 
-const FEE_TYPE_LABEL: Record<string, string> = {
+type StatTone = "default" | "warn" | "success" | "danger";
+
+const STAT_TONE_CLASS: Record<StatTone, string> = {
+  default: styles.statDefault,
+  warn: styles.statWarn,
+  success: styles.statSuccess,
+  danger: styles.statDanger,
+};
+
+const FEE_TYPE_LABEL: Record<FeeType, string> = {
   TUITION: "수강료",
   TEXTBOOK: "교재",
   HANDOUT: "프린트",

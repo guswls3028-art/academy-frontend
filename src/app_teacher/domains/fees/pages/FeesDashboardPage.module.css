@@ -1,0 +1,72 @@
+.title,
+.primaryText,
+.statDefault {
+  color: var(--tc-text);
+}
+
+.mutedText,
+.sectionCaption,
+.chevron {
+  color: var(--tc-text-muted);
+}
+
+.errorTitle,
+.dangerText,
+.statDanger {
+  color: var(--tc-danger);
+}
+
+.statWarn {
+  color: var(--tc-warn);
+}
+
+.statSuccess {
+  color: var(--tc-success);
+}
+
+.statValue {
+  line-height: 1.1;
+}
+
+.invoiceLink,
+.retryButton {
+  min-height: var(--tc-touch-min);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+}
+
+.invoiceLink {
+  padding: 8px 12px;
+  border: 1px solid var(--tc-border);
+  color: var(--tc-primary);
+}
+
+.retryButton {
+  padding: 10px 14px;
+  border: 1px solid var(--tc-border-strong);
+  color: var(--tc-text);
+}
+
+.breakdownCard {
+  overflow: hidden;
+  border: 1px solid var(--tc-border);
+  border-radius: 12px;
+  background: var(--tc-surface);
+  box-shadow: var(--tc-shadow-sm);
+}
+
+.breakdownRow {
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.lastRow {
+  border-bottom: none;
+}
+
+.overdueButton {
+  min-height: var(--tc-touch-min);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
