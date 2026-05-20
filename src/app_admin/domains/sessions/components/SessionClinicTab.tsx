@@ -33,6 +33,7 @@ import type { ClinicTarget } from "@admin/domains/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import "./SessionClinicTab.css";
 
 /* ─── Constants ─── */
 
@@ -58,235 +59,7 @@ interface EnrolledStudent {
   clinicTarget: ClinicTarget | null;
 }
 
-/* ─── Styles (CSS-in-module 패턴) ─── */
-
-const styles = `
-.clinic-tab__kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3, 12px);
-}
-@media (max-width: 1023px) {
-  .clinic-tab__kpi-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 639px) {
-  .clinic-tab__kpi-grid { grid-template-columns: 1fr; }
-}
-
-.clinic-tab__kpi {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-3, 12px) var(--space-4, 16px);
-  border-radius: var(--radius-lg, 14px);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-}
-.clinic-tab__kpi-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--control-md, 32px);
-  height: var(--control-md, 32px);
-  border-radius: var(--radius-md, 10px);
-  background: var(--color-bg-surface-sunken);
-  flex-shrink: 0;
-}
-.clinic-tab__kpi-label {
-  font-size: var(--text-sm, 12px);
-  color: var(--color-text-muted);
-  font-weight: 500;
-  line-height: 1.3;
-}
-.clinic-tab__kpi-value {
-  font-size: var(--text-xl, 18px);
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  line-height: 1.3;
-  margin-top: 2px;
-}
-.clinic-tab__kpi-hint {
-  font-size: var(--text-xs, 11px);
-  color: var(--color-text-muted);
-  margin-top: 2px;
-}
-
-.clinic-tab__section {
-  border-radius: var(--radius-xl, 18px);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-  overflow: hidden;
-  box-shadow: var(--elevation-1);
-}
-.clinic-tab__section--warn {
-  border: 1px dashed var(--color-warning, #d97706);
-}
-
-.clinic-tab__section-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-3, 12px) var(--space-4, 16px);
-  border-bottom: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-sunken);
-  flex-wrap: wrap;
-}
-.clinic-tab__section-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md, 10px);
-  background: var(--color-brand-primary, #3b82f6);
-  color: #fff;
-  font-size: var(--text-sm, 12px);
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.clinic-tab__section-badge--warn {
-  background: var(--color-warning, #d97706);
-}
-.clinic-tab__section-info {
-  flex: 1;
-  min-width: 0;
-}
-.clinic-tab__section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  flex-wrap: wrap;
-}
-.clinic-tab__section-name {
-  font-size: var(--text-md, 14px);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-.clinic-tab__target-badge {
-  font-size: var(--text-xs, 11px);
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: var(--radius-full, 999px);
-  background: color-mix(in srgb, var(--color-error) 10%, transparent);
-  color: var(--color-error, #ef4444);
-  white-space: nowrap;
-}
-.clinic-tab__section-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  margin-top: 3px;
-  font-size: var(--text-sm, 12px);
-  color: var(--color-text-muted);
-  flex-wrap: wrap;
-}
-.clinic-tab__meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-.clinic-tab__section-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  flex-shrink: 0;
-}
-.clinic-tab__count {
-  font-size: var(--text-sm, 12px);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.clinic-tab__section-empty {
-  padding: var(--space-6, 24px) var(--space-4, 16px);
-  text-align: center;
-  font-size: var(--text-sm, 12px);
-  color: var(--color-text-muted);
-}
-
-/* Student row */
-.clinic-tab__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-2, 8px) var(--space-4, 16px);
-  border-bottom: 1px solid var(--color-border-divider);
-  transition: background 120ms ease;
-}
-.clinic-tab__row:last-child {
-  border-bottom: none;
-}
-.clinic-tab__row:hover {
-  background: var(--color-bg-surface-hover, rgba(0,0,0,0.02));
-}
-.clinic-tab__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full, 999px);
-  flex-shrink: 0;
-}
-.clinic-tab__dot--ok { background: var(--color-success, #10b981); }
-.clinic-tab__dot--exam { background: var(--color-error, #ef4444); }
-.clinic-tab__dot--hw { background: var(--color-warning, #d97706); }
-.clinic-tab__dot--both { background: var(--color-error, #ef4444); }
-.clinic-tab__name { flex: 1; min-width: 0; }
-
-.clinic-tab__reason {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.clinic-tab__score {
-  font-size: var(--text-sm, 12px);
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.clinic-tab__score-fail {
-  font-weight: 600;
-  color: var(--color-error, #ef4444);
-}
-.clinic-tab__score-cut {
-  color: var(--color-text-muted);
-}
-.clinic-tab__badge {
-  font-size: var(--text-xs, 11px);
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-full, 999px);
-  white-space: nowrap;
-}
-.clinic-tab__badge--exam {
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
-  color: var(--color-error, #ef4444);
-}
-.clinic-tab__badge--hw {
-  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
-  color: var(--color-warning, #d97706);
-}
-.clinic-tab__badge--both {
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
-  color: var(--color-error, #ef4444);
-}
-.clinic-tab__badge--ok {
-  background: color-mix(in srgb, var(--color-success) 8%, transparent);
-  color: var(--color-success, #10b981);
-  font-weight: 500;
-}
-
-@media (max-width: 639px) {
-  .clinic-tab__section-header { padding: var(--space-3, 12px); }
-  .clinic-tab__row { padding: var(--space-2, 8px) var(--space-3, 12px); }
-  .clinic-tab__reason { gap: var(--space-1, 4px); }
-  .clinic-tab__score { font-size: var(--text-xs, 11px); }
-}
-`;
+type KPITone = "default" | "success" | "warning" | "error" | "muted";
 
 /* ─── Component ─── */
 
@@ -442,9 +215,7 @@ export default function SessionClinicTab({
   if (enrolledStudents.length === 0) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 수강생이 없습니다" />;
 
   return (
-    <>
-      <style>{styles}</style>
-      <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
         {/* KPI */}
         <div className="clinic-tab__kpi-grid">
           <KPICard icon={<Users size={16} />} label="전체 수강생" value={stats.total} tone="default" />
@@ -461,12 +232,12 @@ export default function SessionClinicTab({
         {/* 미배정 학생 */}
         {unassignedStudents.length > 0 && (
           <div className="clinic-tab__section clinic-tab__section--warn">
-            <div className="clinic-tab__section-header" style={{ background: "color-mix(in srgb, var(--color-warning) 4%, transparent)" }}>
+            <div className="clinic-tab__section-header clinic-tab__section-header--warn">
               <div className="clinic-tab__section-badge clinic-tab__section-badge--warn">
                 <AlertCircle size={14} />
               </div>
               <div className="clinic-tab__section-info">
-                <div className="clinic-tab__section-name" style={{ color: "var(--color-warning, #d97706)" }}>
+                <div className="clinic-tab__section-name clinic-tab__section-name--warn">
                   클리닉반 미배정
                 </div>
               </div>
@@ -479,31 +250,21 @@ export default function SessionClinicTab({
             </div>
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }
 
 /* ─── Sub-components ─── */
 
-const TONE_COLORS: Record<string, string> = {
-  default: "var(--color-text-primary)",
-  success: "var(--color-success, #10b981)",
-  warning: "var(--color-warning, #d97706)",
-  error: "var(--color-error, #ef4444)",
-  muted: "var(--color-text-muted)",
-};
-
 function KPICard({ icon, label, value, tone, hint }: {
-  icon: React.ReactNode; label: string; value: number; tone: string; hint?: string;
+  icon: React.ReactNode; label: string; value: number; tone: KPITone; hint?: string;
 }) {
-  const color = TONE_COLORS[tone] ?? TONE_COLORS.default;
   return (
     <div className="clinic-tab__kpi">
-      <div className="clinic-tab__kpi-icon" style={{ color }}>{icon}</div>
+      <div className="clinic-tab__kpi-icon" data-tone={tone}>{icon}</div>
       <div>
         <div className="clinic-tab__kpi-label">{label}</div>
-        <div className="clinic-tab__kpi-value" style={{ color }}>{value}</div>
+        <div className="clinic-tab__kpi-value" data-tone={tone}>{value}</div>
         {hint && <div className="clinic-tab__kpi-hint">{hint}</div>}
       </div>
     </div>

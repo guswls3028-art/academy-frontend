@@ -114,6 +114,7 @@ export default function ExamKanbanCard({ exam, onClick, isUrgent }: Props) {
           <div className="h-1 w-full rounded-full bg-[var(--color-border-divider)] overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all"
+              // eslint-disable-next-line no-restricted-syntax -- progress width is derived from graded/submitted counts.
               style={{ width: `${progressPct}%` }}
             />
           </div>
