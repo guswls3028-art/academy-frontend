@@ -1,0 +1,83 @@
+.title,
+.primaryText,
+.searchInput,
+.field {
+  color: var(--tc-text);
+}
+
+.mutedText,
+.searchIcon,
+.mutedIconButton {
+  color: var(--tc-text-muted);
+}
+
+.uploadButton,
+.confirmUploadButton {
+  min-height: var(--tc-touch-min);
+  border: none;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.uploadButton {
+  padding: 8px 12px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.searchBox {
+  padding: 8px 12px;
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+}
+
+.searchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+}
+
+.studentButton,
+.fileRow {
+  min-height: var(--tc-touch-min);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  background: var(--tc-surface);
+}
+
+.avatar {
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.iconButton {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 8px;
+  border: none;
+  background: none;
+}
+
+.primaryIconButton {
+  color: var(--tc-primary);
+}
+
+.field {
+  min-height: var(--tc-touch-min);
+  padding: 10px 12px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  outline: none;
+  background: var(--tc-surface);
+}
+
+.confirmUploadButton {
+  padding: 14px;
+}
