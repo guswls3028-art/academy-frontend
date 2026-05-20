@@ -32,7 +32,7 @@ export function AgentDeskCard({ agent, isSelected, onClick, tick }: AgentDeskCar
       title={`${agent.displayName} - ${meta.label}`}
     >
       {/* Status LED */}
-      <span className={s.statusLed} style={{ background: meta.color }} />
+      <span className={s.statusLed} data-status={agent.status} />
 
       {/* Avatar */}
       <div className={s.seatAvatar}>
@@ -45,7 +45,7 @@ export function AgentDeskCard({ agent, isSelected, onClick, tick }: AgentDeskCar
       {/* Status badge */}
       <span
         className={s.seatBadge}
-        style={{ color: meta.color, background: meta.bgColor }}
+        data-status={agent.status}
       >
         {meta.label}
       </span>

@@ -26,7 +26,7 @@ export function AgentDetailPanel({ agent, onClose, tick }: AgentDetailPanelProps
             <h3 className={s.detailName}>{agent.displayName}</h3>
             <span
               className={s.statusBadge}
-              style={{ color: meta.color, background: meta.bgColor }}
+              data-status={agent.status}
             >
               {meta.label}
             </span>

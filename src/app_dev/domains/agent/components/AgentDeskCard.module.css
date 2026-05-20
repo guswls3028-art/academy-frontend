@@ -76,6 +76,18 @@
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
 }
 
+.statusLed[data-status="queued"] { background: #64748b; }
+.statusLed[data-status="planning"] { background: #8b5cf6; }
+.statusLed[data-status="reading"] { background: #3b82f6; }
+.statusLed[data-status="coding"] { background: #10b981; }
+.statusLed[data-status="testing"],
+.statusLed[data-status="blocked"] { background: #f59e0b; }
+.statusLed[data-status="reviewing"] { background: #6366f1; }
+.statusLed[data-status="waiting"] { background: #94a3b8; }
+.statusLed[data-status="deploying"] { background: #f97316; }
+.statusLed[data-status="done"] { background: #2dd4bf; }
+.statusLed[data-status="failed"] { background: #ef4444; }
+
 /* ===== Avatar ===== */
 .seatAvatar {
   display: flex;
@@ -108,6 +120,57 @@
   border-radius: 3px;
   white-space: nowrap;
   line-height: 1.4;
+}
+
+.seatBadge[data-status="queued"] {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.seatBadge[data-status="planning"] {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.seatBadge[data-status="reading"] {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.seatBadge[data-status="coding"] {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.seatBadge[data-status="testing"],
+.seatBadge[data-status="blocked"] {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.seatBadge[data-status="reviewing"] {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.seatBadge[data-status="waiting"] {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.seatBadge[data-status="deploying"] {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.seatBadge[data-status="done"] {
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
+}
+
+.seatBadge[data-status="failed"] {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 /* ===== Task ===== */
@@ -143,6 +206,12 @@
 /* ===== Pixel Character Animations ===== */
 .pixelChar {
   display: block;
+  image-rendering: pixelated;
+}
+
+.pixelDesk {
+  opacity: 0.3;
+  image-rendering: pixelated;
 }
 
 .animTyping {

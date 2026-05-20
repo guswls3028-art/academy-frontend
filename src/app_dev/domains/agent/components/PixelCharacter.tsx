@@ -42,7 +42,6 @@ export function PixelCharacter({ status, role, size = 28 }: {
       width={size}
       height={size}
       className={`${s.pixelChar} ${animClass}`}
-      style={{ imageRendering: "pixelated" }}
     >
       {/* Head */}
       <rect x="5" y="1" width="6" height="5" fill="#fcd9b6" />
@@ -66,7 +65,7 @@ export function PixelCharacter({ status, role, size = 28 }: {
 
 export function PixelDesk() {
   return (
-    <svg viewBox="0 0 48 32" width={96} height={64} style={{ imageRendering: "pixelated", opacity: 0.3 }}>
+    <svg viewBox="0 0 48 32" width={96} height={64} className={s.pixelDesk}>
       {/* Desk */}
       <rect x="4" y="16" width="40" height="3" rx="1" fill="#94a3b8" />
       <rect x="8" y="19" width="3" height="12" fill="#64748b" />

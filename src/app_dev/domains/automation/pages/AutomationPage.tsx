@@ -7,6 +7,7 @@ import { useAuditLog, useCronList, useTriggerCron } from "@dev/domains/automatio
 import { useDevToast } from "@dev/shared/components/DevToast";
 import type { AuditFilters } from "@dev/domains/automation/api/automation.api";
 import s from "@dev/layout/DevLayout.module.css";
+import page from "./AutomationPage.module.css";
 
 type Tab = "audit" | "cron";
 
@@ -17,7 +18,7 @@ export default function AutomationPage() {
     <>
       <header className={s.header}>
         <div className={s.headerLeft}>
-          <Link to="/dev/dashboard" style={{ color: "inherit", textDecoration: "none" }}>대시보드</Link>
+          <Link to="/dev/dashboard" className={page.breadcrumbLink}>대시보드</Link>
           <span className={s.breadcrumbSep}>/</span>
           <span className={s.breadcrumbCurrent}>자동화</span>
         </div>
@@ -61,13 +62,13 @@ function AuditTab() {
 
   return (
     <>
-      <div className={s.card} style={{ marginBottom: 16 }}>
+      <div className={`${s.card} ${page.filterCard}`}>
         <div className={s.cardHeader}>
           <h3 className={s.cardTitle}>필터</h3>
           <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => refetch()}>새로고침</button>
         </div>
         <div className={s.cardBody}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+          <div className={page.filterGrid}>
             <Field label="액션 (예: tenant.create)">
               <input className={s.input} value={draft.action || ""} onChange={(e) => setDraft({ ...draft, action: e.target.value })} />
             </Field>
@@ -94,7 +95,7 @@ function AuditTab() {
               <input className={s.input} type="number" min={1} max={500} value={draft.limit || 200} onChange={(e) => setDraft({ ...draft, limit: parseInt(e.target.value || "100", 10) })} />
             </Field>
           </div>
-          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+          <div className={page.formActions}>
             <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => setFilters(draft)}>적용</button>
             <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => { const reset = { limit: 200 } as AuditFilters; setDraft(reset); setFilters(reset); }}>초기화</button>
           </div>
@@ -104,55 +105,50 @@ function AuditTab() {
       <div className={s.card}>
         <div className={s.cardHeader}>
           <h3 className={s.cardTitle}>감사 로그</h3>
-          <span style={{ fontSize: 13, color: "var(--dev-text-muted)" }}>
+          <span className={page.auditCount}>
             {data ? `${data.count}건` : ""}
           </span>
         </div>
         {isLoading ? (
           <div className={s.cardBody}>
-            <div className={s.skeleton} style={{ height: 200 }} />
+            <div className={`${s.skeleton} ${page.skeletonTall}`} />
           </div>
         ) : !data || data.results.length === 0 ? (
           <div className={s.empty}><div className={s.emptyText}>매칭된 감사 로그 없음</div></div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className={page.tableWrap}>
             <table className={s.table}>
               <thead>
                 <tr>
-                  <th style={{ width: 150 }}>시각</th>
-                  <th style={{ width: 110 }}>실행자</th>
-                  <th style={{ width: 160 }}>액션</th>
-                  <th style={{ width: 100 }}>테넌트</th>
+                  <th className={page.colTime}>시각</th>
+                  <th className={page.colActor}>실행자</th>
+                  <th className={page.colAction}>액션</th>
+                  <th className={page.colTenant}>테넌트</th>
                   <th>요약</th>
-                  <th style={{ width: 60 }}>결과</th>
+                  <th className={page.colResult}>결과</th>
                 </tr>
               </thead>
               <tbody>
                 {data.results.map((r) => (
                   <tr key={r.id}>
-                    <td style={{ fontSize: 12, color: "var(--dev-text-muted)", whiteSpace: "nowrap" }}>
+                    <td className={page.dateCell}>
                       {r.created_at ? new Date(r.created_at).toLocaleString("ko-KR") : "—"}
                     </td>
-                    <td style={{ fontSize: 12 }}>{r.actor}</td>
+                    <td className={page.smallCell}>{r.actor}</td>
                     <td><span className={s.code}>{r.action}</span></td>
-                    <td style={{ fontSize: 12 }}>
+                    <td className={page.smallCell}>
                       {r.tenant_code ? (
                         <span className={s.code}>{r.tenant_code}</span>
                       ) : (
-                        <span style={{ color: "var(--dev-text-muted)" }}>—</span>
+                        <span className={page.mutedText}>—</span>
                       )}
                     </td>
-                    <td style={{ fontSize: 13 }}>
+                    <td className={page.summaryCell}>
                       {r.summary || "—"}
-                      {r.error && <div style={{ fontSize: 11, color: "var(--dev-danger)", marginTop: 2 }}>{r.error}</div>}
+                      {r.error && <div className={page.errorText}>{r.error}</div>}
                     </td>
                     <td>
-                      <span style={{
-                        display: "inline-block", padding: "2px 6px", borderRadius: 4,
-                        fontSize: 10, fontWeight: 700,
-                        background: r.result === "failed" ? "var(--dev-danger-subtle)" : "var(--dev-success-subtle)",
-                        color: r.result === "failed" ? "var(--dev-danger)" : "var(--dev-success)",
-                      }}>
+                      <span className={`${page.resultBadge} ${r.result === "failed" ? page.resultFailed : page.resultSuccess}`}>
                         {r.result === "failed" ? "FAIL" : "OK"}
                       </span>
                     </td>
@@ -169,8 +165,8 @@ function AuditTab() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--dev-text-muted)" }}>{label}</span>
+    <label className={page.field}>
+      <span className={page.fieldLabel}>{label}</span>
       {children}
     </label>
   );
@@ -201,34 +197,31 @@ function CronTab() {
     }
   }
 
-  if (isLoading) return <div className={s.skeleton} style={{ height: 200 }} />;
+  if (isLoading) return <div className={`${s.skeleton} ${page.skeletonTall}`} />;
   if (!data) return <div className={s.empty}><div className={s.emptyText}>크론 정보 없음</div></div>;
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className={page.cronGrid}>
       {data.results.map((c) => (
         <div key={c.command} className={s.card}>
           <div className={s.cardHeader}>
             <div>
               <h3 className={s.cardTitle}>{c.label}</h3>
-              <div style={{ fontSize: 12, color: "var(--dev-text-muted)", marginTop: 2 }}>
+              <div className={page.cronDescription}>
                 <span className={s.code}>{c.command}</span> · {c.description}
               </div>
             </div>
             {c.last_run_at ? (
-              <span style={{ fontSize: 11, color: "var(--dev-text-muted)" }}>
+              <span className={page.cronMeta}>
                 최근 {new Date(c.last_run_at).toLocaleString("ko-KR")}
                 {c.last_run_result && (
-                  <span style={{
-                    marginLeft: 6, fontWeight: 700,
-                    color: c.last_run_result === "failed" ? "var(--dev-danger)" : "var(--dev-success)",
-                  }}>
+                  <span className={`${page.cronResult} ${c.last_run_result === "failed" ? page.resultFailed : page.resultSuccess}`}>
                     {c.last_run_result === "failed" ? "FAIL" : "OK"}
                   </span>
                 )}
               </span>
             ) : (
-              <span style={{ fontSize: 11, color: "var(--dev-text-muted)" }}>실행 기록 없음</span>
+              <span className={page.cronMeta}>실행 기록 없음</span>
             )}
           </div>
           <div className={s.cardBody}>
@@ -241,11 +234,11 @@ function CronTab() {
               />
             </Field>
             {c.last_run_summary && (
-              <div style={{ fontSize: 12, color: "var(--dev-text-secondary)", marginTop: 8 }}>
+              <div className={page.cronSummary}>
                 {c.last_run_summary}
               </div>
             )}
-            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+            <div className={page.formActions}>
               <button
                 type="button"
                 className={`${s.btn} ${c.danger ? s.btnDanger : s.btnPrimary} ${s.btnSm}`}

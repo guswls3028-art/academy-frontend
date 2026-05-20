@@ -23,6 +23,57 @@
   white-space: nowrap;
 }
 
+.statusBadge[data-status="queued"] {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.statusBadge[data-status="planning"] {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.statusBadge[data-status="reading"] {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.statusBadge[data-status="coding"] {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.statusBadge[data-status="testing"],
+.statusBadge[data-status="blocked"] {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.statusBadge[data-status="reviewing"] {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.statusBadge[data-status="waiting"] {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.statusBadge[data-status="deploying"] {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.statusBadge[data-status="done"] {
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
+}
+
+.statusBadge[data-status="failed"] {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
 .detailHeader {
   display: flex;
   align-items: center;
@@ -101,7 +152,7 @@
   color: var(--dev-dark-text-muted);
   padding: 5px 0;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .infoValue {
@@ -129,7 +180,7 @@
   font-weight: 700;
   color: #f87171;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 
@@ -152,7 +203,7 @@
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   margin-bottom: 6px;
 }
 
@@ -175,7 +226,7 @@
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   margin-bottom: 10px;
 }
 
