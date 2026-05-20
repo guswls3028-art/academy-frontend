@@ -1,0 +1,48 @@
+.loadingStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+}
+
+.loadingSummary {
+  height: 88px;
+  border-radius: var(--stu-radius);
+}
+
+.loadingChart {
+  height: 160px;
+  border-radius: var(--stu-radius);
+}
+
+.statsStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-8);
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  gap: var(--stu-space-6);
+}
+
+.summaryStats {
+  flex: 1;
+  min-width: 0;
+}
+
+.chartTitle {
+  margin-bottom: var(--stu-space-4);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.chartPanel {
+  padding: var(--stu-space-4);
+  background: var(--stu-surface-soft);
+  border-radius: var(--stu-radius);
+}
+
+.chartFrame {
+  width: 100%;
+}

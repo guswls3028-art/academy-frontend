@@ -15,17 +15,18 @@ import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import styles from "./ExamStatsTab.module.css";
 
 export default function ExamStatsTab() {
   const { data, isLoading } = useMyGradesSummary();
-  const exams = data?.exams ?? [];
+  const sourceExams = data?.exams;
+  const exams = useMemo(() => sourceExams ?? [], [sourceExams]);
 
   const stats = useMemo(() => {
     if (exams.length === 0) return null;
 
     const total = exams.length;
     const submitted = exams.filter((e) => e.total_score != null);
-    const notSubmitted = total - submitted.length;
     const scored = submitted.filter((e) => e.max_score > 0);
 
     const avgPct = scored.length > 0
@@ -37,7 +38,7 @@ export default function ExamStatsTab() {
       ? Math.round((withCriteria.filter((e) => e.is_pass).length / withCriteria.length) * 100)
       : 0;
 
-    return { total, submitted: submitted.length, notSubmitted, avgPct, passRate };
+    return { total, submitted: submitted.length, avgPct, passRate };
   }, [exams]);
 
   // 강좌별 평균 점수
@@ -62,9 +63,9 @@ export default function ExamStatsTab() {
 
   if (isLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-        <div className="stu-skel" style={{ height: 88, borderRadius: "var(--stu-radius)" }} />
-        <div className="stu-skel" style={{ height: 160, borderRadius: "var(--stu-radius)" }} />
+      <div className={styles.loadingStack}>
+        <div className={`stu-skel ${styles.loadingSummary}`} />
+        <div className={`stu-skel ${styles.loadingChart}`} />
       </div>
     );
   }
@@ -74,16 +75,16 @@ export default function ExamStatsTab() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" }}>
+    <div className={styles.statsStack}>
       {/* 요약 */}
-      <div style={{ display: "flex", gap: "var(--stu-space-6)", alignItems: "center" }}>
+      <div className={styles.summaryRow}>
         <ProgressRing
           percent={stats.avgPct}
           size={88}
           color={stats.avgPct >= 70 ? "var(--stu-success)" : stats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
           sublabel="평균 득점"
         />
-        <div style={{ flex: 1 }}>
+        <div className={styles.summaryStats}>
           <StatGrid>
             <StatCard label="총 시험" value={`${stats.total}건`} />
             <StatCard label="응시완료" value={`${stats.submitted}건`} />
@@ -96,12 +97,12 @@ export default function ExamStatsTab() {
       {/* 강좌별 성적 비교 */}
       {lectureStats.length >= 2 && (
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+          <div className={styles.chartTitle}>
             강좌별 평균 득점률
           </div>
-          <div style={{ background: "var(--stu-surface-soft)", borderRadius: "var(--stu-radius)", padding: "var(--stu-space-4)" }}>
-            <div style={{ width: "100%", height: Math.max(120, lectureStats.length * 36) }}>
-              <ResponsiveContainer width="100%" height="100%">
+          <div className={styles.chartPanel}>
+            <div className={styles.chartFrame}>
+              <ResponsiveContainer width="100%" height={Math.max(120, lectureStats.length * 36)}>
                 <BarChart data={lectureStats} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "var(--stu-text-subtle)" }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "var(--stu-text-muted)" }} axisLine={false} tickLine={false} width={60} />
@@ -117,9 +118,9 @@ export default function ExamStatsTab() {
                     }}
                   />
                   <Bar dataKey="평균" radius={[0, 4, 4, 0]} barSize={20}>
-                    {lectureStats.map((entry, i) => (
+                    {lectureStats.map((entry) => (
                       <Cell
-                        key={i}
+                        key={entry.fullName}
                         fill={entry.평균 >= 70 ? "var(--stu-success)" : entry.평균 >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
                       />
                     ))}
