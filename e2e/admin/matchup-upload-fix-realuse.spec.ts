@@ -4,22 +4,26 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { Page } from "@playwright/test";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+
+async function gotoMatchup(page: Page): Promise<void> {
+  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await expect(page.locator("[class*='_root']").first()).toBeVisible({ timeout: 5000 });
+}
 
 test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
   test("B1: 매치업 페이지 좌측 트리에 viewport 높이 제한 + 별도 overflow", async ({ page }) => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
 
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-      waitUntil: "load",
-      timeout: 20_000,
-    });
-    await page.waitForTimeout(1500);
+    await gotoMatchup(page);
 
     // 매치업 페이지 root 컨테이너의 inline maxHeight 검사. 브라우저는 calc 표기를
     // 정규화하므로 (`calc(-100px + 100vh)` ≡ `calc(100vh - 100px)`) 양쪽 모두 허용.
@@ -40,11 +44,7 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
 
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-      waitUntil: "load",
-      timeout: 20_000,
-    });
-    await page.waitForTimeout(1500);
+    await gotoMatchup(page);
 
     // 매치업 트리 헤더의 "시험지" 업로드 버튼 (testid 기반)
     await page.getByTestId("matchup-upload-button").click();
@@ -54,7 +54,6 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     const fileInput = page.getByTestId("matchup-file-input");
     const pdf1 = path.resolve(__dirname, "../fixtures/test-matchup.pdf");
     await fileInput.setInputFiles([pdf1, pdf1]);
-    await page.waitForTimeout(800);
 
     // 라디오 UI(2026-04-29) — 두 옵션 모두 노출되어야 함.
     const splitToggle = page.getByTestId("matchup-split-mode-toggle");
@@ -86,27 +85,22 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
 
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-      waitUntil: "load",
-      timeout: 20_000,
-    });
-    await page.waitForTimeout(1500);
+    await gotoMatchup(page);
 
     // 매치업/저장소 토글에서 "저장소" 탭으로 이동
     await page.getByRole("button", { name: /^저장소$/ }).click();
-    await page.waitForTimeout(800);
+    await expect(page.getByRole("button", { name: /^추가$/ })).toBeVisible({ timeout: 5000 });
 
     // "추가" 버튼 → 메뉴 → "파일 업로드"
     await page.getByRole("button", { name: /^추가$/ }).click();
-    await page.waitForTimeout(300);
+    await expect(page.getByText("파일 업로드")).toBeVisible({ timeout: 5000 });
     await page.getByText("파일 업로드").click();
-    await page.waitForTimeout(500);
+    await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 5000 });
 
     // 파일 2개 선택
     const fileInput = page.locator('input[type="file"]').first();
     const pdf1 = path.resolve(__dirname, "../fixtures/test-matchup.pdf");
     await fileInput.setInputFiles([pdf1, pdf1]);
-    await page.waitForTimeout(800);
 
     // 다중 선택 시 list 노출
     const fileList = page.getByTestId("upload-modal-file-list");
