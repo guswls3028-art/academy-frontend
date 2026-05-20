@@ -369,7 +369,7 @@ export default function agentEventServerPlugin(): Plugin {
               const ev = JSON.parse(body);
               processEvent(ev);
               jsonResponse(res, 200, { ok: true });
-            } catch (e) {
+            } catch {
               jsonResponse(res, 400, { error: "Invalid JSON" });
             }
           }).catch((err) => {

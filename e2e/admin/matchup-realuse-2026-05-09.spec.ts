@@ -5,7 +5,8 @@
 // 작업박스 (진행률 / 삭제 / 자동이동) 자연 검증.
 // 실데이터 read-only 검증 위주 — 신규 업로드는 별도 스펙에서.
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -14,8 +15,9 @@ const ADMIN_PASS = "koreaseoul97";
 const TENANT = "hakwonplus";
 
 const OUT = "../_artifacts/sessions/matchup-realuse-2026-05-09";
+const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
 
-async function login(page: import("@playwright/test").Page) {
+async function login(page: Page) {
   const resp = await page.request.post(`${API}/api/v1/token/`, {
     data: { username: ADMIN_USER, password: ADMIN_PASS, tenant_code: TENANT },
     headers: { "Content-Type": "application/json", "X-Tenant-Code": TENANT },
@@ -27,6 +29,29 @@ async function login(page: import("@playwright/test").Page) {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
   }, tokens);
+}
+
+async function openMatchup(page: Page, settleMs = 1500): Promise<void> {
+  await login(page);
+  await gotoAndSettle(page, MATCHUP_URL, { timeout: 30_000, settleMs });
+}
+
+async function waitForDocList(page: Page): Promise<void> {
+  await waitForCondition(
+    async () => (await page.locator('[data-testid="matchup-doc-row"]').count()) > 0,
+    { timeoutMs: 15_000, description: "matchup doc rows visible" },
+  );
+}
+
+async function waitForDoneDocSelection(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator('[data-testid="document-guidance-banner"]').count()) > 0 ||
+      (await page.locator('[data-testid="matchup-problem-grid"]').count()) > 0 ||
+      (await page.locator('[data-testid="matchup-right-panel"]').count()) > 0,
+    { timeoutMs: 15_000, description: "done document detail settled" },
+  ).catch(() => {});
 }
 
 test.describe("매치업 실사용 리뷰 2026-05-09", () => {
@@ -43,10 +68,8 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
       }
     });
 
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await openMatchup(page);
+    await waitForDocList(page);
 
     await page.screenshot({ path: `${OUT}/01-landing-fullpage.png`, fullPage: true });
 
@@ -71,15 +94,12 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
 
   test("02 - done doc 선택 + DocumentGuidanceBanner + ProblemGrid", async ({ page }) => {
     page.on("pageerror", (e) => console.error("[PAGEERROR]", e.message));
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await openMatchup(page);
 
     const doneRow = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]').first();
     await expect(doneRow).toBeVisible();
     await doneRow.click();
-    await page.waitForTimeout(1500);
+    await waitForDoneDocSelection(page);
 
     await page.screenshot({ path: `${OUT}/02-done-doc-selected-fullpage.png`, fullPage: true });
 
@@ -116,10 +136,7 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
 
   test("03 - 업로드 모달 진입 + source_type 선택 UI", async ({ page }) => {
     page.on("pageerror", (e) => console.error("[PAGEERROR]", e.message));
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1200);
+    await openMatchup(page, 1200);
 
     // 업로드 버튼 — "참고자료" or "시험지" 두 종류 가능. data-testid 우선.
     const uploadBtns = page.locator('button:has-text("업로드"), button:has-text("자료 등록"), button:has-text("시험지")');
@@ -128,10 +145,12 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
     if (cnt === 0) return;
 
     // 첫 업로드 버튼 클릭
-    await uploadBtns.first().click();
-    await page.waitForTimeout(500);
-
     const modal = page.locator('[data-testid="matchup-upload-modal"]');
+    await uploadBtns.first().click();
+    await waitForCondition(
+      async () => (await modal.count()) > 0,
+      { timeoutMs: 10_000, description: "matchup upload modal open" },
+    ).catch(() => {});
     if (await modal.count() === 0) {
       console.error("[INFO] modal didn't open via first button");
       return;
@@ -156,10 +175,7 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
 
   test("04 - 작업박스 (worker job) 진행 표시", async ({ page }) => {
     page.on("pageerror", (e) => console.error("[PAGEERROR]", e.message));
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1200);
+    await openMatchup(page, 1200);
 
     // 작업박스 (대시보드 헤더 우측 또는 페이지 어딘가)
     const jobBox = page.locator('[data-testid="async-status-job"]').or(page.locator('[data-testid="async-job-list"]'));
@@ -181,16 +197,13 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
   test("05 - 모바일 viewport 1100x720", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1100, height: 720 } });
     const page = await ctx.newPage();
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await openMatchup(page);
     await page.screenshot({ path: `${OUT}/05-mobile-1100-landing.png`, fullPage: true });
 
     const doneRow = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]').first();
     if (await doneRow.count() > 0) {
       await doneRow.click();
-      await page.waitForTimeout(1500);
+      await waitForDoneDocSelection(page);
       await page.screenshot({ path: `${OUT}/05b-mobile-1100-doc-selected.png`, fullPage: true });
     }
     await ctx.close();
@@ -198,15 +211,12 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
 
   test("06 - 적중보고서 진입 + 편집기 시각", async ({ page }) => {
     page.on("pageerror", (e) => console.error("[PAGEERROR]", e.message));
-    await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await openMatchup(page);
 
     // done doc 선택
     const doneRow = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]').first();
     await doneRow.click();
-    await page.waitForTimeout(1500);
+    await waitForDoneDocSelection(page);
 
     // 적중보고서 버튼 — "보고서", "적중", "hit" 키워드 후보
     const reportBtns = page.locator('button:has-text("보고서"), button:has-text("적중"), [data-testid*="hit-report"]');
@@ -215,7 +225,13 @@ test.describe("매치업 실사용 리뷰 2026-05-09", () => {
     if (cnt === 0) return;
 
     await reportBtns.first().click();
-    await page.waitForTimeout(2500);
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    await waitForCondition(
+      async () =>
+        (await page.locator('[data-testid="hit-report-editor"]').count()) > 0 ||
+        (await page.locator('text=/보고서|적중/').count()) > 0,
+      { timeoutMs: 15_000, description: "hit report view settled" },
+    ).catch(() => {});
     await page.screenshot({ path: `${OUT}/06-hit-report-fullpage.png`, fullPage: true });
 
     // 편집기 영역
