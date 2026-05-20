@@ -141,21 +141,27 @@ export interface PolicyImpactResponse {
   sample: PolicyImpactRow[];
 }
 
-function safeData<T>(d: any, fallback: T): T {
+function safeData<T>(d: unknown, fallback: T): T {
   if (d == null) return fallback;
-  return d;
+  return d as T;
 }
 
 /**
  * ✅ 최소 추가
  * backend의 thumbnail → frontend thumbnail_url 매핑
  */
-function normalizeVideo(v: any): Video {
-  if (!v) return v;
-  if (!v.thumbnail_url && v.thumbnail) {
-    return { ...v, thumbnail_url: v.thumbnail } as Video;
+type VideoPayload = Partial<Video> & {
+  thumbnail?: string | null;
+};
+
+function normalizeVideo(v: unknown): Video {
+  if (!v || typeof v !== "object") return v as Video;
+
+  const payload = v as VideoPayload;
+  if (!payload.thumbnail_url && payload.thumbnail) {
+    return { ...payload, thumbnail_url: payload.thumbnail } as Video;
   }
-  return v as Video;
+  return payload as Video;
 }
 
 export async function fetchSessionVideos(
@@ -223,7 +229,7 @@ export async function fetchVideoStats(
 ): Promise<VideoStats> {
   const res = await api.get(`/media/videos/${videoId}/stats/`);
   const data = safeData<VideoStats>(res.data, {
-    video: {} as any,
+    video: {} as VideoDetail,
     students: [],
   });
 
