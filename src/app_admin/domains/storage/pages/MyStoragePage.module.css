@@ -1,0 +1,4 @@
+.quotaHeader {
+  flex-shrink: 0;
+  margin-bottom: var(--space-3);
+}

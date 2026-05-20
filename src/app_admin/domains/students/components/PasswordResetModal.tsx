@@ -10,6 +10,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/mod
 import { MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import styles from "./PasswordResetModal.module.css";
 
 export type PwResetTarget = "student" | "parent" | "both";
 
@@ -42,49 +43,15 @@ function NotifyToggle({
   disabled: boolean;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-3)",
-        padding: "var(--space-3) var(--space-4)",
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--color-border-divider)",
-        background: checked
-          ? "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))"
-          : "var(--color-bg-surface-soft)",
-        boxShadow: checked ? "inset 3px 0 0 var(--color-primary)" : undefined,
-        transition: "background 0.15s, box-shadow 0.15s",
-      }}
-    >
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: "var(--radius-md)",
-          background: checked
-            ? "color-mix(in srgb, var(--color-primary) 12%, transparent)"
-            : "var(--color-bg-surface-soft)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: checked ? "var(--color-primary)" : "var(--color-text-muted)",
-          flexShrink: 0,
-        }}
-      >
+    <div className={`${styles.notifyToggle} ${checked ? styles.notifyToggleChecked : ""}`}>
+      <div className={styles.notifyIcon}>
         <FiMessageSquare size={15} aria-hidden />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: checked ? "var(--color-text-primary)" : "var(--color-text-muted)",
-          }}
-        >
+      <div className={styles.notifyCopy}>
+        <span className={styles.notifyTitle}>
           임시 비밀번호 알림톡 발송
         </span>
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.3 }}>
+        <div className={styles.notifyDescription}>
           {checked
             ? "변경된 비밀번호를 학생·학부모에게 알림톡으로 보냅니다"
             : "켜면 임시 비밀번호를 알림톡으로 발송합니다"}
@@ -122,11 +89,12 @@ export default function PasswordResetModal({
   }, [open]);
 
   const handleSubmit = async () => {
+    const password = tempPassword.trim();
     if (selectedStudents.length === 0) {
       feedback.info("선택한 학생이 없습니다.");
       return;
     }
-    if (!sendNotify && !tempPassword.trim()) {
+    if (!sendNotify && !password) {
       feedback.error("알림톡을 보내지 않으려면 임시 비밀번호를 직접 입력해 주세요.");
       return;
     }
@@ -152,7 +120,7 @@ export default function PasswordResetModal({
                 target: "student",
                 student_name: s.name,
                 student_ps_number: s.psNumber.trim(),
-                ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+                ...(password ? { temp_password: password } : {}),
                 ...(!sendNotify ? { skip_notify: true } : {}),
               });
             } else {
@@ -166,7 +134,7 @@ export default function PasswordResetModal({
                 target: "parent",
                 student_name: s.name,
                 parent_phone: phone,
-                ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+                ...(password ? { temp_password: password } : {}),
                 ...(!sendNotify ? { skip_notify: true } : {}),
               });
             }

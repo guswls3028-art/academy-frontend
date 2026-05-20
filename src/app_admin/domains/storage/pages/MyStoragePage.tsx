@@ -3,11 +3,12 @@
 
 import QuotaIndicator from "../components/QuotaIndicator";
 import MyStorageExplorer from "../components/MyStorageExplorer";
+import styles from "./MyStoragePage.module.css";
 
 export default function MyStoragePage() {
   return (
     <>
-      <div style={{ flexShrink: 0, marginBottom: "var(--space-3)" }}>
+      <div className={styles.quotaHeader}>
         <QuotaIndicator />
       </div>
       <MyStorageExplorer />

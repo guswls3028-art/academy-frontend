@@ -395,7 +395,7 @@ export default function StudentsRequestsPage() {
             학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다.
           </p>
         </div>
-        <div style={{ padding: "var(--space-5)" }}>
+        <div className="students-requests__body">
           <div className={panelStyles.contentInner}>
             {[1, 2, 3].map((i) => (
               <div key={i} className={panelStyles.skeletonCard} />
@@ -483,13 +483,7 @@ export default function StudentsRequestsPage() {
               disabled={pendingList.length === 0}
             />
             <span
-              className="students-requests__toolbar-count"
-              style={{
-                color:
-                  selectedIds.size > 0
-                    ? "var(--color-primary)"
-                    : "var(--color-text-muted)",
-              }}
+              className={`students-requests__toolbar-count ${selectedIds.size > 0 ? "students-requests__toolbar-count--active" : ""}`}
             >
               {selectedIds.size > 0
                 ? `${selectedIds.size}건 선택됨`
@@ -530,16 +524,16 @@ export default function StudentsRequestsPage() {
         </div>
 
         {/* ── 콘텐츠 ── */}
-        <div style={{ padding: "var(--space-5)" }}>
+        <div className="students-requests__body">
           {pendingList.length === 0 ? (
-            <div style={{ paddingTop: "var(--space-6)" }}>
+            <div className="students-requests__empty-wrap">
               <EmptyState
                 title="대기 중인 가입 신청이 없습니다"
                 description="학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다."
               />
             </div>
           ) : (
-            <div className={panelStyles.contentInner} style={{ maxWidth: 860 }}>
+            <div className={`${panelStyles.contentInner} students-requests__content-inner`}>
               {pendingList.map((r) => {
                 const isSelected = selectedIds.has(r.id);
                 const isApproving =

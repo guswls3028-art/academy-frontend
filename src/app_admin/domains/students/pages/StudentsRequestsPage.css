@@ -72,15 +72,32 @@
 }
 
 .students-requests__toolbar-count {
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 600;
   transition: color 0.15s;
+}
+
+.students-requests__toolbar-count--active {
+  color: var(--color-primary);
 }
 
 .students-requests__toolbar-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.students-requests__body {
+  padding: var(--space-5);
+}
+
+.students-requests__empty-wrap {
+  padding-top: var(--space-6);
+}
+
+.students-requests__content-inner {
+  max-width: 860px;
 }
 
 /* ── 요청 카드 ── */
