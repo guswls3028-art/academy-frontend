@@ -12,7 +12,6 @@ import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
 const TeacherRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
-import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
@@ -423,26 +422,24 @@ export default function AppRouter() {
               path="/admin/*"
               element={
                 <ErrorBoundary>
-                  <SendMessageModalProvider>
-                    <Suspense
-                      fallback={
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: 200,
-                            color: "#666",
-                            fontSize: 14,
-                          }}
-                        >
-                          불러오는 중…
-                        </div>
-                      }
-                    >
-                      <AdminRouter />
-                    </Suspense>
-                  </SendMessageModalProvider>
+                  <Suspense
+                    fallback={
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: 200,
+                          color: "#666",
+                          fontSize: 14,
+                        }}
+                      >
+                        불러오는 중…
+                      </div>
+                    }
+                  >
+                    <AdminRouter />
+                  </Suspense>
                 </ErrorBoundary>
               }
             />
