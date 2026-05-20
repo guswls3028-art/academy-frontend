@@ -1,0 +1,15 @@
+.genderSpacer {
+  min-width: 0;
+}
+
+.genderActions {
+  height: 36px;
+}
+
+.schoolSelect {
+  min-width: 80px;
+}
+
+.managementHint {
+  margin-bottom: 0;
+}

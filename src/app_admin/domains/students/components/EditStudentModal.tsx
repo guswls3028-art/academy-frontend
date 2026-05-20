@@ -5,15 +5,83 @@ import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
-import { updateStudent } from "../api/students.api";
+import { type ClientStudent, updateStudent } from "../api/students.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
+import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import styles from "./EditStudentModal.module.css";
 
 interface Props {
   open: boolean;
-  initialValue: any;
+  initialValue: ClientStudent;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+type StudentEditForm = {
+  name: string;
+  gender: string;
+  psNumber: string;
+  studentPhone: string;
+  parentPhone: string;
+  schoolType: SchoolType;
+  school: string;
+  grade: string;
+  schoolClass: string;
+  major: string;
+  originMiddleSchool: string;
+  address: string;
+  memo: string;
+  active: boolean;
+};
+
+type ApiErrorWithStatus = {
+  response?: {
+    status?: number;
+    data?: unknown;
+  };
+};
+
+const SCHOOL_TYPES = new Set<SchoolType>(["ELEMENTARY", "MIDDLE", "HIGH"]);
+
+function normalizeSchoolType(value: unknown, fallback: SchoolType): SchoolType {
+  return typeof value === "string" && SCHOOL_TYPES.has(value as SchoolType)
+    ? value as SchoolType
+    : fallback;
+}
+
+function toEditForm(student: ClientStudent, defaultSchoolType: SchoolType): StudentEditForm {
+  return {
+    name: student.name || "",
+    gender: student.gender || "",
+    psNumber: student.psNumber || "",
+    studentPhone: student.studentPhone || "",
+    parentPhone: student.parentPhone || "",
+    schoolType: normalizeSchoolType(student.schoolType, defaultSchoolType),
+    school: student.school || "",
+    grade: student.grade ? String(student.grade) : "",
+    schoolClass: student.schoolClass || "",
+    major: student.major || "",
+    originMiddleSchool: student.originMiddleSchool || "",
+    address: student.address || "",
+    memo: student.memo || "",
+    active: !!student.active,
+  };
+}
+
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function fieldMessage(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const first = value.find((item) => typeof item === "string");
+    return typeof first === "string" ? first : "";
+  }
+  return "";
 }
 
 export default function EditStudentModal({
@@ -27,43 +95,15 @@ export default function EditStudentModal({
   /** 400 응답 시 백엔드 필드별 에러 (backend key -> message). setFields 개념으로 매핑 */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const [form, setForm] = useState({
-    name: initialValue.name || "",
-    gender: initialValue.gender || "",
-    psNumber: initialValue.psNumber || "",
-    studentPhone: initialValue.studentPhone || "",
-    parentPhone: initialValue.parentPhone || "",
-    schoolType: initialValue.schoolType || slm.defaultSchoolType,
-    school: initialValue.school || "",
-    grade: initialValue.grade ? String(initialValue.grade) : "",
-    schoolClass: initialValue.schoolClass || "",
-    major: initialValue.major || "",
-    originMiddleSchool: initialValue.originMiddleSchool || "",
-    address: initialValue.address || "",
-    memo: initialValue.memo || "",
-    active: !!initialValue.active,
-  });
+  const [form, setForm] = useState<StudentEditForm>(() =>
+    toEditForm(initialValue, slm.defaultSchoolType)
+  );
 
   useEffect(() => {
     if (!open) return;
     setBusy(false);
     setFieldErrors({});
-    setForm({
-      name: initialValue.name || "",
-      gender: initialValue.gender || "",
-      psNumber: initialValue.psNumber || "",
-      studentPhone: initialValue.studentPhone || "",
-      parentPhone: initialValue.parentPhone || "",
-      schoolType: initialValue.schoolType || slm.defaultSchoolType,
-      school: initialValue.school || "",
-      grade: initialValue.grade ? String(initialValue.grade) : "",
-      schoolClass: initialValue.schoolClass || "",
-      major: initialValue.major || "",
-      originMiddleSchool: initialValue.originMiddleSchool || "",
-      address: initialValue.address || "",
-      memo: initialValue.memo || "",
-      active: !!initialValue.active,
-    });
+    setForm(toEditForm(initialValue, slm.defaultSchoolType));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialValue?.id]);
 
@@ -126,12 +166,13 @@ export default function EditStudentModal({
       await updateStudent(initialValue.id, { ...form, noPhone });
       onSuccess();
       onClose();
-    } catch (raw: any) {
-      const data = raw?.response?.data;
-      if (raw?.response?.status === 400 && data && typeof data === "object") {
+    } catch (raw: unknown) {
+      const apiError = raw as ApiErrorWithStatus;
+      const data = asErrorRecord(apiError.response?.data);
+      if (apiError.response?.status === 400 && data) {
         const next: Record<string, string> = {};
         for (const [backendKey, val] of Object.entries(data)) {
-          const msg = Array.isArray(val) ? val[0] : typeof val === "string" ? val : "";
+          const msg = fieldMessage(val);
           if (!msg) continue;
           const frontKey = backendToFrontendField[backendKey] ?? backendKey;
           next[frontKey] = msg;
@@ -142,7 +183,7 @@ export default function EditStudentModal({
           .join("\n");
         feedback.error(messages);
       } else {
-        feedback.error(raw?.message || "저장에 실패했습니다.");
+        feedback.error(getApiErrorMessage(raw, "저장에 실패했습니다."));
       }
     } finally {
       setBusy(false);
@@ -214,8 +255,8 @@ export default function EditStudentModal({
           <div className="modal-form-group modal-form-group--neutral">
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
-              <div style={{ minWidth: 0 }} aria-hidden />
-              <div className="modal-actions-inline" style={{ height: 36 }}>
+              <div className={styles.genderSpacer} aria-hidden />
+              <div className={`modal-actions-inline ${styles.genderActions}`}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                   <button
                     key={g.key}
@@ -240,25 +281,29 @@ export default function EditStudentModal({
                 disabled={busy}
               />
               <select
-                className="ds-select"
+                className={`ds-select ${styles.schoolSelect}`}
                 value={form.schoolType || slm.defaultSchoolType}
-                onChange={(e) => setForm((p) => ({ ...p, schoolType: e.target.value, grade: "" }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    schoolType: normalizeSchoolType(e.target.value, p.schoolType),
+                    grade: "",
+                  }))
+                }
                 disabled={busy}
-                style={{ minWidth: 80 }}
               >
                 {slm.schoolTypes.map((st) => (
                   <option key={st} value={st}>{slm.getLabel(st)}</option>
                 ))}
               </select>
               <select
-                className="ds-select"
+                className={`ds-select ${styles.schoolSelect}`}
                 value={form.grade}
                 onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))}
                 disabled={busy}
-                style={{ minWidth: 80 }}
               >
                 <option value="">학년</option>
-                {slm.gradeRange(form.schoolType as any || slm.defaultSchoolType).map((g) => (
+                {slm.gradeRange(form.schoolType || slm.defaultSchoolType).map((g) => (
                   <option key={g} value={String(g)}>{g}학년</option>
                 ))}
               </select>
@@ -272,7 +317,7 @@ export default function EditStudentModal({
                 className="ds-input"
                 disabled={busy}
               />
-              {slm.showTrack(form.schoolType as any) && (
+              {slm.showTrack(form.schoolType) && (
                 <input
                   name="major"
                   placeholder="계열"
@@ -283,7 +328,7 @@ export default function EditStudentModal({
                 />
               )}
             </div>
-            {slm.showOriginMiddleSchool(form.schoolType as any) && (
+            {slm.showOriginMiddleSchool(form.schoolType) && (
               <input
                 name="originMiddleSchool"
                 placeholder="출신중학교 (선택)"
@@ -313,7 +358,7 @@ export default function EditStudentModal({
           </div>
 
           <div className="modal-form-row modal-form-row--1-auto">
-            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
+            <span className={`modal-hint modal-hint--block ${styles.managementHint}`}>
               상세에서 태그/메모/상태를 관리할 수 있습니다.
             </span>
             <button
