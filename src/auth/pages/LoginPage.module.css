@@ -331,6 +331,21 @@
   margin: 0 0 20px;
 }
 
+.resetSuccess {
+  color: var(--auth-accent, #0d47a1);
+  font-weight: 600;
+}
+
+.resetDescription {
+  margin: 0 0 1rem;
+  color: var(--auth-text-muted, #6b7280);
+  font-size: 0.875rem;
+}
+
+.resetTargetWrap {
+  margin-bottom: 1rem;
+}
+
 .overlayActions {
   margin-top: 1.25rem;
   display: flex;
@@ -446,6 +461,17 @@
   color: #4B5563;
   margin-bottom: 6px;
   letter-spacing: -0.01em;
+}
+
+.requiredMark {
+  color: #ef4444;
+}
+
+.phoneHint {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.75rem;
 }
 
 .signupPhoneRow {

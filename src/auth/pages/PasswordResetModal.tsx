@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { sendPasswordReset } from "@admin/domains/students/api/students.api";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import styles from "./LoginPage.module.css";
 
 interface PasswordResetModalProps {
@@ -16,18 +17,39 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSuccessTimer = useCallback(() => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setTarget("student");
+    setName("");
+    setPhone("");
+    setParentPhone("");
+    setError("");
+    setSuccess(false);
+  }, []);
 
   // 모달 열릴 때 폼 초기화
   useEffect(() => {
     if (open) {
-      setTarget("student");
-      setName("");
-      setPhone("");
-      setParentPhone("");
-      setError("");
-      setSuccess(false);
+      clearSuccessTimer();
+      resetForm();
     }
-  }, [open]);
+  }, [clearSuccessTimer, open, resetForm]);
+
+  const handleClose = useCallback(() => {
+    if (pending) return;
+    clearSuccessTimer();
+    onClose();
+    setError("");
+    setSuccess(false);
+  }, [clearSuccessTimer, onClose, pending]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,17 +61,11 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, pending]);
+  }, [handleClose, open]);
 
-  function handleClose() {
-    if (!pending) {
-      onClose();
-      setError("");
-      setSuccess(false);
-    }
-  }
+  useEffect(() => clearSuccessTimer, [clearSuccessTimer]);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
     const trimmedName = name.trim();
@@ -75,17 +91,13 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         parent_phone: target === "parent" ? parentPhone : undefined,
       });
       setSuccess(true);
-      setTimeout(() => {
+      clearSuccessTimer();
+      successTimerRef.current = setTimeout(() => {
         onClose();
-        setTarget("student");
-        setName("");
-        setPhone("");
-        setParentPhone("");
-        setSuccess(false);
+        resetForm();
       }, 4000);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(detail || (err instanceof Error ? err.message : "임시 비밀번호 발송에 실패했습니다."));
+    } catch (err: unknown) {
+      setError(extractApiError(err, "임시 비밀번호 발송에 실패했습니다."));
     } finally {
       setPending(false);
     }
@@ -107,15 +119,15 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
         </button>
         <h2 id="pw-reset-title" className={styles.overlayTitle}>비밀번호 찾기</h2>
         {success ? (
-          <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
+          <p className={styles.resetSuccess}>
             임시 비밀번호가 발송되었습니다. 알림톡을 확인한 뒤 로그인해 주세요.
           </p>
         ) : (
           <>
-            <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1rem" }}>
+            <p className={styles.resetDescription}>
               대상을 선택한 뒤 정보를 입력하시면 임시 비밀번호를 알림톡으로 보내드립니다.
             </p>
-            <div className={styles.signupSegmentWrap} role="group" aria-label="대상 선택" style={{ marginBottom: "1rem" }}>
+            <div className={`${styles.signupSegmentWrap} ${styles.resetTargetWrap}`} role="group" aria-label="대상 선택">
               <button
                 type="button"
                 className={`${styles.signupSegmentBtn} ${target === "student" ? styles.isSelected : ""}`}
@@ -141,8 +153,8 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
                 onChange={(e) => setName(e.target.value)}
               />
               <div className={styles.signupPhoneRow}>
-                <span className={styles.signupInputLabel} style={{ marginBottom: 4 }}>
-                  전화번호 <span style={{ color: "#ef4444" }}>*</span>
+                <span className={styles.signupInputLabel}>
+                  전화번호 <span className={styles.requiredMark}>*</span>
                 </span>
                 <PhoneInput010Blocks
                   value={target === "student" ? phone : parentPhone}
@@ -151,7 +163,7 @@ export default function PasswordResetModal({ open, onClose }: PasswordResetModal
                   inputClassName={styles.signupPhoneBlockInput}
                   aria-label={target === "student" ? "학생 또는 학부모 전화번호" : "학부모 전화번호"}
                 />
-                <span style={{ display: "block", fontSize: "0.75rem", color: "#6b7280", marginTop: 6 }}>
+                <span className={styles.phoneHint}>
                   {target === "student"
                     ? "학생 본인 또는 학부모 번호 모두 가능합니다."
                     : "학부모 번호로만 발송됩니다."}
