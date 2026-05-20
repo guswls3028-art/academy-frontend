@@ -1,0 +1,114 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding-block: 2px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  color: var(--tc-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.bulkButton {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--tc-success);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bulkButton:disabled {
+  opacity: 0.6;
+}
+
+.summaryBar {
+  display: flex;
+  gap: var(--tc-space-3);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+  font-size: 13px;
+}
+
+.summaryPresent,
+.summaryAbsent,
+.summaryOther {
+  font-weight: 700;
+}
+
+.summaryPresent {
+  color: var(--tc-success);
+}
+
+.summaryAbsent {
+  color: var(--tc-danger);
+}
+
+.summaryOther,
+.summaryTotal {
+  color: var(--tc-text-muted);
+}
+
+.summaryTotal {
+  margin-left: auto;
+}
+
+.hint {
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.undoSnackbar {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + 16px);
+  left: 16px;
+  z-index: var(--tc-z-snackbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: var(--tc-radius);
+  background: #1e293b;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  color: #fff;
+  font-size: 14px;
+}
+
+.undoButton {
+  border: 0;
+  background: none;
+  color: var(--tc-primary);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.backButton {
+  display: flex;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--tc-text-secondary);
+  cursor: pointer;
+}

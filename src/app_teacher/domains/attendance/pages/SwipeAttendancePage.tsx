@@ -10,10 +10,19 @@ import {
   fetchAttendance,
   updateAttendance,
   bulkSetPresent,
-  STATUS_CONFIG,
+  type AttendanceListItem,
 } from "../api";
 import AttendanceCard from "../components/AttendanceCard";
 import StatusBottomSheet from "../components/StatusBottomSheet";
+import styles from "./SwipeAttendancePage.module.css";
+
+const EMPTY_RECORDS: AttendanceListItem[] = [];
+
+type AttendanceSummary = {
+  present: number;
+  absent: number;
+  other: number;
+};
 
 export default function SwipeAttendancePage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -27,7 +36,7 @@ export default function SwipeAttendancePage() {
     enabled: Number.isFinite(sid),
   });
 
-  const records = result?.data ?? [];
+  const records = result?.data ?? EMPTY_RECORDS;
 
   const updateMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -47,7 +56,7 @@ export default function SwipeAttendancePage() {
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),
   });
 
-  const [sheetRecord, setSheetRecord] = useState<any | null>(null);
+  const [sheetRecord, setSheetRecord] = useState<AttendanceListItem | null>(null);
   const [undoItem, setUndoItem] = useState<{
     id: number;
     prev: string;
@@ -55,7 +64,7 @@ export default function SwipeAttendancePage() {
 
   const handleStatusChange = useCallback(
     (attendanceId: number, status: string) => {
-      const prev = records.find((r: any) => r.id === attendanceId);
+      const prev = records.find((r) => r.id === attendanceId);
       if (prev) {
         setUndoItem({ id: attendanceId, prev: prev.status });
         setTimeout(() => setUndoItem(null), 3000);
@@ -74,7 +83,7 @@ export default function SwipeAttendancePage() {
 
   // Summary
   const summary = records.reduce(
-    (acc: any, r: any) => {
+    (acc: AttendanceSummary, r) => {
       if (["PRESENT", "ONLINE", "LATE", "SUPPLEMENT"].includes(r.status))
         acc.present++;
       else if (["ABSENT", "RUNAWAY"].includes(r.status)) acc.absent++;
@@ -85,59 +94,42 @@ export default function SwipeAttendancePage() {
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={styles.root}>
       {/* Header */}
-      <div className="flex items-center gap-2 py-0.5">
+      <div className={styles.header}>
         <BackBtn onClick={() => navigate(-1)} />
-        <h1
-          className="text-[17px] font-bold flex-1"
-          style={{ color: "var(--tc-text)" }}
-        >
+        <h1 className={styles.title}>
           출석 체크
         </h1>
         <button
           onClick={() => bulkMut.mutate()}
           disabled={bulkMut.isPending}
-          className="rounded-full text-[13px] font-bold text-white cursor-pointer disabled:opacity-60"
-          style={{ padding: "6px 14px", background: "var(--tc-success)" }}
+          className={styles.bulkButton}
         >
           전체출석
         </button>
       </div>
 
       {/* Summary bar */}
-      <div
-        className="flex gap-3 text-[13px] rounded-lg"
-        style={{
-          padding: "var(--tc-space-3) var(--tc-space-4)",
-          background: "var(--tc-surface)",
-          border: "1px solid var(--tc-border)",
-        }}
-      >
-        <span className="font-bold" style={{ color: "var(--tc-success)" }}>
+      <div className={styles.summaryBar}>
+        <span className={styles.summaryPresent}>
           출석 {summary.present}
         </span>
-        <span className="font-bold" style={{ color: "var(--tc-danger)" }}>
+        <span className={styles.summaryAbsent}>
           결석 {summary.absent}
         </span>
         {summary.other > 0 && (
-          <span
-            className="font-semibold"
-            style={{ color: "var(--tc-text-muted)" }}
-          >
+          <span className={styles.summaryOther}>
             기타 {summary.other}
           </span>
         )}
-        <span className="ml-auto" style={{ color: "var(--tc-text-muted)" }}>
+        <span className={styles.summaryTotal}>
           총 {records.length}명
         </span>
       </div>
 
       {/* Hint */}
-      <div
-        className="text-xs text-center"
-        style={{ color: "var(--tc-text-muted)" }}
-      >
+      <div className={styles.hint}>
         우측 스와이프 = 출석 · 좌측 = 결석 · 탭 = 상태 선택
       </div>
 
@@ -145,8 +137,8 @@ export default function SwipeAttendancePage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : records.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          {records.map((r: any) => (
+        <div className={styles.cardList}>
+          {records.map((r) => (
             <AttendanceCard
               key={r.id}
               record={r}
@@ -173,21 +165,11 @@ export default function SwipeAttendancePage() {
 
       {/* Undo snackbar */}
       {undoItem && (
-        <div
-          className="fixed left-4 right-4 flex justify-between items-center rounded-lg text-white text-sm"
-          style={{
-            bottom: "calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + 16px)",
-            zIndex: "var(--tc-z-snackbar)" as any,
-            background: "#1e293b",
-            padding: "12px 16px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          }}
-        >
+        <div className={styles.undoSnackbar}>
           <span>상태가 변경되었습니다</span>
           <button
             onClick={handleUndo}
-            className="font-bold cursor-pointer"
-            style={{ color: "var(--tc-primary)", background: "none", border: "none" }}
+            className={styles.undoButton}
           >
             되돌리기
           </button>
@@ -201,12 +183,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex p-1 cursor-pointer"
-      style={{
-        background: "none",
-        border: "none",
-        color: "var(--tc-text-secondary)",
-      }}
+      className={styles.backButton}
     >
       <svg
         width={20}
