@@ -4,6 +4,7 @@
  * Loaded lazily via the wrapper at RichTextEditor.tsx so the @tiptap bundle
  * stays out of the initial chunk.
  */
+import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -50,6 +51,22 @@ const PALETTE_COLORS = [
   "#cc0000", "#cc6600", "#cc9900", "#009900", "#006699", "#003399", "#660099", "#990066",
 ];
 
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+type CssVariableStyle<TName extends string> = CSSProperties & Record<TName, string>;
+
+type ImageInsertView<TNode, TTransaction> = {
+  state: {
+    schema: {
+      nodes: Record<string, { create: (attrs: { src: string }) => TNode }>;
+    };
+    tr: {
+      replaceSelectionWith: (node: TNode) => TTransaction;
+    };
+  };
+  dispatch: (transaction: TTransaction) => void;
+};
+
 function ColorPalette({
   currentColor,
   onColorChange,
@@ -69,6 +86,10 @@ function ColorPalette({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  const currentColorStyle: CssVariableStyle<"--rich-editor-current-color"> = {
+    "--rich-editor-current-color": currentColor,
+  };
+
   return (
     <div className="rich-editor__color-palette-anchor" ref={ref}>
       <button
@@ -77,27 +98,33 @@ function ColorPalette({
         onClick={() => setOpen(!open)}
         title="글자 색상"
       >
-        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1 }}>A</span>
+        <span className="rich-editor__color-button-face">
+          <span className="rich-editor__color-button-letter">A</span>
           <span
             className="rich-editor__color-swatch"
-            style={{ background: currentColor }}
+            style={currentColorStyle}
           />
         </span>
       </button>
 
       {open && (
         <div className="rich-editor__color-palette">
-          {PALETTE_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`rich-editor__color-swatch-btn${currentColor.toLowerCase() === c ? " rich-editor__color-swatch-btn--active" : ""}`}
-              style={{ background: c, border: c === "#ffffff" ? "2px solid #ddd" : undefined }}
-              onClick={() => { onColorChange(c); setOpen(false); }}
-              title={c}
-            />
-          ))}
+          {PALETTE_COLORS.map((c) => {
+            const swatchStyle: CssVariableStyle<"--rich-editor-swatch-color" | "--rich-editor-swatch-border"> = {
+              "--rich-editor-swatch-color": c,
+              "--rich-editor-swatch-border": c === "#ffffff" ? "2px solid #ddd" : "2px solid transparent",
+            };
+            return (
+              <button
+                key={c}
+                type="button"
+                className={`rich-editor__color-swatch-btn${currentColor.toLowerCase() === c ? " rich-editor__color-swatch-btn--active" : ""}`}
+                style={swatchStyle}
+                onClick={() => { onColorChange(c); setOpen(false); }}
+                title={c}
+              />
+            );
+          })}
           <div className="rich-editor__color-palette-custom">
             <input
               type="color"
@@ -128,12 +155,15 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorContentStyle: CssVariableStyle<"--rich-editor-min-height"> = {
+    "--rich-editor-min-height": `${minHeight}px`,
+  };
 
   /** Insert image file as base64 into ProseMirror view */
   const insertImageIntoView = useCallback(
-    (file: File, view: { state: any; dispatch: any }) => {
+    <TNode, TTransaction,>(file: File, view: ImageInsertView<TNode, TTransaction>) => {
       if (!file.type.startsWith("image/")) return;
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
         feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
         return;
       }
@@ -210,15 +240,14 @@ export default function RichTextEditor({
   }, [editor, value]);
 
   // --- Image upload (base64) ---
-  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
   const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || !editor) return;
 
       Array.from(files).forEach((file) => {
         if (!file.type.startsWith("image/")) return;
-        if (file.size > MAX_IMAGE_SIZE) {
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
           feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
           return;
         }
@@ -238,7 +267,7 @@ export default function RichTextEditor({
 
   // --- File attach ---
   const handleFileAttach = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || !onFileAttach) return;
       onFileAttach(Array.from(files));
@@ -301,9 +330,8 @@ export default function RichTextEditor({
             className={btnCls(isActive("italic"))}
             onClick={() => editor.chain().focus().toggleItalic().run()}
             title="기울임 (Ctrl+I)"
-            style={{ fontStyle: "italic" }}
           >
-            I
+            <span className="rich-editor__toolbar-btn--italic">I</span>
           </button>
           {!compact && (
             <button
@@ -311,9 +339,8 @@ export default function RichTextEditor({
               className={btnCls(isActive("underline"))}
               onClick={() => editor.chain().focus().toggleUnderline().run()}
               title="밑줄 (Ctrl+U)"
-              style={{ textDecoration: "underline" }}
             >
-              U
+              <span className="rich-editor__toolbar-btn--underline">U</span>
             </button>
           )}
           {!compact && (
@@ -322,9 +349,8 @@ export default function RichTextEditor({
               className={btnCls(isActive("strike"))}
               onClick={() => editor.chain().focus().toggleStrike().run()}
               title="취소선"
-              style={{ textDecoration: "line-through" }}
             >
-              S
+              <span className="rich-editor__toolbar-btn--strike">S</span>
             </button>
           )}
 
@@ -470,7 +496,7 @@ export default function RichTextEditor({
             type="file"
             accept="image/*"
             multiple
-            style={{ display: "none" }}
+            className="rich-editor__hidden-input"
             onChange={handleImageUpload}
           />
 
@@ -497,7 +523,7 @@ export default function RichTextEditor({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                style={{ display: "none" }}
+                className="rich-editor__hidden-input"
                 onChange={handleFileAttach}
               />
             </>
@@ -542,7 +568,7 @@ export default function RichTextEditor({
       {/* ===== Editor content ===== */}
       <div
         className="rich-editor__content"
-        style={{ minHeight: `${minHeight}px` }}
+        style={editorContentStyle}
       >
         <EditorContent editor={editor} />
       </div>

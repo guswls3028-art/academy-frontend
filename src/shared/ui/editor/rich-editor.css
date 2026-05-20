@@ -78,6 +78,22 @@
   cursor: not-allowed;
 }
 
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--italic {
+  font-style: italic;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--underline {
+  text-decoration: underline;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--strike {
+  text-decoration: line-through;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__hidden-input {
+  display: none;
+}
+
 /* ===== Color Picker Button ===== */
 :is([data-app="admin"], [data-app="student"]) .rich-editor__color-wrapper {
   position: relative;
@@ -94,12 +110,26 @@
   height: 100%;
 }
 
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-button-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+:is([data-app="admin"], [data-app="student"]) .rich-editor__color-button-letter {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 :is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch {
   display: block;
   width: 14px;
   height: 3px;
   border-radius: 1px;
   margin-top: 1px;
+  background: var(--rich-editor-current-color);
 }
 
 :is([data-app="admin"], [data-app="student"]) .rich-editor__color-input {
@@ -125,6 +155,7 @@
 /* ===== Editor Content Area ===== */
 :is([data-app="admin"], [data-app="student"]) .rich-editor__content {
   flex: 1;
+  min-height: var(--rich-editor-min-height);
   overflow-y: auto;
 }
 
@@ -319,7 +350,8 @@
 :is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn {
   width: 24px;
   height: 24px;
-  border: 2px solid transparent;
+  background: var(--rich-editor-swatch-color);
+  border: var(--rich-editor-swatch-border);
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
