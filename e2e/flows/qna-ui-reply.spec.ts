@@ -11,6 +11,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
@@ -81,21 +82,18 @@ test.describe.serial("QnA UI 답변: 학생질문 -> 선생 UI 답변 -> 학생 
 
   test("3. 학생이 질문 상세에서 답변을 확인한다", async () => {
     // Navigate student to community page, QnA tab
-    await studentPage.goto(`${BASE}/student/community`);
-    await studentPage.waitForLoadState("networkidle");
+    await gotoAndSettle(studentPage, `${BASE}/student/community`, { timeout: 20_000 });
 
     // Click QnA tab
     const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
     if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab.click();
-      await studentPage.waitForTimeout(500);
     }
 
     // Find the question in the list
     const myQuestion = studentPage.locator(`text=${Q_TITLE}`).first();
     await expect(myQuestion).toBeVisible({ timeout: 10000 });
     await myQuestion.click();
-    await studentPage.waitForTimeout(1500);
 
     // Verify the answer content is visible in the detail view
     const answer = studentPage.locator(`text=${A_CONTENT}`).first();

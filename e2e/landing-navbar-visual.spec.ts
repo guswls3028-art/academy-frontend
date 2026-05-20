@@ -67,7 +67,6 @@ test("1. 비로그인 /landing — hamburger + side panel", async ({ page }) => 
 
   // 1d. Hamburger click → side panel slides in
   await burger.click();
-  await page.waitForTimeout(400);
   await expect(sidePanel).toBeVisible({ timeout: 5_000 });
   console.log("[PASS] 1d: side panel visible after hamburger click");
 
@@ -112,7 +111,6 @@ test("1. 비로그인 /landing — hamburger + side panel", async ({ page }) => 
 
   // 1i. ESC closes panel
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(300);
   await expect(sidePanel).not.toBeVisible({ timeout: 5_000 });
   console.log("[PASS] 1i: ESC closes side panel");
 
@@ -151,7 +149,7 @@ test("2. 로그인 (admin97) — nav myconsole + LandingRoleFab", async ({ page 
 
   // 2c. Click fab → expand
   await fabToggle.click();
-  await page.waitForTimeout(350);
+  await expect(page.locator("[data-testid=landing-fab-admin-console]")).toBeVisible({ timeout: 5_000 });
   await page.screenshot({ path: `${SS}/2b_landing_fab_open.png` });
 
   // 2d. Owner actions
@@ -202,7 +200,6 @@ test("3. /landing/reports — 동일 NavBar + LandingRoleFab", async ({ page }) 
 
   // 3b. Click → side panel with categories
   await burger.click();
-  await page.waitForTimeout(400);
   const sidePanel = page.locator('[role=dialog][aria-label="전체 메뉴"]');
   await expect(sidePanel).toBeVisible({ timeout: 5_000 });
 
@@ -213,7 +210,7 @@ test("3. /landing/reports — 동일 NavBar + LandingRoleFab", async ({ page }) 
 
   await page.screenshot({ path: `${SS}/3a_reports_nav_panel.png` });
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(300);
+  await expect(sidePanel).not.toBeVisible({ timeout: 5_000 });
 
   // 3c. LandingRoleFab visible
   const fabToggle = page.locator("[data-testid=landing-role-fab-toggle]");
@@ -234,29 +231,30 @@ test("4. Cross-page hash scroll /landing/reports → /landing#section", async ({
 
   const burger = page.locator("[data-testid=landing-nav-burger]");
   await burger.click();
-  await page.waitForTimeout(400);
 
   const sidePanel = page.locator('[role=dialog][aria-label="전체 메뉴"]');
   await expect(sidePanel).toBeVisible({ timeout: 5_000 });
 
   // section 타입 nav item 찾기 (features / instructor_profile / programs / faq / contact 등)
   const sectionSelectors = [
-    "[data-testid=landing-nav-item-about-features]",
-    "[data-testid=landing-nav-item-about-instructor_profile]",
-    "[data-testid=landing-nav-item-about-programs]",
-    "[data-testid=landing-nav-item-about-process_timeline]",
-    "[data-testid=landing-nav-item-about-management_system]",
-    "[data-testid=landing-nav-item-guide-faq]",
-    "[data-testid=landing-nav-item-service-contact]",
-    "[data-testid=landing-nav-item-service-testimonials]",
+    { target: "features", selector: "[data-testid=landing-nav-item-about-features]" },
+    { target: "instructor_profile", selector: "[data-testid=landing-nav-item-about-instructor_profile]" },
+    { target: "programs", selector: "[data-testid=landing-nav-item-about-programs]" },
+    { target: "process_timeline", selector: "[data-testid=landing-nav-item-about-process_timeline]" },
+    { target: "management_system", selector: "[data-testid=landing-nav-item-about-management_system]" },
+    { target: "faq", selector: "[data-testid=landing-nav-item-guide-faq]" },
+    { target: "contact", selector: "[data-testid=landing-nav-item-service-contact]" },
+    { target: "testimonials", selector: "[data-testid=landing-nav-item-service-testimonials]" },
   ];
 
   let clickedLabel: string | null = null;
-  for (const sel of sectionSelectors) {
-    const el = sidePanel.locator(sel);
+  let clickedTarget: string | null = null;
+  for (const { target, selector } of sectionSelectors) {
+    const el = sidePanel.locator(selector);
     if (await el.isVisible().catch(() => false)) {
-      clickedLabel = (await el.textContent())?.trim() ?? sel;
-      console.log(`  4: clicking section item "${clickedLabel}" (${sel})`);
+      clickedLabel = (await el.textContent())?.trim() ?? selector;
+      clickedTarget = target;
+      console.log(`  4: clicking section item "${clickedLabel}" (${selector})`);
       await el.click();
       break;
     }
@@ -267,8 +265,10 @@ test("4. Cross-page hash scroll /landing/reports → /landing#section", async ({
     console.log("  [INFO] 4: No 학원소개/가이드 sections enabled, testing community route nav");
     const boardBtn = sidePanel.locator("[data-testid=landing-nav-item-community-board]");
     if (await boardBtn.isVisible().catch(() => false)) {
-      await boardBtn.click();
-      await page.waitForTimeout(600);
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === "/landing/board", { timeout: 10_000 }),
+        boardBtn.click(),
+      ]);
       const afterUrl = page.url();
       console.log(`  [PASS fallback] 4: community board nav from reports → ${afterUrl}`);
       await page.screenshot({ path: `${SS}/4a_cross_page_community.png` });
@@ -277,9 +277,18 @@ test("4. Cross-page hash scroll /landing/reports → /landing#section", async ({
   }
 
   // 섹션 클릭 → /landing 으로 이동 + 해당 section scroll
-  await page.waitForURL(/\/landing/, { timeout: 10_000 });
+  await page.waitForURL((url) => url.pathname === "/landing", { timeout: 10_000 });
   const afterUrl = page.url();
-  await page.waitForTimeout(900); // scroll animation
+  await page.waitForFunction(
+    (target) => {
+      const section = document.querySelector(`section[data-stype="${target}"]`);
+      if (!section) return false;
+      const rect = section.getBoundingClientRect();
+      return window.scrollY > 0 || (rect.top >= 0 && rect.top < window.innerHeight);
+    },
+    clickedTarget,
+    { timeout: 5_000 },
+  );
   const scrollY = await page.evaluate(() => window.scrollY);
   console.log(`[PASS] 4: navigated to ${afterUrl}, scrollY=${scrollY} (section "${clickedLabel}")`);
   expect(afterUrl).toContain("/landing");

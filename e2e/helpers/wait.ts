@@ -29,6 +29,7 @@ export async function gotoAndSettle(
   await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
   // 일부 화면은 useEffect 후 데이터 fetch 가 networkidle 이후 일어남 — 짧은 settle
   if (opts?.settleMs && opts.settleMs > 0) {
+    // eslint-disable-next-line no-restricted-syntax -- 중앙 헬퍼의 bounded settle 예외. 개별 spec에서는 상태 기반 대기를 우선한다.
     await page.waitForTimeout(opts.settleMs);
   }
 }
