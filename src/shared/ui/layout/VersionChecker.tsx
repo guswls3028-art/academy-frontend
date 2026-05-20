@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 
 declare const __BUILD_TIMESTAMP__: string;
 
@@ -28,7 +29,7 @@ export function blockAutoReload(): () => void {
     released = true;
     blockCount = Math.max(0, blockCount - 1);
     if (blockCount === 0 && pendingUpdate) {
-      window.location.reload();
+      hardReloadWithCacheBust({ key: "version_reload_ts", cooldownMs: 10_000 });
     }
   };
 }
@@ -36,7 +37,7 @@ export function blockAutoReload(): () => void {
 export function unblockAutoReload(): void {
   blockCount = Math.max(0, blockCount - 1);
   if (blockCount === 0 && pendingUpdate) {
-    window.location.reload();
+    hardReloadWithCacheBust({ key: "version_reload_ts", cooldownMs: 10_000 });
   }
 }
 
@@ -49,7 +50,7 @@ function reloadOrNotify(): void {
     feedback.info("새 버전이 준비되었습니다. 작업 완료 후 자동 업데이트됩니다.");
     return;
   }
-  window.location.reload();
+  hardReloadWithCacheBust({ key: "version_reload_ts", cooldownMs: 10_000 });
 }
 
 async function checkVersion(): Promise<boolean> {
@@ -82,7 +83,10 @@ export function useVersionChecker(): void {
   // 1. 정기 폴링
   useEffect(() => {
     if (!CURRENT_VERSION) return;
-    const firstTimeout = setTimeout(checkVersion, 60_000);
+    const firstTimeout = setTimeout(async () => {
+      const isNew = await checkVersion();
+      if (isNew) reloadOrNotify();
+    }, 5_000);
     const interval = setInterval(checkVersion, CHECK_INTERVAL);
     return () => {
       clearTimeout(firstTimeout);

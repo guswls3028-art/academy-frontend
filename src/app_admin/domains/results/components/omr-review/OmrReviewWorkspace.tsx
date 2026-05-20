@@ -38,8 +38,10 @@ import {
 import {
   discardSubmissionApi,
   manualEditSubmissionApi,
+  type SubmissionManualEditResult,
 } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import StudentPickerModal from "./StudentPickerModal";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import BBoxOverlay from "./BBoxOverlay";
 import type { CandidateRow } from "./omrReviewApi";
 import "./OmrReviewWorkspace.css";
@@ -47,6 +49,15 @@ import "./OmrReviewWorkspace.css";
 type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+
+function lecturesForCandidate(row: CandidateRow) {
+  return row.lecture_title ? [{ lectureName: row.lecture_title }] : [];
+}
+
+function scoreFromManualEditResult(result: SubmissionManualEditResult | undefined): number | null {
+  const value = result?.score ?? result?.total_score ?? null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || "");
 const SAVE_KBD_LABEL = isMac ? "⌘S" : "Ctrl+S";
@@ -382,8 +393,26 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             focusedQid={focusedQid}
             onFocusedQidChange={setFocusedQid}
             onDirtyChange={setEditDirty}
-            onSaved={() => {
+            onSaved={(result) => {
               setEditDirty(false);
+              const savedScore = scoreFromManualEditResult(result);
+              if (selectedId != null) {
+                qc.setQueryData<OmrReviewRow[]>(["omr-review-list", examId], (prev) => {
+                  if (!prev) return prev;
+                  return prev.map((row) =>
+                    row.id === selectedId
+                      ? {
+                          ...row,
+                          score: savedScore ?? row.score,
+                          status: result?.status ?? row.status,
+                          enrollment_id: result?.enrollment_id ?? result?.resolved_enrollment_id ?? row.enrollment_id,
+                          manual_review_required: savedScore != null ? false : row.manual_review_required,
+                          manual_review_reasons: savedScore != null ? [] : row.manual_review_reasons,
+                        }
+                      : row,
+                  );
+                });
+              }
               qc.invalidateQueries({ queryKey: ["omr-review-list", examId] });
               qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
               qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
@@ -392,7 +421,11 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
               qc.invalidateQueries({ queryKey: ["exam-question-stats", examId] });
               qc.invalidateQueries({ queryKey: ["session-scores"] });
               qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-              feedback.success("저장되었습니다. 다음 검토 대상으로 이동합니다.");
+              feedback.success(
+                savedScore != null
+                  ? `저장 + 재채점 완료: ${savedScore}점`
+                  : "저장되었습니다. 다음 검토 대상으로 이동합니다.",
+              );
               // 자동 다음 학생 이동 (운영자 가속)
               window.setTimeout(() => navigate(1), 250);
             }}
@@ -581,7 +614,7 @@ function EditPane({
   studentName: string | null;
   focusedQid: number | null;
   onFocusedQidChange: (qid: number | null) => void;
-  onSaved: () => void;
+  onSaved: (result?: SubmissionManualEditResult) => void;
   onNavigate: (dir: 1 | -1) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
@@ -649,7 +682,7 @@ function EditPane({
         allowDuplicate: opts.allowDuplicate,
       });
     },
-    onSuccess: () => onSaved(),
+    onSuccess: (data) => onSaved(data),
     onError: (e: unknown) => {
       const err = e as {
         response?: { status?: number; data?: { detail?: string; code?: string; conflict_submission_id?: number } };
@@ -825,12 +858,14 @@ function EditPane({
             {pickedStudent ? (
               <div className="orw-identifier__picked">
                 <div className="orw-identifier__picked-main">
-                  <span className="orw-identifier__picked-name">{pickedStudent.student_name}</span>
-                  {pickedStudent.lecture_title && (
-                    <span className="orw-identifier__picked-lecture">
-                      {pickedStudent.lecture_title}
-                    </span>
-                  )}
+                  <StudentNameWithLectureChip
+                    name={pickedStudent.student_name}
+                    lectures={lecturesForCandidate(pickedStudent)}
+                    enrollmentId={pickedStudent.enrollment_id}
+                    avatarSize={20}
+                    layout="stacked"
+                    lectureDisplay="meta"
+                  />
                   {pickedStudent.already_matched && (
                     <span className="orw-identifier__picked-warn" title="다른 답안지에 이미 매칭된 학생입니다.">
                       중복 경고

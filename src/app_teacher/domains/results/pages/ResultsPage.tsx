@@ -10,6 +10,8 @@ import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams } from "@teacher/domains/exams/api";
 // 사이드바 성적은 admin endpoint schema(enrollment_id) 사용 — statsApi SSOT
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
+import { getExamResultEnrollmentId } from "@teacher/domains/results/examResultContract";
+import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
 import styles from "./ResultsPage.module.css";
 
@@ -18,18 +20,6 @@ type Tab = "list" | "stats";
 type TeacherExamOption = {
   id: number;
   title: string;
-};
-
-type ResultRow = {
-  enrollment_id: number | string;
-  student_name?: string | null;
-  final_score?: number | string | null;
-  exam_score?: number | string | null;
-  exam_max_score?: number | string | null;
-  max_score?: number | string | null;
-  final_pass?: boolean | null;
-  passed?: boolean | null;
-  achievement?: string | null;
 };
 
 export default function ResultsPage() {
@@ -50,7 +40,7 @@ export default function ResultsPage() {
 
   const { data: results } = useQuery({
     queryKey: ["results-detail", selectedExam],
-    queryFn: async (): Promise<ResultRow[]> => fetchExamResults(selectedExam!),
+    queryFn: async (): Promise<TeacherExamResultRow[]> => fetchExamResults(selectedExam!),
     enabled: selectedExam != null && tab === "list",
   });
 
@@ -119,11 +109,12 @@ export default function ResultsPage() {
                 {selectedExam != null && results && (
                   results.length > 0 ? (
                     <div className={styles.resultList}>
-                      {results.map((result) => {
+                      {results.map((result, index) => {
+                        const enrollmentId = getExamResultEnrollmentId(result);
                         const score = result.final_score ?? result.exam_score;
                         const max = result.exam_max_score ?? result.max_score ?? 100;
                         return (
-                          <div key={result.enrollment_id} className={styles.resultRow}>
+                          <div key={enrollmentId ?? result.id ?? `result-${index}`} className={styles.resultRow}>
                             <span className={styles.studentName}>{result.student_name ?? "이름 없음"}</span>
                             <div className={styles.scoreGroup}>
                               <span className={styles.scoreText}>

@@ -1,6 +1,8 @@
 // PATH: src/app_teacher/domains/results/statsApi.ts
 // 성적 통계 API — 기존 admin 엔드포인트 재사용 (IsTeacherOrAdmin)
 import api from "@/shared/api/axios";
+import { listFromApiResponse } from "@/shared/api/response";
+import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 
 /** 시험별 요약 (평균/최고/최저/합격률) */
 export async function fetchExamSummary(examId: number) {
@@ -65,17 +67,15 @@ export async function fetchTopWrongQuestions(examId: number, n = 5) {
 }
 
 /** 시험 결과 목록 (석차 포함) */
-export async function fetchExamResults(examId: number) {
+export async function fetchExamResults(examId: number): Promise<TeacherExamResultRow[]> {
   const res = await api.get(`/results/admin/exams/${examId}/results/`, { params: { page_size: 200 } });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return listFromApiResponse<TeacherExamResultRow>(res.data);
 }
 
 /** 강좌별 과제 점수 목록 (1차 시도만) */
 export async function fetchHomeworkScores(lectureId: number) {
   const res = await api.get("/homework/scores/", { params: { lecture: lectureId, page_size: 500 } });
-  const raw = res.data;
-  return (Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : []) as Array<{
+  return listFromApiResponse<{
     id: number;
     enrollment_id: number;
     homework: number;
@@ -83,5 +83,5 @@ export async function fetchHomeworkScores(lectureId: number) {
     max_score: number | null;
     passed: boolean;
     meta: { status?: string } | null;
-  }>;
+  }>(res.data);
 }

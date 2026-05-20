@@ -1,6 +1,7 @@
 // PATH: src/shared/ui/ErrorBoundary.tsx
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
+import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 
 interface Props {
   children: ReactNode;
@@ -29,21 +30,14 @@ function safeGet(key: string): string | null {
   }
 }
 
-function safeSet(key: string, v: string): void {
-  try {
-    sessionStorage.setItem(key, v);
-  } catch {
-    /* ignore */
-  }
-}
-
 function isChunkLoadError(error: Error): boolean {
   const m = error?.message || "";
   return (
     m.includes("dynamically imported module") ||
     m.includes("Failed to fetch") ||
     m.includes("Loading chunk") ||
-    m.includes("Loading CSS chunk")
+    m.includes("Loading CSS chunk") ||
+    m.includes("LAZY_DEFAULT_UNDEFINED")
   );
 }
 
@@ -71,12 +65,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     const key = isChunk ? CHUNK_RELOAD_KEY : GENERIC_RELOAD_KEY;
     const cooldown = isChunk ? CHUNK_RELOAD_COOLDOWN_MS : GENERIC_RELOAD_COOLDOWN_MS;
-    const last = Number(safeGet(key) || "0");
-    const canReload = Date.now() - last > cooldown;
-
-    if (canReload) {
-      safeSet(key, String(Date.now()));
-      window.location.reload();
+    if (hardReloadWithCacheBust({ key, cooldownMs: cooldown })) {
       return;
     }
 
@@ -119,7 +108,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             </p>
           )}
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })}
             style={{
               padding: "8px 24px",
               fontSize: 14,

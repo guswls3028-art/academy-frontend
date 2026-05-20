@@ -18,6 +18,7 @@ if (!TENANTS.length) throw new Error("Tenant registry empty");
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import { DevErrorBoundary, DevErrorLogger } from "@/core/DevErrorLogger";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
+import { hardReloadWithCacheBust, stripHardReloadParam } from "@/shared/utils/hardReload";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
@@ -28,6 +29,8 @@ import ImpersonationBanner from "@dev/shared/components/ImpersonationBanner";
 import "./index.css";
 import "antd/dist/reset.css";
 
+stripHardReloadParam();
+
 /**
  * 신규 배포로 사용자 브라우저 캐시 index.html이 참조하는 구 chunk가 404일 때
  * 자동 1회 reload 하여 새 번들을 받도록. 무한 루프 방지용 sessionStorage 플래그.
@@ -36,17 +39,23 @@ function installChunkReloadHandler() {
   const KEY = "__chunk_reload_done__";
   const reloadOnce = () => {
     try {
-      if (sessionStorage.getItem(KEY)) return;
-      sessionStorage.setItem(KEY, "1");
-      setTimeout(() => sessionStorage.removeItem(KEY), 10_000);
+      if (sessionStorage.getItem(KEY)) return false;
     } catch {
-      // sessionStorage 접근이 막힌 환경에서도 새 번들 복구 reload는 진행한다.
+      // sessionStorage may be unavailable; reload still resolves stale chunks.
     }
-    window.location.reload();
+    const started = hardReloadWithCacheBust({ key: "chunk_reload_ts", cooldownMs: 10_000 });
+    if (started) {
+      try {
+        sessionStorage.setItem(KEY, "1");
+        setTimeout(() => sessionStorage.removeItem(KEY), 10_000);
+      } catch {
+        /* ignore */
+      }
+    }
+    return started;
   };
   window.addEventListener("vite:preloadError", (e) => {
-    e.preventDefault();
-    reloadOnce();
+    if (reloadOnce()) e.preventDefault();
   });
   window.addEventListener("error", (e) => {
     const msg = String((e as ErrorEvent).message || "");
@@ -112,7 +121,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
 }
 
 /** BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이 */
-export function AppInner() {
+function AppInner() {
   useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
 
   // Sentry breadcrumb: 라우트 변경 추적

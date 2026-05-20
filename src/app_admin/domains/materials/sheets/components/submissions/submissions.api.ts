@@ -35,6 +35,20 @@ export type SubmissionManualEditInput = {
   }>;
 };
 
+export type SubmissionManualEditResult = {
+  submission_id?: number;
+  status?: ExamSubmissionStatus;
+  updated?: number;
+  graded?: boolean;
+  result_id?: number | null;
+  resolved_enrollment_id?: number | null;
+  enrollment_id?: number | null;
+  score?: number | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  detail?: string;
+};
+
 const SUBMISSION_STATUSES = new Set<ExamSubmissionStatus>([
   "submitted",
   "dispatched",
@@ -96,7 +110,7 @@ export async function retrySubmissionApi(submissionId: number): Promise<unknown>
 
 export async function manualEditSubmissionApi(
   input: SubmissionManualEditInput & { allowDuplicate?: boolean },
-): Promise<unknown> {
+): Promise<SubmissionManualEditResult> {
   const sid = Number(input.submissionId);
   if (!Number.isFinite(sid) || sid <= 0) {
     throw new Error("유효하지 않은 submissionId");

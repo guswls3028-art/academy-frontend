@@ -10,6 +10,7 @@
  */
 
 import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
+import type { CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
@@ -35,12 +36,12 @@ const COL_EDIT = 36;
 // 2026-05-13 4차 Visual Polish:
 // 1100 narrow viewport (학원장 PC 기본 폭 일부) wrap 836 안에 들어가도록 default 재조정.
 // 직전 합산 1284px → 836 < 1284 → 가로 스크롤 강요. 신규 합산 813px ≤ 836 → viewport 내 안착.
-// 합산 계산: 36 + 196 + 56 + 125*3 + 96 + 72 = 831 + alpha
+// 합산 계산: 36 + 196 + 64 + 125*3 + 96 + 96 = 863 + alpha
 // 학원장이 폭 부족 시 ResizableTh 드래그로 직접 조정 가능 (5/13 1차 fix).
 const COL_NAME = 196;
-const COL_ATTENDANCE = 56;
+const COL_ATTENDANCE = 78;
 const COL_SCORE = 125;
-const COL_CLINIC_TARGET = 72;
+const COL_CLINIC_TARGET = 96;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -506,15 +507,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         key: c.key,
         label: c.key,
         defaultWidth: c.width,
-        minWidth: c.key === "name" ? 100 : c.key === "clinic_target" ? 80 : 48,
+        minWidth: c.key === "name" ? 100 : c.key === "attendance" ? 72 : c.key === "clinic_target" ? 80 : 48,
         maxWidth: 500,
       })),
     ];
   }, [columns]);
 
-  /* 2026-05-13 4차 Visual Polish: 컬럼 폭 default 추가 재조정.
-     v3 bump → 기존 stale prefs (v2 학원장 환경에 박힌 큰 값) 무시. */
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v4", columnDefs);
+  /* 2026-05-18 Product Polish:
+     v6 bump → 출석 기본 폭 + 상태 색상 density 조정 default 반영. */
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v6", columnDefs);
 
   const tableCols = useMemo(() => {
     return [
@@ -527,6 +528,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     () => tableCols.reduce((s, w) => s + w, 0),
     [tableCols]
   );
+
+  const stickyColumnVars = useMemo(() => {
+    const selectWidth = columnWidths.select ?? COL_EDIT;
+    const nameWidth = columnWidths.name ?? COL_NAME;
+    const attendanceWidth = columnWidths.attendance ?? COL_ATTENDANCE;
+    return {
+      "--scores-col-select-width": `${selectWidth}px`,
+      "--scores-col-name-width": `${nameWidth}px`,
+      "--scores-col-attendance-width": `${attendanceWidth}px`,
+    } as CSSProperties;
+  }, [columnWidths.attendance, columnWidths.name, columnWidths.select]);
 
   const selectedSet = useMemo(() => new Set(selectedEnrollmentIds), [selectedEnrollmentIds]);
   const allSelected =
@@ -558,7 +570,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           OMR 업로드는 툴바 우측 OMR 버튼 (시험 1개면 직진, 2+개면 드롭다운) 단일 경로. */}
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
-      tableStyle={{ tableLayout: "fixed", width: tableWidth }}
+      tableStyle={{ tableLayout: "fixed", width: tableWidth, ...stickyColumnVars }}
       dataAttributes={isEditMode ? { "data-edit-mode": "true" } : undefined}
     >
       <colgroup>
@@ -580,6 +592,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             rowSpan={2}
             noWrap
             className="ds-checkbox-cell align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
+            data-col-type="select"
           >
             {onSelectionChange ? (
               <label className="inline-flex items-center cursor-pointer">
@@ -616,7 +629,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           <ResizableTh
             columnKey="attendance"
             width={columnWidths.attendance ?? COL_ATTENDANCE}
-            minWidth={60}
+            minWidth={72}
             maxWidth={120}
             onWidthChange={setColumnWidth}
             rowSpan={2}
@@ -663,8 +676,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 }}
                 title={onReorderColumnSwap ? `${ex.title} — 끌어서 순서 변경` : ex.title}
               >
-                <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                <span className="whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="시험">시</Badge>
+                <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
                 <span className="ds-col-action-btn shrink-0">
                   <ExamHeaderQuickEdit
                     examId={ex.exam_id}
@@ -720,7 +733,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               data-summary-start=""
             >
               <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                <Badge variant="solid" tone="primary" oneChar ariaLabel="총점">Σ</Badge>
+                <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="총점">Σ</Badge>
                 <span>총점</span>
               </span>
             </th>
@@ -769,8 +782,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 }}
                 title={onReorderColumnSwap ? `${hw.title} — 끌어서 순서 변경` : hw.title}
               >
-                <Badge variant="solid" tone="complement" oneChar ariaLabel="과제">과</Badge>
-                <span className="whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
+                <Badge variant="soft" tone="teal" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="과제">과</Badge>
+                <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
               </span>
             </ResizableTh>
           ))}
@@ -778,7 +791,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           <ResizableTh
             columnKey="clinic_target"
             width={columnWidths.clinic_target ?? COL_CLINIC_TARGET}
-            minWidth={72}
+            minWidth={88}
             maxWidth={160}
             onWidthChange={setColumnWidth}
             rowSpan={2}
@@ -844,6 +857,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               >
                 <td
                   className="ds-checkbox-cell align-middle border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
+                  data-col-type="select"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onSelectionChange ? (
@@ -950,6 +964,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes;
+                          const showAddRetake = isEditMode && hasClinicLink && !hasRetakes && block?.passed === false;
                           /* 2026-05-13 학원장 결정: 학생별 상태 = 진행중/이수/판정 — 클리닉 1차/2차/3차 정합.
                              셀 hover 시 tooltip 으로 노출. */
                           const achLabel = achievementLabel(block);
@@ -963,7 +978,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               {...(canEdit ? { "data-editable": "true" } : {})}
                               {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               {...(block?.achievement ? { "data-achievement": block.achievement } : isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
-                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               title={cellTitle}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
@@ -1053,7 +1068,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               ) : (
                                 <span className={`font-medium ${isExamNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
                               )}
-                              {isEditMode && hasClinicLink && !hasRetakes && block?.passed === false && (
+                              {showAddRetake && (
                                 <div
                                   className="ds-cell-add-retake"
                                   onClick={(e) => { e.stopPropagation(); onSelectRow(row); }}

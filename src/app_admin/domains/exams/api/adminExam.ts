@@ -1,42 +1,6 @@
 import api from "@/shared/api/axios";
-import { Exam } from "../types";
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
-}
-
-function normalizeExam(rawValue: unknown): Exam {
-  const raw = asRecord(rawValue);
-  return {
-    id: Number(raw.id),
-
-    title: String(raw.title ?? ""),
-    description: String(raw.description ?? ""),
-    subject: String(raw.subject ?? ""),
-
-    exam_type: raw.exam_type as Exam["exam_type"],
-
-    is_active: Boolean(raw.is_active),
-    status: (raw.status ?? "OPEN") as Exam["status"],
-
-    allow_retake: Boolean(raw.allow_retake),
-    max_attempts: Number(raw.max_attempts ?? 0),
-
-    pass_score: Number(raw.pass_score ?? 0),
-    max_score: Number(raw.max_score ?? 100),
-    display_order: Number(raw.display_order ?? 0),
-
-    open_at: raw.open_at == null ? null : String(raw.open_at),
-    close_at: raw.close_at == null ? null : String(raw.close_at),
-
-    template_exam_id: raw.template_exam_id == null ? null : Number(raw.template_exam_id),
-
-    answer_visibility: (raw.answer_visibility ?? "hidden") as Exam["answer_visibility"],
-
-    created_at: String(raw.created_at ?? ""),
-    updated_at: String(raw.updated_at ?? ""),
-  };
-}
+import type { Exam } from "../types";
+import { normalizeExam } from "./examNormalize";
 
 /**
  * GET /exams/{id}/

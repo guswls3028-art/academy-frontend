@@ -7,36 +7,23 @@ import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
-import { fetchSessionExams, fetchExamResults, updateResult } from "../api";
-import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
 import {
-  normalizeScoreExams,
-  normalizeSession,
-  normalizeEnrollments,
-  normalizeResultRows,
-  type ExamResultRow,
-  type LectureEnrollment,
-} from "@teacher/domains/exams/normalizers";
-import styles from "./MobileScoreEntryPage.module.css";
-
-type ScoreMutationVariables = {
-  enrollmentId: number;
-  score: number;
-  maxScore: number;
-};
-
-type ScoreMutationContext = {
-  previous?: ExamResultRow[];
-};
-
-type KpiTone = "default" | "success" | "warning" | "danger";
-
-function getKpiTone(value: number | null, high: number, middle: number): KpiTone {
-  if (value == null) return "default";
-  if (value >= high) return "success";
-  if (value >= middle) return "warning";
-  return "danger";
-}
+  fetchSessionExams,
+  fetchExamResults,
+  updateResult,
+  type TeacherExamResultRow,
+} from "../api";
+import {
+  fetchSession,
+  fetchLectureEnrollments,
+  type TeacherLectureEnrollment,
+} from "@teacher/domains/lectures/api";
+import {
+  getExamResultEnrollmentId,
+  getExamResultMaxScore,
+  getExamResultScore,
+  invalidateTeacherExamResultQueries,
+} from "@teacher/domains/results/examResultContract";
 
 export default function MobileScoreEntryPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -45,7 +32,7 @@ export default function MobileScoreEntryPage() {
 
   const { data: exams, isLoading: examsLoading } = useQuery({
     queryKey: ["session-exams", sid],
-    queryFn: async () => normalizeScoreExams(await fetchSessionExams(sid)),
+    queryFn: () => fetchSessionExams(sid),
     enabled: Number.isFinite(sid),
   });
 
@@ -53,13 +40,13 @@ export default function MobileScoreEntryPage() {
   // 차시 → 강의 → enrollments 로 base 확보 후 result merge.
   const { data: sessionDetail } = useQuery({
     queryKey: ["session-detail-for-scores", sid],
-    queryFn: async () => normalizeSession(await fetchSession(sid)),
+    queryFn: () => fetchSession(sid),
     enabled: Number.isFinite(sid),
   });
-  const lectureIdForEnrollments = sessionDetail?.lecture_id ?? null;
+  const lectureIdForEnrollments = sessionDetail?.lecture ?? sessionDetail?.lecture_id ?? null;
   const { data: enrollments } = useQuery({
     queryKey: ["session-enrollments-for-scores", lectureIdForEnrollments],
-    queryFn: async () => normalizeEnrollments(await fetchLectureEnrollments(lectureIdForEnrollments!)),
+    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
     enabled: Number.isFinite(lectureIdForEnrollments),
   });
 
@@ -71,7 +58,7 @@ export default function MobileScoreEntryPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
         <BackBtn onClick={() => navigate(-1)} />
-        <h1 className={`${styles.title} text-[17px] font-bold`}>
+        <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>
           성적 입력
         </h1>
       </div>
@@ -81,15 +68,20 @@ export default function MobileScoreEntryPage() {
       ) : exams && exams.length > 0 ? (
         <>
           {/* Exam selector chips — 만점 라벨로 컨텍스트 부여 */}
-          <div className={`${styles.examTabs} flex gap-2 overflow-x-auto pb-1`}>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
             {exams.map((exam) => {
               const active = exam.id === activeExamId;
               return (
                 <button
-                  type="button"
                   key={exam.id}
                   onClick={() => setSelectedExamId(exam.id)}
-                  className={`${styles.examTab} ${active ? styles.examTabActive : ""} rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer`}
+                  className="rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+                  style={{
+                    padding: "8px 14px",
+                    border: active ? "none" : "1px solid var(--tc-border)",
+                    background: active ? "var(--tc-primary)" : "transparent",
+                    color: active ? "#fff" : "var(--tc-text)",
+                  }}
                 >
                   {exam.title}{exam.max_score != null ? ` · ${exam.max_score}점` : ""}
                 </button>
@@ -146,39 +138,38 @@ function ScoreEntryList({
   examId: number;
   examMaxScore: number;
   examPassScore: number | null;
-  enrollments: LectureEnrollment[];
+  enrollments: TeacherLectureEnrollment[];
 }) {
   const qc = useQueryClient();
   const { data: rawResults, isLoading } = useQuery({
     queryKey: ["exam-results", examId],
-    queryFn: async () => normalizeResultRows(await fetchExamResults(examId)),
+    queryFn: () => fetchExamResults(examId),
     enabled: Number.isFinite(examId),
   });
 
   // result row + enrollment 매핑 — 점수 매겨진 학생은 result, 아닌 학생은 enrollment 기반 가상 row
   const results = useMemo(() => {
-    const byEnrollment = new Map<number, ExamResultRow>();
+    const byEnrollment = new Map<number, TeacherExamResultRow>();
     for (const r of rawResults ?? []) {
-      byEnrollment.set(r.enrollment_id, r);
+      const enrollmentId = getExamResultEnrollmentId(r);
+      if (enrollmentId != null) byEnrollment.set(enrollmentId, r);
     }
-    const active = enrollments.filter((e) => e.status === "ACTIVE" || e.status == null);
+    const active = (enrollments ?? []).filter((e) => e.status === "ACTIVE" || e.status == null);
     if (active.length === 0) return rawResults ?? [];
-    return active.map((e): ExamResultRow => {
+    return active.map((e): TeacherExamResultRow => {
       const fromResult = byEnrollment.get(e.id);
       if (fromResult) return fromResult;
       return {
-        id: null,
         enrollment_id: e.id,
-        student_name: e.student_name,
+        student_name: e.student_name ?? e.student?.name ?? e.name ?? "이름 없음",
         exam_score: null,
         final_score: null,
         total_score: null,
         exam_max_score: examMaxScore,
+        max_score: examMaxScore,
         passed: null,
-        is_pass: null,
         final_pass: null,
         achievement: null,
-        rank: null,
       };
     });
   }, [rawResults, enrollments, examMaxScore]);
@@ -191,44 +182,52 @@ function ScoreEntryList({
   useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
   useEffect(() => {
     if (!results?.length) return;
-    const first = results[0];
-    const t = setTimeout(() => inputRefs.current.get(first.enrollment_id)?.focus(), 50);
+    const firstEnrollmentId = getExamResultEnrollmentId(results[0]);
+    if (firstEnrollmentId == null) return;
+    const t = setTimeout(() => inputRefs.current.get(firstEnrollmentId)?.focus(), 50);
     return () => clearTimeout(t);
   }, [examId, results]);
 
-  const updateMut = useMutation<unknown, unknown, ScoreMutationVariables, ScoreMutationContext>({
-    mutationFn: ({ enrollmentId, score, maxScore }) =>
+  const updateMut = useMutation({
+    mutationFn: ({ enrollmentId, score, maxScore }: { enrollmentId: number; score: number; maxScore: number }) =>
       updateResult(examId, enrollmentId, { score, maxScore }),
     // 옵티미스틱 업데이트 — refetch 사이클(invalidate 후 서버 응답까지 ~300-500ms) 동안
     // 행이 옛 값으로 잠깐 표시되는 racing 차단. onError에서 롤백.
     onMutate: async (variables) => {
       const qk = ["exam-results", examId] as const;
       await qc.cancelQueries({ queryKey: qk });
-      const previous = qc.getQueryData<ExamResultRow[]>(qk);
-      const optimisticBase = results.find((r) => r.enrollment_id === variables.enrollmentId);
-      qc.setQueryData<ExamResultRow[]>(qk, (prev) => {
-        if (!Array.isArray(prev)) return prev;
-        const nextRow: ExamResultRow = {
-          ...(optimisticBase ?? {
-            id: null,
-            enrollment_id: variables.enrollmentId,
-            student_name: "",
-            exam_score: null,
-            final_score: null,
-            total_score: null,
+      const previous = qc.getQueryData<TeacherExamResultRow[]>(qk);
+      qc.setQueryData<TeacherExamResultRow[]>(qk, (prev) => {
+        const rows = Array.isArray(prev) ? prev : [];
+        let matched = false;
+        const next = rows.map((r) => {
+          if (getExamResultEnrollmentId(r) !== variables.enrollmentId) return r;
+          matched = true;
+          return {
+            ...r,
+            exam_score: variables.score,
+            final_score: variables.score,
+            total_score: variables.score,
             exam_max_score: variables.maxScore,
-            passed: null,
-            is_pass: null,
-            final_pass: null,
-            achievement: null,
-            rank: null,
-          }),
-          exam_score: variables.score,
-          final_score: variables.score,
-        };
-        return prev.some((r) => r.enrollment_id === variables.enrollmentId)
-          ? prev.map((r) => (r.enrollment_id === variables.enrollmentId ? nextRow : r))
-          : [...prev, nextRow];
+            max_score: variables.maxScore,
+          };
+        });
+        if (matched) return next;
+
+        const virtualRow = results?.find((r) => getExamResultEnrollmentId(r) === variables.enrollmentId);
+        return [
+          ...next,
+          {
+            ...(virtualRow ?? {}),
+            enrollment_id: variables.enrollmentId,
+            student_name: virtualRow?.student_name ?? "이름 없음",
+            exam_score: variables.score,
+            final_score: variables.score,
+            total_score: variables.score,
+            exam_max_score: variables.maxScore,
+            max_score: variables.maxScore,
+          },
+        ];
       });
       return { previous };
     },
@@ -247,13 +246,13 @@ function ScoreEntryList({
           return next;
         });
       }, 1200);
-      qc.invalidateQueries({ queryKey: ["exam-results", examId] });
-      const student = results.find((r) => r.enrollment_id === variables.enrollmentId);
+      invalidateTeacherExamResultQueries(qc, examId);
+      const student = results?.find((r) => getExamResultEnrollmentId(r) === variables.enrollmentId);
       const name = student?.student_name ?? "";
       feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
     },
-    onError: (e, _vars, ctx) => {
-      if (ctx?.previous) qc.setQueryData(["exam-results", examId], ctx.previous);
+    onError: (e, _vars, ctx?: { previous?: TeacherExamResultRow[] }) => {
+      qc.setQueryData(["exam-results", examId], ctx?.previous);
       feedback.error(extractApiError(e, "저장 실패"));
     },
   });
@@ -263,7 +262,7 @@ function ScoreEntryList({
       const val = localScores.get(enrollmentId);
       if (val == null || val === "") return;
       const num = Number(val);
-      if (Number.isNaN(num)) {
+      if (isNaN(num)) {
         feedback.error("숫자만 입력하세요.");
         return;
       }
@@ -279,9 +278,10 @@ function ScoreEntryList({
   const focusNext = useCallback(
     (currentEnrollmentId: number) => {
       if (!results) return;
-      const idx = results.findIndex((r) => r.enrollment_id === currentEnrollmentId);
+      const idx = results.findIndex((r) => getExamResultEnrollmentId(r) === currentEnrollmentId);
       if (idx >= 0 && idx < results.length - 1) {
-        inputRefs.current.get(results[idx + 1].enrollment_id)?.focus();
+        const nextEnrollmentId = getExamResultEnrollmentId(results[idx + 1]);
+        if (nextEnrollmentId != null) inputRefs.current.get(nextEnrollmentId)?.focus();
       }
     },
     [results],
@@ -293,10 +293,12 @@ function ScoreEntryList({
     const scores: number[] = [];
     let passed = 0;
     for (const r of results) {
-      const draft = localScores.get(r.enrollment_id);
-      const final = r.final_score ?? r.exam_score;
+      const enrollmentId = getExamResultEnrollmentId(r);
+      if (enrollmentId == null) continue;
+      const draft = localScores.get(enrollmentId);
+      const final = getExamResultScore(r);
       let sc: number | null = null;
-      if (draft != null && draft !== "" && !Number.isNaN(Number(draft))) sc = Number(draft);
+      if (draft != null && draft !== "" && !isNaN(Number(draft))) sc = Number(draft);
       else if (final != null) sc = Number(final);
       if (sc != null) {
         scores.push(sc);
@@ -321,25 +323,34 @@ function ScoreEntryList({
       {stats && (() => {
         // pass_score=0/null 은 합격선 의미 없음 → KPI 합격 타일 숨김
         const showPass = examPassScore != null && examPassScore > 0;
-        const avgTone = getKpiTone(
-          stats.avg,
-          examMaxScore * 0.7,
-          examMaxScore * 0.4,
-        );
-        const passTone = getKpiTone(stats.passRate, 70, 40);
         return (
-          <div className={`${showPass ? styles.kpiGridThree : styles.kpiGridTwo} grid gap-2`}>
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: showPass ? "repeat(3, 1fr)" : "repeat(2, 1fr)" }}
+          >
             <KpiTile label="입력" value={`${stats.entered}/${stats.total}`} />
             <KpiTile
               label="평균"
               value={stats.avg != null ? stats.avg.toFixed(1) : "-"}
-              tone={avgTone}
+              color={
+                stats.avg != null && stats.avg >= examMaxScore * 0.7
+                  ? "var(--tc-success)"
+                  : stats.avg != null && stats.avg >= examMaxScore * 0.4
+                    ? "var(--tc-warn)"
+                    : "var(--tc-text)"
+              }
             />
             {showPass && (
               <KpiTile
                 label={`합격(≥${examPassScore})`}
                 value={stats.passRate != null ? `${stats.passRate}%` : "-"}
-                tone={passTone}
+                color={
+                  stats.passRate != null && stats.passRate >= 70
+                    ? "var(--tc-success)"
+                    : stats.passRate != null && stats.passRate >= 40
+                      ? "var(--tc-warn)"
+                      : "var(--tc-danger)"
+                }
               />
             )}
           </div>
@@ -347,23 +358,33 @@ function ScoreEntryList({
       })()}
 
       {results.map((r) => {
-        const enrollmentId = r.enrollment_id;
-        const existing = r.final_score ?? r.exam_score;
+        const enrollmentId = getExamResultEnrollmentId(r);
+        if (enrollmentId == null) return null;
+        const existing = getExamResultScore(r);
         const display = localScores.get(enrollmentId) ?? (existing != null ? String(existing) : "");
-        const maxScore = r.exam_max_score ?? examMaxScore ?? 100;
+        const maxScore = getExamResultMaxScore(r, examMaxScore ?? 100);
         const name = r.student_name ?? "이름 없음";
         const draftVal = localScores.get(enrollmentId);
         const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
-        const isInvalid = !Number.isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
+        const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
 
         const saved = justSaved.has(enrollmentId);
         return (
           <div
             key={enrollmentId}
-            className={`${styles.scoreRow} ${saved ? styles.scoreRowSaved : ""} flex items-center gap-3 rounded-lg`}
+            className="flex items-center gap-3 rounded-lg"
+            style={{
+              padding: "var(--tc-space-3) var(--tc-space-4)",
+              // 명시 success 색상 — 토큰이 옅을 경우 대비. 페이드인 180ms로 단축해 학원장이 다음 행으로 넘기기 전 visible
+              background: saved ? "rgba(34, 197, 94, 0.18)" : "var(--tc-surface)",
+              border: saved ? "1.5px solid #22c55e" : "1px solid var(--tc-border)",
+              transition: "background 180ms ease-out, border-color 180ms ease-out",
+              boxShadow: saved ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
+            }}
           >
             <span
-              className={`${styles.title} ds-text-name font-semibold flex-1 min-w-0 truncate`}
+              className="ds-text-name font-semibold flex-1 min-w-0 truncate"
+              style={{ color: "var(--tc-text)" }}
             >
               {name}
             </span>
@@ -372,10 +393,10 @@ function ScoreEntryList({
               <input
                 ref={(el) => {
                   if (el) inputRefs.current.set(enrollmentId, el);
-                  else inputRefs.current.delete(enrollmentId);
                 }}
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9]*[.]?[0-9]*"
                 value={display}
                 placeholder="-"
                 onChange={(e) => {
@@ -394,9 +415,17 @@ function ScoreEntryList({
                     focusNext(enrollmentId);
                   }
                 }}
-                className={`${styles.scoreInput} ${isInvalid ? styles.scoreInputInvalid : ""} text-center text-lg font-bold outline-none`}
+                className="text-center text-lg font-bold outline-none"
+                style={{
+                  width: 64,
+                  height: 40,
+                  border: isInvalid ? "1px solid var(--tc-danger)" : "1px solid var(--tc-border-strong)",
+                  borderRadius: "var(--tc-radius-sm)",
+                  background: isInvalid ? "var(--tc-danger-bg, #fef2f2)" : "var(--tc-surface-soft)",
+                  color: isInvalid ? "var(--tc-danger)" : "var(--tc-text)",
+                }}
               />
-              <span className={`${styles.mutedText} text-[13px]`}>
+              <span className="text-[13px]" style={{ color: "var(--tc-text-muted)" }}>
                 / {maxScore}
               </span>
             </div>
@@ -410,33 +439,51 @@ function ScoreEntryList({
 function ScoreEntrySkeleton() {
   return (
     <div className="flex flex-col gap-2" aria-busy="true">
-      <div className={`${styles.kpiGridThree} grid gap-2`}>
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+      >
         {[0, 1, 2].map((i) => (
-          <div key={i} className={styles.skeletonTile} />
+          <div
+            key={i}
+            style={{
+              height: 56,
+              borderRadius: "var(--tc-radius)",
+              background: "var(--tc-surface-soft)",
+              animation: "pulse 1.5s ease-in-out infinite",
+            }}
+          />
         ))}
       </div>
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className={styles.skeletonRow} />
+        <div
+          key={i}
+          style={{
+            height: 56,
+            borderRadius: "var(--tc-radius)",
+            background: "var(--tc-surface-soft)",
+            animation: "pulse 1.5s ease-in-out infinite",
+            animationDelay: `${i * 80}ms`,
+          }}
+        />
       ))}
     </div>
   );
 }
 
-function KpiTile({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  tone?: KpiTone;
-}) {
+function KpiTile({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className={`${styles.kpiTile} rounded-lg flex flex-col items-center justify-center py-2`}>
-      <span className={`${KPI_TONE_CLASS[tone]} text-base font-bold leading-tight`}>
+    <div
+      className="rounded-lg flex flex-col items-center justify-center py-2"
+      style={{
+        background: "var(--tc-surface)",
+        border: "1px solid var(--tc-border)",
+      }}
+    >
+      <span className="text-base font-bold leading-tight" style={{ color: color ?? "var(--tc-text)" }}>
         {value}
       </span>
-      <span className={`${styles.mutedText} text-[11px] mt-0.5`}>
+      <span className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
         {label}
       </span>
     </div>
@@ -446,9 +493,9 @@ function KpiTile({
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
-      type="button"
       onClick={onClick}
-      className={`${styles.backButton} flex p-1 cursor-pointer`}
+      className="flex p-1 cursor-pointer"
+      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
     >
       <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />
@@ -456,10 +503,3 @@ function BackBtn({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
-
-const KPI_TONE_CLASS: Record<KpiTone, string> = {
-  default: styles.title,
-  success: styles.successText,
-  warning: styles.warningText,
-  danger: styles.dangerText,
-};

@@ -1,6 +1,5 @@
 import { lazy, type ComponentType } from "react";
-
-type ReactLazyLoader = Parameters<typeof lazy>[0];
+import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 
 /**
  * Vite code-splitting + Cloudflare Pages 배포 시 발생하는 두 종류 race 처리.
@@ -11,13 +10,20 @@ type ReactLazyLoader = Parameters<typeof lazy>[0];
  *    React.lazy는 이 상황에서 "Cannot read properties of undefined (reading 'default')"
  *    런타임 에러를 발생시킨다 (catch에 잡히지 않음).
  *
- * 두 케이스 모두 한 번 페이지를 리로드해 최신 HTML(새 chunk 해시)을 가져오는 것으로 회복.
+ * 두 케이스 모두 cache-bust reload로 최신 HTML(새 chunk 해시)을 가져오는 것으로 회복.
  * sessionStorage 타임스탬프로 무한 리로드 방지(10초 이내 재시도 차단).
  */
-export function lazyWithRetry<T extends ComponentType<never>>(
-  factory: () => Promise<{ default: T }>,
-): ReturnType<typeof lazy> {
-  const load = () =>
+type RetryableLazyModule = {
+  default: ComponentType<never> | ComponentType;
+};
+
+export function lazyWithRetry(
+  factory: () => Promise<RetryableLazyModule>,
+) {
+  const key = "chunk_reload_ts";
+  const cooldownMs = 10_000;
+
+  const loader = () =>
     factory()
       .then((mod) => {
         // factory가 resolve 되었어도 default가 undefined면 race로 간주.
@@ -28,20 +34,12 @@ export function lazyWithRetry<T extends ComponentType<never>>(
         return mod;
       })
       .catch((err: unknown) => {
-        const key = "chunk_reload_ts";
-        const lastReload = Number(sessionStorage.getItem(key) || "0");
-        const now = Date.now();
-
         // 10초 이내에 이미 reload했으면 무한 루프 방지 — 에러를 그대로 던져 ErrorBoundary로
-        if (now - lastReload < 10_000) {
+        if (!hardReloadWithCacheBust({ key, cooldownMs })) {
           throw err;
         }
-
-        sessionStorage.setItem(key, String(now));
-        window.location.reload();
-        // reload 대기 (실제로 도달하지 않음)
         return new Promise<never>(() => {});
       });
 
-  return lazy(load as unknown as ReactLazyLoader);
+  return lazy(loader as unknown as () => Promise<{ default: ComponentType }>);
 }

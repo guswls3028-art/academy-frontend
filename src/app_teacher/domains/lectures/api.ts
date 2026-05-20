@@ -19,6 +19,25 @@ export type TeacherLecture = {
   isActive?: boolean;
 };
 
+export type TeacherLectureEnrollment = {
+  id: number;
+  student_id?: number | null;
+  student_name?: string | null;
+  student_phone?: string | null;
+  studentPhone?: string | null;
+  parent_phone?: string | null;
+  parentPhone?: string | null;
+  phone?: string | null;
+  name?: string | null;
+  status?: string | null;
+  student?: {
+    id?: number | null;
+    name?: string | null;
+    phone?: string | null;
+    parent_phone?: string | null;
+  } | null;
+};
+
 function extractList<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (!raw || typeof raw !== "object") return [];
@@ -57,12 +76,11 @@ export async function fetchSession(sessionId: number) {
 }
 
 /** 강의 수강생 목록 (enrollments 기반) — backend 마운트: /api/v1/enrollments/ */
-export async function fetchLectureEnrollments(lectureId: number) {
+export async function fetchLectureEnrollments(lectureId: number): Promise<TeacherLectureEnrollment[]> {
   const res = await api.get("/enrollments/", {
     params: { lecture: lectureId, page_size: 200 },
   });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return extractList<TeacherLectureEnrollment>(res.data);
 }
 
 /** 세션 수강생 출석 목록 */
