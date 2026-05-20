@@ -75,6 +75,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
             {primaryWageTag && (
               <span
                 className="staff-wage-badge staff-wage-badge--dark text-[10px] px-2 py-0.5 rounded font-semibold"
+                // eslint-disable-next-line no-restricted-syntax -- work type colors are tenant-configured data.
                 style={{ backgroundColor: primaryWageTag.work_type?.color || "#6b7280" }}
               >
                 {primaryWageTag.work_type?.name} {(primaryWageTag.effective_hourly_wage / 10000).toFixed(1)}만

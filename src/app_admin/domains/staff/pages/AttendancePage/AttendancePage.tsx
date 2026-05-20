@@ -1,15 +1,16 @@
 // PATH: src/app_admin/domains/staff/pages/AttendancePage/AttendancePage.tsx
 // 근태 탭 — KPI 배너 상단 + 캘린더/상세 하단
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import WorkRecordsPanel from "../OperationsPage/WorkRecordsPanel";
 import { AttendanceCalendar } from "../../components/AttendanceCalendar";
 import { PayrollSummaryCard } from "../../components/PayrollSummaryCard";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
-import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import type { WorkRecord } from "../../api/workRecords.api";
+import styles from "./AttendancePage.module.css";
 
 function getThisMonth() {
   const d = new Date();
@@ -48,12 +49,12 @@ function DailyWorkDetailSection({
 
   return (
     <section className="staff-area staff-section-card">
-      <div className="staff-section-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className={`staff-section-card__header ${styles.detailHeader}`}>
         <h2 className="staff-section-card__title">{dayLabel} 근무 상세</h2>
         {dayRecords.length > 0 && (
-          <div style={{ display: "flex", gap: 12, fontSize: 13, fontWeight: 600 }}>
-            <span style={{ color: "var(--color-primary)" }}>{totalHours.toFixed(1)}h</span>
-            <span style={{ color: "var(--color-text-primary)" }}>{totalAmount.toLocaleString()}원</span>
+          <div className={styles.dailyTotals}>
+            <span className={styles.totalHours}>{totalHours.toFixed(1)}h</span>
+            <span className={styles.totalAmount}>{totalAmount.toLocaleString()}원</span>
           </div>
         )}
       </div>
@@ -76,44 +77,33 @@ function DailyWorkDetailSection({
                 }
               } catch { /* 파싱 실패 시 바 미표시 */ }
 
+              const timelineStyle = {
+                "--timeline-left": `${pctStart}%`,
+                "--timeline-width": `${pctWidth}%`,
+              } as CSSProperties;
+
               return (
-                <div
-                  key={r.id}
-                  style={{
-                    borderRadius: "var(--radius-lg)",
-                    border: "1px solid var(--color-border-divider)",
-                    background: "color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface))",
-                    padding: "12px 16px",
-                    overflow: "hidden",
-                  }}
-                >
+                <div key={r.id} className={styles.recordCard}>
                   {/* 시간 바 (시각적 타임라인) */}
-                  <div style={{ height: 6, borderRadius: 3, background: "var(--color-bg-surface-soft)", marginBottom: 10, position: "relative" }}>
+                  <div className={styles.timeline}>
                     <div
-                      style={{
-                        position: "absolute",
-                        left: `${pctStart}%`,
-                        width: `${pctWidth}%`,
-                        height: "100%",
-                        borderRadius: 3,
-                        background: "var(--color-primary)",
-                        opacity: 0.7,
-                      }}
+                      className={styles.timelineFill}
+                      style={timelineStyle}
                     />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>{r.work_type_name}</span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--color-primary)", fontVariantNumeric: "tabular-nums" }}>
+                  <div className={styles.recordSummary}>
+                    <span className={styles.workType}>{r.work_type_name}</span>
+                    <span className={styles.hoursAmount}>
                       {r.work_hours != null ? `${r.work_hours}h` : "-"}
-                      {r.amount != null && <span style={{ color: "var(--color-text-secondary)", marginLeft: 8 }}>{r.amount.toLocaleString()}원</span>}
+                      {r.amount != null && <span className={styles.amount}>{r.amount.toLocaleString()}원</span>}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--color-text-muted)" }}>
+                  <div className={styles.recordMeta}>
                     <span>{r.start_time?.slice(0, 5)} ~ {r.end_time?.slice(0, 5) ?? "진행 중"}</span>
                     {(r.break_minutes ?? 0) > 0 && <span>휴게 {r.break_minutes}분</span>}
                   </div>
                   {r.memo && (
-                    <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-border-divider)" }}>
+                    <p className={styles.memo}>
                       {r.memo}
                     </p>
                   )}

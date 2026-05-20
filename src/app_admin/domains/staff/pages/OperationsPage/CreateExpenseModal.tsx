@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/staff/pages/OperationsPage/CreateExpenseModal.tsx
 import { useEffect, useState } from "react";
-import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useExpenses } from "../../hooks/useExpenses";
 
 import {

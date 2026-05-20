@@ -2,30 +2,12 @@
 // 전역 SSOT: shared/ui/ds Badge (variant=solid)
 
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
+import styles from "./StatusBadge.module.css";
 
 type Tone = "neutral" | "success" | "danger" | "warning" | "primary";
 
 function Dot({ tone }: { tone: Tone }) {
-  const map: Record<Tone, string> = {
-    danger: "var(--color-danger)",
-    success: "var(--color-success)",
-    warning: "var(--color-warning)",
-    primary: "var(--color-brand-primary)",
-    neutral: "var(--color-text-muted)",
-  };
-  return (
-    <span
-      aria-hidden
-      style={{
-        display: "inline-block",
-        width: 6,
-        height: 6,
-        borderRadius: 999,
-        flexShrink: 0,
-        background: map[tone],
-      }}
-    />
-  );
+  return <span aria-hidden className={styles.dot} data-tone={tone} />;
 }
 
 type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";

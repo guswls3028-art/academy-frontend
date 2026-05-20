@@ -1,0 +1,27 @@
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.dot[data-tone="danger"] {
+  background: var(--color-danger);
+}
+
+.dot[data-tone="success"] {
+  background: var(--color-success);
+}
+
+.dot[data-tone="warning"] {
+  background: var(--color-warning);
+}
+
+.dot[data-tone="primary"] {
+  background: var(--color-brand-primary);
+}
+
+.dot[data-tone="neutral"] {
+  background: var(--color-text-muted);
+}

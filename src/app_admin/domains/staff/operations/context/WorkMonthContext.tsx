@@ -1,19 +1,8 @@
-import React, { createContext, useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useWorkMonthLock } from "../../hooks/useWorkMonthLock";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
-
-type WorkMonthContextValue = {
-  staffId: number;
-  year: number;
-  month: number;
-  range: { from: string; to: string };
-  locked: boolean;
-  canManage: boolean;
-  lockM: ReturnType<typeof useWorkMonthLock>["lockM"];
-};
-
-const Ctx = createContext<WorkMonthContextValue | null>(null);
+import { WorkMonthContext, type WorkMonthContextValue } from "./workMonthHooks";
 
 function monthRange(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -41,7 +30,7 @@ export function WorkMonthProvider({
 
   const range = useMemo(() => monthRange(year, month), [year, month]);
 
-  const value = useMemo(
+  const value = useMemo<WorkMonthContextValue>(
     () => ({
       staffId,
       year,
@@ -54,11 +43,5 @@ export function WorkMonthProvider({
     [staffId, year, month, range, locked, canManage, lockM]
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
-
-export function useWorkMonth() {
-  const v = useContext(Ctx);
-  if (!v) throw new Error("useWorkMonth must be used within WorkMonthProvider");
-  return v;
+  return <WorkMonthContext.Provider value={value}>{children}</WorkMonthContext.Provider>;
 }

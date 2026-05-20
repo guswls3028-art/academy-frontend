@@ -4,6 +4,7 @@ import { Button } from "@/shared/ui/ds";
 import { changeStaffPassword } from "../api/staff.detail.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./StaffPasswordModal.module.css";
 
 interface Props {
   open: boolean;
@@ -82,11 +83,9 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
         }
       />
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gap: 4 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
-              새 비밀번호 *
-            </div>
+        <div className={styles.form}>
+          <div className={styles.field}>
+            <div className={styles.label}>새 비밀번호 *</div>
             <input
               type="password"
               className="ds-input"
@@ -97,7 +96,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
               disabled={busy}
             />
           </div>
-          <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+          <div className={styles.notice}>
             선택한 직원 전원에게 동일한 비밀번호가 적용됩니다.
             변경 후 직원에게 새 비밀번호를 안내해 주세요.
           </div>

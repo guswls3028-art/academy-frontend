@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useExpenses } from "../../hooks/useExpenses";
 import CreateExpenseModal from "./CreateExpenseModal";
 import { Button } from "@/shared/ui/ds";

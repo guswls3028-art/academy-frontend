@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { LockBadge } from "../../components/StatusBadge";
-import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
 import CreateWorkRecordModal from "./CreateWorkRecordModal";
 import "../../styles/staff-area.css";

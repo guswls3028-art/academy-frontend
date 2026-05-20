@@ -3,7 +3,7 @@
 
 import { Button } from "@/shared/ui/ds";
 import { LockBadge } from "../../components/StatusBadge";
-import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import "../../styles/staff-area.css";
 
 function cx(...xs: Array<string | false | null | undefined>) {

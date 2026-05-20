@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/ds";
 import { patchStaffDetail, type StaffDetail } from "../api/staff.detail.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./StaffEditModal.module.css";
 
 interface Props {
   open: boolean;
@@ -103,7 +104,7 @@ export default function StaffEditModal({
 
           <div className="modal-form-group">
             <label className="modal-section-label">급여 유형</label>
-            <div className="modal-form-row modal-form-row--1-auto" style={{ gap: 8 }}>
+            <div className={`modal-form-row modal-form-row--1-auto ${styles.payTypeRow}`}>
               <button
                 type="button"
                 className={`ds-choice-btn ds-choice-btn--primary${form.pay_type === "HOURLY" ? " is-selected" : ""}`}
@@ -127,9 +128,9 @@ export default function StaffEditModal({
 
           <div className="modal-form-group">
             <label className="modal-section-label">역할</label>
-            <div className="ds-input" style={{ background: "var(--color-bg-surface-hover)", cursor: "default", color: "var(--color-text-secondary)" }}>
+            <div className={`ds-input ${styles.readonlyRole}`}>
               {(staff as { role?: string })?.role === "OWNER" ? "대표" : (staff as { role?: string })?.role === "TEACHER" ? "강사" : "조교"}
-              <span style={{ fontSize: 11, marginLeft: 8, color: "var(--color-text-muted)" }}>
+              <span className={styles.roleNote}>
                 (역할은 생성 시에만 설정 가능)
               </span>
             </div>
