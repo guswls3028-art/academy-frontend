@@ -14,7 +14,7 @@ import type { GuideWorkflow } from "@/shared/ui/guide/types";
 export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   {
     id: "take-exam",
-    icon: <IconExam style={{ width: 24, height: 24 }} />,
+    icon: <IconExam />,
     title: "시험 보기",
     summary: "등록된 시험에 응시하고 결과를 확인하는 방법이에요.",
     steps: [
@@ -36,7 +36,7 @@ export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   },
   {
     id: "check-grades",
-    icon: <IconGrade style={{ width: 24, height: 24 }} />,
+    icon: <IconGrade />,
     title: "성적 확인하기",
     summary: "시험 점수와 과제 결과, 성적 추이를 확인하는 방법이에요.",
     steps: [
@@ -69,7 +69,7 @@ export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   },
   {
     id: "watch-video",
-    icon: <IconPlay style={{ width: 24, height: 24 }} />,
+    icon: <IconPlay />,
     title: "영상 시청하기",
     summary: "강의 영상을 찾아서 시청하는 방법이에요. 이어보기도 돼요.",
     steps: [
@@ -90,7 +90,7 @@ export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   },
   {
     id: "submit-assignment",
-    icon: <IconClipboard style={{ width: 24, height: 24 }} />,
+    icon: <IconClipboard />,
     title: "과제 제출하기",
     summary: "과제나 시험 답안을 사진·파일로 제출하는 방법이에요.",
     steps: [
@@ -123,7 +123,7 @@ export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   },
   {
     id: "daily-routine",
-    icon: <IconHome style={{ width: 24, height: 24 }} />,
+    icon: <IconHome />,
     title: "오늘 할 일 확인하기",
     summary: "홈 화면에서 오늘의 수업, 과제, 시험을 한눈에 파악하는 방법이에요.",
     steps: [
@@ -163,7 +163,7 @@ export const STUDENT_WORKFLOWS: GuideWorkflow[] = [
   },
   {
     id: "check-clinic",
-    icon: <IconClinic style={{ width: 24, height: 24 }} />,
+    icon: <IconClinic />,
     title: "클리닉 확인하기",
     summary: "선생님이 지정한 보충 항목을 확인하고 해결하는 방법이에요.",
     steps: [
