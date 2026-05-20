@@ -39,15 +39,21 @@ type ProgramState = {
 
 const ProgramContext = createContext<ProgramState | null>(null);
 
-export function ProgramProvider({ children }: { children: React.ReactNode }) {
-  const [program, setProgram] = useState<Program | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
+let programBootstrapPromise: Promise<Program | null> | null = null;
 
-  const load = useCallback(async () => {
-    setError(false);
-    // 일시적 네트워크 흔들림에 대한 자동 재시도 (max 2회, 지수 백오프).
-    // 학원장이 매번 "다시 시도" 버튼 누르지 않게.
+function isRetryableProgramError(e: unknown): boolean {
+  const err = e as { response?: { status?: number }; code?: string; message?: string };
+  const status = err?.response?.status;
+  if (typeof status === "number") {
+    return status >= 500;
+  }
+  return err?.code === "ERR_NETWORK" || Boolean(err?.message?.includes("Network Error"));
+}
+
+function fetchProgramBootstrap(): Promise<Program | null> {
+  if (programBootstrapPromise) return programBootstrapPromise;
+
+  programBootstrapPromise = (async () => {
     const attemptFetch = async (attempt = 0): Promise<Program | null> => {
       try {
         const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
@@ -64,7 +70,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
             return DEV_FALLBACK_PROGRAM;
           }
         }
-        if (attempt < 2) {
+        if (attempt < 2 && isRetryableProgramError(e)) {
           await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
           return attemptFetch(attempt + 1);
         }
@@ -72,8 +78,23 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    return attemptFetch();
+  })().finally(() => {
+    programBootstrapPromise = null;
+  });
+
+  return programBootstrapPromise;
+}
+
+export function ProgramProvider({ children }: { children: React.ReactNode }) {
+  const [program, setProgram] = useState<Program | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(async () => {
+    setError(false);
     try {
-      const p = await attemptFetch();
+      const p = await fetchProgramBootstrap();
       setProgram(p);
     } catch {
       setProgram(null);

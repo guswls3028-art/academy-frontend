@@ -28,6 +28,15 @@ const FIELD_LABELS: Record<string, string> = {
   non_field_errors: "",
 };
 
+function extractMessage(value: unknown): string | null {
+  if (typeof value === "string" && value) return value;
+  if (value && typeof value === "object" && "msg" in value) {
+    const msg = (value as { msg?: unknown }).msg;
+    return typeof msg === "string" && msg ? msg : null;
+  }
+  return null;
+}
+
 export function extractApiError(
   e: unknown,
   fallback = "요청 처리 중 오류가 발생했습니다.",
@@ -50,9 +59,13 @@ export function extractApiError(
   const parts: string[] = [];
   for (const [key, val] of Object.entries(data)) {
     const label = FIELD_LABELS[key] ?? key;
-    const msgs = Array.isArray(val) ? val : typeof val === "string" ? [val] : [];
+    const msgs = Array.isArray(val)
+      ? val.map(extractMessage).filter((msg): msg is string => Boolean(msg))
+      : typeof val === "string"
+        ? [val]
+        : [];
     for (const msg of msgs) {
-      if (typeof msg === "string" && msg) {
+      if (msg) {
         parts.push(label ? `${label}: ${msg}` : msg);
       }
     }
