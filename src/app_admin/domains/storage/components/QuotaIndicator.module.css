@@ -30,6 +30,7 @@
 
 .barFill {
   height: 100%;
+  width: var(--quota-fill-width);
   border-radius: 999px;
   background: var(--color-brand-primary);
   transition: width 0.2s;

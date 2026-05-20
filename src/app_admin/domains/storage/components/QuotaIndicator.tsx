@@ -2,6 +2,7 @@
 // 전체 테넌트 사용량 표시 (예: 4.2GB / 10GB)
 
 import { useQuery } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import { fetchStorageQuota } from "../api/storage.api";
 import styles from "./QuotaIndicator.module.css";
 
@@ -36,6 +37,7 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
   const pct = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
   const isStandard = plan === "standard";
   const isOver = limitBytes > 0 && usedBytes >= limitBytes;
+  const barFillStyle = { "--quota-fill-width": `${pct}%` } as CSSProperties;
 
   return (
     <div className={[styles.root, className].filter(Boolean).join(" ")}>
@@ -47,7 +49,7 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
         <div className={styles.bar}>
           <div
             className={[styles.barFill, isOver ? styles.barOver : ""].filter(Boolean).join(" ")}
-            style={{ width: `${pct}%` }}
+            style={barFillStyle}
           />
         </div>
       )}

@@ -165,7 +165,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
             <label>
               파일
               {files.length > 0 && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 400, marginLeft: 6 }}>
+                <span className={styles.fileMeta}>
                   · {files.length}개 · {formatBytes(totalSize)}
                 </span>
               )}
@@ -181,27 +181,19 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
             {files.length > 0 && (
               <div
                 data-testid="upload-modal-file-list"
-                style={{
-                  marginTop: 8, display: "flex", flexDirection: "column", gap: 4,
-                  maxHeight: 140, overflowY: "auto",
-                  fontSize: 12,
-                }}
+                className={styles.fileList}
               >
                 {files.map((f, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "4px 8px", borderRadius: 4,
-                    background: "var(--color-bg-surface-soft)",
-                  }}>
-                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div key={i} className={styles.fileRow}>
+                    <span className={styles.fileName}>
                       {f.name}
                     </span>
-                    <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{formatBytes(f.size)}</span>
+                    <span className={styles.fileSize}>{formatBytes(f.size)}</span>
                     {!uploading && (
                       <button
                         type="button"
                         onClick={() => removeFile(i)}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "grid", placeItems: "center", color: "var(--color-text-muted)" }}
+                        className={styles.removeFileButton}
                         title="제거"
                         aria-label={`${f.name} 제거`}
                       >
@@ -259,14 +251,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           {hasMatchupEligible && (
             <div className={styles.field}>
               <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
+                className={styles.matchupLabel}
               >
                 <input
                   type="checkbox"
@@ -274,18 +259,18 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                   checked={promoteToMatchup}
                   onChange={(e) => setPromoteToMatchup(e.target.checked)}
                 />
-                <Sparkles size={14} style={{ color: "var(--color-brand-primary)" }} />
+                <Sparkles size={14} className={styles.matchupIcon} />
                 <span>
                   매치업 자료로도 등록 (AI 분석)
                   {isMulti && matchupEligibleCount < files.length && (
-                    <span style={{ fontWeight: 400, color: "var(--color-text-muted)", marginLeft: 6, fontSize: 11 }}>
+                    <span className={styles.matchupPartial}>
                       · PDF/PNG/JPG {matchupEligibleCount}개만
                     </span>
                   )}
                 </span>
               </label>
               {promoteToMatchup && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, marginLeft: 24 }}>
+                <span className={styles.matchupHint}>
                   저장 후 매치업 페이지에서 분석 진행률을 확인할 수 있습니다.
                 </span>
               )}

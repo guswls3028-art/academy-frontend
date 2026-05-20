@@ -296,6 +296,18 @@
   font-size: 13px;
 }
 
+.duplicateText {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.duplicateHint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
 .modalFooter {
   display: flex;
   justify-content: flex-end;

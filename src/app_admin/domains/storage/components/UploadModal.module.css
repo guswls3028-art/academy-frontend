@@ -44,6 +44,82 @@
   margin-bottom: var(--space-2);
 }
 
+.fileMeta {
+  margin-left: 6px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  margin-top: 8px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--color-bg-surface-soft);
+}
+
+.fileName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.removeFileButton {
+  display: grid;
+  padding: 2px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  place-items: center;
+}
+
+.field .matchupLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.matchupIcon {
+  color: var(--color-brand-primary);
+}
+
+.matchupPartial {
+  margin-left: 6px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.matchupHint {
+  display: block;
+  margin-top: 4px;
+  margin-left: 24px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
 .field input[type="text"],
 .field textarea {
   width: 100%;

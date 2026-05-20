@@ -2,11 +2,11 @@
 // 저장소 파일 썸네일 — 이미지는 presigned URL로 inline, PDF는 시각 구분 아이콘.
 
 import { useQuery } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import { FileText, Image as ImageIcon, FileSpreadsheet, FileArchive, FilePlay, File as FileIcon } from "lucide-react";
 import { getPresignedUrl } from "../api/storage.api";
 import type { InventoryFile } from "../api/storage.api";
-
-const SIZE = 56;
+import styles from "./StorageFileThumbnail.module.css";
 
 type IconChoice = {
   Icon: typeof FileText;
@@ -49,15 +49,7 @@ export default function StorageFileThumbnail({ file }: { file: InventoryFile }) 
         src={thumb}
         alt={file.displayName}
         loading="lazy"
-        style={{
-          width: SIZE,
-          height: SIZE,
-          objectFit: "cover",
-          borderRadius: "var(--radius-sm)",
-          background: "var(--color-bg-surface-soft)",
-          border: "1px solid var(--color-border-divider)",
-          flexShrink: 0,
-        }}
+        className={`${styles.thumb} ${styles.image}`}
       />
     );
   }
@@ -66,29 +58,10 @@ export default function StorageFileThumbnail({ file }: { file: InventoryFile }) 
     return (
       <div
         title="PDF 문서"
-        style={{
-          width: SIZE,
-          height: SIZE,
-          display: "grid",
-          placeItems: "center",
-          background: "color-mix(in srgb, #d32f2f 8%, var(--color-bg-surface-soft))",
-          border: "1px solid color-mix(in srgb, #d32f2f 25%, transparent)",
-          borderRadius: "var(--radius-sm)",
-          flexShrink: 0,
-          position: "relative",
-        }}
+        className={`${styles.thumb} ${styles.iconBox} ${styles.pdf}`}
       >
-        <FileText size={26} style={{ color: "#d32f2f" }} />
-        <span
-          style={{
-            position: "absolute",
-            bottom: 4,
-            fontSize: 8,
-            fontWeight: 800,
-            color: "#d32f2f",
-            letterSpacing: 0.6,
-          }}
-        >
+        <FileText size={26} className={styles.pdfIcon} />
+        <span className={styles.pdfLabel}>
           PDF
         </span>
       </div>
@@ -96,20 +69,16 @@ export default function StorageFileThumbnail({ file }: { file: InventoryFile }) 
   }
 
   const { Icon, accent } = pickIcon(ct);
+  const iconStyle = {
+    "--thumbnail-accent": accent,
+  } as CSSProperties;
+
   return (
     <div
-      style={{
-        width: SIZE,
-        height: SIZE,
-        display: "grid",
-        placeItems: "center",
-        background: `color-mix(in srgb, ${accent} 6%, var(--color-bg-surface-soft))`,
-        border: `1px solid color-mix(in srgb, ${accent} 18%, transparent)`,
-        borderRadius: "var(--radius-sm)",
-        flexShrink: 0,
-      }}
+      className={`${styles.thumb} ${styles.iconBox} ${styles.generic}`}
+      style={iconStyle}
     >
-      <Icon size={26} style={{ color: accent }} />
+      <Icon size={26} className={styles.genericIcon} />
     </div>
   );
 }

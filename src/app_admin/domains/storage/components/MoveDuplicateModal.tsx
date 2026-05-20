@@ -28,10 +28,10 @@ export default function MoveDuplicateModal({
           <CloseButton onClick={onCancel} />
         </div>
         <div className={styles.modalBody}>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-primary)" }}>
+          <p className={styles.duplicateText}>
             목적지에 같은 이름의 {label}(&quot;{existingName}&quot;)이(가) 있습니다.
           </p>
-          <p style={{ margin: "var(--space-2) 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+          <p className={styles.duplicateHint}>
             덮어쓰기하거나 이름을 변경(예: {itemType === "file" ? "파일_복사본.pdf" : "폴더_복사본"})할 수 있습니다.
           </p>
         </div>
