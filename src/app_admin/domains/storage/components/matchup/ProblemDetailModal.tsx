@@ -6,11 +6,12 @@
 //
 // 둘이 한 화면에서 동시에 보여 즉시 비교 가능 — 사용자가 따로 탭 전환 안 해도 됨.
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, ExternalLink, Copy, Check } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
 import type { MatchupProblem, SimilarProblem } from "../../api/matchup.api";
+import styles from "./ProblemDetailModal.module.css";
 
 type Props = {
   problem: SimilarProblem;
@@ -23,34 +24,27 @@ type Props = {
 function PaneImage({ url, alt }: { url: string | null; alt: string }) {
   if (!url) {
     return (
-      <div style={{
-        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        color: "var(--color-text-muted)", fontSize: 13,
-        background: "var(--color-bg-surface-soft)",
-      }}>
+      <div className={styles.imageFallback}>
         이미지를 불러올 수 없습니다
       </div>
     );
   }
+
   return (
-    <div style={{
-      flex: 1, minHeight: 0,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      background: "var(--color-bg-surface-soft)",
-      overflow: "auto",
-      padding: "var(--space-3)",
-    }}>
+    <div className={styles.imageViewport}>
       <img
         src={url}
         alt={alt}
-        style={{
-          maxWidth: "100%", maxHeight: "100%", height: "auto", width: "auto",
-          objectFit: "contain", background: "white",
-          borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-        }}
+        className={styles.problemImage}
       />
     </div>
   );
+}
+
+function similarityClass(pct: number): string {
+  if (pct >= 80) return styles.similarityHigh;
+  if (pct >= 60) return styles.similarityMedium;
+  return styles.similarityLow;
 }
 
 export default function ProblemDetailModal({
@@ -63,31 +57,45 @@ export default function ProblemDetailModal({
   const [matchUrl, setMatchUrl] = useState<string | null>(problem.image_url || null);
   const [sourceUrl, setSourceUrl] = useState<string | null>(sourceProblem?.image_url || null);
   const [copied, setCopied] = useState<"source" | "match" | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (problem.image_url) {
       setMatchUrl(problem.image_url);
       return;
     }
+
     let cancelled = false;
+    setMatchUrl(null);
     getMatchupProblemPresignUrl(problem.id)
       .then((u) => { if (!cancelled) setMatchUrl(u); })
       .catch(() => { if (!cancelled) setMatchUrl(null); });
+
     return () => { cancelled = true; };
   }, [problem.id, problem.image_url]);
 
+  const sourceProblemId = sourceProblem?.id ?? null;
+  const sourceProblemImageUrl = sourceProblem?.image_url ?? null;
+
   useEffect(() => {
-    if (!sourceProblem) { setSourceUrl(null); return; }
-    if (sourceProblem.image_url) {
-      setSourceUrl(sourceProblem.image_url);
+    if (!sourceProblemId) {
+      setSourceUrl(null);
       return;
     }
+
+    if (sourceProblemImageUrl) {
+      setSourceUrl(sourceProblemImageUrl);
+      return;
+    }
+
     let cancelled = false;
-    getMatchupProblemPresignUrl(sourceProblem.id)
+    setSourceUrl(null);
+    getMatchupProblemPresignUrl(sourceProblemId)
       .then((u) => { if (!cancelled) setSourceUrl(u); })
       .catch(() => { if (!cancelled) setSourceUrl(null); });
+
     return () => { cancelled = true; };
-  }, [sourceProblem]);
+  }, [sourceProblemId, sourceProblemImageUrl]);
 
   // ESC로 닫기
   useEffect(() => {
@@ -98,68 +106,60 @@ export default function ProblemDetailModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  useEffect(() => () => {
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+  }, []);
+
   const handleCopy = (text: string, which: "source" | "match") => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopied(which);
-    setTimeout(() => setCopied(null), 1800);
+
+    const markCopied = () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      setCopied(which);
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(null);
+        copyTimerRef.current = null;
+      }, 1800);
+    };
+
+    const writeText = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    if (!writeText) return;
+
+    void writeText(text)
+      .then(markCopied)
+      .catch(() => setCopied(null));
   };
 
   const pct = Math.round(problem.similarity * 100);
   const hasSource = !!sourceProblem;
 
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-      }}
-      onClick={onClose}
-    >
+    <div className={styles.overlay} onClick={onClose}>
       <div
         data-testid="matchup-detail-modal"
-        style={{
-          background: "var(--color-bg-surface)", borderRadius: "var(--radius-xl)",
-          width: hasSource ? "min(1100px, 96vw)" : "min(640px, 92vw)",
-          height: "min(820px, 90vh)",
-          display: "flex", flexDirection: "column",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-          overflow: "hidden",
-        }}
+        className={`${styles.modal} ${hasSource ? styles.modalCompare : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "var(--space-3) var(--space-5)",
-          borderBottom: "1px solid var(--color-border-divider)",
-          flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-            <div style={{
-              padding: "4px 12px", borderRadius: "var(--radius-md)",
-              fontSize: 14, fontWeight: 800,
-              background: pct >= 80
-                ? "color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface))"
-                : pct >= 60
-                  ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
-                  : "var(--color-bg-surface-soft)",
-              color: pct >= 80 ? "var(--color-success)"
-                : pct >= 60 ? "var(--color-brand-primary)"
-                : "var(--color-text-muted)",
-            }}>
+        <div className={styles.header}>
+          <div className={styles.titleGroup}>
+            <div className={`${styles.similarityBadge} ${similarityClass(pct)}`}>
               {pct}% 유사
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+            <div className={styles.titleText}>
               {hasSource
                 ? "내 문제 ↔ 매치 자료 비교"
                 : `Q${problem.number} 매치`}
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 4 }}
+            className={styles.closeButton}
             title="닫기 (Esc)"
           >
             <X size={ICON.md} />
@@ -167,63 +167,39 @@ export default function ProblemDetailModal({
         </div>
 
         {/* 본문: 2-pane (source가 있을 때) 또는 1-pane */}
-        <div style={{
-          flex: 1, minHeight: 0,
-          display: "flex",
-        }}>
+        <div className={styles.body}>
           {hasSource && sourceProblem && (
-            <div style={{
-              flex: 1, minWidth: 0,
-              display: "flex", flexDirection: "column",
-              borderRight: "1px solid var(--color-border-divider)",
-            }}>
+            <div className={`${styles.pane} ${styles.sourcePane}`}>
               {/* 좌 헤더 */}
-              <div style={{
-                padding: "8px var(--space-4)",
-                background: "color-mix(in srgb, var(--color-warning) 8%, transparent)",
-                borderBottom: "1px solid var(--color-border-divider)",
-                flexShrink: 0,
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--color-warning)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <div className={`${styles.paneHeader} ${styles.sourceHeader}`}>
+                <div className={`${styles.eyebrow} ${styles.sourceEyebrow}`}>
                   내 문제 (원본)
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 2 }}>
+                <div className={styles.problemNumber}>
                   Q{sourceProblem.number}
                 </div>
                 {sourceDocumentTitle && (
-                  <div style={{
-                    fontSize: 11, color: "var(--color-text-muted)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
+                  <div className={styles.documentTitle}>
                     {sourceDocumentTitle}
                   </div>
                 )}
               </div>
               <PaneImage url={sourceUrl} alt={`Q${sourceProblem.number} 원본`} />
               {sourceProblem.text && (
-                <div style={{
-                  padding: "var(--space-3) var(--space-4)",
-                  borderTop: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface)",
-                  maxHeight: 140, overflowY: "auto",
-                  flexShrink: 0,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                <div className={styles.ocrPanel}>
+                  <div className={styles.ocrHeader}>
+                    <span className={styles.ocrLabel}>
                       OCR 텍스트
                     </span>
                     <button
+                      type="button"
                       onClick={() => handleCopy(sourceProblem.text || "", "source")}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        color: copied === "source" ? "var(--color-success)" : "var(--color-text-muted)",
-                        display: "flex", alignItems: "center", gap: 4, fontSize: 10,
-                      }}
+                      className={`${styles.copyButton} ${copied === "source" ? styles.copyButtonActive : ""}`}
                     >
                       {copied === "source" ? <><Check size={ICON.xs} /> 복사됨</> : <><Copy size={ICON.xs} /> 복사</>}
                     </button>
                   </div>
-                  <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--color-text-primary)", whiteSpace: "pre-wrap" }}>
+                  <p className={styles.ocrText}>
                     {sourceProblem.text}
                   </p>
                 </div>
@@ -232,55 +208,35 @@ export default function ProblemDetailModal({
           )}
 
           {/* 우: 매치 자료 */}
-          <div style={{
-            flex: 1, minWidth: 0,
-            display: "flex", flexDirection: "column",
-          }}>
-            <div style={{
-              padding: "8px var(--space-4)",
-              background: "color-mix(in srgb, var(--color-brand-primary) 8%, transparent)",
-              borderBottom: "1px solid var(--color-border-divider)",
-              flexShrink: 0,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--color-brand-primary)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className={styles.pane}>
+            <div className={`${styles.paneHeader} ${styles.matchHeader}`}>
+              <div className={`${styles.eyebrow} ${styles.matchEyebrow}`}>
                 매치 자료
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 2 }}>
+              <div className={styles.problemNumber}>
                 Q{problem.number}
               </div>
-              <div style={{
-                fontSize: 11, color: "var(--color-text-muted)",
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
+              <div className={styles.documentTitle}>
                 {problem.document_title}
                 {problem.source_lecture_title && <> · {problem.source_lecture_title}</>}
               </div>
             </div>
             <PaneImage url={matchUrl} alt={`Q${problem.number} 매치`} />
             {problem.text && (
-              <div style={{
-                padding: "var(--space-3) var(--space-4)",
-                borderTop: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
-                maxHeight: 140, overflowY: "auto",
-                flexShrink: 0,
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+              <div className={styles.ocrPanel}>
+                <div className={styles.ocrHeader}>
+                  <span className={styles.ocrLabel}>
                     OCR 텍스트
                   </span>
                   <button
+                    type="button"
                     onClick={() => handleCopy(problem.text, "match")}
-                    style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      color: copied === "match" ? "var(--color-success)" : "var(--color-text-muted)",
-                      display: "flex", alignItems: "center", gap: 4, fontSize: 10,
-                    }}
+                    className={`${styles.copyButton} ${copied === "match" ? styles.copyButtonActive : ""}`}
                   >
                     {copied === "match" ? <><Check size={ICON.xs} /> 복사됨</> : <><Copy size={ICON.xs} /> 복사</>}
                   </button>
                 </div>
-                <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--color-text-primary)", whiteSpace: "pre-wrap" }}>
+                <p className={styles.ocrText}>
                   {problem.text}
                 </p>
               </div>
@@ -289,12 +245,7 @@ export default function ProblemDetailModal({
         </div>
 
         {/* 하단 액션 */}
-        <div style={{
-          display: "flex", justifyContent: "flex-end", gap: "var(--space-2)",
-          padding: "var(--space-3) var(--space-5)",
-          borderTop: "1px solid var(--color-border-divider)",
-          flexShrink: 0,
-        }}>
+        <div className={styles.footer}>
           <Button intent="ghost" size="sm" onClick={onClose}>
             닫기
           </Button>

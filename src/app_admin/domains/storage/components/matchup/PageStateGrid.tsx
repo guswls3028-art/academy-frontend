@@ -65,6 +65,9 @@ const AUTO_REASON_LABEL: Record<string, string> = {
   legacy_excluded_pages: "이전에 제외함",
 };
 
+const EMPTY_PAGE_STATES: PageStateEntry[] = [];
+const EMPTY_RECOMMENDATIONS: PageStateRecommendation[] = [];
+
 function autoReasonLabel(key: string): string {
   return AUTO_REASON_LABEL[key] || key;
 }
@@ -93,8 +96,8 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
   });
 
   const allPages = pagesQuery.data?.pages ?? [];
-  const states = statesQuery.data?.states ?? [];
-  const recommendations = statesQuery.data?.recommendations ?? [];
+  const states = statesQuery.data?.states ?? EMPTY_PAGE_STATES;
+  const recommendations = statesQuery.data?.recommendations ?? EMPTY_RECOMMENDATIONS;
 
   // page_index → PageStateEntry 매핑
   const stateByIndex = useMemo(() => {
