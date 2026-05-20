@@ -3,6 +3,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import styles from "./PdfUploadArea.module.css";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -18,6 +19,10 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
 export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploadAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragover, setDragover] = useState(false);
@@ -27,12 +32,12 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
     (files: FileList | File[]) => {
       const arr = Array.from(files);
       if (arr.length === 0) return;
-      const pdf = arr.find((f) => f.type === "application/pdf" && f.size <= MAX_FILE_SIZE);
+      const pdf = arr.find((f) => isPdfFile(f) && f.size <= MAX_FILE_SIZE);
       if (pdf) {
         onFileSelect(pdf);
         return;
       }
-      const wrongType = arr.find((f) => f.type !== "application/pdf");
+      const wrongType = arr.find((f) => !isPdfFile(f));
       if (wrongType) {
         feedback.warning(`PDF 파일만 업로드할 수 있습니다. (${wrongType.name})`);
         return;
@@ -66,31 +71,11 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
   if (file) {
     return (
       <div
-        style={{
-          border: "2px solid var(--color-primary)",
-          borderRadius: "var(--radius-lg, 12px)",
-          padding: "24px",
-          background: "color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface))",
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          opacity: disabled ? 0.5 : 1,
-        }}
+        className={`${styles.selectedCard} ${disabled ? styles.disabled : ""}`}
       >
         {/* PDF icon */}
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 10,
-            background: "var(--color-primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"
+        <div className={styles.selectedIcon}>
+          <svg aria-hidden="true" className={styles.selectedIconSvg} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -100,18 +85,11 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
           </svg>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontWeight: 700,
-            fontSize: 14,
-            color: "var(--color-text-primary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
+        <div className={styles.selectedMeta}>
+          <div className={styles.selectedName}>
             {file.name}
           </div>
-          <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>
+          <div className={styles.selectedSize}>
             {formatBytes(file.size)}
           </div>
         </div>
@@ -120,22 +98,9 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
           <button
             type="button"
             onClick={handleRemove}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--bg-surface)",
-              color: "var(--color-text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              fontSize: 16,
-              fontWeight: 700,
-            }}
+            className={styles.removeButton}
             title="파일 변경"
+            aria-label="선택한 PDF 제거"
           >
             &times;
           </button>
@@ -147,38 +112,34 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
   // Empty state — drop zone
   return (
     <div
+      aria-disabled={disabled ? true : undefined}
+      className={`${styles.dropzone} ${dragover ? styles.dropzoneActive : ""} ${disabled ? styles.disabled : ""}`}
       role="button"
       tabIndex={0}
       onClick={() => !disabled && inputRef.current?.click()}
-      onKeyDown={(e) => e.key === "Enter" && !disabled && inputRef.current?.click()}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !disabled) {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragover(true); }}
       onDragLeave={(e) => { e.preventDefault(); setDragover(false); }}
       onDrop={handleDrop}
-      style={{
-        border: `2px dashed ${dragover ? "var(--color-primary)" : "var(--color-border-divider-strong)"}`,
-        borderRadius: "var(--radius-lg, 12px)",
-        padding: "32px 24px",
-        textAlign: "center",
-        cursor: disabled ? "not-allowed" : "pointer",
-        background: dragover
-          ? "color-mix(in srgb, var(--color-primary) 6%, var(--bg-surface))"
-          : "var(--bg-surface)",
-        transition: "all 0.2s ease",
-        opacity: disabled ? 0.5 : 1,
-      }}
     >
       <input
         ref={inputRef}
         type="file"
         accept="application/pdf"
-        style={{ display: "none" }}
+        className={styles.fileInput}
         onChange={handleChange}
       />
       <svg
-        width="36" height="36" viewBox="0 0 24 24" fill="none"
+        aria-hidden="true"
+        className={styles.icon}
+        viewBox="0 0 24 24" fill="none"
         stroke="var(--color-text-muted)" strokeWidth="1.5"
         strokeLinecap="round" strokeLinejoin="round"
-        style={{ margin: "0 auto 16px", opacity: 0.7 }}
       >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
@@ -186,13 +147,13 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
         <line x1="16" y1="17" x2="8" y2="17" />
         <polyline points="10 9 9 9 8 9" />
       </svg>
-      <div style={{ fontWeight: 700, fontSize: 16, color: "var(--color-text-primary)", lineHeight: 1.3 }}>
+      <div className={styles.title}>
         PDF 파일 업로드
       </div>
-      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.5 }}>
+      <div className={styles.description}>
         드래그하거나 클릭하여 PDF를 선택하세요
         <br />
-        <span style={{ fontSize: 12, opacity: 0.8 }}>
+        <span className={styles.hint}>
           PDF 파일 1개 · 최대 100MB
         </span>
       </div>
