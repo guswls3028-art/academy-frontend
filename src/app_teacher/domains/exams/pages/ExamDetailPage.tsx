@@ -77,14 +77,18 @@ export default function ExamDetailPage() {
         const fromResult = resultByEnrollment.get(e.id);
         if (fromResult) return fromResult;
         return {
+          id: null,
           enrollment_id: e.id,
           student_name: e.student_name,
           exam_score: null,
           final_score: null,
+          total_score: null,
           exam_max_score: exam.max_score ?? 100,
           passed: null,
+          is_pass: null,
           final_pass: null,
           achievement: null,
+          rank: null,
         };
       })
     : (results ?? []);

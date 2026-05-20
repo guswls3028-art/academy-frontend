@@ -167,14 +167,18 @@ function ScoreEntryList({
       const fromResult = byEnrollment.get(e.id);
       if (fromResult) return fromResult;
       return {
+        id: null,
         enrollment_id: e.id,
         student_name: e.student_name,
         exam_score: null,
         final_score: null,
+        total_score: null,
         exam_max_score: examMaxScore,
         passed: null,
+        is_pass: null,
         final_pass: null,
         achievement: null,
+        rank: null,
       };
     });
   }, [rawResults, enrollments, examMaxScore]);
@@ -206,14 +210,18 @@ function ScoreEntryList({
         if (!Array.isArray(prev)) return prev;
         const nextRow: ExamResultRow = {
           ...(optimisticBase ?? {
+            id: null,
             enrollment_id: variables.enrollmentId,
             student_name: "",
             exam_score: null,
             final_score: null,
+            total_score: null,
             exam_max_score: variables.maxScore,
             passed: null,
+            is_pass: null,
             final_pass: null,
             achievement: null,
+            rank: null,
           }),
           exam_score: variables.score,
           final_score: variables.score,

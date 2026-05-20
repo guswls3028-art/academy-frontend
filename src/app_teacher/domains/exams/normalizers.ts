@@ -6,14 +6,18 @@ export type TeacherExamDetail = {
 };
 
 export type ExamResultRow = {
+  id: number | null;
   enrollment_id: number;
   student_name: string;
   exam_score: number | null;
   final_score: number | null;
+  total_score: number | null;
   exam_max_score: number | null;
   passed: boolean | null;
+  is_pass: boolean | null;
   final_pass: boolean | null;
   achievement: string | null;
+  rank: number | null;
 };
 
 export type LectureEnrollment = {
@@ -115,14 +119,18 @@ function normalizeResultRow(value: unknown): ExamResultRow | null {
   if (enrollmentId == null) return null;
 
   return {
+    id: toNumber(record.id),
     enrollment_id: enrollmentId,
     student_name: getStudentName(record),
     exam_score: toNumber(record.exam_score ?? record.score),
     final_score: toNumber(record.final_score),
+    total_score: toNumber(record.total_score),
     exam_max_score: toNumber(record.exam_max_score ?? record.max_score),
     passed: toBoolean(record.passed),
+    is_pass: toBoolean(record.is_pass),
     final_pass: toBoolean(record.final_pass),
     achievement: toStringValue(record.achievement),
+    rank: toNumber(record.rank),
   };
 }
 
