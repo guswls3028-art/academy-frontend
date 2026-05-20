@@ -208,6 +208,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     try {
       await updateAttendance(attendanceRecordId, { status: newStatus });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       if (newStatus === "SECESSION") {
         qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
         qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });

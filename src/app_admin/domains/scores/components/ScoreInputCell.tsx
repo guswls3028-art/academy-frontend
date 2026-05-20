@@ -46,6 +46,7 @@ export default function ScoreInputCell({
   const [draft, setDraft] = useState<string>(value == null ? "" : String(value));
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const skipNextBlurRef = useRef(false);
 
   useEffect(() => {
     setDraft(value == null ? "" : String(value));
@@ -93,6 +94,20 @@ export default function ScoreInputCell({
     }
   };
 
+  const commitAndMove = (move?: () => void) => {
+    void (async () => {
+      const wasBlank = draft.trim() === "";
+      const ok = await commit();
+      if (!ok && !wasBlank) return;
+      if (!move) return;
+      skipNextBlurRef.current = true;
+      move();
+      window.setTimeout(() => {
+        skipNextBlurRef.current = false;
+      }, 0);
+    })();
+  };
+
   return (
     <input
       ref={inputRef}
@@ -103,6 +118,10 @@ export default function ScoreInputCell({
       disabled={disabled || saving}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
+        if (skipNextBlurRef.current) {
+          skipNextBlurRef.current = false;
+          return;
+        }
         void commit();
       }}
       onKeyDown={(e) => {
@@ -110,28 +129,25 @@ export default function ScoreInputCell({
 
         if (e.key === "Enter") {
           e.preventDefault();
-          // blur fires on focus move → commit() called there
-          onMoveNext?.();
+          commitAndMove(onMoveNext);
           return;
         }
 
         if (e.key === "Tab") {
           e.preventDefault();
-          // blur fires on focus move → commit() called there
-          if (e.shiftKey) onMovePrev?.();
-          else onMoveNext?.();
+          commitAndMove(e.shiftKey ? onMovePrev : onMoveNext);
           return;
         }
 
         if (e.key === "ArrowLeft") {
           e.preventDefault();
-          onMovePrev?.();
+          commitAndMove(onMovePrev);
           return;
         }
 
         if (e.key === "ArrowRight") {
           e.preventDefault();
-          onMoveNext?.();
+          commitAndMove(onMoveNext);
           return;
         }
       }}
