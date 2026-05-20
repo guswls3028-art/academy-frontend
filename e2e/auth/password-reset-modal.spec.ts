@@ -4,14 +4,15 @@ import { test, expect } from "../fixtures/strictTest";
 // strictTest 의 zero-defect guard 를 우회하기 위해 baseTest/baseExpect 를 별도 사용.
 import { test as baseTest, expect as baseExpect } from "@playwright/test";
 import { getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
 test.describe("비밀번호 찾기 모달 UI 검증", () => {
   test.beforeEach(async ({ page }) => {
     // 로그인 페이지 진입
-    await page.goto(`${BASE}/login`, { waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(1000);
+    await gotoAndSettle(page, `${BASE}/login`, { timeout: 20_000 });
+    await expect(page.getByTestId("login-expand-btn")).toBeVisible({ timeout: 10_000 });
   });
 
   test("로그인 폼 확장 → 비밀번호 찾기 링크가 표시된다", async ({ page }) => {
@@ -106,8 +107,8 @@ test.describe("비밀번호 찾기 모달 UI 검증", () => {
 // 의도적 404 요청 → 브라우저 콘솔 에러 불가피 → strictTest 대신 baseTest 사용
 baseTest.describe("비밀번호 찾기 에러 검증", () => {
   baseTest.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE}/login`, { waitUntil: "load", timeout: 20000 });
-    await page.waitForTimeout(1000);
+    await gotoAndSettle(page, `${BASE}/login`, { timeout: 20_000 });
+    await baseExpect(page.getByTestId("login-expand-btn")).toBeVisible({ timeout: 10_000 });
   });
 
   baseTest("존재하지 않는 학생 정보 입력 시 서버 에러 메시지가 표시된다", async ({ page }) => {

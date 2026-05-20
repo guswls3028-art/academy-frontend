@@ -5,9 +5,11 @@
  */
 import { test } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Page } from "@playwright/test";
 
 const __filename_ = fileURLToPath(import.meta.url);
 const __dirname_ = path.dirname(__filename_);
@@ -47,14 +49,17 @@ const STUDENT_ROUTES: Route[] = [
   { name: "s08-more", path: "/student/more" },
 ];
 
-async function captureRoute(page: import("@playwright/test").Page, role: "admin" | "student", r: Route) {
+async function waitForRenderablePage(page: Page) {
+  await page.locator("body").waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator("main").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+}
+
+async function captureRoute(page: Page, role: "admin" | "student", r: Route) {
   const url = `${BASE}${r.path}`;
   const out: Record<string, unknown> = { route: r.path, name: r.name };
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
-    await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
-    // 살짝 더 대기 — 위젯 렌더
-    await page.waitForTimeout(1_200);
+    await gotoAndSettle(page, url, { timeout: 20_000 });
+    await waitForRenderablePage(page);
     await page.screenshot({ path: path.join(SHOTS, `${role}-${r.name}.png`), fullPage: true });
 
     // 주요 시각 요소 덤프 — 사용자 관점에서 보이는 CTA/뱃지/페이지 타이틀/카드 헤더

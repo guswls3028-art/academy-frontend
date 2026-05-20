@@ -19,6 +19,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
@@ -33,9 +34,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("1. 클리닉 세션 목록이 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/admin/clinic/home`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/admin/clinic/home`, { timeout: 20_000 });
 
     // 페이지가 에러 없이 로드됨
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -49,9 +48,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("2. 커뮤니티 QnA 인박스가 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/admin/community/qna`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/admin/community/qna`, { timeout: 20_000 });
 
     // 페이지 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -72,9 +69,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("3. 공지 목록이 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/admin/community/notice`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/admin/community/notice`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -98,9 +93,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
 
   test("4. 클리닉 페이지가 예약 탭과 함께 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/student/clinic`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/student/clinic`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -124,9 +117,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
 
   test("5. 클리닉 인증패스카드가 학생 이름과 함께 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/student/idcard`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/student/idcard`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -141,9 +132,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
 
   test("6. 공지 목록이 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/student/notices`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/student/notices`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -164,9 +153,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
 
   test("7. 알림 페이지가 에러 없이 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/student/notifications`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/student/notifications`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -185,9 +172,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
 
   test("10. 커뮤니티/QnA 페이지가 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await page.goto(`${BASE}/student/community`);
-    await page.waitForLoadState("load");
-    await page.waitForTimeout(3000);
+    await gotoAndSettle(page, `${BASE}/student/community`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -212,7 +197,7 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
     const qnaTab = page.locator("button, [role='tab']").filter({ hasText: "QnA" }).first();
     if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await qnaTab.click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
       // QnA 목록이 렌더되거나 빈 상태가 표시됨
       // QnA 목록이 렌더되거나 빈 상태가 표시됨 — 에러가 아닌 어떤 상태든 OK
