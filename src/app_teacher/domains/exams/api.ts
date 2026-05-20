@@ -86,6 +86,17 @@ export type TeacherTemplateWithUsage = {
   name?: string | null;
   subject?: string | null;
   category?: string | null;
+  usages?: TeacherTemplateUsage[];
+  applied_lectures?: TeacherTemplateUsage[];
+};
+
+export type TeacherTemplateUsage = {
+  id?: number | string | null;
+  lecture_id?: number | null;
+  lecture_title?: string | null;
+  lecture_name?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
 };
 
 export async function fetchTemplatesWithUsage(): Promise<TeacherTemplateWithUsage[]> {
