@@ -5,6 +5,7 @@
 // T1 admin 만 사용 (memory: feedback_no_e2e_on_real_tenants).
 
 import { test, expect } from "@playwright/test";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -43,9 +44,7 @@ test.describe("매치업 운영 검증", () => {
       localStorage.setItem("refresh", refresh);
     }, { access: tokens.access, refresh: tokens.refresh });
 
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
 
     expect(page.url()).toContain("/admin/storage/matchup");
     await page.screenshot({ path: `${ARTIFACTS}/01-prod-landing.png`, fullPage: true });
@@ -54,7 +53,10 @@ test.describe("매치업 운영 검증", () => {
     const doneRow = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]').first();
     if (await doneRow.count() > 0) {
       await doneRow.click();
-      await page.waitForTimeout(800);
+      await waitForCondition(
+        async () => await page.locator('[data-testid="matchup-doc-more-menu-trigger"]').count() > 0,
+        { timeoutMs: 10_000, description: "선택된 문서 상세 액션 렌더링" },
+      );
       await page.screenshot({ path: `${ARTIFACTS}/02-prod-doc-selected.png`, fullPage: true });
 
       // 헤더 정비 확인 — "범위 일괄삭제" 버튼이 헤더에서 사라졌고 ⋮ 안으로 이동
@@ -66,7 +68,9 @@ test.describe("매치업 운영 검증", () => {
       const moreBtn = page.locator('[data-testid="matchup-doc-more-menu-trigger"]');
       if (await moreBtn.count() > 0) {
         await moreBtn.click();
-        await page.waitForTimeout(300);
+        await page.locator('[data-testid="matchup-doc-bulk-delete-menu-item"]').first()
+          .waitFor({ state: "visible", timeout: 5_000 })
+          .catch(() => {});
         await page.screenshot({ path: `${ARTIFACTS}/03-prod-more-menu.png`, fullPage: true });
         // 메뉴 안에 일괄삭제 항목 노출 확인
         const bulkItem = page.locator('[data-testid="matchup-doc-bulk-delete-menu-item"]');
@@ -88,16 +92,15 @@ test.describe("매치업 운영 검증", () => {
       const moreBtn2 = page.locator('[data-testid="matchup-doc-more-menu-trigger"]');
       if (await moreBtn2.count() > 0) {
         await moreBtn2.click();
-        await page.waitForTimeout(300);
         const bulkItem2 = page.locator('[data-testid="matchup-doc-bulk-delete-menu-item"]');
-        if (await bulkItem2.count() > 0) {
+        if (await bulkItem2.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
           await bulkItem2.click();
-          await page.waitForTimeout(500);
+          await page.locator('[data-testid="matchup-bulk-delete-modal"]').waitFor({ state: "visible", timeout: 5_000 });
           await page.screenshot({ path: `${ARTIFACTS}/05-prod-bulk-modal.png`, fullPage: true });
           const input = page.locator('[data-testid="matchup-bulk-delete-input"]');
           if (await input.count() > 0) {
             await input.fill("1");
-            await page.waitForTimeout(400);
+            await page.locator('[data-testid="matchup-bulk-delete-preview"]').waitFor({ state: "visible", timeout: 5_000 });
             await page.screenshot({ path: `${ARTIFACTS}/06-prod-bulk-preview.png`, fullPage: true });
           }
           await page.keyboard.press("Escape");

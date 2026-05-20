@@ -11,6 +11,7 @@
 
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const TEST_NUMBER = 989;
 
@@ -18,19 +19,17 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
   test.setTimeout(120_000);
 
   await loginViaUI(page, "admin");
-  await page.goto("https://hakwonplus.com/admin/storage/matchup", { waitUntil: "load", timeout: 30_000 });
-  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await gotoAndSettle(page, "https://hakwonplus.com/admin/storage/matchup", { timeout: 30_000 });
 
   const testRow = page.locator('[data-testid="matchup-doc-row"]').filter({ hasText: "E2E-CLEAN" }).first();
   await expect(testRow).toBeVisible({ timeout: 15_000 });
   await testRow.click();
-  await page.waitForTimeout(1500);
 
   const cropBtn = page.locator('[data-testid="matchup-doc-manual-crop-btn"]');
+  await expect(cropBtn).toBeVisible({ timeout: 10_000 });
   await cropBtn.click();
   const modal = page.locator('[data-testid="matchup-manual-crop-modal"]');
   await expect(modal).toBeVisible({ timeout: 10_000 });
-  await page.waitForTimeout(2000);
   console.log("✓ ManualCropModal 진입");
 
   // ── 가짜 image clipboard 만들어 paste 이벤트 dispatch ──
@@ -56,7 +55,6 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
       window.dispatchEvent(event);
     }, "image/png");
   });
-  await page.waitForTimeout(800);
 
   // paste preview 노출
   const preview = page.locator('[data-testid="matchup-paste-preview"]');

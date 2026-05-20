@@ -18,6 +18,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const MINIMAL_PDF = Buffer.from(
   "%PDF-1.4\n" +
@@ -48,11 +49,7 @@ test.describe("매치업 업로드 Prod 라운드트립", () => {
 
     // ── 1. 로그인 ──
     await loginViaUI(page, "admin");
-    await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-      waitUntil: "load",
-      timeout: 30000,
-    });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, "https://hakwonplus.com/admin/storage/matchup", { timeout: 30_000 });
     await page.screenshot({ path: "e2e/screenshots/prod-01-landing.png", fullPage: true });
 
     // ── 2. 업로드 모달 열기 ──
@@ -84,17 +81,15 @@ test.describe("매치업 업로드 Prod 라운드트립", () => {
     // ── 4. 업로드 실행 ──
     await modal.getByTestId("matchup-upload-submit").click();
     await expect(modal).not.toBeVisible({ timeout: 60_000 });
-    await page.waitForTimeout(500);
-
-    await page.screenshot({ path: "e2e/screenshots/prod-04-after-upload.png", fullPage: true });
 
     // ── 5. 문서 목록에 row 등장 ──
     const row = page.locator('[data-testid="matchup-doc-row"]').filter({ hasText: title }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });
+    await page.screenshot({ path: "e2e/screenshots/prod-04-after-upload.png", fullPage: true });
 
     // 클릭해서 우측 상세 로드
     await row.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await page.screenshot({ path: "e2e/screenshots/prod-05-selected-processing.png", fullPage: true });
 
     // ── 6. 진행률 폴링 → done 대기 (최대 4분) ──
@@ -119,7 +114,6 @@ test.describe("매치업 업로드 Prod 라운드트립", () => {
         });
       }
       if (cv) {
-        await page.waitForTimeout(800); // 뱃지 애니메이션 안정화
         shotIdx += 1;
         await page.screenshot({
           path: `e2e/screenshots/prod-07-done-${shotIdx}.png`,
@@ -127,7 +121,7 @@ test.describe("매치업 업로드 Prod 라운드트립", () => {
         });
         break;
       }
-      await page.waitForTimeout(5000);
+      await problemBadge.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     }
 
     const ended = await problemBadge.isVisible().catch(() => false);
