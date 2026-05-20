@@ -166,13 +166,17 @@ export function getTenantCodeForApiRequest(): string | null {
       if (fromPath) {
         try {
           sessionStorage.setItem("tenantCode", fromPath);
-        } catch {}
+        } catch {
+          // Session storage can be blocked in embedded browser contexts.
+        }
         return fromPath;
       }
       try {
         const stored = sessionStorage.getItem("tenantCode");
         if (stored) return stored;
-      } catch {}
+      } catch {
+        // Fall back to hostname mapping when session storage is blocked.
+      }
       return HOSTNAME_TO_TENANT_CODE[hostname] ?? null;
     }
 
@@ -186,7 +190,9 @@ export function getTenantCodeForApiRequest(): string | null {
       if (fromPath) {
         try {
           sessionStorage.setItem("tenantCode", fromPath);
-        } catch {}
+        } catch {
+          // Preview routing must still work when session storage is blocked.
+        }
         return fromPath;
       }
       return null;
@@ -198,7 +204,9 @@ export function getTenantCodeForApiRequest(): string | null {
     if (fromHost) {
       try {
         sessionStorage.setItem("tenantCode", fromHost);
-      } catch {}
+      } catch {
+        // Host-derived tenant code is enough when session storage is blocked.
+      }
       return fromHost;
     }
     // 서브도메인(예: student.hakwonplus.com) → 부모 도메인 테넌트 코드 사용 (학생앱 403 방지)
@@ -209,7 +217,9 @@ export function getTenantCodeForApiRequest(): string | null {
       if (fromParent) {
         try {
           sessionStorage.setItem("tenantCode", fromParent);
-        } catch {}
+        } catch {
+          // Parent-domain fallback is still valid without storage persistence.
+        }
         return fromParent;
       }
     }
@@ -221,7 +231,9 @@ export function getTenantCodeForApiRequest(): string | null {
     if (fromPath) {
       try {
         sessionStorage.setItem("tenantCode", fromPath);
-      } catch {}
+      } catch {
+        // Path-derived tenant code is returned even if it cannot be cached.
+      }
       return fromPath;
     }
     try {

@@ -3,7 +3,7 @@
  * State machine: IDLE | WAITING_FOR_SECOND_TAP | STACKING | ANIMATING | COOLDOWN
  * Uses pointer events; 300ms double-tap window; 600ms stacking; 35% left / 30% center / 35% right zones.
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DOUBLE_TAP_MS = 300;
 const STACK_WINDOW_MS = 600;
@@ -85,6 +85,15 @@ export function useDoubleTapSeek({
       cooldownTimerRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      clearWaitTimer();
+      clearStackTimer();
+      clearOverlayHideTimer();
+      clearCooldownTimer();
+    };
+  }, [clearCooldownTimer, clearOverlayHideTimer, clearStackTimer, clearWaitTimer]);
 
   const showOverlay = useCallback((delta: number, side: "left" | "right") => {
     clearOverlayHideTimer();

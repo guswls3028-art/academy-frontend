@@ -24,7 +24,7 @@ export function simpleMarkdownToHtml(md: string): string {
   const out: string[] = [];
   let inList = false;
 
-  for (let line of lines) {
+  for (const line of lines) {
     // 빈 줄
     if (!line.trim()) {
       if (inList) { out.push("</ul>"); inList = false; }

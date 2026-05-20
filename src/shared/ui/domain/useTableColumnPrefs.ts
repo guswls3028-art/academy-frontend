@@ -46,10 +46,6 @@ function savePrefs(tableId: string, visible: string[], widths: Record<string, nu
 
 export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) {
   const columnKeys = useMemo(() => columns.map((c) => c.key), [columns]);
-  const defaultWidths = useMemo(
-    () => Object.fromEntries(columns.map((c) => [c.key, c.defaultWidth])),
-    [columns]
-  );
 
   const [prefs, setPrefs] = useState<{
     visible: string[];

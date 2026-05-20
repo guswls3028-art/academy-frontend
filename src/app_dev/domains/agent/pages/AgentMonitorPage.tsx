@@ -1,10 +1,9 @@
 // -- Agent Monitor: Office Floor Map Dashboard ------------------------------------------------
 // Zone-based layout with office metaphor. Agents are grouped by role into team zones.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useAgentStream } from "@dev/domains/agent/hooks/useAgentStream";
-import { STATUS_META } from "@dev/domains/agent/types/agent";
-import type { AgentState, AgentStatus } from "@dev/domains/agent/types/agent";
+import type { AgentState } from "@dev/domains/agent/types/agent";
 import { AgentDeskCard } from "@dev/domains/agent/components/AgentDeskCard";
 import { AgentDetailPanel } from "@dev/domains/agent/components/AgentDetailPanel";
 import { PixelDesk } from "@dev/domains/agent/components/PixelCharacter";
@@ -258,9 +257,9 @@ function OfficeZone({ zone, agents, selectedAgent, onSelectAgent, tick }: {
     <div
       className={`${s.zone} ${layoutClass} ${isEmpty ? s.zoneCompact : ""}`}
       style={{
-        background: zone.accentColor,
-        borderLeftColor: zone.borderAccent,
-      }}
+        "--zone-background": zone.accentColor,
+        "--zone-border-accent": zone.borderAccent,
+      } as CSSProperties}
     >
       <div className={s.zoneHeader}>
         <span className={s.zoneIcon}>{zone.icon}</span>
@@ -274,7 +273,7 @@ function OfficeZone({ zone, agents, selectedAgent, onSelectAgent, tick }: {
       </div>
       <div
         className={s.zoneDesks}
-        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${zone.layout === "open" ? "95px" : "105px"}, 1fr))` }}
+        style={{ "--zone-desk-min": zone.layout === "open" ? "95px" : "105px" } as CSSProperties}
       >
         {isEmpty ? (
           <div className={s.zoneEmpty}>—</div>
@@ -299,8 +298,13 @@ function OfficeZone({ zone, agents, selectedAgent, onSelectAgent, tick }: {
 // -- SummaryChip (inline, tightly coupled to page CSS) --
 function SummaryChip({ label, value, color, onClick }: { label: string; value: number; color: string; onClick: () => void }) {
   return (
-    <button className={s.summaryChip} onClick={onClick} type="button">
-      <span className={s.summaryValue} style={{ color }}>{value}</span>
+    <button
+      className={s.summaryChip}
+      onClick={onClick}
+      type="button"
+      style={{ "--summary-value-color": color } as CSSProperties}
+    >
+      <span className={s.summaryValue}>{value}</span>
       <span className={s.summaryLabel}>{label}</span>
     </button>
   );

@@ -36,7 +36,7 @@ export default function ExcelUploadZone({
       onClearFile={onClearFile}
       onFilesSelect={(files) => files[0] && onFileSelect(files[0])}
       validateFile={(file) => /\.(xlsx|xls)$/i.test(file.name)}
-      onInvalidFile={(msg) => onInvalidFile(INVALID_FILE_MSG)}
+      onInvalidFile={() => onInvalidFile(INVALID_FILE_MSG)}
     />
   );
 }

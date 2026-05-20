@@ -152,6 +152,7 @@
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
+  color: var(--summary-value-color);
 }
 
 .summaryLabel {
@@ -323,7 +324,7 @@
 /* ===== Zone Box ===== */
 .zone {
   border: 1px solid var(--dev-dark-border);
-  border-left: 3px solid var(--dev-dark-border); /* overridden by inline borderLeftColor */
+  border-left: 3px solid var(--zone-border-accent, var(--dev-dark-border));
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -332,6 +333,7 @@
   transition: border-color 0.2s, box-shadow 0.2s;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
   border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--zone-background);
 }
 
 .zone:hover {
@@ -469,6 +471,7 @@
 /* ===== Desk Grid inside Zone ===== */
 .zoneDesks {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--zone-desk-min, 105px), 1fr));
   gap: 6px;
 }
 

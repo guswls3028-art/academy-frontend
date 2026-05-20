@@ -445,7 +445,9 @@ function SwipeRevealHide({
     draggedAt.current = Math.abs(dx);
     try {
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // Pointer capture is best-effort on older embedded browsers.
+    }
   };
 
   const release = () => {

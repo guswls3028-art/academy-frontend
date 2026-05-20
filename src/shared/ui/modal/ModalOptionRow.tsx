@@ -1,7 +1,7 @@
 // PATH: src/shared/ui/modal/ModalOptionRow.tsx
 // 모달 SSOT — 날짜/시간 등 옵션 한 행 (라디오 + 레이블 + 설명/커스텀 영역)
 
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 export interface ModalOptionRowProps {
   name: string;
@@ -34,6 +34,12 @@ export default function ModalOptionRow({
     ? "modal-option-row--disabled cursor-not-allowed bg-[var(--color-bg-surface-soft)]"
     : "cursor-pointer hover:bg-[var(--color-bg-surface-soft)]";
   const fullClass = `${baseClass} ${interactiveClass} ${className}`.trim();
+  const contentStopProps = stopPropagationForContent
+    ? {
+        onClick: (event: MouseEvent<HTMLSpanElement>) => event.stopPropagation(),
+        onMouseDown: (event: MouseEvent<HTMLSpanElement>) => event.stopPropagation(),
+      }
+    : {};
 
   return (
     <label className={fullClass}>
@@ -54,7 +60,11 @@ export default function ModalOptionRow({
           {secondaryLabel}
         </span>
       )}
-      {children}
+      {children != null && (
+        <span className="contents" {...contentStopProps}>
+          {children}
+        </span>
+      )}
     </label>
   );
 }

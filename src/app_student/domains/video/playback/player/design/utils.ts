@@ -63,7 +63,9 @@ export function getOrCreateDeviceId() {
 
   try {
     localStorage.setItem(key, v);
-  } catch {}
+  } catch {
+    // Storage may be unavailable in private or embedded browser contexts.
+  }
 
   return v;
 }
