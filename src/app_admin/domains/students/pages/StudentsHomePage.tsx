@@ -16,9 +16,7 @@ import {
   checkDeletedStudentDuplicates,
   fixDeletedStudentDuplicates,
   toggleStudentActive,
-  getTags,
-  attachStudentTag,
-  sendPasswordReset,
+  type StudentFilters,
 } from "../api/students.api";
 import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentExcel";
 import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
@@ -34,6 +32,18 @@ import NotificationPreviewModal from "@admin/domains/messages/components/Notific
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import styles from "./StudentsHomePage.module.css";
+
+function readSelectedStudentIds(storageKey: string): number[] {
+  try {
+    const value = sessionStorage.getItem(storageKey);
+    if (!value) return [];
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "number") : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
@@ -47,23 +57,16 @@ export default function StudentsHomePage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<StudentFilters>({});
   const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
   const [page, setPage] = useState(1);
   const tenantCode = resolveTenantCodeString();
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-    try {
-      const k = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
-      const v = sessionStorage.getItem(k);
-      if (v) {
-        const arr = JSON.parse(v);
-        return Array.isArray(arr) ? arr.filter((x) => typeof x === "number") : [];
-      }
-    } catch {}
-    return [];
-  });
+  const selectedStorageKey = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
+  const [selectedIds, setSelectedIds] = useState<number[]>(() =>
+    readSelectedStudentIds(selectedStorageKey)
+  );
   const [deleting, setDeleting] = useState(false);
   const [withdrawalNotif, setWithdrawalNotif] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] });
   const [duplicateFixing, setDuplicateFixing] = useState(false);
@@ -87,9 +90,8 @@ export default function StudentsHomePage() {
   }, [isDeletedTab]);
 
   useEffect(() => {
-    const k = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
-    sessionStorage.setItem(k, JSON.stringify(selectedIds));
-  }, [selectedIds, isDeletedTab, tenantCode]);
+    sessionStorage.setItem(selectedStorageKey, JSON.stringify(selectedIds));
+  }, [selectedIds, selectedStorageKey]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -114,7 +116,7 @@ export default function StudentsHomePage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const activeFilterCount = useMemo(
-    () => Object.keys(filters || {}).length,
+    () => Object.keys(filters).length,
     [filters]
   );
 
@@ -145,10 +147,8 @@ export default function StudentsHomePage() {
     <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-2 pl-1">
       <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-        }}
+        className={`text-[13px] font-semibold ${styles.selectedCount}`}
+        data-selected={selectedIds.length > 0 ? "true" : "false"}
       >
         {selectedIds.length}명 선택됨
       </span>
@@ -298,7 +298,7 @@ export default function StudentsHomePage() {
         {(() => {
           const maxVisible = 7;
           let start = Math.max(1, page - Math.floor(maxVisible / 2));
-          let end = Math.min(totalPages, start + maxVisible - 1);
+          const end = Math.min(totalPages, start + maxVisible - 1);
           if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
           const pages: number[] = [];
           for (let i = start; i <= end; i++) pages.push(i);
@@ -306,8 +306,8 @@ export default function StudentsHomePage() {
             <>
               {start > 1 && (
                 <>
-                  <button type="button" onClick={() => setPage(1)} style={{ minWidth: 32, height: 32, padding: "0 8px", fontSize: 13, fontWeight: 500, borderRadius: 6, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", color: "var(--color-text-secondary)", cursor: "pointer" }}>1</button>
-                  {start > 2 && <span style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "0 4px" }}>…</span>}
+                  <button type="button" onClick={() => setPage(1)} className={styles.paginationButton}>1</button>
+                  {start > 2 && <span className={styles.paginationEllipsis}>…</span>}
                 </>
               )}
               {pages.map((p) => (
@@ -315,26 +315,16 @@ export default function StudentsHomePage() {
                   key={p}
                   type="button"
                   onClick={() => setPage(p)}
-                  style={{
-                    minWidth: 32,
-                    height: 32,
-                    padding: "0 8px",
-                    fontSize: 13,
-                    fontWeight: page === p ? 700 : 500,
-                    borderRadius: 6,
-                    border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-                    background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
-                    color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
-                    cursor: "pointer",
-                  }}
+                  className={styles.paginationButton}
+                  data-active={page === p ? "true" : "false"}
                 >
                   {p}
                 </button>
               ))}
               {end < totalPages && (
                 <>
-                  {end < totalPages - 1 && <span style={{ fontSize: 13, color: "var(--color-text-muted)", padding: "0 4px" }}>…</span>}
-                  <button type="button" onClick={() => setPage(totalPages)} style={{ minWidth: 32, height: 32, padding: "0 8px", fontSize: 13, fontWeight: 500, borderRadius: 6, border: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{totalPages}</button>
+                  {end < totalPages - 1 && <span className={styles.paginationEllipsis}>…</span>}
+                  <button type="button" onClick={() => setPage(totalPages)} className={styles.paginationButton}>{totalPages}</button>
                 </>
               )}
             </>
@@ -354,7 +344,7 @@ export default function StudentsHomePage() {
               "…"
             ) : isDeletedTab ? (
               // SSOT 디자인 예외: 삭제된 학생 탭에서만 총계 좌측에 중복 정리(새로고침) 아이콘 노출
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span className={styles.deletedTotalInline}>
                 <button
                   type="button"
                   title="중복 정리"
@@ -374,23 +364,10 @@ export default function StudentsHomePage() {
                       setDuplicateFixing(false);
                     }
                   }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 28,
-                    height: 28,
-                    padding: 0,
-                    border: "1px solid var(--color-border-divider)",
-                    borderRadius: 6,
-                    background: "var(--color-bg-surface)",
-                    color: "var(--color-text-secondary)",
-                    cursor: deleting || duplicateFixing ? "not-allowed" : "pointer",
-                    opacity: deleting || duplicateFixing ? 0.6 : 1,
-                  }}
+                  className={styles.duplicateFixButton}
                 >
                   {duplicateFixing ? (
-                    <span style={{ fontSize: 12 }}>…</span>
+                    <span className={styles.duplicateFixingText}>…</span>
                   ) : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M23 4v6h-6M1 20v-6h6" />
@@ -406,12 +383,11 @@ export default function StudentsHomePage() {
           }
           searchSlot={
             <input
-              className="ds-input"
               data-guide="students-search"
               placeholder={isMobile ? "검색" : "이름 / 아이디 / 전화번호 / 학교 검색"}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              style={{ maxWidth: isMobile ? "none" : 360, width: isMobile ? "100%" : undefined }}
+              className={isMobile ? `ds-input ${styles.searchInput} ${styles.searchInputMobile}` : `ds-input ${styles.searchInput}`}
             />
           }
           filterSlot={
@@ -440,38 +416,15 @@ export default function StudentsHomePage() {
 
         {/* 엑셀 업로드 진행바 (모달 닫고 진행 중일 때) */}
         {bulkUploadProgress && !showCreate && (
-          <div
-            style={{
-              marginBottom: 12,
-              padding: "12px 16px",
-              background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))",
-              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border-divider))",
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  height: 8,
-                  background: "var(--color-bg-surface-soft)",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  marginBottom: 4,
-                }}
-              >
-                <div
-                  style={{
-                    width: `${(bulkUploadProgress.current / bulkUploadProgress.total) * 100}%`,
-                    height: "100%",
-                    background: "var(--color-primary)",
-                    transition: "width 0.3s ease",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>
+          <div className={styles.bulkProgressPanel}>
+            <div className={styles.bulkProgressBody}>
+              <progress
+                className={styles.bulkProgressBar}
+                value={bulkUploadProgress.current}
+                max={bulkUploadProgress.total}
+                aria-label="학생 일괄 등록 진행률"
+              />
+              <span className={styles.bulkProgressText}>
                 학생 등록 중… {Math.round((bulkUploadProgress.current / bulkUploadProgress.total) * 100)}%
                 ({bulkUploadProgress.current}/{bulkUploadProgress.total}명)
               </span>
