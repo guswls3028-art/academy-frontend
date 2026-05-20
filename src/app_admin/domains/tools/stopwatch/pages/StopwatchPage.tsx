@@ -63,7 +63,11 @@ export default function StopwatchPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      try { localStorage.setItem(getPcTimerDownloadedKey(), "1"); } catch {}
+      try {
+        localStorage.setItem(getPcTimerDownloadedKey(), "1");
+      } catch {
+        // localStorage can be unavailable in private or embedded browser contexts.
+      }
       feedback.success("다운로드가 시작되었습니다. 압축 파일을 풀고 실행하세요.");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
@@ -100,7 +104,7 @@ export default function StopwatchPage() {
       };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className={styles.page}>
       {/* PC 다운로드 카드 — 타이머 영역 밖 상단. 전체화면 시 숨김. */}
       {!isFullscreen && (
         <section className={styles.downloadCard} aria-labelledby="pc-timer-download-title">
