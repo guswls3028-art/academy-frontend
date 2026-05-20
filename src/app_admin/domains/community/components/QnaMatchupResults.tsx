@@ -20,36 +20,26 @@ type Props = {
   results: MatchupResult[];
 };
 
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
 export default function QnaMatchupResults({ results }: Props) {
   if (!results || results.length === 0) return null;
 
   return (
-    <div style={{
-      marginTop: "var(--space-4)",
-      padding: "var(--space-4)",
-      borderRadius: "var(--radius-lg)",
-      border: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider))",
-      background: "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))",
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: "var(--space-2)",
-        marginBottom: "var(--space-3)",
-      }}>
-        <Sparkles size={14} style={{ color: "var(--color-brand-primary)" }} />
-        <span style={{
-          fontSize: 12, fontWeight: 700,
-          color: "var(--color-brand-primary)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}>
+    <div className="qna-matchup-results">
+      <div className="qna-matchup-results__header">
+        <Sparkles size={14} className="qna-matchup-results__icon" />
+        <span className="qna-matchup-results__title">
           AI 매치업 결과
         </span>
-        <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: "auto" }}>
+        <span className="qna-matchup-results__caption">
           학생 첨부 이미지에서 자동 분석
         </span>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+      <div className="qna-matchup-results__list">
         {results.map((r, i) => {
           const pct = Math.round(r.similarity * 100);
           const source = [
@@ -61,43 +51,33 @@ export default function QnaMatchupResults({ results }: Props) {
           return (
             <div
               key={r.problem_id || i}
-              style={{
-                display: "flex", alignItems: "center", gap: "var(--space-3)",
-                padding: "var(--space-2) var(--space-3)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--color-bg-surface)",
-                border: "1px solid var(--color-border-divider)",
-              }}
+              className="qna-matchup-results__item"
             >
               {/* 유사도 */}
-              <span style={{
-                fontSize: 13, fontWeight: 700, flexShrink: 0, width: 40, textAlign: "center",
-                color: pct >= 80 ? "var(--color-success)" : "var(--color-text-muted)",
-              }}>
+              <span
+                className={cx(
+                  "qna-matchup-results__score",
+                  pct >= 80 && "qna-matchup-results__score--high"
+                )}
+              >
                 {pct}%
               </span>
 
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="qna-matchup-results__body">
                 {/* 출처 */}
                 {source ? (
-                  <div style={{
-                    fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)",
-                    marginBottom: 2,
-                  }}>
+                  <div className="qna-matchup-results__source">
                     Q{r.number} &middot; {source}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>
+                  <div className="qna-matchup-results__source">
                     Q{r.number}
                   </div>
                 )}
 
                 {/* 텍스트 미리보기 */}
                 {r.text && (
-                  <div style={{
-                    fontSize: 11, color: "var(--color-text-muted)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
+                  <div className="qna-matchup-results__preview">
                     {r.text}
                   </div>
                 )}

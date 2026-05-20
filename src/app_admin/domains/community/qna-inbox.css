@@ -577,6 +577,99 @@
   white-space: pre-wrap;
 }
 
+.post-read-view {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.post-read-view--plain {
+  white-space: pre-wrap;
+}
+
+.qna-matchup-results {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
+}
+
+.qna-matchup-results__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.qna-matchup-results__icon {
+  color: var(--color-brand-primary);
+}
+
+.qna-matchup-results__title {
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.qna-matchup-results__caption {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.qna-matchup-results__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.qna-matchup-results__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+
+.qna-matchup-results__score {
+  flex-shrink: 0;
+  width: 40px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.qna-matchup-results__score--high {
+  color: var(--color-success);
+}
+
+.qna-matchup-results__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.qna-matchup-results__source {
+  margin-bottom: 2px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.qna-matchup-results__preview {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Reply actions — revealed on hover ── */
 .qna-inbox__message-actions {
   display: flex;
@@ -815,6 +908,46 @@
   line-height: 1.6;
   margin: 0;
   max-width: 280px;
+}
+
+.qna-inbox__empty-desc--centered {
+  padding: 16px;
+  text-align: center;
+}
+
+.qna-inbox__empty-desc--composer {
+  margin: 0;
+}
+
+.community-empty__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+}
+
+.community-empty__icon--error {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+}
+
+@keyframes qna-empty-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.community-empty__spinner {
+  animation: qna-empty-spin 1s linear infinite;
 }
 
 .qna-inbox__keyboard-hint {

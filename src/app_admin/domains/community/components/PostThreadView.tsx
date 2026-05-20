@@ -105,7 +105,11 @@ function ThreadList({
   }
 
   if (replies.length === 0 && emptyText) {
-    return <div className="qna-inbox__empty-desc" style={{ textAlign: "center", padding: 16 }}>{emptyText}</div>;
+    return (
+      <div className="qna-inbox__empty-desc qna-inbox__empty-desc--centered">
+        {emptyText}
+      </div>
+    );
   }
 
   return (
@@ -263,7 +267,7 @@ function ThreadComposer({
   if (!allowReply) {
     return (
       <div className="qna-inbox__composer">
-        <p className="qna-inbox__empty-desc" style={{ margin: 0 }}>
+        <p className="qna-inbox__empty-desc qna-inbox__empty-desc--composer">
           삭제된 학생의 글에는 답변을 등록할 수 없습니다.
         </p>
       </div>

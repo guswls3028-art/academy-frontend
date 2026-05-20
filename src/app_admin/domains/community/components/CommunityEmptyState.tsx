@@ -118,21 +118,7 @@ export default function CommunityEmptyState({
   return (
     <div className="qna-inbox__empty">
       <div
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 16,
-          background: isError
-            ? "color-mix(in srgb, var(--color-error) 10%, transparent)"
-            : "color-mix(in srgb, var(--color-primary) 8%, transparent)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: isError
-            ? "var(--color-error)"
-            : "var(--color-primary)",
-          marginBottom: 4,
-        }}
+        className={`community-empty__icon${isError ? " community-empty__icon--error" : ""}`}
       >
         <IconComp
           size={24}

@@ -8,6 +8,10 @@ type Props = {
   className?: string;
 };
 
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
 /**
  * 게시물 본문을 sanitize 후 HTML로 렌더링하는 읽기 전용 컴포넌트.
  * - 에디터 툴바 없음
@@ -36,14 +40,7 @@ export default function PostReadView({ html, className }: Props) {
   if (isPlainText) {
     return (
       <div
-        className={className}
-        style={{
-          fontSize: 14,
-          lineHeight: 1.7,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          color: "var(--color-text-primary)",
-        }}
+        className={cx("post-read-view post-read-view--plain", className)}
       >
         {html}
       </div>
@@ -52,13 +49,7 @@ export default function PostReadView({ html, className }: Props) {
 
   return (
     <div
-      className={`cms-detail__rendered-body ${className ?? ""}`}
-      style={{
-        fontSize: 14,
-        lineHeight: 1.7,
-        wordBreak: "break-word",
-        color: "var(--color-text-primary)",
-      }}
+      className={cx("cms-detail__rendered-body post-read-view", className)}
       dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
