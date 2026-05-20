@@ -1,0 +1,116 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding: var(--tc-space-2) var(--tc-space-3);
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--tc-text-muted);
+}
+
+.searchInput {
+  flex: 1;
+  color: var(--tc-text);
+  font-size: 14px;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.iconButton,
+.iconButtonLarge {
+  display: flex;
+  color: var(--tc-text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.iconButton {
+  padding: var(--tc-space-1);
+}
+
+.iconButtonLarge {
+  padding: 6px;
+}
+
+.iconButtonActive,
+.createButton {
+  color: var(--tc-primary);
+}
+
+.tabBar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--tc-border);
+}
+
+.tabScroller {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabButton {
+  position: relative;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  color: var(--tc-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.tabButtonActive {
+  color: var(--tc-primary);
+  font-weight: 700;
+  border-bottom-color: var(--tc-primary);
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  background: var(--tc-danger);
+  border-radius: 999px;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--tc-space-1);
+  padding-right: var(--tc-space-2);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--tc-space-2);
+}
+
+.postList {
+  display: flex;
+  flex-direction: column;
+}

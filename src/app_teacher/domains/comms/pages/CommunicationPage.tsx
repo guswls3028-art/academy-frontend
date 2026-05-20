@@ -2,9 +2,8 @@
 // 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) + 작성 + 검색
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import { Badge } from "@teacher/shared/ui/Badge";
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
 import type { Post } from "../api";
@@ -12,6 +11,7 @@ import PostListItem from "../components/PostListItem";
 import PostDetail from "../components/PostDetail";
 import RegistrationRequestList from "../components/RegistrationRequestList";
 import CreatePostSheet from "../components/CreatePostSheet";
+import styles from "./CommunicationPage.module.css";
 
 type Tab = "notices" | "qna" | "counsel" | "requests" | "board" | "materials";
 
@@ -64,7 +64,7 @@ export default function CommunicationPage() {
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "notices", label: "공지사항" },
     { key: "qna", label: "Q&A", badge: counts?.qnaPending },
-    { key: "counsel", label: "상담", badge: (counts as any)?.counselPending },
+    { key: "counsel", label: "상담", badge: counts?.counselPending },
     { key: "requests", label: "가입신청", badge: counts?.registrationRequestsPending },
     { key: "board", label: "게시판" },
     { key: "materials", label: "자료" },
@@ -81,24 +81,23 @@ export default function CommunicationPage() {
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className={styles.page}>
       {/* Search bar (toggled) */}
       {searchOpen && isPostTab && (
-        <div className="flex items-center gap-2" style={{ padding: "8px var(--tc-space-3)", borderBottom: "1px solid var(--tc-border)" }}>
-          <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0 }} />
+        <div className={styles.searchBar}>
+          <Search size={ICON.sm} className={styles.searchIcon} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="제목, 내용, 작성자 검색"
             autoFocus
-            className="flex-1 text-sm"
-            style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }}
+            className={styles.searchInput}
           />
           <button
             onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-            className="flex p-1 cursor-pointer"
-            style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}
+            className={styles.iconButton}
+            type="button"
           >
             <X size={ICON.sm} />
           </button>
@@ -106,29 +105,18 @@ export default function CommunicationPage() {
       )}
 
       {/* 5탭 + action buttons */}
-      <div className="flex items-center" style={{ borderBottom: "1px solid var(--tc-border)" }}>
-        <div className="flex overflow-x-auto flex-1" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className={styles.tabBar}>
+        <div className={styles.tabScroller}>
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => handleTabChange(t.key)}
-              className="shrink-0 text-[13px] cursor-pointer relative"
-              style={{
-                padding: "12px 14px",
-                background: "none",
-                border: "none",
-                borderBottom: tab === t.key ? "2px solid var(--tc-primary)" : "2px solid transparent",
-                color: tab === t.key ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                fontWeight: tab === t.key ? 700 : 500,
-                whiteSpace: "nowrap",
-              }}
+              className={`${styles.tabButton} ${tab === t.key ? styles.tabButtonActive : ""}`}
+              type="button"
             >
               {t.label}
               {!!t.badge && t.badge > 0 && (
-                <span
-                  className="absolute text-[9px] font-bold text-white rounded-full"
-                  style={{ top: 4, right: 2, minWidth: 14, height: 14, lineHeight: "14px", padding: "0 3px", background: "var(--tc-danger)" }}
-                >
+                <span className={styles.badge}>
                   {t.badge}
                 </span>
               )}
@@ -137,12 +125,12 @@ export default function CommunicationPage() {
         </div>
 
         {/* Action buttons: search + create */}
-        <div className="flex items-center gap-1 shrink-0 pr-2">
+        <div className={styles.actions}>
           {isPostTab && (
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="flex p-1.5 cursor-pointer"
-              style={{ background: "none", border: "none", color: searchOpen ? "var(--tc-primary)" : "var(--tc-text-muted)" }}
+              className={`${styles.iconButtonLarge} ${searchOpen ? styles.iconButtonActive : ""}`}
+              type="button"
             >
               <Search size={ICON.md} />
             </button>
@@ -150,8 +138,8 @@ export default function CommunicationPage() {
           {canWrite && (
             <button
               onClick={() => setCreateOpen(true)}
-              className="flex p-1.5 cursor-pointer"
-              style={{ background: "none", border: "none", color: "var(--tc-primary)" }}
+              className={`${styles.iconButtonLarge} ${styles.createButton}`}
+              type="button"
             >
               <Plus size={ICON.md} />
             </button>
@@ -160,7 +148,7 @@ export default function CommunicationPage() {
       </div>
 
       {/* Content */}
-      <div className="flex flex-col" style={{ paddingTop: "var(--tc-space-2)" }}>
+      <div className={styles.content}>
         {tab === "requests" ? (
           reqLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -172,7 +160,7 @@ export default function CommunicationPage() {
         ) : postsLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : posts && posts.length > 0 ? (
-          <div className="flex flex-col">
+          <div className={styles.postList}>
             {posts.map((p) => (
               <PostListItem
                 key={p.id}
