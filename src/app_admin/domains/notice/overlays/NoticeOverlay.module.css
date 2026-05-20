@@ -1,0 +1,118 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(0 0 0 / 30%);
+}
+
+.drawer {
+  width: 420px;
+  height: 100%;
+  border-left: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+.header {
+  display: flex;
+  height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.title {
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.body {
+  height: calc(100% - 56px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.empty {
+  padding: 40px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.noticeHeader {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.noticeTitleRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.levelDot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-info);
+}
+
+.levelDot[data-level="success"] {
+  background: var(--color-success);
+}
+
+.levelDot[data-level="warning"] {
+  background: var(--color-warning);
+}
+
+.levelDot[data-level="error"] {
+  background: var(--color-error);
+}
+
+.noticeTitle {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noticeBody {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.noticeTime {
+  margin-top: 10px;
+  color: var(--color-text-disabled);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .drawer {
+    width: min(100vw, 420px);
+  }
+}

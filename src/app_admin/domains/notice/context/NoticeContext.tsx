@@ -1,45 +1,33 @@
 // PATH: src/app_admin/domains/notice/context/NoticeContext.tsx
-import { createContext, useContext, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { Notice } from "../types";
+import { NoticeContext, type NoticeState } from "./noticeContextCore";
 
-type NoticeState = {
-  notices: Notice[];
-  unreadCount: number;
-  remove: (id: string) => void;
-  clear: () => void;
-  push: (n: Notice) => void;
-};
-
-const NoticeContext = createContext<NoticeState | null>(null);
-
-export function NoticeProvider({ children }: { children: React.ReactNode }) {
+export function NoticeProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[]>([]);
 
   const unreadCount = useMemo(() => notices.length, [notices]);
 
-  function remove(id: string) {
+  const remove = useCallback((id: string) => {
     setNotices((prev) => prev.filter((n) => n.id !== id));
-  }
+  }, []);
 
-  function clear() {
+  const clear = useCallback(() => {
     setNotices([]);
-  }
+  }, []);
 
-  function push(n: Notice) {
+  const push = useCallback((n: Notice) => {
     setNotices((prev) => [n, ...prev]);
-  }
+  }, []);
+
+  const value = useMemo<NoticeState>(
+    () => ({ notices, unreadCount, remove, clear, push }),
+    [clear, notices, push, remove, unreadCount]
+  );
 
   return (
-    <NoticeContext.Provider value={{ notices, unreadCount, remove, clear, push }}>
+    <NoticeContext.Provider value={value}>
       {children}
     </NoticeContext.Provider>
   );
-}
-
-export function useNotices() {
-  const ctx = useContext(NoticeContext);
-  if (!ctx) {
-    throw new Error("useNotices must be used within NoticeProvider");
-  }
-  return ctx;
 }
