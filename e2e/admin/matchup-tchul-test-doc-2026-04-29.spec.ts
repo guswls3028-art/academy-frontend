@@ -6,11 +6,15 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import type { Locator, Page } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const BASE = getBaseUrl("tchul-admin");
+const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
+const DOC_ROW_SELECTOR = "[data-testid='matchup-doc-row']";
 const __filename_ = fileURLToPath(import.meta.url);
 const __dirname_ = path.dirname(__filename_);
 const SHOTS = path.resolve(__dirname_, "../reports/matchup-tchul-2026-04-29");
@@ -21,21 +25,83 @@ const log = (s: string) => { console.log(`[REVIEW3] ${s}`); observations.push(s)
 
 test.describe.configure({ mode: "serial" });
 
-async function selectTestDoc(page: import("@playwright/test").Page) {
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1500);
+async function waitForStableCount(locator: Locator, description: string): Promise<void> {
+  let last = -1;
+  let stableTicks = 0;
+  await waitForCondition(
+    async () => {
+      const next = await locator.count();
+      if (next === last) {
+        stableTicks += 1;
+      } else {
+        last = next;
+        stableTicks = 0;
+      }
+      return stableTicks >= 2;
+    },
+    { timeoutMs: 6_000, intervalMs: 300, description },
+  ).catch(() => {});
+}
+
+async function waitForRowsOrEmpty(page: Page, description: string): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator(DOC_ROW_SELECTOR).count()) > 0 ||
+      (await page.locator("text=/문서가 없습니다|결과가 없습니다|없습니다/").count()) > 0,
+    { timeoutMs: 8_000, description },
+  ).catch(() => {});
+  await waitForStableCount(page.locator(DOC_ROW_SELECTOR), `${description}: stable row count`);
+}
+
+async function openMatchup(page: Page): Promise<void> {
+  await gotoAndSettle(page, MATCHUP_URL, { timeout: 30_000 });
+  await waitForRowsOrEmpty(page, "matchup page settled");
+}
+
+async function clickStatusChip(page: Page, label: RegExp, description: string): Promise<boolean> {
+  const chip = page.locator("button, label").filter({ hasText: label }).first();
+  if (await chip.count() === 0) return false;
+  await chip.click();
+  await waitForRowsOrEmpty(page, description);
+  return true;
+}
+
+async function waitForDocDetail(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator("[data-testid='document-guidance-banner']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-problem-grid']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-right-panel']").count()) > 0 ||
+      (await page.locator("[data-testid^='matchup-problem-thumb'], [data-testid^='matchup-problem-card']").count()) > 0,
+    { timeoutMs: 10_000, description: "matchup document detail settled" },
+  ).catch(() => {});
+}
+
+async function waitForCrossPanel(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await waitForCondition(
+    async () => (await page.locator("text=/적중|STRONG|강한|부분|MEDIUM|중간|유사 자료 없음|매치 안됨|0건/i").count()) > 0,
+    { timeoutMs: 10_000, description: "cross match panel settled" },
+  ).catch(() => {});
+}
+
+async function selectTestDoc(page: Page): Promise<void> {
+  await openMatchup(page);
 
   // 좌측 트리에서 "시험지" 그룹 헤더 찾고 그 아래 행 클릭
   // intent badge가 노란색(test) — DOM에서 row내 intent 아이콘 검색
   // 또는 'KakaoTalk' 같이 알려진 시험지 제목 직접 검색
   const search = page.locator("[data-testid='matchup-doc-search']");
   await search.fill("KakaoTalk");
-  await page.waitForTimeout(800);
-  const rows = await page.locator("[data-testid='matchup-doc-row']").count();
+  await expect(search).toHaveValue("KakaoTalk");
+  await waitForRowsOrEmpty(page, "KakaoTalk search applied");
+  const rows = await page.locator(DOC_ROW_SELECTOR).count();
   log(`검색 KakaoTalk → ${rows} rows`);
-  const target = page.locator("[data-testid='matchup-doc-row']").first();
+  const target = page.locator(DOC_ROW_SELECTOR).first();
   await target.click();
-  await page.waitForTimeout(2000);
+  await waitForDocDetail(page);
 }
 
 test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
@@ -68,7 +134,7 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
 
     if (!crossDisabled) {
       await crossTab.click();
-      await page.waitForTimeout(3000);
+      await waitForCrossPanel(page);
       await page.screenshot({ path: path.join(SHOTS, "v3-01-cross-matches.png"), fullPage: true });
 
       // sim 분포
@@ -119,7 +185,13 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
     }
 
     await curateBtn.click();
-    await page.waitForTimeout(2500);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await waitForCondition(
+      async () =>
+        (await page.locator("[role='dialog'], [class*='HitReportEditor']").count()) > 0 ||
+        (await page.locator("textarea, input[type='text']").count()) > 0,
+      { timeoutMs: 10_000, description: "hit report editor settled" },
+    ).catch(() => {});
     await page.screenshot({ path: path.join(SHOTS, "v3-03-hit-report-editor.png"), fullPage: true });
 
     // 편집 모달/페이지 구조
@@ -132,21 +204,19 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
 
     // 닫기
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(500);
+    await expect(editor).toBeHidden({ timeout: 5_000 }).catch(() => {});
   });
 
   test("T4. 참고자료 doc — 자료별 매치 탭 비활성화 안내", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1200);
+    await openMatchup(page);
 
     // 완료 chip 클릭
-    const doneChip = page.locator("button, label").filter({ hasText: /완료\s*\d+/ }).first();
-    if (await doneChip.count() > 0) { await doneChip.click(); await page.waitForTimeout(800); }
+    await clickStatusChip(page, /완료\s*\d+/, "done status filter before reference doc");
 
     // 첫 doc (참고자료가 대부분)
-    const target = page.locator("[data-testid='matchup-doc-row']").first();
+    const target = page.locator(DOC_ROW_SELECTOR).first();
     await target.click();
-    await page.waitForTimeout(1500);
+    await waitForDocDetail(page);
 
     const crossTab = page.locator("[data-testid='matchup-right-tab-cross']");
     const title = await crossTab.getAttribute("title");
@@ -155,27 +225,29 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
 
     // 마우스 hover 시 tooltip 노출 (UX 친화)
     await crossTab.hover();
-    await page.waitForTimeout(500);
+    await waitForCondition(
+      async () => (await page.locator("[role='tooltip']").count()) > 0,
+      { timeoutMs: 3_000, description: "cross tab tooltip visible" },
+    ).catch(() => {});
     await page.screenshot({ path: path.join(SHOTS, "v3-04-reference-cross-disabled.png"), fullPage: true });
   });
 
   test("T5. 진행 중 doc(7건) — 진행률 표시", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1200);
+    await openMatchup(page);
 
     const processingChip = page.locator("button, label").filter({ hasText: /처리중\s*\d+/ }).first();
     if (await processingChip.count() === 0) { test.skip(true, "처리중 doc 없음"); return; }
     await processingChip.click();
-    await page.waitForTimeout(800);
+    await waitForRowsOrEmpty(page, "processing status filter applied");
 
-    const rows = await page.locator("[data-testid='matchup-doc-row']").count();
+    const rows = await page.locator(DOC_ROW_SELECTOR).count();
     const progressBars = await page.locator("[data-testid='matchup-progress-bar']").count();
     log(`처리중 doc=${rows}, progress bar=${progressBars}`);
 
     if (rows > 0) {
-      const target = page.locator("[data-testid='matchup-doc-row']").first();
+      const target = page.locator(DOC_ROW_SELECTOR).first();
       await target.click();
-      await page.waitForTimeout(1500);
+      await waitForDocDetail(page);
 
       await page.screenshot({ path: path.join(SHOTS, "v3-05-processing-detail.png"), fullPage: true });
 
@@ -198,14 +270,14 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
 
     // 클릭하면 인라인 편집 노출
     await catBadge.click();
-    await page.waitForTimeout(600);
     const editBox = page.locator("[data-testid='matchup-doc-category-edit']");
+    await expect(editBox).toBeVisible({ timeout: 5_000 });
     log(`인라인 편집 영역 visible=${await editBox.isVisible().catch(() => false)}`);
 
     // datalist suggestion
     const inlineInput = editBox.locator("input").first();
     await inlineInput.click();
-    await page.waitForTimeout(300);
+    await expect(inlineInput).toBeFocused({ timeout: 3_000 }).catch(() => {});
     await page.screenshot({ path: path.join(SHOTS, "v3-06-category-edit.png"), fullPage: true });
 
     // Esc로 취소
@@ -230,7 +302,13 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
 
       // 클릭 → SimilarResults 표시
       await probCards.first().click();
-      await page.waitForTimeout(2500);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      await waitForCondition(
+        async () =>
+          (await page.locator("[class*='SimilarCard'], [data-testid^='similar-problem']").count()) > 0 ||
+          (await page.locator("text=/유사 문제가 없|결과 없|매치 안됨/").count()) > 0,
+        { timeoutMs: 10_000, description: "similar problem results settled" },
+      ).catch(() => {});
       await page.screenshot({ path: path.join(SHOTS, "v3-07-q1-similar.png"), fullPage: true });
 
       const simCards = await page.locator("[class*='SimilarCard'], [data-testid^='similar-problem']").count();
