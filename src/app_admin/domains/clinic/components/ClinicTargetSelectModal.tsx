@@ -17,6 +17,7 @@ import { fetchClinicStudentsPaginated } from "../api/clinicStudents.api";
 import type { ClinicTarget } from "../api/clinicTargets";
 import type { ClinicStudent } from "../api/clinicStudents.api";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import "./ClinicTargetSelectModal.css";
 
 /**
  * 통합 행 타입 — 양쪽 탭에서 동일한 테이블 컬럼 렌더링에 사용
@@ -306,11 +307,7 @@ export default function ClinicTargetSelectModal({
 
       <ModalBody>
         <div
-          className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
-          style={{
-            gridTemplateColumns: "1fr 220px",
-            minHeight: 380,
-          }}
+          className="clinic-target-select-modal__layout grid gap-4 min-h-0 overflow-hidden ds-split-layout"
         >
           {/* 좌측: 탭 + 검색 + 테이블 + 페이지네이션 */}
           <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
@@ -407,11 +404,7 @@ export default function ClinicTargetSelectModal({
 
             {/* 테이블 컨테이너 — 내부 스크롤 */}
             <div
-              className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
-              }}
+              className="clinic-target-select-modal__table-panel rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
             >
               <div
                 ref={tableRef}
@@ -426,25 +419,23 @@ export default function ClinicTargetSelectModal({
                   />
                 ) : (
                   <table
-                    className="w-full border-collapse"
-                    style={{ tableLayout: "fixed" }}
+                    className="clinic-target-select-modal__table w-full border-collapse"
                     role="grid"
                     aria-label={mode === "targets" ? "예약 대상자 명단" : "전체 학생 명단"}
                   >
                     <colgroup>
-                      <col style={{ width: TABLE_COL.checkbox }} />
-                      <col style={{ width: TABLE_COL.nameCompactModal }} />
-                      <col style={{ width: TABLE_COL.phoneCompact }} />
-                      <col style={{ width: TABLE_COL.phoneCompact }} />
-                      <col style={{ width: TABLE_COL.mediumModal }} />
-                      <col style={{ width: TABLE_COL.shortModal }} />
+                      <col width={TABLE_COL.checkbox} />
+                      <col width={TABLE_COL.nameCompactModal} />
+                      <col width={TABLE_COL.phoneCompact} />
+                      <col width={TABLE_COL.phoneCompact} />
+                      <col width={TABLE_COL.mediumModal} />
+                      <col width={TABLE_COL.shortModal} />
                     </colgroup>
                     <thead>
                       <tr
-                        className="sticky top-0 z-10"
-                        style={{ background: "var(--color-bg-surface)" }}
+                        className="clinic-target-select-modal__header-row sticky top-0 z-10"
                       >
-                        <th className="modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>
+                        <th className="clinic-target-select-modal__header-cell modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]">
                           <input
                             type="checkbox"
                             checked={allChecked}
@@ -453,11 +444,11 @@ export default function ClinicTargetSelectModal({
                             aria-label="현재 페이지 전체 선택"
                           />
                         </th>
-                        <th className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>이름</th>
-                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>부모님 전화</th>
-                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학생 전화</th>
-                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학교</th>
-                        <th className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>학년</th>
+                        <th className="clinic-target-select-modal__header-cell modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]">이름</th>
+                        <th className="clinic-target-select-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]">부모님 전화</th>
+                        <th className="clinic-target-select-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]">학생 전화</th>
+                        <th className="clinic-target-select-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]">학교</th>
+                        <th className="clinic-target-select-modal__header-cell border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]">학년</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -475,8 +466,7 @@ export default function ClinicTargetSelectModal({
                           return (
                             <tr
                               key={r.id}
-                              className={`border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
-                              style={{ borderColor: "var(--color-border-divider)" }}
+                              className={`clinic-target-select-modal__row border-b ${checked ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
                             >
                               <td className="modal-inner-table__checkbox-cell py-1.5 pl-2 pr-1" onClick={(e) => e.stopPropagation()}>
                                 <input
@@ -513,8 +503,7 @@ export default function ClinicTargetSelectModal({
               {/* 페이지네이션 바 */}
               {totalPages > 1 && (
                 <div
-                  className="flex items-center justify-between gap-3 py-2 px-3 border-t shrink-0"
-                  style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface)" }}
+                  className="clinic-target-select-modal__pagination flex items-center justify-between gap-3 py-2 px-3 border-t shrink-0"
                 >
                   <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                     총 {totalCount}명
@@ -535,14 +524,13 @@ export default function ClinicTargetSelectModal({
 
           {/* 우측: 선택 목록 */}
           <div
-            className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
-            style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface)" }}
+            className="clinic-target-select-modal__selected-panel flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
           >
             <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
                 <span
-                  className="text-[13px] font-semibold"
-                  style={{ color: selectedIds.length > 0 ? "var(--color-brand-primary)" : "var(--color-text-muted)" }}
+                  className="clinic-target-select-modal__selected-count text-[13px] font-semibold"
+                  data-selected={selectedIds.length > 0 ? "true" : "false"}
                 >
                   {selectedIds.length}명 선택됨
                 </span>
@@ -558,12 +546,7 @@ export default function ClinicTargetSelectModal({
                 </Button>
               </div>
               <div
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
-                style={{
-                  borderColor: "var(--color-border-divider)",
-                  background: "var(--color-bg-surface-soft)",
-                  WebkitOverflowScrolling: "touch",
-                }}
+                className="clinic-target-select-modal__selected-list min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
               >
                 {selectedRowsForDisplay.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">

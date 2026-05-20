@@ -1,0 +1,39 @@
+.clinic-target-select-modal__layout {
+  grid-template-columns: 1fr 220px;
+  min-height: 380px;
+}
+
+.clinic-target-select-modal__table-panel,
+.clinic-target-select-modal__selected-panel {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-divider);
+}
+
+.clinic-target-select-modal__table {
+  table-layout: fixed;
+}
+
+.clinic-target-select-modal__header-row,
+.clinic-target-select-modal__pagination {
+  background: var(--color-bg-surface);
+}
+
+.clinic-target-select-modal__header-cell,
+.clinic-target-select-modal__row,
+.clinic-target-select-modal__pagination {
+  border-color: var(--color-border-divider);
+}
+
+.clinic-target-select-modal__selected-count {
+  color: var(--color-text-muted);
+}
+
+.clinic-target-select-modal__selected-count[data-selected="true"] {
+  color: var(--color-brand-primary);
+}
+
+.clinic-target-select-modal__selected-list {
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-bg-surface-soft);
+  border-color: var(--color-border-divider);
+}
