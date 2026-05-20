@@ -1,0 +1,187 @@
+.page {
+  padding: var(--stu-space-2) 0;
+}
+
+.intro {
+  margin-bottom: var(--stu-space-5);
+}
+
+.pageTitle {
+  margin: 0 0 var(--stu-space-2);
+  color: var(--stu-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.pageDescription {
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.workflowList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+}
+
+.card {
+  overflow: hidden;
+  background: var(--stu-surface);
+  border: 1.5px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  transition: border-color 200ms, box-shadow 200ms;
+}
+
+.card[data-open="true"] {
+  border-color: var(--stu-primary);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 6%);
+}
+
+.headerButton {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 16px;
+  color: var(--stu-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.iconWrap {
+  display: grid;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--stu-primary);
+  background: color-mix(in srgb, var(--stu-primary) 10%, transparent);
+  border-radius: var(--stu-radius);
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.workflowTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.summary {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--stu-text-muted);
+  transition: transform 250ms ease;
+}
+
+.chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease;
+}
+
+.disclosure[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.bodyClip {
+  overflow: hidden;
+}
+
+.body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--stu-border);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.step {
+  display: flex;
+  gap: 12px;
+}
+
+.stepRail {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepNumber {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--stu-primary) 12%, transparent);
+  border-radius: 50%;
+}
+
+.stepLine {
+  flex: 1;
+  width: 2px;
+  min-height: 8px;
+  margin-top: 4px;
+  background: color-mix(in srgb, var(--stu-primary) 15%, transparent);
+}
+
+.stepText {
+  padding-top: 1px;
+}
+
+.stepTitle {
+  margin-bottom: 2px;
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stepDescription {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tourButton {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 16px;
+  margin-top: 16px;
+  color: var(--stu-primary-contrast);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--stu-primary);
+  border: none;
+  border-radius: var(--stu-radius);
+}
+
+.tourIcon {
+  flex-shrink: 0;
+}
