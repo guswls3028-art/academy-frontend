@@ -15,13 +15,33 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import type { Page } from "@playwright/test";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+const DOC_ROW_SELECTOR = "[data-testid='matchup-doc-row']";
+
+async function waitForDocDetail(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await waitForCondition(
+    async () =>
+      (await page.locator("[data-testid='matchup-doc-more-menu-trigger']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-intent-toggle']").count()) > 0 ||
+      (await page.locator("[data-testid='matchup-problem-card']").count()) > 0,
+    { timeoutMs: 10_000, description: "matchup document detail settled" },
+  ).catch(() => {});
+}
 
 test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await waitForCondition(
+      async () =>
+        (await page.locator(DOC_ROW_SELECTOR).count()) > 0 ||
+        (await page.getByRole("button", { name: /(내 적중 보고서 모음|학원 적중 보고서 모음)/ }).count()) > 0,
+      { timeoutMs: 10_000, description: "matchup UIUX page settled" },
+    ).catch(() => {});
   });
 
   test("P0-3: DocumentList 카운트 라벨 풀어쓰기 + 보고서 모음 진입점", async ({ page }) => {
@@ -38,13 +58,13 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
   });
 
   test("P0-1: 헤더 액션바 2-tier — primary CTA + ⋮ 메뉴", async ({ page }) => {
-    const firstDoc = page.locator("[data-testid='matchup-doc-row']").first();
+    const firstDoc = page.locator(DOC_ROW_SELECTOR).first();
     if (await firstDoc.count() === 0) {
       test.skip(true, "문서가 없어 헤더 검증 불가");
       return;
     }
     await firstDoc.click();
-    await page.waitForTimeout(800);
+    await waitForDocDetail(page);
 
     // ⋮ "더 보기" 메뉴 trigger 노출
     const moreMenu = page.locator("[data-testid='matchup-doc-more-menu-trigger']");
@@ -76,7 +96,7 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await testDoc.click();
-    await page.waitForTimeout(800);
+    await waitForDocDetail(page);
 
     // 적중 보고서 작성 버튼 노출 (primary intent)
     const reportBtn = page.locator("[data-testid='matchup-doc-hit-report-curate-btn']");
@@ -91,7 +111,7 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await testDoc.click();
-    await page.waitForTimeout(800);
+    await waitForDocDetail(page);
 
     // segmented 토글 — 참고자료 클릭
     const refTab = page.locator("[data-testid='matchup-intent-toggle-reference']");
@@ -116,7 +136,7 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await doneDoc.click();
-    await page.waitForTimeout(1000);
+    await waitForDocDetail(page);
 
     const mergeEnter = page.locator("[data-testid='matchup-merge-mode-enter']");
     if (await mergeEnter.count() === 0) {
@@ -124,7 +144,6 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await mergeEnter.click();
-    await page.waitForTimeout(500);
 
     // 우측 패널이 합치기 도움말로 교체됨
     const rightPanel = page.locator("[data-testid='matchup-merge-mode-right-panel']");
@@ -144,7 +163,7 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await testDoc.click();
-    await page.waitForTimeout(1500);
+    await waitForDocDetail(page);
 
     // 첫 문제 카드 클릭
     const firstProblem = page.locator("[data-testid='matchup-problem-card']").first();
@@ -153,11 +172,16 @@ test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
       return;
     }
     await firstProblem.click();
-    await page.waitForTimeout(2000);
 
     // Pin hint 배너 노출 (시험지 + hitReportId 있을 때만)
     // — 보고서 draft 자동 로드 후 hint 노출 확인
     const pinHint = page.locator("[data-testid='matchup-similar-pin-hint']");
+    await waitForCondition(
+      async () =>
+        (await pinHint.count()) > 0 ||
+        (await page.locator("[class*='Similar'], [data-testid^='similar-problem'], text=/유사 문제가 없|결과 없|매치 안됨/").count()) > 0,
+      { timeoutMs: 10_000, description: "similar result area settled" },
+    ).catch(() => {});
     // hint는 보고서 draft fetch 성공 시에만 노출 — count 0 허용 (시험지에 문항 0이면 draft 실패)
     const hintCount = await pinHint.count();
     if (hintCount > 0) {
