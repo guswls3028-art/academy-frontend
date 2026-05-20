@@ -1,0 +1,323 @@
+.loadingStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+}
+
+.loadingScore {
+  height: 140px;
+  border-radius: var(--stu-radius);
+}
+
+.loadingMeta {
+  height: 80px;
+  border-radius: var(--stu-radius);
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--stu-space-3);
+}
+
+.backLink {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.resultStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-8);
+}
+
+.statusBanner {
+  padding: var(--stu-space-3) var(--stu-space-4);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  text-align: center;
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.statusBannerDashed {
+  border-style: dashed;
+}
+
+.scorePanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--stu-space-4);
+  padding: var(--stu-space-4) 0;
+}
+
+.scoreText {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.remediatedPill {
+  padding: 4px 10px;
+  color: var(--stu-success-text);
+  font-size: 12px;
+  background: var(--stu-success-bg);
+  border: 1px solid var(--stu-success);
+  border-radius: 999px;
+}
+
+.submittedDate {
+  font-size: 12px;
+}
+
+.sectionTitle {
+  margin-bottom: var(--stu-space-4);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mutedSmall,
+.dangerSmall {
+  font-size: 13px;
+}
+
+.dangerSmall {
+  color: var(--stu-danger);
+}
+
+.answersNote {
+  padding: var(--stu-space-3) 0;
+  font-size: 13px;
+}
+
+.clinicCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--stu-space-4) var(--stu-space-5);
+  color: var(--stu-text);
+  text-decoration: none;
+  background: var(--stu-danger-bg);
+  border: 1px solid var(--stu-danger);
+  border-radius: var(--stu-radius);
+}
+
+.clinicText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinicTitle {
+  color: var(--stu-danger-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.clinicDesc {
+  font-size: 12px;
+}
+
+.clinicAction {
+  color: var(--stu-danger-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.gaugeProgress {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.gaugeValue {
+  fill: var(--stu-text);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.gaugeUnit {
+  fill: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cardPanel {
+  padding: var(--stu-space-5);
+  background: var(--stu-surface-soft);
+  border-radius: var(--stu-radius);
+}
+
+.rankRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--stu-space-3);
+  margin-bottom: var(--stu-space-4);
+}
+
+.rankValue {
+  color: var(--stu-primary);
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.rankTotal {
+  font-size: 13px;
+}
+
+.rankBadge {
+  padding: 2px 8px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  border-radius: 999px;
+}
+
+.rankBadge[data-elite="true"] {
+  color: var(--stu-success-text);
+  background: var(--stu-success-bg);
+  border-color: var(--stu-success);
+}
+
+.comparisonHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--stu-space-2);
+  font-size: 12px;
+}
+
+.diffValue {
+  color: var(--stu-danger-text);
+  font-weight: 700;
+}
+
+.diffValue[data-positive="true"] {
+  color: var(--stu-success-text);
+}
+
+.comparisonChart {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.comparisonFill {
+  transition: width 0.4s ease;
+}
+
+.axisRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.ratioHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--stu-space-3);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.correctText {
+  color: var(--stu-success-text);
+}
+
+.wrongText {
+  color: var(--stu-danger-text);
+}
+
+.questionGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.questionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 40px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--stu-surface-soft);
+  border: 1.5px solid var(--stu-border);
+  border-radius: 10px;
+  outline: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.questionButton[data-answers-visible="true"][data-correct="true"] {
+  background: var(--stu-success-bg);
+  border-color: var(--stu-success);
+}
+
+.questionButton[data-answers-visible="true"][data-correct="false"] {
+  background: var(--stu-surface-soft);
+  border-color: var(--stu-danger);
+}
+
+.questionButton[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--stu-primary);
+  transform: scale(1.08);
+}
+
+.questionDetail {
+  padding: var(--stu-space-4);
+  margin-top: var(--stu-space-3);
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+  animation: slideDown 0.2s ease;
+}
+
+.questionDetail[data-correct="true"] {
+  background: var(--stu-success-bg);
+}
+
+.questionDetailHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--stu-space-3);
+}
+
+.questionNumber {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.questionScore {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.answerLine {
+  margin-top: var(--stu-space-2);
+  font-size: 13px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

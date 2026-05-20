@@ -10,6 +10,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@student/domains/exams/hooks/useMyExamResultItems";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
+import styles from "./ExamResultPage.module.css";
 
 export default function ExamResultPage() {
   const { examId } = useParams();
@@ -29,9 +30,9 @@ export default function ExamResultPage() {
   if (resultQ.isLoading) {
     return (
       <StudentPageShell title="시험 결과">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 140, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.loadingScore}`} />
+          <div className={`stu-skel ${styles.loadingMeta}`} />
         </div>
       </StudentPageShell>
     );
@@ -51,7 +52,7 @@ export default function ExamResultPage() {
 
   const r = resultQ.data;
   const items = itemsQ.data ?? [];
-  const pct = r.max_score > 0 ? Math.round((r.total_score / r.max_score) * 100) : 0;
+  const pct = r.max_score > 0 ? clampPercent(Math.round((r.total_score / r.max_score) * 100)) : 0;
   const correctCount = items.filter((it) => it.is_correct).length;
   const wrongCount = items.length - correctCount;
   // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)
@@ -66,62 +67,35 @@ export default function ExamResultPage() {
     <StudentPageShell
       title="시험 결과"
       actions={
-        <div style={{ display: "flex", gap: "var(--stu-space-3)" }}>
+        <div className={styles.headerActions}>
           <Link to="/student/grades" className="stu-cta-link">
             성적
           </Link>
           <Link
             to={`/student/exams/${safeId}`}
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "var(--stu-text-muted)",
-              textDecoration: "none",
-            }}
+            className={styles.backLink}
           >
             시험으로
           </Link>
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-8)" }}>
+      <div className={styles.resultStack}>
         {/* ── 상태 배너: 미응시 > 임시 채점 (우선순위 1개만 노출) ── */}
         {achievement === "NOT_SUBMITTED" ? (
-          <div
-            style={{
-              padding: "var(--stu-space-3) var(--stu-space-4)",
-              borderRadius: "var(--stu-radius)",
-              background: "var(--stu-surface-soft)",
-              border: "1px solid var(--stu-border)",
-              fontSize: 13,
-              color: "var(--stu-text-muted)",
-              textAlign: "center",
-            }}
-            role="status"
-          >
+          <div className={styles.statusBanner} role="status">
             이 시험은 응시하지 않았습니다.
           </div>
         ) : r.is_provisional ? (
-          <div
-            style={{
-              padding: "var(--stu-space-3) var(--stu-space-4)",
-              borderRadius: "var(--stu-radius)",
-              background: "var(--stu-surface-soft)",
-              border: "1px dashed var(--stu-border)",
-              fontSize: 13,
-              color: "var(--stu-text-muted)",
-              textAlign: "center",
-            }}
-            role="status"
-          >
+          <div className={`${styles.statusBanner} ${styles.statusBannerDashed}`} role="status">
             채점이 확정되기 전 임시 점수입니다. 정답 공개는 확정 후에 이뤄집니다.
           </div>
         ) : null}
 
         {/* ── Score Gauge ── */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--stu-space-4)", padding: "var(--stu-space-4) 0" }}>
+        <div className={styles.scorePanel}>
           <ScoreGauge pct={pct} passed={finalPass} />
-          <div style={{ fontSize: 16, fontWeight: 800 }}>
+          <div className={styles.scoreText}>
             {r.total_score} / {r.max_score}점
           </div>
           <GradeBadge
@@ -131,16 +105,7 @@ export default function ExamResultPage() {
           />
           {/* 클리닉 재시험 통과 정보 (드리프트 해소 UX) */}
           {r.remediated && r.clinic_retake && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--stu-success-text)",
-                background: "var(--stu-success-bg)",
-                padding: "4px 10px",
-                borderRadius: 999,
-                border: "1px solid var(--stu-success)",
-              }}
-            >
+            <div className={styles.remediatedPill}>
               클리닉 재시험 통과
               {typeof r.clinic_retake.score === "number" && (
                 <> · {r.clinic_retake.score}점</>
@@ -151,7 +116,7 @@ export default function ExamResultPage() {
             </div>
           )}
           {r.submitted_at && (
-            <div className="stu-muted" style={{ fontSize: 12 }}>
+            <div className={`stu-muted ${styles.submittedDate}`}>
               {new Date(r.submitted_at).toLocaleDateString("ko-KR")} 제출
             </div>
           )}
@@ -181,26 +146,23 @@ export default function ExamResultPage() {
         {/* ── Per-question results (OMR Grid) — 미응시는 숨김 ── */}
         {achievement !== "NOT_SUBMITTED" && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+            <div className={styles.sectionTitle}>
               문항별 결과
             </div>
 
             {itemsQ.isLoading && (
-              <div className="stu-muted" style={{ fontSize: 13 }}>
+              <div className={`stu-muted ${styles.mutedSmall}`}>
                 불러오는 중...
               </div>
             )}
             {itemsQ.isError && (
-              <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              <div className={styles.dangerSmall}>
                 문항별 결과를 불러오지 못했어요.
               </div>
             )}
 
             {!r.answers_visible && items.length > 0 && (
-              <div
-                className="stu-muted"
-                style={{ fontSize: 13, padding: "var(--stu-space-3) 0" }}
-              >
+              <div className={`stu-muted ${styles.answersNote}`}>
                 정답은 비공개입니다.
                 {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
               </div>
@@ -215,7 +177,7 @@ export default function ExamResultPage() {
             )}
 
             {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
-              <div className="stu-muted" style={{ fontSize: 13 }}>
+              <div className={`stu-muted ${styles.mutedSmall}`}>
                 문항별 결과가 아직 없어요.
               </div>
             )}
@@ -232,27 +194,17 @@ function ClinicRequiredCard() {
   return (
     <Link
       to="/student/clinic"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "var(--stu-space-4) var(--stu-space-5)",
-        background: "var(--stu-danger-bg)",
-        border: "1px solid var(--stu-danger)",
-        borderRadius: "var(--stu-radius)",
-        textDecoration: "none",
-        color: "var(--stu-text)",
-      }}
+      className={styles.clinicCard}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--stu-danger-text)" }}>
+      <div className={styles.clinicText}>
+        <div className={styles.clinicTitle}>
           보강 클리닉 대상
         </div>
-        <div className="stu-muted" style={{ fontSize: 12 }}>
+        <div className={`stu-muted ${styles.clinicDesc}`}>
           클리닉 페이지에서 일정을 예약하세요.
         </div>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-danger-text)" }}>
+      <div className={styles.clinicAction}>
         예약하기 →
       </div>
     </Link>
@@ -264,7 +216,8 @@ function ClinicRequiredCard() {
 function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
   const R = 44;
   const C = 2 * Math.PI * R;
-  const offset = C - (pct / 100) * C;
+  const safePct = clampPercent(pct);
+  const offset = C - (safePct / 100) * C;
   const color = passed === null ? "var(--stu-primary)" : passed ? "var(--stu-success)" : "var(--stu-danger)";
 
   return (
@@ -288,23 +241,23 @@ function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
         strokeDasharray={C}
         strokeDashoffset={offset}
         transform="rotate(-90 54 54)"
-        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        className={styles.gaugeProgress}
       />
       <text
         x={54}
         y={54}
         textAnchor="middle"
         dominantBaseline="central"
-        style={{ fontSize: 24, fontWeight: 900, fill: "var(--stu-text)" }}
+        className={styles.gaugeValue}
       >
-        {pct}
+        {safePct}
       </text>
       <text
         x={54}
         y={72}
         textAnchor="middle"
         dominantBaseline="central"
-        style={{ fontSize: 11, fontWeight: 600, fill: "var(--stu-text-muted)" }}
+        className={styles.gaugeUnit}
       >
         %
       </text>
@@ -331,40 +284,29 @@ function RankComparisonCard({
     ? Math.round(rank / cohortSize * 100)
     : 100;
   const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
-  const avgBarPct = cohortAvg != null && maxScore > 0 ? Math.round((cohortAvg / maxScore) * 100) : 0;
-  const myBarPct = maxScore > 0 ? Math.round((myScore / maxScore) * 100) : 0;
+  const avgBarPct = cohortAvg != null && maxScore > 0
+    ? clampPercent(Math.round((cohortAvg / maxScore) * 100))
+    : 0;
+  const myBarPct = maxScore > 0 ? clampPercent(Math.round((myScore / maxScore) * 100)) : 0;
 
   return (
-    <div
-      style={{
-        background: "var(--stu-surface-soft)",
-        borderRadius: "var(--stu-radius)",
-        padding: "var(--stu-space-5)",
-      }}
-    >
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: "var(--stu-space-4)" }}>
+    <div className={styles.cardPanel}>
+      <div className={styles.sectionTitle}>
         내 등수
       </div>
 
       {/* Rank badge */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: "var(--stu-space-3)", marginBottom: "var(--stu-space-4)" }}>
-        <span style={{ fontSize: 28, fontWeight: 900, color: "var(--stu-primary)" }}>
+      <div className={styles.rankRow}>
+        <span className={styles.rankValue}>
           {rank}등
         </span>
-        <span className="stu-muted" style={{ fontSize: 13 }}>
+        <span className={`stu-muted ${styles.rankTotal}`}>
           / {cohortSize}명
         </span>
         {topPct > 0 && (
           <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: topPct <= 30 ? "var(--stu-success-bg)" : "var(--stu-surface)",
-              color: topPct <= 30 ? "var(--stu-success-text)" : "var(--stu-text-muted)",
-              border: `1px solid ${topPct <= 30 ? "var(--stu-success)" : "var(--stu-border)"}`,
-            }}
+            className={styles.rankBadge}
+            data-elite={topPct <= 30}
           >
             상위 {topPct}%
           </span>
@@ -374,37 +316,29 @@ function RankComparisonCard({
       {/* Average comparison bar */}
       {cohortAvg != null && (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: "var(--stu-space-2)" }}>
+          <div className={styles.comparisonHeader}>
             <span className="stu-muted">전체 평균 {cohortAvg}점</span>
-            <span style={{ fontWeight: 700, color: diff != null && diff >= 0 ? "var(--stu-success-text)" : "var(--stu-danger-text)" }}>
+            <span className={styles.diffValue} data-positive={diff != null && diff >= 0}>
               {diff != null ? (diff >= 0 ? `+${diff}점` : `${diff}점`) : ""}
             </span>
           </div>
-          <div style={{ position: "relative", height: 8, borderRadius: 4, background: "var(--stu-border)", overflow: "hidden" }}>
-            {/* Average marker */}
-            <div
-              style={{
-                position: "absolute",
-                left: `${avgBarPct}%`,
-                top: 0,
-                bottom: 0,
-                width: 2,
-                background: "var(--stu-text-muted)",
-                zIndex: 2,
-              }}
+          <svg
+            className={styles.comparisonChart}
+            viewBox="0 0 100 8"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <rect width="100" height="8" fill="var(--stu-border)" rx="4" />
+            <rect
+              className={styles.comparisonFill}
+              width={myBarPct}
+              height="8"
+              fill={myBarPct >= avgBarPct ? "var(--stu-success)" : "var(--stu-danger)"}
+              rx="4"
             />
-            {/* My score bar */}
-            <div
-              style={{
-                width: `${myBarPct}%`,
-                height: "100%",
-                borderRadius: 4,
-                background: myBarPct >= avgBarPct ? "var(--stu-success)" : "var(--stu-danger)",
-                transition: "width 0.4s ease",
-              }}
-            />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 2 }}>
+            <rect x={avgBarPct} width="2" height="8" fill="var(--stu-text-muted)" />
+          </svg>
+          <div className={styles.axisRow}>
             <span className="stu-muted">0</span>
             <span className="stu-muted">{maxScore}</span>
           </div>
@@ -419,50 +353,27 @@ function RankComparisonCard({
 function CorrectBar({ correct, wrong }: { correct: number; wrong: number }) {
   const total = correct + wrong;
   if (total === 0) return null;
-  const cPct = (correct / total) * 100;
+  const cPct = clampPercent((correct / total) * 100);
 
   return (
-    <div
-      style={{
-        background: "var(--stu-surface-soft)",
-        borderRadius: "var(--stu-radius)",
-        padding: "var(--stu-space-5)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 13,
-          fontWeight: 600,
-          marginBottom: "var(--stu-space-3)",
-        }}
-      >
-        <span style={{ color: "var(--stu-success-text)" }}>
+    <div className={styles.cardPanel}>
+      <div className={styles.ratioHeader}>
+        <span className={styles.correctText}>
           정답 {correct}문항
         </span>
-        <span style={{ color: "var(--stu-danger-text)" }}>
+        <span className={styles.wrongText}>
           오답 {wrong}문항
         </span>
       </div>
-      <div
-        style={{
-          height: 8,
-          borderRadius: 4,
-          background: "var(--stu-danger)",
-          overflow: "hidden",
-          display: "flex",
-        }}
+      <svg
+        className={styles.comparisonChart}
+        viewBox="0 0 100 8"
+        preserveAspectRatio="none"
+        aria-hidden="true"
       >
-        <div
-          style={{
-            width: `${cPct}%`,
-            background: "var(--stu-success)",
-            borderRadius: 4,
-            transition: "width 0.4s ease",
-          }}
-        />
-      </div>
+        <rect width="100" height="8" fill="var(--stu-danger)" rx="4" />
+        <rect className={styles.comparisonFill} width={cPct} height="8" fill="var(--stu-success)" rx="4" />
+      </svg>
     </div>
   );
 }
@@ -494,25 +405,9 @@ function QuestionGrid({
   return (
     <div>
       {/* Grid — 한 줄에 5개 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 6,
-        }}
-      >
+      <div className={styles.questionGrid}>
         {items.map((it) => {
           const isSelected = selected === it.question_number;
-          const chipBg = answersVisible
-            ? it.is_correct
-              ? "var(--stu-success-bg)"
-              : "var(--stu-surface-soft)"
-            : "var(--stu-surface-soft)";
-          const chipBorder = answersVisible
-            ? it.is_correct
-              ? "1.5px solid var(--stu-success)"
-              : "1.5px solid var(--stu-danger)"
-            : "1.5px solid var(--stu-border)";
 
           return (
             <button
@@ -523,28 +418,10 @@ function QuestionGrid({
               }
               aria-pressed={isSelected}
               aria-label={`${it.question_number}번 ${answersVisible ? (it.is_correct ? "정답" : "오답") : ""}`}
-              style={{
-                width: "100%",
-                aspectRatio: "1 / 1",
-                maxWidth: 40,
-                borderRadius: 10,
-                border: chipBorder,
-                background: chipBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--stu-text)",
-                padding: 0,
-                outline: "none",
-                boxShadow: isSelected
-                  ? "0 0 0 2px var(--stu-primary)"
-                  : "none",
-                transform: isSelected ? "scale(1.08)" : "scale(1)",
-                transition: "all 0.15s ease",
-              }}
+              className={styles.questionButton}
+              data-answers-visible={answersVisible}
+              data-correct={it.is_correct}
+              data-selected={isSelected}
             >
               {it.question_number}
             </button>
@@ -555,42 +432,22 @@ function QuestionGrid({
       {/* Expanded Detail */}
       {selectedItem && (
         <div
-          style={{
-            marginTop: "var(--stu-space-3)",
-            border: "1px solid var(--stu-border)",
-            borderRadius: "var(--stu-radius)",
-            padding: "var(--stu-space-4)",
-            background: selectedItem.is_correct
-              ? "var(--stu-success-bg)"
-              : "var(--stu-surface-soft)",
-            animation: "stuSlideDown 0.2s ease",
-          }}
+          className={styles.questionDetail}
+          data-correct={selectedItem.is_correct}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--stu-space-3)",
-            }}
-          >
-            <span style={{ fontWeight: 700, fontSize: 14 }}>
+          <div className={styles.questionDetailHeader}>
+            <span className={styles.questionNumber}>
               {selectedItem.question_number}번
             </span>
             <GradeBadge
               passed={selectedItem.is_correct}
               label={{ pass: "정답", fail: "오답" }}
             />
-            <span
-              className="stu-muted"
-              style={{ fontSize: 12, marginLeft: "auto" }}
-            >
+            <span className={`stu-muted ${styles.questionScore}`}>
               {selectedItem.score}/{selectedItem.max_score}점
             </span>
           </div>
-          <div
-            className="stu-muted"
-            style={{ marginTop: "var(--stu-space-2)", fontSize: 13 }}
-          >
+          <div className={`stu-muted ${styles.answerLine}`}>
             내 답: {selectedItem.student_answer ?? "-"}
             {showAnswer && selectedItem.correct_answer != null
               ? ` \u00B7 정답: ${selectedItem.correct_answer}`
@@ -600,4 +457,8 @@ function QuestionGrid({
       )}
     </div>
   );
+}
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value));
 }
