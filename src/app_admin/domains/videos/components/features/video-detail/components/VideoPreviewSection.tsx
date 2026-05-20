@@ -1,5 +1,6 @@
 import AdminHlsPreview from "./AdminHlsPreview";
 import VideoProcessingPreview from "./VideoProcessingPreview";
+import styles from "./VideoPreviewSection.module.css";
 
 interface Props {
   hlsSrc: string | null;
@@ -23,13 +24,7 @@ export default function VideoPreviewSection({
   return isReady && hlsSrc ? (
     <AdminHlsPreview src={hlsSrc} />
   ) : (
-    <div
-      style={{
-        borderRadius: 16,
-        overflow: "hidden",
-        background: "var(--color-bg-surface-soft)",
-      }}
-    >
+    <div className={styles.processingFrame}>
       <VideoProcessingPreview
         status={status}
         percent={progressPercent}

@@ -4,6 +4,7 @@
 import { Button } from "@/shared/ui/ds";
 import { VIDEO_STATUS_LABEL } from "@admin/domains/videos/utils/videoStatus";
 import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
+import styles from "./VideoProcessingPreview.module.css";
 
 interface Props {
   percent?: number | null;
@@ -39,26 +40,20 @@ export default function VideoProcessingPreview({
   const description = STATUS_DESC[status] ?? "처리 중...";
 
   return (
-    <div className="flex flex-col items-center justify-center h-[320px] rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">
-      <div className="text-sm font-semibold text-[var(--color-text-primary)]">
-        {statusLabel}
-      </div>
+    <div className={styles.root}>
+      <div className={styles.statusLabel}>{statusLabel}</div>
 
-      <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-        {description}
-      </div>
+      <div className={styles.description}>{description}</div>
 
       {status === "FAILED" && errorReason && (
-        <div className="mt-2 text-xs text-[var(--color-danger)] max-w-[420px] text-center px-2">
-          사유: {errorReason}
-        </div>
+        <div className={styles.errorReason}>사유: {errorReason}</div>
       )}
 
       {onRetry && (
         <Button
           intent="secondary"
           size="sm"
-          className="mt-4"
+          className={styles.retryButton}
           onClick={onRetry}
           disabled={isRetrying}
         >
@@ -67,19 +62,28 @@ export default function VideoProcessingPreview({
       )}
 
       {/* Progress Bar */}
-      <div className="mt-6 w-[260px]">
-        <div className="h-2 rounded bg-[var(--color-bg-app)] overflow-hidden">
+      <div className={styles.progressWrap}>
+        <div className={styles.progressTrack}>
           {safePercent != null ? (
-            <div
-              className="h-full bg-[var(--color-primary)] transition-all"
-              style={{ width: `${safePercent}%` }}
+            <progress
+              className={styles.progressBar}
+              max={100}
+              value={safePercent}
+              aria-label="영상 처리 진행률"
             />
           ) : (
-            <div className="h-full w-full bg-[var(--color-primary)] animate-pulse opacity-60" />
+            <div
+              className={styles.progressIndeterminate}
+              role="progressbar"
+              aria-label="영상 처리 대기 중"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuetext="곧 시작됩니다"
+            />
           )}
         </div>
 
-        <div className="mt-2 text-center text-xs text-[var(--color-text-secondary)]">
+        <div className={styles.progressText}>
           {safePercent != null ? `${safePercent}%` : "곧 시작됩니다…"}
         </div>
       </div>

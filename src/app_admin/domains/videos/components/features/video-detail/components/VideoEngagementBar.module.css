@@ -1,0 +1,70 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface-soft);
+}
+
+.divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 28px;
+  background: var(--color-border-divider);
+}
+
+.statPill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 20px;
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.iconDanger {
+  color: var(--color-danger);
+}
+
+.iconPrimary {
+  color: var(--color-primary);
+}
+
+.statText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 0;
+}
+
+.skeletonValue {
+  display: block;
+  width: 32px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+}
+
+.value {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}

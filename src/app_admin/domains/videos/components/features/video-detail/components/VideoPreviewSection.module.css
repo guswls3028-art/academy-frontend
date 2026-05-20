@@ -1,0 +1,5 @@
+.processingFrame {
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--color-bg-surface-soft);
+}
