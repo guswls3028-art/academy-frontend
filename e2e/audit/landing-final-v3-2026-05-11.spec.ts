@@ -1,6 +1,7 @@
 // 최종 v3 — 갤러리/외부인 시점/SEO/통합 NavBar/개인 폰 가드 검증.
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const PROD = "https://tchul.com";
 const OUT = "C:/academy/_artifacts/sessions/tchul-landing-2026-05-11";
@@ -9,8 +10,9 @@ test.describe("최종 v3 검수", () => {
   test("/landing/reports 갤러리 — 통산 KPI + 카드 그리드", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing/reports`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2500);
+    await gotoAndSettle(page, `${PROD}/landing/reports`, { timeout: 20_000 });
+    await expect(page.getByText("통산 적중률")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href*="/landing/reports/"]').first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/v6-gallery-desktop.png`, fullPage: true });
 
     const totalRate = await page.getByText("통산 적중률").count();
@@ -26,21 +28,24 @@ test.describe("최종 v3 검수", () => {
   test("hit_reports 섹션 하단 '모두 보기 →' 진입", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
     const allLink = page.getByText("적중 사례 모두 보기");
-    await expect(allLink).toBeVisible();
-    await allLink.click();
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1500);
+    await expect(allLink).toBeVisible({ timeout: 10_000 });
+    await Promise.all([
+      page.waitForURL(/\/landing\/reports$/, { timeout: 15_000 }),
+      allLink.click(),
+    ]);
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    await expect(page.getByText("통산 적중률")).toBeVisible({ timeout: 10_000 });
     expect(page.url()).toContain("/landing/reports");
     await ctx.close();
   });
 
   test("외부인 시점 토글 — admin로그인 후 ?preview=public", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${PROD}/landing?preview=public`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await gotoAndSettle(page, `${PROD}/landing?preview=public`, { timeout: 20_000 });
+    await expect(page.getByText("외부 학부모 시점 미리보기")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("학원장 시점으로 돌아가기")).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${OUT}/v6-preview-public-banner.png`, clip: { x: 0, y: 0, width: 1920, height: 200 } });
     const banner = await page.getByText("외부 학부모 시점 미리보기").count();
     const restoreBtn = await page.getByText("학원장 시점으로 돌아가기").count();
@@ -54,8 +59,14 @@ test.describe("최종 v3 검수", () => {
   test("SEO OG 메타 — head 검사", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await page.waitForFunction(
+      () => document.title.includes("박철")
+        && !!document.querySelector('meta[property="og:title"]')
+        && !!document.querySelector('meta[name="twitter:card"]'),
+      null,
+      { timeout: 10_000 },
+    );
     const meta = await page.evaluate(() => {
       const get = (sel: string) => (document.querySelector(sel) as HTMLMetaElement | null)?.content || "";
       return {
