@@ -1,6 +1,7 @@
 // 자체 리뷰 batch 검증 — 통산 KPI 자동 + viewport 다양화 + PII 가드.
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
+import { gotoAndSettle } from "../helpers/wait";
 
 const PROD = "https://tchul.com";
 const OUT = "C:/academy/_artifacts/sessions/tchul-landing-2026-05-11";
@@ -16,8 +17,11 @@ test.describe("자체 리뷰 batch 검증", () => {
     test(`viewport ${vp.name} — 통산 KPI 자동 + 풀 캡처`, async ({ browser }) => {
       const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h }, deviceScaleFactor: vp.w < 500 ? 2 : 1 });
       const page = await ctx.newPage();
-      await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-      await page.waitForTimeout(1500);
+      await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+      await expect(page.locator("nav").first()).toBeVisible({ timeout: 10_000 });
+      if (vp.w >= 768) {
+        await expect(page.getByText("통산 적중률").first()).toBeVisible({ timeout: 10_000 });
+      }
       await page.screenshot({ path: `${OUT}/v4-${vp.name}-full.png`, fullPage: true });
 
       // 강사 프로필 통산 KPI 자동 노출 검증
@@ -33,8 +37,8 @@ test.describe("자체 리뷰 batch 검증", () => {
   test("학원장 username PII — 외부 노출 0건 검증", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await ctx.newPage();
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.locator("nav").first()).toBeVisible({ timeout: 10_000 });
     const phoneFmt = await page.getByText(/01035023313/).count();
     console.log("PERSONAL_PHONE_LEAK:", phoneFmt);
     expect(phoneFmt).toBe(0);
@@ -43,8 +47,8 @@ test.describe("자체 리뷰 batch 검증", () => {
 
   test("학원장 로그인 시 NavRoleMenu /student 라우트 (parent fix)", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${PROD}/landing`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await gotoAndSettle(page, `${PROD}/landing`, { timeout: 20_000 });
+    await expect(page.getByRole("link", { name: /관리실/ }).first()).toBeVisible({ timeout: 10_000 });
     // owner는 "관리실" 메뉴 노출 (parent와 무관)
     const adminLink = await page.getByRole("link", { name: /관리실/ }).count();
     expect(adminLink).toBeGreaterThanOrEqual(1);
