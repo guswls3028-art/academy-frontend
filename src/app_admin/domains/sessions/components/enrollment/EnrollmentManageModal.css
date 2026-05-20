@@ -1,0 +1,65 @@
+.enrollment-manage-modal__layout {
+  grid-template-columns: 1fr 220px;
+  min-height: 380px;
+}
+
+.enrollment-manage-modal__toolbar {
+  margin-bottom: 12px;
+}
+
+.enrollment-manage-modal__count {
+  border-right: 1px solid var(--color-border-divider);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  margin-right: 4px;
+  padding-right: 12px;
+}
+
+.enrollment-manage-modal__search-wrap {
+  max-width: 420px;
+}
+
+.enrollment-manage-modal__search-input {
+  max-width: 360px;
+}
+
+.enrollment-manage-modal__error {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.enrollment-manage-modal__table-panel,
+.enrollment-manage-modal__selected-panel {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-divider);
+}
+
+.enrollment-manage-modal__table {
+  table-layout: fixed;
+}
+
+.enrollment-manage-modal__header-row {
+  background: var(--color-bg-surface);
+}
+
+.enrollment-manage-modal__header-cell,
+.enrollment-manage-modal__row,
+.enrollment-manage-modal__table-footer {
+  border-color: var(--color-border-divider);
+}
+
+.enrollment-manage-modal__selected-count {
+  color: var(--color-text-muted);
+}
+
+.enrollment-manage-modal__selected-count[data-selected="true"] {
+  color: var(--color-brand-primary);
+}
+
+.enrollment-manage-modal__selected-list {
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-bg-surface-soft);
+  border-color: var(--color-border-divider);
+}
