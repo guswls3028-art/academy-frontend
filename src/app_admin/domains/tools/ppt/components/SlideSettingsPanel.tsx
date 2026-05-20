@@ -2,6 +2,7 @@
 // PPT 생성 설정 패널 — 비율, 배경, 배치, 반전, 밝기/대비
 
 import type { PptSettings } from "../api/ppt.api";
+import styles from "./SlideSettingsPanel.module.css";
 
 interface SlideSettingsPanelProps {
   settings: PptSettings;
@@ -15,9 +16,9 @@ const RATIO_OPTIONS = [
 ];
 
 const BG_OPTIONS = [
-  { value: "black", label: "검정", color: "#000" },
-  { value: "dark_gray", label: "진회", color: "#1e1e1e" },
-  { value: "white", label: "흰색", color: "#fff" },
+  { value: "black", label: "검정" },
+  { value: "dark_gray", label: "진회" },
+  { value: "white", label: "흰색" },
 ];
 
 const FIT_OPTIONS = [
@@ -28,13 +29,7 @@ const FIT_OPTIONS = [
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      fontSize: 12,
-      fontWeight: 600,
-      color: "var(--color-text-muted)",
-      marginBottom: 6,
-      letterSpacing: "0.02em",
-    }}>
+    <div className={styles.sectionLabel}>
       {children}
     </div>
   );
@@ -44,13 +39,13 @@ function OptionButton({
   selected,
   onClick,
   disabled,
-  style,
+  className = "",
   children,
 }: {
   selected: boolean;
   onClick: () => void;
   disabled?: boolean;
-  style?: React.CSSProperties;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -58,20 +53,7 @@ function OptionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        padding: "8px 10px",
-        borderRadius: "var(--radius-md, 8px)",
-        border: selected ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-        background: selected
-          ? "color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface))"
-          : "var(--bg-surface)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        textAlign: "center",
-        transition: "all 0.15s",
-        overflow: "hidden",
-        minWidth: 0,
-        ...style,
-      }}
+      className={`${styles.optionButton} ${selected ? styles.optionButtonSelected : ""} ${className}`}
     >
       {children}
     </button>
@@ -98,41 +80,16 @@ function ToggleRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "8px 12px",
-        borderRadius: "var(--radius-md, 8px)",
-        border: active ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-        background: active
-          ? "color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface))"
-          : "var(--bg-surface)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        textAlign: "left",
-        transition: "all 0.15s",
-        width: "100%",
-      }}
+      className={`${styles.toggleRow} ${active ? styles.toggleRowActive : ""}`}
     >
-      <div style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: active ? "var(--color-primary)" : "var(--color-bg-disabled)",
-        color: active ? "#fff" : "var(--color-text-muted)",
-        flexShrink: 0,
-        transition: "all 0.15s",
-      }}>
+      <div className={`${styles.toggleIcon} ${active ? styles.toggleIconActive : ""}`}>
         {icon}
       </div>
-      <div style={{ minWidth: 0, overflow: "hidden" }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text-primary)" }}>
+      <div className={styles.toggleCopy}>
+        <div className={styles.toggleLabel}>
           {label}
         </div>
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div className={styles.toggleDesc}>
           {desc}
         </div>
       </div>
@@ -163,8 +120,8 @@ function SliderRow({
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>
+      <div className={styles.sliderHeader}>
+        <span className={styles.sliderLabel}>
           {label}
         </span>
         {!isDefault && (
@@ -172,16 +129,7 @@ function SliderRow({
             type="button"
             onClick={onReset}
             disabled={disabled}
-            style={{
-              fontSize: 10,
-              color: "var(--color-text-muted)",
-              background: "none",
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: 4,
-              padding: "1px 5px",
-              cursor: "pointer",
-              lineHeight: 1.4,
-            }}
+            className={styles.resetButton}
           >
             초기화
           </button>
@@ -195,16 +143,7 @@ function SliderRow({
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         disabled={disabled}
-        style={{
-          width: "100%",
-          height: 4,
-          appearance: "none",
-          background: `linear-gradient(to right, var(--color-primary) ${((value - min) / (max - min)) * 100}%, var(--color-bg-disabled) ${((value - min) / (max - min)) * 100}%)`,
-          borderRadius: 2,
-          outline: "none",
-          cursor: disabled ? "not-allowed" : "pointer",
-          accentColor: "var(--color-primary)",
-        }}
+        className={styles.slider}
       />
     </div>
   );
@@ -214,11 +153,11 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
   const update = (partial: Partial<PptSettings>) => onChange({ ...settings, ...partial });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className={styles.root}>
       {/* 슬라이드 비율 */}
       <div>
         <SectionLabel>슬라이드 비율</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
+        <div className={styles.gridTwo}>
           {RATIO_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -226,10 +165,10 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               onClick={() => update({ aspect_ratio: opt.value })}
               disabled={disabled}
             >
-              <div style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>
+              <div className={styles.ratioLabel}>
                 {opt.label}
               </div>
-              <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1 }}>
+              <div className={styles.optionDesc}>
                 {opt.desc}
               </div>
             </OptionButton>
@@ -240,24 +179,17 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 배경색 */}
       <div>
         <SectionLabel>배경색</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
+        <div className={styles.gridThree}>
           {BG_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
               selected={settings.background === opt.value}
               onClick={() => update({ background: opt.value })}
               disabled={disabled}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              className={styles.backgroundOption}
             >
-              <div style={{
-                width: 14,
-                height: 14,
-                borderRadius: 3,
-                background: opt.color,
-                border: "1px solid var(--color-border-divider-strong)",
-                flexShrink: 0,
-              }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
+              <div className={styles.backgroundSwatch} data-tone={opt.value} />
+              <span className={styles.backgroundLabel}>
                 {opt.label}
               </span>
             </OptionButton>
@@ -268,7 +200,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 이미지 배치 */}
       <div>
         <SectionLabel>이미지 배치</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", gap: 6 }}>
+        <div className={styles.gridThree}>
           {FIT_OPTIONS.map((opt) => (
             <OptionButton
               key={opt.value}
@@ -276,10 +208,10 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
               onClick={() => update({ fit_mode: opt.value })}
               disabled={disabled}
             >
-              <div style={{ fontWeight: 700, fontSize: 13, color: "var(--color-text-primary)" }}>
+              <div className={styles.fitLabel}>
                 {opt.label}
               </div>
-              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 1 }}>
+              <div className={styles.fitDesc}>
                 {opt.desc}
               </div>
             </OptionButton>
@@ -290,7 +222,7 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 빔프로젝터 효과 */}
       <div>
         <SectionLabel>빔프로젝터 효과</SectionLabel>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className={styles.toggleStack}>
           <ToggleRow
             active={settings.auto_enhance}
             onClick={() => update({ auto_enhance: !settings.auto_enhance })}
@@ -340,10 +272,10 @@ export default function SlideSettingsPanel({ settings, onChange, disabled }: Sli
       {/* 밝기 / 대비 수동 조절 */}
       <div>
         <SectionLabel>밝기 / 대비 수동 조절</SectionLabel>
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
+        <div className={styles.helperText}>
           자동 보정 결과가 맘에 안 들 때 직접 조절
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className={styles.sliderStack}>
           <SliderRow
             label="밝기"
             value={settings.brightness}

@@ -1,0 +1,222 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionLabel {
+  margin-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+
+.gridThree {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+
+.optionButton {
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+  border: 2px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.optionButton:disabled,
+.toggleRow:disabled,
+.resetButton:disabled,
+.slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.optionButtonSelected {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface));
+}
+
+.ratioLabel {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.optionDesc {
+  margin-top: 1px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.backgroundOption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.backgroundSwatch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-border-divider-strong);
+  border-radius: 3px;
+}
+
+.backgroundSwatch[data-tone="black"] {
+  background: #000;
+}
+
+.backgroundSwatch[data-tone="dark_gray"] {
+  background: #1e1e1e;
+}
+
+.backgroundSwatch[data-tone="white"] {
+  background: #fff;
+}
+
+.backgroundLabel {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fitLabel {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fitDesc {
+  margin-top: 1px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.toggleStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 2px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.toggleRowActive {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface));
+}
+
+.toggleIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-bg-disabled);
+  color: var(--color-text-muted);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.toggleIconActive {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.toggleCopy {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.toggleLabel {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleDesc {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sliderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sliderLabel {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.resetButton {
+  padding: 1px 5px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.helperText {
+  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sliderStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
