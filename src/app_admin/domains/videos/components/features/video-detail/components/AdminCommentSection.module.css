@@ -1,0 +1,375 @@
+.root {
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.count {
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cancelReplyButton,
+.repliesToggle,
+.actionButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cancelReplyButton {
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
+.replyIndicator {
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
+.composer {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.composerInput,
+.editInput {
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.composerInput:focus,
+.editInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.composerInput {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.submitButton {
+  flex-shrink: 0;
+  align-self: flex-end;
+  min-width: 62px;
+  height: 40px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.submitButton:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.deletedComment {
+  padding: 12px 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.deletedCommentReply {
+  padding-left: 48px;
+}
+
+.commentRow {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.commentRowReply {
+  padding: 10px 0 10px 48px;
+  border-bottom: none;
+}
+
+.avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 2px solid var(--color-border-divider);
+  border-radius: 50%;
+  background: var(--color-bg-surface-soft);
+}
+
+.avatarCompact {
+  width: 30px;
+  height: 30px;
+}
+
+.avatarTeacher {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.avatarStudent {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarInitial {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.avatarCompact .avatarInitial {
+  font-size: 12px;
+}
+
+.avatarTeacher .avatarInitial {
+  color: #fff;
+}
+
+.commentBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.authorName {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.authorTeacher {
+  color: var(--color-primary);
+}
+
+.roleBadge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.roleTeacher {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.roleStudent {
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.timestamp {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.editedLabel {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.editForm {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.editInput {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.primaryButton {
+  padding: 6px 14px;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primaryButton:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.secondaryButton {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.commentContent {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.actionButton {
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.actionDanger {
+  color: var(--color-danger);
+}
+
+.repliesToggleWrap {
+  margin-top: 8px;
+}
+
+.repliesToggle {
+  padding: 0;
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
+.loadingList {
+  padding: 20px 0;
+}
+
+.skeletonRow {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.skeletonAvatar,
+.skeletonTitle,
+.skeletonText {
+  border-radius: 4px;
+  background: var(--color-bg-surface-soft);
+}
+
+.skeletonAvatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.skeletonBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.skeletonTitle {
+  width: 120px;
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeletonText {
+  width: 80%;
+  height: 14px;
+}
+
+.emptyState {
+  padding: 32px 0;
+  text-align: center;
+}
+
+.emptyIcon {
+  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  font-size: 32px;
+  opacity: 0.3;
+}
+
+.emptyIconSvg {
+  margin: 0 auto;
+}
+
+.emptyTitle {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.emptyHint {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  opacity: 0.7;
+}

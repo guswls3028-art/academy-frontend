@@ -11,6 +11,10 @@ type LectureWithSessions = Lecture & { sessions?: Session[] };
 
 export type VideoFolderId = "public" | number | null; // "public" | sessionId | folderId (음수는 폴더 ID)
 
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
 type Props = {
   lectures: LectureWithSessions[];
   publicFolders?: VideoFolder[];
@@ -29,13 +33,11 @@ function FolderTreeNode({
   allFolders,
   currentFolderId,
   onSelectFolder,
-  level = 0,
 }: {
   folder: VideoFolder;
   allFolders: VideoFolder[];
   currentFolderId: VideoFolderId;
   onSelectFolder: (folderId: VideoFolderId) => void;
-  level?: number;
 }) {
   const children = allFolders.filter((f) => f.parent_id === folder.id);
   const folderId = -folder.id; // 음수로 폴더 ID 구분
@@ -45,9 +47,8 @@ function FolderTreeNode({
     <div className={styles.node}>
       <button
         type="button"
-        className={styles.item + (isActive ? " " + styles.itemActive : "")}
+        className={cx(styles.item, isActive && styles.itemActive)}
         onClick={() => onSelectFolder(folderId)}
-        style={{ marginLeft: `${level * 16}px` }}
       >
         <FolderOpen size={16} aria-hidden />
         <span>{folder.name}</span>
@@ -61,7 +62,6 @@ function FolderTreeNode({
               allFolders={allFolders}
               currentFolderId={currentFolderId}
               onSelectFolder={onSelectFolder}
-              level={level + 1}
             />
           ))}
         </div>
@@ -82,12 +82,11 @@ export default function VideoExplorerTree({
     <div className={styles.root}>
       <button
         type="button"
-        className={
-          styles.item +
-          " " +
-          styles.itemPublic +
-          (currentFolderId === "public" ? " " + styles.itemActive : "")
-        }
+        className={cx(
+          styles.item,
+          styles.itemPublic,
+          currentFolderId === "public" && styles.itemActive
+        )}
         onClick={() => onSelectFolder("public")}
       >
         <FolderOpen size={20} aria-hidden />
@@ -122,7 +121,7 @@ export default function VideoExplorerTree({
                     <button
                       key={s.id}
                       type="button"
-                      className={styles.item + (isActive ? " " + styles.itemActive : "")}
+                      className={cx(styles.item, isActive && styles.itemActive)}
                       onClick={() => onSelectFolder(s.id)}
                     >
                       <FolderOpen size={16} aria-hidden />
