@@ -1,0 +1,16 @@
+.highlightMark {
+  padding-inline: 2px;
+  border-radius: 4px;
+  background-color: var(--state-selected-bg);
+  color: inherit;
+}
+
+.sortIcon {
+  font-size: 11px;
+  color: var(--color-primary);
+  opacity: 0.35;
+}
+
+.sortIcon[data-active="true"] {
+  opacity: 1;
+}

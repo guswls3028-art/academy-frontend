@@ -5,6 +5,8 @@ import { DomainTable, TABLE_COL, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
+import type { ClientStudent } from "../api/students.api";
+import styles from "./StudentsTable.module.css";
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -20,11 +22,7 @@ function highlight(text: string, keyword: string) {
     p.toLowerCase() === k.toLowerCase() ? (
       <mark
         key={`hl-${i}-${String(p).slice(0, 8)}`}
-        className="px-0.5 rounded"
-        style={{
-          backgroundColor: "var(--state-selected-bg)",
-          color: "inherit",
-        }}
+        className={styles.highlightMark}
       >
         {p}
       </mark>
@@ -35,6 +33,7 @@ function highlight(text: string, keyword: string) {
 }
 
 /** 학생 테이블 컬럼 정의 (useTableColumnPrefs + TableColumnPicker + 테이블 렌더 단일 진실) */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getStudentsTableColumnsDef(isDeletedTab: boolean): TableColumnDef[] {
   return [
     { key: "name", label: "이름", defaultWidth: TABLE_COL.name, minWidth: 80 },
@@ -66,7 +65,7 @@ export default function StudentsTable({
   togglingId = null,
   columnPrefs,
 }: {
-  data: any[];
+  data: ClientStudent[];
   search: string;
   sort: string;
   onSortChange: (v: string) => void;
@@ -149,11 +148,8 @@ export default function StudentsTable({
         {label}
         <span
           aria-hidden
-          style={{
-            fontSize: 11,
-            opacity: isAsc || isDesc ? 1 : 0.35,
-            color: "var(--color-primary)",
-          }}
+          className={styles.sortIcon}
+          data-active={isAsc || isDesc ? "true" : "false"}
         >
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
@@ -183,6 +179,7 @@ export default function StudentsTable({
         className="cursor-pointer select-none"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
+        // eslint-disable-next-line no-restricted-syntax
         style={{ width: w }}
       >
         {content}
@@ -190,7 +187,7 @@ export default function StudentsTable({
     );
   }
 
-  const getCellContent = (colKey: string, s: any) => {
+  const getCellContent = (colKey: string, s: ClientStudent) => {
     switch (colKey) {
       case "name":
         return (
@@ -231,6 +228,7 @@ export default function StudentsTable({
               <span
                 key={t.id}
                 className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[70px]"
+                // eslint-disable-next-line no-restricted-syntax
                 style={{
                   backgroundColor: t.color ? `${t.color}22` : "var(--color-bg-surface-soft)",
                   color: t.color || "var(--color-text-secondary)",
@@ -286,6 +284,7 @@ export default function StudentsTable({
     <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: tableWidth }}>
       <colgroup>
         {columns.map((c) => (
+          // eslint-disable-next-line no-restricted-syntax
           <col key={c.key} style={{ width: c.w }} />
         ))}
       </colgroup>
@@ -294,6 +293,7 @@ export default function StudentsTable({
         <tr>
           {columns.map((c) =>
             c.key === "_checkbox" ? (
+              // eslint-disable-next-line no-restricted-syntax
               <th key="_checkbox" scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                 {onSelectionChange ? (
                   <input
@@ -319,6 +319,7 @@ export default function StudentsTable({
                   태그
                 </ResizableTh>
               ) : (
+                // eslint-disable-next-line no-restricted-syntax
                 <th key="tags" scope="col" style={{ width: c.w }}>
                   태그
                 </th>
@@ -339,6 +340,7 @@ export default function StudentsTable({
             role="button"
             className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
           >
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <td onClick={(e) => e.stopPropagation()} style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
               {onSelectionChange ? (
                 <input
@@ -354,6 +356,7 @@ export default function StudentsTable({
             {dataColumns.map((c) => (
               <td
                 key={c.key}
+                // eslint-disable-next-line no-restricted-syntax
                 style={{ width: c.w }}
                 className={cellClass(c.key)}
                 onClick={c.key === "active" ? (e) => e.stopPropagation() : undefined}
