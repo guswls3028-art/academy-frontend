@@ -13,6 +13,7 @@ import { patchStaffDetail } from "../../api/staff.detail.api";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import "./StaffHomeTable.css";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
@@ -36,12 +37,11 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
         return (
           <span
             key={st.id}
-            className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
+            className="staff-home-work-type-tag inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
+            // eslint-disable-next-line no-restricted-syntax -- 시급태그 색상은 서버 저장값을 행별로 표시해야 한다.
             style={{
               backgroundColor: color,
               color: contrastTextColor(color),
-              border: "none",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
             }}
             title={`${name} · ${wage != null ? `${wage.toLocaleString()}원/시` : ""}`}
           >
@@ -77,11 +77,11 @@ function WorkTypeOption({
       disabled={disabled}
     >
       <span
-        className="inline-flex items-center shrink-0 px-2 py-1 rounded text-[12px] font-semibold"
+        className="staff-home-work-type-option inline-flex items-center shrink-0 px-2 py-1 rounded text-[12px] font-semibold"
+        // eslint-disable-next-line no-restricted-syntax -- 드롭다운 옵션도 서버 저장 태그 색상을 그대로 보여줘야 한다.
         style={{
           backgroundColor: color,
           color: contrastTextColor(color),
-          boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
         }}
       >
         {label}
@@ -159,7 +159,11 @@ function StaffHomeSortableTh({
     >
       <span className="inline-flex items-center justify-center gap-2">
         {label}
-        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+        <span
+          aria-hidden
+          className="staff-home-sort-icon"
+          data-active={isAsc || isDesc ? "true" : "false"}
+        >
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
       </span>
@@ -170,14 +174,16 @@ function StaffHomeSortableTh({
 export function StaffHomeTable({
   staffs,
   owner,
-  onOperate,
   onDetail,
   canManage,
   selectedIds: controlledSelectedIds,
   onSelectionChange,
   searchQuery,
 }: Props) {
-  const dataSource: Staff[] = Array.isArray(staffs) ? staffs : [];
+  const dataSource = useMemo<Staff[]>(
+    () => (Array.isArray(staffs) ? staffs : []),
+    [staffs]
+  );
   // 검색어가 있을 때 owner 행은 이름/전화에 매칭될 때만 표시
   const needle = (searchQuery ?? "").trim().toLowerCase();
   const ownerMatchesSearch =
@@ -326,12 +332,13 @@ export function StaffHomeTable({
   }
 
   return (
-    <div style={{ width: "fit-content" }}>
+    <div className="staff-home-table-shell">
       <DomainTable
         tableClassName="ds-table--flat ds-table--center"
         tableStyle={{ tableLayout: "fixed", width: tableWidth }}
       >
         <colgroup>
+          {/* eslint-disable no-restricted-syntax -- 사용자 조정 컬럼 폭은 col width로 전달해야 한다. */}
           <col style={{ width: COL.checkbox }} />
           <col style={{ width: columnWidths.role ?? COL.role }} />
           <col style={{ width: columnWidths.name ?? COL.name }} />
@@ -340,10 +347,12 @@ export function StaffHomeTable({
           <col style={{ width: columnWidths.manager ?? COL.manager }} />
           <col style={{ width: columnWidths.payType ?? COL.payType }} />
           <col style={{ width: columnWidths.workTypeTags ?? COL.workTypeTags }} />
+          {/* eslint-enable no-restricted-syntax */}
         </colgroup>
 
         <thead>
           <tr>
+            {/* eslint-disable-next-line no-restricted-syntax -- 체크박스 컬럼 폭을 colgroup과 맞춘다. */}
             <th scope="col" style={{ width: COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
@@ -369,6 +378,7 @@ export function StaffHomeTable({
         <tbody>
           {hasOwner && (
             <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="대표">
+              {/* eslint-disable-next-line no-restricted-syntax -- 체크박스 컬럼 폭을 colgroup과 맞춘다. */}
               <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
                 <input
                   type="checkbox"
@@ -417,6 +427,7 @@ export function StaffHomeTable({
               role="button"
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(r.id) ? "ds-row-selected" : ""}`}
             >
+              {/* eslint-disable-next-line no-restricted-syntax -- 체크박스 컬럼 폭을 colgroup과 맞춘다. */}
               <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
                 <input
                   type="checkbox"

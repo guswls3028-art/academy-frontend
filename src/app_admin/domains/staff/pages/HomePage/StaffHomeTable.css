@@ -1,0 +1,22 @@
+.staff-home-work-type-tag,
+.staff-home-work-type-option {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+}
+
+.staff-home-work-type-tag {
+  border: 0;
+}
+
+.staff-home-sort-icon {
+  color: var(--color-primary);
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+.staff-home-sort-icon[data-active="true"] {
+  opacity: 1;
+}
+
+.staff-home-table-shell {
+  width: fit-content;
+}
