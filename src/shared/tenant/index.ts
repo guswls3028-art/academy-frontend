@@ -25,7 +25,7 @@ import { HOSTNAME_TO_TENANT_CODE } from "./config";
 export const TENANT_STORAGE_KEY = "tenant_code";
 
 export type TenantResolveResult =
-  | { ok: true; code: string; source: "storage" | "env" | "hostname" }
+  | { ok: true; code: string; source: "path" | "storage" | "env" | "hostname" }
   | { ok: false; reason: "missing" | "invalid_host" };
 
 function normalizeHost(host: string): string {
@@ -39,6 +39,18 @@ function safeGetHostname(): string {
     return normalizeHost(window.location.hostname || "");
   } catch {
     return "";
+  }
+}
+
+function getTenantCodeFromLoginPath(): string | null {
+  try {
+    const pathname = window.location.pathname || "";
+    const parts = pathname.split("/").filter(Boolean);
+    const loginIdx = parts.indexOf("login");
+    const code = loginIdx >= 0 ? parts[loginIdx + 1] : null;
+    return code ? String(code).trim() : null;
+  } catch {
+    return null;
   }
 }
 
@@ -103,18 +115,34 @@ export function getTenantCodeFromHostname(hostname?: string): TenantResolveResul
 
 /**
  * Resolve tenant in deterministic priority order:
- * 1) storage (operator choice)
- * 2) env (explicit dev setting)
- * 3) hostname (prod canonical)
+ * 1) hostname (prod canonical)
+ * 2) login path (local/preview bootstrap)
+ * 3) storage (dev/bootstrap operator choice only)
+ * 4) env (explicit dev setting)
+ * 5) hostname (local/dev fallback)
  */
 export function resolveTenantCode(): TenantResolveResult {
+  const host = safeGetHostname();
+  const isLocal = host === "localhost" || host === "127.0.0.1";
+  const isPreview = host.endsWith(".pages.dev") || host.endsWith(".trycloudflare.com");
+
+  if (!isLocal && !isPreview) {
+    const fromHost = getTenantCodeFromHostname(host);
+    if (fromHost.ok) return fromHost;
+  }
+
+  if (isLocal || isPreview) {
+    const fromPath = getTenantCodeFromLoginPath();
+    if (fromPath) return { ok: true, code: fromPath, source: "path" };
+  }
+
   const stored = getTenantCodeFromStorage();
   if (stored) return { ok: true, code: stored, source: "storage" };
 
   const env = getTenantCodeFromEnv();
   if (env) return { ok: true, code: env, source: "env" };
 
-  const fromHost = getTenantCodeFromHostname();
+  const fromHost = getTenantCodeFromHostname(host);
   if (fromHost.ok) return fromHost;
 
   return { ok: false, reason: "missing" };

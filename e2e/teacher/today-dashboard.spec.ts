@@ -1,6 +1,6 @@
 /**
  * E2E: 선생앱 Today 대시보드
- * - 인사말 + KPI 4그리드(수업/출결입력/처리할일/최근제출)
+ * - 인사말 + KPI 2그리드(수업/출결입력)
  * - "지금 처리할 일" 섹션 항상 노출(0건이면 친화 빈 카드)
  * - "오늘의 수업" 헤더 + 세션 카드(또는 빈 상태 CTA)
  *
@@ -34,7 +34,7 @@ test.describe("선생앱 Today 대시보드", () => {
     });
   });
 
-  test("인사말 + KPI 4그리드 + 핵심 섹션 노출, 콘솔 에러 없음", async ({ page }) => {
+  test("인사말 + KPI 2그리드 + 핵심 섹션 노출, 콘솔 에러 없음", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") errors.push(msg.text());
@@ -45,11 +45,9 @@ test.describe("선생앱 Today 대시보드", () => {
     // 인사말 (관리자 로그인이라 user.name fallback "선생님" 가능)
     await expect(page.getByText(/안녕하세요/).first()).toBeVisible({ timeout: 8_000 });
 
-    // KPI 4개 라벨 (변경 시 ui-quality.md 기록)
+    // KPI 라벨: 오늘 흐름(수업/출결)만 유지. 처리할 일은 아래 인박스로 분리.
     await expect(page.getByText("오늘 수업", { exact: true })).toBeVisible();
     await expect(page.getByText("출결 입력", { exact: true })).toBeVisible();
-    await expect(page.getByText("처리할 일", { exact: true })).toBeVisible();
-    await expect(page.getByText("최근 제출", { exact: true })).toBeVisible();
 
     // 섹션 헤더 (항상 노출)
     await expect(page.getByText("지금 처리할 일", { exact: true })).toBeVisible();

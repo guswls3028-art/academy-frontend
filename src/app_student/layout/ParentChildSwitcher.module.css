@@ -3,6 +3,7 @@
   gap: 6px;
   padding: 8px var(--stu-space-4);
   overflow-x: auto;
+  scroll-padding-inline: var(--stu-space-4);
   scrollbar-width: none;
   background: var(--stu-surface);
   border-bottom: 1px solid var(--stu-border);
@@ -24,11 +25,17 @@
 }
 
 .tab {
+  box-sizing: border-box;
   flex-shrink: 0;
+  min-width: 0;
+  max-width: min(32vw, 128px);
   padding: 6px 12px;
+  overflow: hidden;
   color: var(--stu-text);
   font-size: 13px;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
   background: var(--stu-surface);
   border: 1px solid var(--stu-border);

@@ -34,6 +34,14 @@ import styles from "./LoginPage.module.css";
  */
 function useTenantCode(programTenantCode: string | undefined): string | null {
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
+  const hostname = window.location.hostname.trim().toLowerCase();
+  const isLocalOrPreview =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".pages.dev") ||
+    hostname.endsWith(".trycloudflare.com");
+  if (isLocalOrPreview && paramCode) return paramCode;
+
   const fromHost = getTenantCodeFromHostname();
   if (fromHost.ok) return fromHost.code;
   if (paramCode) return paramCode;
@@ -94,7 +102,13 @@ export default function LoginPage() {
   // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트.
   // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
   const fromHost = getTenantCodeFromHostname();
-  if (paramCode && fromHost.ok) {
+  const hostname = window.location.hostname.trim().toLowerCase();
+  const isLocalOrPreview =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".pages.dev") ||
+    hostname.endsWith(".trycloudflare.com");
+  if (paramCode && fromHost.ok && !isLocalOrPreview) {
     return <Navigate to="/login" replace />;
   }
 
