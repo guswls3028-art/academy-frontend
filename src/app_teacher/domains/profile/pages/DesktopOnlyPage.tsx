@@ -1,12 +1,16 @@
 // PATH: src/app_teacher/domains/profile/pages/DesktopOnlyPage.tsx
 // 모바일 미지원 기능 안내 — 수납/자료실/랜딩 편집 등 PC 전용 도메인 진입로
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import { Card, BackButton, SectionTitle } from "@teacher/shared/ui/Card";
 import { Monitor, Award, FolderPlus, FileText, Settings, ChevronRight } from "@teacher/shared/ui/Icons";
+
+import styles from "./DesktopOnlyPage.module.css";
+
 type DesktopFeature = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   desc: string;
   desktopPath: string;
@@ -52,71 +56,51 @@ export default function DesktopOnlyPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={styles.page}>
       {/* Header */}
-      <div className="flex items-center gap-2 py-0.5">
+      <div className={styles.header}>
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
+        <h1 className={styles.title}>
           PC에서 처리하는 기능
         </h1>
       </div>
 
       {/* Lead */}
       <Card>
-        <div className="text-[13px] leading-relaxed" style={{ color: "var(--tc-text-secondary)" }}>
+        <div className={styles.leadText}>
           아래 기능은 캔버스·드래그 조작이 중심이라 모바일에서 불편합니다.
           버튼을 누르면 데스크톱 모드로 전환됩니다.
         </div>
         <button
+          type="button"
           onClick={() => goDesktop()}
-          className="flex items-center justify-center gap-2 w-full text-sm font-bold cursor-pointer mt-3"
-          style={{
-            padding: "12px",
-            minHeight: "var(--tc-touch-min)",
-            borderRadius: "var(--tc-radius)",
-            border: "none",
-            background: "var(--tc-primary)",
-            color: "#fff",
-          }}
+          className={styles.primaryButton}
         >
           <Monitor size={ICON.sm} /> 데스크톱 버전으로 이동
         </button>
       </Card>
 
       <SectionTitle>기능별 바로가기</SectionTitle>
-      <div className="flex flex-col gap-1.5">
+      <div className={styles.featureList}>
         {FEATURES.map((f) => (
           <button
             key={f.title}
+            type="button"
             onClick={() => goDesktop(f.desktopPath)}
-            className="flex items-start gap-3 rounded-xl w-full text-left cursor-pointer"
-            style={{
-              padding: "var(--tc-space-3) var(--tc-space-4)",
-              minHeight: "var(--tc-touch-min)",
-              background: "var(--tc-surface)",
-              border: "1px solid var(--tc-border)",
-            }}
+            className={styles.featureButton}
           >
-            <span
-              className="flex items-center justify-center shrink-0 rounded"
-              style={{
-                width: 32,
-                height: 32,
-                background: "var(--tc-primary-bg)",
-                color: "var(--tc-primary)",
-              }}
-            >
+            <span className={styles.featureIcon}>
               {f.icon}
             </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-semibold" style={{ color: "var(--tc-text)" }}>
+            <div className={styles.featureBody}>
+              <div className={styles.featureTitle}>
                 {f.title}
               </div>
-              <div className="text-[12px] mt-0.5 leading-snug" style={{ color: "var(--tc-text-muted)" }}>
+              <div className={styles.featureDesc}>
                 {f.desc}
               </div>
             </div>
-            <ChevronRight size={ICON.sm} style={{ color: "var(--tc-text-muted)", flexShrink: 0, marginTop: 8 }} />
+            <ChevronRight size={ICON.sm} className={styles.chevron} />
           </button>
         ))}
       </div>
