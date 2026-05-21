@@ -13,6 +13,12 @@ type DomainTableProps = {
   dataAttributes?: Record<string, string>;
 };
 
+function getResolvedTableStyle(tableStyle?: CSSProperties): CSSProperties | undefined {
+  if (!tableStyle) return undefined;
+  if (tableStyle.width == null || tableStyle.minWidth != null) return tableStyle;
+  return { ...tableStyle, minWidth: tableStyle.width };
+}
+
 export default function DomainTable({
   children,
   tableClassName,
@@ -21,15 +27,10 @@ export default function DomainTable({
 }: DomainTableProps) {
   const hasExplicitWidth = tableStyle?.width != null;
   return (
-    <div className="ds-table-wrap" style={{ overflowX: "auto", overflowY: "visible" }}>
+    <div className="ds-table-wrap ds-table-wrap--domain-scroll">
       <table
         className={`ds-table ${hasExplicitWidth ? "" : "w-full"} ${tableClassName ?? ""}`.trim()}
-        style={{
-          ...tableStyle,
-          ...(tableStyle?.width != null && tableStyle?.minWidth == null
-            ? { minWidth: tableStyle.width }
-            : undefined),
-        }}
+        style={getResolvedTableStyle(tableStyle)}
         {...dataAttributes}
       >
         {children}

@@ -12,6 +12,15 @@
   overflow: hidden;
 }
 
+.ds-table-wrap--domain-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.domain-panel {
+  background: transparent;
+}
+
 table.ds-table {
   width: 100%;
   border-collapse: separate;
@@ -518,6 +527,23 @@ table.ds-table {
 }
 
 /* 컬럼 리사이즈 핸들 — 헤더 오른쪽 가장자리 드래그 */
+.ds-resizable-th {
+  position: relative;
+}
+
+.ds-resizable-th[data-resizing="true"] {
+  user-select: none;
+}
+
+.data-table-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+}
+
 .data-table-resize-handle:hover,
 .data-table-resize-handle:active {
   background: color-mix(in srgb, var(--color-primary) 20%, transparent);

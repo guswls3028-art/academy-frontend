@@ -1,12 +1,12 @@
 // PATH: src/main.tsx
 // App Entry Point — Sentry 초기화 + 앱 마운트
 
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, useLocation } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 
-import AppRouter from "@/core/router/AppRouter";
+import AppInner from "@/AppInner";
 import QueryProvider from "@/core/providers/QueryProvider";
 import { AuthProvider } from "@/auth/context/AuthContext";
 import { ProgramProvider } from "@/shared/program";
@@ -17,14 +17,9 @@ import { TENANTS } from "@/shared/tenant/tenants/index";
 if (!TENANTS.length) throw new Error("Tenant registry empty");
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import { DevErrorBoundary, DevErrorLogger } from "@/core/DevErrorLogger";
-import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import { hardReloadWithCacheBust, stripHardReloadParam } from "@/shared/utils/hardReload";
-import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
-import { addNavigationBreadcrumb } from "@/shared/lib/sentryContext";
-import BugReportButton from "@/shared/ui/feedback/BugReportButton";
-import ImpersonationBanner from "@dev/shared/components/ImpersonationBanner";
 
 import "./index.css";
 import "antd/dist/reset.css";
@@ -118,30 +113,6 @@ if (SENTRY_DSN && import.meta.env.PROD) {
       tags: { tenant: resolveTenantCode() },
     },
   });
-}
-
-/** BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이 */
-function AppInner() {
-  useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
-
-  // Sentry breadcrumb: 라우트 변경 추적
-  const location = useLocation();
-  const prevPath = useRef(location.pathname);
-  useEffect(() => {
-    if (prevPath.current !== location.pathname) {
-      addNavigationBreadcrumb(prevPath.current, location.pathname);
-      prevPath.current = location.pathname;
-    }
-  }, [location.pathname]);
-
-  return (
-    <>
-      <ImpersonationBanner />
-      <AppRouter />
-      <SubscriptionExpiredOverlay />
-      <BugReportButton />
-    </>
-  );
 }
 
 const AppContent = (

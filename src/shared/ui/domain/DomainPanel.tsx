@@ -9,12 +9,7 @@ type DomainPanelProps = {
 
 export default function DomainPanel({ children }: DomainPanelProps) {
   return (
-    <div
-      className="domain-panel"
-      style={{
-        background: "transparent",
-      }}
-    >
+    <div className="domain-panel">
       {children}
     </div>
   );

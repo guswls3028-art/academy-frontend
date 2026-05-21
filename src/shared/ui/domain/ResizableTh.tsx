@@ -7,8 +7,6 @@
 import { useRef, useCallback, useState, useEffect } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
-const RESIZE_HANDLE_WIDTH = 8;
-
 type ResizableThProps = {
   columnKey: string;
   width: number;
@@ -28,6 +26,24 @@ type ResizableThProps = {
   /** th에 data-* 속성 부여 (data-col-type, data-group-start 등) */
   dataAttributes?: Record<string, string>;
 };
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
+function getResizableThStyle(
+  baseStyle: CSSProperties | undefined,
+  width: number,
+  minWidth: number,
+  maxWidth: number,
+): CSSProperties {
+  return {
+    ...baseStyle,
+    width,
+    minWidth,
+    maxWidth,
+  };
+}
 
 export default function ResizableTh({
   columnKey,
@@ -103,19 +119,13 @@ export default function ResizableTh({
   return (
     <th
       scope={scope}
-      className={className}
+      className={cx("ds-resizable-th", className)}
       aria-sort={ariaSort}
       rowSpan={rowSpan}
       colSpan={colSpan}
       {...(dataAttributes ?? {})}
-      style={{
-        ...style,
-        width: displayWidth,
-        minWidth,
-        maxWidth,
-        position: "relative",
-        userSelect: isResizing ? "none" : undefined,
-      }}
+      data-resizing={isResizing ? "true" : undefined}
+      style={getResizableThStyle(style, displayWidth, minWidth, maxWidth)}
       title={title}
       onClick={() => {
         if (didResize.current) { didResize.current = false; return; }
@@ -129,14 +139,6 @@ export default function ResizableTh({
         aria-label={`${columnKey} 컬럼 너비 조절`}
         onMouseDown={handleMouseDown}
         className="data-table-resize-handle"
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: RESIZE_HANDLE_WIDTH,
-          height: "100%",
-          cursor: "col-resize",
-        }}
       />
     </th>
   );
