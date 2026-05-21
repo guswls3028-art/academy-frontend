@@ -1,6 +1,23 @@
 // PATH: src/app_teacher/shared/ui/Card.tsx
 // 공용 카드/섹션 — 데스크톱 ds-section/ds-panel 모바일 대응
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
+import { ICON } from "@/shared/ui/ds";
+import { ChevronLeft } from "@teacher/shared/ui/Icons";
+import styles from "./Card.module.css";
+
+const KPI_VALUE_COLOR_CLASS: Record<string, string> = {
+  "var(--tc-primary)": styles.kpiValuePrimary,
+  "var(--tc-success)": styles.kpiValueSuccess,
+  "var(--tc-danger)": styles.kpiValueDanger,
+  "var(--tc-info)": styles.kpiValueInfo,
+  "var(--tc-text-muted)": styles.kpiValueMuted,
+  "var(--tc-text-secondary)": styles.kpiValueSecondary,
+  "var(--tc-text)": "",
+};
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
 
 /** 카드 컨테이너 */
 export function Card({
@@ -14,18 +31,20 @@ export function Card({
   style?: CSSProperties;
   onClick?: () => void;
 }) {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
-      className={`rounded-xl ${className}`}
-      style={{
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-        boxShadow: "var(--tc-shadow-sm)",
-        padding: "var(--tc-space-4)",
-        ...(onClick ? { cursor: "pointer" } : {}),
-        ...style,
-      }}
+      className={cx(styles.card, onClick && styles.clickable, className)}
+      style={style}
       onClick={onClick}
+      onKeyDown={onClick ? handleKeyDown : undefined}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
@@ -43,8 +62,8 @@ export function SectionTitle({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex justify-between items-center py-1">
-      <h2 className="ds-text-name font-bold m-0" style={{ color: "var(--tc-text)" }}>
+    <div className={styles.sectionTitle}>
+      <h2 className={styles.sectionHeading}>
         {children}
       </h2>
       {right}
@@ -66,31 +85,24 @@ export function KpiCard({
   color?: string;
   onClick?: () => void;
 }) {
+  const valueClass = color ? KPI_VALUE_COLOR_CLASS[color] : undefined;
+
   return (
     <div
-      className="rounded-xl flex flex-col items-center justify-center py-3 px-2"
-      style={{
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-        boxShadow: "var(--tc-shadow-sm)",
-        cursor: onClick ? "pointer" : undefined,
-      }}
+      className={cx(styles.kpiCard, onClick && styles.clickable)}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
-      <span
-        className="text-lg font-bold leading-tight"
-        style={{ color: color ?? "var(--tc-text)" }}
-      >
+      <span className={cx(styles.kpiValue, valueClass)}>
         {value}
       </span>
       {sub && (
-        <span className="text-[10px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+        <span className={styles.kpiSub}>
           {sub}
         </span>
       )}
-      <span className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+      <span className={styles.kpiLabel}>
         {label}
       </span>
     </div>
@@ -108,24 +120,13 @@ export function TabBar<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div
-      className="flex rounded-lg overflow-hidden"
-      style={{
-        border: "1px solid var(--tc-border)",
-        background: "var(--tc-surface-soft)",
-      }}
-    >
+    <div className={styles.tabBar}>
       {tabs.map((t) => (
         <button
+          type="button"
           key={t.key}
           onClick={() => onChange(t.key)}
-          className="flex-1 text-[13px] font-semibold py-2 cursor-pointer"
-          style={{
-            border: "none",
-            background: value === t.key ? "var(--tc-primary)" : "transparent",
-            color: value === t.key ? "#fff" : "var(--tc-text-secondary)",
-            transition: "all 100ms ease",
-          }}
+          className={cx(styles.tabButton, value === t.key && styles.tabButtonActive)}
         >
           {t.label}
         </button>
@@ -146,16 +147,11 @@ export function ListItem({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
-      style={{
-        padding: "var(--tc-space-3) var(--tc-space-4)",
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-        boxShadow: "var(--tc-shadow-sm)",
-      }}
+      className={styles.listItem}
     >
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className={styles.listItemBody}>{children}</div>
       {right}
     </button>
   );
@@ -165,13 +161,11 @@ export function ListItem({
 export function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex items-center justify-center p-1 cursor-pointer shrink-0"
-      style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
+      className={styles.backButton}
     >
-      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="15 18 9 12 15 6" />
-      </svg>
+      <ChevronLeft size={ICON.md} />
     </button>
   );
 }
