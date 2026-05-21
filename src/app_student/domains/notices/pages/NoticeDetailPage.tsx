@@ -1,7 +1,7 @@
 /**
  * 공지 상세 페이지
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -10,6 +10,17 @@ import { fetchNoticeDetail } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { getAttachmentDownloadUrl, type PostAttachment } from "@admin/domains/community/api/community.api";
+import styles from "./NoticeDetailPage.module.css";
+
+function isImageAttachment(att: PostAttachment): boolean {
+  return att.content_type.startsWith("image/");
+}
+
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
 
 export default function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,11 +36,11 @@ export default function NoticeDetailPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="공지사항">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-          <div className="stu-skel" style={{ height: 28, width: "70%", borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 16, width: "40%", borderRadius: "var(--stu-radius-sm)" }} />
-          <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 60, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.skelTitle}`} />
+          <div className={`stu-skel ${styles.skelMeta}`} />
+          <div className={`stu-skel ${styles.skelContent}`} />
+          <div className={`stu-skel ${styles.skelAttachment}`} />
         </div>
       </StudentPageShell>
     );
@@ -53,27 +64,19 @@ export default function NoticeDetailPage() {
   return (
     <StudentPageShell title="공지사항" onBack={() => navigate("/student/notices")}>
       <div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        <div className={styles.stack}>
           {/* 제목 */}
           <div>
-            <h1 style={{ fontWeight: 700, fontSize: 20, marginBottom: "var(--stu-space-3)" }}>
+            <h1 className={styles.title}>
               {notice.title}
             </h1>
-            <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center", flexWrap: "wrap" }}>
+            <div className={styles.metaRow}>
               {lectureTitle && (
-                <span
-                  className="stu-muted"
-                  style={{
-                    fontSize: 12,
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    background: "var(--stu-surface-soft)",
-                  }}
-                >
+                <span className={`stu-muted ${styles.lectureBadge}`}>
                   {lectureTitle}
                 </span>
               )}
-              <span className="stu-muted" style={{ fontSize: 13 }}>
+              <span className={`stu-muted ${styles.dateText}`}>
                 {formatYmd(notice.created_at)}
               </span>
             </div>
@@ -82,12 +85,11 @@ export default function NoticeDetailPage() {
           {/* 내용 */}
           {notice.content ? (
             <div
-              className="stu-html-content"
-              style={{ fontSize: 15, lineHeight: 1.7, wordBreak: "break-word" }}
+              className={`stu-html-content ${styles.content}`}
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notice.content) }}
             />
           ) : (
-            <p style={{ color: "var(--stu-text-muted)", fontSize: 15 }}>내용이 없습니다.</p>
+            <p className={styles.emptyContent}>내용이 없습니다.</p>
           )}
 
           {/* 첨부파일 */}
@@ -96,11 +98,10 @@ export default function NoticeDetailPage() {
           )}
 
           {/* 목록으로 돌아가기 */}
-          <div style={{ marginTop: "var(--stu-space-4)", paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>
+          <div className={styles.footer}>
             <Link
               to="/student/notices"
-              className="stu-btn stu-btn--secondary stu-btn--sm"
-              style={{ display: "inline-block" }}
+              className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.backLink}`}
             >
               목록으로 돌아가기
             </Link>
@@ -113,15 +114,15 @@ export default function NoticeDetailPage() {
 
 function NoticeAttachments({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
   const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
-  const isImage = (ct: string) => ct.startsWith("image/");
+  const imageAttachments = useMemo(() => attachments.filter(isImageAttachment), [attachments]);
+  const fileAttachments = useMemo(() => attachments.filter((att) => !isImageAttachment(att)), [attachments]);
 
   useEffect(() => {
-    const images = attachments.filter((a) => isImage(a.content_type));
-    if (images.length === 0) return;
+    if (imageAttachments.length === 0) return;
     let cancelled = false;
     (async () => {
       const urls: Record<number, string> = {};
-      for (const img of images) {
+      for (const img of imageAttachments) {
         try {
           const { url } = await getAttachmentDownloadUrl(postId, img.id);
           if (!cancelled) urls[img.id] = url;
@@ -130,7 +131,7 @@ function NoticeAttachments({ postId, attachments }: { postId: number; attachment
       if (!cancelled) setImgUrls(urls);
     })();
     return () => { cancelled = true; };
-  }, [attachments, postId]);
+  }, [imageAttachments, postId]);
 
   const handleDownload = async (att: PostAttachment) => {
     try {
@@ -143,45 +144,38 @@ function NoticeAttachments({ postId, attachments }: { postId: number; attachment
     }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-      {attachments.filter((a) => isImage(a.content_type)).map((att) => (
-        <div key={`img-${att.id}`} style={{ borderRadius: "var(--stu-radius)", overflow: "hidden", border: "1px solid var(--stu-border-subtle)" }}>
+    <div className={styles.attachments}>
+      {imageAttachments.map((att) => (
+        <div key={`img-${att.id}`} className={styles.imageFrame}>
           {imgUrls[att.id] ? (
-            <img src={imgUrls[att.id]} alt={att.original_name} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block", background: "var(--stu-surface-soft)" }} />
+            <img src={imgUrls[att.id]} alt={att.original_name} className={styles.imagePreview} />
           ) : (
-            <div style={{ height: 100, display: "grid", placeItems: "center", background: "var(--stu-surface-soft)", fontSize: 13, color: "var(--stu-text-muted)" }}>이미지 로딩 중…</div>
+            <div className={styles.imagePlaceholder}>이미지 로딩 중…</div>
           )}
         </div>
       ))}
-      {attachments.filter((a) => !isImage(a.content_type)).length > 0 && (
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-          첨부파일 ({attachments.filter((a) => !isImage(a.content_type)).length})
+      {fileAttachments.length > 0 && (
+        <div className={styles.attachmentTitle}>
+          첨부파일 ({fileAttachments.length})
         </div>
       )}
-      {attachments.filter((a) => !isImage(a.content_type)).map((att) => (
+      {fileAttachments.map((att) => (
         <button
           key={att.id}
           type="button"
           onClick={() => handleDownload(att)}
-          className="stu-panel stu-panel--pressable"
-          style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-3)", padding: "10px var(--stu-space-4)", textAlign: "left", cursor: "pointer" }}
+          className={`stu-panel stu-panel--pressable ${styles.fileButton}`}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, color: "var(--stu-primary)" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className={styles.fileIcon} aria-hidden="true">
             <path d="M10 1H4.5A1.5 1.5 0 003 2.5v13A1.5 1.5 0 004.5 17h9a1.5 1.5 0 001.5-1.5V6L10 1z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M10 1v5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.original_name}</div>
-            <div className="stu-muted" style={{ fontSize: 12 }}>{formatSize(att.size_bytes)}</div>
+          <div className={styles.fileInfo}>
+            <div className={styles.fileName}>{att.original_name}</div>
+            <div className={`stu-muted ${styles.fileSize}`}>{formatAttachmentSize(att.size_bytes)}</div>
           </div>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: "var(--stu-text-muted)" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.downloadIcon} aria-hidden="true">
             <path d="M8 2v9M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M2 12v2h12v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

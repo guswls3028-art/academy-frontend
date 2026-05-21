@@ -1,0 +1,154 @@
+.loadingStack,
+.stack,
+.attachments {
+  display: flex;
+  flex-direction: column;
+}
+
+.loadingStack,
+.stack {
+  gap: var(--stu-space-4);
+}
+
+.attachments {
+  gap: var(--stu-space-3);
+}
+
+.skelTitle {
+  width: 70%;
+  height: 28px;
+  border-radius: var(--stu-radius);
+}
+
+.skelMeta {
+  width: 40%;
+  height: 16px;
+  border-radius: var(--stu-radius-sm);
+}
+
+.skelContent {
+  height: 120px;
+  border-radius: var(--stu-radius);
+}
+
+.skelAttachment {
+  height: 60px;
+  border-radius: var(--stu-radius);
+}
+
+.title {
+  margin: 0 0 var(--stu-space-3);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stu-space-2);
+  align-items: center;
+}
+
+.lectureBadge {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--stu-surface-soft);
+  border-radius: 6px;
+}
+
+.dateText {
+  font-size: 13px;
+}
+
+.content {
+  font-size: 15px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.emptyContent {
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: 15px;
+}
+
+.footer {
+  padding-top: var(--stu-space-4);
+  margin-top: var(--stu-space-4);
+  border-top: 1px solid var(--stu-border);
+}
+
+.backLink {
+  display: inline-block;
+}
+
+.imageFrame {
+  overflow: hidden;
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius);
+}
+
+.imagePreview {
+  display: block;
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  background: var(--stu-surface-soft);
+}
+
+.imagePlaceholder {
+  display: grid;
+  height: 100px;
+  place-items: center;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  background: var(--stu-surface-soft);
+}
+
+.attachmentTitle {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fileButton {
+  display: flex;
+  gap: var(--stu-space-3);
+  align-items: center;
+  width: 100%;
+  padding: 10px var(--stu-space-4);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fileIcon,
+.downloadIcon {
+  flex-shrink: 0;
+}
+
+.fileIcon {
+  color: var(--stu-primary);
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  font-size: 12px;
+}
+
+.downloadIcon {
+  color: var(--stu-text-muted);
+}
