@@ -13,6 +13,7 @@ import {
   fetchAdminPosts,
   fetchScopeNodes,
   resolveNodeIdFromScope,
+  resolvePostNodeIdsForCreate,
   fetchPost,
   createPost,
   deletePost,
@@ -460,20 +461,10 @@ function BoardCreatePane({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = { current: null as HTMLInputElement | null };
 
-  // Auto-resolve node_ids from current scope
-  const autoNodeIds = useMemo(() => {
-    if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
-      const node = scopeNodes.find(
-        (n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId
-      );
-      return node ? [node.id] : [];
-    }
-    if (scopeParams.scope === "lecture" && scopeParams.lectureId != null) {
-      const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
-      return nodes.map((n) => n.id);
-    }
-    return []; // 전체 게시물: 매핑 없음
-  }, [scopeNodes, scopeParams]);
+  const resolvedScope = useMemo(
+    () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
+    [scopeNodes, scopeParams]
+  );
 
   const scopeLabel = scopeParams.scope === "session"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
@@ -481,7 +472,7 @@ function BoardCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 게시물";
 
-  const canSubmit = title.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -492,7 +483,7 @@ function BoardCreatePane({
         post_type: "board",
         title: title.trim(),
         content,
-        node_ids: autoNodeIds,
+        node_ids: resolvedScope.nodeIds,
       });
       if (files.length > 0) {
         await uploadPostAttachments(post.id, files);

@@ -70,9 +70,13 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     }
     return [];
   }, [scopeNodes, scope, lectureId, sessionId]);
+  const scopeReady = scope === "all" || resolvedNodeIds.length > 0;
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!scopeReady) {
+        throw new Error("공개 범위를 선택하세요.");
+      }
       const post = await createPost({
         post_type: postType,
         title,
@@ -105,7 +109,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     onClose();
   };
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !mutation.isPending;
+  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && scopeReady && !mutation.isPending;
 
   return (
     <BottomSheet open={open} onClose={resetAndClose} title={`${postTypeLabel} 작성`}>

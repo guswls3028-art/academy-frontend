@@ -13,6 +13,7 @@ import {
   deletePost,
   createPost,
   resolveNodeIdFromScope,
+  resolvePostNodeIdsForCreate,
   type PostEntity,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -588,22 +589,10 @@ function NoticeCreatePane({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-resolve node_ids from current scope
-  // 전체공지(scope=all)는 매핑 없음(node_ids=[]) — 모든 학생에게 노출
-  const autoNodeIds = useMemo(() => {
-    if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
-      const node = scopeNodes.find(
-        (n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId
-      );
-      return node ? [node.id] : [];
-    }
-    if (scopeParams.scope === "lecture" && scopeParams.lectureId != null) {
-      const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
-      return nodes.map((n) => n.id);
-    }
-    // scope="all" → 전체 공지: 매핑 없음
-    return [];
-  }, [scopeNodes, scopeParams]);
+  const resolvedScope = useMemo(
+    () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
+    [scopeNodes, scopeParams]
+  );
 
   const scopeLabel = scopeParams.scope === "session"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
@@ -611,7 +600,7 @@ function NoticeCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 공지";
 
-  const canSubmit = title.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -622,7 +611,7 @@ function NoticeCreatePane({
         post_type: "notice",
         title: title.trim(),
         content,
-        node_ids: autoNodeIds,
+        node_ids: resolvedScope.nodeIds,
         is_urgent: isUrgent || undefined,
       });
       onSuccess();

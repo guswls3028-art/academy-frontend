@@ -13,11 +13,8 @@ import {
   updateResult,
   type TeacherExamResultRow,
 } from "../api";
-import {
-  fetchSession,
-  fetchLectureEnrollments,
-  type TeacherLectureEnrollment,
-} from "@teacher/domains/lectures/api";
+import { fetchSessionEnrollments } from "@admin/domains/homework/api/sessionEnrollments";
+import type { SessionEnrollment } from "@admin/domains/homework/types";
 import {
   getExamResultEnrollmentId,
   getExamResultMaxScore,
@@ -56,18 +53,10 @@ export default function MobileScoreEntryPage() {
     enabled: Number.isFinite(sid),
   });
 
-  // 신규 시험 진입 시 admin endpoint 가 빈 results 반환 → 학생 list 0명 표시 → 채점 시작 불가.
-  // 차시 → 강의 → enrollments 로 base 확보 후 result merge.
-  const { data: sessionDetail } = useQuery({
-    queryKey: ["session-detail-for-scores", sid],
-    queryFn: () => fetchSession(sid),
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ["session-enrollments-for-scores", sid],
+    queryFn: () => fetchSessionEnrollments(sid),
     enabled: Number.isFinite(sid),
-  });
-  const lectureIdForEnrollments = sessionDetail?.lecture ?? sessionDetail?.lecture_id ?? null;
-  const { data: enrollments } = useQuery({
-    queryKey: ["session-enrollments-for-scores", lectureIdForEnrollments],
-    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
-    enabled: Number.isFinite(lectureIdForEnrollments),
   });
 
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
@@ -111,6 +100,7 @@ export default function MobileScoreEntryPage() {
               examMaxScore={activeExam?.max_score ?? 100}
               examPassScore={activeExam?.pass_score ?? null}
               enrollments={enrollments ?? []}
+              rosterLoading={enrollmentsLoading}
             />
           )}
         </>
@@ -151,11 +141,13 @@ function ScoreEntryList({
   examMaxScore,
   examPassScore,
   enrollments,
+  rosterLoading,
 }: {
   examId: number;
   examMaxScore: number;
   examPassScore: number | null;
-  enrollments: TeacherLectureEnrollment[];
+  enrollments: SessionEnrollment[];
+  rosterLoading: boolean;
 }) {
   const qc = useQueryClient();
   const { data: rawResults, isLoading } = useQuery({
@@ -171,14 +163,14 @@ function ScoreEntryList({
       const enrollmentId = getExamResultEnrollmentId(r);
       if (enrollmentId != null) byEnrollment.set(enrollmentId, r);
     }
-    const active = (enrollments ?? []).filter((e) => e.status === "ACTIVE" || e.status == null);
+    const active = (enrollments ?? []).filter((e) => Number.isFinite(e.enrollment) && e.enrollment > 0);
     if (active.length === 0) return rawResults ?? [];
     return active.map((e): TeacherExamResultRow => {
-      const fromResult = byEnrollment.get(e.id);
+      const fromResult = byEnrollment.get(e.enrollment);
       if (fromResult) return fromResult;
       return {
-        enrollment_id: e.id,
-        student_name: e.student_name ?? e.student?.name ?? e.name ?? "이름 없음",
+        enrollment_id: e.enrollment,
+        student_name: e.student_name || "이름 없음",
         exam_score: null,
         final_score: null,
         total_score: null,
@@ -190,6 +182,19 @@ function ScoreEntryList({
       };
     });
   }, [rawResults, enrollments, examMaxScore]);
+  const allowedEnrollmentIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const e of enrollments ?? []) {
+      if (Number.isFinite(e.enrollment) && e.enrollment > 0) ids.add(e.enrollment);
+    }
+    if (ids.size === 0) {
+      for (const r of rawResults ?? []) {
+        const enrollmentId = getExamResultEnrollmentId(r);
+        if (enrollmentId != null) ids.add(enrollmentId);
+      }
+    }
+    return ids;
+  }, [enrollments, rawResults]);
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -278,6 +283,10 @@ function ScoreEntryList({
     (enrollmentId: number, maxScore: number) => {
       const val = localScores.get(enrollmentId);
       if (val == null || val === "") return;
+      if (!allowedEnrollmentIds.has(enrollmentId)) {
+        feedback.error("이 차시의 대상 학생만 점수를 입력할 수 있습니다.");
+        return;
+      }
       const num = Number(val);
       if (isNaN(num)) {
         feedback.error("숫자만 입력하세요.");
@@ -289,7 +298,7 @@ function ScoreEntryList({
       }
       updateMut.mutate({ enrollmentId, score: num, maxScore });
     },
-    [localScores, updateMut],
+    [allowedEnrollmentIds, localScores, updateMut],
   );
 
   const focusNext = useCallback(
@@ -330,7 +339,7 @@ function ScoreEntryList({
   }, [results, localScores, examPassScore]);
 
   // 첫 진입 skeleton — 시험 칩만 보이고 행이 비는 시각 공백 해소
-  if (isLoading) return <ScoreEntrySkeleton />;
+  if (isLoading || rosterLoading) return <ScoreEntrySkeleton />;
   if (!results?.length)
     return <EmptyState scope="panel" tone="empty" title="이 시험에 등록된 학생이 없습니다" />;
 

@@ -117,6 +117,33 @@ export function resolveNodeIdFromScope(
   return null;
 }
 
+export type ResolvedPostScope =
+  | { kind: "global"; nodeIds: number[] }
+  | { kind: "scoped"; nodeIds: number[] }
+  | { kind: "invalid"; nodeIds: number[] };
+
+export function resolvePostNodeIdsForCreate(
+  nodes: ScopeNodeMinimal[],
+  params: CommunityScopeParams
+): ResolvedPostScope {
+  if (params.scope === "all") return { kind: "global", nodeIds: [] };
+  if (params.scope === "session" && params.lectureId != null && params.sessionId != null) {
+    const n = nodes.find(
+      (x) => x.lecture === params.lectureId && Number(x.session) === params.sessionId
+    );
+    return n ? { kind: "scoped", nodeIds: [n.id] } : { kind: "invalid", nodeIds: [] };
+  }
+  if (params.scope === "lecture" && params.lectureId != null) {
+    const nodeIds = nodes
+      .filter((x) => x.lecture === params.lectureId && x.level === "COURSE")
+      .map((x) => x.id);
+    return nodeIds.length > 0
+      ? { kind: "scoped", nodeIds }
+      : { kind: "invalid", nodeIds: [] };
+  }
+  return { kind: "invalid", nodeIds: [] };
+}
+
 // ----------------------------------------
 // Posts (공지/질의 등)
 // ----------------------------------------

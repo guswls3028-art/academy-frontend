@@ -10,6 +10,7 @@ import {
   fetchAdminPosts,
   fetchScopeNodes,
   resolveNodeIdFromScope,
+  resolvePostNodeIdsForCreate,
   fetchPost,
   createPost,
   updatePost,
@@ -290,21 +291,10 @@ function MatCreatePane({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-resolve node_ids from current scope
-  // 전체 자료(scope=all)는 매핑 없음(node_ids=[])
-  const autoNodeIds = useMemo(() => {
-    if (scopeParams.scope === "session" && scopeParams.sessionId != null) {
-      const node = scopeNodes.find(
-        (n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId
-      );
-      return node ? [node.id] : [];
-    }
-    if (scopeParams.scope === "lecture" && scopeParams.lectureId != null) {
-      const nodes = scopeNodes.filter((n) => n.lecture === scopeParams.lectureId && n.level === "COURSE");
-      return nodes.map((n) => n.id);
-    }
-    return [];
-  }, [scopeNodes, scopeParams]);
+  const resolvedScope = useMemo(
+    () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
+    [scopeNodes, scopeParams]
+  );
 
   const scopeLabel = scopeParams.scope === "session"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
@@ -312,14 +302,19 @@ function MatCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 자료";
 
-  const canSubmit = title.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
-      const post = await createPost({ post_type: "materials", title: title.trim(), content, node_ids: autoNodeIds });
+      const post = await createPost({
+        post_type: "materials",
+        title: title.trim(),
+        content,
+        node_ids: resolvedScope.nodeIds,
+      });
       if (files.length > 0 && post?.id) {
         await uploadPostAttachments(post.id, files);
       }
