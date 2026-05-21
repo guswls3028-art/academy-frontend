@@ -1,0 +1,235 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding: 2px 0;
+}
+
+.title {
+  color: var(--tc-text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.profileCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tc-space-3);
+  padding: var(--tc-space-5);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-surface);
+}
+
+.avatar {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tc-radius-full);
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.profileText {
+  text-align: center;
+}
+
+.name {
+  color: var(--tc-text);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.role {
+  margin-top: 2px;
+  color: var(--tc-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.infoCard,
+.pushCard {
+  padding: var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-surface);
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--tc-space-3);
+  padding: 6px 0;
+}
+
+.infoRowBorder {
+  border-bottom: 1px solid var(--tc-border-subtle);
+}
+
+.infoLabel {
+  color: var(--tc-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.infoValue {
+  min-width: 0;
+  color: var(--tc-text);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.installButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--tc-space-3);
+  padding: var(--tc-space-4);
+  border: 1px solid var(--tc-primary);
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-primary-bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.installIcon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.installBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.installTitle {
+  color: var(--tc-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.installDesc {
+  margin-top: 2px;
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.installedBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 1px solid var(--tc-success);
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-success-bg);
+}
+
+.installedIcon {
+  color: var(--tc-success);
+  stroke-width: 2.5;
+}
+
+.installedText {
+  color: var(--tc-success);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pushHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tc-space-3);
+}
+
+.pushTitle {
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.pushDesc {
+  margin-top: 2px;
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.pushButton {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--tc-radius);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.pushButtonPrimary {
+  background: var(--tc-primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.pushButtonSecondary {
+  background: var(--tc-surface-soft);
+  color: var(--tc-text-secondary);
+  cursor: pointer;
+}
+
+.pushButtonLoading,
+.pushButtonBlocked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pushButtonBlocked {
+  color: var(--tc-text-muted);
+}
+
+.deniedMessage {
+  margin-top: var(--tc-space-2);
+  color: var(--tc-danger);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.backButton {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--tc-text-secondary);
+  cursor: pointer;
+}
