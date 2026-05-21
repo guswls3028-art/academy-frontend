@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Panel } from "@/shared/ui/ds";
 
@@ -13,6 +13,14 @@ type InspectOverlayShellProps = {
   tabs?: ReactNode;
   children: ReactNode;
 };
+
+type InspectOverlayStyle = CSSProperties & {
+  "--inspect-overlay-width": string;
+};
+
+function getOverlayWidthStyle(width: number): InspectOverlayStyle {
+  return { "--inspect-overlay-width": `${width}px` };
+}
 
 export default function InspectOverlayShell({
   title,
@@ -42,30 +50,17 @@ export default function InspectOverlayShell({
   return createPortal(
     <div
       data-overlay="inspect"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        padding: 32,
-        overflow: "auto",
-      }}
+      className="inspect-overlay-shell"
       onClick={onClose}
     >
       <div
-        style={{ width: "100%", maxWidth: width }}
+        className="inspect-overlay-shell__inner"
+        style={getOverlayWidthStyle(width)}
         onClick={(e) => e.stopPropagation()}
       >
         <Panel title={title} description={description}>
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: sidebar ? "320px 1fr" : "1fr",
-              gap: 24,
-            }}
+            className={`inspect-overlay-shell__grid${sidebar ? " inspect-overlay-shell__grid--with-sidebar" : ""}`}
           >
             {/* ===== LEFT : META / SUMMARY ===== */}
             {sidebar && (
@@ -75,8 +70,8 @@ export default function InspectOverlayShell({
             )}
 
             {/* ===== RIGHT : WORK ===== */}
-            <div style={{ minWidth: 0 }}>
-              {tabs && <div style={{ marginBottom: 12 }}>{tabs}</div>}
+            <div className="inspect-overlay-shell__content">
+              {tabs && <div className="inspect-overlay-shell__tabs">{tabs}</div>}
 
               <div>{children}</div>
             </div>
@@ -84,6 +79,6 @@ export default function InspectOverlayShell({
         </Panel>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

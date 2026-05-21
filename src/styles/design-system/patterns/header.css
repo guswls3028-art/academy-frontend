@@ -96,6 +96,10 @@
   display: block;
 }
 
+[data-app="admin"] .app-header__brandMark img.app-header__brandLogo--compact {
+  height: 24px;
+}
+
 [data-app="admin"] .app-header__brandName {
   font-size: 14px;
   font-weight: 700;
@@ -106,6 +110,24 @@
   min-width: 0;
   max-width: 22ch;
   color: var(--color-text-primary);
+}
+
+[data-app="admin"] .app-header__profileDropdown {
+  position: relative;
+}
+
+[data-app="admin"] .app-header__profileDropdownTrigger {
+  cursor: pointer;
+  display: inline-flex;
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+[data-app="admin"] .app-header__profileDropdownOverlay {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1050;
 }
 
 [data-app="admin"] .app-header__crumbs {

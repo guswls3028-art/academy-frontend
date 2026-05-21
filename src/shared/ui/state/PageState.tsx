@@ -33,14 +33,7 @@ export default function PageState({
   // Page context: do NOT render a nested panel container.
   // Place this under hero or as page content section.
   return (
-    <div
-      style={{
-        borderRadius: "var(--radius-xl)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
-        boxShadow: "var(--elevation-1)",
-      }}
-    >
+    <div className="ds-page-state">
       <EmptyState
         mode="embedded"
         scope="page"

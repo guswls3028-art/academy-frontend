@@ -5,15 +5,7 @@ export default function ModalState({
   message?: string;
 }) {
   return (
-    <div
-      style={{
-        padding: "32px 24px",
-        textAlign: "center",
-        fontSize: 13,
-        fontWeight: "var(--font-meta)",
-        color: "var(--color-text-muted)",
-      }}
-    >
+    <div className="ds-modal-state">
       {message}
     </div>
   );

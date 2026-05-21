@@ -13,7 +13,7 @@ export default function PanelState({
 }) {
   // PanelBody 내부에서 쓰이므로 "panel card"를 중첩하지 않는다.
   return (
-    <div style={{ padding: "var(--space-2) 0" }}>
+    <div className="ds-panel-state">
       <EmptyState
         mode="embedded"
         scope="panel"

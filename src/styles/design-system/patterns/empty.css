@@ -112,6 +112,25 @@
   color: var(--color-text-muted);
 }
 
+.ds-modal-state {
+  padding: 32px 24px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: var(--font-meta);
+  text-align: center;
+}
+
+.ds-page-state {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+.ds-panel-state {
+  padding: var(--space-2) 0;
+}
+
 @keyframes ds-empty-spin {
   to {
     transform: rotate(360deg);

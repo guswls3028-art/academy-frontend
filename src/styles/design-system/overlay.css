@@ -20,6 +20,51 @@
   transition: opacity 0.2s ease;
 }
 
+.inspect-overlay-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px;
+  overflow: auto;
+  background: rgb(0 0 0 / 45%);
+}
+
+.inspect-overlay-shell__inner {
+  width: 100%;
+  max-width: var(--inspect-overlay-width, 1080px);
+}
+
+.inspect-overlay-shell__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.inspect-overlay-shell__grid--with-sidebar {
+  grid-template-columns: 320px 1fr;
+}
+
+.inspect-overlay-shell__content {
+  min-width: 0;
+}
+
+.inspect-overlay-shell__tabs {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 768px) {
+  .inspect-overlay-shell {
+    padding: 16px;
+  }
+
+  .inspect-overlay-shell__grid--with-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* 래퍼 — 사이드바 영역 제외, 패널 중앙 */
 .ds-overlay-wrap {
   position: fixed;

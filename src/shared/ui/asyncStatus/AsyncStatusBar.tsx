@@ -1,7 +1,7 @@
 // PATH: src/shared/ui/asyncStatus/AsyncStatusBar.tsx
 // 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -13,7 +13,7 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
-import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
+import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { Badge, ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
@@ -81,6 +81,17 @@ const STATUS_BADGE: Record<AsyncTaskStatus, string> = {
   success: "완료",
   error: "실패",
 };
+
+type AsyncStatusProgressStyle = CSSProperties & {
+  "--async-status-progress": string;
+};
+
+function getProgressFillStyle(progress: number): AsyncStatusProgressStyle {
+  const safeProgress = Number.isFinite(progress)
+    ? Math.min(100, Math.max(0, progress))
+    : 0;
+  return { "--async-status-progress": `${safeProgress}%` };
+}
 
 /** 남은 예상시간: API(워커)에서 오면 우선 사용, 없으면 진행률 기반 선형 추정. */
 function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
@@ -296,10 +307,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 
   return (
     <div
-      className="async-status-bar__item"
+      className={`async-status-bar__item${navigating ? " async-status-bar__item--navigating" : ""}`}
       onClick={handleTaskClick}
-      // eslint-disable-next-line no-restricted-syntax -- 동적 cursor/opacity 만 inline (R-11 baseline 정리 2026-05-08)
-      style={{ cursor: navigating ? "wait" : "pointer", opacity: navigating ? 0.7 : 1 }}
       aria-busy={navigating || undefined}
     >
       <div className="async-status-bar__item-row">
@@ -337,8 +346,6 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           className="async-status-bar__item-actions"
           onClick={(e) => e.stopPropagation()}
           ref={actionsRef}
-          // eslint-disable-next-line no-restricted-syntax -- popover anchor relative (R-11 baseline 정리 2026-05-08)
-          style={{ position: "relative" }}
         >
           {/* ✅ 진행 중인 작업: 금지 아이콘 클릭 시 삭제 메뉴 */}
           {canCancel && (
@@ -430,8 +437,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 <div className="async-status-bar__progress">
                   <div
                     className="async-status-bar__progress-fill"
-                    // eslint-disable-next-line no-restricted-syntax -- 동적 progress width (R-11 baseline 정리 2026-05-08)
-                    style={{ width: `${task.encodingStep.percent}%` }}
+                    style={getProgressFillStyle(task.encodingStep.percent)}
                   />
                 </div>
                 <span className="async-status-bar__progress-pct">
@@ -457,7 +463,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                   }
                   style={
                     task.progress != null
-                      ? { width: `${task.progress}%` }
+                      ? getProgressFillStyle(task.progress)
                       : undefined
                   }
                 />

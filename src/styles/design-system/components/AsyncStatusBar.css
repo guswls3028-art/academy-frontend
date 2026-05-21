@@ -169,10 +169,16 @@
   margin-bottom: 4px;
   background: var(--color-bg-surface-soft, #f9fafb);
   border: 1px solid transparent;
+  cursor: pointer;
 }
 
 .async-status-bar__item:last-child {
   margin-bottom: 0;
+}
+
+.async-status-bar__item--navigating {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .async-status-bar__item:hover {
@@ -476,6 +482,7 @@
 }
 
 .async-status-bar__progress-fill {
+  width: var(--async-status-progress, 0%);
   height: 100%;
   background: var(--color-primary, #2563eb);
   border-radius: 2px;

@@ -1,8 +1,6 @@
 // PATH: src/shared/ui/layout/Header.tsx
 //
-// 헤더는 동적 테마/테넌트 색 + 다국어 헬퍼 등으로 inline style이 핵심 도구.
-// CSS 모듈로 추출 시 테넌트별 동적 컬러가 깨지므로 inline 룰은 이 파일에 한해 면제.
-/* eslint-disable no-restricted-syntax */
+// 헤더 레이아웃은 design-system/patterns/header.css의 app-header 패턴을 SSOT로 사용.
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +24,7 @@ import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
-import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
+import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
@@ -85,8 +83,9 @@ function ProfileDropdown({
   // <button> 안에 children Button(<button>)을 넣으면 invalid HTML.
   // role="button" + tabIndex + onKeyDown 패턴으로 키보드 접근성 확보.
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className="app-header__profileDropdown">
       <div
+        className="app-header__profileDropdownTrigger"
         role="button"
         tabIndex={0}
         aria-expanded={open}
@@ -99,7 +98,6 @@ function ProfileDropdown({
             onToggle();
           }
         }}
-        style={{ cursor: "pointer", display: "inline-flex", borderRadius: 8, outlineOffset: 2 }}
       >
         {children}
       </div>
@@ -107,12 +105,6 @@ function ProfileDropdown({
         <div
           className="app-header__profileDropdownOverlay"
           role="menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            right: 0,
-            zIndex: 1050,
-          }}
         >
           {content}
         </div>
@@ -348,7 +340,7 @@ export default function Header() {
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />
               ) : headerLogoUrl ? (
-                <img src={headerLogoUrl} alt="logo" style={{ height: 24, width: "auto" }} />
+                <img className="app-header__brandLogo--compact" src={headerLogoUrl} alt="logo" />
               ) : isTchul ? (
                 <TchulLogoIcon height={24} />
               ) : (

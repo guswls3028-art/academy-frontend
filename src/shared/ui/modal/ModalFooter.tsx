@@ -10,8 +10,8 @@ export default function ModalFooter({
 }) {
   return (
     <div className="modal-footer">
-      <div>{left}</div>
-      <div style={{ display: "flex", gap: 8 }}>{right}</div>
+      <div className="modal-footer__side">{left}</div>
+      <div className="modal-footer__actions">{right}</div>
     </div>
   );
 }
