@@ -1,0 +1,26 @@
+{
+  "_comment": "arch_guard(frontend) 동결 baseline. 신규 위반만 CI 차단. 번다운 시 갱신.",
+  "version": 1,
+  "summary": {
+    "cross_app": 9,
+    "shared_imports_app": 6
+  },
+  "count": 15,
+  "violations": [
+    "cross_app|src/app_student/domains/community/api/community.api.ts|@admin/domains/community/api/community.api",
+    "cross_app|src/app_student/domains/inventory/api/inventory.api.ts|@admin/domains/storage/api/storage.api",
+    "cross_app|src/app_student/domains/notices/api/notices.api.ts|@admin/domains/community/api/community.api",
+    "cross_app|src/app_student/domains/notices/pages/NoticeDetailPage.tsx|@admin/domains/community/api/community.api",
+    "cross_app|src/app_student/domains/notices/pages/NoticesPage.tsx|@admin/domains/community/api/community.api",
+    "cross_app|src/app_student/domains/submit/pages/SubmitAssignmentPage.tsx|@admin/domains/submissions/types",
+    "cross_app|src/app_student/domains/video/api/video.api.ts|@admin/domains/videos/types/access-mode",
+    "cross_app|src/app_student/domains/video/components/VideoThumbnailWrapper.tsx|@admin/domains/videos/ui/VideoThumbnail",
+    "cross_app|src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx|@admin/domains/videos/types/access-mode",
+    "shared_imports_app|src/shared/contexts/ClinicHighlightContext.tsx|@admin/domains/clinic/api/clinicTargets",
+    "shared_imports_app|src/shared/contexts/ThemeContext.tsx|@admin/domains/settings/constants/themes",
+    "shared_imports_app|src/shared/contexts/ThemeContext.tsx|@admin/domains/settings/theme/themeRuntime",
+    "shared_imports_app|src/shared/hooks/useIsMobile.ts|@admin/layout/useTeacherView",
+    "shared_imports_app|src/shared/ui/asyncStatus/AsyncStatusBar.tsx|@admin/domains/lectures/api/sessions",
+    "shared_imports_app|src/shared/ui/asyncStatus/AsyncStatusBar.tsx|@admin/domains/videos/api/videos.api"
+  ]
+}

@@ -1,0 +1,33 @@
+# arch_guard (frontend) — app/레이어 경계 게이트 (Refactor roadmap Phase 0-C).
+# ARCHITECTURE.md §3.3 의 cross-app / shared-imports-app 규칙을 빌드가 강제.
+# baseline.json 동결분 통과, 신규 위반만 PR 차단. 의존성 0(Node 내장) — install 불필요.
+# 배포(quality-gate.yml → Cloudflare Pages)와 독립된 게이트.
+name: arch-guard
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tools/arch_guard/**"
+      - ".github/workflows/arch-guard.yml"
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "src/**"
+      - "tools/arch_guard/**"
+
+concurrency:
+  group: arch-guard-fe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: arch_guard(FE) 경계 검사 (신규 위반 차단)
+        run: node tools/arch_guard/check-boundaries.mjs
