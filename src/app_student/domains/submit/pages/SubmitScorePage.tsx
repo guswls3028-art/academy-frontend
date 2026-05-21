@@ -1,7 +1,7 @@
 /**
  * 성적표 제출 — 이미지·PDF 업로드 → 학생 인벤토리
  */
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef, type ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -9,15 +9,15 @@ import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { uploadMyFile, fetchMyInventory, getMyFileUrl, type InventoryFile } from "@student/domains/inventory/api/inventory.api";
 import { IconFileText, IconImage, IconDownload, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import styles from "./SubmitScorePage.module.css";
 
 const ACCEPT = "image/*,.pdf";
 const MAX_SIZE_MB = 20;
 
 function FileIcon({ file }: { file: InventoryFile }) {
   const ct = file.contentType || "";
-  const s = { width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 } as const;
-  if (ct.startsWith("image/")) return <IconImage style={s} />;
-  return <IconFileText style={s} />;
+  if (ct.startsWith("image/")) return <IconImage className={styles.fileIcon} />;
+  return <IconFileText className={styles.fileIcon} />;
 }
 
 function formatBytes(bytes: number): string {
@@ -52,10 +52,19 @@ export default function SubmitScorePage() {
   });
 
   // 최근 성적표 제출 (description에 "성적표" 포함 or icon=file-text, 최근 5개)
-  const recentScores = (inventory?.files ?? [])
-    .filter((f) => f.description?.includes("성적표") || (f.icon === "file-text" && f.folderId === null))
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .slice(0, 5);
+  const recentScores = useMemo(
+    () => (inventory?.files ?? [])
+      .filter((file) => file.description?.includes("성적표") || (file.icon === "file-text" && file.folderId === null))
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+      .slice(0, 5),
+    [inventory?.files],
+  );
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const uploadMut = useMutation({
     mutationFn: async () => {
@@ -71,9 +80,7 @@ export default function SubmitScorePage() {
       });
     },
     onSuccess: () => {
-      setSelectedFile(null);
-      setError(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      clearSelectedFile();
       qc.invalidateQueries({ queryKey: ["student-inventory", ps] });
       studentToast.success("성적표가 제출되었습니다.");
     },
@@ -89,7 +96,7 @@ export default function SubmitScorePage() {
     } catch { studentToast.error("다운로드에 실패했습니다."); }
   };
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setError(null);
     if (!file) { setSelectedFile(null); return; }
@@ -109,29 +116,29 @@ export default function SubmitScorePage() {
       description="성적표 이미지 또는 PDF를 올리면 인벤토리에 저장됩니다."
       onBack={() => window.history.back()}
     >
-      <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className={`stu-section stu-section--nested ${styles.sectionStack}`}>
         {profileLoading && <div className="stu-muted">프로필 불러오는 중…</div>}
         {!profileLoading && profile?.isParentReadOnly && (
-          <div role="alert" style={{ padding: "var(--stu-space-4)", background: "var(--stu-surface-soft)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-text-muted)" }}>
+          <div role="alert" className={`${styles.alert} ${styles.alertMuted}`}>
             학부모 계정은 성적표를 제출할 수 없습니다. 자녀(학생) 계정으로 로그인해 주세요.
           </div>
         )}
         {!profileLoading && profile && !ps && !profile.isParentReadOnly && (
-          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-surface)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14 }}>
+          <div role="alert" className={`${styles.alert} ${styles.alertPlain}`}>
             제출 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.
           </div>
         )}
         {uploadMut.isError && (
-          <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-danger-bg)", border: "1px solid var(--stu-danger-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+          <div role="alert" className={`${styles.alert} ${styles.alertDanger}`}>
             {error || (uploadMut.error instanceof Error ? uploadMut.error.message : "업로드에 실패했습니다.")}
           </div>
         )}
         {uploadMut.isSuccess && (
-          <div style={{ padding: "var(--stu-space-3)", background: "var(--stu-success-bg)", border: "1px solid var(--stu-success-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-success-text)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--stu-space-3)" }}>
+          <div className={styles.successBanner}>
             <span>성적표가 제출되었습니다.</span>
-            <Link to="/student/inventory" style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 13, fontWeight: 600, color: "var(--stu-primary)", flexShrink: 0 }}>
+            <Link to="/student/inventory" className={styles.successLink}>
               인벤토리 보기
-              <IconChevronRight style={{ width: 12, height: 12 }} aria-hidden="true" />
+              <IconChevronRight className={styles.successLinkIcon} aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -140,33 +147,31 @@ export default function SubmitScorePage() {
           type="file"
           accept={ACCEPT}
           onChange={onFileChange}
-          style={{ display: "none" }}
+          className={styles.hiddenInput}
         />
         {!profile?.isParentReadOnly && (
         <>
         <button
           type="button"
-          className="stu-btn stu-btn--secondary"
           disabled={profileLoading}
           onClick={() => fileInputRef.current?.click()}
-          style={{ alignSelf: "flex-start" }}
+          className={`stu-btn stu-btn--secondary ${styles.chooseButton}`}
         >
           파일 선택 (이미지·PDF, 최대 {MAX_SIZE_MB}MB)
         </button>
         {selectedFile && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "var(--stu-space-2) var(--stu-space-3)", background: "var(--stu-surface)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14 }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedFile.name} ({formatBytes(selectedFile.size)})</span>
-            <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => { setSelectedFile(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
+          <div className={styles.selectedFile}>
+            <span className={styles.selectedFileName}>{selectedFile.name} ({formatBytes(selectedFile.size)})</span>
+            <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={clearSelectedFile}>
               삭제
             </button>
           </div>
         )}
         <button
           type="button"
-          className="stu-btn stu-btn--primary"
           disabled={!canSubmit || uploadMut.isPending}
           onClick={() => uploadMut.mutate()}
-          style={{ alignSelf: "flex-end", minHeight: 44 }}
+          className={`stu-btn stu-btn--primary ${styles.submitButton}`}
         >
           {uploadMut.isPending ? "업로드 중…" : "제출하기"}
         </button>
@@ -175,40 +180,30 @@ export default function SubmitScorePage() {
 
         {/* 최근 제출 내역 */}
         {recentScores.length > 0 && (
-          <div style={{ marginTop: "var(--stu-space-2)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--stu-text-muted)", marginBottom: 8 }}>
+          <div className={styles.recent}>
+            <div className={styles.recentTitle}>
               최근 제출
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className={styles.recentList}>
               {recentScores.map((f) => (
                 <div
                   key={f.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
-                    background: "var(--stu-surface)",
-                    border: "1px solid var(--stu-border)",
-                    borderRadius: "var(--stu-radius)",
-                    fontSize: 13,
-                  }}
+                  className={styles.recentItem}
                 >
                   <FileIcon file={f} />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span className={styles.fileName}>
                     {f.displayName || f.name}
                   </span>
-                  <span style={{ fontSize: 11, color: "var(--stu-text-muted)", flexShrink: 0 }}>
+                  <span className={styles.fileMeta}>
                     {formatBytes(f.sizeBytes)} · {formatDate(f.createdAt)}
                   </span>
                   <button
                     type="button"
-                    className="stu-btn stu-btn--ghost stu-btn--sm"
-                    style={{ padding: 4 }}
+                    className={`stu-btn stu-btn--ghost stu-btn--sm ${styles.iconButton}`}
                     onClick={() => handleDownload(f)}
                     title="보기"
                   >
-                    <IconDownload style={{ width: 14, height: 14 }} />
+                    <IconDownload className={styles.downloadIcon} />
                   </button>
                 </div>
               ))}

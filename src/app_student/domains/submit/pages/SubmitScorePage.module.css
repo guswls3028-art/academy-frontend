@@ -1,0 +1,143 @@
+.sectionStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.alert {
+  font-size: 14px;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.alertMuted {
+  padding: var(--stu-space-4);
+  color: var(--stu-text-muted);
+  background: var(--stu-surface-soft);
+}
+
+.alertPlain {
+  padding: var(--stu-space-3);
+  background: var(--stu-surface);
+}
+
+.alertDanger {
+  padding: var(--stu-space-3);
+  color: var(--stu-danger-text);
+  font-weight: 600;
+  background: var(--stu-danger-bg);
+  border-color: var(--stu-danger-border);
+}
+
+.successBanner {
+  display: flex;
+  gap: var(--stu-space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--stu-space-3);
+  color: var(--stu-success-text);
+  font-size: 14px;
+  background: var(--stu-success-bg);
+  border: 1px solid var(--stu-success-border);
+  border-radius: var(--stu-radius);
+}
+
+.successLink {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  color: var(--stu-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.successLinkIcon {
+  width: 12px;
+  height: 12px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.chooseButton {
+  align-self: flex-start;
+}
+
+.selectedFile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--stu-space-2) var(--stu-space-3);
+  font-size: 14px;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.selectedFileName,
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submitButton {
+  align-self: flex-end;
+  min-height: 44px;
+}
+
+.recent {
+  margin-top: var(--stu-space-2);
+}
+
+.recentTitle {
+  margin-bottom: 8px;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recentItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--stu-text-muted);
+}
+
+.fileName {
+  flex: 1;
+}
+
+.fileMeta {
+  flex-shrink: 0;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+}
+
+.iconButton {
+  padding: 4px;
+}
+
+.downloadIcon {
+  width: 14px;
+  height: 14px;
+}
