@@ -1,10 +1,16 @@
 // PATH: src/app_teacher/domains/comms/components/PostListItem.tsx
 import type { Post } from "../api";
 
+import styles from "./PostListItem.module.css";
+
 interface Props {
   post: Post;
   showReplyBadge?: boolean;
   onClick: () => void;
+}
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
 }
 
 export default function PostListItem({ post, showReplyBadge, onClick }: Props) {
@@ -13,68 +19,36 @@ export default function PostListItem({ post, showReplyBadge, onClick }: Props) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left cursor-pointer"
-      style={{
-        padding: "var(--tc-space-3) 0",
-        borderBottom: "1px solid var(--tc-border-subtle)",
-        background: "none",
-        border: "none",
-        borderBottomWidth: 1,
-        borderBottomStyle: "solid",
-        borderBottomColor: "var(--tc-border-subtle)",
-      }}
+      className={styles.item}
     >
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+      <div className={styles.inner}>
+        <div className={styles.body}>
+          <div className={styles.titleRow}>
             {post.is_pinned && (
-              <span
-                className="text-[10px] font-bold shrink-0 rounded px-1"
-                style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}
-              >
+              <span className={cx(styles.flag, styles.pinned)}>
                 고정
               </span>
             )}
             {post.is_urgent && (
-              <span
-                className="text-[10px] font-bold shrink-0 rounded px-1"
-                style={{ background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}
-              >
+              <span className={cx(styles.flag, styles.urgent)}>
                 긴급
               </span>
             )}
-            <span
-              className="text-sm font-semibold truncate"
-              style={{ color: "var(--tc-text)" }}
-            >
+            <span className={styles.title}>
               {post.title}
             </span>
           </div>
-          <div className="text-xs mt-1" style={{ color: "var(--tc-text-muted)" }}>
+          <div className={styles.meta}>
             {post.author_display_name || "관리자"} · {formatDate(post.created_at)}
           </div>
         </div>
         {noReply && (
-          <span
-            className="shrink-0 text-[10px] font-bold rounded-full px-2"
-            style={{
-              lineHeight: "20px",
-              background: "var(--tc-danger-bg)",
-              color: "var(--tc-danger)",
-            }}
-          >
+          <span className={cx(styles.replyBadge, styles.replyPending)}>
             답변 대기
           </span>
         )}
         {showReplyBadge && !noReply && (post.replies_count ?? 0) > 0 && (
-          <span
-            className="shrink-0 text-[10px] font-bold rounded-full px-2"
-            style={{
-              lineHeight: "20px",
-              background: "var(--tc-success-bg)",
-              color: "var(--tc-success)",
-            }}
-          >
+          <span className={cx(styles.replyBadge, styles.replyDone)}>
             답변 완료
           </span>
         )}

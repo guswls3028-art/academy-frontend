@@ -1,0 +1,85 @@
+.item {
+  width: 100%;
+  padding: var(--tc-space-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--tc-border-subtle);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tc-space-2);
+}
+
+.body {
+  min-width: 0;
+  flex: 1;
+}
+
+.titleRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--tc-space-2);
+}
+
+.flag {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border-radius: var(--tc-radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.pinned {
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.urgent {
+  background: var(--tc-danger-bg);
+  color: var(--tc-danger);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin-top: 4px;
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.replyBadge {
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.replyPending {
+  background: var(--tc-danger-bg);
+  color: var(--tc-danger);
+}
+
+.replyDone {
+  background: var(--tc-success-bg);
+  color: var(--tc-success);
+}

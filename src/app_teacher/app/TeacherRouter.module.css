@@ -1,0 +1,54 @@
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-2);
+  padding: var(--tc-space-3) 0;
+}
+
+.fallbackTitle,
+.fallbackCard {
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface-soft);
+  animation: teacherFallbackPulse 1.5s ease-in-out infinite;
+}
+
+.fallbackTitle {
+  width: 55%;
+  height: 40px;
+  border-radius: var(--tc-radius-sm);
+}
+
+.fallbackCard {
+  height: 56px;
+}
+
+.fallbackCard:nth-of-type(2) {
+  animation-delay: 80ms;
+}
+
+.fallbackCard:nth-of-type(3) {
+  animation-delay: 160ms;
+}
+
+.fallbackCard:nth-of-type(4) {
+  animation-delay: 240ms;
+}
+
+.fallbackCard:nth-of-type(5) {
+  animation-delay: 320ms;
+}
+
+.fallbackCard:nth-of-type(6) {
+  animation-delay: 400ms;
+}
+
+@keyframes teacherFallbackPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}

@@ -8,6 +8,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
 
+import styles from "./TeacherRouter.module.css";
+
 /* === Domain pages (lazy) === */
 const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
 const LectureListPage = lazy(() => import("@teacher/domains/lectures/pages/LectureListPage"));
@@ -66,28 +68,13 @@ function TeacherFallback() {
     <div
       role="status"
       aria-label="불러오는 중"
-      className="flex flex-col gap-2"
-      style={{ padding: "var(--tc-space-3) 0" }}
+      className={styles.fallback}
     >
-      <div
-        style={{
-          height: 40,
-          width: "55%",
-          borderRadius: "var(--tc-radius-sm)",
-          background: "var(--tc-surface-soft)",
-          animation: "pulse 1.5s ease-in-out infinite",
-        }}
-      />
+      <div className={styles.fallbackTitle} />
       {[0, 1, 2, 3, 4].map((i) => (
         <div
           key={i}
-          style={{
-            height: 56,
-            borderRadius: "var(--tc-radius)",
-            background: "var(--tc-surface-soft)",
-            animation: "pulse 1.5s ease-in-out infinite",
-            animationDelay: `${i * 80}ms`,
-          }}
+          className={styles.fallbackCard}
         />
       ))}
     </div>
