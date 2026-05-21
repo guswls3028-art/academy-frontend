@@ -37,6 +37,16 @@
   flex-shrink: 0;
 }
 
+.stu-topbar__home-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stu-topbar__home-link .stu-topbar__logo {
+  flex-shrink: 0;
+}
+
 .stu-topbar__profileBtn {
   display: inline-flex;
   align-items: center;

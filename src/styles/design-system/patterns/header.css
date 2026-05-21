@@ -62,14 +62,28 @@
 
 [data-app="admin"] .app-header[data-mobile] .app-header__left {
   flex: 1;
+  min-width: 0;
   margin-right: 8px;
+  gap: 10px;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__brand {
+  flex: 1 1 72px;
+  max-width: min(42vw, 220px);
+  overflow: hidden;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__brandMark img {
+  max-width: 72px;
 }
 
 [data-app="admin"] .app-header__brand {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: min(34vw, 360px);
 }
 
 [data-app="admin"] .app-header__brandMark {
@@ -103,12 +117,12 @@
 [data-app="admin"] .app-header__brandName {
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-  max-width: 22ch;
+  max-width: 100%;
   color: var(--color-text-primary);
 }
 
@@ -440,6 +454,38 @@
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header[data-mobile] {
+  gap: 8px;
+  padding: 0 16px;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__right {
+  gap: 6px;
+}
+
+[data-app="admin"] .app-header__userBtn {
+  max-width: 160px;
+  overflow: hidden;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__userBtn {
+  width: 40px;
+  max-width: 40px;
+  padding-inline: 0;
+}
+
+[data-app="admin"] .app-header__userBtn > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__userBtn > span:last-child {
+  display: none;
 }
 
 [data-app="admin"] .app-header__iconBtn {

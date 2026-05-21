@@ -335,7 +335,7 @@ export default function Header() {
             />
           </div>
 
-          <div className="app-header__brand">
+          <div className="app-header__brand" title={academyName} aria-label={academyName}>
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />

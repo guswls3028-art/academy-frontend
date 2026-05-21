@@ -41,7 +41,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
       }}
     >
       {/* Left: Hamburger + Tenant name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 auto", minWidth: 0, overflow: "hidden" }}>
         <button
           onClick={onMenuClick}
           aria-label="메뉴"
@@ -94,6 +94,10 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
+            flex: "1 1 auto",
+            minWidth: 0,
+            maxWidth: "min(44vw, 260px)",
+            overflow: "hidden",
           }}
         >
           {logoUrl && (
@@ -109,7 +113,11 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
                 fontSize: 17,
                 fontWeight: 700,
                 color: "var(--tc-text)",
-                letterSpacing: "-0.02em",
+                letterSpacing: 0,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
               {tenantName}
@@ -131,7 +139,7 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
 
       {/* Right: 작업박스 영역 — 알림 벨(향후 검색·계정 등 추가 자리).
           학원 홈페이지 동선은 좌상단 홈 아이콘이 SSOT (2026-05-12 학원장 spec, 중복 제거). */}
-      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
       <button
         onClick={() => navigate("/teacher/notifications")}
         aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}

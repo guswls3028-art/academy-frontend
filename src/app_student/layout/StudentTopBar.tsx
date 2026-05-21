@@ -55,7 +55,7 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
         color: "var(--stu-primary-contrast)",
         fontSize: 13,
         fontWeight: 600,
-        letterSpacing: "-0.02em",
+        letterSpacing: 0,
         flexShrink: 0,
         boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.18), 0 1px 3px color-mix(in srgb, var(--stu-primary) 28%, transparent)",
       }}
@@ -231,7 +231,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         margin: "0 auto",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "1 1 auto", minWidth: 0, overflow: "hidden" }}>
       {/* 아이콘 액션 그룹 (햄버거 + 홈) — 로고와 시각적 분리 */}
       <div className="stu-topbar__iconGroup">
         {onMenuClick && (
@@ -265,15 +265,19 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       <Link
         to="/student/dashboard"
         className="stu-topbar__home-link"
+        title={branding.title}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
           color: "var(--stu-text)",
           textDecoration: "none",
+          flex: "1 1 auto",
           minWidth: 0,
+          maxWidth: "min(44vw, 240px)",
+          overflow: "hidden",
         }}
-        aria-label="홈"
+        aria-label={`${branding.title} 홈`}
       >
         {headerLogoUrl ? (
           <img
@@ -325,7 +329,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             H
           </div>
         ) : null}
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {branding.title}
         </span>
       </Link>
@@ -362,7 +366,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 maxWidth: 100,
-                letterSpacing: "-0.01em",
+                letterSpacing: 0,
               }}
             >
               {profile.displayName}
