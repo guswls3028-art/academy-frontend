@@ -125,7 +125,7 @@ function StatusChip({ answered }: { answered: boolean }) {
 // ═══════════════════════════════════════════
 function MyActivitySummary() {
   const q = useQuery({
-    queryKey: ["community", "my-activity", 30],
+    queryKey: ["student", "community", "my-activity", 30],
     // dynamic import to avoid circular if needed
     queryFn: () => import("../api/community.api").then((m) => m.fetchMyActivity(30)),
     staleTime: 60 * 1000,
@@ -332,14 +332,16 @@ function QnaTab({
 
   return (
     <div className="community-stack">
-      <button
-        type="button"
-        className="stu-btn stu-btn--primary community-primary-action"
-        onClick={onForm}
-      >
-        <IconPlus className="community-icon-sm" />
-        {profile?.isParentReadOnly ? "학부모 자격으로 질문하기" : "질문하기"}
-      </button>
+      {!profile?.isParentReadOnly && (
+        <button
+          type="button"
+          className="stu-btn stu-btn--primary community-primary-action"
+          onClick={onForm}
+        >
+          <IconPlus className="community-icon-sm" />
+          질문하기
+        </button>
+      )}
 
       <SegmentedTabs
         items={[
@@ -531,12 +533,18 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const contentText = content.replace(/<[^>]*>/g, "").trim();
   const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
 
+  if (profile?.isParentReadOnly) {
+    return (
+      <StudentPageShell title="질문 보내기" onBack={onBack}>
+        <EmptyState title="학부모 계정은 질문 작성이 제한됩니다" description="학생 계정으로 로그인하면 질문을 등록할 수 있습니다." />
+      </StudentPageShell>
+    );
+  }
+
   return (
     <StudentPageShell
       title="질문 보내기"
-      description={profile?.isParentReadOnly
-        ? "학부모 자격으로 작성됩니다. 답변 알림은 등록된 학부모 연락처로 전송됩니다."
-        : "궁금한 점을 적어 보내면 선생님이 확인해 주세요."}
+      description="궁금한 점을 적어 보내면 선생님이 확인해 주세요."
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">
@@ -674,14 +682,16 @@ function CounselTab({
 
   return (
     <div className="community-stack">
-      <button
-        type="button"
-        className="stu-btn stu-btn--primary community-primary-action"
-        onClick={onForm}
-      >
-        <IconPlus className="community-icon-sm" />
-        {profile?.isParentReadOnly ? "학부모 자격으로 상담 신청하기" : "상담 신청하기"}
-      </button>
+      {!profile?.isParentReadOnly && (
+        <button
+          type="button"
+          className="stu-btn stu-btn--primary community-primary-action"
+          onClick={onForm}
+        >
+          <IconPlus className="community-icon-sm" />
+          상담 신청하기
+        </button>
+      )}
 
       <SegmentedTabs
         items={[
@@ -852,12 +862,18 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const counselContentText = content.replace(/<[^>]*>/g, "").trim();
   const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
 
+  if (profile?.isParentReadOnly) {
+    return (
+      <StudentPageShell title="상담 신청" onBack={onBack}>
+        <EmptyState title="학부모 계정은 상담 작성이 제한됩니다" description="학생 계정으로 로그인하면 상담을 신청할 수 있습니다." />
+      </StudentPageShell>
+    );
+  }
+
   return (
     <StudentPageShell
       title="상담 신청"
-      description={profile?.isParentReadOnly
-        ? "학부모 자격으로 작성됩니다. 답변 알림은 등록된 학부모 연락처로 전송됩니다."
-        : "상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다."}
+      description="상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다."
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">

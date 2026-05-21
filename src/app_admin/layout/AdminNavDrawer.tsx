@@ -9,7 +9,9 @@ import { Smartphone } from "lucide-react";
 import { useAdminLayout } from "./useAdminLayout";
 import { ADMIN_NAV_GROUPS, NavIcon } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
+import { useProgram } from "@/shared/program";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import useAuth from "@/auth/hooks/useAuth";
 import styles from "./AdminNavDrawer.module.css";
 
 export default function AdminNavDrawer() {
@@ -19,17 +21,24 @@ export default function AdminNavDrawer() {
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
   const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { program } = useProgram();
+  const { user } = useAuth();
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 
   const groups = useMemo(() => {
     const isStaffAdmin = !!staffMe?.is_payroll_manager;
+    const isTenantAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin" || !!user?.is_superuser;
+    const flags = program?.feature_flags ?? {};
     return ADMIN_NAV_GROUPS.map((g) => ({
       ...g,
       items: g.items.filter(
-        (it) => !it.requiresStaffAdmin || (it.requiresStaffAdmin && isStaffAdmin)
+        (it) =>
+          (!it.requiresStaffAdmin || isStaffAdmin)
+          && (!it.requiresTenantAdmin || isTenantAdmin)
+          && (!it.requiresFeatureFlag || !!flags[it.requiresFeatureFlag])
       ),
     })).filter((g) => g.items.length > 0);
-  }, [staffMe?.is_payroll_manager]);
+  }, [program?.feature_flags, staffMe?.is_payroll_manager, user?.tenantRole, user?.is_superuser]);
 
   const isActive = (to: string) =>
     to !== "" && (loc.pathname === to || loc.pathname.startsWith(to + "/"));

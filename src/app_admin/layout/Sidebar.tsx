@@ -8,6 +8,7 @@ import {
 } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
 import { useProgram } from "@/shared/program";
+import useAuth from "@/auth/hooks/useAuth";
 import styles from "./Sidebar.module.css";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
@@ -43,19 +44,22 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
   const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
   const { program } = useProgram();
+  const { user } = useAuth();
 
   const groups = useMemo(() => {
     const isStaffAdmin = !!staffMe?.is_payroll_manager;
+    const isTenantAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin" || !!user?.is_superuser;
     const flags = program?.feature_flags ?? {};
     return ADMIN_NAV_GROUPS.map((g) => ({
       ...g,
       items: g.items.filter((it) => {
         if (it.requiresStaffAdmin && !isStaffAdmin) return false;
+        if (it.requiresTenantAdmin && !isTenantAdmin) return false;
         if (it.requiresFeatureFlag && !flags[it.requiresFeatureFlag]) return false;
         return true;
       }),
     })).filter((g) => g.items.length > 0);
-  }, [staffMe?.is_payroll_manager, program?.feature_flags]);
+  }, [staffMe?.is_payroll_manager, program?.feature_flags, user?.tenantRole, user?.is_superuser]);
 
   const isActive = (to: string) =>
     loc.pathname === to || loc.pathname.startsWith(to + "/");

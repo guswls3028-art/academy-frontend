@@ -8,7 +8,10 @@ import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
-import { fetchOMRDefaults, downloadOMRPdf, submitOMR, fetchExam, fetchExamResults } from "../api";
+import { fetchOMRDefaults, downloadOMRPdf, submitOMR, fetchExam } from "../api";
+import { fetchExamResults as fetchExamResultRows } from "@teacher/domains/results/statsApi";
+import { fetchExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
+import { normalizeExam } from "../normalizers";
 import styles from "./OmrPage.module.css";
 
 type TeacherExamResultRow = {
@@ -39,9 +42,13 @@ export default function OmrPage() {
 
   const { data: exam } = useQuery({
     queryKey: ["teacher-exam", eid],
-    queryFn: () => fetchExam(eid),
+    queryFn: async () => normalizeExam(await fetchExam(eid)),
     enabled: Number.isFinite(eid),
   });
+  const sessionIds = useMemo(
+    () => (exam?.session_ids ?? []).filter((id): id is number => Number.isFinite(id)),
+    [exam?.session_ids],
+  );
 
   const { data: defaults, isLoading } = useQuery({
     queryKey: ["teacher-omr-defaults", eid],
@@ -51,12 +58,50 @@ export default function OmrPage() {
 
   const { data: results } = useQuery({
     queryKey: ["teacher-exam-results", eid],
-    queryFn: () => fetchExamResults(eid),
+    queryFn: () => fetchExamResultRows(eid),
     enabled: Number.isFinite(eid),
     // 채점 대기 중이면 5초 폴링 — 결과 자동 갱신
     refetchInterval: pendingScoring.size > 0 ? 5000 : false,
   });
-  const resultRows = useMemo(() => (results ?? []) as TeacherExamResultRow[], [results]);
+  const { data: rosterRows = [] } = useQuery({
+    queryKey: ["teacher-omr-exam-enrollments", eid, sessionIds],
+    queryFn: async () => {
+      const responses = await Promise.all(
+        sessionIds.map((sessionId) => fetchExamEnrollmentRows({ examId: eid, sessionId })),
+      );
+      const rowsByEnrollment = new Map<number, NonNullable<typeof responses[number]["items"]>[number]>();
+      for (const response of responses) {
+        for (const row of response.items ?? []) {
+          const existing = rowsByEnrollment.get(row.enrollment_id);
+          rowsByEnrollment.set(row.enrollment_id, existing ? { ...existing, is_selected: existing.is_selected || row.is_selected } : row);
+        }
+      }
+      return Array.from(rowsByEnrollment.values());
+    },
+    enabled: Number.isFinite(eid) && sessionIds.length > 0,
+  });
+  const rawResultRows = useMemo(() => (results ?? []) as TeacherExamResultRow[], [results]);
+  const resultRows = useMemo(() => {
+    const selectedRows = rosterRows.filter((row) => row.is_selected);
+    if (selectedRows.length === 0) return rawResultRows;
+
+    const resultByEnrollment = new Map<number, TeacherExamResultRow>();
+    for (const row of rawResultRows) {
+      const enrollmentId = getEnrollmentId(row);
+      if (enrollmentId != null) resultByEnrollment.set(enrollmentId, row);
+    }
+
+    return selectedRows.map((row): TeacherExamResultRow => {
+      const fromResult = resultByEnrollment.get(row.enrollment_id);
+      if (fromResult) return fromResult;
+      return {
+        id: `enrollment-${row.enrollment_id}`,
+        enrollment_id: row.enrollment_id,
+        student_name: row.student_name,
+        max_score: exam?.max_score ?? null,
+      };
+    });
+  }, [exam?.max_score, rawResultRows, rosterRows]);
 
   // 결과가 갱신되면 채점 완료된 enrollment를 pendingScoring에서 제거
   // + 5분 경과한 미완료 항목도 강제 해제 (백엔드 영구 실패 시 무한 폴링 차단)
@@ -212,6 +257,7 @@ export default function OmrPage() {
           setPendingScoring((p) => new Set(p).add(submittedEid));
           // 즉시 1회 갱신 시도
           qc.invalidateQueries({ queryKey: ["teacher-exam-results", eid] });
+          qc.invalidateQueries({ queryKey: ["teacher-omr-exam-enrollments", eid] });
         }}
       />
     </div>

@@ -2,10 +2,12 @@
  * E2E: 선생님 앱 Phase 3 — 시험/과제, 영상, 클리닉, 상담 메모 렌더링 검증
  * Tenant 1 (hakwonplus) admin 로그인 후 모바일 뷰포트에서 검증
  */
+import type { Page } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin");
+const teacherMenu = (page: Page) => page.getByRole("navigation", { name: "선생님 메뉴" });
 
 test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   test.use({
@@ -30,12 +32,11 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
-    // PC 사이드바 구조 메뉴 확인 (드로어 내)
-    await expect(page.getByRole("button", { name: "시험 / 과제" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "성적 조회" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "상담 메모" })).toBeVisible();
-    // 영상은 대시보드 퀵액션에도 있어서 nth(1)로 드로어 것 확인
-    await expect(page.getByRole("button", { name: /^영상$/ }).nth(1)).toBeVisible();
+    const menu = teacherMenu(page);
+    await expect(menu.getByRole("button", { name: "시험", exact: true })).toBeVisible({ timeout: 5_000 });
+    await expect(menu.getByRole("button", { name: "성적", exact: true })).toBeVisible();
+    await expect(menu.getByRole("button", { name: "상담 메모" })).toBeVisible();
+    await expect(menu.getByRole("button", { name: "영상", exact: true })).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-01-drawer-menu.png" });
   });
@@ -44,8 +45,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.goto(`${BASE}/teacher/exams`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
-    // 페이지 헤딩 확인
-    await expect(page.getByRole("heading", { name: "시험 / 과제" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "시험" })).toBeVisible({ timeout: 10_000 });
 
     // 2개 탭 버튼 확인 (탭 영역 내 버튼만)
     const examTab = page.locator("button").filter({ hasText: /^시험$/ }).first();
@@ -105,14 +105,14 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     // 헤더 햄버거 → 영상
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    await page.getByRole("button", { name: /^영상$/ }).nth(1).click();
+    await teacherMenu(page).getByRole("button", { name: "영상", exact: true }).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     expect(page.url()).toContain("/teacher/videos");
 
     // 헤더 햄버거 → 상담 메모
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    await page.getByRole("button", { name: "상담 메모" }).click();
+    await teacherMenu(page).getByRole("button", { name: "상담 메모" }).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     expect(page.url()).toContain("/teacher/counseling");
 

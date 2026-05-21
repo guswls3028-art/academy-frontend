@@ -5,6 +5,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useProgram } from "@/shared/program";
+import useAuth from "@/auth/hooks/useAuth";
 import styles from "./FeesPage.module.css";
 
 const TABS: DomainTab[] = [
@@ -15,10 +16,12 @@ const TABS: DomainTab[] = [
 
 export default function FeesPage() {
   const { isLoading } = useProgram();
+  const { user, isLoading: authLoading } = useAuth();
   const enabled = useFeesEnabled();
+  const isTenantAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin" || !!user?.is_superuser;
 
   // program 로드 전에는 플래그 미확정 — 즉시 Navigate 금지 (대시보드 오탈리 다이렉트 방지)
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="p-6 flex flex-col gap-3" aria-label="로딩 중">
         <div className={`skeleton ${styles.skeletonTitle}`} />
@@ -28,7 +31,7 @@ export default function FeesPage() {
     );
   }
 
-  if (!enabled) {
+  if (!enabled || !isTenantAdmin) {
     return <Navigate to="/admin/dashboard" replace />;
   }
 

@@ -33,6 +33,7 @@ export type TeacherVideoStats = {
 export type TeacherVideoComment = {
   id: number | string;
   author_display_name?: string | null;
+  author_name?: string | null;
   created_by_name?: string | null;
   created_at?: string | null;
   content?: string | null;
@@ -81,7 +82,22 @@ export async function uploadInit(payload: {
   content_type: string;
 }) {
   const res = await api.post("/media/videos/upload/init/", payload);
-  return res.data as { id: number; upload_url: string; video_key: string };
+  const data = res.data as {
+    video?: { id?: number };
+    id?: number;
+    upload_url: string;
+    file_key?: string;
+    video_key?: string;
+  };
+  const id = data.video?.id ?? data.id;
+  if (typeof id !== "number") {
+    throw new Error("영상 업로드 초기화 응답에 video.id가 없습니다.");
+  }
+  return {
+    id,
+    upload_url: data.upload_url,
+    video_key: data.file_key ?? data.video_key ?? "",
+  };
 }
 
 export async function uploadComplete(videoId: number) {

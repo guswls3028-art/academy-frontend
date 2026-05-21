@@ -197,7 +197,7 @@ function PasswordChangeGroup({
     setError("");
     if (!oldPw || !newPw) { setError("현재 비밀번호와 새 비밀번호를 모두 입력하세요."); return; }
     if (newPw !== confirmPw) { setError("새 비밀번호가 일치하지 않습니다."); return; }
-    if (newPw.length < 8) { setError("새 비밀번호는 8자 이상이어야 합니다."); return; }
+    if (newPw.length < 4) { setError("새 비밀번호는 4자 이상이어야 합니다."); return; }
     try {
       await mut.mutateAsync({ old_password: oldPw, new_password: newPw });
       feedback.success("비밀번호가 변경되었습니다.");
@@ -225,7 +225,7 @@ function PasswordChangeGroup({
           <div>
             <p className={s.fieldLabel}>새 비밀번호</p>
             <input type="password" className="ds-input" value={newPw} onChange={(e) => setNewPw(e.target.value)}
-              placeholder="8자 이상" aria-label="새 비밀번호" autoComplete="new-password"
+              placeholder="4자 이상" aria-label="새 비밀번호" autoComplete="new-password"
               disabled={mut.isPending} style={{ maxWidth: 260 }} />
           </div>
           <div>

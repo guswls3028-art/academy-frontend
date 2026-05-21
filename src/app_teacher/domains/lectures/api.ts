@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/lectures/api.ts
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
+import { downloadFromUrl, pollJobUntilDone } from "@/shared/api/jobExport";
 
 export type TeacherLecture = {
   id: number;
@@ -152,11 +153,14 @@ export async function deleteEnrollment(enrollmentId: number) {
 
 /* ─── Attendance ─── */
 export async function downloadAttendanceExcel(lectureId: number) {
-  const res = await api.get(`/lectures/lectures/${lectureId}/attendance-excel/`, { responseType: "blob" });
-  const url = window.URL.createObjectURL(res.data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `attendance-${lectureId}.xlsx`;
-  a.click();
-  window.URL.revokeObjectURL(url);
+  const res = await api.post<{ job_id?: string }>("/lectures/attendance/excel/", {
+    lecture_id: lectureId,
+  });
+  const jobId = res.data.job_id;
+  if (!jobId) throw new Error("출석 엑셀 작업을 시작하지 못했습니다.");
+
+  const data = await pollJobUntilDone(jobId);
+  const url = data.result?.download_url;
+  if (!url) throw new Error("엑셀 생성은 완료됐지만 다운로드 링크가 없습니다.");
+  downloadFromUrl(url, data.result?.filename || `attendance-${lectureId}.xlsx`);
 }

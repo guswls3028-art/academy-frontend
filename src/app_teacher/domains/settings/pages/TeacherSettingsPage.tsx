@@ -95,7 +95,7 @@ export default function TeacherSettingsPage() {
     onError: () => setPwMsg({ type: "err", text: "현재 비밀번호가 일치하지 않습니다" }),
   });
 
-  const pwValid = oldPw.length >= 1 && newPw.length >= 8 && newPw === newPwConfirm;
+  const pwValid = oldPw.length >= 1 && newPw.length >= 4 && newPw === newPwConfirm;
 
   /* Theme */
   const themeGroups: ThemeGroup[] = useMemo(() => [
@@ -178,7 +178,7 @@ export default function TeacherSettingsPage() {
         ) : (
           <div className="flex flex-col gap-2">
             <PwInput label="현재 비밀번호" value={oldPw} onChange={setOldPw} show={showOld} onToggle={() => setShowOld(!showOld)} />
-            <PwInput label="새 비밀번호 (8자 이상)" value={newPw} onChange={setNewPw} show={showNew} onToggle={() => setShowNew(!showNew)} />
+            <PwInput label="새 비밀번호 (4자 이상)" value={newPw} onChange={setNewPw} show={showNew} onToggle={() => setShowNew(!showNew)} />
             <FieldInput label="새 비밀번호 확인" value={newPwConfirm} onChange={setNewPwConfirm} type="password" placeholder="다시 입력" />
             {newPw.length > 0 && newPwConfirm.length > 0 && newPw !== newPwConfirm && (
               <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>비밀번호가 일치하지 않습니다</div>

@@ -97,7 +97,8 @@ export default function VideoListPage() {
       const pub = await fetchPublicSession();
       if (!pub) { teacherToast.error("업로드 세션을 찾을 수 없습니다."); return; }
       const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name, content_type: file.type || "video/mp4" });
-      await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
+      const put = await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
+      if (!put.ok) throw new Error(`video_upload_put_failed_${put.status}`);
       await uploadComplete(init.id);
       qc.invalidateQueries({ queryKey: ["teacher-videos"] });
       teacherToast.success("업로드 완료. 처리는 잠시 후 시작됩니다.");

@@ -153,6 +153,8 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       {/* Drawer panel — PC 사이드바 스타일 */}
       <div
         className={open ? `${styles.panel} ${styles.panelOpen}` : styles.panel}
+        role="navigation"
+        aria-label="선생님 메뉴"
       >
         {/* Header — 사이드바 로고 영역 대응 */}
         <div className={styles.header}>

@@ -1,10 +1,12 @@
 // PATH: src/app_teacher/domains/lectures/pages/AttendanceMatrixPage.tsx
 // 출석 매트릭스 — 모바일 개량: 학생별 카드 + 가로 스크롤 세션 컬럼
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download } from "@teacher/shared/ui/Icons";
 import { downloadAttendanceExcel, fetchAttendanceMatrix } from "../api";
+import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import type {
   AttendanceMatrixSession,
   AttendanceMatrixStudent,
@@ -21,6 +23,12 @@ export default function AttendanceMatrixPage() {
     queryKey: ["attendance-matrix", lid],
     queryFn: () => fetchAttendanceMatrix(lid),
     enabled: isValidLectureId,
+  });
+
+  const exportMut = useMutation({
+    mutationFn: () => downloadAttendanceExcel(lid),
+    onSuccess: () => teacherToast.success("출석 엑셀을 다운로드했습니다."),
+    onError: (e) => teacherToast.error(extractApiError(e, "출석 엑셀을 내려받지 못했습니다.")),
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
@@ -42,11 +50,11 @@ export default function AttendanceMatrixPage() {
         <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>출석 현황</h1>
         <button
           type="button"
-          onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
-          disabled={!isValidLectureId}
+          onClick={() => exportMut.mutate()}
+          disabled={!isValidLectureId || exportMut.isPending}
           className={`${styles.exportButton} flex items-center gap-1 text-[11px] font-semibold cursor-pointer`}
         >
-          <Download size={12} /> 엑셀
+          <Download size={12} /> {exportMut.isPending ? "생성" : "엑셀"}
         </button>
       </div>
 

@@ -39,6 +39,12 @@ export default function LectureDetailPage() {
     onError: (e) => teacherToast.error(extractApiError(e, "강의를 삭제하지 못했습니다.")),
   });
 
+  const attendanceExportMut = useMutation({
+    mutationFn: () => downloadAttendanceExcel(lid),
+    onSuccess: () => teacherToast.success("출석 엑셀을 다운로드했습니다."),
+    onError: (e) => teacherToast.error(extractApiError(e, "출석 엑셀을 내려받지 못했습니다.")),
+  });
+
   const { data: lecture, isLoading } = useQuery({
     queryKey: ["lecture", lid],
     queryFn: () => fetchLecture(lid),
@@ -99,10 +105,11 @@ export default function LectureDetailPage() {
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Download size={ICON.xs} /> 출석 현황 (매트릭스)
                 </button>
-                <button onClick={() => downloadAttendanceExcel(lid).catch(() => {})}
+                <button onClick={() => { setMenuOpen(false); attendanceExportMut.mutate(); }}
+                  disabled={!Number.isFinite(lid) || attendanceExportMut.isPending}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                  <Download size={ICON.xs} /> 출석 엑셀
+                  <Download size={ICON.xs} /> {attendanceExportMut.isPending ? "엑셀 생성 중..." : "출석 엑셀"}
                 </button>
                 <button onClick={() => { setSectionOpen(true); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"

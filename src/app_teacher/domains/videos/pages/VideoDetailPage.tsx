@@ -8,9 +8,8 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";
 import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo } from "../api";
+import { fetchVideoComments, fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo, createVideoComment } from "../api";
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
-import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -54,11 +53,7 @@ export default function VideoDetailPage() {
 
   const { data: comments } = useQuery({
     queryKey: ["teacher-video-comments", vid],
-    queryFn: async () => {
-      const res = await api.get(`/media/videos/${vid}/comments/`);
-      const raw = res.data;
-      return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
-    },
+    queryFn: () => fetchVideoComments(vid),
     enabled: Number.isFinite(vid) && tab === "comments",
   });
 
@@ -191,10 +186,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
   const [text, setText] = useState("");
 
   const createMut = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await api.post(`/media/videos/${videoId}/comments/`, { content });
-      return res.data;
-    },
+    mutationFn: (content: string) => createVideoComment(videoId, content),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-video-comments", videoId] });
       setText("");
@@ -233,7 +225,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
             <Card key={c.id} style={{ padding: "var(--tc-space-3)" }}>
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
-                  {c.author_display_name ?? c.created_by_name ?? "작성자"}
+                  {c.author_display_name ?? c.author_name ?? c.created_by_name ?? "작성자"}
                 </span>
                 <span className="text-[10px]" style={{ color: "var(--tc-text-muted)" }}>
                   {c.created_at ? new Date(c.created_at).toLocaleDateString("ko-KR") : ""}

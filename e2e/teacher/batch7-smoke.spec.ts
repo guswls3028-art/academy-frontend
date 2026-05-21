@@ -53,7 +53,7 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
   });
 
   test("시험 번들 관리 렌더링", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/exams/bundles", /시험 번들/);
+    await gotoAndAssertNoError(page, "/teacher/exams/bundles", /시험 묶음|시험 번들/);
   });
 
   test("클리닉 보고서 렌더링", async ({ page }) => {

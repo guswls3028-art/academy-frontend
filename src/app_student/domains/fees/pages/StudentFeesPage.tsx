@@ -3,7 +3,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
+import studentApi from "@student/shared/api/student.api";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import styles from "./StudentFeesPage.module.css";
@@ -45,20 +46,21 @@ function formatKRW(n: number) {
 
 export default function StudentFeesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selectedStudentId = getParentStudentId();
 
   const { data: invoices, isLoading, isError, refetch } = useQuery({
-    queryKey: ["student", "fees", "invoices"],
+    queryKey: ["student", "fees", "invoices", selectedStudentId],
     queryFn: async () => {
-      const res = await api.get<Invoice[]>("/student/fees/invoices/");
+      const res = await studentApi.get<Invoice[]>("/student/fees/invoices/");
       return res.data;
     },
     staleTime: 10_000,
   });
 
   const { data: detail } = useQuery({
-    queryKey: ["student", "fees", "invoices", selectedId],
+    queryKey: ["student", "fees", "invoices", selectedStudentId, selectedId],
     queryFn: async () => {
-      const res = await api.get<Invoice>(`/student/fees/invoices/${selectedId}/`);
+      const res = await studentApi.get<Invoice>(`/student/fees/invoices/${selectedId}/`);
       return res.data;
     },
     enabled: selectedId != null,
@@ -66,9 +68,9 @@ export default function StudentFeesPage() {
   });
 
   const { data: payments } = useQuery({
-    queryKey: ["student", "fees", "payments"],
+    queryKey: ["student", "fees", "payments", selectedStudentId],
     queryFn: async () => {
-      const res = await api.get<Payment[]>("/student/fees/payments/");
+      const res = await studentApi.get<Payment[]>("/student/fees/payments/");
       return res.data;
     },
     staleTime: 10_000,

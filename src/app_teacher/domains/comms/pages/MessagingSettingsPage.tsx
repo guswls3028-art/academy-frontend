@@ -12,7 +12,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import {
   fetchMessagingInfo, updateMessagingInfo, verifySender, testCredentials,
   fetchAutoSendConfigs, updateAutoSendConfig, fetchAllTemplates,
-  AUTO_SEND_TRIGGER_LABELS, MESSAGE_MODE_LABELS,
+  AUTO_SEND_TRIGGER_LABELS,
   type AutoSendConfig, type MessagingProvider, type TestCredentialsResult,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -20,14 +20,6 @@ import { useConfirm } from "@/shared/ui/confirm";
 import styles from "./MessagingSettingsPage.module.css";
 
 const SERVER_IP = "43.201.119.172";
-
-type MessageModeOption = "alimtalk" | "sms" | "alimtalk_sms_fallback";
-
-const MESSAGE_MODE_OPTIONS: Array<{ key: MessageModeOption; label: string }> = [
-  { key: "alimtalk", label: "알림톡" },
-  { key: "sms", label: "SMS" },
-  { key: "alimtalk_sms_fallback", label: "알림톡(대체 SMS)" },
-];
 
 function getErrorDetail(error: unknown, fallback: string): string {
   if (error && typeof error === "object") {
@@ -45,12 +37,6 @@ function templateIdFromConfig(config: AutoSendConfig): number | null {
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   if (config.template_name) return config.template_name;
   return typeof config.template === "object" && config.template ? config.template.name : undefined;
-}
-
-function normalizeMessageMode(value: string | null | undefined): MessageModeOption {
-  return MESSAGE_MODE_OPTIONS.some((option) => option.key === value)
-    ? (value as MessageModeOption)
-    : "alimtalk";
 }
 
 export default function MessagingSettingsPage() {
@@ -106,13 +92,14 @@ export default function MessagingSettingsPage() {
 
   const hasPfid = !!info?.kakao_pfid;
   const hasSender = !!info?.messaging_sender;
+  const hasProviderAccess = !!info?.sms_allowed || (info?.has_own_credentials ?? false);
   const hasOwnCreds = info?.has_own_credentials ?? false;
-  const canSend = !!info?.sms_allowed || hasOwnCreds;
   const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
   const setupSteps = [
-    { done: canSend, label: "API 연동" },
+    { done: hasProviderAccess, label: "발송 연동" },
     { done: hasSender, label: "발신번호" },
+    { done: hasPfid, label: "알림톡 채널" },
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
@@ -228,24 +215,23 @@ export default function MessagingSettingsPage() {
 
           {/* KPI 요약 — 2x2 */}
           <div className="grid grid-cols-2 gap-2">
-            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={canSend ? "ok" : "warn"} tone="provider" />
+            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={hasProviderAccess ? "ok" : "warn"} tone="provider" />
             <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || "미등록"} status={hasSender ? "ok" : "warn"} tone="sender" />
             <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={hasPfid ? "사용 가능" : "미설정"} status={hasPfid ? "ok" : "none"} tone="kakao" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="SMS" value={info.sms_allowed ? "사용 가능" : "미설정"} status={info.sms_allowed ? "ok" : "warn"} tone="sms" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="자동발송" value="알림톡 전용" status={hasPfid ? "ok" : "warn"} tone="sms" />
           </div>
 
           {/* 잔액 (보조 정보) */}
           {info.balance != null && (
             <div className={`${styles.balanceText} text-[12px] text-center`}>
               잔액: <span className={styles.balanceAmount}>{info.balance.toLocaleString()}원</span>
-              {info.sms_price != null ? ` · SMS ${info.sms_price}원` : ""}
               {info.alimtalk_price != null ? ` · 알림톡 ${info.alimtalk_price}원` : ""}
             </div>
           )}
 
           {/* ① 공급자 선택 */}
           <Card>
-            <SectionHeader icon={<Settings size={ICON.sm} />} title="메시지 공급자" desc="SMS·알림톡 발송에 사용할 공급자를 선택하세요." />
+            <SectionHeader icon={<Settings size={ICON.sm} />} title="메시지 공급자" desc="알림톡 발송에 사용할 공급자를 선택하세요." />
             <div className={`${styles.segmentControl} flex gap-0 rounded-lg overflow-hidden`}>
               {([
                 { k: "solapi" as const, l: "솔라피(Solapi)" },
@@ -335,7 +321,7 @@ export default function MessagingSettingsPage() {
           <Card>
             <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="카카오 알림톡 채널" desc={hasPfid
               ? "알림톡 채널이 연동되어 있습니다."
-              : "SMS만 사용한다면 이 항목은 건너뛰세요."} badge="선택" />
+              : "자동 발송과 학생·학부모 알림톡 전송에 필요합니다."} badge="필수" />
             <div className="flex gap-2 flex-wrap">
               <input type="text" value={pfid} onChange={(e) => setPfid(e.target.value)}
                 placeholder="예: @yourChannel"
@@ -490,7 +476,7 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || config.trigger_label || config.trigger_name || triggerKey || "트리거";
   const templateName = templateNameFromConfig(config);
-  const modeLabel = config.message_mode ? MESSAGE_MODE_LABELS[config.message_mode] || config.message_mode : null;
+  const modeLabel = "알림톡";
   const minutesBefore = config.minutes_before;
 
   return (
@@ -531,7 +517,6 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
 /* ─── Auto Send Edit Sheet ─── */
 function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
   const qc = useQueryClient();
-  const [messageMode, setMessageMode] = useState<MessageModeOption>(normalizeMessageMode(config.message_mode));
   const [minutesBefore, setMinutesBefore] = useState<string>(
     config.minutes_before != null ? String(config.minutes_before) : ""
   );
@@ -540,7 +525,6 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
 
   useEffect(() => {
     if (!open) return;
-    setMessageMode(normalizeMessageMode(config.message_mode));
     setMinutesBefore(config.minutes_before != null ? String(config.minutes_before) : "");
     setTemplateId(templateIdFromConfig(config));
   }, [open, config]);
@@ -554,7 +538,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
   const saveMut = useMutation({
     mutationFn: () => {
       const payload: Record<string, unknown> = {
-        message_mode: messageMode,
+        message_mode: "alimtalk",
         minutes_before: minutesBefore.trim() ? Number(minutesBefore) : null,
         template_id: templateId,
       };
@@ -581,16 +565,12 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           <div>
             <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1.5`}>발송 채널</label>
             <div className="flex gap-1.5">
-              {MESSAGE_MODE_OPTIONS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setMessageMode(key)}
-                  type="button"
-                  className={`${styles.channelButton} ${messageMode === key ? styles.channelButtonActive : ""} flex-1 text-[12px] font-semibold cursor-pointer`}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                type="button"
+                className={`${styles.channelButton} ${styles.channelButtonActive} flex-1 text-[12px] font-semibold`}
+              >
+                알림톡
+              </button>
             </div>
           </div>
 

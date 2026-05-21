@@ -381,8 +381,6 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
 
 export const MESSAGE_MODE_LABELS: Record<string, string> = {
   alimtalk: "알림톡",
-  sms: "SMS",
-  alimtalk_sms_fallback: "알림톡(대체 SMS)",
 };
 
 /* ─── Notification Summary (BFF) ─── */
