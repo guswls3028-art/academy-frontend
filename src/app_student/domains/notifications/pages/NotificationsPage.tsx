@@ -5,7 +5,7 @@
  * - 알림 카운트와 실제 데이터를 동일한 쿼리 키로 공유하여 중복 호출 방지
  * - 로딩 상태 및 에러 처리 개선
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
@@ -18,8 +18,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
+import styles from "./NotificationsPage.module.css";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isRecent(timestamp: string | null | undefined, cutoffTime: number): boolean {
+  if (!timestamp) return false;
+  const time = new Date(timestamp).getTime();
+  return Number.isFinite(time) && time > cutoffTime;
+}
 
 export default function NotificationsPage() {
   const qc = useQueryClient();
@@ -55,66 +62,75 @@ export default function NotificationsPage() {
 
   const isLoading = countsLoading || clinicLoading || qnaLoading || counselLoading || gradesLoading;
   const isError = countsError || clinicError || qnaError || counselError || gradesError;
-  const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
+  const recentCutoffTime = useMemo(() => Date.now() - SEVEN_DAYS_MS, []);
 
-  const approvedClinicBookings = (clinicBookings || []).filter((b) => {
-    if (b.status !== "booked" && b.status !== "approved") return false;
-    const changeDate = b.status_changed_at
-      ? new Date(b.status_changed_at).getTime()
-      : b.updated_at
-        ? new Date(b.updated_at).getTime()
-        : new Date(b.created_at).getTime();
-    return changeDate > sevenDaysAgo;
-  });
+  const approvedClinicBookings = useMemo(
+    () => (clinicBookings || []).filter((booking) => {
+      if (booking.status !== "booked" && booking.status !== "approved") return false;
+      return isRecent(booking.status_changed_at ?? booking.updated_at ?? booking.created_at, recentCutoffTime);
+    }),
+    [clinicBookings, recentCutoffTime],
+  );
 
-  const answeredQnaPosts = myQnaQuestions.filter((p) => {
-    if ((p.replies_count || 0) === 0) return false;
-    const updatedTime = p.updated_at ? new Date(p.updated_at).getTime() : new Date(p.created_at).getTime();
-    return updatedTime > sevenDaysAgo;
-  });
+  const answeredQnaPosts = useMemo(
+    () => myQnaQuestions.filter((post) => {
+      if ((post.replies_count || 0) === 0) return false;
+      return isRecent(post.updated_at ?? post.created_at, recentCutoffTime);
+    }),
+    [myQnaQuestions, recentCutoffTime],
+  );
 
-  const answeredCounselPosts = myCounselRequests.filter((p) => {
-    if ((p.replies_count || 0) === 0) return false;
-    const updatedTime = p.updated_at ? new Date(p.updated_at).getTime() : new Date(p.created_at).getTime();
-    return updatedTime > sevenDaysAgo;
-  });
+  const answeredCounselPosts = useMemo(
+    () => myCounselRequests.filter((post) => {
+      if ((post.replies_count || 0) === 0) return false;
+      return isRecent(post.updated_at ?? post.created_at, recentCutoffTime);
+    }),
+    [myCounselRequests, recentCutoffTime],
+  );
 
-  const newGrades = (gradesSummary?.exams || []).filter((e) => {
-    if (!e.submitted_at) return false;
-    if (e.meta_status === "NOT_SUBMITTED") return false;
-    return new Date(e.submitted_at).getTime() > sevenDaysAgo;
-  });
+  const newGrades = useMemo(
+    () => (gradesSummary?.exams || []).filter((exam) => {
+      if (exam.meta_status === "NOT_SUBMITTED") return false;
+      return isRecent(exam.submitted_at, recentCutoffTime);
+    }),
+    [gradesSummary?.exams, recentCutoffTime],
+  );
 
-  const hasNotifications = (counts?.total || 0) > 0 ||
-    approvedClinicBookings.length > 0 || answeredQnaPosts.length > 0 || answeredCounselPosts.length > 0 ||
+  const hasNotifications =
+    (counts?.total || 0) > 0 ||
+    approvedClinicBookings.length > 0 ||
+    answeredQnaPosts.length > 0 ||
+    answeredCounselPosts.length > 0 ||
     newGrades.length > 0;
+
+  const seenItems = useMemo(() => [
+    ...approvedClinicBookings.map((booking) => ({ type: "clinic", id: booking.id })),
+    ...answeredQnaPosts.map((post) => ({ type: "qna", id: post.id })),
+    ...answeredCounselPosts.map((post) => ({ type: "counsel", id: post.id })),
+    ...newGrades.map((exam) => ({ type: "grade", id: exam.exam_id })),
+  ], [approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, newGrades]);
 
   // 알림 페이지 진입 시 현재 보이는 항목들을 "읽음" 처리
   const markSeen = useMarkNotificationsSeen();
   const markedRef = useRef<string>("");
   useEffect(() => {
     if (isLoading) return;
-    const items: { type: string; id: number }[] = [];
-    for (const b of approvedClinicBookings) items.push({ type: "clinic", id: b.id });
-    for (const p of answeredQnaPosts) items.push({ type: "qna", id: p.id });
-    for (const p of answeredCounselPosts) items.push({ type: "counsel", id: p.id });
-    for (const e of newGrades) items.push({ type: "grade", id: e.exam_id });
-    if (items.length === 0) return;
+    if (seenItems.length === 0) return;
     // 동일 항목 세트면 중복 호출 방지
-    const key = items.map((i) => `${i.type}:${i.id}`).join(",");
+    const key = seenItems.map((item) => `${item.type}:${item.id}`).join(",");
     if (key === markedRef.current) return;
     markedRef.current = key;
-    markSeen(items);
-  }, [isLoading, approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, newGrades, markSeen]);
+    markSeen(seenItems);
+  }, [isLoading, seenItems, markSeen]);
 
   if (isLoading) {
     return (
       <StudentPageShell title="알림">
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 20, width: "30%", borderRadius: "var(--stu-radius-sm)" }} />
-          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.skelTitle}`} />
+          <div className={`stu-skel ${styles.skelCard}`} />
+          <div className={`stu-skel ${styles.skelCard}`} />
+          <div className={`stu-skel ${styles.skelCard}`} />
         </div>
       </StudentPageShell>
     );
@@ -146,116 +162,112 @@ export default function NotificationsPage() {
           description="새로운 알림이 오면 여기에 표시됩니다."
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        <div className={styles.stack}>
           {/* 클리닉 예약 승인 */}
           {approvedClinicBookings.length > 0 && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
-                <IconClinic style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
-                <h3 style={{ fontSize: 15, fontWeight: 700 }}>클리닉 예약</h3>
-                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({approvedClinicBookings.length})</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                {approvedClinicBookings.map((booking) => (
-                  <Link
-                    key={booking.id}
-                    to="/student/clinic"
-                    className="stu-panel stu-panel--pressable"
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                      클리닉 예약이 승인되었습니다
-                    </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {formatYmd(booking.session_date)} {booking.session_start_time?.slice(0, 5)}{booking.session_location ? ` @ ${booking.session_location}` : ""}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <NotificationSection icon={<IconClinic className={styles.sectionIcon} />} title="클리닉 예약" count={approvedClinicBookings.length}>
+              {approvedClinicBookings.map((booking) => (
+                <NotificationLink
+                  key={booking.id}
+                  to="/student/clinic"
+                  title="클리닉 예약이 승인되었습니다"
+                  meta={`${formatYmd(booking.session_date)} ${booking.session_start_time?.slice(0, 5)}${booking.session_location ? ` @ ${booking.session_location}` : ""}`}
+                />
+              ))}
+            </NotificationSection>
           )}
 
           {/* QnA 답변 */}
           {answeredQnaPosts.length > 0 && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
-                <IconNotice style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
-                <h3 style={{ fontSize: 15, fontWeight: 700 }}>질문 답변</h3>
-                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({answeredQnaPosts.length})</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                {answeredQnaPosts.map((post) => (
-                  <Link
-                    key={post.id}
-                    to="/student/community"
-                    state={{ openQuestionId: post.id }}
-                    className="stu-panel stu-panel--pressable"
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      답변이 달렸습니다 · {post.replies_count ?? 0}개
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <NotificationSection icon={<IconNotice className={styles.sectionIcon} />} title="질문 답변" count={answeredQnaPosts.length}>
+              {answeredQnaPosts.map((post) => (
+                <NotificationLink
+                  key={post.id}
+                  to="/student/community"
+                  state={{ openQuestionId: post.id }}
+                  title={post.title}
+                  meta={`답변이 달렸습니다 · ${post.replies_count ?? 0}개`}
+                />
+              ))}
+            </NotificationSection>
           )}
 
           {/* 새 성적 */}
           {newGrades.length > 0 && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
-                <IconNotice style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
-                <h3 style={{ fontSize: 15, fontWeight: 700 }}>새 성적</h3>
-                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({newGrades.length})</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                {newGrades.map((g) => (
-                  <Link
-                    key={g.exam_id}
-                    to="/student/grades"
-                    className="stu-panel stu-panel--pressable"
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{g.title}</div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      {g.lecture_title || ""}{g.session_title ? ` · ${g.session_title}` : ""} · 결과 보기
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <NotificationSection icon={<IconNotice className={styles.sectionIcon} />} title="새 성적" count={newGrades.length}>
+              {newGrades.map((grade) => (
+                <NotificationLink
+                  key={grade.exam_id}
+                  to="/student/grades"
+                  title={grade.title}
+                  meta={`${grade.lecture_title || ""}${grade.session_title ? ` · ${grade.session_title}` : ""} · 결과 보기`}
+                />
+              ))}
+            </NotificationSection>
           )}
 
           {/* 상담 답변 */}
           {answeredCounselPosts.length > 0 && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
-                <IconNotice style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />
-                <h3 style={{ fontSize: 15, fontWeight: 700 }}>상담 답변</h3>
-                <span style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>({answeredCounselPosts.length})</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                {answeredCounselPosts.map((post) => (
-                  <Link
-                    key={post.id}
-                    to="/student/community"
-                    state={{ openCounselId: post.id }}
-                    className="stu-panel stu-panel--pressable"
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>
-                      상담 답변이 달렸습니다 · {post.replies_count ?? 0}개
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            <NotificationSection icon={<IconNotice className={styles.sectionIcon} />} title="상담 답변" count={answeredCounselPosts.length}>
+              {answeredCounselPosts.map((post) => (
+                <NotificationLink
+                  key={post.id}
+                  to="/student/community"
+                  state={{ openCounselId: post.id }}
+                  title={post.title}
+                  meta={`상담 답변이 달렸습니다 · ${post.replies_count ?? 0}개`}
+                />
+              ))}
+            </NotificationSection>
           )}
         </div>
       )}
     </StudentPageShell>
+  );
+}
+
+function NotificationSection({
+  icon,
+  title,
+  count,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  count: number;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <div className={styles.sectionHeader}>
+        {icon}
+        <h3 className={styles.sectionTitle}>{title}</h3>
+        <span className={styles.sectionCount}>({count})</span>
+      </div>
+      <div className={styles.list}>{children}</div>
+    </section>
+  );
+}
+
+function NotificationLink({
+  to,
+  state,
+  title,
+  meta,
+}: {
+  to: string;
+  state?: unknown;
+  title: string;
+  meta: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      state={state}
+      className={`stu-panel stu-panel--pressable ${styles.card}`}
+    >
+      <div className={styles.itemTitle}>{title}</div>
+      <div className={`stu-muted ${styles.itemMeta}`}>{meta}</div>
+    </Link>
   );
 }
