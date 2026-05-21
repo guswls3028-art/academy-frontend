@@ -1,70 +1,78 @@
 /**
- * 영상 댓글 섹션 — 댓글 목록 + 작성 + 대댓글 + 수정/삭제
+ * 영상 댓글 섹션 - 댓글 목록 + 작성 + 대댓글 + 수정/삭제
  */
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { useConfirm } from "@/shared/ui/confirm";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchVideoComments,
-  createVideoComment,
-  editVideoComment,
-  deleteVideoComment,
-  type VideoCommentItem,
-} from "../api/video.api";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 
+import {
+  createVideoComment,
+  deleteVideoComment,
+  editVideoComment,
+  fetchVideoComments,
+  type VideoCommentItem,
+} from "../api/video.api";
 import { timeAgo } from "../utils/timeAgo";
+import styles from "./VideoCommentSection.module.css";
 
-/* ─── 아바타 ─── */
-function CommentAvatar({ name, photoUrl, size = 32 }: { name: string; photoUrl?: string | null; size?: number }) {
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+type CommentAvatarProps = {
+  name: string;
+  photoUrl?: string | null;
+  compact?: boolean;
+};
+
+function CommentAvatar({ name, photoUrl, compact = false }: CommentAvatarProps) {
+  const initial = (name || "?")[0];
+
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        overflow: "hidden",
-        background: "var(--stu-surface-soft)",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "1px solid var(--stu-border)",
-      }}
-    >
+    <div className={cx(styles.avatar, compact && styles.avatarCompact)}>
       {photoUrl ? (
-        <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img className={styles.avatarImage} src={photoUrl} alt="" />
       ) : (
-        <span style={{ fontSize: size * 0.45, fontWeight: 700, color: "var(--stu-text-muted)" }}>
-          {(name || "?")[0]}
-        </span>
+        <span className={styles.avatarInitial}>{initial}</span>
       )}
     </div>
   );
 }
 
-/* ─── 단일 댓글 ─── */
-function CommentRow({
-  comment,
-  videoId,
-  isReply = false,
-  onReply,
-}: {
+type CommentActionButtonProps = {
+  children: string;
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+function CommentActionButton({ children, disabled = false, onClick }: CommentActionButtonProps) {
+  return (
+    <button type="button" className={styles.actionButton} disabled={disabled} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+type CommentRowProps = {
   comment: VideoCommentItem;
   videoId: number;
   isReply?: boolean;
   onReply?: (parentId: number) => void;
-}) {
+};
+
+function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowProps) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [showReplies, setShowReplies] = useState(false);
 
-  const editMut = useMutation({
-    mutationFn: () => editVideoComment(comment.id, editContent.trim()),
+  const { mutate: saveComment, isPending: isSaving } = useMutation({
+    mutationFn: (content: string) => editVideoComment(comment.id, content),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
       setEditMode(false);
       studentToast.success("수정되었습니다.");
     },
@@ -73,10 +81,10 @@ function CommentRow({
     },
   });
 
-  const deleteMut = useMutation({
+  const { mutate: removeComment, isPending: isDeleting } = useMutation({
     mutationFn: () => deleteVideoComment(comment.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
       studentToast.success("삭제되었습니다.");
     },
     onError: () => {
@@ -84,165 +92,140 @@ function CommentRow({
     },
   });
 
-  if (comment.is_deleted) {
-    return (
-      <div style={{ padding: "8px 0", fontSize: 13, color: "var(--stu-text-subtle)", fontStyle: "italic" }}>
-        삭제된 댓글입니다.
-      </div>
-    );
-  }
-
+  const trimmedEditContent = editContent.trim();
+  const canSave = trimmedEditContent.length > 0 && !isSaving;
+  const replies = comment.replies ?? [];
+  const replyCount = replies.length;
   const isTeacher = comment.author_type === "teacher";
 
+  const handleSave = useCallback(() => {
+    if (!canSave) return;
+    saveComment(trimmedEditContent);
+  }, [canSave, saveComment, trimmedEditContent]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditContent(comment.content);
+    setEditMode(false);
+  }, [comment.content]);
+
+  const handleDelete = useCallback(async () => {
+    if (isDeleting) return;
+
+    const ok = await confirm({
+      title: "삭제 확인",
+      message: "댓글을 삭제하시겠습니까?",
+      danger: true,
+      confirmText: "삭제",
+    });
+
+    if (ok) removeComment();
+  }, [confirm, isDeleting, removeComment]);
+
+  if (comment.is_deleted) {
+    return <div className={styles.deletedComment}>삭제된 댓글입니다.</div>;
+  }
+
   return (
-    <div style={{ display: "flex", gap: 10, padding: isReply ? "8px 0 8px 40px" : "12px 0" }}>
-      <CommentAvatar name={comment.author_name} photoUrl={comment.author_photo_url} size={isReply ? 28 : 32} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* 작성자 + 시간 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: isTeacher ? "var(--stu-primary)" : "var(--stu-text)" }}>
+    <div className={cx(styles.commentRow, isReply && styles.replyRow)}>
+      <CommentAvatar name={comment.author_name} photoUrl={comment.author_photo_url} compact={isReply} />
+      <div className={styles.commentBody}>
+        <div className={styles.metaRow}>
+          <span className={cx(styles.authorName, isTeacher && styles.teacherAuthor)}>
             {comment.author_name}
           </span>
-          {isTeacher && (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                padding: "1px 6px",
-                borderRadius: 4,
-                background: "var(--stu-primary)",
-                color: "var(--stu-primary-contrast)",
-              }}
-            >
-              선생님
-            </span>
-          )}
-          <span style={{ fontSize: 11, color: "var(--stu-text-subtle)" }}>
-            {timeAgo(comment.created_at)}
-          </span>
-          {comment.is_edited && (
-            <span style={{ fontSize: 10, color: "var(--stu-text-subtle)" }}>(수정됨)</span>
-          )}
+          {isTeacher && <span className={styles.teacherBadge}>선생님</span>}
+          <span className={styles.createdAt}>{timeAgo(comment.created_at)}</span>
+          {comment.is_edited && <span className={styles.editedLabel}>(수정됨)</span>}
         </div>
 
-        {/* 본문 */}
         {editMode ? (
-          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+          <div className={styles.editRow}>
             <input
+              className={styles.editInput}
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              style={{
-                flex: 1,
-                background: "var(--stu-surface-soft)",
-                border: "1px solid var(--stu-border)",
-                borderRadius: 6,
-                padding: "6px 10px",
-                color: "var(--stu-text)",
-                fontSize: 13,
-              }}
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter" && editContent.trim()) editMut.mutate();
-                if (e.key === "Escape") setEditMode(false);
+                if (e.key === "Enter") handleSave();
+                if (e.key === "Escape") handleCancelEdit();
               }}
             />
             <button
-              onClick={() => editMut.mutate()}
-              disabled={!editContent.trim() || editMut.isPending}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 6,
-                background: "var(--stu-primary)",
-                color: "var(--stu-primary-contrast)",
-                fontSize: 12,
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-              }}
+              type="button"
+              className={cx(styles.editButton, styles.saveButton)}
+              onClick={handleSave}
+              disabled={!canSave}
             >
               저장
             </button>
             <button
-              onClick={() => setEditMode(false)}
-              style={{
-                padding: "4px 8px",
-                borderRadius: 6,
-                background: "transparent",
-                color: "var(--stu-text-muted)",
-                fontSize: 12,
-                border: "1px solid var(--stu-border)",
-                cursor: "pointer",
-              }}
+              type="button"
+              className={cx(styles.editButton, styles.cancelButton)}
+              onClick={handleCancelEdit}
             >
               취소
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: "var(--stu-text)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {comment.content}
-          </div>
+          <div className={styles.commentContent}>{comment.content}</div>
         )}
 
-        {/* 액션 */}
         {!editMode && (
-          <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          <div className={styles.actionRow}>
             {!isReply && onReply && (
-              <button
-                onClick={() => { onReply(comment.id); setShowReplies(true); }}
-                style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              <CommentActionButton
+                onClick={() => {
+                  onReply(comment.id);
+                  setShowReplies(true);
+                }}
               >
                 답글
-              </button>
+              </CommentActionButton>
             )}
             {comment.is_mine && (
               <>
-                <button
-                  onClick={() => { setEditContent(comment.content); setEditMode(true); }}
-                  style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                <CommentActionButton
+                  onClick={() => {
+                    setEditContent(comment.content);
+                    setEditMode(true);
+                  }}
                 >
                   수정
-                </button>
-                <button
-                  onClick={async () => { const ok = await confirm({ title: "삭제 확인", message: "댓글을 삭제하시겠습니까?", danger: true, confirmText: "삭제" }); if (ok) deleteMut.mutate(); }}
-                  style={{ fontSize: 11, color: "var(--stu-text-subtle)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
+                </CommentActionButton>
+                <CommentActionButton disabled={isDeleting} onClick={handleDelete}>
                   삭제
-                </button>
+                </CommentActionButton>
               </>
             )}
           </div>
         )}
 
-        {/* 대댓글 토글 */}
-        {!isReply && (comment.replies?.length ?? 0) > 0 && (
-          <div style={{ marginTop: 6 }}>
+        {!isReply && replyCount > 0 && (
+          <div className={styles.replyToggleRow}>
             <button
-              onClick={() => setShowReplies(!showReplies)}
-              style={{
-                fontSize: 12,
-                color: "var(--stu-primary)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-                fontWeight: 600,
-              }}
+              type="button"
+              className={styles.replyToggle}
+              aria-expanded={showReplies}
+              onClick={() => setShowReplies((visible) => !visible)}
             >
-              {showReplies ? "▲ 답글 숨기기" : `▼ 답글 ${comment.replies?.length ?? 0}개`}
+              {showReplies ? "▲ 답글 숨기기" : `▼ 답글 ${replyCount}개`}
             </button>
           </div>
         )}
 
-        {/* 대댓글 목록 */}
-        {showReplies && (comment.replies ?? []).map((r) => (
-          <CommentRow key={r.id} comment={r} videoId={videoId} isReply />
+        {showReplies && replies.map((reply) => (
+          <CommentRow key={reply.id} comment={reply} videoId={videoId} isReply />
         ))}
       </div>
     </div>
   );
 }
 
-/* ─── 메인 섹션 ─── */
+type CreateCommentInput = {
+  content: string;
+  parentId?: number;
+};
+
 export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const qc = useQueryClient();
   const [newComment, setNewComment] = useState("");
@@ -251,13 +234,13 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["video-comments", videoId],
     queryFn: () => fetchVideoComments(videoId),
-    enabled: !!videoId,
+    enabled: videoId > 0,
   });
 
-  const createMut = useMutation({
-    mutationFn: () => createVideoComment(videoId, newComment.trim(), replyTo ?? undefined),
+  const { mutate: createComment, isPending: isCreating } = useMutation({
+    mutationFn: ({ content, parentId }: CreateCommentInput) => createVideoComment(videoId, content, parentId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
       setNewComment("");
       setReplyTo(null);
     },
@@ -266,102 +249,58 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
     },
   });
 
-  const handleSubmit = useCallback(() => {
-    if (!newComment.trim()) return;
-    createMut.mutate();
-  }, [newComment, createMut]);
-
+  const trimmedNewComment = newComment.trim();
+  const canSubmit = trimmedNewComment.length > 0 && !isCreating;
   const comments = data?.comments ?? [];
 
-  return (
-    <div style={{ marginTop: "var(--stu-space-4)" }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--stu-text)", marginBottom: 12 }}>
-        댓글 {data?.total ?? 0}
-      </h3>
+  const handleSubmit = useCallback(() => {
+    if (!canSubmit) return;
+    createComment({ content: trimmedNewComment, parentId: replyTo ?? undefined });
+  }, [canSubmit, createComment, replyTo, trimmedNewComment]);
 
-      {/* 댓글 입력 — 모바일에서 한 줄 입력 한계를 극복: textarea + 자동 늘림 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "flex-end" }}>
+  return (
+    <div className={styles.section}>
+      <h3 className={styles.title}>댓글 {data?.total ?? 0}</h3>
+
+      <div className={styles.composer}>
         <textarea
+          className={styles.textarea}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder={replyTo ? "답글을 입력하세요…" : "댓글을 입력하세요…"}
+          placeholder={replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."}
           rows={2}
-          style={{
-            flex: 1,
-            background: "var(--stu-surface-soft)",
-            border: "1px solid var(--stu-border)",
-            borderRadius: 8,
-            padding: "10px 14px",
-            color: "var(--stu-text)",
-            fontSize: 14,
-            lineHeight: 1.5,
-            resize: "vertical",
-            minHeight: 56,
-            maxHeight: 200,
-            fontFamily: "inherit",
-          }}
           onKeyDown={(e) => {
-            // Enter = 전송, Shift+Enter = 줄바꿈 (표준 채팅 UX)
-            // 한국어 IME 조합 중 Enter는 무시 (e.nativeEvent.isComposing)
-            const composing = (e.nativeEvent as KeyboardEvent).isComposing;
-            if (e.key === "Enter" && !e.shiftKey && !composing && newComment.trim()) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && canSubmit) {
               e.preventDefault();
               handleSubmit();
             }
           }}
         />
         {replyTo && (
-          <button
-            onClick={() => setReplyTo(null)}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--stu-text-subtle)",
-              border: "1px solid var(--stu-border)",
-              cursor: "pointer",
-              fontSize: 13,
-              minHeight: 44,
-            }}
-          >
+          <button type="button" className={styles.composerCancelButton} onClick={() => setReplyTo(null)}>
             취소
           </button>
         )}
         <button
+          type="button"
+          className={cx(styles.submitButton, canSubmit && styles.submitButtonReady)}
           onClick={handleSubmit}
-          disabled={!newComment.trim() || createMut.isPending}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 8,
-            background: newComment.trim() ? "var(--stu-primary)" : "var(--stu-surface-soft)",
-            color: newComment.trim() ? "#fff" : "var(--stu-text-subtle)",
-            fontSize: 14,
-            fontWeight: 600,
-            border: "none",
-            cursor: newComment.trim() ? "pointer" : "default",
-            opacity: newComment.trim() ? 1 : 0.5,
-            transition: "background 0.2s, opacity 0.2s",
-          }}
+          disabled={!canSubmit}
         >
-          {createMut.isPending ? "..." : "등록"}
+          {isCreating ? "..." : "등록"}
         </button>
       </div>
 
-      {/* 댓글 목록 */}
       {isLoading ? (
-        <div style={{ padding: "16px 0", color: "var(--stu-text-subtle)", fontSize: 13 }}>
-          불러오는 중...
-        </div>
+        <div className={styles.loading}>불러오는 중...</div>
       ) : comments.length === 0 ? (
-        <div style={{ padding: "24px 0", textAlign: "center", color: "var(--stu-text-subtle)", fontSize: 13 }}>
-          아직 댓글이 없습니다. 첫 댓글을 남겨보세요!
-        </div>
+        <div className={styles.empty}>아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</div>
       ) : (
-        <div style={{ borderTop: "1px solid var(--stu-border)" }}>
-          {comments.map((c) => (
+        <div className={styles.commentList}>
+          {comments.map((comment) => (
             <CommentRow
-              key={c.id}
-              comment={c}
+              key={comment.id}
+              comment={comment}
               videoId={videoId}
               onReply={(parentId) => setReplyTo(parentId)}
             />
