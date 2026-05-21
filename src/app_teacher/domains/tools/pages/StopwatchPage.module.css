@@ -1,0 +1,157 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+  padding-bottom: var(--tc-space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--tc-space-2);
+  padding-block: 2px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  color: var(--tc-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.timeCard,
+.lapCard,
+.pcCard {
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-xl);
+  background: var(--tc-surface);
+  box-shadow: var(--tc-shadow-sm);
+}
+
+.timeCard {
+  padding: var(--tc-space-6);
+  text-align: center;
+}
+
+.timeDisplay {
+  color: var(--tc-text);
+  font-size: clamp(48px, 13vw, 72px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.timeDisplayRunning {
+  color: var(--tc-primary);
+}
+
+.statusLabel {
+  margin-top: var(--tc-space-1);
+  color: var(--tc-text-muted);
+  font-size: 12px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tc-space-2);
+}
+
+.controlButton {
+  min-height: 56px;
+  padding: 18px;
+  border-radius: var(--tc-radius);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.controlButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.startButton {
+  border: 0;
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.stopButton {
+  border: 0;
+  background: var(--tc-danger);
+  color: #fff;
+}
+
+.secondaryButton {
+  border: 1px solid var(--tc-border-strong);
+  background: var(--tc-surface);
+  color: var(--tc-text);
+}
+
+.lapCard {
+  overflow: hidden;
+}
+
+.lapRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--tc-space-3) var(--tc-space-4);
+}
+
+.lapRow + .lapRow {
+  border-top: 1px solid var(--tc-border);
+}
+
+.lapLabel {
+  color: var(--tc-text);
+  font-size: 13px;
+}
+
+.lapTimes {
+  text-align: right;
+}
+
+.lapDelta {
+  color: var(--tc-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.lapTotal {
+  color: var(--tc-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcCard {
+  padding: var(--tc-space-4);
+}
+
+.pcDescription {
+  margin-bottom: var(--tc-space-2);
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.downloadButton {
+  display: flex;
+  width: 100%;
+  min-height: var(--tc-touch-min);
+  align-items: center;
+  justify-content: center;
+  gap: var(--tc-space-2);
+  padding: 12px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+  color: var(--tc-text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
