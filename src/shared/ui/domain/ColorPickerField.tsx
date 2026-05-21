@@ -1,7 +1,9 @@
 // PATH: src/shared/ui/domain/ColorPickerField.tsx
 // 색상 선택 UI — 태그·강의 아이콘 등 공통
 
+import type { CSSProperties } from "react";
 import { PRESET_COLORS } from "./constants";
+import "./ColorPickerField.css";
 
 type ColorPickerFieldProps = {
   value: string;
@@ -10,6 +12,14 @@ type ColorPickerFieldProps = {
   disabled?: boolean;
 };
 
+type SwatchStyle = CSSProperties & {
+  "--color-picker-swatch": string;
+};
+
+function getSwatchStyle(color: string): SwatchStyle {
+  return { "--color-picker-swatch": color };
+}
+
 export default function ColorPickerField({
   value,
   onChange,
@@ -17,76 +27,36 @@ export default function ColorPickerField({
   disabled,
 }: ColorPickerFieldProps) {
   return (
-    <div>
+    <div className="color-picker-field">
       {label && (
-        <label
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--color-text-muted)",
-            marginBottom: 10,
-            letterSpacing: "0.04em",
-          }}
-        >
+        <label className="color-picker-field__label">
           {label}
         </label>
       )}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
+      <div className="color-picker-field__body">
         {PRESET_COLORS.map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => onChange(c)}
             disabled={disabled}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              background: c,
-              border:
-                value === c
-                  ? "2px solid var(--color-text-primary)"
-                  : "2px solid transparent",
-              boxShadow:
-                value === c
-                  ? "0 0 0 2px var(--color-bg-surface)"
-                  : "0 1px 3px rgba(0,0,0,0.2)",
-              cursor: disabled ? "default" : "pointer",
-              opacity: disabled ? 0.6 : 1,
-            }}
+            className="color-picker-field__swatch"
+            data-selected={value === c ? "true" : undefined}
+            style={getSwatchStyle(c)}
+            aria-pressed={value === c}
             aria-label={`색상 ${c} 선택`}
           />
         ))}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="color-picker-field__custom">
           <input
             type="color"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
-            style={{
-              width: 32,
-              height: 32,
-              padding: 0,
-              border: "none",
-              cursor: disabled ? "default" : "pointer",
-              background: "transparent",
-            }}
+            className="color-picker-field__native"
+            aria-label="직접 색상 선택"
           />
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--color-text-muted)",
-            }}
-          >
+          <span className="color-picker-field__hint">
             직접 선택
           </span>
         </div>

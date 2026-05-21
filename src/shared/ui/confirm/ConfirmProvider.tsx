@@ -1,10 +1,7 @@
 // PATH: src/shared/ui/confirm/ConfirmProvider.tsx
-import { createContext, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import ConfirmDialog, { type ConfirmOptions } from "./ConfirmDialog";
-
-type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
-
-export const ConfirmContext = createContext<ConfirmFn | null>(null);
+import { ConfirmContext, type ConfirmFn } from "./ConfirmContext";
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);

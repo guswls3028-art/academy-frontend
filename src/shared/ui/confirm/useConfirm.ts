@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/confirm/useConfirm.ts
 import { useContext } from "react";
-import { ConfirmContext } from "./ConfirmProvider";
+import { ConfirmContext } from "./ConfirmContext";
 import type { ConfirmOptions } from "./ConfirmDialog";
 
 let warned = false;

@@ -4,7 +4,7 @@
 
 import React from "react";
 import LectureChip from "./LectureChip";
-import { useClinicHighlight } from "@/shared/contexts/ClinicHighlightContext";
+import { useClinicHighlight } from "@/shared/contexts/useClinicHighlight";
 import "./StudentNameWithLectureChip.css";
 
 export type LectureInfo = {

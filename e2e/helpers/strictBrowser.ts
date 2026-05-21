@@ -94,7 +94,6 @@ export function attachStrictBrowserGuards(
             description: body,
           });
         } catch { /* outside test context */ }
-        // eslint-disable-next-line no-console
         console.warn(`[strict-browser][report] ${lines.length} defect(s):\n${body}`);
         return;
       }
