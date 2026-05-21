@@ -4,12 +4,14 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTemplateComponent } from "../templates";
 import type { LandingConfig, TemplateKey } from "../types";
+import styles from "./LandingSamplesPage.module.css";
 
-const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; description: string; color: string }; config: LandingConfig }> = {
+const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; description: string }; config: LandingConfig }> = {
   minimal_tutor: {
-    meta: { name: "Minimal Tutor", mood: "밝음 · 깔끔 · 신뢰", description: "밝은 배경과 넓은 여백으로 깔끔한 인상을 주는 미니멀 디자인. 과외·소규모 학원에 잘 어울립니다.", color: "#2563EB" },
+    meta: { name: "Minimal Tutor", mood: "밝음 · 깔끔 · 신뢰", description: "밝은 배경과 넓은 여백으로 깔끔한 인상을 주는 미니멀 디자인. 과외·소규모 학원에 잘 어울립니다." },
     config: {
       brand_name: "수학의 정석",
       tagline: "체계적인 수학 교육의 시작",
@@ -41,7 +43,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
     },
   },
   premium_dark: {
-    meta: { name: "Premium Dark", mood: "프리미엄 · 세련 · 고급", description: "네이비/다크 기반의 프리미엄 톤으로 전문성과 고급스러움을 강조합니다.", color: "#1E3A5F" },
+    meta: { name: "Premium Dark", mood: "프리미엄 · 세련 · 고급", description: "네이비/다크 기반의 프리미엄 톤으로 전문성과 고급스러움을 강조합니다." },
     config: {
       brand_name: "엘리트 영어",
       tagline: "최상위권을 위한 영어 교육",
@@ -73,7 +75,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
     },
   },
   academic_trust: {
-    meta: { name: "Academic Trust", mood: "체계 · 관리 · 성과", description: "성적 관리와 체계적 교육을 시각적으로 전달하는 신뢰형 디자인.", color: "#4F46E5" },
+    meta: { name: "Academic Trust", mood: "체계 · 관리 · 성과", description: "성적 관리와 체계적 교육을 시각적으로 전달하는 신뢰형 디자인." },
     config: {
       brand_name: "정석학원",
       tagline: "데이터로 증명하는 교육",
@@ -103,7 +105,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
     },
   },
   program_promo: {
-    meta: { name: "Program Promo", mood: "홍보 · 활기 · 행동유도", description: "프로그램 소개와 CTA 중심의 활기찬 홍보형 디자인. 신규 모집에 효과적입니다.", color: "#F97316" },
+    meta: { name: "Program Promo", mood: "홍보 · 활기 · 행동유도", description: "프로그램 소개와 CTA 중심의 활기찬 홍보형 디자인. 신규 모집에 효과적입니다." },
     config: {
       brand_name: "코딩랩",
       tagline: "미래를 코딩하는 아이들",
@@ -142,6 +144,15 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
 
 const TEMPLATE_KEYS: TemplateKey[] = ["minimal_tutor", "premium_dark", "academic_trust", "program_promo"];
 
+const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(" ");
+
+const toneClasses: Record<TemplateKey, string> = {
+  minimal_tutor: styles.toneMinimal,
+  premium_dark: styles.tonePremium,
+  academic_trust: styles.toneAcademic,
+  program_promo: styles.toneProgram,
+};
+
 export default function LandingSamplesPage() {
   const [selectedKey, setSelectedKey] = useState<TemplateKey | null>(null);
 
@@ -162,37 +173,31 @@ export default function LandingSamplesPage() {
     const nextKey = currentIdx < TEMPLATE_KEYS.length - 1 ? TEMPLATE_KEYS[currentIdx + 1] : null;
 
     return (
-      <div style={{ minHeight: "100vh" }}>
-        {/* Preview toolbar */}
-        <div style={{
-          position: "sticky", top: 0, zIndex: 100,
-          background: "rgba(255,255,255,0.97)", backdropFilter: "blur(16px)",
-          borderBottom: "1px solid #e2e8f0", padding: "0 24px",
-        }}>
-          <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 52 }}>
-            <button
-              onClick={() => setSelectedKey(null)}
-              style={{ display: "flex", alignItems: "center", gap: 6, border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#2563EB", padding: "6px 0" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      <div className={styles.previewPage}>
+        <div className={`${styles.topbar} ${styles.previewTopbar}`}>
+          <div className={styles.topbarInner}>
+            <button type="button" className={styles.backButton} onClick={() => setSelectedKey(null)}>
+              <ArrowLeft size={18} aria-hidden />
               목록
             </button>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: sample.meta.color }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{sample.meta.name}</span>
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>{sample.meta.mood}</span>
+            <div className={styles.previewMeta}>
+              <div className={`${styles.accentDot} ${toneClasses[selectedKey]}`} aria-hidden />
+              <span className={styles.previewName}>{sample.meta.name}</span>
+              <span className={styles.previewMood}>{sample.meta.mood}</span>
             </div>
 
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className={styles.previewActions}>
               {prevKey && (
-                <button onClick={() => setSelectedKey(prevKey)} style={{ padding: "6px 10px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 12, color: "#64748b" }}>
-                  ← 이전
+                <button type="button" className={styles.navButton} onClick={() => setSelectedKey(prevKey)}>
+                  <ChevronLeft size={14} aria-hidden />
+                  이전
                 </button>
               )}
               {nextKey && (
-                <button onClick={() => setSelectedKey(nextKey)} style={{ padding: "6px 10px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 12, color: "#64748b" }}>
-                  다음 →
+                <button type="button" className={styles.navButton} onClick={() => setSelectedKey(nextKey)}>
+                  다음
+                  <ChevronRight size={14} aria-hidden />
                 </button>
               )}
             </div>
@@ -205,38 +210,35 @@ export default function LandingSamplesPage() {
 
   // 갤러리 목록
   return (
-    <div style={{ minHeight: "100vh", background: "#fff" }}>
-      {/* Header */}
-      <div style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", padding: "0 24px", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 52 }}>
-          <Link to="/promo" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "#2563EB", textDecoration: "none" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+    <div className={styles.page}>
+      <div className={styles.topbar}>
+        <div className={styles.topbarInner}>
+          <Link to="/promo" className={styles.brandLink}>
+            <ArrowLeft size={18} aria-hidden />
             학원플러스
           </Link>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>랜딩 페이지 샘플</span>
-          <Link to="/promo/demo" style={{ padding: "6px 16px", background: "#2563EB", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+          <span className={styles.headerTitle}>랜딩 페이지 샘플</span>
+          <Link to="/promo/demo" className={styles.smallPrimaryLink}>
             데모 요청
           </Link>
         </div>
       </div>
 
-      {/* Hero */}
-      <div style={{ padding: "56px 24px 0", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", padding: "5px 14px", borderRadius: 99, background: "#eff6ff", border: "1px solid #dbeafe", marginBottom: 20 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#2563EB", letterSpacing: "0.03em" }}>4종 프리미엄 템플릿</span>
+      <div className={styles.hero}>
+        <div className={styles.badge}>
+          <span>4종 프리미엄 템플릿</span>
         </div>
-        <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.025em", color: "#0f172a", lineHeight: 1.2 }}>
+        <h1 className={styles.heroTitle}>
           선생님 전용 랜딩 페이지
         </h1>
-        <p style={{ fontSize: "clamp(15px, 2vw, 18px)", color: "#64748b", margin: "0 auto", lineHeight: 1.7, maxWidth: 560 }}>
+        <p className={styles.heroCopy}>
           각 템플릿을 클릭하면 실제 페이지를 미리 볼 수 있습니다.
           <br />설정에서 바로 적용하고 커스터마이즈할 수 있습니다.
         </p>
       </div>
 
-      {/* Grid */}
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "48px 24px 80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 460px), 1fr))", gap: 28 }}>
+      <div className={styles.gridShell}>
+        <div className={styles.sampleGrid}>
           {TEMPLATE_KEYS.map((key) => {
             const sample = SAMPLE_CONFIGS[key];
             return (
@@ -246,38 +248,27 @@ export default function LandingSamplesPage() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => e.key === "Enter" && setSelectedKey(key)}
-                style={{
-                  borderRadius: 16, overflow: "hidden",
-                  border: "1px solid #e2e8f0", background: "#fff",
-                  cursor: "pointer", transition: "all 0.2s ease",
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
+                className={styles.sampleCard}
               >
-                {/* Thumbnail */}
-                <div style={{ height: 260, overflow: "hidden", position: "relative", pointerEvents: "none", background: key === "premium_dark" ? "#0B1120" : "#f8fafc" }}>
-                  <div style={{ transform: "scale(0.42)", transformOrigin: "top left", width: "238%", height: "238%" }}>
+                <div className={cx(styles.cardThumbnail, key === "premium_dark" ? styles.thumbnailDark : styles.thumbnailLight)}>
+                  <div className={styles.previewScaler}>
                     {(() => { const T = getTemplateComponent(key); return <T config={sample.config} isPreview />; })()}
                   </div>
-                  <div style={{ position: "absolute", inset: 0, background: key === "premium_dark" ? "linear-gradient(180deg, transparent 50%, rgba(11,17,32,0.8) 100%)" : "linear-gradient(180deg, transparent 50%, rgba(255,255,255,0.85) 100%)" }} />
-                  {/* Hover overlay */}
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.2s" }}
-                    className="sample-hover-overlay"
-                  >
-                    <span style={{ padding: "10px 24px", background: "rgba(0,0,0,0.7)", color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: 600, backdropFilter: "blur(4px)" }}>
+                  <div className={cx(styles.thumbnailFade, key === "premium_dark" ? styles.thumbnailFadeDark : styles.thumbnailFadeLight)} />
+                  <div className={styles.hoverOverlay}>
+                    <span className={styles.hoverCta}>
                       미리보기 →
                     </span>
                   </div>
                 </div>
 
-                {/* Info */}
-                <div style={{ padding: "18px 22px 22px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 3, background: sample.meta.color, flexShrink: 0 }} />
-                    <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "#0f172a" }}>{sample.meta.name}</h3>
-                    <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto", fontWeight: 500 }}>{sample.meta.mood}</span>
+                <div className={styles.cardInfo}>
+                  <div className={styles.cardHeader}>
+                    <div className={`${styles.accentSwatch} ${toneClasses[key]}`} aria-hidden />
+                    <h3 className={styles.cardTitle}>{sample.meta.name}</h3>
+                    <span className={styles.cardMood}>{sample.meta.mood}</span>
                   </div>
-                  <p style={{ fontSize: 14, color: "#64748b", margin: 0, lineHeight: 1.6 }}>{sample.meta.description}</p>
+                  <p className={styles.cardDescription}>{sample.meta.description}</p>
                 </div>
               </div>
             );
@@ -285,15 +276,14 @@ export default function LandingSamplesPage() {
         </div>
       </div>
 
-      {/* Bottom CTA */}
-      <div style={{ padding: "48px 24px 64px", background: "#f8fafc", textAlign: "center", borderTop: "1px solid #e2e8f0" }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 12px", color: "#0f172a" }}>마음에 드는 템플릿이 있으신가요?</h2>
-        <p style={{ fontSize: 15, color: "#64748b", margin: "0 0 24px" }}>학원플러스에 가입하면 설정에서 바로 적용할 수 있습니다.</p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link to="/promo/demo" style={{ padding: "12px 28px", background: "#2563EB", color: "#fff", borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+      <div className={styles.bottomCta}>
+        <h2 className={styles.bottomTitle}>마음에 드는 템플릿이 있으신가요?</h2>
+        <p className={styles.bottomCopy}>학원플러스에 가입하면 설정에서 바로 적용할 수 있습니다.</p>
+        <div className={styles.ctaActions}>
+          <Link to="/promo/demo" className={styles.primaryCta}>
             데모 요청하기
           </Link>
-          <Link to="/promo" style={{ padding: "12px 28px", background: "#fff", color: "#475569", borderRadius: 10, fontSize: 15, fontWeight: 600, textDecoration: "none", border: "1px solid #e2e8f0" }}>
+          <Link to="/promo" className={styles.secondaryCta}>
             서비스 더 알아보기
           </Link>
         </div>
