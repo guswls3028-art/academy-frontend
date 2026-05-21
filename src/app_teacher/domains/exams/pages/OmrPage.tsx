@@ -19,7 +19,11 @@ type TeacherExamResultRow = {
   enrollment?: number | string | null;
   enrollment_id?: number | string | null;
   submitted_at?: string | null;
+  exam_score?: number | null;
+  final_score?: number | null;
   total_score?: number | null;
+  exam_max_score?: number | null;
+  final_max_score?: number | null;
   max_score?: number | null;
   student_name?: string | null;
   student?: { name?: string | null } | null;
@@ -99,6 +103,7 @@ export default function OmrPage() {
         enrollment_id: row.enrollment_id,
         student_name: row.student_name,
         max_score: exam?.max_score ?? null,
+        exam_max_score: exam?.max_score ?? null,
       };
     });
   }, [exam?.max_score, rawResultRows, rosterRows]);
@@ -114,7 +119,7 @@ export default function OmrPage() {
       let changed = false;
       for (const eid of prev) {
         const row = resultRows.find((r) => getEnrollmentId(r) === eid);
-        const completed = !!(row && row.total_score != null);
+        const completed = !!(row && getResultScore(row) != null);
         const startedAt = pendingStartedAtRef.current.get(eid) ?? now;
         const expired = now - startedAt > TIMEOUT_MS;
         if (completed || expired) {
@@ -206,8 +211,10 @@ export default function OmrPage() {
           <div className="flex flex-col gap-1.5">
             {resultRows.map((r) => {
               const enrollmentId = getEnrollmentId(r);
-              const hasSubmission = !!(r.submitted_at || r.total_score != null);
-              const isScoring = enrollmentId != null && pendingScoring.has(enrollmentId) && r.total_score == null;
+              const score = getResultScore(r);
+              const maxScore = getResultMaxScore(r) ?? 100;
+              const hasSubmission = !!(r.submitted_at || score != null);
+              const isScoring = enrollmentId != null && pendingScoring.has(enrollmentId) && score == null;
               return (
                 <div key={r.id ?? enrollmentId} className={`${styles.resultRow} flex items-center justify-between`}>
                   <div className="flex-1 min-w-0">
@@ -221,9 +228,9 @@ export default function OmrPage() {
                         <Badge tone="success" size="xs"><Check size={9} /> 제출됨</Badge>
                       ) : null}
                     </div>
-                    {r.total_score != null && (
+                    {score != null && (
                       <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
-                        점수: {r.total_score}/{r.max_score ?? 100}
+                        점수: {score}/{maxScore}
                       </div>
                     )}
                   </div>
@@ -357,6 +364,21 @@ function getEnrollmentId(row: TeacherExamResultRow): number | null {
     return Number.isFinite(numeric) ? numeric : null;
   }
   return null;
+}
+
+function firstFiniteNumber(...values: Array<number | null | undefined>): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function getResultScore(row: TeacherExamResultRow): number | null {
+  return firstFiniteNumber(row.final_score, row.exam_score, row.total_score);
+}
+
+function getResultMaxScore(row: TeacherExamResultRow): number | null {
+  return firstFiniteNumber(row.final_max_score, row.exam_max_score, row.max_score);
 }
 
 function getUploadErrorMessage(error: unknown): string {

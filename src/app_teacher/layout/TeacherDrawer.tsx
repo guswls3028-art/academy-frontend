@@ -7,6 +7,7 @@ import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
 import {
   Home, Users, BookOpen, Activity,
@@ -41,6 +42,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
   const { clearAuth, user } = useAuth();
   const { counts } = useAdminNotificationCounts();
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
+  const feesEnabled = useFeesEnabled();
   const recentSubmissions = counts?.recentSubmissions;
   const totalNotifications = counts?.total;
 
@@ -77,7 +79,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       {
         title: "관리",
         items: [
-          ...(isOwnerOrAdmin
+          ...(isOwnerOrAdmin && feesEnabled
             ? [
                 { label: "수납", path: "/teacher/fees", icon: <Award size={ICON.md} /> },
                 { label: "청구서", path: "/teacher/fees/invoices", icon: <FileText size={ICON.md} /> },
@@ -105,7 +107,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         ],
       },
     ],
-    [isOwnerOrAdmin, recentSubmissions, totalNotifications],
+    [feesEnabled, isOwnerOrAdmin, recentSubmissions, totalNotifications],
   );
 
   // Body scroll lock

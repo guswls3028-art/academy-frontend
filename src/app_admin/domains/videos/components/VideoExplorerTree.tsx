@@ -77,6 +77,7 @@ export default function VideoExplorerTree({
   onSelectFolder,
 }: Props) {
   const rootFolders = publicFolders.filter((f) => !f.parent_id);
+  const isPublicBranch = currentFolderId === "public" || (typeof currentFolderId === "number" && currentFolderId < 0);
 
   return (
     <div className={styles.root}>
@@ -92,7 +93,7 @@ export default function VideoExplorerTree({
         <FolderOpen size={20} aria-hidden />
         <span>전체공개영상</span>
       </button>
-      {currentFolderId === "public" && rootFolders.length > 0 && (
+      {isPublicBranch && rootFolders.length > 0 && (
         <div className={styles.children}>
           {rootFolders.map((folder) => (
             <FolderTreeNode

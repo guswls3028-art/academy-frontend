@@ -91,6 +91,8 @@ export default function MessagingSettingsPage() {
   });
 
   const hasPfid = !!info?.kakao_pfid;
+  const alimtalkAvailable = info?.alimtalk_available ?? hasPfid;
+  const channelSourceLabel = info?.channel_source === "system_default" ? "기본 채널" : "개별 채널";
   const hasSender = !!info?.messaging_sender;
   const hasProviderAccess = !!info?.sms_allowed || (info?.has_own_credentials ?? false);
   const hasOwnCreds = info?.has_own_credentials ?? false;
@@ -99,7 +101,7 @@ export default function MessagingSettingsPage() {
   const setupSteps = [
     { done: hasProviderAccess, label: "발송 연동" },
     { done: hasSender, label: "발신번호" },
-    { done: hasPfid, label: "알림톡 채널" },
+    { done: alimtalkAvailable, label: "알림톡 채널" },
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
@@ -217,8 +219,8 @@ export default function MessagingSettingsPage() {
           <div className="grid grid-cols-2 gap-2">
             <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={hasProviderAccess ? "ok" : "warn"} tone="provider" />
             <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || "미등록"} status={hasSender ? "ok" : "warn"} tone="sender" />
-            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={hasPfid ? "사용 가능" : "미설정"} status={hasPfid ? "ok" : "none"} tone="kakao" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="자동발송" value="알림톡 전용" status={hasPfid ? "ok" : "warn"} tone="sms" />
+            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={alimtalkAvailable ? "사용 가능" : "미설정"} status={alimtalkAvailable ? "ok" : "none"} tone="kakao" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={alimtalkAvailable ? channelSourceLabel : "미설정"} status={alimtalkAvailable ? "ok" : "warn"} tone="sms" />
           </div>
 
           {/* 잔액 (보조 정보) */}
@@ -319,9 +321,9 @@ export default function MessagingSettingsPage() {
 
           {/* ④ 카카오 알림톡 */}
           <Card>
-            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="카카오 알림톡 채널" desc={hasPfid
-              ? "알림톡 채널이 연동되어 있습니다."
-              : "자동 발송과 학생·학부모 알림톡 전송에 필요합니다."} badge="필수" />
+            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="카카오 알림톡 채널" desc={alimtalkAvailable
+              ? (info.channel_source === "system_default" ? "시스템 기본 채널로 알림톡을 발송할 수 있습니다." : "알림톡 채널이 연동되어 있습니다.")
+              : "자동 발송과 학생·학부모 알림톡 전송에 필요합니다."} badge={alimtalkAvailable ? channelSourceLabel : "필수"} />
             <div className="flex gap-2 flex-wrap">
               <input type="text" value={pfid} onChange={(e) => setPfid(e.target.value)}
                 placeholder="예: @yourChannel"
@@ -331,14 +333,18 @@ export default function MessagingSettingsPage() {
                 {updateMut.isPending ? "저장 중…" : "저장"}
               </button>
             </div>
-            {hasPfid && (
+            {hasPfid ? (
               <div className="flex items-center gap-2 mt-2">
                 <StatusChip ok label="연동됨" />
                 <span className={`${styles.mutedText} text-[11px]`}>
                   현재 PFID: <code className={styles.inlineCode}>{info.kakao_pfid}</code>
                 </span>
               </div>
-            )}
+            ) : alimtalkAvailable ? (
+              <div className="flex items-center gap-2 mt-2">
+                <StatusChip ok label="기본 채널 사용 중" />
+              </div>
+            ) : null}
           </Card>
 
           {/* ⑤ 연동 테스트 */}

@@ -194,6 +194,8 @@ export default function MessageSettingsPage() {
   };
 
   const hasPfid = !!(info?.kakao_pfid);
+  const alimtalkAvailable = info?.alimtalk_available ?? hasPfid;
+  const channelSourceLabel = info?.channel_source === "system_default" ? "기본 채널" : "개별 채널";
   const hasSender = !!(info?.messaging_sender);
   const hasOwnCreds = info?.has_own_credentials ?? false;
   const canSend = !!(info?.sms_allowed) || hasOwnCreds;  // 시스템 기본 키 또는 자체 키
@@ -240,13 +242,13 @@ export default function MessageSettingsPage() {
         <KpiCard
           icon={<FiSend size={16} />}
           label="알림톡"
-          value={hasPfid ? "사용 가능" : "미설정"}
-          status={hasPfid ? "ok" : "none"}
+          value={alimtalkAvailable ? "사용 가능" : "미설정"}
+          status={alimtalkAvailable ? "ok" : "none"}
           tone="alimtalk"
         />
         <KpiCard
           icon={<FiShield size={16} />}
-          label="SMS"
+          label="기본 채널"
           value={info?.sms_allowed ? "사용 가능" : "미설정"}
           status={info?.sms_allowed ? "ok" : "warn"}
           tone="sms"
@@ -256,7 +258,7 @@ export default function MessageSettingsPage() {
       {/* ─── ① 공급자 선택 ─── */}
       <Card accent="primary">
         <SectionTitle icon={<FiSettings size={15} />}>메시징 공급자</SectionTitle>
-        <Desc>SMS·알림톡 발송에 사용할 공급자를 선택하세요.</Desc>
+        <Desc>알림톡 발송에 사용할 공급자를 선택하세요.</Desc>
         <div className={styles.inlineControls}>
           <div className={styles.providerSegment}>
             {([
@@ -326,7 +328,7 @@ export default function MessageSettingsPage() {
                 <span className={styles.serverIp}>
                   {SERVER_IP} <CopyButton text={SERVER_IP} />
                 </span><br />
-                <strong>4. 발신번호 등록</strong> — [문자 발신번호] → 학원 전화번호 등록 + 서류 인증<br />
+                <strong>4. 발신번호 등록</strong> — [발신번호] → 학원 전화번호 등록 + 서류 인증<br />
                 <strong>5. 아래에 입력</strong> — 계정 ID + 인증키(API Key) 입력 후 [저장]
               </div>
             </details>
@@ -398,13 +400,13 @@ export default function MessageSettingsPage() {
         )}
       </Card>
 
-      {/* ─── ④ 카카오 알림톡 (선택) ─── */}
+      {/* ─── ④ 카카오 알림톡 ─── */}
       <Card>
-        <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널 <span className={styles.optionalLabel}>선택</span></SectionTitle>
+        <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널 <span className={styles.optionalLabel}>{alimtalkAvailable ? channelSourceLabel : "필수"}</span></SectionTitle>
         <Desc>
-          {hasPfid
-            ? "카카오 알림톡 채널이 연동되어 있습니다. 알림톡 템플릿을 통해 카카오톡으로 알림을 발송할 수 있습니다."
-            : "SMS만 사용한다면 이 항목은 건너뛰세요. 알림톡을 사용하려면 카카오 비즈니스 채널 PFID를 입력합니다."}
+          {alimtalkAvailable
+            ? (info?.channel_source === "system_default" ? "시스템 기본 채널로 알림톡을 발송할 수 있습니다." : "카카오 알림톡 채널이 연동되어 있습니다. 알림톡 템플릿을 통해 카카오톡으로 알림을 발송할 수 있습니다.")
+            : "자동 발송과 학생·학부모 알림톡 전송에 필요합니다. 카카오 비즈니스 채널 PFID를 입력합니다."}
         </Desc>
         <div className={styles.inlineControls}>
           <Input
@@ -471,7 +473,7 @@ export default function MessageSettingsPage() {
             ))}
             {provider === "ppurio" && testResult.checks.some((c) => !c.ok && c.message.includes("토큰")) && (
               <div className={styles.testNote}>
-                <strong>참고:</strong> 뿌리오 토큰 테스트는 API 서버에서 실행됩니다. 실제 문자 발송은 메시징 워커(IP: {SERVER_IP})를 통해 이루어지므로, 워커 IP가 뿌리오에 등록되어 있으면 발송은 정상 작동합니다.
+                <strong>참고:</strong> 뿌리오 토큰 테스트는 API 서버에서 실행됩니다. 실제 발송은 메시징 워커(IP: {SERVER_IP})를 통해 이루어지므로, 워커 IP가 뿌리오에 등록되어 있으면 발송은 정상 작동합니다.
               </div>
             )}
           </div>

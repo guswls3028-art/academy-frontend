@@ -161,12 +161,6 @@ export default function VideoTreeView() {
     }
   }, [lecturesWithSessions, selectedFolderId]);
 
-  const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
-    queryKey: ["session-videos", selectedFolderId],
-    queryFn: () => fetchSessionVideos(selectedFolderId as number),
-    enabled: typeof selectedFolderId === "number",
-  });
-
   const { data: publicFolders = [], isLoading: publicFoldersLoading } = useQuery({
     queryKey: ["video-folders", publicSession?.session_id],
     queryFn: () => fetchVideoFolders(publicSession!.session_id),
@@ -180,6 +174,13 @@ export default function VideoTreeView() {
     }
     return null;
   }, [selectedFolderId]);
+  const isPublicSelection = selectedFolderId === "public" || selectedPublicFolderId != null;
+
+  const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
+    queryKey: ["session-videos", selectedFolderId],
+    queryFn: () => fetchSessionVideos(selectedFolderId as number),
+    enabled: typeof selectedFolderId === "number" && selectedFolderId > 0,
+  });
 
   const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
     queryKey: ["session-videos", publicSession?.session_id, selectedPublicFolderId],
@@ -193,10 +194,10 @@ export default function VideoTreeView() {
         videos.filter((v) => !v.folder)
       );
     },
-    enabled: selectedFolderId === "public" && !!publicSession?.session_id,
+    enabled: isPublicSelection && !!publicSession?.session_id,
   });
 
-  const unsortedVideos = selectedFolderId === "public" ? publicVideos : sessionVideos;
+  const unsortedVideos = isPublicSelection ? publicVideos : sessionVideos;
   const videos = useMemo(
     () =>
       [...unsortedVideos].sort((a, b) => {
@@ -208,7 +209,7 @@ export default function VideoTreeView() {
     [unsortedVideos]
   );
   const videosLoading =
-    selectedFolderId === "public"
+    isPublicSelection
       ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
       : sessionVideosLoading;
 
@@ -227,6 +228,10 @@ export default function VideoTreeView() {
     const path: { id: string | null; name: string }[] = [{ id: null, name: "영상" }];
     if (selectedFolderId === "public") {
       path.push({ id: "public", name: "전체공개영상" });
+    } else if (selectedPublicFolderId != null) {
+      const folder = publicFolders.find((f) => f.id === selectedPublicFolderId);
+      path.push({ id: "public", name: "전체공개영상" });
+      path.push({ id: String(selectedFolderId), name: folder?.name ?? "폴더" });
     } else if (selectedSession) {
       path.push({
         id: String(selectedSession.lecture.id),
@@ -235,13 +240,17 @@ export default function VideoTreeView() {
       path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
     }
     return path;
-  }, [selectedFolderId, selectedSession]);
+  }, [publicFolders, selectedFolderId, selectedPublicFolderId, selectedSession]);
 
   const handleBreadcrumbSelect = (id: string | null) => {
     if (!id) setSelectedFolderId(null);
     else if (id === "public") setSelectedFolderId("public");
     else {
       const num = Number(id);
+      if (Number.isFinite(num) && num < 0) {
+        setSelectedFolderId(num);
+        return;
+      }
       const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
       if (asSession) setSelectedFolderId(num);
       else {
@@ -253,7 +262,7 @@ export default function VideoTreeView() {
   };
 
   const openVideoDetail = (video: ApiVideo) => {
-    if (selectedFolderId === "public" && publicSession && video.session_id === publicSession.session_id) {
+    if (isPublicSelection && publicSession && video.session_id === publicSession.session_id) {
       openOverlay(video.id, publicSession.lecture_id, publicSession.session_id);
       return;
     }
@@ -380,7 +389,7 @@ export default function VideoTreeView() {
             </div>
           </aside>
 
-          <div className={`${panelStyles.gridWrap} ${selectedFolderId === "public" ? styles.gridWrapPublic : ""}`}>
+          <div className={`${panelStyles.gridWrap} ${isPublicSelection ? styles.gridWrapPublic : ""}`}>
             {isLoading ? (
               <div className={panelStyles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
@@ -393,7 +402,7 @@ export default function VideoTreeView() {
                   왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 영상을 확인할 수 있습니다.
                 </p>
               </div>
-            ) : selectedFolderId === "public" && publicSessionError ? (
+            ) : isPublicSelection && publicSessionError ? (
               <div className={`${panelStyles.placeholder} ${styles.errorPlaceholder}`}>
                 <p className={panelStyles.placeholderTitle}>전체공개영상 영역을 불러오지 못했습니다</p>
                 <p className={panelStyles.placeholderDesc}>
@@ -406,23 +415,23 @@ export default function VideoTreeView() {
               </div>
             ) : videos.length === 0 ? (
               <div
-                className={`flex min-h-[200px] items-center justify-center ${selectedFolderId === "public" ? styles.emptyStateWrapper : ""}`}
+                className={`flex min-h-[200px] items-center justify-center ${isPublicSelection ? styles.emptyStateWrapper : ""}`}
               >
                 <EmptyState
                   scope="panel"
                   tone="empty"
                   title={
-                    selectedFolderId === "public"
+                    isPublicSelection
                       ? "등록된 영상이 없습니다"
                       : "이 차시에 등록된 영상이 없습니다"
                   }
                   description={
-                    selectedFolderId === "public"
+                    isPublicSelection
                       ? "아래 버튼으로 전체공개영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
                       : "아래 버튼으로 이 차시에 영상을 추가하세요."
                   }
                   actions={
-                    selectedFolderId === "public" && publicSession ? (
+                    isPublicSelection && publicSession ? (
                       <Button intent="primary" size="sm" onClick={() => openUploadModal(publicSession.session_id)}>
                         영상 추가
                       </Button>
@@ -436,7 +445,7 @@ export default function VideoTreeView() {
               </div>
             ) : (
               <div className={styles.grid}>
-                {selectedFolderId === "public" && publicSession && (
+                {isPublicSelection && publicSession && (
                   <div
                     data-guide="videos-add"
                     className={styles.itemAdd}
@@ -447,7 +456,7 @@ export default function VideoTreeView() {
                     <span>추가</span>
                   </div>
                 )}
-                {selectedSession && selectedFolderId !== "public" && (
+                {selectedSession && !isPublicSelection && (
                   <div
                     className={styles.itemAdd}
                     onClick={() => openUploadModal(selectedSession.session.id)}
@@ -686,7 +695,7 @@ export default function VideoTreeView() {
         onClose={() => setReorderOpen(false)}
         videos={videos}
         sessionTitle={
-          selectedFolderId === "public"
+          isPublicSelection
             ? "전체공개영상"
             : selectedSession
               ? `${selectedSession.session.order}차시`

@@ -26,6 +26,18 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function isStudentScopedQueryKey(queryKey: readonly unknown[]): boolean {
+  const head = queryKey[0];
+  if (typeof head !== "string") return false;
+  return (
+    head === "student" ||
+    head.startsWith("student-") ||
+    head === "clinic-idcard" ||
+    head === "video-comments" ||
+    head === "storage-quota"
+  );
+}
+
 export default function ParentChildSwitcher() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
@@ -53,32 +65,14 @@ export default function ParentChildSwitcher() {
     if (id === currentId) return;
     setParentStudentId(id);
     setCurrentId(id);
-    /* invalidate로 stale 마킹 + 자동 refetch — 활성 쿼리는 이전 데이터를 잠깐
-     * 보여주다 새 자녀 데이터로 매끄럽게 전환. removeQueries는 즉시 캐시 비우기라
-     * 아바타/이름이 잠깐 "?"로 깨지는 깜빡임이 발생해서 대신 invalidate 사용.
-     * Predicate: 학생 스코프 쿼리(student / student-* / clinic-idcard / video-comments
-     * / storage-quota) 전부 매칭. 누락 시 자녀 A의 stale 데이터가 자녀 B 화면에 노출. */
+    /* 자녀 전환 직후에는 "잠깐 이전 자녀 데이터"도 노출되면 안 된다.
+     * resetQueries로 활성 화면 데이터를 비우고 다시 가져오며, 비활성 학생 캐시는 제거한다. */
+    const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
+      isStudentScopedQueryKey(query.queryKey);
+    void qc.resetQueries({ predicate: studentScopePredicate });
+    qc.removeQueries({ predicate: studentScopePredicate });
     void qc.invalidateQueries({
-      predicate: (query) => {
-        const head = query.queryKey[0];
-        if (typeof head !== "string") return false;
-        return (
-          head === "student" ||
-          head.startsWith("student-") ||
-          head === "clinic-idcard" ||
-          head === "video-comments" ||
-          head === "storage-quota"
-        );
-      },
-    });
-    // 학생 ps_number가 키에 들어가는 쿼리(inventory 등)는 자녀 전환 시 stale 데이터가
-    // 잠깐 노출될 수 있어 캐시에서 즉시 제거.
-    qc.removeQueries({
-      predicate: (query) => {
-        const head = query.queryKey[0];
-        if (typeof head !== "string") return false;
-        return head === "student-inventory";
-      },
+      predicate: studentScopePredicate,
     });
     navigate("/student/dashboard");
   };

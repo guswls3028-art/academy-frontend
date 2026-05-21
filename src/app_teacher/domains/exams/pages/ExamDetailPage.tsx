@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamDetailPage.tsx
 // 시험 상세 — 제출현황 + 간이 채점 (admin endpoint SSOT, enrollment_id schema)
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
@@ -12,13 +12,11 @@ import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
 import { updateResult } from "@teacher/domains/scores/api";
-import { fetchSession, fetchLectureEnrollments } from "@teacher/domains/lectures/api";
+import { fetchExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import ExamManageSheet from "../components/ExamManageSheet";
 import {
   normalizeExam,
   normalizeResultRows,
-  normalizeEnrollments,
-  normalizeSession,
   type ExamResultRow,
   type TeacherExamDetail,
 } from "../normalizers";
@@ -42,21 +40,32 @@ export default function ExamDetailPage() {
     enabled: Number.isFinite(eid),
   });
 
+  const sessionIds = useMemo(
+    () => (exam?.session_ids ?? []).filter((id): id is number => Number.isFinite(id)),
+    [exam?.session_ids],
+  );
+
   // enrollment fallback — admin endpoint 는 result row 있는 학생만 반환.
-  // 시험 만든 직후엔 빈 화면이라 학원장이 채점 시작 못 함. exam→session→lecture→enrollments 로 base 확보.
-  const firstSessionId = Array.isArray(exam?.session_ids) && exam.session_ids.length > 0
-    ? exam.session_ids[0]
-    : null;
-  const { data: firstSession } = useQuery({
-    queryKey: ["teacher-exam-first-session", firstSessionId],
-    queryFn: async () => normalizeSession(await fetchSession(firstSessionId!)),
-    enabled: firstSessionId != null,
-  });
-  const lectureIdForEnrollments = firstSession?.lecture_id ?? null;
-  const { data: enrollments } = useQuery({
-    queryKey: ["teacher-exam-enrollments", lectureIdForEnrollments],
-    queryFn: async () => normalizeEnrollments(await fetchLectureEnrollments(lectureIdForEnrollments!)),
-    enabled: Number.isFinite(lectureIdForEnrollments),
+  // 멀티 세션 시험은 각 차시의 "시험 선택 enrollment"만 합쳐야 과잉 노출이 없다.
+  const { data: examEnrollmentRows } = useQuery({
+    queryKey: ["teacher-exam-enrollment-rows", eid, sessionIds],
+    queryFn: async () => {
+      const responses = await Promise.all(
+        sessionIds.map((sessionId) => fetchExamEnrollmentRows({ examId: eid, sessionId })),
+      );
+      const rowsByEnrollment = new Map<number, NonNullable<typeof responses[number]["items"]>[number]>();
+      for (const response of responses) {
+        for (const row of response.items ?? []) {
+          const existing = rowsByEnrollment.get(row.enrollment_id);
+          rowsByEnrollment.set(
+            row.enrollment_id,
+            existing ? { ...existing, is_selected: existing.is_selected || row.is_selected } : row,
+          );
+        }
+      }
+      return Array.from(rowsByEnrollment.values());
+    },
+    enabled: Number.isFinite(eid) && sessionIds.length > 0,
   });
 
   if (loadingExam || loadingResults)
@@ -71,14 +80,14 @@ export default function ExamDetailPage() {
   for (const r of results ?? []) {
     resultByEnrollment.set(r.enrollment_id, r);
   }
-  const activeEnrollments = (enrollments ?? []).filter((e) => e.status === "ACTIVE" || e.status == null);
-  const merged = activeEnrollments.length > 0
-    ? activeEnrollments.map((e) => {
-        const fromResult = resultByEnrollment.get(e.id);
+  const selectedEnrollments = (examEnrollmentRows ?? []).filter((e) => e.is_selected);
+  const merged = selectedEnrollments.length > 0
+    ? selectedEnrollments.map((e) => {
+        const fromResult = resultByEnrollment.get(e.enrollment_id);
         if (fromResult) return fromResult;
         return {
           id: null,
-          enrollment_id: e.id,
+          enrollment_id: e.enrollment_id,
           student_name: e.student_name,
           exam_score: null,
           final_score: null,

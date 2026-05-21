@@ -204,7 +204,9 @@ export interface MessagingInfo {
   sms_allowed: boolean;
   messaging_provider: MessagingProvider;
   messaging_sender: string;
-  kakao_pfid: string;
+  kakao_pfid: string | null;
+  channel_source?: "system_default" | "tenant_override";
+  alimtalk_available?: boolean;
   balance?: number;
   sms_price?: number;
   alimtalk_price?: number;

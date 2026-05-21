@@ -134,6 +134,27 @@ function setRequestHeader(config: AxiosRequestConfig, key: string, value: string
   config.headers = headers;
 }
 
+function getParentSelectedStudentIdForHeader(): string | null {
+  if (typeof window === "undefined") return null;
+  if (!window.location.pathname.startsWith("/student")) return null;
+
+  const tenantCode = getTenantCodeForApiRequest();
+  if (!tenantCode) return null;
+
+  try {
+    const raw = localStorage.getItem(`parent_selected_student_id_${tenantCode}`);
+    if (!raw) return null;
+    const id = Number.parseInt(raw, 10);
+    return Number.isFinite(id) && id > 0 ? String(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasRequestHeader(config: AxiosRequestConfig, key: string): boolean {
+  return AxiosHeaders.from(config.headers as HeaderSeed).has(key);
+}
+
 /**
  * Refresh token (raw axios instance without interceptors to avoid loops)
  */
@@ -266,6 +287,11 @@ api.interceptors.request.use(async (config) => {
   const tenantCode = getTenantCodeForApiRequest();
   if (tenantCode) {
     setRequestHeader(cfg, "X-Tenant-Code", tenantCode);
+  }
+
+  const selectedStudentId = getParentSelectedStudentIdForHeader();
+  if (selectedStudentId && !hasRequestHeader(cfg, "X-Student-Id")) {
+    setRequestHeader(cfg, "X-Student-Id", selectedStudentId);
   }
 
   // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록

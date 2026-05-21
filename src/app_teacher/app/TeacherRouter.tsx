@@ -2,11 +2,13 @@
  * PATH: src/app_teacher/app/TeacherRouter.tsx
  * 선생님 전용 모바일 앱 라우터 — 하단 4탭(오늘|강의|학생|커뮤니티) + 헤더 햄버거 드로어
  */
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Navigate, Route, Routes } from "react-router-dom";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
+import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
+import { useProgram } from "@/shared/program";
 
 import styles from "./TeacherRouter.module.css";
 
@@ -81,6 +83,15 @@ function TeacherFallback() {
   );
 }
 
+function TeacherFeesGuard({ children }: { children: ReactNode }) {
+  const { isLoading } = useProgram();
+  const enabled = useFeesEnabled();
+
+  if (isLoading) return <TeacherFallback />;
+  if (!enabled) return <Navigate to="/teacher" replace />;
+  return <RoleGuard allow={["owner", "admin"]}>{children}</RoleGuard>;
+}
+
 export default function TeacherRouter() {
   return (
     <Suspense fallback={<TeacherFallback />}>
@@ -147,8 +158,8 @@ export default function TeacherRouter() {
           <Route path="desktop-only" element={<DesktopOnlyPage />} />
 
           {/* 수납 (Phase 4) */}
-          <Route path="fees" element={<RoleGuard allow={["owner", "admin"]}><FeesDashboardPage /></RoleGuard>} />
-          <Route path="fees/invoices" element={<RoleGuard allow={["owner", "admin"]}><FeesInvoicesPage /></RoleGuard>} />
+          <Route path="fees" element={<TeacherFeesGuard><FeesDashboardPage /></TeacherFeesGuard>} />
+          <Route path="fees/invoices" element={<TeacherFeesGuard><FeesInvoicesPage /></TeacherFeesGuard>} />
 
           {/* 자료실 (Phase 4) */}
           <Route path="storage" element={<MyStoragePage />} />
