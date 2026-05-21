@@ -18,7 +18,14 @@ export default function PromoRouter() {
   return (
     <Routes>
       {/* 랜딩 샘플은 PromoLayout 바깥 (풀스크린 프리뷰용) */}
-      <Route path="landing-samples" element={<Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "#666", fontSize: 14 }}>불러오는 중…</div>}><LandingSamplesPage /></Suspense>} />
+      <Route
+        path="landing-samples"
+        element={
+          <Suspense fallback={<div className="flex min-h-[200px] items-center justify-center text-sm text-gray-500">불러오는 중…</div>}>
+            <LandingSamplesPage />
+          </Suspense>
+        }
+      />
       <Route element={<PromoLayout />}>
         <Route index element={<LandingPage />} />
         <Route path="features" element={<FeaturesPage />} />

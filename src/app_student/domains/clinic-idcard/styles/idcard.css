@@ -17,8 +17,25 @@
 
 .idcard-page--black {
   background: #000;
+}
+
+.idcard-page--dynamic-pass {
+  background-color: transparent;
+  background-image: linear-gradient(
+    135deg,
+    var(--idcard-bg-start, #ef4444) 0%,
+    var(--idcard-bg-middle, #3b82f6) 50%,
+    var(--idcard-bg-end, #22c55e) 100%
+  );
   background-size: 200% 200%;
   animation: idcard-background-flow 8s ease infinite;
+}
+
+.idcard-page--clinic-target {
+  background-color: #000;
+  background-image: none;
+  background-size: 100% 100%;
+  animation: none;
 }
 
 /* 로딩 중에는 배경 애니메이션 비활성화 (모바일 부담 감소) */
@@ -92,6 +109,14 @@
   margin-bottom: 32px;
   font-variant-numeric: tabular-nums;
   transition: color 0.3s ease;
+}
+
+.idcard-page__time--even {
+  color: #22c55e;
+}
+
+.idcard-page__time--odd {
+  color: #60efff;
 }
 
 .idcard-page__name {

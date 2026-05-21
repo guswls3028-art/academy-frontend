@@ -395,10 +395,10 @@ function WhyUs() {
    ═══════════════════════════════════════════════════════ */
 
 const TEMPLATES = [
-  { name: "Minimal Tutor", mood: "깔끔 · 신뢰", color: "#2563EB", desc: "밝은 배경의 미니멀 디자인" },
-  { name: "Premium Dark", mood: "프리미엄 · 세련", color: "#1E3A5F", desc: "다크 톤의 세련된 디자인" },
-  { name: "Academic Trust", mood: "체계 · 관리", color: "#4F46E5", desc: "성적·관리 강조 신뢰형" },
-  { name: "Program Promo", mood: "홍보 · 활기", color: "#F97316", desc: "프로그램 홍보 중심" },
+  { name: "Minimal Tutor", mood: "깔끔 · 신뢰", previewClass: "from-blue-600 to-blue-500", desc: "밝은 배경의 미니멀 디자인" },
+  { name: "Premium Dark", mood: "프리미엄 · 세련", previewClass: "from-slate-800 to-slate-700", desc: "다크 톤의 세련된 디자인" },
+  { name: "Academic Trust", mood: "체계 · 관리", previewClass: "from-indigo-600 to-indigo-500", desc: "성적·관리 강조 신뢰형" },
+  { name: "Program Promo", mood: "홍보 · 활기", previewClass: "from-orange-500 to-orange-400", desc: "프로그램 홍보 중심" },
 ];
 
 function LandingSamples() {
@@ -425,8 +425,7 @@ function LandingSamples() {
             >
               {/* 미니 프리뷰 */}
               <div
-                className="h-24 relative"
-                style={{ background: `linear-gradient(135deg, ${t.color}, ${t.color}dd)` }}
+                className={`h-24 relative bg-gradient-to-br ${t.previewClass}`}
               >
                 {/* 미니 목업 라인 */}
                 <div className="absolute inset-x-4 bottom-3 space-y-1.5">

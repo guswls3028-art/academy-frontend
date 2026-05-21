@@ -3,7 +3,7 @@
  * - 깡블랙 배경 + 눈에 띄는 색/애니메이션
  * - 실시간 시계(초 단위 갱신)로 위조·스크린샷 즉시 판별
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClinicIdcard } from "../api/idcard";
 import "../styles/idcard.css";
@@ -27,12 +27,6 @@ function formatLiveTime(d: Date): string {
   return `${ampm} ${h12}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** 초 단위 색 변화 (짝수/홀수 초) — 녹화 영상 방지 */
-function getTimeColor(seconds: number): string {
-  return seconds % 2 === 0 ? "#22c55e" : "#60efff";
-}
-
-
 function formatLiveDate(d: Date): string {
   const y = d.getFullYear();
   const m = d.getMonth() + 1;
@@ -44,11 +38,26 @@ function formatLiveDate(d: Date): string {
 
 export default function ClinicIDCardPage() {
   const liveNow = useLiveClock();
+  const pageRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
     refetchInterval: 2000, // 2초마다 자동 갱신 (선생님이 색상 변경 시 즉시 반영)
   });
+
+  const isClinicTarget = data?.current_result === "FAIL";
+  const backgroundColors = data?.background_colors;
+  const gradientStart = backgroundColors?.[0] ?? "#ef4444";
+  const gradientMiddle = backgroundColors?.[1] ?? "#3b82f6";
+  const gradientEnd = backgroundColors?.[2] ?? "#22c55e";
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page || !data || isClinicTarget) return;
+    page.style.setProperty("--idcard-bg-start", gradientStart);
+    page.style.setProperty("--idcard-bg-middle", gradientMiddle);
+    page.style.setProperty("--idcard-bg-end", gradientEnd);
+  }, [data, gradientEnd, gradientMiddle, gradientStart, isClinicTarget]);
 
   if (isLoading) {
     return (
@@ -68,21 +77,13 @@ export default function ClinicIDCardPage() {
     );
   }
 
-  const isClinicTarget = data.current_result === "FAIL";
-  const bgColors = data.background_colors || ["#ef4444", "#3b82f6", "#22c55e"];
-
   const seconds = liveNow.getSeconds();
-  const timeColor = getTimeColor(seconds);
+  const timeToneClass = seconds % 2 === 0 ? "idcard-page__time--even" : "idcard-page__time--odd";
 
   return (
     <div
-      className="idcard-page idcard-page--black"
-      style={{
-        backgroundImage: isClinicTarget ? "none" : `linear-gradient(135deg, ${bgColors[0]} 0%, ${bgColors[1]} 50%, ${bgColors[2]} 100%)`,
-        backgroundColor: isClinicTarget ? "#000000" : "transparent",
-        backgroundSize: isClinicTarget ? "100% 100%" : "200% 200%",
-        animation: isClinicTarget ? "none" : "idcard-background-flow 8s ease infinite",
-      }}
+      ref={pageRef}
+      className={`idcard-page idcard-page--black ${isClinicTarget ? "idcard-page--clinic-target" : "idcard-page--dynamic-pass"}`}
     >
       {/* LIVE 뱃지 + 실시간 시계 (초 단위) — 위조 판별용 */}
       <div className="idcard-page__live-badge">
@@ -94,9 +95,8 @@ export default function ClinicIDCardPage() {
       <div className="idcard-page__label">조회 일시</div>
       <div className="idcard-page__date">{formatLiveDate(liveNow)}</div>
       <div
-        className="idcard-page__time"
+        className={`idcard-page__time ${timeToneClass}`}
         aria-live="polite"
-        style={{ color: timeColor }}
       >
         {formatLiveTime(liveNow)}
       </div>
