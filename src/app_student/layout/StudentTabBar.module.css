@@ -1,0 +1,63 @@
+.root {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--stu-z-tabbar);
+  padding-bottom: var(--stu-safe-bottom);
+  background: var(--stu-tabbar-bg);
+  border-top: 1px solid var(--stu-border);
+  box-shadow: 0 -1px 0 var(--stu-border);
+  backdrop-filter: blur(20px);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  height: var(--stu-tabbar-h);
+  max-width: var(--stu-page-max-w);
+  padding: 0 var(--stu-space-4);
+  margin: 0 auto;
+}
+
+.link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--stu-text-muted);
+  background: transparent;
+  border-radius: var(--stu-radius-sm);
+  transition: color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.linkActive {
+  color: var(--stu-primary);
+}
+
+.iconSlot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  opacity: 0.85;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+}

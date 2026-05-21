@@ -13,7 +13,7 @@ import api from "@/shared/api/axios";
 import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 import { logout } from "@/auth/api/auth.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import { useStudentTheme } from "@student/shared/context/StudentThemeContext";
+import { useStudentTheme } from "@student/shared/context/studentTheme";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";

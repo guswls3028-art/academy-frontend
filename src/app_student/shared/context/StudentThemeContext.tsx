@@ -2,48 +2,15 @@
  * 학생앱 다크/라이트/시스템 모드 Context
  * localStorage에 영속화, data-student-dark 속성으로 CSS 제어
  */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 
-type ThemeMode = "light" | "dark" | "system";
-
-interface StudentThemeCtx {
-  mode: ThemeMode;
-  isDark: boolean;
-  toggleMode: () => void;
-  setMode: (m: ThemeMode) => void;
-}
-
-const STORAGE_KEY = "hakwonplus:student-theme-mode";
-
-function getSystemPrefersDark(): boolean {
-  try {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  } catch {
-    return false;
-  }
-}
-
-function getInitialMode(): ThemeMode {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light" || stored === "system") return stored;
-  } catch {
-    // SSR or localStorage unavailable
-  }
-  return "light";
-}
-
-function resolveIsDark(mode: ThemeMode): boolean {
-  if (mode === "system") return getSystemPrefersDark();
-  return mode === "dark";
-}
-
-const Ctx = createContext<StudentThemeCtx>({
-  mode: "light",
-  isDark: false,
-  toggleMode: () => {},
-  setMode: () => {},
-});
+import {
+  getInitialMode,
+  resolveIsDark,
+  STUDENT_THEME_STORAGE_KEY,
+  StudentThemeContext,
+  type ThemeMode,
+} from "./studentTheme";
 
 export function StudentThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(getInitialMode);
@@ -53,7 +20,7 @@ export function StudentThemeProvider({ children }: { children: ReactNode }) {
     setModeState(m);
     setIsDark(resolveIsDark(m));
     try {
-      localStorage.setItem(STORAGE_KEY, m);
+      localStorage.setItem(STUDENT_THEME_STORAGE_KEY, m);
     } catch {
       // ignore
     }
@@ -76,7 +43,10 @@ export function StudentThemeProvider({ children }: { children: ReactNode }) {
   // 다른 탭에서 변경 시 동기화
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && (e.newValue === "dark" || e.newValue === "light" || e.newValue === "system")) {
+      if (
+        e.key === STUDENT_THEME_STORAGE_KEY &&
+        (e.newValue === "dark" || e.newValue === "light" || e.newValue === "system")
+      ) {
         setModeState(e.newValue);
         setIsDark(resolveIsDark(e.newValue));
       }
@@ -86,12 +56,8 @@ export function StudentThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ mode, isDark, toggleMode, setMode }}>
+    <StudentThemeContext.Provider value={{ mode, isDark, toggleMode, setMode }}>
       {children}
-    </Ctx.Provider>
+    </StudentThemeContext.Provider>
   );
-}
-
-export function useStudentTheme() {
-  return useContext(Ctx);
 }

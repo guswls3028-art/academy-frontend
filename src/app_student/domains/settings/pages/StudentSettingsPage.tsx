@@ -4,7 +4,7 @@
 import { Link } from "react-router-dom";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconUser } from "@student/shared/ui/icons/Icons";
-import { useStudentTheme } from "@student/shared/context/StudentThemeContext";
+import { useStudentTheme } from "@student/shared/context/studentTheme";
 
 type ThemeOption = { key: "light" | "dark" | "system"; label: string; icon: React.ReactNode };
 

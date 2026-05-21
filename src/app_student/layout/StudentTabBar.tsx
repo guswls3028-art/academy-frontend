@@ -1,79 +1,57 @@
 /**
- * 하단 탭바 — 5개: 홈 | 영상 | 일정 | 알림 | 커뮤니티
+ * 하단 탭바 - 5개: 홈 | 영상 | 일정 | 알림 | 커뮤니티
  * 유튜브 모바일형, 아이콘 + 라벨
  */
+import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router-dom";
-import { IconHome, IconPlay, IconCalendar, IconBell, IconBoard } from "../shared/ui/icons/Icons";
-import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
-import NotificationBadge from "../shared/ui/components/NotificationBadge";
 
-const tabs: { to: string; label: string; icon: React.ReactNode; badgeKey?: keyof import("@student/domains/notifications/api/notifications.api").NotificationCounts }[] = [
-  { to: "/student/dashboard", label: "홈", icon: <IconHome /> },
-  { to: "/student/video", label: "영상", icon: <IconPlay /> },
-  { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },
-  { to: "/student/notifications", label: "알림", icon: <IconBell />, badgeKey: "total" },
-  { to: "/student/community", label: "커뮤니티", icon: <IconBoard /> },
+import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
+import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
+import { IconBell, IconBoard, IconCalendar, IconHome, IconPlay } from "../shared/ui/icons/Icons";
+import NotificationBadge from "../shared/ui/components/NotificationBadge";
+import styles from "./StudentTabBar.module.css";
+
+type TabIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
+type StudentTabItem = {
+  to: string;
+  label: string;
+  Icon: TabIcon;
+  badgeKey?: keyof NotificationCounts;
+};
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+const tabs: StudentTabItem[] = [
+  { to: "/student/dashboard", label: "홈", Icon: IconHome },
+  { to: "/student/video", label: "영상", Icon: IconPlay },
+  { to: "/student/sessions", label: "일정", Icon: IconCalendar },
+  { to: "/student/notifications", label: "알림", Icon: IconBell, badgeKey: "total" },
+  { to: "/student/community", label: "커뮤니티", Icon: IconBoard },
 ];
 
 export default function StudentTabBar() {
   const { data: counts, isLoading } = useNotificationCounts();
 
   return (
-    <nav
-      aria-label="하단 메뉴"
-      className="stu-tabbar"
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: "var(--stu-z-tabbar)",
-        paddingBottom: "var(--stu-safe-bottom)",
-        background: "var(--stu-tabbar-bg)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid var(--stu-border)",
-        /* 프리미엄: iOS 고급 앱 스타일 - shadow 제거 */
-        boxShadow: "0 -1px 0 var(--stu-border)",
-      }}
-    >
-      <div
-        style={{
-          height: "var(--stu-tabbar-h)",
-          display: "grid",
-          gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
-          alignItems: "center",
-          maxWidth: "var(--stu-page-max-w)",
-          margin: "0 auto",
-          padding: "0 var(--stu-space-4)",
-        }}
-      >
-        {tabs.map((t) => {
-          // 로딩 중이거나 데이터가 없으면 배지 표시 안 함
-          const badgeCount = !isLoading && t.badgeKey && counts ? counts[t.badgeKey] : 0;
+    <nav aria-label="하단 메뉴" className={cx("stu-tabbar", styles.root)}>
+      <div className={styles.inner}>
+        {tabs.map(({ to, label, Icon, badgeKey }) => {
+          const badgeCount = !isLoading && badgeKey && counts ? counts[badgeKey] : 0;
+
           return (
             <NavLink
-              key={t.to}
-              to={t.to}
-              className="stu-tabbar__link"
-              style={({ isActive }) => ({
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
-                height: "100%",
-                color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
-                background: isActive ? undefined : "transparent",
-                transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1), background 180ms cubic-bezier(0.4, 0, 0.2, 1)",
-                borderRadius: "var(--stu-radius-sm)",
-                position: "relative",
-              })}
+              key={to}
+              to={to}
+              className={({ isActive }) => cx("stu-tabbar__link", styles.link, isActive && styles.linkActive)}
             >
-              <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.85, position: "relative" }} aria-hidden>
-                {t.icon}
+              <span className={styles.iconSlot} aria-hidden="true">
+                <Icon className={styles.icon} />
                 {badgeCount > 0 && <NotificationBadge count={badgeCount} />}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "-0.01em" }}>{t.label}</span>
+              <span className={styles.label}>{label}</span>
             </NavLink>
           );
         })}
