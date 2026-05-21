@@ -198,12 +198,12 @@ export default function MessageSettingsPage() {
   const channelSourceLabel = info?.channel_source === "system_default" ? "기본 채널" : "개별 채널";
   const hasSender = !!(info?.messaging_sender);
   const hasOwnCreds = info?.has_own_credentials ?? false;
-  const canSend = !!(info?.sms_allowed) || hasOwnCreds;  // 시스템 기본 키 또는 자체 키
+  const senderReady = hasSender || info?.channel_source === "system_default";
   const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
   const setupSteps = [
-    { done: canSend, label: "API 연동" },
-    { done: hasSender, label: "발신번호" },
+    { done: alimtalkAvailable, label: "알림톡 채널/승인 템플릿" },
+    { done: senderReady, label: "발신번호" },
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
@@ -229,7 +229,6 @@ export default function MessageSettingsPage() {
           icon={<FiZap size={16} />}
           label="공급자"
           value={providerLabel}
-          status={canSend ? "ok" : "warn"}
           tone="provider"
         />
         <KpiCard
@@ -248,9 +247,9 @@ export default function MessageSettingsPage() {
         />
         <KpiCard
           icon={<FiShield size={16} />}
-          label="기본 채널"
-          value={info?.sms_allowed ? "사용 가능" : "미설정"}
-          status={info?.sms_allowed ? "ok" : "warn"}
+          label="채널 출처"
+          value={channelSourceLabel}
+          status={alimtalkAvailable ? "ok" : "warn"}
           tone="sms"
         />
       </div>

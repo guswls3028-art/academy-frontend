@@ -10,7 +10,11 @@ import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams } from "@teacher/domains/exams/api";
 // 사이드바 성적은 admin endpoint schema(enrollment_id) 사용 — statsApi SSOT
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
-import { getExamResultEnrollmentId } from "@teacher/domains/results/examResultContract";
+import {
+  getExamResultEnrollmentId,
+  getExamResultMaxScore,
+  getExamResultScore,
+} from "@teacher/domains/results/examResultContract";
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
 import styles from "./ResultsPage.module.css";
@@ -111,8 +115,8 @@ export default function ResultsPage() {
                     <div className={styles.resultList}>
                       {results.map((result, index) => {
                         const enrollmentId = getExamResultEnrollmentId(result);
-                        const score = result.final_score ?? result.exam_score;
-                        const max = result.exam_max_score ?? result.max_score ?? 100;
+                        const score = getExamResultScore(result);
+                        const max = getExamResultMaxScore(result);
                         return (
                           <div key={enrollmentId ?? result.id ?? `result-${index}`} className={styles.resultRow}>
                             <span className={styles.studentName}>{result.student_name ?? "이름 없음"}</span>

@@ -16,7 +16,7 @@ const MESSAGE_TABS: DomainTab[] = [
 
 export default function MessageLayout() {
   const { data: info } = useMessagingInfo();
-  const smsConnected = info?.sms_allowed ?? false;
+  const alimtalkAvailable = info?.alimtalk_available ?? Boolean(info?.kakao_pfid);
 
   return (
     <DomainLayout
@@ -24,14 +24,14 @@ export default function MessageLayout() {
       description="템플릿 · 자동발송 · 발송 내역 · 설정"
       tabs={MESSAGE_TABS}
     >
-      {!smsConnected && info && (
+      {!alimtalkAvailable && info && (
         <div className={styles.smsNotice}>
-          <span>SMS 미연동 — 알림톡만 발송 가능</span>
+          <span>알림톡 발송 설정 확인 필요 — 채널 또는 승인 템플릿을 확인해 주세요</span>
           <Link
             to="/admin/message/settings"
             className={styles.smsNoticeLink}
           >
-            연동하기 →
+            설정 보기 →
           </Link>
         </div>
       )}

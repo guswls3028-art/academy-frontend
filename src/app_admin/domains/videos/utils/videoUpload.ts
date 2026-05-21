@@ -17,6 +17,7 @@ export interface VideoUploadParams {
   file: File;
   title: string;
   description?: string;
+  folderId?: number | null;
   showWatermark: boolean;
   allowSkip: boolean;
   maxSpeed: number;
@@ -34,7 +35,7 @@ export interface InitVideoResult {
  * 업로드 init만 수행 — DB에 영상 row 생성, 목록에 바로 표시 가능
  */
 export async function initVideoUpload(params: VideoUploadParams): Promise<InitVideoResult> {
-  const { sessionId, file, title, description, showWatermark, allowSkip, maxSpeed } = params;
+  const { sessionId, file, title, description, folderId, showWatermark, allowSkip, maxSpeed } = params;
 
   const initPayload = {
     session: sessionId,
@@ -44,6 +45,7 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
     show_watermark: showWatermark,
     allow_skip: allowSkip,
     max_speed: maxSpeed,
+    ...(folderId ? { folder: folderId } : {}),
     ...(description?.trim() ? { description: description.trim() } : {}),
   };
 

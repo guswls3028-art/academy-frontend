@@ -64,6 +64,7 @@ export default function MessageTemplatesPage() {
     queryKey: ["teacher-messaging-info"],
     queryFn: fetchMessagingInfo,
   });
+  const alimtalkAvailable = info?.alimtalk_available ?? Boolean(info?.kakao_pfid);
 
   const deleteMut = useMutation({
     mutationFn: deleteTemplate,
@@ -97,8 +98,8 @@ export default function MessageTemplatesPage() {
               </div>
             </div>
             <div className="text-right">
-              <Badge tone={info.sms_allowed ? "success" : "danger"} size="xs">
-                {info.sms_allowed ? "활성" : "비활성"}
+              <Badge tone={alimtalkAvailable ? "success" : "danger"} size="xs">
+                {alimtalkAvailable ? "알림톡 활성" : "확인 필요"}
               </Badge>
               {info.balance != null && (
                 <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>

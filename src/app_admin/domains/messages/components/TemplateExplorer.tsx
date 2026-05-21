@@ -547,7 +547,7 @@ export default function TemplateExplorer() {
           <div>
             <h2 className={panelStyles.headerTitle}>템플릿 저장</h2>
             <p className={panelStyles.headerDesc}>
-              알림톡·문자 발송 시 사용할 메시지 템플릿을 카테고리별로 관리합니다.
+              알림톡 발송 시 사용할 메시지 템플릿을 카테고리별로 관리합니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

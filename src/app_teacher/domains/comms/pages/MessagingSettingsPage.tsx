@@ -94,14 +94,13 @@ export default function MessagingSettingsPage() {
   const alimtalkAvailable = info?.alimtalk_available ?? hasPfid;
   const channelSourceLabel = info?.channel_source === "system_default" ? "기본 채널" : "개별 채널";
   const hasSender = !!info?.messaging_sender;
-  const hasProviderAccess = !!info?.sms_allowed || (info?.has_own_credentials ?? false);
+  const senderReady = hasSender || info?.channel_source === "system_default";
   const hasOwnCreds = info?.has_own_credentials ?? false;
   const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
 
   const setupSteps = [
-    { done: hasProviderAccess, label: "발송 연동" },
-    { done: hasSender, label: "발신번호" },
-    { done: alimtalkAvailable, label: "알림톡 채널" },
+    { done: alimtalkAvailable, label: "알림톡 채널/승인 템플릿" },
+    { done: senderReady, label: "발신번호" },
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
@@ -217,8 +216,8 @@ export default function MessagingSettingsPage() {
 
           {/* KPI 요약 — 2x2 */}
           <div className="grid grid-cols-2 gap-2">
-            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status={hasProviderAccess ? "ok" : "warn"} tone="provider" />
-            <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || "미등록"} status={hasSender ? "ok" : "warn"} tone="sender" />
+            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status="none" tone="provider" />
+            <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || (info.channel_source === "system_default" ? "기본값 사용" : "미등록")} status={senderReady ? "ok" : "warn"} tone="sender" />
             <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={alimtalkAvailable ? "사용 가능" : "미설정"} status={alimtalkAvailable ? "ok" : "none"} tone="kakao" />
             <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={alimtalkAvailable ? channelSourceLabel : "미설정"} status={alimtalkAvailable ? "ok" : "warn"} tone="sms" />
           </div>

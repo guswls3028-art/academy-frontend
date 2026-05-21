@@ -560,6 +560,7 @@ export default function VideoTreeView() {
       {uploadTargetSessionId != null && (
         <VideoUploadModal
           sessionId={uploadTargetSessionId}
+          folderId={isPublicSelection ? selectedPublicFolderId : null}
           isOpen={uploadModalOpen}
           onClose={closeUploadModal}
         />

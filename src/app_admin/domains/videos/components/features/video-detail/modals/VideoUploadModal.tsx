@@ -15,11 +15,12 @@ import "./VideoUploadModal.css";
 const VIDEO_ACCEPT = "video/*";
 type Props = {
   sessionId: number;
+  folderId?: number | null;
   isOpen: boolean;
   onClose: () => void;
 };
 
-export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) {
+export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -154,6 +155,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             file,
             title,
             description,
+            folderId,
             showWatermark,
             allowSkip,
             maxSpeed,

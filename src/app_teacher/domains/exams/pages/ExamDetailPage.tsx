@@ -11,6 +11,11 @@ import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
+import {
+  getExamResultMaxScore,
+  getExamResultScore,
+  hasExamResultScore,
+} from "@teacher/domains/results/examResultContract";
 import { updateResult } from "@teacher/domains/scores/api";
 import { fetchExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import ExamManageSheet from "../components/ExamManageSheet";
@@ -72,8 +77,6 @@ export default function ExamDetailPage() {
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 찾을 수 없습니다" />;
 
-  const hasScore = (r: ExamResultRow) => (r.final_score ?? r.exam_score) != null;
-
   // result row(점수 매겨진 행) + enrollment fallback(미응시 학생) merge.
   // 우선순위: result(server) 있으면 result, 없으면 enrollment 기반 가상 행.
   const resultByEnrollment = new Map<number, ExamResultRow>();
@@ -102,8 +105,8 @@ export default function ExamDetailPage() {
       })
     : (results ?? []);
 
-  const graded = merged.filter(hasScore);
-  const ungraded = merged.filter((r) => !hasScore(r));
+  const graded = merged.filter(hasExamResultScore);
+  const ungraded = merged.filter((r) => !hasExamResultScore(r));
 
   return (
     <div className="flex flex-col gap-3">
@@ -185,8 +188,8 @@ function ResultRow({
   const qc = useQueryClient();
   const name = result.student_name ?? "이름 없음";
   const enrollmentId = result.enrollment_id;
-  const currentScore = result.final_score ?? result.exam_score;
-  const maxScore = result.exam_max_score ?? exam.max_score ?? 100;
+  const currentScore = getExamResultScore(result);
+  const maxScore = getExamResultMaxScore(result, exam.max_score ?? 100);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(currentScore != null ? String(currentScore) : "");
 

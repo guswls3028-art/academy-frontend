@@ -11,6 +11,10 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchSession, fetchSessionAttendance, fetchLectureEnrollments } from "../api";
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
+import {
+  getExamResultMaxScore,
+  getExamResultScore,
+} from "@teacher/domains/results/examResultContract";
 import { fetchVideos } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
 import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
@@ -547,8 +551,9 @@ function ScoresTab({
             <div className="flex flex-col gap-1">
               {results.map((r: any) => {
                 const name = r.student_name ?? "이름 없음";
-                const score = r.final_score ?? r.exam_score;
-                const maxScore = r.exam_max_score ?? exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
+                const examMaxScore = exams.find((e: any) => e.id === selectedExam)?.max_score ?? 100;
+                const score = getExamResultScore(r);
+                const maxScore = getExamResultMaxScore(r, examMaxScore);
                 // 미응시 / 임시채점 / 미채점 / 정상점수 4-state 표시.
                 // backend admin_exam_results_view 응답의 meta_status·is_provisional SSOT 반영.
                 const isNotSubmitted = r.meta_status === "NOT_SUBMITTED";
