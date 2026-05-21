@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/confirm/ConfirmDialog.tsx
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
 import "./confirm-dialog.css";
@@ -40,14 +40,14 @@ export default function ConfirmDialog({
   const confirmedRef = useRef(false);
   const [remember, setRemember] = useState(false);
 
-  const safeConfirm = () => {
+  const safeConfirm = useCallback(() => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
     if (rememberKey && remember) {
       try { localStorage.setItem(rememberKey, "1"); } catch { /* private mode */ }
     }
     onConfirm();
-  };
+  }, [onConfirm, remember, rememberKey]);
 
   const { offset, onMouseDown, onTouchStart } = useDraggableModal(
     ".confirm-drag-handle",
@@ -78,7 +78,7 @@ export default function ConfirmDialog({
     };
     document.addEventListener("keydown", handler, true);
     return () => document.removeEventListener("keydown", handler, true);
-  }, [onConfirm, onCancel]);
+  }, [onCancel, safeConfirm]);
 
   // Focus confirm button on mount for accessibility
   useEffect(() => {
@@ -88,34 +88,35 @@ export default function ConfirmDialog({
   const hasOffset = offset.x !== 0 || offset.y !== 0;
 
   return createPortal(
-    <div data-confirm-dialog style={backdropStyle} onClick={onCancel}>
+    <div data-confirm-dialog className="confirm-dialog__backdrop" onClick={onCancel}>
       <div
+        className="confirm-dialog__positioner"
         style={hasOffset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}
       >
-        <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
-          <h3 className="confirm-drag-handle" style={titleStyle}>{title}</h3>
-          <p style={messageStyle}>{message}</p>
+        <div className="confirm-dialog__card" onClick={(e) => e.stopPropagation()}>
+          <h3 className="confirm-dialog__title confirm-drag-handle">{title}</h3>
+          <p className="confirm-dialog__message">{message}</p>
           {rememberKey && (
-            <label style={rememberLabelStyle}>
+            <label className="confirm-dialog__remember">
               <input
                 type="checkbox"
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
-                style={rememberCheckboxStyle}
+                className="confirm-dialog__remember-checkbox"
               />
               <span>{rememberLabel}</span>
             </label>
           )}
-          <div style={actionsStyle}>
-            <button type="button" style={cancelBtnStyle} onClick={onCancel}>
+          <div className="confirm-dialog__actions">
+            <button type="button" className="confirm-dialog__button confirm-dialog__button--cancel" onClick={onCancel}>
               {cancelText}
             </button>
             <button
               ref={confirmBtnRef}
               type="button"
-              style={danger ? dangerBtnStyle : confirmBtnStyle}
+              className={`confirm-dialog__button ${danger ? "confirm-dialog__button--danger" : "confirm-dialog__button--confirm"}`}
               onClick={safeConfirm}
             >
               {confirmText}
@@ -127,93 +128,3 @@ export default function ConfirmDialog({
     document.body,
   );
 }
-
-/* ── inline styles using design tokens ── */
-
-const backdropStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 9500,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(0, 0, 0, 0.45)",
-  animation: "confirm-fade-in 120ms ease-out",
-};
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--color-bg-surface, #fff)",
-  borderRadius: "var(--radius-lg, 14px)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-  padding: "var(--space-6, 24px)",
-  maxWidth: 400,
-  width: "calc(100% - 32px)",
-  animation: "confirm-scale-in 150ms ease-out",
-};
-
-const titleStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 17,
-  fontWeight: 700,
-  color: "var(--color-text-primary, #111)",
-  lineHeight: 1.4,
-};
-
-const messageStyle: React.CSSProperties = {
-  margin: "var(--space-3, 12px) 0 var(--space-5, 20px)",
-  fontSize: 14,
-  color: "var(--color-text-secondary, #555)",
-  lineHeight: 1.6,
-  whiteSpace: "pre-line",
-};
-
-const actionsStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: "var(--space-2, 8px)",
-};
-
-const rememberLabelStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  margin: "0 0 var(--space-4, 16px)",
-  fontSize: 12,
-  color: "var(--color-text-muted, #888)",
-  cursor: "pointer",
-  userSelect: "none",
-};
-
-const rememberCheckboxStyle: React.CSSProperties = { cursor: "pointer" };
-
-const btnBase: React.CSSProperties = {
-  padding: "8px 20px",
-  fontSize: 14,
-  fontWeight: 600,
-  borderRadius: "var(--radius-md, 8px)",
-  border: "none",
-  cursor: "pointer",
-  transition: "opacity 120ms",
-  lineHeight: 1.4,
-  whiteSpace: "nowrap",
-  minWidth: 64,
-  textAlign: "center",
-};
-
-const cancelBtnStyle: React.CSSProperties = {
-  ...btnBase,
-  background: "var(--color-bg-surface-soft, #f3f4f6)",
-  color: "var(--color-text-secondary, #555)",
-};
-
-const confirmBtnStyle: React.CSSProperties = {
-  ...btnBase,
-  background: "var(--color-brand-primary, #6366f1)",
-  color: "#fff",
-};
-
-const dangerBtnStyle: React.CSSProperties = {
-  ...btnBase,
-  background: "var(--color-danger, #ef4444)",
-  color: "#fff",
-};

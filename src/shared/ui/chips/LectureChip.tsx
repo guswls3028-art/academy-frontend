@@ -1,9 +1,18 @@
 // PATH: src/shared/ui/chips/LectureChip.tsx
 // 수강 강의 딱지 — 네모(정사각형), 두 글자 중앙정렬, 아바타와 동일 크기로 맞출 때 size=avatarSize
 
+import type { CSSProperties } from "react";
 import { contrastTextColor } from "@/shared/ui/domain/constants";
+import "./LectureChip.css";
 
 const DEFAULT_LECTURE_COLOR = "#3b82f6";
+
+type LectureChipStyle = CSSProperties & {
+  "--lecture-chip-size": string;
+  "--lecture-chip-font-size": string;
+  "--lecture-chip-text-color": string;
+  "--lecture-chip-bg": string;
+};
 
 export default function LectureChip({
   lectureName,
@@ -19,6 +28,7 @@ export default function LectureChip({
 }) {
   const bg = color || DEFAULT_LECTURE_COLOR;
   const textColor = contrastTextColor(bg);
+  const chipSize = Number.isFinite(size) && size > 0 ? size : 22;
   // 강의명 미설정/누락 시 "??" 같은 의문스러운 라벨 대신 chip 자체 미렌더
   // (예전 동작: 빈 파란 박스 노출 → 학생/시험 카드 시각 노이즈로 학원장이 정보로 오인)
   const two = (chipLabel && chipLabel.trim())
@@ -26,29 +36,20 @@ export default function LectureChip({
     : (lectureName && lectureName.trim() ? lectureName.trim().slice(0, 2) : "");
   if (!two) return null;
   // 2026-05-12 학원장 가시성 보강 — 8/9/10 → 10/12/14 / 큰 chip은 16
-  const fontSize = size <= 18 ? 10 : size <= 24 ? 12 : size <= 32 ? 14 : 16;
+  const fontSize = chipSize <= 18 ? 10 : chipSize <= 24 ? 12 : chipSize <= 32 ? 14 : 16;
+  const chipStyle: LectureChipStyle = {
+    "--lecture-chip-size": `${chipSize}px`,
+    "--lecture-chip-font-size": `${fontSize}px`,
+    "--lecture-chip-text-color": textColor,
+    "--lecture-chip-bg": bg,
+  };
 
   return (
     <span
       data-lecture-chip
       title={lectureName}
-      style={{
-        width: size,
-        height: size,
-        minWidth: size,
-        borderRadius: 4,
-        flexShrink: 0,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize,
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-        lineHeight: 1,
-        color: textColor,
-        background: bg,
-        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-      }}
+      className="lecture-chip"
+      style={chipStyle}
     >
       {two}
     </span>

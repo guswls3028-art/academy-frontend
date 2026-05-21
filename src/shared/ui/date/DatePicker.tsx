@@ -9,7 +9,6 @@ import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import "@/styles/design-system/components/DatePicker.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const CELL_SIZE = 44;
 const CALENDAR_MIN_WIDTH = 336;
 
 export interface DatePickerProps {
@@ -136,14 +135,7 @@ export default function DatePicker({
             </span>
           ))}
         </div>
-        <div
-          className="shared-date-picker-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            gap: 4,
-          }}
-        >
+        <div className="shared-date-picker-grid">
           {cells.map((d, i) => {
             if (d === null) return <div key={`empty-${i}`} />;
             const cellDate = viewMonth.date(d);
@@ -158,7 +150,6 @@ export default function DatePicker({
                 disabled={isBeforeMin}
                 className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""} ${isBeforeMin ? "shared-date-picker-cell-disabled" : ""}`}
                 onClick={() => !isBeforeMin && handleSelect(d)}
-                style={{ width: CELL_SIZE, height: CELL_SIZE }}
               >
                 {d}
               </button>
@@ -170,7 +161,7 @@ export default function DatePicker({
   );
 
   return (
-    <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
+    <div ref={containerRef} className="shared-date-picker">
       <button
         ref={triggerRef}
         type="button"
@@ -203,12 +194,8 @@ export default function DatePicker({
           className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
           role="dialog"
           aria-label="날짜 선택"
+          // eslint-disable-next-line no-restricted-syntax -- 포털 달력은 트리거 위치에 맞춘 런타임 좌표 적용이 필요하다.
           style={{
-            minWidth: CALENDAR_MIN_WIDTH,
-            width: "max-content",
-            position: "fixed",
-            zIndex: 1200,
-            background: "#ffffff",
             top: dropdownStyle?.top ?? 0,
             left: dropdownStyle?.left ?? 0,
             visibility: dropdownStyle ? "visible" : "hidden",
