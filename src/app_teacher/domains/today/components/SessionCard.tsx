@@ -1,16 +1,29 @@
 // PATH: src/app_teacher/domains/today/components/SessionCard.tsx
 // 수업 카드 — LectureChip + 진행상태 + 출결 진척 + 퀵 액션(출석/성적)
 import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Check, Edit3 } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import type { TodaySession } from "../api";
+import styles from "./SessionCard.module.css";
+
 interface Props {
   session: TodaySession;
 }
 
 type SessionPhase = "upcoming" | "ongoing" | "ended" | "unknown";
+type QuickButtonVariant = "success" | "primary";
+
+const QUICK_BUTTON_CLASS: Record<QuickButtonVariant, { idle: string; done: string }> = {
+  success: { idle: styles.quickButtonSuccess, done: styles.quickButtonSuccessDone },
+  primary: { idle: styles.quickButtonPrimary, done: styles.quickButtonPrimaryDone },
+};
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
 
 function toMinutes(hhmm?: string | null): number | null {
   if (!hhmm) return null;
@@ -57,27 +70,14 @@ export default function SessionCard({ session }: Props) {
   const progressPct = hasProgress ? Math.min(100, Math.round((filled / total) * 100)) : 0;
 
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: "var(--tc-surface)",
-        border: "1px solid var(--tc-border)",
-        boxShadow: "var(--tc-shadow-sm)",
-        opacity: phase === "ended" ? 0.78 : 1,
-      }}
-    >
+    <div className={cx(styles.card, phase === "ended" && styles.cardEnded)}>
       {/* Body — 탭하면 세션 상세 */}
       <button
-        className="w-full text-left flex items-center gap-3"
+        type="button"
+        className={styles.bodyButton}
         onClick={() =>
           navigate(`/teacher/classes/${session.lecture}/sessions/${session.id}`)
         }
-        style={{
-          padding: "var(--tc-space-3) var(--tc-space-4)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-        }}
       >
         <LectureChip
           lectureName={session.lecture_title ?? session.title}
@@ -86,16 +86,10 @@ export default function SessionCard({ session }: Props) {
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <div
-              className="ds-text-name font-bold truncate"
-              style={{ color: "var(--tc-text)" }}
-            >
+            <div className={styles.title}>
               {session.lecture_title || session.title}
               {session.section_label && (
-                <span
-                  className="font-medium ml-1"
-                  style={{ color: "var(--tc-text-secondary)" }}
-                >
+                <span className={styles.sectionLabel}>
                   {session.section_label}
                 </span>
               )}
@@ -107,10 +101,7 @@ export default function SessionCard({ session }: Props) {
             )}
           </div>
           {subtitle && (
-            <div
-              className="text-[12px] mt-0.5"
-              style={{ color: "var(--tc-text-muted)" }}
-            >
+            <div className={styles.subtitle}>
               {subtitle}
             </div>
           )}
@@ -119,50 +110,36 @@ export default function SessionCard({ session }: Props) {
 
       {/* Attendance progress */}
       {hasProgress && (
-        <div style={{ padding: "0 var(--tc-space-4) var(--tc-space-2)" }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
-            <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeader}>
+            <span className={styles.progressLabel}>
               출결 입력
             </span>
             <span
-              className="text-[11px] font-semibold"
-              style={{
-                color: attendanceDone ? "var(--tc-success)" : "var(--tc-text-secondary)",
-              }}
+              className={cx(
+                styles.progressValue,
+                attendanceDone && styles.progressValueDone,
+              )}
             >
               {filled} / {total}
               {attendanceDone && " ✓"}
             </span>
           </div>
-          <div
-            style={{
-              height: 4,
-              borderRadius: 2,
-              background: "var(--tc-surface-soft)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${progressPct}%`,
-                height: "100%",
-                background: attendanceDone ? "var(--tc-success)" : "var(--tc-primary)",
-                transition: "width var(--tc-motion-base)",
-              }}
-            />
-          </div>
+          <progress
+            className={cx(styles.progressBar, attendanceDone && styles.progressBarDone)}
+            value={progressPct}
+            max={100}
+            aria-label="출결 입력 진행률"
+          />
         </div>
       )}
 
       {/* Quick action buttons */}
-      <div
-        className="flex gap-2"
-        style={{ padding: "0 var(--tc-space-4) var(--tc-space-3)" }}
-      >
+      <div className={styles.actions}>
         <QuickBtn
           icon={<Check size={ICON.xs} />}
           label={attendanceDone ? "출석 완료" : "출석"}
-          color="var(--tc-success)"
+          variant="success"
           done={attendanceDone}
           ariaLabel={`${session.lecture_title || session.title} 출석 입력`}
           onClick={() => navigate(`/teacher/attendance/${session.id}`)}
@@ -170,7 +147,7 @@ export default function SessionCard({ session }: Props) {
         <QuickBtn
           icon={<Edit3 size={ICON.xs} />}
           label="성적"
-          color="var(--tc-primary)"
+          variant="primary"
           ariaLabel={`${session.lecture_title || session.title} 성적 입력`}
           onClick={() => navigate(`/teacher/scores/${session.id}`)}
         />
@@ -182,33 +159,29 @@ export default function SessionCard({ session }: Props) {
 function QuickBtn({
   icon,
   label,
-  color,
+  variant,
   done,
   ariaLabel,
   onClick,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
-  color: string;
+  variant: QuickButtonVariant;
   done?: boolean;
   ariaLabel: string;
   onClick: () => void;
 }) {
+  const variantClass = QUICK_BUTTON_CLASS[variant];
+
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
       aria-label={ariaLabel}
-      className="flex items-center gap-1.5 rounded-full text-[13px] font-semibold cursor-pointer"
-      style={{
-        padding: "6px 16px",
-        border: `1px solid ${done ? "transparent" : color}`,
-        background: done ? color : "transparent",
-        color: done ? "#fff" : color,
-        transition: "all var(--tc-motion-fast)",
-      }}
+      className={cx(styles.quickButton, done ? variantClass.done : variantClass.idle)}
     >
       {icon}
       {label}

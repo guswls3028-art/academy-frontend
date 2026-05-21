@@ -1,9 +1,10 @@
 // PATH: src/app_teacher/domains/settings/pages/OrganizationSettingsPage.tsx
 // 학원 정보 — 조회/수정 (owner 전용 권장, RoleGuard는 라우터에서)
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
@@ -12,6 +13,7 @@ import {
   updateTenantInfo,
   type AcademyEntry,
 } from "@admin/domains/profile/api/profile.api";
+import styles from "./OrganizationSettingsPage.module.css";
 
 export default function OrganizationSettingsPage() {
   const navigate = useNavigate();
@@ -26,6 +28,9 @@ export default function OrganizationSettingsPage() {
   const [phone, setPhone] = useState("");
   const [headquartersPhone, setHeadquartersPhone] = useState("");
   const [academies, setAcademies] = useState<AcademyEntry[]>([]);
+  const [ogTitle, setOgTitle] = useState("");
+  const [ogDescription, setOgDescription] = useState("");
+  const [ogImageUrl, setOgImageUrl] = useState("");
 
   useEffect(() => {
     if (data) {
@@ -33,6 +38,9 @@ export default function OrganizationSettingsPage() {
       setPhone(data.phone ?? "");
       setHeadquartersPhone(data.headquarters_phone ?? "");
       setAcademies(data.academies ?? []);
+      setOgTitle(data.og_title ?? "");
+      setOgDescription(data.og_description ?? "");
+      setOgImageUrl(data.og_image_url ?? "");
     }
   }, [data]);
 
@@ -50,12 +58,23 @@ export default function OrganizationSettingsPage() {
   const updateAcademy = (i: number, patch: Partial<AcademyEntry>) => {
     setAcademies(academies.map((a, idx) => (idx === i ? { ...a, ...patch } : a)));
   };
+  const saveSettings = () => {
+    saveMut.mutate({
+      name: name.trim(),
+      phone: phone.trim(),
+      headquarters_phone: headquartersPhone.trim(),
+      academies: academies.map((a) => ({ name: a.name.trim(), phone: a.phone.trim() })),
+      og_title: ogTitle.trim(),
+      og_description: ogDescription.trim(),
+      og_image_url: ogImageUrl.trim(),
+    });
+  };
 
   return (
-    <div className="flex flex-col gap-3 pb-4">
-      <div className="flex items-center gap-2 py-0.5">
+    <div className={styles.page}>
+      <div className={styles.header}>
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>학원 정보</h1>
+        <h1 className={styles.title}>학원 정보</h1>
       </div>
 
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
@@ -64,14 +83,13 @@ export default function OrganizationSettingsPage() {
         <>
           <SectionTitle>대표 정보</SectionTitle>
           <Card>
-            <div className="flex flex-col gap-2">
+            <div className={styles.formStack}>
               <Field label="이름">
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  className={styles.fieldInput}
                 />
               </Field>
               <Field label="대표 전화">
@@ -79,8 +97,7 @@ export default function OrganizationSettingsPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  className={styles.fieldInput}
                 />
               </Field>
               <Field label="본부 전화 (선택)">
@@ -88,8 +105,7 @@ export default function OrganizationSettingsPage() {
                   type="tel"
                   value={headquartersPhone}
                   onChange={(e) => setHeadquartersPhone(e.target.value)}
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  className={styles.fieldInput}
                 />
               </Field>
             </div>
@@ -98,16 +114,9 @@ export default function OrganizationSettingsPage() {
           <SectionTitle
             right={
               <button
+                type="button"
                 onClick={addAcademy}
-                className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer"
-                style={{
-                  padding: "8px 12px",
-                  minHeight: "var(--tc-touch-min)",
-                  borderRadius: "var(--tc-radius-sm)",
-                  border: "1px solid var(--tc-primary)",
-                  background: "var(--tc-primary-bg)",
-                  color: "var(--tc-primary)",
-                }}
+                className={styles.addButton}
               >
                 <Plus size={ICON.xs} /> 학원 추가
               </button>
@@ -119,17 +128,16 @@ export default function OrganizationSettingsPage() {
           {academies.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="등록된 학원이 없습니다" />
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className={styles.academyList}>
               {academies.map((a, i) => (
                 <Card key={i}>
-                  <div className="flex flex-col gap-2">
+                  <div className={styles.formStack}>
                     <Field label={`학원 ${i + 1} 이름`}>
                       <input
                         type="text"
                         value={a.name}
                         onChange={(e) => updateAcademy(i, { name: e.target.value })}
-                        className="w-full text-sm"
-                        style={fieldStyle}
+                        className={styles.fieldInput}
                       />
                     </Field>
                     <Field label="전화">
@@ -137,21 +145,13 @@ export default function OrganizationSettingsPage() {
                         type="tel"
                         value={a.phone}
                         onChange={(e) => updateAcademy(i, { phone: e.target.value })}
-                        className="w-full text-sm"
-                        style={fieldStyle}
+                        className={styles.fieldInput}
                       />
                     </Field>
                     <button
+                      type="button"
                       onClick={() => removeAcademy(i)}
-                      className="flex items-center justify-center gap-1 text-[12px] font-semibold cursor-pointer"
-                      style={{
-                        padding: "8px",
-                        minHeight: "var(--tc-touch-min)",
-                        borderRadius: "var(--tc-radius-sm)",
-                        border: "1px solid var(--tc-border)",
-                        background: "var(--tc-surface)",
-                        color: "var(--tc-danger)",
-                      }}
+                      className={styles.removeButton}
                     >
                       <Trash2 size={ICON.xs} /> 제거
                     </button>
@@ -163,63 +163,39 @@ export default function OrganizationSettingsPage() {
 
           <SectionTitle>OG 미리보기 (카카오/SNS)</SectionTitle>
           <Card>
-            <div className="flex flex-col gap-2">
+            <div className={styles.formStack}>
               <Field label="제목 (선택)">
                 <input
                   type="text"
-                  value={data.og_title ?? ""}
-                  onChange={(e) => qc.setQueryData(["teacher-tenant-info"], { ...data, og_title: e.target.value })}
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  value={ogTitle}
+                  onChange={(e) => setOgTitle(e.target.value)}
+                  className={styles.fieldInput}
                 />
               </Field>
               <Field label="설명 (선택)">
                 <input
                   type="text"
-                  value={data.og_description ?? ""}
-                  onChange={(e) =>
-                    qc.setQueryData(["teacher-tenant-info"], { ...data, og_description: e.target.value })
-                  }
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  value={ogDescription}
+                  onChange={(e) => setOgDescription(e.target.value)}
+                  className={styles.fieldInput}
                 />
               </Field>
               <Field label="이미지 URL (선택)">
                 <input
                   type="url"
-                  value={data.og_image_url ?? ""}
-                  onChange={(e) =>
-                    qc.setQueryData(["teacher-tenant-info"], { ...data, og_image_url: e.target.value })
-                  }
-                  className="w-full text-sm"
-                  style={fieldStyle}
+                  value={ogImageUrl}
+                  onChange={(e) => setOgImageUrl(e.target.value)}
+                  className={styles.fieldInput}
                 />
               </Field>
             </div>
           </Card>
 
           <button
-            onClick={() =>
-              saveMut.mutate({
-                name: name.trim(),
-                phone: phone.trim(),
-                headquarters_phone: headquartersPhone.trim(),
-                academies: academies.map((a) => ({ name: a.name.trim(), phone: a.phone.trim() })),
-                og_title: data.og_title,
-                og_description: data.og_description,
-                og_image_url: data.og_image_url,
-              })
-            }
+            type="button"
+            onClick={saveSettings}
             disabled={saveMut.isPending}
-            className="text-sm font-bold cursor-pointer w-full mt-2 disabled:opacity-50"
-            style={{
-              padding: "14px",
-              minHeight: "var(--tc-touch-min)",
-              borderRadius: "var(--tc-radius)",
-              border: "none",
-              background: "var(--tc-primary)",
-              color: "#fff",
-            }}
+            className={styles.saveButton}
           >
             {saveMut.isPending ? "저장 중…" : "저장"}
           </button>
@@ -229,23 +205,13 @@ export default function OrganizationSettingsPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+    <div className={styles.field}>
+      <label className={styles.fieldLabel}>
         {label}
       </label>
       {children}
     </div>
   );
 }
-
-const fieldStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  minHeight: "var(--tc-touch-min)",
-  borderRadius: "var(--tc-radius-sm)",
-  border: "1px solid var(--tc-border-strong)",
-  background: "var(--tc-surface)",
-  color: "var(--tc-text)",
-  outline: "none",
-};

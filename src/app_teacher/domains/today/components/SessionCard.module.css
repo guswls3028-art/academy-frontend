@@ -1,0 +1,150 @@
+.card {
+  overflow: hidden;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-xl);
+  background: var(--tc-surface);
+  box-shadow: var(--tc-shadow-sm);
+}
+
+.cardEnded {
+  opacity: 0.78;
+}
+
+.bodyButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--tc-space-3);
+  padding: var(--tc-space-3) var(--tc-space-4);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--tc-text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionLabel {
+  margin-left: var(--tc-space-1);
+  color: var(--tc-text-secondary);
+  font-weight: 500;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--tc-text-muted);
+  font-size: 12px;
+}
+
+.progressSection {
+  padding: 0 var(--tc-space-4) var(--tc-space-2);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.progressLabel {
+  color: var(--tc-text-muted);
+  font-size: 11px;
+}
+
+.progressValue {
+  color: var(--tc-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.progressValueDone {
+  color: var(--tc-success);
+}
+
+.progressBar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  background: var(--tc-surface-soft);
+  appearance: none;
+}
+
+.progressBar::-webkit-progress-bar {
+  border-radius: 2px;
+  background: var(--tc-surface-soft);
+}
+
+.progressBar::-webkit-progress-value {
+  border-radius: 2px;
+  background: var(--tc-primary);
+  transition: width var(--tc-motion-base);
+}
+
+.progressBar::-moz-progress-bar {
+  border-radius: 2px;
+  background: var(--tc-primary);
+  transition: width var(--tc-motion-base);
+}
+
+.progressBarDone::-webkit-progress-value {
+  background: var(--tc-success);
+}
+
+.progressBarDone::-moz-progress-bar {
+  background: var(--tc-success);
+}
+
+.actions {
+  display: flex;
+  gap: var(--tc-space-2);
+  padding: 0 var(--tc-space-4) var(--tc-space-3);
+}
+
+.quickButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: var(--tc-radius-full);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background var(--tc-motion-fast),
+    border-color var(--tc-motion-fast),
+    color var(--tc-motion-fast);
+}
+
+.quickButtonSuccess {
+  border: 1px solid var(--tc-success);
+  background: transparent;
+  color: var(--tc-success);
+}
+
+.quickButtonSuccessDone {
+  border: 1px solid transparent;
+  background: var(--tc-success);
+  color: #fff;
+}
+
+.quickButtonPrimary {
+  border: 1px solid var(--tc-primary);
+  background: transparent;
+  color: var(--tc-primary);
+}
+
+.quickButtonPrimaryDone {
+  border: 1px solid transparent;
+  background: var(--tc-primary);
+  color: #fff;
+}
