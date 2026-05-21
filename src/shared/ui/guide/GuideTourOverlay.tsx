@@ -2,7 +2,7 @@
  * 레이아웃에 삽입하는 투어 오버레이 — activeTour 감지 시 딜레이 후 투어 시작
  */
 import { useState, useEffect } from "react";
-import { useGuideTour } from "./GuideTourContext";
+import { useGuideTour } from "./useGuideTour";
 import { GuideTour } from "./GuideTour";
 
 export function GuideTourOverlay() {

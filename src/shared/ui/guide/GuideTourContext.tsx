@@ -1,21 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { TourStep } from "./types";
-
-type TourConfig = { steps: TourStep[] };
-
-type Ctx = {
-  startTour: (config: TourConfig) => void;
-  activeTour: TourConfig | null;
-  closeTour: () => void;
-};
-
-const GuideTourCtx = createContext<Ctx>({
-  startTour: () => {},
-  activeTour: null,
-  closeTour: () => {},
-});
-
-export const useGuideTour = () => useContext(GuideTourCtx);
+import { useState, useCallback, type ReactNode } from "react";
+import { GuideTourCtx, type TourConfig } from "./GuideTourContextCore";
 
 export function GuideTourProvider({ children }: { children: ReactNode }) {
   const [activeTour, setActiveTour] = useState<TourConfig | null>(null);
