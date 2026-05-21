@@ -1,7 +1,8 @@
 /**
- * ProgressRing — SVG 원형 프로그레스 인디케이터
+ * ProgressRing - SVG 원형 프로그레스 인디케이터
  * 영상 완료율, 저장소 용량 등에 사용.
  */
+import styles from "./ProgressRing.module.css";
 
 type ProgressRingProps = {
   /** 0-100 퍼센트 */
@@ -32,31 +33,25 @@ export default function ProgressRing({
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div
-      style={{
-        display: "inline-flex",
-        flexDirection: "column",
-        alignItems: "center",
-        position: "relative",
-      }}
-    >
+    <div className={styles.root}>
       <svg
+        className={styles.svg}
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ transform: "rotate(-90deg)" }}
       >
         {/* 배경 트랙 */}
         <circle
+          className={styles.track}
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--stu-surface-soft)"
           strokeWidth={strokeWidth}
         />
         {/* 진행 바 */}
         <circle
+          className={styles.progress}
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -66,41 +61,15 @@ export default function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       </svg>
       {/* 중앙 텍스트 */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: size,
-          height: size,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span
-          style={{
-            fontSize: size * 0.2,
-            fontWeight: 800,
-            color: "var(--stu-text)",
-            lineHeight: 1.2,
-          }}
-        >
+      <div className={styles.center}>
+        <span className={styles.label}>
           {label ?? `${Math.round(clamped)}%`}
         </span>
         {sublabel && (
-          <span
-            style={{
-              fontSize: size * 0.12,
-              color: "var(--stu-text-muted)",
-              fontWeight: 600,
-            }}
-          >
+          <span className={styles.sublabel}>
             {sublabel}
           </span>
         )}
