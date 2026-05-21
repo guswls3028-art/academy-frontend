@@ -11,7 +11,7 @@
  *   2) "student-XXX" — 예: ["student-dashboard"], ["student-video-playback", ...]
  * React Query의 prefix 매칭은 ["student"]로 student-* 를 잡지 못하므로 predicate 사용.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
@@ -20,6 +20,11 @@ import {
   initParentStudentId,
   setParentStudentId,
 } from "@student/shared/api/parentStudentSelection";
+import styles from "./ParentChildSwitcher.module.css";
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 export default function ParentChildSwitcher() {
   const { user } = useAuthContext();
@@ -27,7 +32,7 @@ export default function ParentChildSwitcher() {
   const qc = useQueryClient();
 
   const isParent = user?.tenantRole === "parent";
-  const linked = user?.linkedStudents ?? [];
+  const linked = useMemo(() => user?.linkedStudents ?? [], [user?.linkedStudents]);
 
   /* module-level state(getParentStudentId)를 컴포넌트 state로 동기화 — 칩 활성 표시용 */
   const [currentId, setCurrentId] = useState<number | null>(() => getParentStudentId());
@@ -53,7 +58,7 @@ export default function ParentChildSwitcher() {
      * 아바타/이름이 잠깐 "?"로 깨지는 깜빡임이 발생해서 대신 invalidate 사용.
      * Predicate: 학생 스코프 쿼리(student / student-* / clinic-idcard / video-comments
      * / storage-quota) 전부 매칭. 누락 시 자녀 A의 stale 데이터가 자녀 B 화면에 노출. */
-    qc.invalidateQueries({
+    void qc.invalidateQueries({
       predicate: (query) => {
         const head = query.queryKey[0];
         if (typeof head !== "string") return false;
@@ -82,18 +87,9 @@ export default function ParentChildSwitcher() {
     <div
       role="tablist"
       aria-label="자녀 선택"
-      style={{
-        display: "flex",
-        gap: 6,
-        padding: "8px var(--stu-space-4)",
-        borderBottom: "1px solid var(--stu-border)",
-        background: "var(--stu-surface)",
-        overflowX: "auto",
-        scrollbarWidth: "none",
-        WebkitOverflowScrolling: "touch",
-      }}
+      className={styles.root}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.04em", alignSelf: "center", flexShrink: 0, marginRight: 4 }}>
+      <span className={styles.label}>
         자녀
       </span>
       {linked.map((s) => {
@@ -105,23 +101,7 @@ export default function ParentChildSwitcher() {
             role="tab"
             aria-selected={active}
             onClick={() => handleSelect(s.id)}
-            style={{
-              flexShrink: 0,
-              padding: "6px 12px",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: active ? 700 : 500,
-              cursor: "pointer",
-              border: active
-                ? "1px solid var(--stu-primary)"
-                : "1px solid var(--stu-border)",
-              background: active
-                ? "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))"
-                : "var(--stu-surface)",
-              color: active ? "var(--stu-primary)" : "var(--stu-text)",
-              transition: "background 150ms, color 150ms, border-color 150ms",
-              WebkitTapHighlightColor: "transparent",
-            }}
+            className={cx(styles.tab, active && styles.tabActive)}
           >
             {s.name}
           </button>
