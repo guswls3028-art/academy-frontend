@@ -8,6 +8,7 @@
  * - 010 포함 11자리 / 하이픈 포함 전화번호 붙여넣기 지원
  */
 import { useRef, useCallback } from "react";
+import styles from "./PhoneInput010Blocks.module.css";
 
 type Props = {
   value: string; // 11자리 "010xxxxxxxx"
@@ -42,14 +43,20 @@ function extractDigitsFromPaste(text: string): string {
   return digits.slice(0, 8);
 }
 
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
 export function PhoneInput010Blocks({
   value,
   onChange,
   disabled,
-  className = "",
-  inputClassName = "",
-  blockClassName = "",
+  placeholder = "0000",
+  className,
+  inputClassName,
+  blockClassName,
   "data-invalid": dataInvalid,
+  "data-required": dataRequired,
   "aria-label": ariaLabel,
 }: Props) {
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -224,27 +231,12 @@ export function PhoneInput010Blocks({
 
   return (
     <div
-      className={className}
-      style={{ display: "flex", alignItems: "stretch", gap: "0.25rem" }}
+      className={cx(styles.root, className)}
       aria-label={ariaLabel}
+      data-required={dataRequired}
     >
       <div
-        className={blockClassName}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0.875rem 1rem",
-          minWidth: "3.5rem",
-          fontSize: "0.9375rem",
-          fontWeight: 600,
-          color: "var(--auth-text-muted, var(--color-text-muted, #666))",
-          background: "var(--auth-surface, var(--color-bg-surface-soft, #f5f5f5))",
-          border: "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
-          borderRadius: "12px",
-          userSelect: "none",
-          cursor: disabled ? "default" : "pointer",
-        }}
+        className={cx(styles.prefixBlock, disabled && styles.prefixBlockDisabled, blockClassName)}
         aria-hidden
         onClick={handleBlockClick}
       >
@@ -256,35 +248,15 @@ export function PhoneInput010Blocks({
         inputMode="numeric"
         autoComplete="tel-national"
         maxLength={8}
-        placeholder="0000"
+        placeholder={placeholder}
         value={first4}
         onChange={handleFirstChange}
         onKeyDown={handleFirstKeyDown}
         onPaste={handleFirstPaste}
         disabled={disabled}
-        className={inputClassName}
+        className={cx(styles.input, inputClassName)}
         data-invalid={invalid ? "true" : undefined}
-        style={{
-          width: "4ch",
-          flex: "1",
-          minWidth: "3.5rem",
-          textAlign: "center",
-          padding: "0.875rem 0.5rem",
-          fontSize: "0.9375rem",
-          border: invalid ? "2px solid var(--auth-error, var(--color-status-danger, #ef4444))" : "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
-          borderRadius: "12px",
-          outline: "none",
-          background: "var(--auth-surface, var(--color-bg-surface, #fff))",
-          color: "var(--auth-text, var(--color-text-primary, #111))",
-        }}
-        onFocus={(e) => {
-          e.target.style.borderColor = "var(--auth-accent, var(--color-primary, #2563eb))";
-          e.target.style.boxShadow = "0 0 0 3px var(--auth-focus, rgba(37, 99, 235, 0.2))";
-        }}
-        onBlur={(e) => {
-          e.target.style.borderColor = invalid ? "var(--auth-error, var(--color-status-danger, #ef4444))" : "var(--auth-border, var(--color-border-divider, #e0e0e0))";
-          e.target.style.boxShadow = "none";
-        }}
+        data-required={dataRequired}
         aria-label={ariaLabel ? `${ariaLabel} 앞 4자리` : "전화번호 앞 4자리"}
       />
       <input
@@ -293,35 +265,15 @@ export function PhoneInput010Blocks({
         inputMode="numeric"
         autoComplete="tel-national"
         maxLength={4}
-        placeholder="0000"
+        placeholder={placeholder}
         value={last4}
         onChange={handleLastChange}
         onKeyDown={handleSecondKeyDown}
         onPaste={handleLastPaste}
         disabled={disabled}
-        className={inputClassName}
+        className={cx(styles.input, inputClassName)}
         data-invalid={invalid ? "true" : undefined}
-        style={{
-          width: "4ch",
-          flex: "1",
-          minWidth: "3.5rem",
-          textAlign: "center",
-          padding: "0.875rem 0.5rem",
-          fontSize: "0.9375rem",
-          border: invalid ? "2px solid var(--auth-error, var(--color-status-danger, #ef4444))" : "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
-          borderRadius: "12px",
-          outline: "none",
-          background: "var(--auth-surface, var(--color-bg-surface, #fff))",
-          color: "var(--auth-text, var(--color-text-primary, #111))",
-        }}
-        onFocus={(e) => {
-          e.target.style.borderColor = "var(--auth-accent, var(--color-primary, #2563eb))";
-          e.target.style.boxShadow = "0 0 0 3px var(--auth-focus, rgba(37, 99, 235, 0.2))";
-        }}
-        onBlur={(e) => {
-          e.target.style.borderColor = invalid ? "var(--auth-error, var(--color-status-danger, #ef4444))" : "var(--auth-border, var(--color-border-divider, #e0e0e0))";
-          e.target.style.boxShadow = "none";
-        }}
+        data-required={dataRequired}
         aria-label={ariaLabel ? `${ariaLabel} 뒤 4자리` : "전화번호 뒤 4자리"}
       />
     </div>

@@ -1,0 +1,73 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.panel {
+  width: min(90%, 440px);
+  padding: 40px 36px;
+  text-align: center;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.iconWrap {
+  display: flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  background: #fef2f2;
+  border-radius: 50%;
+}
+
+.icon {
+  width: 28px;
+  height: 28px;
+  color: #ef4444;
+}
+
+.title {
+  margin: 0 0 8px;
+  color: #111;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.description {
+  margin: 0 0 24px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.plan {
+  margin: 0 0 16px;
+  color: #999;
+  font-size: 12px;
+}
+
+.actionButton {
+  padding: 10px 32px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  background: #6366f1;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.actionButton:hover {
+  background: #4f46e5;
+}
