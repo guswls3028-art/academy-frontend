@@ -2,19 +2,21 @@
  * tchul.com(박철과학) 전용 로고 — SVG, 브랜드 그라데이션(블루→청록→그린)
  * TchulLogoTransparent.png / TchulLogoIcon.png 대체용.
  */
+import styles from "./LogoIcon.module.css";
+
 type Props = {
   width?: number | string;
   height?: number;
   className?: string;
-  style?: React.CSSProperties;
   "aria-hidden"?: boolean;
 };
+
+const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(" ");
 
 export default function TchulLogoIcon({
   width,
   height = 32,
   className,
-  style,
   "aria-hidden": ariaHidden = true,
 }: Props) {
   return (
@@ -23,8 +25,7 @@ export default function TchulLogoIcon({
       viewBox="0 0 40 40"
       width={width ?? (typeof height === "number" ? (height * 40) / 40 : undefined)}
       height={height}
-      className={className}
-      style={{ display: "block", flexShrink: 0, ...style }}
+      className={cx(styles.icon, className)}
       fill="none"
       aria-hidden={ariaHidden}
     >

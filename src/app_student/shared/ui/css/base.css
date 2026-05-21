@@ -114,6 +114,16 @@ html:has([data-app="student"]) {
   background-color: transparent !important;
   box-shadow: none !important;
 }
+
+.stu-topbar__logo--common-svg {
+  width: auto;
+  max-width: 120px;
+}
+
+.stu-topbar__logo--tchul-svg {
+  width: 32px;
+}
+
 .stu-topbar__logo::before,
 .stu-topbar__logo::after {
   display: none !important;

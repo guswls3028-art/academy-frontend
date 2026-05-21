@@ -285,14 +285,13 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         ) : useCommonSvgLogo ? (
           <CommonLogoIcon
             height={32}
-            style={{ width: "auto", maxWidth: 120 }}
+            className="stu-topbar__logo stu-topbar__logo--common-svg"
             gradientId={currentTenantCode ? `stu-gradient-${currentTenantCode === "9999" ? "common" : currentTenantCode}` : undefined}
           />
         ) : isTchulTheme ? (
           <TchulLogoIcon
             height={32}
-            style={{ width: 32, flexShrink: 0, display: "block" }}
-            className="stu-topbar__logo"
+            className="stu-topbar__logo stu-topbar__logo--tchul-svg"
           />
         ) : showImgLogo ? (
           <img

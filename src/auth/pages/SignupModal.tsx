@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   submitRegistrationRequest,
   sendExistingCredentials,
@@ -33,6 +33,8 @@ const INITIAL_FORM = {
   memo: "",
 };
 
+const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(" ");
+
 export default function SignupModal({ open, onClose }: SignupModalProps) {
   const slm = useSchoolLevelMode();
   const [form, setForm] = useState<typeof INITIAL_FORM>({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
@@ -45,6 +47,14 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [phoneCheck, setPhoneCheck] = useState<{ available: boolean; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (!pending) {
+      onClose();
+      setError("");
+      setSuccess(false);
+    }
+  }, [onClose, pending]);
 
   // 모달 열릴 때 폼 초기화 (defaultSchoolType 반영)
   useEffect(() => {
@@ -91,15 +101,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, pending]);
-
-  function handleClose() {
-    if (!pending) {
-      onClose();
-      setError("");
-      setSuccess(false);
-    }
-  }
+  }, [handleClose, open]);
 
   function handleConfirmSuccess() {
     onClose();
@@ -233,68 +235,68 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
           필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
         </p>
         {duplicateInfo ? (
-          <>
-            <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
-              <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--auth-text)", marginBottom: "0.75rem" }}>
-                이미 가입된 아이디입니다.
+          <div className={styles.signupDuplicatePanel}>
+            <p className={styles.signupDuplicateTitle}>
+              이미 가입된 아이디입니다.
+            </p>
+            <p className={styles.signupDuplicateDescription}>
+              아이디와 임시 비밀번호를 알림톡으로 받으시겠습니까?
+            </p>
+            {credentialsSent ? (
+              <p className={styles.signupStatusSuccessSpaced}>
+                알림톡이 발송되었습니다. 확인 후 로그인해 주세요.
               </p>
-              <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
-                아이디와 임시 비밀번호를 알림톡으로 받으시겠습니까?
-              </p>
-              {credentialsSent ? (
-                <p style={{ color: "var(--auth-accent)", fontWeight: 600, marginBottom: "1rem" }}>
-                  알림톡이 발송되었습니다. 확인 후 로그인해 주세요.
-                </p>
-              ) : (
-                <>
-                  {error && <div className={styles.error} style={{ marginBottom: "0.75rem" }}>{error}</div>}
-                  <button
-                    type="button"
-                    className={styles.signupBtnSubmit}
-                    style={{ width: "100%", marginBottom: "0.5rem" }}
-                    disabled={pending}
-                    onClick={async () => {
-                      setPending(true);
-                      setError("");
-                      try {
-                        await sendExistingCredentials({
-                          phone: duplicateInfo.phone,
-                          name: duplicateInfo.name,
-                        });
-                        setCredentialsSent(true);
-                      } catch (e: unknown) {
-                        const errObj = e as { response?: { data?: { detail?: string } }; message?: string };
-                        setError(errObj?.response?.data?.detail || errObj?.message || "발송에 실패했습니다.");
-                      } finally {
-                        setPending(false);
-                      }
-                    }}
-                  >
-                    {pending ? "발송 중..." : "카카오톡으로 ID/비밀번호 발송"}
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                className={styles.signupBtnCancel}
-                style={{ width: "100%", marginTop: credentialsSent ? "0.5rem" : 0 }}
-                onClick={() => {
-                  if (credentialsSent) {
-                    handleClose();
-                  } else {
-                    setDuplicateInfo(null);
+            ) : (
+              <>
+                {error && <div className={`${styles.error} ${styles.signupDuplicateError}`}>{error}</div>}
+                <button
+                  type="button"
+                  className={`${styles.signupBtnSubmit} ${styles.signupFullWidthAction} ${styles.signupDuplicateSendButton}`}
+                  disabled={pending}
+                  onClick={async () => {
+                    setPending(true);
                     setError("");
-                  }
-                }}
-              >
-                {credentialsSent ? "확인" : "돌아가기"}
-              </button>
-            </div>
-          </>
+                    try {
+                      await sendExistingCredentials({
+                        phone: duplicateInfo.phone,
+                        name: duplicateInfo.name,
+                      });
+                      setCredentialsSent(true);
+                    } catch (e: unknown) {
+                      const errObj = e as { response?: { data?: { detail?: string } }; message?: string };
+                      setError(errObj?.response?.data?.detail || errObj?.message || "발송에 실패했습니다.");
+                    } finally {
+                      setPending(false);
+                    }
+                  }}
+                >
+                  {pending ? "발송 중..." : "카카오톡으로 ID/비밀번호 발송"}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={cx(
+                styles.signupBtnCancel,
+                styles.signupFullWidthAction,
+                credentialsSent && styles.signupDuplicateReturnButtonSpaced,
+              )}
+              onClick={() => {
+                if (credentialsSent) {
+                  handleClose();
+                } else {
+                  setDuplicateInfo(null);
+                  setError("");
+                }
+              }}
+            >
+              {credentialsSent ? "확인" : "돌아가기"}
+            </button>
+          </div>
         ) : success ? (
           <>
-            <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
-            <div className={styles.signupActions} style={{ marginTop: 20 }}>
+            <p className={styles.signupStatusSuccess}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
+            <div className={`${styles.signupActions} ${styles.signupSuccessActions}`}>
               <button type="button" className={styles.signupBtnSubmit} onClick={handleConfirmSuccess}>
                 확인
               </button>
@@ -352,9 +354,9 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   onBlur={handleCheckUsername}
                   autoComplete="username"
                 />
-                {checkingUsername && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
+                {checkingUsername && <span className={`${styles.signupValidationStatus} ${styles.signupValidationMuted}`}>확인 중...</span>}
                 {usernameCheck && !checkingUsername && (
-                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: usernameCheck.available ? "var(--color-success, #16a34a)" : "var(--color-error, #dc2626)" }}>
+                  <span className={`${styles.signupValidationStatus} ${usernameCheck.available ? styles.signupValidationAvailable : styles.signupValidationBlocked}`}>
                     {usernameCheck.available ? "사용 가능한 아이디입니다." : usernameCheck.reason}
                   </span>
                 )}
@@ -372,7 +374,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   onChange={(e) => setForm((f) => ({ ...f, initialPassword: e.target.value }))}
                   aria-required
                 />
-                <span className={styles.signupInputLabel} style={{ marginTop: 4, marginBottom: 0 }}>숫자 또는 영문 사용 가능</span>
+                <span className={`${styles.signupInputLabel} ${styles.signupHelperText}`}>숫자 또는 영문 사용 가능</span>
               </div>
             </section>
 
@@ -391,9 +393,9 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   inputClassName={styles.signupPhoneBlockInput}
                   aria-label="휴대전화"
                 />
-                {checkingPhone && <span style={{ fontSize: "0.75rem", color: "var(--auth-text-muted)" }}>확인 중...</span>}
+                {checkingPhone && <span className={`${styles.signupValidationStatus} ${styles.signupValidationMuted}`}>확인 중...</span>}
                 {phoneCheck && !checkingPhone && (
-                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: phoneCheck.available ? "var(--color-success, #16a34a)" : "var(--color-error, #dc2626)" }}>
+                  <span className={`${styles.signupValidationStatus} ${phoneCheck.available ? styles.signupValidationAvailable : styles.signupValidationBlocked}`}>
                     {phoneCheck.available ? "사용 가능한 전화번호입니다." : phoneCheck.reason}
                   </span>
                 )}
@@ -439,7 +441,6 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
-                      style={{ width: "100%" }}
                     >
                       <option value="">학년 선택</option>
                       {slm.gradeRange("ELEMENTARY").map((g) => (
@@ -465,7 +466,6 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
-                      style={{ width: "100%" }}
                     >
                       <option value="">학년 선택</option>
                       {slm.gradeRange("MIDDLE").map((g) => (
@@ -491,7 +491,6 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
-                      style={{ width: "100%" }}
                     >
                       <option value="">학년 선택</option>
                       {slm.gradeRange("HIGH").map((g) => (

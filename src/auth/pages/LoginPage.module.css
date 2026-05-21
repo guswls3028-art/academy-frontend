@@ -244,6 +244,11 @@
   background: var(--auth-bg, #f3f4f6);
 }
 
+.linkSeparator {
+  color: var(--auth-border, #d1d5db);
+  font-size: 0.75rem;
+}
+
 /* 전화번호 블록 래퍼 */
 .phoneBlocksWrap {
   margin-bottom: 0.875rem;
@@ -594,6 +599,84 @@
 .signupRequired {
   color: #EF4444;
   margin-left: 2px;
+}
+
+.signupDuplicatePanel {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.signupDuplicateTitle {
+  margin: 0 0 0.75rem;
+  color: var(--auth-text, #111827);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.signupDuplicateDescription {
+  margin: 0 0 1.25rem;
+  color: var(--auth-text-muted, #6b7280);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.signupStatusSuccess,
+.signupStatusSuccessSpaced {
+  color: var(--auth-accent, #0d47a1);
+  font-weight: 600;
+}
+
+.signupStatusSuccess {
+  margin: 0;
+}
+
+.signupStatusSuccessSpaced {
+  margin: 0 0 1rem;
+}
+
+.signupDuplicateError {
+  margin-bottom: 0.75rem;
+}
+
+.signupFullWidthAction {
+  width: 100%;
+}
+
+.signupDuplicateSendButton {
+  margin-bottom: 0.5rem;
+}
+
+.signupDuplicateReturnButtonSpaced {
+  margin-top: 0.5rem;
+}
+
+.signupSuccessActions {
+  margin-top: 20px;
+}
+
+.signupValidationStatus {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.signupValidationMuted {
+  color: var(--auth-text-muted, #6b7280);
+  font-weight: 400;
+}
+
+.signupValidationAvailable {
+  color: var(--color-success, #16a34a);
+}
+
+.signupValidationBlocked {
+  color: var(--color-error, #dc2626);
+}
+
+.signupHelperText {
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 
 /* ========== Legal footer (login page) ========== */

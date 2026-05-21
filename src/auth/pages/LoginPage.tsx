@@ -1,6 +1,7 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/auth/api/auth.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
@@ -167,17 +168,7 @@ export default function LoginPage() {
               aria-pressed={showPassword}
               tabIndex={-1}
             >
-              {showPassword ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              )}
+              {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
             </button>
           </div>
           {capsOn && (
@@ -195,13 +186,13 @@ export default function LoginPage() {
                 <Link to="/landing" className={styles.link}>
                   홈페이지
                 </Link>
-                <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
+                <span className={styles.linkSeparator}>|</span>
               </>
             )}
             <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
               회원가입
             </button>
-            <span style={{ color: "var(--auth-border, #d1d5db)", fontSize: "0.75rem" }}>|</span>
+            <span className={styles.linkSeparator}>|</span>
             <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
               비밀번호 찾기
             </button>

@@ -354,7 +354,7 @@ export default function Header() {
               ) : (
                 <CommonLogoIcon
                   height={24}
-                  style={{ color: "var(--color-primary)" }}
+                  color="var(--color-primary)"
                 />
               )}
             </span>

@@ -1,0 +1,8 @@
+.icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.autoWidth {
+  width: auto;
+}

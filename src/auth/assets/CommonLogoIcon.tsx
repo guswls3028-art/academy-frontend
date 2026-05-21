@@ -3,12 +3,14 @@
  * 별 + 졸업모자(3D 입체). 로고·학생 상단바·관리자 헤더에서 사용.
  * 참고: SVG width/height attribute에는 "auto" 불가 — 숫자 또는 "100%" 등 length만 사용.
  */
+import styles from "./LogoIcon.module.css";
+
 type Props = {
   width?: number | string;
   height?: number;
   className?: string;
-  style?: React.CSSProperties;
   "aria-hidden"?: boolean;
+  color?: string;
   /**
    * SVG gradient id 참조 (예: "stu-gradient-hakwonplus"). 있으면 fill을 gradient로 채움.
    * 없으면 currentColor 사용 (하위 호환).
@@ -19,17 +21,18 @@ type Props = {
 const isValidSvgLength = (v: number | string): v is number | string =>
   typeof v === "number" || (typeof v === "string" && v !== "auto");
 
+const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(" ");
+
 export default function CommonLogoIcon({
   width = "auto",
   height = 32,
   className,
-  style,
   "aria-hidden": ariaHidden = true,
+  color,
   gradientId,
 }: Props) {
   const svgWidth = isValidSvgLength(width) ? width : undefined;
   const svgHeight = typeof height === "number" ? height : undefined;
-  const styleWithAuto = width === "auto" ? { width: "auto" as const, ...style } : style;
   const fill = gradientId ? `url(#${gradientId})` : "currentColor";
   const stroke = gradientId ? `url(#${gradientId})` : "currentColor";
 
@@ -39,8 +42,8 @@ export default function CommonLogoIcon({
       viewBox="0 0 40 40"
       {...(svgWidth != null && { width: svgWidth })}
       {...(svgHeight != null && { height: svgHeight })}
-      className={className}
-      style={{ display: "block", flexShrink: 0, ...styleWithAuto }}
+      className={cx(styles.icon, width === "auto" && styles.autoWidth, className)}
+      color={color}
       fill="none"
       aria-hidden={ariaHidden}
     >
