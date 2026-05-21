@@ -33,18 +33,6 @@ export default function Section({
       ? "space-y-4"
       : "space-y-3";
 
-  const titleCls =
-    level === "primary"
-      ? "text-lg font-semibold tracking-[-0.25px]"
-      : level === "secondary"
-      ? "text-sm font-semibold tracking-[-0.15px]"
-      : "text-xs font-semibold tracking-[-0.1px]";
-
-  const metaTextCls =
-    level === "tertiary"
-      ? "text-[11px] text-[var(--text-muted)]"
-      : "text-xs text-[var(--text-muted)]";
-
   return (
     <section
       className={cx("ds-section", gap, className)}
@@ -52,42 +40,28 @@ export default function Section({
       data-level={level}
     >
       {(title || description || right || hint) && (
-        <div
-          className="ds-section__header"
-          style={{
-            paddingTop: "var(--space-7)",
-            paddingLeft: "var(--space-7)",
-            paddingRight: "var(--space-7)",
-          }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1">
+        <div className="ds-section__header ds-section__header--padded">
+          <div className="ds-section__header-row">
+            <div className="ds-section__header-copy">
               {!!title && (
-                <div className={cx(titleCls, "text-[var(--text-primary)]")}>
+                <div className="ds-section__title">
                   {title}
                 </div>
               )}
-              {!!description && <div className={metaTextCls}>{description}</div>}
+              {!!description && <div className="ds-section__description">{description}</div>}
               {!!hint && (
-                <div className="text-[11px] font-medium text-[var(--text-muted)]">
+                <div className="ds-section__hint">
                   {hint}
                 </div>
               )}
             </div>
 
-            {!!right && <div className="shrink-0">{right}</div>}
+            {!!right && <div className="ds-section__right">{right}</div>}
           </div>
         </div>
       )}
 
-      <div
-        className="ds-section__body"
-        style={{
-          paddingBottom: "var(--space-7)",
-          paddingLeft: "var(--space-7)",
-          paddingRight: "var(--space-7)",
-        }}
-      >
+      <div className="ds-section__body ds-section__body--padded">
         <div className={gap}>{children}</div>
       </div>
     </section>

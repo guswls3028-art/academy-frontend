@@ -23,62 +23,25 @@ export default function SectionHeader({
   className,
 }: SectionHeaderProps) {
   return (
-    <div
-      className={cx("ds-section-header", className)}
-      style={{
-        borderRadius: "var(--radius-2xl)",
-        border: "1px solid var(--color-border-divider)",
-        background: "color-mix(in srgb, var(--color-primary) 6%, var(--bg-surface))",
-        boxShadow: "var(--elevation-1)",
-      }}
-    >
-      <div
-        style={{
-          padding: "var(--space-7) var(--space-8)",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "var(--space-6)",
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: "var(--font-title)",
-              letterSpacing: "-0.35px",
-              color: "var(--color-text-primary)",
-            }}
-          >
+    <div className={cx("ds-section-header", className)}>
+      <div className="ds-section-header__inner">
+        <div className="ds-section-header__copy">
+          <div className="ds-section-header__title">
             {title}
           </div>
 
           {description && (
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 13,
-                fontWeight: "var(--font-meta)",
-                color: "var(--color-text-muted)",
-                lineHeight: 1.5,
-              }}
-            >
+            <div className="ds-section-header__description">
               {description}
             </div>
           )}
         </div>
 
-        {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
+        {actions && <div className="ds-section-header__actions">{actions}</div>}
       </div>
 
       {navigation && (
-        <div
-          style={{
-            borderTop: "1px solid var(--color-border-divider)",
-            padding: "12px 20px",
-            background: "var(--color-bg-surface)",
-          }}
-        >
+        <div className="ds-section-header__navigation">
           {navigation}
         </div>
       )}

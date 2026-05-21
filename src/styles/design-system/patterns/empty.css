@@ -6,3 +6,114 @@
   text-align: center;
   color: var(--color-text-muted);
 }
+
+.ds-empty-panel {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  background: var(--ui-work-bg);
+  box-shadow: var(--elevation-1);
+}
+
+.ds-empty {
+  padding: 22px var(--space-7);
+  text-align: center;
+  background: transparent;
+}
+
+.ds-empty[data-scope="page"] {
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+.ds-empty[data-scope="modal"] {
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.ds-empty__icon-row {
+  display: flex;
+  justify-content: center;
+}
+
+.ds-empty__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--bg-surface-soft);
+  color: var(--color-text-secondary);
+  box-shadow: var(--elevation-1);
+}
+
+.ds-empty[data-tone="error"] .ds-empty__badge {
+  color: var(--color-error);
+}
+
+.ds-empty[data-tone="loading"] .ds-empty__badge {
+  color: var(--color-text-muted);
+}
+
+.ds-empty__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.ds-empty[data-tone="loading"] .ds-empty__icon {
+  animation: ds-empty-spin 900ms linear infinite;
+}
+
+.ds-empty__title {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: var(--font-title);
+  letter-spacing: 0;
+  color: var(--color-text-primary);
+}
+
+.ds-empty[data-show-icon="false"] .ds-empty__title {
+  margin-top: 0;
+}
+
+.ds-empty[data-scope="page"] .ds-empty__title {
+  font-size: 15px;
+}
+
+.ds-empty__description {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: var(--font-meta);
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  white-space: pre-line;
+}
+
+.ds-empty[data-error="true"] .ds-empty__description {
+  color: var(--color-text-secondary);
+}
+
+.ds-empty[data-scope="page"] .ds-empty__description {
+  font-size: 13px;
+}
+
+.ds-empty__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.ds-empty__extra {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: var(--font-meta);
+  color: var(--color-text-muted);
+}
+
+@keyframes ds-empty-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

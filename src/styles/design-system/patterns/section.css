@@ -20,12 +20,48 @@
   margin-bottom: var(--space-4);
 }
 
+.ds-section__header--padded {
+  padding-top: var(--space-7);
+  padding-right: var(--space-7);
+  padding-left: var(--space-7);
+}
+
+.ds-section__header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ds-section__header-copy {
+  min-width: 0;
+}
+
+.ds-section__header-copy > * + * {
+  margin-top: var(--space-1);
+}
+
 .ds-section__title {
   font-size: var(--text-sm, 14px);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--color-text-primary);
   line-height: 1.3;
+}
+
+.ds-section[data-section-level="primary"] .ds-section__title {
+  font-size: var(--text-lg, 18px);
+  font-weight: 600;
+}
+
+.ds-section[data-section-level="secondary"] .ds-section__title {
+  font-size: var(--text-sm, 14px);
+  font-weight: 600;
+}
+
+.ds-section[data-section-level="tertiary"] .ds-section__title {
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
 }
 
 .ds-section__description {
@@ -35,8 +71,73 @@
   line-height: 1.4;
 }
 
+.ds-section[data-section-level="tertiary"] .ds-section__description {
+  font-size: 11px;
+}
+
+.ds-section__hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.ds-section__right {
+  flex-shrink: 0;
+}
+
 .ds-section__body {
   /* 본문은 자식 그리드/리스트로 배치 */
+}
+
+.ds-section__body--padded {
+  padding-right: var(--space-7);
+  padding-bottom: var(--space-7);
+  padding-left: var(--space-7);
+}
+
+.ds-section-header {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--bg-surface));
+  box-shadow: var(--elevation-1);
+}
+
+.ds-section-header__inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-7) var(--space-8);
+}
+
+.ds-section-header__copy {
+  min-width: 0;
+}
+
+.ds-section-header__title {
+  font-size: 20px;
+  font-weight: var(--font-title);
+  letter-spacing: 0;
+  color: var(--color-text-primary);
+}
+
+.ds-section-header__description {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: var(--font-meta);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ds-section-header__actions {
+  flex-shrink: 0;
+}
+
+.ds-section-header__navigation {
+  padding: 12px 20px;
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
 }
 
 /* 섹션 내 그리드 — 카드 없이 셀만 */
