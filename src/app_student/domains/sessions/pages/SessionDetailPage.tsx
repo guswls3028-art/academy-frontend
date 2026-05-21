@@ -17,6 +17,7 @@ import { useSessionDetail } from "@student/domains/sessions/hooks/useStudentSess
 import { formatYmd } from "@student/shared/utils/date";
 import SessionExamAction from "../components/SessionExamAction";
 import SessionAssignmentAction from "../components/SessionAssignmentAction";
+import styles from "./SessionDetailPage.module.css";
 
 export default function SessionDetailPage() {
   const { sessionId } = useParams();
@@ -37,10 +38,10 @@ export default function SessionDetailPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="차시">
-        <div style={{ padding: "var(--stu-space-4)", display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
-          <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius)" }} />
+        <div className={styles.loadingStack}>
+          <div className={`stu-skel ${styles.skelCard}`} />
+          <div className={`stu-skel ${styles.skelCard}`} />
+          <div className={`stu-skel ${styles.skelCard}`} />
         </div>
       </StudentPageShell>
     );
@@ -56,25 +57,12 @@ export default function SessionDetailPage() {
 
   return (
     <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className={styles.stack}>
         {/* ===== Primary: 영상 (가장 중요) ===== */}
         <ActionCard title="영상 보기" desc="이 수업의 영상을 볼 수 있어요." primary>
           <Link
             to={`/student/video/sessions/${data.id}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "10px 20px",
-              minHeight: 44,
-              borderRadius: "var(--stu-radius-md)",
-              background: "var(--stu-primary)",
-              color: "var(--stu-primary-contrast)",
-              fontWeight: 700,
-              fontSize: 14,
-              textDecoration: "none",
-              transition: "background var(--stu-motion-fast)",
-            }}
+            className={styles.videoLink}
           >
             영상으로 이동
           </Link>
@@ -113,11 +101,11 @@ function ActionCard({
   primary?: boolean;
 }) {
   return (
-    <div className={primary ? "stu-section stu-panel--action" : "stu-section"} style={primary ? { borderColor: "var(--stu-primary)", background: "var(--stu-tint-primary)" } : undefined}>
-      <div className="stu-section-header" style={{ fontWeight: 700, fontSize: 15 }}>
+    <div className={primary ? `stu-section stu-panel--action ${styles.primaryCard}` : "stu-section"}>
+      <div className={`stu-section-header ${styles.cardTitle}`}>
         {title}
       </div>
-      <div className="stu-muted" style={{ fontSize: 13, marginBottom: "var(--stu-space-4)" }}>{desc}</div>
+      <div className={`stu-muted ${styles.cardDescription}`}>{desc}</div>
       <div>{children}</div>
     </div>
   );

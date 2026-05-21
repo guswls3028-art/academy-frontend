@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
+import styles from "./SessionExamAction.module.css";
 
 type SessionExamActionProps = {
   examIds?: number[];
@@ -56,8 +57,7 @@ function StatusChip({
 }) {
   return (
     <span
-      className={`stu-badge stu-badge--${tone} stu-badge--sm`}
-      style={{ marginRight: 6 }}
+      className={`stu-badge stu-badge--${tone} stu-badge--sm ${styles.statusChip}`}
     >
       {label}
     </span>
@@ -65,7 +65,11 @@ function StatusChip({
 }
 
 export default function SessionExamAction({ examIds, sessionId }: SessionExamActionProps) {
-  const hasIds = Array.isArray(examIds) && examIds.length > 0;
+  const examIdList = useMemo(
+    () => (Array.isArray(examIds) ? examIds.map(Number).filter(Number.isFinite) : []),
+    [examIds],
+  );
+  const hasIds = examIdList.length > 0;
 
   // 차시별 시험 목록을 student API로 한 번에 가져와 요약 계산
   const { data } = useQuery({
@@ -78,13 +82,11 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
   const summary: Summary | null = useMemo(() => {
     if (!data?.items?.length) return null;
     // exam_ids가 있으면 그 ID들로만 좁혀 정확도 보장
-    const ids = new Set((examIds ?? []).map((n) => Number(n)));
-    const filtered = ids.size > 0
-      ? data.items.filter((e) => ids.has(Number(e.id)))
-      : data.items;
+    const ids = new Set(examIdList);
+    const filtered = data.items.filter((exam) => ids.has(Number(exam.id)));
     if (filtered.length === 0) return null;
     return summarize(filtered);
-  }, [data, examIds]);
+  }, [data, examIdList]);
 
   if (!hasIds) {
     return (
@@ -95,9 +97,9 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className={styles.stack}>
       {summary && (
-        <div style={{ fontSize: 13 }}>
+        <div className={styles.statusRow}>
           {summary.urgent > 0 && (
             <StatusChip label={`마감 임박 ${summary.urgent}`} tone="danger" />
           )}
@@ -109,10 +111,10 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
           )}
         </div>
       )}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {examIds!.map((eid, idx) => (
+      <div className={styles.linkRow}>
+        {examIdList.map((eid, idx) => (
           <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
-            {examIds!.length === 1 ? "시험 보기" : `${idx + 1}차 시험`}
+            {examIdList.length === 1 ? "시험 보기" : `${idx + 1}차 시험`}
           </Link>
         ))}
       </div>

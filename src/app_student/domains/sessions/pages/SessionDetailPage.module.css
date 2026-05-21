@@ -1,0 +1,49 @@
+.loadingStack,
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.loadingStack {
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-4);
+}
+
+.stack {
+  gap: 12px;
+}
+
+.skelCard {
+  height: 80px;
+  border-radius: var(--stu-radius);
+}
+
+.videoLink {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 20px;
+  color: var(--stu-primary-contrast);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  background: var(--stu-primary);
+  border-radius: var(--stu-radius-md);
+  transition: background var(--stu-motion-fast);
+}
+
+.primaryCard {
+  background: var(--stu-tint-primary);
+  border-color: var(--stu-primary);
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cardDescription {
+  margin-bottom: var(--stu-space-4);
+  font-size: 13px;
+}
