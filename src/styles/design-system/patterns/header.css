@@ -793,7 +793,6 @@
 }
 
 /* ----- 프로필 드롭다운 (모바일/PC뷰 · 설정 · 로그아웃) ----- */
-[data-app="admin"] .app-header__profileDropdown,
 .ds-header-dropdown.app-header__profileDropdown {
   min-width: 200px;
   padding: var(--space-2);
@@ -867,8 +866,7 @@
   background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
-/* 프로필 드롭다운: Ant Design이 overlay를 body 포탈로 렌더하므로 [data-app] 밖에 있음. 동일 스타일을 SSOT 토큰으로 적용 */
-.app-header__profileDropdownOverlay .app-header__profileDropdown,
+/* 프로필 드롭다운: overlay 내부 패널에만 카드 스타일을 적용한다. */
 .app-header__profileDropdownOverlay .ds-header-dropdown.app-header__profileDropdown {
   min-width: 200px;
   padding: var(--space-2);
