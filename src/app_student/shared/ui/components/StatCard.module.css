@@ -1,0 +1,72 @@
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--stu-space-5);
+  border-radius: var(--stu-radius);
+  background: var(--stu-surface-soft);
+  text-align: center;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  color: var(--stu-text-muted);
+  opacity: 0.7;
+}
+
+.value {
+  color: var(--stu-text);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.valueSuccess {
+  color: var(--stu-success-text);
+}
+
+.valueDanger {
+  color: var(--stu-danger-text);
+}
+
+.valueWarn {
+  color: var(--stu-warn-text);
+}
+
+.label {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.trend {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.trendUp {
+  color: var(--stu-success-text);
+}
+
+.trendDown {
+  color: var(--stu-danger-text);
+}
+
+.trendNeutral {
+  color: var(--stu-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--stu-space-4);
+}
