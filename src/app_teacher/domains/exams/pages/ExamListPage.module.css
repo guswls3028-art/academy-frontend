@@ -1,0 +1,126 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tc-space-2);
+}
+
+.title {
+  padding: 4px 0;
+  color: var(--tc-text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tc-space-1);
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.tabs {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface-soft);
+}
+
+.tabButton {
+  flex: 1;
+  padding: 10px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--tc-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  transition:
+    background var(--tc-motion-fast),
+    color var(--tc-motion-fast);
+  cursor: pointer;
+}
+
+.tabButtonActive {
+  background: var(--tc-primary);
+  color: #fff;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-2);
+}
+
+.itemCard {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--tc-space-4);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition:
+    opacity var(--tc-motion-fast),
+    background var(--tc-motion-fast);
+  cursor: pointer;
+}
+
+.itemCardClosed {
+  opacity: 0.78;
+}
+
+.examCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--tc-space-2);
+}
+
+.itemTitleRow {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: var(--tc-space-2);
+}
+
+.itemTitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tc-space-3);
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
