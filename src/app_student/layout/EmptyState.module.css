@@ -1,0 +1,99 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: var(--stu-space-10, 48px);
+  text-align: center;
+}
+
+.compact {
+  min-height: auto;
+  padding: var(--stu-space-5);
+}
+
+.iconSlot {
+  margin-bottom: var(--stu-space-5);
+}
+
+.compact .iconSlot {
+  margin-bottom: var(--stu-space-3);
+}
+
+.iconFrame {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto;
+  place-items: center;
+  background: linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft));
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: 50%;
+}
+
+.compact .iconFrame {
+  width: 52px;
+  height: 52px;
+}
+
+.iconSvg {
+  width: 34px;
+  height: 34px;
+}
+
+.compact .iconSvg {
+  width: 26px;
+  height: 26px;
+}
+
+.title {
+  margin: 0;
+  color: var(--stu-text);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.compact .title {
+  font-size: 15px;
+}
+
+.titleWithDescription {
+  margin-bottom: var(--stu-space-3);
+}
+
+.compact .titleWithDescription {
+  margin-bottom: var(--stu-space-2);
+}
+
+.description {
+  max-width: 320px;
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.compact .description {
+  max-width: 100%;
+  font-size: 13px;
+}
+
+.retryButton {
+  min-height: 44px;
+  margin-top: var(--stu-space-5);
+  padding: 10px 24px;
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--stu-surface);
+  border: 1.5px solid var(--stu-border);
+  border-radius: var(--stu-radius-md);
+  cursor: pointer;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast);
+}
+
+.compact .retryButton {
+  margin-top: var(--stu-space-3);
+}

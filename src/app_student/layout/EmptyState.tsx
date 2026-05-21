@@ -7,13 +7,21 @@
  * - 다크 모드 지원 (CSS 기반)
  * - 아이콘 옵션 지원
  */
+import type { ReactNode } from "react";
+
+import styles from "./EmptyState.module.css";
+
 type EmptyStateProps = {
   title: string;
   description?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   compact?: boolean; // 작은 크기 (카드 내부용)
   onRetry?: () => void; // 재시도 콜백 (에러 상태에서 사용)
 };
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 export default function EmptyState({
   title,
@@ -22,122 +30,50 @@ export default function EmptyState({
   compact = false,
   onRetry,
 }: EmptyStateProps) {
-  const iconSize = compact ? 52 : 72;
-  const svgSize = compact ? 26 : 34;
+  const rootClassName = cx(styles.root, compact && styles.compact);
+  const iconClassName = cx("stu-emptystate__icon", styles.iconFrame);
 
-  // 기본 아이콘: 큰 원형 gradient 배경 + 아이콘
-  const renderedIcon = icon ? (
-    <div
-      style={{
-        width: iconSize,
-        height: iconSize,
-        borderRadius: "50%",
-        background: "linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft))",
-        border: "1px solid var(--stu-border-subtle)",
-        display: "grid",
-        placeItems: "center",
-        margin: "0 auto",
-      }}
-    >
-      {icon}
-    </div>
-  ) : (
-    <div
-      className="stu-emptystate__icon"
-      style={{
-        width: iconSize,
-        height: iconSize,
-        borderRadius: "50%",
-        background: "linear-gradient(135deg, var(--stu-tint-primary), var(--stu-surface-soft))",
-        border: "1px solid var(--stu-border-subtle)",
-        display: "grid",
-        placeItems: "center",
-        margin: "0 auto",
-      }}
-    >
-      <svg
-        className="stu-emptystate__icon-svg"
-        width={svgSize}
-        height={svgSize}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--stu-text-muted)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
-        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-      </svg>
+  const renderedIcon = (
+    <div className={iconClassName}>
+      {icon ?? (
+        <svg
+          className={cx("stu-emptystate__icon-svg", styles.iconSvg)}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--stu-text-muted)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+        </svg>
+      )}
     </div>
   );
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: compact ? "var(--stu-space-5)" : "var(--stu-space-10, 48px)",
-        textAlign: "center",
-        minHeight: compact ? "auto" : 220,
-      }}
-    >
-      {/* 아이콘 */}
-      <div style={{ marginBottom: compact ? "var(--stu-space-3)" : "var(--stu-space-5)" }}>
-        {renderedIcon}
-      </div>
+    <div className={rootClassName}>
+      <div className={styles.iconSlot}>{renderedIcon}</div>
 
-      {/* 제목 */}
       <h3
-        className="stu-emptystate__title"
-        style={{
-          fontSize: compact ? 15 : 17,
-          fontWeight: 600,
-          color: "var(--stu-text)",
-          marginBottom: description ? (compact ? "var(--stu-space-2)" : "var(--stu-space-3)") : 0,
-          letterSpacing: "-0.01em",
-        }}
+        className={cx(
+          "stu-emptystate__title",
+          styles.title,
+          description && styles.titleWithDescription
+        )}
       >
         {title}
       </h3>
 
-      {/* 설명 */}
       {description && (
-        <p
-          className="stu-emptystate__description"
-          style={{
-            fontSize: compact ? 13 : 14,
-            color: "var(--stu-text-muted)",
-            lineHeight: 1.6,
-            maxWidth: compact ? "100%" : 320,
-            margin: 0,
-          }}
-        >
+        <p className={cx("stu-emptystate__description", styles.description)}>
           {description}
         </p>
       )}
 
-      {/* 재시도 버튼 */}
       {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          style={{
-            marginTop: compact ? "var(--stu-space-3)" : "var(--stu-space-5)",
-            padding: "10px 24px",
-            minHeight: 44,
-            borderRadius: "var(--stu-radius-md)",
-            border: "1.5px solid var(--stu-border)",
-            background: "var(--stu-surface)",
-            color: "var(--stu-text)",
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-            transition: "background var(--stu-motion-fast), border-color var(--stu-motion-fast)",
-          }}
-        >
+        <button type="button" className={styles.retryButton} onClick={onRetry}>
           다시 시도
         </button>
       )}
