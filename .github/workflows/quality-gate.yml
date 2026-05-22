@@ -102,7 +102,19 @@ jobs:
           echo "✅ Functions bundle found"
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler@4.93.1 pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "Cloudflare Pages deploy attempt ${attempt}/3"
+            if npx wrangler@4.93.1 pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+
+          exit 1
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
