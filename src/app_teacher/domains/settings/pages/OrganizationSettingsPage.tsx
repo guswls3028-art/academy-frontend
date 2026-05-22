@@ -12,7 +12,7 @@ import {
   fetchTenantInfo,
   updateTenantInfo,
   type AcademyEntry,
-} from "@admin/domains/profile/api/profile.api";
+} from "@/shared/api/contracts/tenantInfo";
 import styles from "./OrganizationSettingsPage.module.css";
 
 export default function OrganizationSettingsPage() {

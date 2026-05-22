@@ -93,6 +93,17 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await page.screenshot({ path: "e2e/screenshots/teacher-settings-03-profile-edit.png" });
   });
 
+  test("설정 — 학원 정보 페이지 렌더링", async ({ page }) => {
+    await page.goto(`${BASE}/teacher/settings/organization`, { waitUntil: "load", timeout: 20_000 });
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+
+    await expect(page.getByRole("heading", { name: "학원 정보" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("대표 정보")).toBeVisible();
+    await expect(page.getByRole("button", { name: "저장", exact: true })).toBeVisible();
+
+    await page.screenshot({ path: "e2e/screenshots/teacher-settings-04-organization.png", fullPage: true });
+  });
+
   test("소통 — 공지사항 작성 버튼 + 스코프 선택", async ({ page }) => {
     await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
