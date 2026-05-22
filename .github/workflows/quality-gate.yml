@@ -102,7 +102,7 @@ jobs:
           echo "✅ Functions bundle found"
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: npx wrangler@4.93.1 pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
