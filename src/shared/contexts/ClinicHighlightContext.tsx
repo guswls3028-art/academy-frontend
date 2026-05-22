@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchClinicTargets } from "@admin/domains/clinic/api/clinicTargets";
+import { fetchClinicTargets } from "@/shared/api/contracts/clinicTargets";
 import { ClinicHighlightContext, type ClinicHighlightContextValue } from "./clinicHighlightContextCore";
 
 export function ClinicHighlightProvider({ children }: { children: React.ReactNode }) {

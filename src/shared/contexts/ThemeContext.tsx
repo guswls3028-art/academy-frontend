@@ -4,11 +4,11 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   type ThemeKey,
   isThemeKey,
-} from "@admin/domains/settings/constants/themes";
+} from "@/shared/theme/themes";
 import {
   applyThemeToDom,
   loadThemeFromStorage as loadRuntimeThemeFromStorage,
-} from "@admin/domains/settings/theme/themeRuntime";
+} from "@/shared/theme/themeRuntime";
 
 type ThemeContextState = {
   theme: ThemeKey;

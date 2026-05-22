@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/settings/pages/TeacherSettingsPage.tsx
 // 설정 — 프로필 편집 + 비밀번호 변경 + 테마 선택 + 푸시 알림 + PWA
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
@@ -10,10 +10,10 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";
 import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
 import {
-  ChevronLeft, User, Lock, Sun, Moon, Palette, Bell, Smartphone,
+  ChevronLeft, User, Lock, Palette, Bell, Smartphone,
   Eye, EyeOff, Check, Pencil, Save, X,
 } from "@teacher/shared/ui/Icons";
-import { THEMES, type ThemeMeta } from "@admin/domains/settings/constants/themes";
+import { THEMES } from "@/shared/theme/themes";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 /* ─── API ─── */
@@ -44,8 +44,6 @@ const ROLE_LABELS: Record<string, string> = {
   teacher: "강사",
   staff: "직원",
 };
-
-type ThemeGroup = { id: string; label: string; icon: React.ReactNode; themes: ThemeMeta[] };
 
 /* ─── Main ─── */
 export default function TeacherSettingsPage() {
@@ -96,25 +94,6 @@ export default function TeacherSettingsPage() {
   });
 
   const pwValid = oldPw.length >= 1 && newPw.length >= 4 && newPw === newPwConfirm;
-
-  /* Theme */
-  const themeGroups: ThemeGroup[] = useMemo(() => [
-    {
-      id: "WHITE", label: "라이트",
-      icon: <Sun size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
-      themes: THEMES.filter((t) => t.group === "WHITE"),
-    },
-    {
-      id: "DARK", label: "다크",
-      icon: <Moon size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
-      themes: THEMES.filter((t) => t.group === "DARK"),
-    },
-    {
-      id: "BRAND", label: "브랜드",
-      icon: <Palette size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />,
-      themes: THEMES.filter((t) => t.group === "BRAND"),
-    },
-  ], []);
 
   const name = user?.name || "사용자";
   const roleLabel = ROLE_LABELS[user?.tenantRole || ""] || "직원";
@@ -362,62 +341,6 @@ function Toast({ msg }: { msg: { type: "ok" | "err"; text: string } }) {
       style={{ color: msg.type === "ok" ? "var(--tc-success)" : "var(--tc-danger)" }}>
       {msg.text}
     </div>
-  );
-}
-
-/* Theme card for mobile — compact 3-column grid */
-function MobileThemeCard({ theme, selected, onSelect }: { theme: ThemeMeta; selected: boolean; onSelect: () => void }) {
-  return (
-    <button onClick={onSelect} type="button"
-      className="flex flex-col items-center gap-1.5 cursor-pointer"
-      style={{
-        padding: "8px 4px", borderRadius: "var(--tc-radius)",
-        border: selected ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-        background: selected ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-        transition: "all 150ms ease",
-      }}>
-      {/* Color preview dots */}
-      <div className="flex gap-1">
-        <ThemePreviewDot themeKey={theme.key} />
-      </div>
-      <span className="text-[11px] font-semibold truncate w-full text-center"
-        style={{ color: selected ? "var(--tc-primary)" : "var(--tc-text-secondary)" }}>
-        {theme.name}
-      </span>
-      {selected && (
-        <span className="text-[9px] font-bold"
-          style={{ color: "var(--tc-primary-contrast)", background: "var(--tc-primary)", borderRadius: "var(--tc-radius-full)", padding: "1px 6px" }}>
-          현재
-        </span>
-      )}
-    </button>
-  );
-}
-
-/* Tiny color-dot preview for a theme */
-const THEME_COLORS: Record<string, string[]> = {
-  "modern-white":     ["#ffffff", "#2563eb", "#f8fafc"],
-  "navy-pro":         ["#ffffff", "#1e3a5f", "#2563eb"],
-  "mocha-office":     ["#fdf8f4", "#8b6914", "#b8860b"],
-  "minimal-mono":     ["#ffffff", "#18181b", "#52525b"],
-  "modern-dark":      ["#111827", "#60a5fa", "#1f2937"],
-  "dark-navy":        ["#0c1929", "#38bdf8", "#1e3a5f"],
-  "graphite-studio":  ["#1c1917", "#818cf8", "#292524"],
-  "deep-ocean":       ["#0d1117", "#38bdf8", "#161b22"],
-  "kakao-business":   ["#ffffff", "#3c1e1e", "#fee500"],
-  "naver-works":      ["#ffffff", "#03c75a", "#1a1a1a"],
-  "samsung-admin":    ["#ffffff", "#1428a0", "#0056b3"],
-  "purple-insight":   ["#ffffff", "#7c3aed", "#6d28d9"],
-};
-
-function ThemePreviewDot({ themeKey }: { themeKey: string }) {
-  const colors = THEME_COLORS[themeKey] ?? ["#ccc", "#999", "#eee"];
-  return (
-    <>
-      {colors.map((c, i) => (
-        <span key={i} style={{ width: 14, height: 14, borderRadius: "50%", background: c, border: "1px solid rgba(0,0,0,0.1)" }} />
-      ))}
-    </>
   );
 }
 

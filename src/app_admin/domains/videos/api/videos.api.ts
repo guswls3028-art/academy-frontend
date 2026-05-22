@@ -1,92 +1,21 @@
 // PATH: src/app_admin/domains/videos/api/videos.ts
 
 import api from "@/shared/api/axios";
-import { getApiErrorMessage } from "@/shared/api/errorMessage";
-import { VIDEO_STATUS_IN_PROGRESS } from "../constants/videoProcessing";
-
-/** 재시도 API 실패 시 백엔드 메시지 추출 (400 detail/배열 포함). */
-export function getRetryErrorMessage(e: unknown): string {
-  const raw = getApiErrorMessage(e, "재시도 요청에 실패했습니다.");
-  return mapRetryErrorForUser(raw);
-}
-
-/** 알려진 백엔드 메시지를 사용자 친화 문구로 매핑. 백엔드 메시지가 우선. */
-function mapRetryErrorForUser(backendMessage: string): string {
-  const s = backendMessage.trim().toLowerCase();
-  if (s.includes("already in backlog") || s.includes("job queued") || s.includes("retry wait")) {
-    return "이미 처리 중이거나 대기 중입니다. 잠시 후 다시 시도해 주세요.";
-  }
-  if (s.includes("대기열이 가득") || s.includes("처리 중인 영상이 많아")) {
-    return "처리 대기열이 가득 찼습니다. 잠시 후 자동으로 처리됩니다.";
-  }
-  if (s.includes("currently running") || s.includes("job is currently")) {
-    return "현재 처리 중인 작업이 있습니다. 완료 후 다시 시도해 주세요.";
-  }
-  if (s.includes("cannot retry") || s.includes("status must be")) {
-    return "현재 상태에서는 재시도할 수 없습니다.";
-  }
-  if (s.includes("업로드된 파일 정보가 없습니다") || s.includes("파일 정보가 없습니다")) {
-    return "업로드된 파일을 찾을 수 없습니다. 삭제 후 다시 업로드해 주세요.";
-  }
-  if (s.includes("업로드가 완료되지 않았습니다") || s.includes("파일을 먼저 업로드")) {
-    return "업로드가 완료되지 않았습니다. 파일을 먼저 업로드해 주세요.";
-  }
-  if (s.includes("s3 object not found") || s.includes("source_not_found")) {
-    return "업로드된 파일을 찾을 수 없습니다. 삭제 후 다시 업로드해 주세요.";
-  }
-  if (s.includes("not found") || s.includes("찾을 수 없습니다")) {
-    return "영상을 찾을 수 없습니다.";
-  }
-  return backendMessage;
-}
-
-/**
- * Backend Video.status enum (확정)
- */
-export type VideoStatus =
-  | "PENDING"
-  | "UPLOADED"
-  | "PROCESSING"
-  | "READY"
-  | "FAILED";
-
-export type VideoSourceType = "s3" | "unknown";
-
-export interface Video {
-  id: number;
-  session_id: number;
-  folder?: number | null; // 공개 영상 폴더 ID
-  title: string;
-
-  file_key: string;
-  file_size?: number | null;
-  duration: number | null;
-  order: number;
-  status: VideoStatus;
-  error_reason?: string | null;
-
-  allow_skip: boolean;
-  max_speed: number;
-  show_watermark: boolean;
-
-  thumbnail?: string | null;
-  hls_path: string | null;
-
-  thumbnail_url?: string | null;
-  hls_url?: string | null;
-
-  created_at: string;
-  updated_at: string;
-
-  source_type: VideoSourceType;
-  /** 조회수 (목록/상세에서 내려오면 유튜브 스타일로 표시) */
-  view_count?: number | null;
-}
-
-export interface VideoDetail extends Video {
-  /** 서버에서 판단한 retry 가능 여부 (job state 포함) */
-  can_retry?: boolean;
-}
+import {
+  normalizeVideo,
+  type Video,
+  type VideoDetail,
+} from "@/shared/api/contracts/videos";
+export {
+  fetchInProgressVideos,
+  fetchVideoDetail,
+  getRetryErrorMessage,
+  retryVideo,
+  type Video,
+  type VideoDetail,
+  type VideoSourceType,
+  type VideoStatus,
+} from "@/shared/api/contracts/videos";
 
 import type { AccessMode, VideoRule } from "../types/access-mode";
 
@@ -148,24 +77,6 @@ function safeData<T>(d: unknown, fallback: T): T {
   return d as T;
 }
 
-/**
- * ✅ 최소 추가
- * backend의 thumbnail → frontend thumbnail_url 매핑
- */
-type VideoPayload = Partial<Video> & {
-  thumbnail?: string | null;
-};
-
-function normalizeVideo(v: unknown): Video {
-  if (!v || typeof v !== "object") return v as Video;
-
-  const payload = v as VideoPayload;
-  if (!payload.thumbnail_url && payload.thumbnail) {
-    return { ...payload, thumbnail_url: payload.thumbnail } as Video;
-  }
-  return payload as Video;
-}
-
 export async function fetchSessionVideos(
   sessionId: number
 ): Promise<Video[]> {
@@ -198,34 +109,6 @@ export async function fetchPublicSession(): Promise<{
   }
 }
 
-/** 진행 중인 영상 목록 — 새로고침 후 작업 박스 복원용 (Batch 전용). */
-export async function fetchInProgressVideos(): Promise<Video[]> {
-  const statuses = VIDEO_STATUS_IN_PROGRESS;
-  const all: Video[] = [];
-  for (const s of statuses) {
-    try {
-      const res = await api.get("/media/videos/", { params: { status: s } });
-      const d = res?.data;
-      const list = Array.isArray(d) ? d : d?.results ?? [];
-      all.push(...list.map(normalizeVideo));
-    } catch {
-      // 개별 상태 요청 실패는 무시 — 나머지 상태 결과는 유지
-    }
-  }
-  return all;
-}
-
-export async function fetchVideoDetail(
-  videoId: number
-): Promise<VideoDetail> {
-  const res = await api.get(`/media/videos/${videoId}/`);
-  const data = res.data;
-  if (!data || !data.id) {
-    throw new Error(`Video ${videoId} not found`);
-  }
-  return normalizeVideo(data);
-}
-
 export async function fetchVideoStats(
   videoId: number
 ): Promise<VideoStats> {
@@ -240,10 +123,6 @@ export async function fetchVideoStats(
   }
 
   return data;
-}
-
-export async function retryVideo(videoId: number): Promise<void> {
-  await api.post(`/media/videos/${videoId}/retry/`);
 }
 
 export async function fetchPolicyImpact(params: {

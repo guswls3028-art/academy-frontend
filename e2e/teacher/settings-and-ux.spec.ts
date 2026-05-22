@@ -21,6 +21,9 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await loginViaUI(page, "admin");
     await page.evaluate(() => {
       localStorage.removeItem("teacher:preferAdmin");
+      localStorage.setItem("hakwonplus:theme", "modern-white");
+      document.documentElement.setAttribute("data-theme", "modern-white");
+      window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: "modern-white" } }));
     });
   });
 
@@ -28,22 +31,22 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
+    const main = page.getByRole("main");
+
     // 설정 헤딩 확인
-    await expect(page.getByRole("heading", { name: "설정" })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole("heading", { name: "설정" })).toBeVisible({ timeout: 10_000 });
 
     // 프로필 섹션
-    await expect(page.getByText("프로필")).toBeVisible();
+    await expect(main.getByText("프로필", { exact: true })).toBeVisible();
 
     // 보안 섹션
-    await expect(page.getByText("보안")).toBeVisible();
-    await expect(page.getByText("비밀번호 변경")).toBeVisible();
+    await expect(main.getByText("보안", { exact: true })).toBeVisible();
+    await expect(main.getByText("비밀번호 변경")).toBeVisible();
 
-    // 테마 섹션 — 12개 테마 존재 확인
-    await expect(page.getByText("테마").first()).toBeVisible();
-    await expect(page.getByText("라이트").first()).toBeVisible();
-    await expect(page.getByText("다크").first()).toBeVisible();
-    await expect(page.getByText("브랜드").first()).toBeVisible();
-    await expect(page.getByText("Modern White")).toBeVisible();
+    // 테마 섹션 — 카드 중복 노출 없이 외관/테마 SSOT 페이지로 연결
+    await expect(main.getByText("테마", { exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: /외관 \/ 테마 설정/ })).toBeVisible();
+    await expect(main.getByText("현재 테마: Modern White")).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-settings-01-overview.png", fullPage: true });
   });
@@ -52,8 +55,11 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
+    await page.getByRole("main").getByRole("button", { name: /외관 \/ 테마 설정/ }).click();
+    await expect(page).toHaveURL(/\/teacher\/settings\/appearance/, { timeout: 10_000 });
+
     // Modern Dark 테마 선택
-    await page.getByText("Modern Dark").click();
+    await page.getByRole("button", { name: /Modern Dark/ }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // data-theme 속성 확인
@@ -63,7 +69,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await page.screenshot({ path: "e2e/screenshots/teacher-settings-02-dark-theme.png", fullPage: true });
 
     // 원래 테마로 복원
-    await page.getByText("Modern White").click();
+    await page.getByRole("button", { name: /Modern White/ }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
   });
 
@@ -145,8 +151,8 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await page.goto(`${BASE}/teacher/message-log`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
-    // 발송 이력 헤딩 확인
-    await expect(page.getByText("발송 이력")).toBeVisible({ timeout: 10_000 });
+    // 발송 내역 헤딩 확인
+    await expect(page.getByRole("heading", { name: "발송 내역" })).toBeVisible({ timeout: 10_000 });
 
     await page.screenshot({ path: "e2e/screenshots/teacher-message-log-01.png" });
   });
@@ -160,9 +166,9 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
     await menuBtn.click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
-    // 드로어에서 설정 메뉴 확인
-    await expect(page.getByRole("button", { name: "설정" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "발송 이력" })).toBeVisible();
+    // 드로어에서 설정/발송 내역 메뉴 확인
+    await expect(page.getByRole("button", { name: "설정", exact: true })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: "발송 내역", exact: true })).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-drawer-01-settings-menu.png" });
   });

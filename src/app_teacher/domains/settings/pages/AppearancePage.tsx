@@ -7,7 +7,7 @@ import { useTheme } from "@/shared/contexts/ThemeContext";
 import {
   THEMES,
   type ThemeGroup,
-} from "@admin/domains/settings/constants/themes";
+} from "@/shared/theme/themes";
 
 const GROUP_LABEL: Record<ThemeGroup, string> = {
   WHITE: "라이트",

@@ -10,8 +10,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
-import { VIDEO_STATUS_LABEL } from "@admin/domains/videos/utils/videoStatus";
-import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
+import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
 
 type StatusFilter = "all" | VideoStatus;
 type SortKey = "recent" | "title" | "views";

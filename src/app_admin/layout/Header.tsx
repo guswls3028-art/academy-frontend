@@ -38,7 +38,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
-import { getThemeMeta } from "@admin/domains/settings/constants/themes";
+import { getThemeMeta } from "@/shared/theme/themes";
 
 /** 네이티브 프로필 드롭다운 — Ant Design Dropdown 대신 직접 구현 (모바일 터치 호환) */
 function ProfileDropdown({

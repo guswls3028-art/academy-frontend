@@ -1,10 +1,5 @@
-import { createContext } from "react";
-
-export type ForceView = "mobile" | "desktop" | null;
-
-export type TeacherViewContextValue = {
-  forceView: ForceView;
-  setForceView: (v: ForceView) => void;
-};
-
-export const TeacherViewContext = createContext<TeacherViewContextValue | null>(null);
+export {
+  ResponsiveViewContext as TeacherViewContext,
+  type ForceView,
+  type ResponsiveViewContextValue as TeacherViewContextValue,
+} from "@/shared/contexts/responsiveViewContext";
