@@ -335,7 +335,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     }
     setBusy(true);
     try {
-      const { job_id } = await uploadStudentBulkFromExcel(selectedExcelFile, pwd);
+      const { job_id } = await uploadStudentBulkFromExcel(
+        selectedExcelFile,
+        pwd,
+        sendWelcomeMessage,
+      );
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;

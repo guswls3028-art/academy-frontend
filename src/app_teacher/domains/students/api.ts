@@ -2,7 +2,11 @@
 // 학생 API — 기존 students API 래핑 (모바일 전용 정규화)
 import api from "@/shared/api/axios";
 import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
-import { applyDisplayNames, mapStudent } from "@/shared/api/contracts/students";
+import {
+  applyDisplayNames,
+  mapStudent,
+  uploadStudentBulkFromExcel,
+} from "@/shared/api/contracts/students";
 import type { ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 
 export type TeacherStudentsResponse = {
@@ -138,11 +142,7 @@ export async function exportStudentsExcel() {
 
 /* ─── 엑셀 벌크 업로드 ─── */
 export async function uploadStudentBulkExcel(file: File, initialPassword: string) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("initial_password", initialPassword);
-  const res = await api.post("/students/bulk_create_from_excel/", formData);
-  return res.data;
+  return uploadStudentBulkFromExcel(file, initialPassword);
 }
 
 /* ─── 학생 삭제 (soft delete) ─── */

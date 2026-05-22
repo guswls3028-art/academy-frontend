@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import api from "@/shared/api/axios";
+import { createStudent } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
@@ -24,19 +24,49 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   const [grade, setGrade] = useState("");
   const [gender, setGender] = useState<"M" | "F" | "">("");
 
+  function normalizePhone(value: string): string {
+    return value.replace(/\D/g, "").slice(0, 11);
+  }
+
+  function inferSchoolType(value: string): "HIGH" | "MIDDLE" | "ELEMENTARY" {
+    const trimmed = value.trim();
+    if (trimmed.endsWith("초")) return "ELEMENTARY";
+    if (trimmed.endsWith("중")) return "MIDDLE";
+    return "HIGH";
+  }
+
+  function validate(): string | null {
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedParentPhone = normalizePhone(parentPhone);
+    if (!name.trim()) return "이름을 입력해 주세요.";
+    if (password.trim().length < 4) return "초기 비밀번호를 4자 이상 입력해 주세요.";
+    if (!/^010\d{8}$/.test(normalizedParentPhone)) {
+      return "학부모 전화번호를 010 뒤 8자리로 입력해 주세요.";
+    }
+    if (phone.trim() && !/^010\d{8}$/.test(normalizedPhone)) {
+      return "학생 전화는 비우거나 010 뒤 8자리를 입력해 주세요.";
+    }
+    return null;
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await api.post("/students/", {
-        name,
-        password,
-        phone: phone || undefined,
-        parent_phone: parentPhone || undefined,
-        school: school || undefined,
-        grade: grade || undefined,
+      const error = validate();
+      if (error) throw new Error(error);
+      const normalizedPhone = normalizePhone(phone);
+      const normalizedParentPhone = normalizePhone(parentPhone);
+      return createStudent({
+        name: name.trim(),
+        initialPassword: password.trim(),
+        studentPhone: normalizedPhone,
+        parentPhone: normalizedParentPhone,
+        school: school.trim(),
+        schoolType: inferSchoolType(school),
+        grade: grade.trim(),
         gender: gender || undefined,
-        is_active: true,
+        active: true,
+        sendWelcomeMessage: false,
       });
-      return res.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-students"] });

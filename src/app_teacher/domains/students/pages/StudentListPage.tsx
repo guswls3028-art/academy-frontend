@@ -12,6 +12,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import {
   fetchStudents, exportStudentsExcel, uploadStudentBulkExcel,
   bulkDeleteStudents, bulkAttachTag, fetchTags, createTag, sendPasswordReset,
@@ -161,9 +162,12 @@ export default function StudentListPage() {
                 setMoreOpen(false);
                 if (f) {
                   uploadStudentBulkExcel(f, "0000")
-                    .then(async () => {
+                    .then(async ({ job_id }) => {
+                      if (job_id) {
+                        asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
+                      }
                       await qc.invalidateQueries({ queryKey: ["students-mobile"] });
-                      teacherToast.success("학생 일괄 업로드를 완료했습니다.");
+                      teacherToast.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
                     })
                     .catch((err) => teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다.")));
                 }
