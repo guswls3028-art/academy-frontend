@@ -5,10 +5,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { fetchNotices } from "../api/notices.api";
+import { fetchNotices, type PostEntity } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-import type { PostEntity } from "@admin/domains/community/api/community.api";
 
 /** HTML 태그를 제거하고 순수 텍스트만 추출 */
 function stripHtml(html: string): string {

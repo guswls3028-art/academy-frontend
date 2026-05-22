@@ -10,14 +10,14 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { ImagePlus, Trash2, Send } from "@teacher/shared/ui/Icons";
 import {
-  createPost,
-  uploadPostAttachments,
-} from "@admin/domains/community/api/community.api";
+  createDeveloperCommunityPost,
+  uploadDeveloperPostAttachments,
+} from "../api/communityFeedback";
 import {
   PATCH_NOTES,
   type PatchNote,
   type NoteCategory,
-} from "@admin/domains/developer/pages/patchNotesData";
+} from "@/shared/product/patchNotesData";
 import styles from "./DeveloperPages.module.css";
 
 const CATEGORY_LABEL: Record<NoteCategory, string> = {
@@ -177,14 +177,14 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
   const submitMut = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
-      const post = await createPost({
+      const post = await createDeveloperCommunityPost({
         post_type: "board",
         title: `${titlePrefix} ${title.trim()}`,
         content: content.trim(),
         node_ids: [],
       });
       if (images.length > 0) {
-        await uploadPostAttachments(post.id, images);
+        await uploadDeveloperPostAttachments(post.id, images);
       }
       return post;
     },

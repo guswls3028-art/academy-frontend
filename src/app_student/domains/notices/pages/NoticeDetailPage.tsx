@@ -6,10 +6,9 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { fetchNoticeDetail } from "../api/notices.api";
+import { fetchNoticeDetail, getAttachmentDownloadUrl, type PostAttachment } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-import { getAttachmentDownloadUrl, type PostAttachment } from "@admin/domains/community/api/community.api";
 import styles from "./NoticeDetailPage.module.css";
 
 function isImageAttachment(att: PostAttachment): boolean {
