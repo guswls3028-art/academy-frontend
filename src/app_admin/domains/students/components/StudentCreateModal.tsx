@@ -212,8 +212,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       feedback.success(
         `등록 완료\n` +
         `학생 아이디: ${loginId}\n` +
-        (parentPhone ? `학부모 아이디: ${parentPhone} (비밀번호: 0000)\n` : "") +
-        `학생·학부모 모두 초기 비밀번호로 로그인하세요.`
+        (parentPhone ? `학부모 아이디: ${parentPhone} (신규 계정은 전화번호 뒤 4자리)\n` : "") +
+        `학생은 입력한 초기 비밀번호로 로그인하세요. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.`
       );
       onSuccess();
       onClose();
@@ -289,8 +289,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       feedback.success(
         `등록 완료\n` +
         `학생 아이디: ${loginId}\n` +
-        (parentPhone ? `학부모 아이디: ${parentPhone} (비밀번호: 0000)\n` : "") +
-        `학생·학부모 모두 초기 비밀번호로 로그인하세요.`
+        (parentPhone ? `학부모 아이디: ${parentPhone} (신규 계정은 전화번호 뒤 4자리)\n` : "") +
+        `학생은 입력한 초기 비밀번호로 로그인하세요. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.`
       );
       setDeletedStudentConflict(null);
       onSuccess();
@@ -664,7 +664,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
           <div className={`modal-hint ${styles.excelHint}`}>
             학생 아이디는 자동 부여됩니다.<br />
-            학부모 아이디는 학부모 전화번호이며, 초기 비밀번호는 0000입니다.
+            학부모 아이디는 학부모 전화번호이며, 신규 계정 초기 비밀번호는 전화번호 뒤 4자리입니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.
           </div>
         </div>
         )}
