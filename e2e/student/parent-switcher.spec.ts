@@ -112,6 +112,8 @@ async function cleanupStudents(request: APIRequestContext, adminAccess: string, 
     timeout: 60_000,
   });
   expect(permanent.status()).toBe(200);
+  const permanentBody = await permanent.json() as { deleted?: unknown };
+  expect(typeof permanentBody.deleted).toBe("number");
 }
 
 test.describe("학부모 자녀 스위처", () => {

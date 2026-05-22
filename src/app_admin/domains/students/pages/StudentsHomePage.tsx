@@ -253,10 +253,15 @@ export default function StudentsHomePage() {
                 if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
                 setDeleting(true);
                 try {
-                  const { restored } = await bulkRestoreStudents(selectedIds);
+                  const { restored, skipped = [] } = await bulkRestoreStudents(selectedIds);
                   setSelectedIds([]);
                   qc.invalidateQueries({ queryKey: ["students"] });
-                  feedback.success(`${restored}명 복원되었습니다.`);
+                  if (skipped.length > 0) {
+                    const firstReason = skipped[0]?.reason ? `: ${skipped[0].reason}` : "";
+                    feedback.warning(`${restored}명 복원, ${skipped.length}명은 복원하지 못했습니다${firstReason}`);
+                  } else {
+                    feedback.success(`${restored}명 복원되었습니다.`);
+                  }
                 } catch (e: unknown) {
                   feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
                 } finally {

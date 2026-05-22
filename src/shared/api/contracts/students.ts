@@ -89,6 +89,17 @@ export type StudentFormInput = {
   sendWelcomeMessage?: boolean;
 };
 
+export interface BulkRestoreSkippedStudent {
+  id: number;
+  code?: string;
+  reason: string;
+}
+
+export interface BulkRestoreStudentsResult {
+  restored: number;
+  skipped?: BulkRestoreSkippedStudent[];
+}
+
 type RawRecord = Record<string, unknown>;
 type ListEnvelope = {
   results?: unknown;
@@ -503,7 +514,7 @@ export async function bulkDeleteStudents(studentIds: number[]) {
 /** 삭제된 학생 일괄 복원 */
 export async function bulkRestoreStudents(studentIds: number[]) {
   const res = await api.post("/students/bulk_restore/", { ids: studentIds });
-  return res.data as { restored: number };
+  return res.data as BulkRestoreStudentsResult;
 }
 
 /** 삭제된 학생 즉시 영구 삭제 */

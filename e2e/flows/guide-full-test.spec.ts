@@ -71,7 +71,14 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
     const old = resultsOf<StudentResult>(existing.body).find((s) => s.phone === TEST_RECIPIENT.studentPhone);
     if (old) {
       await apiCall(T, "DELETE", `/students/${old.id}/`);
-      await apiCall(T, "POST", "/students/bulk_permanent_delete/", { ids: [old.id] });
+      const permanent = await apiCall<{ deleted?: unknown }>(
+        T,
+        "POST",
+        "/students/bulk_permanent_delete/",
+        { ids: [old.id] },
+      );
+      expect(permanent.status).toBe(200);
+      expect(typeof permanent.body.deleted).toBe("number");
     }
 
     // 학생 등록 (API — 알림톡 실제 발송)

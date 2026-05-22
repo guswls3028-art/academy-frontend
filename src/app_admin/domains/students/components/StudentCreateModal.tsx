@@ -261,7 +261,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     if (!deletedStudentConflict || busy) return;
     setBusy(true);
     try {
-      await bulkRestoreStudents([deletedStudentConflict.student.id]);
+      const result = await bulkRestoreStudents([deletedStudentConflict.student.id]);
+      if (result.restored < 1) {
+        const reason = result.skipped?.[0]?.reason;
+        feedback.error(reason || "복원에 실패했습니다.");
+        return;
+      }
       feedback.success("학생이 복원되었습니다.");
       setDeletedStudentConflict(null);
       onSuccess();
