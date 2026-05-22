@@ -144,154 +144,154 @@ export default function StudentsHomePage() {
       : null;
 
   const selectionBar = (
-    <div className="flex flex-col gap-2">
-    <div className="flex flex-wrap items-center gap-2 pl-1">
-      <span
-        className={`text-[13px] font-semibold ${styles.selectedCount}`}
-        data-selected={selectedIds.length > 0 ? "true" : "false"}
-      >
-        {selectedIds.length}명 선택됨
-      </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-        선택 해제
-      </Button>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      {!isDeletedTab && (
-        <>
-          <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={() => {
-            // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
-            const visibleIds = new Set((data ?? []).map((s) => s.id));
-            const validIds = selectedIds.filter((studentId) => visibleIds.has(studentId));
-            if (validIds.length === 0) {
-              feedback.info("현재 목록에 선택된 학생이 없습니다.");
-              return;
-            }
-            openSendMessageModal({ studentIds: validIds, recipientLabel: `선택한 학생 ${validIds.length}명`, blockCategory: "student" });
-          }}>
-            메시지 발송
-          </Button>
-          <Button
-            intent="secondary"
-            size="sm"
-            disabled={selectedIds.length === 0}
-            onClick={() => {
-              const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
-              if (selected.length === 0) {
-                feedback.info("선택한 학생이 없습니다.");
+    <div className={styles.selectionBar}>
+      <div className={`flex items-center gap-2 pl-1 ${styles.selectionActions}`}>
+        <span
+          className={`text-[13px] font-semibold ${styles.selectedCount}`}
+          data-selected={selectedIds.length > 0 ? "true" : "false"}
+        >
+          {selectedIds.length}명 선택됨
+        </span>
+        <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`}>|</span>
+        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+          선택 해제
+        </Button>
+        <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`}>|</span>
+        {!isDeletedTab && (
+          <>
+            <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={() => {
+              // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
+              const visibleIds = new Set((data ?? []).map((s) => s.id));
+              const validIds = selectedIds.filter((studentId) => visibleIds.has(studentId));
+              if (validIds.length === 0) {
+                feedback.info("현재 목록에 선택된 학생이 없습니다.");
                 return;
               }
-              const rows: StudentExportRow[] = selected.map((s) => ({
-                name: s.name,
-                parentPhone: s.parentPhone ?? null,
-                studentPhone: s.studentPhone ?? null,
-                school: s.school ?? null,
-                grade: s.grade ?? null,
-                schoolClass: s.schoolClass ?? null,
-                major: s.major ?? null,
-                gender: s.gender ?? null,
-                omrCode: s.omrCode ?? "",
-                registeredAt: s.registeredAt ?? null,
-                tags: (s.tags ?? []).map((t) => ({ name: t.name })),
-              }));
-              downloadStudentsExcel(rows, `학생목록_${selected.length}명.xlsx`);
-              feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
-            }}
-          >
-            엑셀 다운로드
-          </Button>
-          <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedIds.length === 0}>
-            태그 추가
-          </Button>
-          <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedIds.length === 0}>
-            비밀번호 변경
-          </Button>
-          {/* destructive 액션은 시각적으로 분리 — 위험 액션 오클릭 방지 */}
-          <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
-          <Button
-            intent="danger"
-            size="sm"
-            disabled={selectedIds.length === 0 || deleting}
-            onClick={async () => {
-              if (selectedIds.length === 0) return;
-              const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
-              const parts = selected.map(
-                (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
-              );
-              const msg =
-                parts.length > 0
-                  ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
-                  : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
-              if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
-              setDeleting(true);
-              try {
-                const deletedIds = [...selectedIds];
-                const { deleted } = await bulkDeleteStudents(selectedIds);
-                setSelectedIds([]);
-                qc.invalidateQueries({ queryKey: ["students"] });
-                feedback.success(`${deleted}명 삭제되었습니다.`);
-                if (deleted > 0) setWithdrawalNotif({ open: true, ids: deletedIds });
-              } catch (e: unknown) {
-                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
-              } finally {
-                setDeleting(false);
-              }
-            }}
-          >
-            {deleting ? "삭제 중…" : "삭제"}
-          </Button>
-        </>
-      )}
-      {isDeletedTab && (
-        <>
-          <Button
-            intent="primary"
-            size="sm"
-            disabled={selectedIds.length === 0 || deleting}
-            onClick={async () => {
-              if (selectedIds.length === 0) return;
-              if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
-              setDeleting(true);
-              try {
-                const { restored } = await bulkRestoreStudents(selectedIds);
-                setSelectedIds([]);
-                qc.invalidateQueries({ queryKey: ["students"] });
-                feedback.success(`${restored}명 복원되었습니다.`);
-              } catch (e: unknown) {
-                feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
-              } finally {
-                setDeleting(false);
-              }
-            }}
-          >
-            {deleting ? "복원 중…" : "복원"}
-          </Button>
-          <Button
-            intent="danger"
-            size="sm"
-            disabled={selectedIds.length === 0 || deleting}
-            onClick={async () => {
-              if (selectedIds.length === 0) return;
-              if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
-              setDeleting(true);
-              try {
-                const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
-                setSelectedIds([]);
-                qc.invalidateQueries({ queryKey: ["students"] });
-                feedback.success(`${deleted}명 영구 삭제되었습니다.`);
-              } catch (e: unknown) {
-                const msg = getApiErrorMessage(e, "삭제 중 오류가 발생했습니다.");
-                feedback.error(msg);
-              } finally {
-                setDeleting(false);
-              }
-            }}
-          >
-            {deleting ? "삭제 중…" : "즉시 삭제"}
-          </Button>
-        </>
-      )}
-    </div>
+              openSendMessageModal({ studentIds: validIds, recipientLabel: `선택한 학생 ${validIds.length}명`, blockCategory: "student" });
+            }}>
+              메시지 발송
+            </Button>
+            <Button
+              intent="secondary"
+              size="sm"
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
+                if (selected.length === 0) {
+                  feedback.info("선택한 학생이 없습니다.");
+                  return;
+                }
+                const rows: StudentExportRow[] = selected.map((s) => ({
+                  name: s.name,
+                  parentPhone: s.parentPhone ?? null,
+                  studentPhone: s.studentPhone ?? null,
+                  school: s.school ?? null,
+                  grade: s.grade ?? null,
+                  schoolClass: s.schoolClass ?? null,
+                  major: s.major ?? null,
+                  gender: s.gender ?? null,
+                  omrCode: s.omrCode ?? "",
+                  registeredAt: s.registeredAt ?? null,
+                  tags: (s.tags ?? []).map((t) => ({ name: t.name })),
+                }));
+                downloadStudentsExcel(rows, `학생목록_${selected.length}명.xlsx`);
+                feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
+              }}
+            >
+              엑셀 다운로드
+            </Button>
+            <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedIds.length === 0}>
+              태그 추가
+            </Button>
+            <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedIds.length === 0}>
+              비밀번호 변경
+            </Button>
+            {/* destructive 액션은 시각적으로 분리 — 위험 액션 오클릭 방지 */}
+            <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`} aria-hidden>|</span>
+            <Button
+              intent="danger"
+              size="sm"
+              disabled={selectedIds.length === 0 || deleting}
+              onClick={async () => {
+                if (selectedIds.length === 0) return;
+                const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
+                const parts = selected.map(
+                  (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
+                );
+                const msg =
+                  parts.length > 0
+                    ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
+                    : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+                if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
+                setDeleting(true);
+                try {
+                  const deletedIds = [...selectedIds];
+                  const { deleted } = await bulkDeleteStudents(selectedIds);
+                  setSelectedIds([]);
+                  qc.invalidateQueries({ queryKey: ["students"] });
+                  feedback.success(`${deleted}명 삭제되었습니다.`);
+                  if (deleted > 0) setWithdrawalNotif({ open: true, ids: deletedIds });
+                } catch (e: unknown) {
+                  feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "삭제 중…" : "삭제"}
+            </Button>
+          </>
+        )}
+        {isDeletedTab && (
+          <>
+            <Button
+              intent="primary"
+              size="sm"
+              disabled={selectedIds.length === 0 || deleting}
+              onClick={async () => {
+                if (selectedIds.length === 0) return;
+                if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
+                setDeleting(true);
+                try {
+                  const { restored } = await bulkRestoreStudents(selectedIds);
+                  setSelectedIds([]);
+                  qc.invalidateQueries({ queryKey: ["students"] });
+                  feedback.success(`${restored}명 복원되었습니다.`);
+                } catch (e: unknown) {
+                  feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "복원 중…" : "복원"}
+            </Button>
+            <Button
+              intent="danger"
+              size="sm"
+              disabled={selectedIds.length === 0 || deleting}
+              onClick={async () => {
+                if (selectedIds.length === 0) return;
+                if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
+                setDeleting(true);
+                try {
+                  const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
+                  setSelectedIds([]);
+                  qc.invalidateQueries({ queryKey: ["students"] });
+                  feedback.success(`${deleted}명 영구 삭제되었습니다.`);
+                } catch (e: unknown) {
+                  const msg = getApiErrorMessage(e, "삭제 중 오류가 발생했습니다.");
+                  feedback.error(msg);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "삭제 중…" : "즉시 삭제"}
+            </Button>
+          </>
+        )}
+      </div>
 
     {totalPages > 1 && (
       <div className="flex flex-wrap items-center gap-1 pl-1">

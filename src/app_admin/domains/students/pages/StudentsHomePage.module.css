@@ -1,9 +1,27 @@
+.selectionBar {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selectionActions {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
 .selectedCount {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--color-text-muted);
 }
 
 .selectedCount[data-selected="true"] {
   color: var(--color-primary);
+}
+
+.selectionDivider {
+  flex: 0 0 auto;
 }
 
 .paginationButton {
@@ -116,4 +134,23 @@
   color: var(--color-primary);
   font-size: 13px;
   font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .selectionBar {
+    min-width: 0;
+  }
+
+  .selectionActions {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .selectionActions :global(.ds-button) {
+    flex: 0 0 auto;
+  }
+
+  .selectionDivider {
+    display: none;
+  }
 }
