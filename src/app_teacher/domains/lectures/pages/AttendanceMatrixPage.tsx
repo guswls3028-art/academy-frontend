@@ -10,7 +10,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import type {
   AttendanceMatrixSession,
   AttendanceMatrixStudent,
-} from "@admin/domains/lectures/api/attendance";
+} from "@/shared/api/contracts/attendance";
 import styles from "./AttendanceMatrixPage.module.css";
 
 export default function AttendanceMatrixPage() {

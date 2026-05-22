@@ -1,24 +1,19 @@
 // PATH: src/app_teacher/domains/attendance/api.ts
-// 출석 API — 기존 admin attendance API 100% 재사용
-// 이 파일은 teacher 전용 타입/상수만 정의하고, 실제 API 호출은 기존 코드를 import
+// 출석 API — shared attendance contract facade
+import type { AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
+
 export {
   fetchAttendance,
   updateAttendance,
   bulkSetPresent,
-} from "@admin/domains/lectures/api/attendance";
+} from "@/shared/api/contracts/attendance";
 export type {
   AttendanceListItem,
   AttendanceListResponse,
-} from "@admin/domains/lectures/api/attendance";
+} from "@/shared/api/contracts/attendance";
 
 /** 출석 상태 표시 설정 — 모바일 UI 전용 */
-export type AttendanceStatus =
-  | "PRESENT"
-  | "LATE"
-  | "ONLINE"
-  | "SUPPLEMENT"
-  | "EARLY_LEAVE"
-  | "ABSENT";
+export type { AttendanceStatus };
 
 export const STATUS_CONFIG: Record<
   string,

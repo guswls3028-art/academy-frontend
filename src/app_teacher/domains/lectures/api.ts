@@ -1,7 +1,15 @@
 // PATH: src/app_teacher/domains/lectures/api.ts
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
-import { downloadFromUrl, pollJobUntilDone } from "@/shared/api/jobExport";
+
+export {
+  downloadAttendanceExcel,
+  fetchAttendanceMatrix,
+  type AttendanceMatrixCell,
+  type AttendanceMatrixResponse,
+  type AttendanceMatrixSession,
+  type AttendanceMatrixStudent,
+} from "@/shared/api/contracts/attendance";
 
 export type TeacherLecture = {
   id: number;
@@ -93,14 +101,6 @@ export async function fetchSessionAttendance(sessionId: number) {
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
 
-/** 강의별 출석 매트릭스 (admin과 동일 endpoint 재사용) */
-export async function fetchAttendanceMatrix(lectureId: number) {
-  const res = await api.get("/lectures/attendance/matrix/", {
-    params: { lecture: lectureId },
-  });
-  return res.data;
-}
-
 /* ─── Lecture CRUD ─── */
 export async function createLecture(payload: {
   title: string;
@@ -149,18 +149,4 @@ export async function bulkCreateEnrollments(lectureId: number, studentIds: numbe
 
 export async function deleteEnrollment(enrollmentId: number) {
   await api.delete(`/enrollments/${enrollmentId}/`);
-}
-
-/* ─── Attendance ─── */
-export async function downloadAttendanceExcel(lectureId: number) {
-  const res = await api.post<{ job_id?: string }>("/lectures/attendance/excel/", {
-    lecture_id: lectureId,
-  });
-  const jobId = res.data.job_id;
-  if (!jobId) throw new Error("출석 엑셀 작업을 시작하지 못했습니다.");
-
-  const data = await pollJobUntilDone(jobId);
-  const url = data.result?.download_url;
-  if (!url) throw new Error("엑셀 생성은 완료됐지만 다운로드 링크가 없습니다.");
-  downloadFromUrl(url, data.result?.filename || `attendance-${lectureId}.xlsx`);
 }
