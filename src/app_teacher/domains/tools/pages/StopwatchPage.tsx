@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Download } from "@teacher/shared/ui/Icons";
-import { fetchTimerDownloadUrl } from "@admin/domains/tools/stopwatch/api/timer.api";
+import { fetchTimerDownloadUrl } from "@/shared/api/contracts/tools";
 import styles from "./StopwatchPage.module.css";
 
 const TIMER_TICK_MS = 30;

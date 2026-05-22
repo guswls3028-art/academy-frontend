@@ -263,11 +263,11 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     expect(cap.errors).toEqual([]);
   });
 
-  test("스톱워치 — 시작/정지/리셋", async ({ page }) => {
+  test("타이머 — 시작/정지/리셋", async ({ page }) => {
     const cap = attachNetCapture(page);
     await visit(page, "/teacher/tools/stopwatch");
 
-    await expect(page.getByRole("heading", { name: "스톱워치" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "타이머", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "시작" })).toBeVisible();
 
     await page.getByRole("button", { name: "시작" }).click();
