@@ -17,6 +17,7 @@
   padding-bottom: calc(var(--tc-safe-bottom) + var(--tc-space-4));
   border-radius: var(--tc-radius-xl) var(--tc-radius-xl) 0 0;
   background: var(--tc-surface);
+  overflow: hidden;
   animation: tcSlideUp 200ms ease;
 }
 
@@ -43,6 +44,7 @@
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 var(--tc-space-4);
 }
