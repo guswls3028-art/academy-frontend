@@ -103,6 +103,23 @@
   pointer-events: auto;
 }
 
+@media (max-width: 768px) {
+  .ds-overlay-backdrop,
+  .ds-overlay-wrap {
+    left: 0;
+  }
+
+  .ds-overlay-wrap {
+    padding-right: 12px;
+    padding-left: 12px;
+    padding-bottom: 12px;
+  }
+
+  .ds-overlay-panel {
+    border-radius: var(--radius-lg);
+  }
+}
+
 /* 우측 드로어 — 시험 통계 학생 상세 등 */
 .ds-overlay-wrap--drawer-right {
   justify-content: flex-end;
@@ -415,6 +432,53 @@
 @media (max-width: 768px) {
   .ds-overlay-body__grid {
     grid-template-columns: 1fr;
+  }
+
+  .ds-overlay-panel--student-detail {
+    max-height: calc(100dvh - var(--panel-header, 64px) - var(--notice-banner-height, 0px) - 16px);
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header {
+    padding: 14px 16px 10px;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header__left {
+    width: 100%;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header__avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header__right {
+    width: 100%;
+    margin-right: 44px;
+    flex-wrap: wrap;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-header__actions {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-body {
+    padding: 12px;
+    overflow: auto;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-sidebar {
+    padding-right: 0;
+    overflow: visible;
   }
 }
 
@@ -826,6 +890,21 @@
 }
 .ds-inventory-trigger-btn:active {
   transform: scale(0.97);
+}
+
+@media (max-width: 768px) {
+  .ds-overlay-panel--student-detail .ds-overlay-inventory-wrap {
+    top: 16px;
+    right: 72px;
+    bottom: auto;
+  }
+
+  .ds-overlay-panel--student-detail .ds-inventory-trigger-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    border-radius: var(--radius-md);
+  }
 }
 
 /* 인벤토리 전용 backdrop — 오버레이 위에 표시 */
