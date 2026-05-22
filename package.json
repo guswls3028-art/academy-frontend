@@ -18,6 +18,7 @@
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/ensure-spa-mode.js",
+    "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs",
     "verify:student-routes": "node scripts/verify-student-routes.mjs",
     "refactor:inventory": "node scripts/refactor-boundary-snapshot.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",

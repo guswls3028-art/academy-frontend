@@ -35,6 +35,9 @@ jobs:
       - name: Typecheck
         run: pnpm exec tsc --noEmit -p tsconfig.app.json
 
+      - name: Legacy API route guard
+        run: pnpm guard:legacy-api
+
       # warning-only: 기존 lint 에러 존재. 점진 수정 후 차단으로 승격 예정.
       - name: Lint (warning-only, full repo)
         run: pnpm lint || echo "::warning::Lint errors found"
