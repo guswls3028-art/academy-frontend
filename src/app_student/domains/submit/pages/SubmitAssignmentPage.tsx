@@ -15,7 +15,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import studentApi from "@student/shared/api/student.api";
-import type { Submission } from "@admin/domains/submissions/types";
+import type { Submission } from "@/shared/api/contracts/submissions";
 import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { useAuthContext } from "@/auth/context/AuthContext";

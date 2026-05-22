@@ -23,14 +23,12 @@ import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import {
+  fetchPendingSubmissions,
   retrySubmissionApi,
   discardSubmissionApi,
   discardSubmissionsBatchApi,
-} from "@admin/domains/materials/sheets/components/submissions/submissions.api";
-import {
-  fetchPendingSubmissions,
   type PendingSubmissionRow,
-} from "../api/submissions";
+} from "@/shared/api/contracts/submissions";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
