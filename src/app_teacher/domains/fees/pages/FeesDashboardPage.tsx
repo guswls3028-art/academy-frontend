@@ -8,6 +8,11 @@ import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import { fetchDashboard, fetchOverdueInvoices, type FeeType, type StudentInvoice } from "../api";
+import {
+  FEES_PERMISSION_ERROR_DESCRIPTION,
+  FEES_PERMISSION_ERROR_TITLE,
+  isFeesPermissionError,
+} from "../feesError";
 import styles from "./FeesDashboardPage.module.css";
 
 function formatKRW(n: number | null | undefined): string {
@@ -21,14 +26,17 @@ export default function FeesDashboardPage() {
   const [year] = useState(now.getFullYear());
   const [month] = useState(now.getMonth() + 1);
 
-  const { data: dashboard, isLoading, isError, refetch } = useQuery({
+  const { data: dashboard, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["teacher-fees-dashboard", year, month],
     queryFn: () => fetchDashboard({ year, month }),
+    retry: (failureCount, queryError) => !isFeesPermissionError(queryError) && failureCount < 2,
   });
+  const isPermissionError = isFeesPermissionError(error);
 
   const { data: overdue } = useQuery({
     queryKey: ["teacher-fees-overdue"],
     queryFn: fetchOverdueInvoices,
+    enabled: dashboard != null,
   });
 
   return (
@@ -47,9 +55,18 @@ export default function FeesDashboardPage() {
         </button>
       </div>
 
-      {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
+      {isPermissionError && (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title={FEES_PERMISSION_ERROR_TITLE}
+          description={FEES_PERMISSION_ERROR_DESCRIPTION}
+        />
+      )}
 
-      {isError && !isLoading && (
+      {!isPermissionError && isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
+
+      {isError && !isLoading && !isPermissionError && (
         <Card>
           <div className={`${styles.errorTitle} text-[13px] font-semibold mb-1`}>
             대시보드를 불러오지 못했습니다.
@@ -117,38 +134,42 @@ export default function FeesDashboardPage() {
         </>
       )}
 
-      {/* 연체 리스트 */}
-      <SectionTitle right={overdue && overdue.length > 0 ? <Badge tone="danger" pill>{overdue.length}건</Badge> : undefined}>
-        연체 청구서
-      </SectionTitle>
-      {overdue && overdue.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          {overdue.slice(0, 20).map((inv: StudentInvoice) => (
-            <button
-              type="button"
-              key={inv.id}
-              onClick={() => navigate(`/teacher/fees/invoices?id=${inv.id}`)}
-              className={`${styles.overdueButton} flex items-center gap-3 rounded-xl w-full text-left cursor-pointer`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className={`${styles.primaryText} text-sm font-semibold truncate`}>
-                  {inv.student_name}
-                </div>
-                <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
-                  {inv.invoice_number} · 마감 {inv.due_date}
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className={`${styles.dangerText} text-sm font-bold tabular-nums`}>
-                  {formatKRW(inv.outstanding_amount)}원
-                </div>
-              </div>
-              <ChevronRight size={ICON.xs} className={styles.chevron} />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <EmptyState scope="panel" tone="empty" title="연체 청구서가 없습니다" />
+      {dashboard && (
+        <>
+          {/* 연체 리스트 */}
+          <SectionTitle right={overdue && overdue.length > 0 ? <Badge tone="danger" pill>{overdue.length}건</Badge> : undefined}>
+            연체 청구서
+          </SectionTitle>
+          {overdue && overdue.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              {overdue.slice(0, 20).map((inv: StudentInvoice) => (
+                <button
+                  type="button"
+                  key={inv.id}
+                  onClick={() => navigate(`/teacher/fees/invoices?id=${inv.id}`)}
+                  className={`${styles.overdueButton} flex items-center gap-3 rounded-xl w-full text-left cursor-pointer`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className={`${styles.primaryText} text-sm font-semibold truncate`}>
+                      {inv.student_name}
+                    </div>
+                    <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
+                      {inv.invoice_number} · 마감 {inv.due_date}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`${styles.dangerText} text-sm font-bold tabular-nums`}>
+                      {formatKRW(inv.outstanding_amount)}원
+                    </div>
+                  </div>
+                  <ChevronRight size={ICON.xs} className={styles.chevron} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <EmptyState scope="panel" tone="empty" title="연체 청구서가 없습니다" />
+          )}
+        </>
       )}
     </div>
   );

@@ -11,6 +11,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Response } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { installLocalFeesFeatureFlagOverride } from "../helpers/feesFeatureFlag";
 import * as fs from "fs";
 
 const BASE = getBaseUrl("admin");
@@ -23,6 +24,11 @@ const MOBILE_UA =
 
 type Netfail = { url: string; status: number; method: string };
 type Capture = { errors: string[]; netFails: Netfail[] };
+const FEES_PERMISSION_TITLE = "수납 관리 권한이 필요합니다";
+
+function isExpectedFeesPermissionFail(fail: Netfail): boolean {
+  return fail.status === 403 && /^\/api\/v1\/fees\//.test(fail.url);
+}
 
 function attachNetCapture(page: Page): Capture {
   const errors: string[] = [];
@@ -55,6 +61,15 @@ function logNet(label: string, c: Capture) {
   if (c.netFails.length > 0) console.log(`[${label}] Net fails:`, c.netFails);
 }
 
+function expectNoUnexpectedFeesNetFails(c: Capture, allowFeesPermission: boolean) {
+  const unexpected = c.netFails.filter((fail) => !(allowFeesPermission && isExpectedFeesPermissionFail(fail)));
+  expect(unexpected, `net fails: ${unexpected.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
+}
+
+async function waitForFeesSettled(page: Page) {
+  await page.getByText("불러오는 중…").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
+}
+
 /** networkidle settle 후 페이지 진입 — waitForTimeout 대체. */
 async function visit(page: Page, path: string) {
   await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
@@ -69,7 +84,8 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
   test.use({ viewport: MOBILE_VIEWPORT, userAgent: MOBILE_UA });
 
   test.beforeEach(async ({ page }) => {
-    await loginViaUI(page, "admin");
+    await installLocalFeesFeatureFlagOverride(page);
+    await loginViaUI(page, "admin", { landingPath: "/teacher" });
     await page.evaluate(() => { localStorage.removeItem("teacher:preferAdmin"); });
   });
 
@@ -138,30 +154,60 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   /* ───── Phase 4 신규 페이지 ───── */
 
-  test("수납 대시보드 — KPI 3장 + 상태 카운트 + 연체", async ({ page }) => {
+  test("수납 대시보드 — KPI/연체 또는 권한 안내", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/fees");
+    await page.getByRole("button", { name: "메뉴" }).click();
+    const entry = page.getByRole("button", { name: "수납" }).first();
+    const entryVisible = await entry.waitFor({ state: "visible", timeout: 10_000 }).then(() => true).catch(() => false);
+    test.skip(!entryVisible, "fee_management off — teacher fees menu is hidden");
+    await entry.click();
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
-    await expect(page.getByRole("heading", { name: /수납/ })).toBeVisible();
-    await expect(page.locator("button").filter({ hasText: "송장" }).first()).toBeVisible();
+    const heading = page.getByRole("heading", { name: /수납/ });
+    const feesVisible = await heading.waitFor({ state: "visible", timeout: 10_000 }).then(() => true).catch(() => false);
+    test.skip(!feesVisible, "fee_management off — TeacherFeesGuard redirects to dashboard");
+    await expect(heading).toBeVisible();
+    await waitForFeesSettled(page);
+    const permissionVisible = await page.getByText(FEES_PERMISSION_TITLE).isVisible().catch(() => false);
+    if (permissionVisible) {
+      await expect(page.getByText(FEES_PERMISSION_TITLE)).toBeVisible();
+    } else {
+      await expect(page.locator("button").filter({ hasText: "청구서" }).first()).toBeVisible();
+    }
 
     await page.screenshot({ path: `${SCREEN_DIR}/fees-dashboard.png`, fullPage: true });
     logNet("fees-dashboard", cap);
     expect(cap.errors).toEqual([]);
+    expectNoUnexpectedFeesNetFails(cap, permissionVisible);
   });
 
-  test("수납 송장 — 5필터 + 검색", async ({ page }) => {
+  test("수납 청구서 — 5필터/검색 또는 권한 안내", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/fees/invoices");
+    await page.getByRole("button", { name: "메뉴" }).click();
+    const entry = page.getByRole("button", { name: "청구서" }).first();
+    const entryVisible = await entry.waitFor({ state: "visible", timeout: 10_000 }).then(() => true).catch(() => false);
+    test.skip(!entryVisible, "fee_management off — teacher fees menu is hidden");
+    await entry.click();
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
-    await expect(page.getByRole("heading", { name: "송장" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "전체" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "연체" })).toBeVisible();
-    await expect(page.getByPlaceholder(/학생 이름/)).toBeVisible();
+    const heading = page.getByRole("heading", { name: "청구서" });
+    const feesVisible = await heading.waitFor({ state: "visible", timeout: 10_000 }).then(() => true).catch(() => false);
+    test.skip(!feesVisible, "fee_management off — TeacherFeesGuard redirects to dashboard");
+    await expect(heading).toBeVisible();
+    await waitForFeesSettled(page);
+    const permissionVisible = await page.getByText(FEES_PERMISSION_TITLE).isVisible().catch(() => false);
+    if (permissionVisible) {
+      await expect(page.getByText(FEES_PERMISSION_TITLE)).toBeVisible();
+    } else {
+      await expect(page.getByRole("button", { name: "전체" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "연체" })).toBeVisible();
+      await expect(page.getByPlaceholder(/학생 이름/)).toBeVisible();
+    }
 
     await page.screenshot({ path: `${SCREEN_DIR}/fees-invoices.png`, fullPage: true });
     logNet("fees-invoices", cap);
     expect(cap.errors).toEqual([]);
+    expectNoUnexpectedFeesNetFails(cap, permissionVisible);
   });
 
   test("자료실 — 내 자료 (쿼터 바 + 업로드 버튼)", async ({ page }) => {

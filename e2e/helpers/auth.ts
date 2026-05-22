@@ -37,7 +37,11 @@ const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass
  * 2. localStorage 토큰 주입
  * 3. 대시보드 이동
  */
-export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
+export async function loginViaUI(
+  page: Page,
+  role: TenantRole,
+  options?: { landingPath?: string },
+): Promise<void> {
   const c = CREDS[role];
 
   const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
@@ -56,7 +60,7 @@ export async function loginViaUI(page: Page, role: TenantRole): Promise<void> {
 
   const tokens = await resp.json() as { access: string; refresh: string };
 
-  const dashPath = role === "student" ? "/student" : "/admin";
+  const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/admin");
 
   await page.goto(`${c.base}/login`, { waitUntil: "commit" });
 

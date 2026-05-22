@@ -17,7 +17,13 @@ import {
   type InvoiceStatus,
   type PaymentMethod,
 } from "../api";
-import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@admin/domains/fees/utils/feesStatus";
+import {
+  FEES_PERMISSION_ERROR_DESCRIPTION,
+  FEES_PERMISSION_ERROR_TITLE,
+  getFeesApiErrorMessage,
+  isFeesPermissionError,
+} from "../feesError";
+import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@/shared/product/fees/feesStatus";
 import styles from "./FeesInvoicesPage.module.css";
 
 type FilterKey = "ALL" | "PENDING" | "PARTIAL" | "OVERDUE" | "PAID";
@@ -44,15 +50,6 @@ function formatDate(date: string | null | undefined): string {
   return parsed.toLocaleDateString("ko-KR");
 }
 
-function getDetailMessage(error: unknown, fallback: string): string {
-  if (error != null && typeof error === "object" && "response" in error) {
-    const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
-    if (typeof detail === "string" && detail.trim()) return detail;
-  }
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return fallback;
-}
-
 export default function FeesInvoicesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,16 +59,18 @@ export default function FeesInvoicesPage() {
   const [filter, setFilter] = useState<FilterKey>("ALL");
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["teacher-fees-invoices", filter, search],
     queryFn: () =>
       fetchInvoices({
         ...(filter !== "ALL" ? { status: filter } : {}),
         ...(search ? { search } : {}),
       }),
+    retry: (failureCount, queryError) => !isFeesPermissionError(queryError) && failureCount < 2,
   });
 
   const invoices: StudentInvoice[] = data ?? [];
+  const isPermissionError = isFeesPermissionError(error);
 
   const setSelected = (id: number | null) => {
     const next = new URLSearchParams(searchParams);
@@ -115,8 +114,22 @@ export default function FeesInvoicesPage() {
         ))}
       </div>
 
-      {isLoading ? (
+      {isPermissionError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title={FEES_PERMISSION_ERROR_TITLE}
+          description={FEES_PERMISSION_ERROR_DESCRIPTION}
+        />
+      ) : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="청구서를 불러오지 못했습니다"
+          description={getFeesApiErrorMessage(error, "잠시 후 다시 시도해 주세요.")}
+        />
       ) : invoices.length === 0 ? (
         <EmptyState scope="panel" tone="empty" title="청구서가 없습니다" />
       ) : (
@@ -220,7 +233,7 @@ function InvoiceDetailSheet({
       setPayNote("");
     },
     onError: (error: unknown) =>
-      teacherToast.error(getDetailMessage(error, "기록에 실패했습니다.")),
+      teacherToast.error(getFeesApiErrorMessage(error, "기록에 실패했습니다.")),
   });
 
   const invoiceItems = invoice?.items ?? [];
