@@ -123,21 +123,21 @@ test.describe("admin landings KPI inbox", () => {
     await expect(kpiGrid.locator('[data-kpi="true"]')).toHaveCount(4);
 
     await expect(kpiGrid.getByText("등록된 영상", { exact: true })).toBeVisible();
-    await expect(kpiGrid.getByText("인코딩 진행 중", { exact: true })).toBeVisible();
-    await expect(kpiGrid.getByText("재시도 필요", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("처리 중", { exact: true })).toBeVisible();
+    await expect(kpiGrid.getByText("다시 시도 필요", { exact: true })).toBeVisible();
 
     // 토글 → 트리 모드
-    const toggle = page.getByTestId("videos-mode-toggle");
+    const toggle = page.getByRole("button", { name: "폴더별 탐색" });
     await expect(toggle).toBeVisible();
     await expect(toggle).toContainText("폴더별 탐색");
     await toggle.click();
 
     // 트리 모드: 좌측 폴더 노출
     await expect(page.getByText("폴더", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("videos-mode-toggle")).toContainText("오늘의 작업");
+    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
 
     // 다시 토글 → KPI
-    await page.getByTestId("videos-mode-toggle").click();
+    await page.getByRole("button", { name: "오늘의 작업" }).click();
     await expect(page.getByTestId("videos-kpi-grid")).toBeVisible();
   });
 });

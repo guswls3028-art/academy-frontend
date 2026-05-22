@@ -44,6 +44,10 @@ test.describe("공개 영상 리팩토링 검증", () => {
     await page.goto(`${BASE}/admin/videos`);
     await page.waitForLoadState("networkidle");
 
+    // 기본은 KPI 인박스이므로 폴더 탐색 모드로 전환한 뒤 좌측 트리를 확인한다.
+    await page.getByRole("button", { name: "폴더별 탐색" }).click();
+    await expect(page.getByText("폴더", { exact: true }).first()).toBeVisible({ timeout: 10000 });
+
     // 좌측 트리에서 "전체공개영상" 버튼 라벨 확인
     const publicLabel = page.getByRole("button", { name: "전체공개영상" });
     await expect(publicLabel).toBeVisible({ timeout: 10000 });

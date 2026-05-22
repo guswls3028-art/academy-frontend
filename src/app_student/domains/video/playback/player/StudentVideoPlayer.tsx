@@ -26,7 +26,7 @@ import {
 import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
 
-import type { AccessMode } from "@admin/domains/videos/types/access-mode";
+import type { AccessMode } from "@/shared/api/contracts/videos";
 import { resolveTenantCodeString } from "@/shared/tenant";
 
 export type VideoMetaLite = {

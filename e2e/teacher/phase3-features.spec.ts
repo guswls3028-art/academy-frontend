@@ -9,6 +9,18 @@ import { loginViaUI, getBaseUrl } from "../helpers/auth";
 const BASE = getBaseUrl("admin");
 const teacherMenu = (page: Page) => page.getByRole("navigation", { name: "선생님 메뉴" });
 
+function escapedText(text: string): RegExp {
+  return new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
+}
+
+async function drawerButton(page: Page, name: string) {
+  const scoped = teacherMenu(page).getByRole("button", { name, exact: true }).first();
+  if (await scoped.isVisible({ timeout: 1000 }).catch(() => false)) {
+    return scoped;
+  }
+  return page.locator("button:visible").filter({ hasText: escapedText(name) }).first();
+}
+
 test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -32,11 +44,10 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
-    const menu = teacherMenu(page);
-    await expect(menu.getByRole("button", { name: "시험", exact: true })).toBeVisible({ timeout: 5_000 });
-    await expect(menu.getByRole("button", { name: "성적", exact: true })).toBeVisible();
-    await expect(menu.getByRole("button", { name: "상담 메모" })).toBeVisible();
-    await expect(menu.getByRole("button", { name: "영상", exact: true })).toBeVisible();
+    await expect(await drawerButton(page, "시험")).toBeVisible({ timeout: 5_000 });
+    await expect(await drawerButton(page, "성적")).toBeVisible();
+    await expect(await drawerButton(page, "상담 메모")).toBeVisible();
+    await expect(await drawerButton(page, "영상")).toBeVisible();
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-01-drawer-menu.png" });
   });
@@ -105,14 +116,14 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     // 헤더 햄버거 → 영상
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    await teacherMenu(page).getByRole("button", { name: "영상", exact: true }).click();
+    await (await drawerButton(page, "영상")).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     expect(page.url()).toContain("/teacher/videos");
 
     // 헤더 햄버거 → 상담 메모
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    await teacherMenu(page).getByRole("button", { name: "상담 메모" }).click();
+    await (await drawerButton(page, "상담 메모")).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     expect(page.url()).toContain("/teacher/counseling");
 

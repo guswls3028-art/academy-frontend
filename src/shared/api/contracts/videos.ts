@@ -8,6 +8,8 @@ export type VideoStatus =
   | "READY"
   | "FAILED";
 
+export type AccessMode = "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
+export type VideoRule = "free" | "once" | "blocked";
 export type VideoSourceType = "s3" | "unknown";
 
 export interface Video {
@@ -66,6 +68,24 @@ export const VIDEO_STATUS_TONE: Record<VideoStatus, "success" | "danger" | "warn
   READY: "success",
   FAILED: "danger",
 };
+
+export function mapRuleToAccessMode(rule: VideoRule): AccessMode {
+  const mapping: Record<VideoRule, AccessMode> = {
+    free: "FREE_REVIEW",
+    once: "PROCTORED_CLASS",
+    blocked: "BLOCKED",
+  };
+  return mapping[rule] || "FREE_REVIEW";
+}
+
+export function mapAccessModeToRule(accessMode: AccessMode): VideoRule {
+  const mapping: Record<AccessMode, VideoRule> = {
+    FREE_REVIEW: "free",
+    PROCTORED_CLASS: "once",
+    BLOCKED: "blocked",
+  };
+  return mapping[accessMode] || "free";
+}
 
 type VideoPayload = Partial<Video> & {
   thumbnail?: string | null;

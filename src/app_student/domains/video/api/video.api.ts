@@ -1,5 +1,5 @@
 import api from "@student/shared/api/student.api";
-import type { AccessMode } from "@admin/domains/videos/types/access-mode";
+import type { AccessMode } from "@/shared/api/contracts/videos";
 
 /** GET /student/video/me/ 응답 — 영상 탭용 */
 export type StudentVideoMeSession = {

@@ -1,7 +1,7 @@
 // PATH: src/app_student/domains/video/components/VideoThumbnailWrapper.tsx
 // CourseCard용 VideoThumbnail 래퍼 (aspect-video 오버라이드)
 
-import VideoThumbnail from "@admin/domains/videos/ui/VideoThumbnail";
+import VideoThumbnail from "@/shared/media/video/VideoThumbnail";
 
 import styles from "./VideoThumbnailWrapper.module.css";
 
