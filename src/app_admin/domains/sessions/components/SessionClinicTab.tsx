@@ -27,7 +27,7 @@ import { fetchSessions, type Session as LectureSession } from "@admin/domains/le
 import {
   fetchSessionEnrollments,
   type SessionEnrollmentRow,
-} from "@admin/domains/lectures/api/enrollments";
+} from "@/shared/api/contracts/sessionEnrollments";
 import { useClinicTargets } from "@admin/domains/clinic/hooks/useClinicTargets";
 import type { ClinicTarget } from "@admin/domains/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";

@@ -13,8 +13,10 @@ import {
   updateResult,
   type TeacherExamResultRow,
 } from "../api";
-import { fetchSessionEnrollments } from "@admin/domains/homework/api/sessionEnrollments";
-import type { SessionEnrollment } from "@admin/domains/homework/types";
+import {
+  fetchSessionEnrollments,
+  type SessionEnrollmentRow as SessionEnrollment,
+} from "@/shared/api/contracts/sessionEnrollments";
 import {
   getExamResultEnrollmentId,
   getExamResultMaxScore,

@@ -1,9 +1,9 @@
 // PATH: src/app_admin/domains/homework/api/sessionEnrollments.ts
-// Compatibility facade. The canonical SessionEnrollment API lives in app_admin/domains/enrollment.
+// Compatibility facade. The canonical SessionEnrollment API lives in shared/api/contracts.
 import {
   fetchSessionEnrollments as fetchCanonicalSessionEnrollments,
   type SessionEnrollmentRow,
-} from "@admin/domains/enrollment/api/enrollments";
+} from "@/shared/api/contracts/sessionEnrollments";
 
 import type { SessionEnrollment } from "../types";
 

@@ -31,7 +31,7 @@ import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/temp
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
-import { fetchSessionEnrollments } from "@admin/domains/exams/api/sessionEnrollments";
+import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
 import api from "@/shared/api/axios";

@@ -16,7 +16,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "../api/adminHomework";
 import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
-import { fetchSessionEnrollments } from "@admin/domains/exams/api/sessionEnrollments";
+import { fetchSessionEnrollments } from "../api/sessionEnrollments";
 import { putHomeworkAssignments } from "../api/homeworkAssignments";
 import SessionItemBrowser, { type SelectedHomeworkItem } from "@admin/domains/sessions/components/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";

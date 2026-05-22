@@ -1,5 +1,10 @@
 // PATH: src/app_admin/domains/enrollment/api/enrollments.ts
 import api from "@/shared/api/axios";
+import {
+  bulkCreateSessionEnrollments as bulkCreateSharedSessionEnrollments,
+  fetchSessionEnrollments as fetchSharedSessionEnrollments,
+  type SessionEnrollmentRow,
+} from "@/shared/api/contracts/sessionEnrollments";
 
 export type LectureEnrollmentStudent = {
   id: number | null;
@@ -18,17 +23,7 @@ export type LectureEnrollmentRow = {
   student?: LectureEnrollmentStudent | null;
 };
 
-export type SessionEnrollmentRow = {
-  id: number;
-  session: number;
-  enrollment: number;
-  student_id?: number;
-  student_name: string;
-  /** 동명이인 식별용 — backend serializer가 high/middle/elementary 중 하나 합성. */
-  student_school?: string | null;
-  student_grade?: number | null;
-  created_at?: string;
-};
+export type { SessionEnrollmentRow };
 
 export type ExcelEnrollJobStatus = {
   job_id: string;
@@ -53,19 +48,9 @@ function asNullableString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function asString(value: unknown, fallback = ""): string {
-  if (value == null) return fallback;
-  return String(value);
-}
-
 function asNullableNumber(value: unknown): number | null {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : null;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : fallback;
 }
 
 function unwrapList(data: unknown): unknown[] {
@@ -94,21 +79,6 @@ function normalizeLectureEnrollment(raw: unknown): LectureEnrollmentRow {
           name_highlight_clinic_target: student.name_highlight_clinic_target === true,
         }
       : null,
-  };
-}
-
-function normalizeSessionEnrollment(raw: unknown): SessionEnrollmentRow {
-  const record = asRecord(raw);
-  const studentId = asNullableNumber(record.student_id);
-  return {
-    id: asNumber(record.id),
-    session: asNumber(record.session),
-    enrollment: asNumber(record.enrollment),
-    ...(studentId != null ? { student_id: studentId } : {}),
-    student_name: asString(record.student_name),
-    student_school: asNullableString(record.student_school),
-    student_grade: asNullableNumber(record.student_grade),
-    created_at: asString(record.created_at),
   };
 }
 
@@ -165,10 +135,7 @@ export async function getExcelEnrollJobStatus(
 export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollmentRow[]> {
-  const res = await api.get("/enrollments/session-enrollments/", {
-    params: { session: sessionId },
-  });
-  return unwrapList(res.data).map(normalizeSessionEnrollment);
+  return fetchSharedSessionEnrollments(sessionId);
 }
 
 /** 차시에 수강생(Enrollment) 일괄 등록 */
@@ -176,9 +143,5 @@ export async function bulkCreateSessionEnrollments(
   sessionId: number,
   enrollmentIds: number[]
 ) {
-  const res = await api.post("/enrollments/session-enrollments/bulk_create/", {
-    session: sessionId,
-    enrollments: enrollmentIds,
-  });
-  return res.data;
+  return bulkCreateSharedSessionEnrollments(sessionId, enrollmentIds);
 }

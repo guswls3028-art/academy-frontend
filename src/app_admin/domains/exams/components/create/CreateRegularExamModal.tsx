@@ -15,7 +15,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
-import { fetchSessionEnrollments } from "@admin/domains/exams/api/sessionEnrollments";
+import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import SessionItemBrowser, { type SelectedExamItem } from "@admin/domains/sessions/components/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
