@@ -197,8 +197,8 @@ test.describe("Verify Scores Fixes & UX", () => {
     await page.keyboard.press("Escape");
   });
 
-  // ─── 5. Homework creation modal — 2nd row cutline disabled ────────
-  test("5. Homework creation modal — 2nd row cutline behavior", async ({ page }) => {
+  // ─── 5. Homework creation modal — common cutline stays single-source ─
+  test("5. Homework creation modal — common cutline behavior", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
     const addHwBtn = page.locator("button").filter({ hasText: "+ 과제" }).first();
@@ -221,18 +221,16 @@ test.describe("Verify Scores Fixes & UX", () => {
     ).toHaveCount(2, { timeout: 5_000 });
     await snap(page, "05-hw-2nd-row-added");
 
-    // 2nd row cutline
-    const secondCutline = page.locator('input[aria-label="과제 2 커트라인"]');
-    await expect(secondCutline).toBeVisible({ timeout: 5000 });
+    const commonCutline = page.getByRole("spinbutton", { name: "공통 커트라인" });
+    await expect(commonCutline).toBeVisible({ timeout: 5000 });
+    await expect(commonCutline).toHaveValue("80");
+    await expect(page.locator('input[aria-label*="커트라인"]')).toHaveCount(1);
+    await expect(page.locator('input[aria-label="과제 2 제목"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[aria-label="과제 2 만점"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[aria-label="과제 2 제출기한"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[aria-label="과제 2 커트라인"]')).toHaveCount(0);
 
-    const isDisabled = await secondCutline.isDisabled();
-    const style = await secondCutline.getAttribute("style") ?? "";
-
-    if (!isDisabled && !style.includes("opacity")) {
-      test.info().annotations.push({ type: "note", description: "Cutline disabled fix not deployed yet" });
-    }
-
-    await snap(page, "05-hw-cutline-disabled");
+    await snap(page, "05-hw-common-cutline-single-source");
     await page.keyboard.press("Escape");
   });
 
