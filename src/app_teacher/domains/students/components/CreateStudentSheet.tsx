@@ -116,11 +116,15 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           </div>
         </div>
 
-        <button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}
-          className="w-full text-sm font-bold cursor-pointer mt-2"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "#fff" : "var(--tc-text-muted)" }}>
-          {mutation.isPending ? "등록 중..." : "등록"}
-        </button>
+        <div
+          className="sticky bottom-0"
+          style={{ padding: "8px 0 4px", background: "var(--tc-surface)" }}>
+          <button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}
+            className="w-full text-sm font-bold cursor-pointer"
+            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+            {mutation.isPending ? "등록 중..." : "등록"}
+          </button>
+        </div>
 
       </div>
     </BottomSheet>
