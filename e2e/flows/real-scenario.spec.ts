@@ -103,8 +103,8 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
       student.name === TEST_RECIPIENT.studentName,
     );
     if (stu) {
-      const enroll = await apiCall(teacherPage, "POST", "/lectures/enrollments/", {
-        lecture: lec.body.id, student: stu.id,
+      const enroll = await apiCall(teacherPage, "POST", "/enrollments/bulk_create/", {
+        lecture: lec.body.id, students: [stu.id],
       });
       console.log(`  수강등록: ${enroll.status}`);
     }

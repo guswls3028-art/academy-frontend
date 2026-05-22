@@ -193,11 +193,16 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdLectureId).not.toBeNull();
     accessToken = await getToken(request);
 
-    const studentResp = await request.post(`${API}/api/v1/students/students/`, {
+    const studentPhone = `010${TS.toString().slice(-8)}`;
+    const parentPhone = `0109${TS.toString().slice(-7)}`;
+    const studentResp = await request.post(`${API}/api/v1/students/`, {
       data: {
         name: STUDENT_NAME,
-        phone: `010${TS.toString().slice(-8)}`,
-        school_level: "middle",
+        phone: studentPhone,
+        parent_phone: parentPhone,
+        school_type: "MIDDLE",
+        grade: 2,
+        initial_password: "1234",
       },
       headers: apiH(accessToken),
     });
@@ -205,8 +210,15 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
       const sd = await studentResp.json();
       createdStudentId = sd.id;
     } else {
-      const retry = await request.post(`${API}/api/v1/students/students/`, {
-        data: { name: STUDENT_NAME, school_level: "middle" },
+      const retry = await request.post(`${API}/api/v1/students/`, {
+        data: {
+          name: STUDENT_NAME,
+          parent_phone: parentPhone,
+          school_type: "MIDDLE",
+          grade: 2,
+          no_phone: true,
+          initial_password: "1234",
+        },
         headers: apiH(accessToken),
       });
       if (retry.status() === 201) {
@@ -216,13 +228,13 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     }
 
     if (createdStudentId) {
-      const enrollResp = await request.post(`${API}/api/v1/lectures/enrollments/`, {
-        data: { lecture: createdLectureId, student: createdStudentId },
+      const enrollResp = await request.post(`${API}/api/v1/enrollments/bulk_create/`, {
+        data: { lecture: createdLectureId, students: [createdStudentId] },
         headers: apiH(accessToken),
       });
       if (enrollResp.status() === 201) {
         const ed = await enrollResp.json();
-        createdEnrollmentId = ed.id;
+        createdEnrollmentId = Array.isArray(ed) ? ed[0]?.id : ed.id;
       }
     }
   });
@@ -360,7 +372,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     accessToken = await getToken(request);
 
     if (createdEnrollmentId) {
-      await request.delete(`${API}/api/v1/lectures/enrollments/${createdEnrollmentId}/`, {
+      await request.delete(`${API}/api/v1/enrollments/${createdEnrollmentId}/`, {
         headers: apiH(accessToken),
       });
     }
@@ -375,7 +387,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
       });
     }
     if (createdStudentId) {
-      await request.delete(`${API}/api/v1/students/students/${createdStudentId}/`, {
+      await request.delete(`${API}/api/v1/students/${createdStudentId}/`, {
         headers: apiH(accessToken),
       });
     }
@@ -396,7 +408,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
       }
     }
 
-    const studentsResp = await request.get(`${API}/api/v1/students/students/`, {
+    const studentsResp = await request.get(`${API}/api/v1/students/`, {
       headers: apiH(accessToken),
     });
     if (studentsResp.status() === 200) {
@@ -404,7 +416,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
       const results = data.results ?? data;
       for (const s of results) {
         if (s.name?.startsWith("[E2E-")) {
-          await request.delete(`${API}/api/v1/students/students/${s.id}/`, {
+          await request.delete(`${API}/api/v1/students/${s.id}/`, {
             headers: apiH(accessToken),
           });
         }
