@@ -10,7 +10,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { fetchOMRDefaults, downloadOMRPdf, submitOMR, fetchExam } from "../api";
 import { fetchExamResults as fetchExamResultRows } from "@teacher/domains/results/statsApi";
-import { fetchExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
+import { fetchExamEnrollmentRows } from "@/shared/api/contracts/examEnrollments";
 import { normalizeExam } from "../normalizers";
 import styles from "./OmrPage.module.css";
 

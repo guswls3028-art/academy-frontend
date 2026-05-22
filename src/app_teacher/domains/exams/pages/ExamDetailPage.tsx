@@ -17,7 +17,7 @@ import {
   hasExamResultScore,
 } from "@teacher/domains/results/examResultContract";
 import { updateResult } from "@teacher/domains/scores/api";
-import { fetchExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
+import { fetchExamEnrollmentRows } from "@/shared/api/contracts/examEnrollments";
 import ExamManageSheet from "../components/ExamManageSheet";
 import {
   normalizeExam,
