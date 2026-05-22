@@ -23,7 +23,7 @@ import AddParticipantSheet from "../components/AddParticipantSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
-import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
+import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import { useConfirm } from "@/shared/ui/confirm";
 import { todayLocalISO as todayISO, addDaysLocal as addDays } from "@/shared/utils/localDate";
 

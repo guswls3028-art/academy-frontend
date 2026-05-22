@@ -94,6 +94,12 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await expect(heading).toBeVisible({ timeout: 10_000 });
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-04-clinic.png" });
+
+    const createButton = page.getByRole("button", { name: /클리닉 만들기/ }).first();
+    await expect(createButton).toBeVisible({ timeout: 10_000 });
+    await createButton.click();
+    await expect(page.getByRole("button", { name: "생성" })).toBeVisible({ timeout: 10_000 });
+    await page.screenshot({ path: "e2e/screenshots/teacher-phase3-04-clinic-create.png" });
   });
 
   test("상담 메모 페이지 렌더링 + 새 메모 버튼", async ({ page }) => {
