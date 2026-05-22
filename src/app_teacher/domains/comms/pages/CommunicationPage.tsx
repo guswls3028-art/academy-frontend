@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
 import type { Post } from "../api";
@@ -43,7 +43,7 @@ export default function CommunicationPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { counts } = useAdminNotificationCounts();
+  const { counts } = useTeacherPendingCounts();
 
   const postType = POST_TYPE_MAP[tab];
   const isPostTab = tab !== "requests";

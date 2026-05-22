@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
+import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import {
   Home, Users, BookOpen, Activity,
   ClipboardList, Award, Video, MessageSquare,
@@ -40,7 +40,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { clearAuth, user } = useAuth();
-  const { counts } = useAdminNotificationCounts();
+  const { counts } = useTeacherPendingCounts();
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
   const feesEnabled = useFeesEnabled();
   const recentSubmissions = counts?.recentSubmissions;

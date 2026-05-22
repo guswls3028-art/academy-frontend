@@ -67,7 +67,7 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
     await gotoAndSettle(page, `${BASE}/teacher/profile`, { timeout: 20_000 });
 
     // 프로필 헤딩 확인
-    await expect(page.getByRole("heading", { name: "내 프로필" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "프로필" })).toBeVisible({ timeout: 10_000 });
 
     // 푸시 알림 텍스트 확인 (supported 브라우저에서만)
     const pushSection = page.getByText("푸시 알림");

@@ -6,8 +6,10 @@
 /* eslint-disable no-restricted-syntax */
 import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
-import { useAdminNotificationCounts } from "@admin/domains/admin-notifications/useAdminNotificationCounts";
-import type { AdminNotificationItem } from "@admin/domains/admin-notifications/api";
+import {
+  useTeacherPendingCounts,
+  type TeacherPendingItem,
+} from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Badge } from "@teacher/shared/ui/Badge";
 import {
@@ -21,7 +23,7 @@ import {
 } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "../routes";
 
-type ItemType = AdminNotificationItem["type"];
+type ItemType = TeacherPendingItem["type"];
 
 const ICON_MAP: Record<ItemType, ReactNode> = {
   qna: <MessageCircle size={ICON.sm} />,
@@ -49,7 +51,7 @@ const DEST_LABEL: Record<ItemType, string> = {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { items, counts, isLoading } = useAdminNotificationCounts();
+  const { items, counts, isLoading } = useTeacherPendingCounts();
   const total = counts?.total ?? 0;
 
   const handleBack = () => {
