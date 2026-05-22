@@ -477,6 +477,15 @@
     overflow: auto;
   }
 
+  .ds-overlay-panel--student-detail .ds-overlay-content-panel {
+    order: -1;
+    overflow: visible;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-content-panel__scrollable {
+    overflow-y: visible;
+  }
+
   .ds-overlay-panel--student-detail .ds-overlay-sidebar {
     padding-right: 0;
     overflow: visible;
