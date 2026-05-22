@@ -47,6 +47,21 @@ async function clickSessionBlockCard(page: Page, titleText: string) {
   ).toBeVisible({ timeout: 5_000 });
 }
 
+async function clickCreateFromScratch(page: Page, legacyTitleText: string) {
+  const fromScratch = page.getByRole("button", { name: /처음부터 만들기/ }).first();
+  if (await fromScratch.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await fromScratch.click();
+    await expect(fromScratch).toBeHidden({ timeout: 5_000 });
+    await expect(
+      page.locator("[role='dialog'], .admin-modal-overlay").first(),
+      "'처음부터 만들기' 선택 후 생성 폼이 열려야 함",
+    ).toBeVisible({ timeout: 5_000 });
+    return;
+  }
+
+  await clickSessionBlockCard(page, legacyTitleText);
+}
+
 async function getModalText(page: Page): Promise<string> {
   const modal = page.locator("[role='dialog'], .admin-modal-overlay").first();
   if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -139,7 +154,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     ).toBeVisible({ timeout: 5_000 });
     await snap(page, "03-exam-picker");
 
-    await clickSessionBlockCard(page, "신규 시험");
+    await clickCreateFromScratch(page, "신규 시험");
     await snap(page, "03-exam-creation-form");
 
     const cutlineHeader = page.locator("th").filter({ hasText: "커트라인" }).first();
@@ -166,7 +181,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     await addExamBtn.click();
     await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
 
-    await clickSessionBlockCard(page, "신규 시험");
+    await clickCreateFromScratch(page, "신규 시험");
 
     const modalText = await getModalText(page);
 
@@ -192,7 +207,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
     await snap(page, "05-hw-picker");
 
-    await clickSessionBlockCard(page, "신규 과제");
+    await clickCreateFromScratch(page, "신규 과제");
     await snap(page, "05-hw-creation-form");
 
     // Add 2nd row
@@ -229,7 +244,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     await addHwBtn.click();
     await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
 
-    await clickSessionBlockCard(page, "신규 과제");
+    await clickCreateFromScratch(page, "신규 과제");
 
     const modalText = await getModalText(page);
 
