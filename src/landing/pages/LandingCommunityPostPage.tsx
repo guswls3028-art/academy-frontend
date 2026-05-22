@@ -7,14 +7,14 @@
 //   GET /community/posts/<id>/             — 단건 조회 (sanitized content 포함)
 //   GET /community/posts/<id>/replies/     — 댓글 목록 (flat array)
 //   POST /community/posts/<id>/replies/    — 댓글 작성 (자료실/qna 권한 분기는 backend)
-//
-// 좋아요는 backend 아직 미구현 — display-only 0 + disabled. #8 backend 보강 후 활성.
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { CornerDownRight, Flag, Heart, LockKeyhole, MessageCircle, Share2 } from "lucide-react";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -22,6 +22,14 @@ import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import ImageLightbox from "../components/ImageLightbox";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
+import {
+  canWriteLandingCommunityBoard,
+  DOWNLOAD_ONLY_LANDING_BOARDS,
+  getCommunityAuthorRoleLabel,
+  isLandingCommunityBoard,
+  LANDING_COMMUNITY_BOARD_LABEL,
+  type LandingCommunityBoard,
+} from "../utils/communityBoardPolicy";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -35,15 +43,15 @@ const NAV_TOKENS: NavBarTokens = {
   panelBg: "#0F1525",
 };
 
-type BoardType = "board" | "qna" | "notice" | "materials";
-const VALID: BoardType[] = ["board", "qna", "notice", "materials"];
-const BOARD_LABEL: Record<BoardType, string> = {
-  board: "자유게시판",
-  qna: "질문게시판",
-  notice: "공지사항",
-  materials: "자료실",
-};
-const DOWNLOAD_ONLY: BoardType[] = ["materials"]; // backend SSOT 따라 자료실은 댓글 차단
+type ReportTarget = { target: "post" | "reply"; id: number };
+type ReportReason = "spam" | "offensive" | "personal_info" | "other";
+
+const REPORT_REASON_OPTIONS: { value: ReportReason; label: string }[] = [
+  { value: "spam", label: "스팸/광고" },
+  { value: "offensive", label: "욕설/혐오" },
+  { value: "personal_info", label: "개인정보 노출" },
+  { value: "other", label: "기타" },
+];
 
 interface PostDetail {
   id: number;
@@ -90,13 +98,13 @@ export default function LandingCommunityPostPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const [highlightedReplyId, setHighlightedReplyId] = useState<number | null>(null);
-  const isValidBoard = VALID.includes(boardType as BoardType);
-  const board = (isValidBoard ? (boardType as BoardType) : "board");
+  const isValidBoard = isLandingCommunityBoard(boardType);
+  const board: LandingCommunityBoard = (isValidBoard ? boardType : "board");
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
-  const isStaff = !!u?.is_superuser || ["owner", "admin", "teacher", "assistant"].includes(role);
   const isStudent = role === "student";
   const isParent = role === "parent";
+  const canWriteCurrentBoard = isAuthenticated && canWriteLandingCommunityBoard(board, role, !!u?.is_superuser);
 
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -127,6 +135,11 @@ export default function LandingCommunityPostPage() {
   const [childText, setChildText] = useState("");
   const [childPending, setChildPending] = useState(false);
   const [childErr, setChildErr] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>("spam");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportPending, setReportPending] = useState(false);
+  const [reportErr, setReportErr] = useState<string | null>(null);
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
@@ -211,7 +224,7 @@ export default function LandingCommunityPostPage() {
   const gold = "#D4A04C";
   const danger = "#ef4444";
 
-  const downloadOnly = DOWNLOAD_ONLY.includes(board);
+  const downloadOnly = DOWNLOAD_ONLY_LANDING_BOARDS.has(board);
   // QnA: 학생/학부모 답변 차단(backend 정책). board/notice는 학생 댓글 가능. 학부모는 항상 read-only.
   const canReply = isAuthenticated && !downloadOnly && !isParent && !(board === "qna" && isStudent);
 
@@ -221,8 +234,7 @@ export default function LandingCommunityPostPage() {
       setCopyDone(true);
       setTimeout(() => setCopyDone(false), 2000);
     } catch {
-      // fallback — alert
-      alert(window.location.href);
+      feedback.error("주소를 복사하지 못했습니다. 브라우저 권한을 확인해 주세요.");
     }
   };
 
@@ -279,22 +291,36 @@ export default function LandingCommunityPostPage() {
     setReplyPending(false);
   };
 
-  // 신고 (P3) — 간단 prompt + endpoint.
-  const onReport = async (target: "post" | "reply", id: number) => {
-    const reasonText = window.prompt("신고 사유를 선택해주세요:\n1) 스팸/광고  2) 욕설/혐오  3) 개인정보 노출  4) 기타\n번호 입력 (1-4):");
-    if (!reasonText) return;
-    const reasonMap: Record<string, string> = { "1": "spam", "2": "offensive", "3": "personal_info", "4": "other" };
-    const reason = reasonMap[reasonText.trim()] || "other";
-    const detail = window.prompt("추가 설명 (선택, 1000자 이하):") || "";
+  const openReportDialog = (target: "post" | "reply", id: number) => {
+    if (!isAuthenticated) {
+      saveReturnPath();
+      navigate("/login");
+      return;
+    }
+    setReportTarget({ target, id });
+    setReportReason("spam");
+    setReportDetail("");
+    setReportErr(null);
+  };
+
+  const onSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportTarget || reportPending) return;
+    setReportPending(true);
+    setReportErr(null);
     try {
-      const url = target === "post"
+      const url = reportTarget.target === "post"
         ? `/community/posts/${postId}/report/`
-        : `/community/posts/${postId}/replies/${id}/report/`;
-      const r = await api.post(url, { reason, detail });
+        : `/community/posts/${postId}/replies/${reportTarget.id}/report/`;
+      const r = await api.post(url, { reason: reportReason, detail: reportDetail.trim() });
       const data = r.data as { reported: boolean; duplicate: boolean };
-      alert(data.duplicate ? "이미 신고하신 항목입니다. 학원 운영진이 검토 중입니다." : "신고가 접수되었습니다. 운영진이 확인하겠습니다.");
-    } catch {
-      alert("신고 접수 실패. 잠시 후 다시 시도해주세요.");
+      feedback.success(data.duplicate ? "이미 신고하신 항목입니다. 운영진이 검토 중입니다." : "신고가 접수되었습니다. 운영진이 확인하겠습니다.");
+      setReportTarget(null);
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
+      setReportErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "신고 접수 실패. 잠시 후 다시 시도해 주세요."));
+    } finally {
+      setReportPending(false);
     }
   };
 
@@ -326,7 +352,7 @@ export default function LandingCommunityPostPage() {
         <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />
         <section style={{ padding: "80px 24px", background: bgAlt, minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ maxWidth: 460, textAlign: "center", padding: "48px 24px", background: cardBg, border: `1px solid ${border}`, borderRadius: 16 }}>
-            <div style={{ fontSize: 40, opacity: 0.9, marginBottom: 12 }}>🔒</div>
+            <LockKeyhole size={40} color={gold} strokeWidth={1.9} aria-hidden="true" style={{ marginBottom: 12 }} />
             <p style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.01em" }}>학원 가족만 볼 수 있는 글이에요</p>
             <p style={{ fontSize: 14, color: textSecondary, margin: "0 0 18px", lineHeight: 1.6 }}>
               학생·학부모·강사 계정으로 로그인하시면 본문과 댓글까지 모두 확인하실 수 있습니다.
@@ -401,7 +427,7 @@ export default function LandingCommunityPostPage() {
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <Link to={`/landing/community/${board}`} style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", textDecoration: "none" }}>
-              {BOARD_LABEL[board]}
+              {LANDING_COMMUNITY_BOARD_LABEL[board]}
             </Link>
             {post?.is_pinned && <Chip color={gold} bg="rgba(212,160,76,0.12)">고정</Chip>}
             {post?.is_urgent && <Chip color={danger} bg="rgba(239,68,68,0.1)">중요</Chip>}
@@ -422,7 +448,10 @@ export default function LandingCommunityPostPage() {
             {post && (post.like_count ?? 0) > 0 && (
               <>
                 <span style={{ opacity: 0.5 }}>·</span>
-                <span style={{ color: gold }}>♥ {post.like_count}</span>
+                <span style={{ color: gold, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <Heart size={13} strokeWidth={2.2} fill={gold} aria-hidden="true" />
+                  {post.like_count}
+                </span>
               </>
             )}
           </div>
@@ -453,7 +482,7 @@ export default function LandingCommunityPostPage() {
         </div>
       </section>
 
-      {/* 액션 row — 좋아요(disabled), 주소복사 */}
+      {/* 액션 row - 좋아요, 주소복사, 신고 */}
       {post && (
         <section style={{ padding: "24px 24px 0", background: bgAlt }}>
           <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
@@ -471,7 +500,7 @@ export default function LandingCommunityPostPage() {
                 transition: "background 0.15s, border-color 0.15s, color 0.15s",
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={post.is_liked ? gold : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+              <Heart size={15} strokeWidth={2.2} fill={post.is_liked ? gold : "none"} aria-hidden="true" />
               좋아요 {post.like_count ?? 0}
             </button>
             <button
@@ -480,17 +509,17 @@ export default function LandingCommunityPostPage() {
               data-testid="landing-community-share"
               style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 22px", borderRadius: 10, background: "transparent", border: `1px solid ${border}`, color: textPrimary, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              <Share2 size={15} strokeWidth={2.2} aria-hidden="true" />
               {copyDone ? "복사됨 ✓" : "주소복사"}
             </button>
             <button
               type="button"
-              onClick={() => onReport("post", post.id)}
+              onClick={() => openReportDialog("post", post.id)}
               data-testid="landing-community-report-post"
               title="부적절한 글 신고"
               style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: "transparent", border: `1px solid ${border}`, color: textSecondary, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>
+              <Flag size={14} strokeWidth={2.2} aria-hidden="true" />
               신고
             </button>
           </div>
@@ -512,7 +541,7 @@ export default function LandingCommunityPostPage() {
             </div>
             {post.author_role && (
               <span style={{ fontSize: 11, fontWeight: 700, color: gold, padding: "4px 10px", borderRadius: 999, background: "rgba(212,160,76,0.12)", letterSpacing: "0.04em" }}>
-                {roleLabel(post.author_role)}
+                {getCommunityAuthorRoleLabel(post.author_role)}
               </span>
             )}
           </div>
@@ -527,7 +556,7 @@ export default function LandingCommunityPostPage() {
             {canReply && (
               <button type="button" onClick={() => document.getElementById("reply-input")?.focus()} style={smallBtn(border, textPrimary)}>댓글 쓰기</button>
             )}
-            {isStaff && (
+            {canWriteCurrentBoard && (
               <button type="button" onClick={() => navigate(`/landing/community/${board}/write`)} data-testid="landing-community-write-cta" style={{ ...smallBtn(border, "#0A0E1A"), background: gold, border: "none" }}>글쓰기</button>
             )}
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={smallBtn(border, textSecondary)}>↑</button>
@@ -592,8 +621,9 @@ export default function LandingCommunityPostPage() {
       {/* 댓글 섹션 */}
       <section style={{ padding: "32px 24px 64px", background: bgAlt, borderTop: `1px solid ${border}`, marginTop: 28 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: textPrimary, letterSpacing: "-0.01em" }}>
-            💬 댓글 {replies?.length ?? 0}
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: textPrimary, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 7 }}>
+            <MessageCircle size={18} strokeWidth={2.1} aria-hidden="true" />
+            댓글 {replies?.length ?? 0}
           </h2>
 
           {downloadOnly ? (
@@ -656,7 +686,7 @@ export default function LandingCommunityPostPage() {
                         highlighted={highlightedReplyId === rp.id}
                         onToggleLike={() => onToggleReplyLike(rp.id)}
                         onReplyTo={() => { setReplyingTo(rp.id); setChildText(""); setChildErr(null); }}
-                        onReport={() => onReport("reply", rp.id)}
+                        onReport={() => openReportDialog("reply", rp.id)}
                       />
                       {/* 자식 답글 영역 */}
                       {(children.length > 0 || replyingTo === rp.id) && (
@@ -670,7 +700,7 @@ export default function LandingCommunityPostPage() {
                               isChild
                               highlighted={highlightedReplyId === ch.id}
                               onToggleLike={() => onToggleReplyLike(ch.id)}
-                              onReport={() => onReport("reply", ch.id)}
+                              onReport={() => openReportDialog("reply", ch.id)}
                             />
                           ))}
                           {/* inline 답글 폼 */}
@@ -725,6 +755,95 @@ export default function LandingCommunityPostPage() {
       <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
       <LandingRoleFab />
       {lightbox && <ImageLightbox images={lightbox.images} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />}
+      {reportTarget && (
+        <div
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !reportPending) setReportTarget(null);
+          }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1200, background: "rgba(0,0,0,0.58)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="landing-community-report-title"
+            data-testid="landing-community-report-dialog"
+            onSubmit={onSubmitReport}
+            style={{
+              width: "min(440px, 100%)", borderRadius: 14, background: "#0F1525",
+              border: `1px solid ${border}`, padding: 22, boxShadow: "0 18px 54px rgba(0,0,0,0.38)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 16 }}>
+              <Flag size={18} color={gold} strokeWidth={2.1} aria-hidden="true" />
+              <h2 id="landing-community-report-title" style={{ margin: 0, fontSize: 17, fontWeight: 800, color: textPrimary, letterSpacing: "-0.01em" }}>
+                {reportTarget.target === "post" ? "글 신고" : "댓글 신고"}
+              </h2>
+            </div>
+            <label style={{ display: "block", marginBottom: 12 }}>
+              <span style={{ display: "block", marginBottom: 7, color: textSecondary, fontSize: 12, fontWeight: 700 }}>신고 사유</span>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value as ReportReason)}
+                disabled={reportPending}
+                data-testid="landing-community-report-reason"
+                style={{
+                  width: "100%", padding: "10px 12px", borderRadius: 10,
+                  border: `1px solid ${border}`, background: "rgba(255,255,255,0.03)",
+                  color: textPrimary, fontSize: 14, fontFamily: "inherit", outline: "none",
+                }}
+              >
+                {REPORT_REASON_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value} style={{ background: "#0A0E1A", color: textPrimary }}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", marginBottom: 7, color: textSecondary, fontSize: 12, fontWeight: 700 }}>추가 설명</span>
+              <textarea
+                value={reportDetail}
+                onChange={(e) => setReportDetail(e.target.value)}
+                disabled={reportPending}
+                rows={4}
+                maxLength={1000}
+                data-testid="landing-community-report-detail"
+                placeholder="운영진이 확인할 수 있도록 필요한 내용만 적어주세요."
+                style={{
+                  width: "100%", padding: "10px 12px", borderRadius: 10,
+                  border: `1px solid ${border}`, background: "rgba(255,255,255,0.03)",
+                  color: textPrimary, fontSize: 14, fontFamily: "inherit", resize: "vertical", outline: "none",
+                }}
+              />
+            </label>
+            {reportErr && (
+              <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 12.5 }}>
+                {reportErr}
+              </div>
+            )}
+            <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setReportTarget(null)}
+                disabled={reportPending}
+                style={{ padding: "9px 16px", borderRadius: 10, background: "transparent", border: `1px solid ${border}`, color: textSecondary, fontSize: 13, fontWeight: 700, cursor: reportPending ? "not-allowed" : "pointer" }}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={reportPending}
+                data-testid="landing-community-report-submit"
+                style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: gold, color: "#0A0E1A", fontSize: 13, fontWeight: 800, cursor: reportPending ? "not-allowed" : "pointer", opacity: reportPending ? 0.6 : 1 }}
+              >
+                {reportPending ? "접수 중..." : "신고 접수"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -745,11 +864,11 @@ function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        {isChild && <span style={{ fontSize: 11, color: textMuted, marginRight: 2 }}>↳</span>}
+        {isChild && <CornerDownRight size={14} color={textMuted} strokeWidth={2.1} aria-hidden="true" />}
         <span style={{ fontSize: 13.5, fontWeight: 700, color: textPrimary }}>{rp.created_by_display || "—"}</span>
         {rp.author_role && (
           <span style={{ fontSize: 10, fontWeight: 700, color: gold, padding: "2px 7px", borderRadius: 999, background: "rgba(212,160,76,0.12)", letterSpacing: "0.06em" }}>
-            {roleLabel(rp.author_role)}
+            {getCommunityAuthorRoleLabel(rp.author_role)}
           </span>
         )}
         <span style={{ marginLeft: "auto", fontSize: 11, color: textMuted }}>{formatDateTime(rp.created_at)}</span>
@@ -769,14 +888,17 @@ function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false
             color: rp.is_liked ? gold : textMuted,
             cursor: "pointer", fontSize: 12, fontWeight: rp.is_liked ? 700 : 500,
           }}
-        >{rp.is_liked ? "♥" : "♡"} 좋아요 {rp.like_count ?? 0}</button>
+        >
+          <Heart size={12} strokeWidth={2.1} fill={rp.is_liked ? gold : "none"} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />
+          좋아요 {rp.like_count ?? 0}
+        </button>
         {canReply && onReplyTo && (
           <button
             type="button"
             onClick={onReplyTo}
             data-testid={`landing-community-reply-to-${rp.id}`}
             style={{ background: "transparent", border: "none", padding: 0, color: textMuted, cursor: "pointer", fontSize: 12, fontWeight: 500 }}
-          >↳ 답글</button>
+          ><CornerDownRight size={12} strokeWidth={2.1} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 3 }} />답글</button>
         )}
         {onReport && (
           <button
@@ -785,7 +907,7 @@ function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false
             data-testid={`landing-community-reply-report-${rp.id}`}
             title="댓글 신고"
             style={{ background: "transparent", border: "none", padding: 0, color: textMuted, cursor: "pointer", fontSize: 12, fontWeight: 500, marginLeft: "auto" }}
-          >신고</button>
+          ><Flag size={12} strokeWidth={2.1} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 3 }} />신고</button>
         )}
       </div>
     </div>
@@ -827,16 +949,6 @@ function ReplySkeleton({ border, cardBg }: { border: string; cardBg: string }) {
       ))}
     </div>
   );
-}
-
-function roleLabel(role: string): string {
-  const r = role.toLowerCase();
-  if (r === "student") return "학생";
-  if (r === "teacher") return "강사";
-  if (r === "admin" || r === "owner") return "운영진";
-  if (r === "parent") return "학부모";
-  if (r === "staff") return "운영진";
-  return role;
 }
 
 function formatDateTime(raw: string | null | undefined): string {

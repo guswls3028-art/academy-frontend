@@ -12,7 +12,7 @@ import { loginViaUI } from "./helpers/auth";
 
 const TCHUL = "https://tchul.com";
 const SS = (name: string) =>
-  `C:/academy/e2e/screenshots/tchul-blueprint-final-20260512/${name}.png`;
+  `e2e/screenshots/tchul-blueprint-final-20260512/${name}.png`;
 
 async function settlePage(page: Page, timeout = 10_000): Promise<void> {
   await page.waitForLoadState("networkidle", { timeout }).catch(() => undefined);

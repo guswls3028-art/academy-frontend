@@ -46,6 +46,17 @@ export type ScoreBlock = {
   } | null;
 };
 
+export type ScoreAttemptEntry = {
+  attempt_index: number;
+  score: number | null;
+  max_score?: number | null;
+  pass_score?: number | null;
+  passed: boolean | null;
+  at?: string | null;
+  source?: "grade" | "clinic";
+  meta_status?: string | null;
+};
+
 export type SessionScoreExamEntry = {
   exam_id: number;
   title: string;
@@ -57,6 +68,8 @@ export type SessionScoreExamEntry = {
   attempt_count?: number;
   /** 미통과 ClinicLink ID (재시도 입력/수정용) */
   clinic_link_id?: number | null;
+  /** 1차/2차/3차 시험 이력 (알림톡 이력 문구와 드로어 표시용) */
+  attempts?: ScoreAttemptEntry[];
 };
 
 export type SessionScoreHomeworkEntry = {

@@ -99,6 +99,7 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     ...COMMON_MESSAGE, B.lecture_name, B.session_name,
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
+    { id: "exam_history", label: "시험 이력",  insertText: "#{시험이력}",  previewValue: "- 단원평가 1차시험 결과: 50/100 커트라인 70 불합격\n- 단원평가 2차시험 결과: 70/100 커트라인 60 합격", description: "1차·재시험 결과와 커트라인 자동 나열" },
     { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
     { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격", description: "합격률·완성도·최종판정 요약" },
     // ── 요약 수치 ──
@@ -238,6 +239,7 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   free_content:     { bg: "color-mix(in srgb, #059669 14%, transparent)", color: "#047857", border: "color-mix(in srgb, #059669 35%, transparent)" },
   // 성적 — 목록형/요약 블록
   exam_list:        { bg: "color-mix(in srgb, #6366f1 16%, transparent)", color: "#4f46e5", border: "color-mix(in srgb, #6366f1 40%, transparent)" },
+  exam_history:     { bg: "color-mix(in srgb, #14b8a6 16%, transparent)", color: "#0d9488", border: "color-mix(in srgb, #14b8a6 40%, transparent)" },
   hw_list:          { bg: "color-mix(in srgb, #8b5cf6 16%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #8b5cf6 40%, transparent)" },
   full_summary:     { bg: "color-mix(in srgb, #0ea5e9 16%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #0ea5e9 40%, transparent)" },
   exam_total:       { bg: "color-mix(in srgb, #f43f5e 16%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #f43f5e 40%, transparent)" },
@@ -340,7 +342,7 @@ export const ALWAYS_AVAILABLE_VARS = new Set<string>([
   "강의명", "차시명", "강의날짜", "강의시간",
   // 성적/과제 sub-vars — backend 학생별 자동 치환 (frontend missing 으로 잡지 말 것)
   "시험성적", "시험총점", "시험총만점", "숙제완성도",
-  "시험목록", "과제목록", "전체요약", "선생님메모", "공지내용", "내용",
+  "시험목록", "시험이력", "과제목록", "전체요약", "선생님메모", "공지내용", "내용",
   ...SCORE_SUB_VARS,
 ]);
 

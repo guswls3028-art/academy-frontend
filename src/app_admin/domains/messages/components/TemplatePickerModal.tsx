@@ -24,16 +24,21 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { renderPreviewWithActualData, TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
 import { syncSolapiTemplates, type MessageTemplateItem } from "../api/messages.api";
+import type { ProvidedTemplatePreset } from "../constants/templatePresets";
 
 export type TemplatePickerModalProps = {
   open: boolean;
   onClose: () => void;
   templates: MessageTemplateItem[];
+  defaultPresets?: ProvidedTemplatePreset[];
   blockCategory: TemplateCategory;
   selectedTemplateId: number | null;
+  selectedPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
   /** 양식 선택 — 모달은 자동 닫힘 */
   onPick: (t: MessageTemplateItem) => void;
+  /** 기본 제공 편지지 선택 — 모달은 자동 닫힘 */
+  onPickPreset?: (preset: ProvidedTemplatePreset) => void;
   /** 직접 작성 모드 선택 — 모달은 자동 닫힘 */
   onPickFreeForm: () => void;
   onSetDefault: (id: number) => Promise<void> | void;
@@ -51,10 +56,13 @@ export default function TemplatePickerModal({
   open,
   onClose,
   templates,
+  defaultPresets = [],
   blockCategory,
   selectedTemplateId,
+  selectedPresetId,
   alimtalkExtraVars,
   onPick,
+  onPickPreset,
   onPickFreeForm,
   onSetDefault,
   onDuplicate,
@@ -63,7 +71,9 @@ export default function TemplatePickerModal({
 }: TemplatePickerModalProps) {
   const [search, setSearch] = useState("");
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [previewId, setPreviewId] = useState<number | null>(selectedTemplateId);
+  const [previewKey, setPreviewKey] = useState<string | null>(
+    selectedPresetId ? `preset:${selectedPresetId}` : selectedTemplateId ? `template:${selectedTemplateId}` : null,
+  );
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -102,12 +112,20 @@ export default function TemplatePickerModal({
     const justOpened = open && !prevOpenRef.current;
     prevOpenRef.current = open;
     if (justOpened) {
-      setPreviewId(selectedTemplateId);
+      setPreviewKey(
+        selectedPresetId
+          ? `preset:${selectedPresetId}`
+          : selectedTemplateId
+            ? `template:${selectedTemplateId}`
+            : defaultPresets[0]
+              ? `preset:${defaultPresets[0].id}`
+              : null,
+      );
       setSearch("");
       setShowAllCategories(false);
       setMenuOpenId(null);
     }
-  }, [open, selectedTemplateId]);
+  }, [open, selectedTemplateId, selectedPresetId, defaultPresets]);
 
   useEffect(() => {
     if (menuOpenId == null) return;
@@ -136,6 +154,14 @@ export default function TemplatePickerModal({
   // ─── 필터링 + 그룹화 ───
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim();
+    const presets = defaultPresets.filter((preset) => {
+      if (!q) return true;
+      return (
+        preset.name.toLowerCase().includes(q)
+        || preset.body.toLowerCase().includes(q)
+        || preset.description.toLowerCase().includes(q)
+      );
+    });
     const matched = templates.filter((t) => {
       if (!categoryMatches(t)) return false;
       if (!q) return true;
@@ -147,28 +173,36 @@ export default function TemplatePickerModal({
       if (isSystemTpl(t)) sys.push(t);
       else my.push(t);
     }
-    return { my, sys };
-  }, [templates, search, blockCategory, showAllCategories]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { presets, my, sys };
+  }, [defaultPresets, templates, search, blockCategory, showAllCategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 미리보기 대상 ───
   const previewTpl = useMemo(
-    () => templates.find((t) => t.id === previewId) ?? null,
-    [templates, previewId],
+    () => previewKey?.startsWith("template:")
+      ? templates.find((t) => t.id === Number(previewKey.slice("template:".length))) ?? null
+      : null,
+    [templates, previewKey],
+  );
+  const previewPreset = useMemo(
+    () => previewKey?.startsWith("preset:")
+      ? defaultPresets.find((preset) => preset.id === previewKey.slice("preset:".length)) ?? null
+      : null,
+    [defaultPresets, previewKey],
   );
 
-  const previewBody = previewTpl
-    ? renderPreviewWithActualData(previewTpl.body, alimtalkExtraVars)
+  const previewBody = previewTpl || previewPreset
+    ? renderPreviewWithActualData((previewTpl?.body ?? previewPreset?.body) || "", alimtalkExtraVars)
     : null;
 
   if (!open) return null;
 
   const blockLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
-  const totalMatched = grouped.my.length + grouped.sys.length;
+  const totalMatched = grouped.presets.length + grouped.my.length + grouped.sys.length;
 
   // ─── 카드 ───
   const renderCard = (t: MessageTemplateItem) => {
     const isSys = isSystemTpl(t);
-    const isPreview = previewId === t.id;
+    const isPreview = previewKey === `template:${t.id}`;
     const isSelected = selectedTemplateId === t.id;
     return (
       <div
@@ -179,7 +213,7 @@ export default function TemplatePickerModal({
       >
         <button
           type="button"
-          onClick={() => setPreviewId(t.id)}
+          onClick={() => setPreviewKey(`template:${t.id}`)}
           onDoubleClick={() => { onPick(t); onClose(); }}
           className="tpl-picker__card-body"
         >
@@ -231,6 +265,42 @@ export default function TemplatePickerModal({
     );
   };
 
+  const renderPresetCard = (preset: ProvidedTemplatePreset) => {
+    const isPreview = previewKey === `preset:${preset.id}`;
+    const isSelected = selectedPresetId === preset.id;
+    return (
+      <div
+        key={preset.id}
+        className="tpl-picker__card tpl-picker__card--preset"
+        data-preview={isPreview || undefined}
+        data-selected={isSelected || undefined}
+      >
+        <button
+          type="button"
+          onClick={() => setPreviewKey(`preset:${preset.id}`)}
+          onDoubleClick={() => { onPickPreset?.(preset); onClose(); }}
+          className="tpl-picker__card-body"
+        >
+          <div className="tpl-picker__card-title-row">
+            <Tag size={ICON.xs} className="tpl-picker__icon-primary" />
+            <span className="tpl-picker__card-name">{preset.name}</span>
+            <Badge tone="primary" size="xs">기본 제공</Badge>
+            {preset.recommended && <Badge tone="success" size="xs">추천</Badge>}
+            {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
+          </div>
+          <div className="tpl-picker__card-preview">
+            {preset.description}
+          </div>
+          {preset.tags && preset.tags.length > 0 && (
+            <div className="tpl-picker__card-meta">
+              <span>{preset.tags.join(" · ")}</span>
+            </div>
+          )}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <AdminModal open={open} onClose={onClose} width={1040} zIndex={1100} className="tpl-picker-modal" noMinimize>
       <ModalHeader
@@ -241,7 +311,7 @@ export default function TemplatePickerModal({
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="발송할 알림톡 양식을 선택하세요. 카드를 클릭하면 미리보기, 두 번 클릭하면 바로 적용됩니다. 자동 선택 우선순위: 내 양식(카테고리 일치 + 기본 지정) → 카테고리 일치 → 시스템 기본."
+        description="발송할 알림톡 편지지를 선택하세요. 기본 제공 양식은 바로 수정·발송할 수 있고, 마음에 들면 내 양식으로 저장할 수 있습니다."
       />
 
       <ModalBody>
@@ -304,6 +374,13 @@ export default function TemplatePickerModal({
                 </div>
               </button>
 
+              {grouped.presets.length > 0 && (
+                <>
+                  <div className="tpl-picker__group-label">기본 제공 양식 · {grouped.presets.length}</div>
+                  {grouped.presets.map(renderPresetCard)}
+                </>
+              )}
+
               {grouped.my.length > 0 && (
                 <>
                   <div className="tpl-picker__group-label">내 양식 · {grouped.my.length}</div>
@@ -332,22 +409,29 @@ export default function TemplatePickerModal({
 
           {/* ═══ 우측: 미리보기 ═══ */}
           <div className="tpl-picker__right">
-            {previewTpl ? (
+            {previewTpl || previewPreset ? (
               <>
                 <div className="tpl-picker__preview-header">
                   <div className="tpl-picker__preview-title-row">
-                    {isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
-                    <span className="tpl-picker__preview-name">{previewTpl.name}</span>
+                    {previewTpl && isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
+                    {previewPreset && <Tag size={ICON.sm} className="tpl-picker__icon-primary" />}
+                    <span className="tpl-picker__preview-name">{previewTpl?.name ?? previewPreset?.name}</span>
                   </div>
                   <div className="tpl-picker__preview-meta">
-                    <span>{TEMPLATE_CATEGORY_LABELS[previewTpl.category as TemplateCategory] ?? previewTpl.category}</span>
-                    {previewTpl.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
-                    {isSystemTpl(previewTpl) && <Badge tone="info" size="xs">시스템</Badge>}
+                    <span>
+                      {previewTpl
+                        ? (TEMPLATE_CATEGORY_LABELS[previewTpl.category as TemplateCategory] ?? previewTpl.category)
+                        : (TEMPLATE_CATEGORY_LABELS[previewPreset!.category] ?? previewPreset!.category)}
+                    </span>
+                    {previewPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
+                    {previewPreset?.recommended && <Badge tone="success" size="xs">추천</Badge>}
+                    {previewTpl?.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+                    {previewTpl && isSystemTpl(previewTpl) && <Badge tone="info" size="xs">시스템</Badge>}
                   </div>
                 </div>
 
                 <div className="tpl-picker__preview-card">
-                  {previewTpl.subject && (
+                  {previewTpl?.subject && (
                     <div className="template-preview-kakao__title">{previewTpl.subject}</div>
                   )}
                   <div className="template-preview-kakao__body">{previewBody}</div>
@@ -357,7 +441,11 @@ export default function TemplatePickerModal({
                   <Button
                     intent="primary"
                     size="lg"
-                    onClick={() => { onPick(previewTpl); onClose(); }}
+                    onClick={() => {
+                      if (previewTpl) onPick(previewTpl);
+                      else if (previewPreset) onPickPreset?.(previewPreset);
+                      onClose();
+                    }}
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/auth/api/auth.api";
+import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -17,7 +18,7 @@ import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { fetchLandingHasPublished } from "@/landing/api";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import SignupModal from "./SignupModal";
-import PasswordResetModal from "./PasswordResetModal";
+import AccountRecoveryModal from "./AccountRecoveryModal";
 import "@/auth/themes/tchul.css";
 import "@/auth/themes/limglish.css";
 import "@/auth/themes/hakwonplus.css";
@@ -64,7 +65,8 @@ export default function LoginPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [showSignup, setShowSignup] = useState(false);
-  const [showPwReset, setShowPwReset] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState<AccountRecoveryMode>("password");
   const [hasLanding, setHasLanding] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsOn, setCapsOn] = useState(false);
@@ -134,6 +136,11 @@ export default function LoginPage() {
     }
   }
 
+  function openRecovery(mode: AccountRecoveryMode) {
+    setRecoveryMode(mode);
+    setShowRecovery(true);
+  }
+
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
       <div className={styles.center}>
@@ -180,7 +187,6 @@ export default function LoginPage() {
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
               aria-pressed={showPassword}
-              tabIndex={-1}
             >
               {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
             </button>
@@ -200,14 +206,15 @@ export default function LoginPage() {
                 <Link to="/landing" className={styles.link}>
                   홈페이지
                 </Link>
-                <span className={styles.linkSeparator}>|</span>
               </>
             )}
             <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
               회원가입
             </button>
-            <span className={styles.linkSeparator}>|</span>
-            <button type="button" className={styles.link} onClick={() => setShowPwReset(true)}>
+            <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
+              아이디 찾기
+            </button>
+            <button type="button" className={styles.link} onClick={() => openRecovery("password")}>
               비밀번호 찾기
             </button>
           </div>
@@ -215,7 +222,11 @@ export default function LoginPage() {
       </div>
 
       <SignupModal open={showSignup} onClose={() => setShowSignup(false)} />
-      <PasswordResetModal open={showPwReset} onClose={() => setShowPwReset(false)} />
+      <AccountRecoveryModal
+        open={showRecovery}
+        initialMode={recoveryMode}
+        onClose={() => setShowRecovery(false)}
+      />
 
       <footer className={styles.legalFooter}>
         <Link to="/terms" className={styles.legalLink}>이용약관</Link>

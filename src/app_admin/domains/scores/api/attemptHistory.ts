@@ -8,9 +8,12 @@ import api from "@/shared/api/axios";
 export type AttemptEntry = {
   attempt_index: number;
   score: number | null;
+  max_score?: number | null;
+  pass_score?: number | null;
   passed: boolean | null;
   at: string | null;
   source: "grade" | "clinic";
+  meta_status?: string | null;
 };
 
 export type AttemptHistoryResponse = {

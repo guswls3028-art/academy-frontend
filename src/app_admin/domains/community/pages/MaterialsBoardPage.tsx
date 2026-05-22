@@ -156,6 +156,11 @@ export default function MaterialsBoardPage() {
     onChange: () => setShowCreate(false),
   });
 
+  useEffect(() => {
+    if (selectedId == null || showCreate || postsQ.isLoading) return;
+    if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
+  }, [filtered, selectedId, showCreate, postsQ.isLoading, setSelectedId]);
+
   // j/k keyboard nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -300,7 +305,7 @@ function MatCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
     : scopeParams.scope === "lecture"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
-    : "전체 자료";
+    : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
@@ -333,11 +338,11 @@ function MatCreatePane({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">새 자료 등록</h1>
             <div className="qna-inbox__thread-meta">
-              <Badge tone="primary">게시 대상: {scopeLabel}</Badge>
+              <Badge tone="primary">대상: {scopeLabel}</Badge>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               {scopeParams.scope === "all"
-                ? "모든 강의의 학생에게 보이는 자료입니다."
+                ? "이 자료는 전체 학생에게 보입니다."
                 : <>이 자료는 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
             </p>
           </div>
@@ -395,7 +400,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
   const scopeType = resolveScopeType(post);
   const nd = post.mappings?.[0]?.node_detail;
   const scopePath = scopeType === "global"
-    ? "모든 강의 대상"
+    ? "전체 대상"
     : nd?.session_title
     ? `${nd.lecture_title} > ${nd.session_title}`
     : nd?.lecture_title ?? "";
@@ -406,7 +411,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
       <div className="cms-list-card__inner">
         <div className="cms-list-card__header">
           <span className={`cms-list-card__type cms-list-card__type--${scopeType}`}>
-            {scopeType === "global" ? "전체" : scopeType === "session" ? "차시" : "강의"}
+            {scopeType === "global" ? "전체 대상" : scopeType === "session" ? "차시" : "강의"}
           </span>
           <span className="cms-list-card__scope">{scopePath}</span>
           <span className="cms-list-card__date">{timeAgo(post.created_at)}</span>

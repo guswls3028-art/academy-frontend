@@ -26,7 +26,8 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, generateScoreReport, buildScoreDetail, buildGenericScoreTemplate } from "@admin/domains/scores/utils/generateScoreReport";
+import { substituteScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@admin/domains/scores/utils/generateScoreReport";
+import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
@@ -358,11 +359,13 @@ export default function SessionScoresEntryPage(_props: Props) {
               const reportOptions = { lectureName, sessionTitle };
 
               let initialBody: string | undefined;
+              let initialTemplateId: number | null = null;
+              let initialLetterPresetId: string | null = null;
               let scoreDetail = "";
 
               try {
                 const templates = await fetchMessageTemplates("grades");
-                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
+                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(body);
                 const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
                 const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
                 const chosenTpl = userDefault ?? userWithScoreVars;
@@ -373,10 +376,14 @@ export default function SessionScoresEntryPage(_props: Props) {
                 initialBody = chosenTpl
                   ? chosenTpl.body
                   : buildGenericScoreTemplate(reportOptions);
+                initialTemplateId = chosenTpl?.id ?? null;
+                initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
                 // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
                 initialBody = buildGenericScoreTemplate(reportOptions);
+                initialTemplateId = null;
+                initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               }
 
@@ -402,6 +409,8 @@ export default function SessionScoresEntryPage(_props: Props) {
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",
                 initialBody,
+                initialTemplateId,
+                initialLetterPresetId,
                 alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
                 recomputePerStudentVars,
               });

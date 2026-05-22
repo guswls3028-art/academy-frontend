@@ -10,18 +10,26 @@
 // backend POST /community/posts/ (학부모 차단, post_type 검증). 성공 시 글 상세로 navigate.
 /* eslint-disable no-restricted-syntax */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { LockKeyhole } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { useConfirm } from "@/shared/ui/confirm";
-import { useEffect } from "react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import { simpleMarkdownToHtml } from "../components/simpleMarkdown";
+import {
+  getLandingCommunityWriteBoards,
+  isLandingCommunityBoard,
+  isLandingStaffRole,
+  LANDING_COMMUNITY_BOARD_LABEL,
+  type LandingCommunityBoard,
+} from "../utils/communityBoardPolicy";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -35,13 +43,6 @@ const NAV_TOKENS: NavBarTokens = {
   panelBg: "#0F1525",
 };
 
-type BoardType = "board" | "qna" | "notice" | "materials";
-const VALID: BoardType[] = ["board", "qna", "notice", "materials"];
-const BOARD_LABEL: Record<BoardType, string> = {
-  board: "자유게시판", qna: "질문게시판", notice: "공지사항", materials: "자료실",
-};
-const STAFF_ONLY: BoardType[] = ["notice", "materials"];
-
 function BrandMark({ name }: { name: string }) {
   const initial = (name || "").trim().charAt(0) || "•";
   return (
@@ -54,16 +55,19 @@ export default function LandingCommunityWritePage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { isAuthenticated, user } = useAuth();
-  const isValid = VALID.includes(boardType as BoardType);
-  const initialBoard = (isValid ? (boardType as BoardType) : "board");
+  const isValid = isLandingCommunityBoard(boardType);
+  const initialBoard = (isValid ? boardType : "board");
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
-  const isStaff = !!u?.is_superuser || ["owner", "admin", "teacher", "assistant"].includes(role);
-  const isStudent = role === "student";
+  const isStaff = isLandingStaffRole(role, !!u?.is_superuser);
   const isParent = role === "parent";
+  const allowedBoards = useMemo(
+    () => getLandingCommunityWriteBoards(role, !!u?.is_superuser),
+    [role, u?.is_superuser],
+  );
 
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
-  const [selectedBoard, setSelectedBoard] = useState<BoardType>(initialBoard);
+  const [selectedBoard, setSelectedBoard] = useState<LandingCommunityBoard>(initialBoard);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -87,7 +91,7 @@ export default function LandingCommunityWritePage() {
       try {
         const raw = window.localStorage.getItem(draftKey);
         if (!raw) return;
-        const draft = JSON.parse(raw) as { title?: string; content?: string; board?: BoardType; savedAt?: number };
+        const draft = JSON.parse(raw) as { title?: string; content?: string; board?: LandingCommunityBoard; savedAt?: number };
         // 7일 이상된 draft는 자동 폐기
         if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
           window.localStorage.removeItem(draftKey);
@@ -105,7 +109,7 @@ export default function LandingCommunityWritePage() {
         if (yes) {
           if (draft.title) setTitle(draft.title);
           if (draft.content) setContent(draft.content);
-          if (draft.board && VALID.includes(draft.board)) setSelectedBoard(draft.board);
+          if (isLandingCommunityBoard(draft.board)) setSelectedBoard(draft.board);
           setDraftRestored(true);
         } else {
           window.localStorage.removeItem(draftKey);
@@ -129,10 +133,11 @@ export default function LandingCommunityWritePage() {
     return () => window.clearTimeout(tid);
   }, [title, content, selectedBoard, draftKey]);
 
-  // 학생이 staff-only board를 선택한 상태로 진입하면 board로 강제 변경
+  // URL이나 draft가 현재 역할의 작성 가능 게시판과 다르면 첫 작성 가능 게시판으로 정리한다.
   useEffect(() => {
-    if (isStudent && STAFF_ONLY.includes(selectedBoard)) setSelectedBoard("board");
-  }, [isStudent, selectedBoard]);
+    const firstAllowed = allowedBoards[0];
+    if (firstAllowed && !allowedBoards.includes(selectedBoard)) setSelectedBoard(firstAllowed);
+  }, [allowedBoards, selectedBoard]);
 
   if (boardType && !isValid) return <Navigate to="/landing/community/board/write" replace />;
   if (!landing) {
@@ -160,16 +165,13 @@ export default function LandingCommunityWritePage() {
       return { reason: "글 작성은 로그인 후에 이용하실 수 있습니다.", cta: { label: "로그인하기", to: "/login" } };
     }
     if (isParent) {
-      return { reason: "학부모 계정은 글 작성이 제한됩니다. 학생 또는 강사 계정으로 작성해 주세요.", cta: { label: `${BOARD_LABEL[initialBoard]} 목록으로`, to: `/landing/community/${initialBoard}` } };
+      return { reason: "학부모 계정은 글 작성이 제한됩니다. 학생 또는 강사 계정으로 작성해 주세요.", cta: { label: `${LANDING_COMMUNITY_BOARD_LABEL[initialBoard]} 목록으로`, to: `/landing/community/${initialBoard}` } };
+    }
+    if (allowedBoards.length === 0) {
+      return { reason: "이 계정은 커뮤니티 글 작성 권한이 없습니다.", cta: { label: `${LANDING_COMMUNITY_BOARD_LABEL[initialBoard]} 목록으로`, to: `/landing/community/${initialBoard}` } };
     }
     return null;
   })();
-
-  // 권한별 board_type 노출 SSOT.
-  // staff는 board/notice/materials 작성 가능. qna는 학생 질문 전용 — staff가 작성하면 backend가
-  // profile_required(400) 반환(qna는 created_by=Student 필수). 그러므로 staff에게는 qna 노출 X.
-  // 학생은 board/qna 가능. 공지/자료실은 student write 허용 안 됨(backend는 통과시키나 정책상 노출 안 함).
-  const allowedBoards: BoardType[] = isStaff ? ["board", "notice", "materials"] : ["board", "qna"];
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,9 +187,9 @@ export default function LandingCommunityWritePage() {
         post_type: selectedBoard,
         title: title.trim(),
         content: simpleMarkdownToHtml(content.trim()),
-        status: "published",
       };
       if (isStaff) {
+        payload.status = "published";
         payload.is_urgent = isUrgent;
         payload.is_pinned = isPinned;
       }
@@ -202,7 +204,7 @@ export default function LandingCommunityWritePage() {
             headers: { "Content-Type": "multipart/form-data" },
           } as ApiRequestConfig);
         } catch {
-          alert("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
+          feedback.warning("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
         }
       }
       // 등록 성공 → draft 정리
@@ -234,7 +236,7 @@ export default function LandingCommunityWritePage() {
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           {block ? (
             <div style={{ padding: "48px 24px", borderRadius: 14, background: cardBg, border: `1px solid ${border}`, textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.9 }}>🔒</div>
+              <LockKeyhole size={32} color={gold} strokeWidth={1.9} aria-hidden="true" style={{ marginBottom: 10 }} />
               <p style={{ fontSize: 15.5, fontWeight: 700, margin: "0 0 18px", letterSpacing: "-0.01em" }}>{block.reason}</p>
               <Link to={block.cta.to} style={{ padding: "10px 22px", borderRadius: 999, background: gold, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700 }}>
                 {block.cta.label} →
@@ -255,7 +257,7 @@ export default function LandingCommunityWritePage() {
               <Field label="게시판" textSecondary={textSecondary}>
                 <select
                   value={selectedBoard}
-                  onChange={(e) => setSelectedBoard(e.target.value as BoardType)}
+                  onChange={(e) => setSelectedBoard(e.target.value as LandingCommunityBoard)}
                   disabled={submitting}
                   data-testid="landing-community-write-board-select"
                   style={{
@@ -265,7 +267,7 @@ export default function LandingCommunityWritePage() {
                   }}
                 >
                   {allowedBoards.map((b) => (
-                    <option key={b} value={b} style={{ background: "#0A0E1A", color: textPrimary }}>{BOARD_LABEL[b]}</option>
+                    <option key={b} value={b} style={{ background: "#0A0E1A", color: textPrimary }}>{LANDING_COMMUNITY_BOARD_LABEL[b]}</option>
                   ))}
                 </select>
                 {!isStaff ? (

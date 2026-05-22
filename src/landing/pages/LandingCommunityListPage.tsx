@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Heart, LockKeyhole, PencilLine } from "lucide-react";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchLandingPublic } from "../api";
@@ -21,6 +22,13 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import {
+  canWriteLandingCommunityBoard,
+  isLandingCommunityBoard,
+  LANDING_COMMUNITY_BOARD_LABEL,
+  LANDING_COMMUNITY_TABS,
+  type LandingCommunityBoard,
+} from "../utils/communityBoardPolicy";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -34,19 +42,9 @@ const NAV_TOKENS: NavBarTokens = {
   panelBg: "#0F1525",
 };
 
-type BoardType = "board" | "qna" | "notice" | "materials";
-const VALID: BoardType[] = ["board", "qna", "notice", "materials"];
-
-const TABS: { key: BoardType; label: string }[] = [
-  { key: "board", label: "자유게시판" },
-  { key: "qna", label: "질문게시판" },
-  { key: "notice", label: "공지사항" },
-  { key: "materials", label: "자료실" },
-];
-
 interface CommunityPost {
   id: number;
-  post_type: BoardType | string;
+  post_type: LandingCommunityBoard | string;
   title: string;
   created_by_display: string | null;
   author_role?: string | null;
@@ -61,7 +59,7 @@ interface CommunityPost {
 const PAGE_SIZE = 10;
 const PAGE_WINDOW = 10; // 한 번에 보이는 페이지 버튼 수 (1..10, 11..20, ...)
 
-function endpointFor(t: BoardType): { url: string; params?: Record<string, string | number> } {
+function endpointFor(t: LandingCommunityBoard): { url: string; params?: Record<string, string | number> } {
   if (t === "board") return { url: "/community/posts/board/" };
   if (t === "notice") return { url: "/community/posts/notices/" };
   if (t === "materials") return { url: "/community/posts/materials/" };
@@ -81,13 +79,9 @@ export default function LandingCommunityListPage() {
   const { isAuthenticated, user } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
-  const canWrite = isAuthenticated && role !== "parent" && (
-    !!u?.is_superuser || ["owner", "admin", "teacher", "assistant"].includes(role) || (
-      role === "student" && (["board", "qna"] as BoardType[]).includes((boardType as BoardType))
-    )
-  );
-  const isValid = VALID.includes(boardType as BoardType);
-  const active = (isValid ? (boardType as BoardType) : "board");
+  const isValid = isLandingCommunityBoard(boardType);
+  const active = (isValid ? boardType : "board");
+  const canWrite = isAuthenticated && canWriteLandingCommunityBoard(active, role, !!u?.is_superuser);
 
   const [landing, setLanding] = useState<LandingPublicResponse | null>(null);
   const [posts, setPosts] = useState<CommunityPost[] | null>(null);
@@ -142,7 +136,7 @@ export default function LandingCommunityListPage() {
 
   const cfg = landing.config!;
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
-  const tabLabel = TABS.find((t) => t.key === active)?.label || "게시판";
+  const tabLabel = LANDING_COMMUNITY_BOARD_LABEL[active];
 
   // 톤
   const bg = "#0A0E1A";
@@ -178,7 +172,7 @@ export default function LandingCommunityListPage() {
       {/* 탭 — 모바일에서 4탭이 잘려도 scroll-snap + 활성 탭 auto-scroll-into-view 로 발견성 보장 */}
       <section style={{ padding: "0 24px", background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div className="lc-tabs-strip" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
-          {TABS.map((t) => {
+          {LANDING_COMMUNITY_TABS.map((t) => {
             const on = t.key === active;
             return (
               <button
@@ -276,7 +270,10 @@ export default function LandingCommunityListPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: textMuted, flexShrink: 0 }}>
                         {(p.like_count ?? 0) > 0 && (
-                          <span style={{ color: gold, fontWeight: 700 }} title={`좋아요 ${p.like_count}`}>♥ {p.like_count}</span>
+                          <span style={{ color: gold, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }} title={`좋아요 ${p.like_count}`}>
+                            <Heart size={13} strokeWidth={2.2} fill={gold} aria-hidden="true" />
+                            {p.like_count}
+                          </span>
                         )}
                         <span style={{ maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.created_by_display || "관리자"}</span>
                         <span style={{ opacity: 0.5 }}>·</span>
@@ -376,7 +373,7 @@ function Pagination({ page, totalPages, onChange, accent, textPrimary, textSecon
 function LoginGuard({ textPrimary, textSecondary, accent, cardBg, border }: { textPrimary: string; textSecondary: string; accent: string; cardBg: string; border: string }) {
   return (
     <div style={{ padding: "56px 24px", borderRadius: 14, background: cardBg, border: `1px solid ${border}`, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-      <div style={{ fontSize: 36, opacity: 0.9 }}>🔒</div>
+      <LockKeyhole size={36} color={accent} strokeWidth={1.9} aria-hidden="true" />
       <p style={{ fontSize: 17, fontWeight: 700, color: textPrimary, margin: 0, letterSpacing: "-0.01em" }}>
         커뮤니티는 학원 가족만 볼 수 있어요
       </p>
@@ -412,7 +409,7 @@ function EmptyFirstPost({ boardLabel, canWrite, onWrite, textPrimary, textSecond
       padding: "64px 24px", borderRadius: 14, background: cardBg, border: `1px dashed ${border}`,
       textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
     }}>
-      <div style={{ fontSize: 40, opacity: 0.85 }}>📝</div>
+      <PencilLine size={40} color={accent} strokeWidth={1.8} aria-hidden="true" />
       <p style={{ fontSize: 16, fontWeight: 700, color: textPrimary, margin: 0, letterSpacing: "-0.01em" }}>
         아직 {boardLabel}에 등록된 글이 없습니다
       </p>

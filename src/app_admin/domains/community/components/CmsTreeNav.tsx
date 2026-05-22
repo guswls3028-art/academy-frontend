@@ -4,6 +4,7 @@
 import { useState, useCallback } from "react";
 import { ChevronRight, ClipboardList, Folder, FolderOpen } from "lucide-react";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { ICON } from "@/shared/ui/ds";
 import { isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block/session-block.constants";
 
 interface CmsTreeNavProps {
@@ -77,7 +78,7 @@ export default function CmsTreeNav({
           onClick={onSelectAll}
           aria-selected={scope === "all"}
         >
-          <ClipboardList size={16} className="cms-tree__icon" aria-hidden />
+          <ClipboardList size={ICON.sm} className="cms-tree__icon" aria-hidden />
           <span className="notice-tree__tab-label">{allLabel}</span>
           {counts.totalCount > 0 && (
             <span className="notice-tree__count" aria-label={`${counts.totalCount}건`}>
@@ -93,9 +94,9 @@ export default function CmsTreeNav({
           aria-expanded={expandedParent}
         >
           {expandedParent ? (
-            <FolderOpen size={16} className="cms-tree__icon" aria-hidden />
+            <FolderOpen size={ICON.sm} className="cms-tree__icon" aria-hidden />
           ) : (
-            <Folder size={16} className="cms-tree__icon" aria-hidden />
+            <Folder size={ICON.sm} className="cms-tree__icon" aria-hidden />
           )}
           <span className="notice-tree__tab-label">강의목록</span>
           {counts.totalUnderScope > 0 && (
@@ -104,7 +105,7 @@ export default function CmsTreeNav({
             </span>
           )}
           <ChevronRight
-            size={14}
+            size={ICON.xs}
             className={`cms-tree__chevron ${expandedParent ? "cms-tree__chevron--open" : ""}`}
             aria-hidden
           />
@@ -129,7 +130,7 @@ export default function CmsTreeNav({
                   aria-selected={isSelected}
                 >
                   <ChevronRight
-                    size={14}
+                    size={ICON.xs}
                     className={`cms-tree__chevron ${isExpanded ? "cms-tree__chevron--open" : ""}`}
                     aria-hidden
                   />

@@ -190,10 +190,9 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   test("S01 학생 로그인 (0317테스트학생)", async () => {
     S = await (await browser.newContext()).newPage();
     await gotoAndSettle(S, `${BASE}/login/hakwonplus`);
-    const expandBtn = S.locator('[data-testid="login-expand-btn"]');
-    await expandBtn.waitFor({ state: "visible", timeout: 10000 });
-    await expandBtn.click();
-    await S.locator('[data-testid="login-username"]').fill(TEST_RECIPIENT.studentPhone);
+    const usernameInput = S.locator('[data-testid="login-username"]');
+    await usernameInput.waitFor({ state: "visible", timeout: 10000 });
+    await usernameInput.fill(TEST_RECIPIENT.studentPhone);
     await S.locator('[data-testid="login-password"]').fill(TEST_RECIPIENT.studentPassword);
     await S.locator('[data-testid="login-submit"]').click();
     await S.waitForURL(/\/student/, { timeout: 20000 });

@@ -1947,6 +1947,11 @@
   padding: 9px 11px;
 }
 
+.tpl-picker__card--preset {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider));
+}
+
 .tpl-picker__card-body {
   flex: 1;
   min-width: 0;

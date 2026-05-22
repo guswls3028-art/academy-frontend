@@ -11,10 +11,10 @@ const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
 type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 type ApiCallArgs = {
-  method: ApiMethod;
-  path: string;
-  data?: Record<string, unknown>;
-  apiBase: string;
+  access: string;
+  host: string;
+  refresh: string;
+  tenantCode: string;
 };
 
 export type ApiCallResult<TBody = unknown> = { status: number; body: TBody };
@@ -25,67 +25,68 @@ export async function apiCall<TBody = unknown>(
   path: string,
   data?: Record<string, unknown>,
 ): Promise<ApiCallResult<TBody>> {
-  const result = await page.evaluate(
-    async ({ method, path, data, apiBase }: ApiCallArgs): Promise<ApiCallResult<unknown>> => {
-      // 현재 페이지 hostname → tenant code (프론트엔드와 동일 매핑)
-      const host = window.location.hostname.toLowerCase();
-      const tenantMap: Record<string, string> = {
-        "tchul.com": "tchul", "www.tchul.com": "tchul",
-        "hakwonplus.com": "hakwonplus", "www.hakwonplus.com": "hakwonplus",
-        "limglish.kr": "limglish", "www.limglish.kr": "limglish",
-        "ymath.co.kr": "ymath", "www.ymath.co.kr": "ymath",
-        "sswe.co.kr": "sswe", "www.sswe.co.kr": "sswe",
-        "dnbacademy.co.kr": "dnb", "www.dnbacademy.co.kr": "dnb",
-        "localhost": "hakwonplus",
-      };
-      const tenantCode = tenantMap[host] || "hakwonplus";
-
-      const url = path.startsWith("http") ? path : `${apiBase}/api/v1${path}`;
-
-      const buildHeaders = (): Record<string, string> => {
-        const token = localStorage.getItem("access") || "";
-        return {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "X-Tenant-Code": tenantCode,
-        };
-      };
-
-      const buildOpts = (): RequestInit => {
-        const opts: RequestInit = { method, headers: buildHeaders() };
-        if (data && method !== "GET") opts.body = JSON.stringify(data);
-        return opts;
-      };
-
-      // ── 1차 호출 ──
-      let res = await fetch(url, buildOpts());
-
-      // ── 401 → refresh 1회 시도 ──
-      if (res.status === 401) {
-        const refresh = localStorage.getItem("refresh") || "";
-        if (refresh) {
-          const refreshRes = await fetch(`${apiBase}/api/v1/token/refresh/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Tenant-Code": tenantCode },
-            body: JSON.stringify({ refresh }),
-          });
-          if (refreshRes.ok) {
-            const tokens = (await refreshRes.json()) as { access: string; refresh?: string };
-            if (tokens.access) {
-              localStorage.setItem("access", tokens.access);
-              if (tokens.refresh) localStorage.setItem("refresh", tokens.refresh);
-              // 갱신된 토큰으로 원래 요청 재시도
-              res = await fetch(url, buildOpts());
-            }
-          }
-        }
-      }
-
-      let body: unknown = null;
-      try { body = await res.json(); } catch { body = null; }
-      return { status: res.status, body };
-    },
-    { method, path, data, apiBase: API_BASE },
+  const auth = await page.evaluate(
+    (): ApiCallArgs => ({
+      access: localStorage.getItem("access") || "",
+      refresh: localStorage.getItem("refresh") || "",
+      host: window.location.hostname.toLowerCase(),
+      tenantCode: sessionStorage.getItem("tenantCode") || "",
+    }),
   );
-  return result as ApiCallResult<TBody>;
+  const tenantCode = auth.tenantCode || getTenantCodeFromHost(auth.host);
+  const url = path.startsWith("http") ? path : `${API_BASE}/api/v1${path}`;
+
+  const buildHeaders = (access: string): Record<string, string> => ({
+    Authorization: `Bearer ${access}`,
+    "Content-Type": "application/json",
+    "X-Tenant-Code": tenantCode,
+  });
+
+  const requestOptions = (access: string) => ({
+    method,
+    headers: buildHeaders(access),
+    ...(data && method !== "GET" ? { data } : {}),
+  });
+
+  let access = auth.access;
+  let res = await page.request.fetch(url, requestOptions(access));
+
+  if (res.status() === 401 && auth.refresh) {
+    const refreshRes = await page.request.post(`${API_BASE}/api/v1/token/refresh/`, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Code": tenantCode,
+      },
+      data: { refresh: auth.refresh },
+    });
+    if (refreshRes.ok()) {
+      const tokens = (await refreshRes.json()) as { access?: string; refresh?: string };
+      if (tokens.access) {
+        access = tokens.access;
+        await page.evaluate(({ nextAccess, nextRefresh }) => {
+          localStorage.setItem("access", nextAccess);
+          if (nextRefresh) localStorage.setItem("refresh", nextRefresh);
+        }, { nextAccess: tokens.access, nextRefresh: tokens.refresh });
+        res = await page.request.fetch(url, requestOptions(access));
+      }
+    }
+  }
+
+  let body: unknown = null;
+  try { body = await res.json(); } catch { body = null; }
+  return { status: res.status(), body } as ApiCallResult<TBody>;
+}
+
+function getTenantCodeFromHost(host: string): string {
+  const tenantMap: Record<string, string> = {
+    "tchul.com": "tchul", "www.tchul.com": "tchul",
+    "hakwonplus.com": "hakwonplus", "www.hakwonplus.com": "hakwonplus",
+    "limglish.kr": "limglish", "www.limglish.kr": "limglish",
+    "ymath.co.kr": "ymath", "www.ymath.co.kr": "ymath",
+    "sswe.co.kr": "sswe", "www.sswe.co.kr": "sswe",
+    "dnbacademy.co.kr": "dnb", "www.dnbacademy.co.kr": "dnb",
+    "localhost": "hakwonplus",
+    "127.0.0.1": "hakwonplus",
+  };
+  return tenantMap[host] || "hakwonplus";
 }

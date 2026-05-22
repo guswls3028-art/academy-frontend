@@ -2,6 +2,7 @@
 // Q&A 상세에서 AI 매치업 결과 표시 — 선생님 전용
 
 import { Sparkles } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 
 type MatchupResult = {
   problem_id: number;
@@ -30,7 +31,7 @@ export default function QnaMatchupResults({ results }: Props) {
   return (
     <div className="qna-matchup-results">
       <div className="qna-matchup-results__header">
-        <Sparkles size={14} className="qna-matchup-results__icon" />
+        <Sparkles size={ICON.xs} className="qna-matchup-results__icon" />
         <span className="qna-matchup-results__title">
           AI 매치업 결과
         </span>

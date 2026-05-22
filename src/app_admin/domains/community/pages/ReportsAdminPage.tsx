@@ -7,7 +7,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AlertTriangle, Ban, ExternalLink, Inbox, ShieldQuestion } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { Button, ICON } from "@/shared/ui/ds";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type ReportStatus = "pending" | "resolved" | "dismissed";
 type TargetType = "post" | "reply";
@@ -47,6 +51,9 @@ export default function ReportsAdminPage() {
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("pending");
   const [pending, setPending] = useState<number | null>(null);
   const [error, setError] = useState(false);
+  const [blockTarget, setBlockTarget] = useState<{ userId: number; name: string | null } | null>(null);
+  const [blockReason, setBlockReason] = useState("");
+  const [blocking, setBlocking] = useState(false);
 
   const fetchList = useCallback(() => {
     setItems(null); setError(false);
@@ -68,15 +75,33 @@ export default function ReportsAdminPage() {
     setPage(1);
   };
 
-  const onBlockUser = async (userId: number, name: string | null) => {
-    const reason = window.prompt(`작성자 "${name || "이 사용자"}"를 학원 커뮤니티에서 차단하시겠습니까?\n사유(선택, 학원 내부 메모):`, "");
-    if (reason === null) return;
+  const openBlockModal = (userId: number, name: string | null) => {
+    setBlockTarget({ userId, name });
+    setBlockReason("");
+  };
+
+  const closeBlockModal = () => {
+    if (blocking) return;
+    setBlockTarget(null);
+    setBlockReason("");
+  };
+
+  const submitBlockUser = async () => {
+    if (!blockTarget || blocking) return;
+    setBlocking(true);
     try {
-      await api.post("/community/admin/user-blocks/", { user_id: userId, reason: reason.trim().slice(0, 500) });
-      alert(`${name || "사용자"} 차단 완료. 학원 커뮤니티 작성·반응이 제한됩니다.`);
+      await api.post("/community/admin/user-blocks/", {
+        user_id: blockTarget.userId,
+        reason: blockReason.trim().slice(0, 500),
+      });
+      feedback.success(`${blockTarget.name || "작성자"} 차단 완료`);
+      setBlockTarget(null);
+      setBlockReason("");
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      alert(detail || "차단 실패. 잠시 후 다시 시도해주세요.");
+      feedback.error(detail || "차단에 실패했습니다.");
+    } finally {
+      setBlocking(false);
     }
   };
 
@@ -86,8 +111,9 @@ export default function ReportsAdminPage() {
     try {
       await api.patch(`/community/admin/reports/${id}/`, { status: next });
       setItems((cur) => cur ? cur.map((r) => r.id === id ? { ...r, status: next, status_label: next === "resolved" ? "처리됨" : "기각" } : r) : cur);
+      feedback.success(next === "resolved" ? "처리됨으로 표시했습니다." : "기각으로 표시했습니다.");
     } catch {
-      alert("상태 변경 실패. 잠시 후 다시 시도해주세요.");
+      feedback.error("상태 변경에 실패했습니다.");
     }
     setPending(null);
   };
@@ -135,7 +161,8 @@ export default function ReportsAdminPage() {
         <div style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>불러오는 중…</div>
       ) : items.length === 0 ? (
         <div style={{ padding: 56, textAlign: "center", color: "#64748B", background: "#F8FAFC", borderRadius: 14, border: "1px dashed #CBD5E1" }}>
-          📭 처리할 신고가 없습니다.
+          <Inbox size={ICON.lg} aria-hidden style={{ display: "block", margin: "0 auto 10px" }} />
+          처리할 신고가 없습니다.
         </div>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -164,10 +191,14 @@ export default function ReportsAdminPage() {
                     {r.status_label}
                   </span>
                   {r.triage === "auto_escalate" && (
-                    <span title="자동 분류: 즉시 검토 권장" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "rgba(220,38,38,0.12)", color: "#B91C1C" }}>🚨 즉시 검토</span>
+                    <span title="자동 분류: 즉시 검토 권장" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "rgba(220,38,38,0.12)", color: "#B91C1C" }}>
+                      <AlertTriangle size={ICON.xs} aria-hidden /> 즉시 검토
+                    </span>
                   )}
                   {r.triage === "auto_dismiss" && (
-                    <span title="자동 분류: 신뢰 낮은 신고 (over-reporting 가능성)" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#E2E8F0", color: "#64748B" }}>🤔 검토 약함</span>
+                    <span title="자동 분류: 신뢰 낮은 신고 (over-reporting 가능성)" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#E2E8F0", color: "#64748B" }}>
+                      <ShieldQuestion size={ICON.xs} aria-hidden /> 검토 약함
+                    </span>
                   )}
                   <span style={{ marginLeft: "auto", fontSize: 11, color: "#94A3B8" }}>{formatDate(r.created_at)}</span>
                 </div>
@@ -200,26 +231,29 @@ export default function ReportsAdminPage() {
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     {targetLink && (
-                      <Link to={targetLink} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#1E40AF", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                        대상 보기 ↗
+                      <Link to={targetLink} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#1E40AF", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        대상 보기 <ExternalLink size={ICON.xs} aria-hidden />
                       </Link>
                     )}
                     {r.target?.author_user_id && (
-                      <button
-                        type="button"
-                        onClick={() => onBlockUser(r.target!.author_user_id!, r.target!.author_name || null)}
+                      <Button
+                        intent="danger"
+                        size="sm"
+                        leftIcon={<Ban size={ICON.xs} />}
+                        onClick={() => openBlockModal(r.target!.author_user_id!, r.target!.author_name || null)}
                         title="이 작성자 학원 커뮤니티 차단"
-                        style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #FCA5A5", color: "#B91C1C", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                      >🚫 작성자 차단</button>
+                      >
+                        작성자 차단
+                      </Button>
                     )}
                     {r.status === "pending" && (
                       <>
-                        <button type="button" onClick={() => onSetStatus(r.id, "dismissed")} disabled={isPendingAction}
-                          style={{ padding: "7px 14px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#475569", fontSize: 12, fontWeight: 600, cursor: isPendingAction ? "wait" : "pointer" }}
-                        >기각</button>
-                        <button type="button" onClick={() => onSetStatus(r.id, "resolved")} disabled={isPendingAction}
-                          style={{ padding: "7px 14px", borderRadius: 8, background: "#1E40AF", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: isPendingAction ? "wait" : "pointer" }}
-                        >{isPendingAction ? "처리 중…" : "처리됨"}</button>
+                        <Button intent="secondary" size="sm" onClick={() => onSetStatus(r.id, "dismissed")} disabled={isPendingAction}>
+                          기각
+                        </Button>
+                        <Button intent="primary" size="sm" onClick={() => onSetStatus(r.id, "resolved")} loading={isPendingAction}>
+                          처리됨
+                        </Button>
                       </>
                     )}
                   </div>
@@ -242,6 +276,53 @@ export default function ReportsAdminPage() {
           >›</button>
         </nav>
       )}
+
+      <AdminModal
+        open={blockTarget !== null}
+        onClose={closeBlockModal}
+        type="confirm"
+        width={480}
+        noMinimize
+        onEnterConfirm={submitBlockUser}
+      >
+        <ModalHeader
+          type="confirm"
+          title="작성자 차단"
+          description={`${blockTarget?.name || "이 작성자"}의 커뮤니티 작성과 반응을 제한합니다.`}
+        />
+        <ModalBody>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: "#334155" }} htmlFor="community-block-reason">
+              내부 메모
+            </label>
+            <textarea
+              id="community-block-reason"
+              className="ds-input"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="차단 사유를 남겨 두면 나중에 검토하기 쉽습니다."
+              style={{ minHeight: 92, resize: "vertical" }}
+            />
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>
+              {blockReason.trim().length}/500
+            </span>
+          </div>
+        </ModalBody>
+        <ModalFooter
+          right={(
+            <>
+              <Button intent="secondary" onClick={closeBlockModal} disabled={blocking}>
+                취소
+              </Button>
+              <Button intent="danger" onClick={submitBlockUser} loading={blocking}>
+                차단
+              </Button>
+            </>
+          )}
+        />
+      </AdminModal>
     </div>
   );
 }

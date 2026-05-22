@@ -11,6 +11,7 @@
 src/
 ├── app_admin/       # 선생(관리자)앱
 ├── app_student/     # 학생앱
+├── app_teacher/     # 선생 모바일/전용앱
 ├── app_dev/         # 개발자앱
 ├── app_promo/       # 프로모/마케팅앱
 ├── auth/            # 로그인/인증 (공용)
@@ -57,7 +58,7 @@ app_{name}/
 ## 디렉토리 네이밍
 
 - **lowercase** 또는 **kebab-case**: `clinic`, `admin-notifications`
-- 앱 디렉토리: **`app_` 접두사 + snake_case**: `app_admin`, `app_student`
+- 앱 디렉토리: **`app_` 접두사 + snake_case**: `app_admin`, `app_student`, `app_teacher`
 - PascalCase 디렉토리는 멀티파일 페이지에만 허용: `pages/HomePage/`
 
 ## 도메인 폴더 구조

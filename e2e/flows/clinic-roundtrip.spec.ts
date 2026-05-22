@@ -34,6 +34,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     const resp = await apiCall(adminPage, "POST", "/clinic/sessions/", {
       date: dateStr, start_time: "14:00", duration_minutes: 60,
       location: `E2E_${TS}`, max_participants: 5, title: `[E2E]클리닉_${TS}`,
+      target_grade: null, target_school_type: null,
     });
     expect(resp.status).toBe(201);
     sessionId = resp.body.id;

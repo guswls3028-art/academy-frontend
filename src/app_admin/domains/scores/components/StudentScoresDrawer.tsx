@@ -13,16 +13,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 
 import type { ScoreBlock, SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
-import { deriveAchievement, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
+import { deriveAchievement, deriveFinalPass, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import { generateScoreReport, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
+import { buildGenericScoreTemplate, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
 import { getSessionRowFailedItemTitles } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
+import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -81,7 +82,14 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
         totalMax += max;
         count++;
       }
-      if (exam.block.passed === true) examPassed++;
+      const examFinalPass = deriveFinalPass({
+        achievement: exam.block.achievement ?? null,
+        is_pass: exam.block.passed ?? null,
+        final_pass: exam.block.final_pass ?? null,
+        remediated: exam.block.remediated ?? null,
+        meta_status: exam.block.meta?.status ?? null,
+      });
+      if (examFinalPass === true) examPassed++;
     }
     for (const hw of row.homeworks ?? []) {
       hwTotal++;
@@ -113,19 +121,24 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
     // 성적 양식 우선순위:
-    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 코드 fallback(generateScoreReport)
+    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 기본 제공 편지지 프리셋
     let body: string;
+    let initialTemplateId: number | null = null;
+    let initialLetterPresetId: string | null = null;
     try {
       const templates = await fetchMessageTemplates("grades");
-      const hasScoreVars = (b: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(b);
+      const hasScoreVars = (b: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(b);
       const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
       const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
       const chosenTpl = userDefault ?? userWithScoreVars;
       body = chosenTpl
-        ? substituteScoreVars(chosenTpl.body, row, meta, reportOptions)
-        : generateScoreReport(row, meta, reportOptions);
+        ? chosenTpl.body
+        : buildGenericScoreTemplate(reportOptions);
+      initialTemplateId = chosenTpl?.id ?? null;
+      initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
     } catch {
-      body = generateScoreReport(row, meta, reportOptions);
+      body = buildGenericScoreTemplate(reportOptions);
+      initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
     }
 
     const scoreDetail = buildScoreDetail(row, meta, { passLabel: labels.pass, failLabel: labels.fail });
@@ -145,6 +158,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
       recipientLabel: `${row.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,
+      initialTemplateId,
+      initialLetterPresetId,
       alimtalkExtraVars: {
         강의명: lectureName,
         차시명: sessionTitle,
@@ -451,6 +466,13 @@ function HomeworkResultCard({
 
 /* ── Attempt Timeline (shared for exam & homework) ── */
 
+function parseOptionalPositiveNumber(value: string): number | null | false {
+  if (!value.trim()) return null;
+  const parsed = parseFloat(value);
+  if (Number.isNaN(parsed) || parsed < 0) return false;
+  return parsed;
+}
+
 function AttemptTimeline({
   enrollmentId,
   sourceType,
@@ -468,8 +490,10 @@ function AttemptTimeline({
   const labels = useTenantLabels();
   const [showNewAttempt, setShowNewAttempt] = useState(false);
   const [retakeScore, setRetakeScore] = useState("");
+  const [retakePassScore, setRetakePassScore] = useState("");
   const [editingAttempt, setEditingAttempt] = useState<number | null>(null);
   const [editScore, setEditScore] = useState("");
+  const [editPassScore, setEditPassScore] = useState("");
 
   const isExam = sourceType === "exam";
   const retakeLabel = isExam ? "재시험" : "재시도";
@@ -486,16 +510,18 @@ function AttemptTimeline({
   });
 
   const retakeMutation = useMutation({
-    mutationFn: (params: { clinicLinkId: number; score: number; maxScore?: number }) =>
+    mutationFn: (params: { clinicLinkId: number; score: number; maxScore?: number; passScore?: number }) =>
       submitClinicRetake(params.clinicLinkId, {
         score: params.score,
         max_score: params.maxScore,
+        pass_score: params.passScore,
       }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
       qc.invalidateQueries({ queryKey: ["clinic-targets"] });
       qc.invalidateQueries({ queryKey: ["session-scores"] });
       setRetakeScore("");
+      setRetakePassScore("");
       setShowNewAttempt(false);
       if (result.passed) {
         feedback.success(`${result.attempt_index}차 합격! (${result.score}점) — 자동 통과`);
@@ -508,11 +534,12 @@ function AttemptTimeline({
 
   // 2차+ 수정 mutation (update-retake API)
   const updateMutation = useMutation({
-    mutationFn: (params: { clinicLinkId: number; attemptIndex: number; score: number; maxScore?: number }) =>
+    mutationFn: (params: { clinicLinkId: number; attemptIndex: number; score: number; maxScore?: number; passScore?: number }) =>
       updateClinicRetake(params.clinicLinkId, {
         attempt_index: params.attemptIndex,
         score: params.score,
         max_score: params.maxScore,
+        pass_score: params.passScore,
       }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
@@ -520,6 +547,7 @@ function AttemptTimeline({
       qc.invalidateQueries({ queryKey: ["session-scores"] });
       setEditingAttempt(null);
       setEditScore("");
+      setEditPassScore("");
       if (result.passed) {
         feedback.success(`${result.attempt_index}차 수정 → 합격! (${result.score}점)`);
       } else {
@@ -556,6 +584,7 @@ function AttemptTimeline({
       qc.invalidateQueries({ queryKey: ["session-scores"] });
       setEditingAttempt(null);
       setEditScore("");
+      setEditPassScore("");
       feedback.success("1차 점수가 수정되었습니다.");
     },
     onError: () => feedback.error("점수 수정에 실패했습니다."),
@@ -567,8 +596,19 @@ function AttemptTimeline({
       feedback.error("올바른 점수를 입력해주세요.");
       return;
     }
-    if (val > (data?.max_score ?? 100)) {
-      feedback.error(`최대 점수(${data?.max_score})를 초과할 수 없습니다.`);
+    const attempt = data?.attempts?.find((a) => a.attempt_index === attemptIndex);
+    const attemptMax = attempt?.max_score ?? data?.max_score ?? 100;
+    const passVal = isExam ? parseOptionalPositiveNumber(editPassScore) : null;
+    if (passVal === false) {
+      feedback.error("합격 기준을 올바르게 입력해주세요.");
+      return;
+    }
+    if (val > attemptMax) {
+      feedback.error(`최대 점수(${attemptMax})를 초과할 수 없습니다.`);
+      return;
+    }
+    if (isExam && typeof passVal === "number" && passVal > attemptMax) {
+      feedback.error(`합격 기준(${passVal})이 만점(${attemptMax})을 초과할 수 없습니다.`);
       return;
     }
 
@@ -585,7 +625,8 @@ function AttemptTimeline({
         clinicLinkId: data.clinic_link_id,
         attemptIndex: attemptIndex,
         score: val,
-        maxScore: sourceType === "homework" ? data?.max_score : undefined,
+        maxScore: attemptMax,
+        passScore: isExam && typeof passVal === "number" ? passVal : undefined,
       });
     }
   }
@@ -593,23 +634,37 @@ function AttemptTimeline({
   function handleRetakeSubmit() {
     if (!data?.clinic_link_id) return;
     const val = parseFloat(retakeScore);
+    const maxScore = data.max_score ?? 100;
+    const passVal = isExam ? parseOptionalPositiveNumber(retakePassScore) : null;
     if (isNaN(val) || val < 0) {
       feedback.error("올바른 점수를 입력해주세요.");
       return;
     }
-    if (val > (data.max_score ?? 100)) {
-      feedback.error(`최대 점수(${data.max_score})를 초과할 수 없습니다.`);
+    if (passVal === false) {
+      feedback.error("합격 기준을 올바르게 입력해주세요.");
+      return;
+    }
+    if (val > maxScore) {
+      feedback.error(`최대 점수(${maxScore})를 초과할 수 없습니다.`);
+      return;
+    }
+    if (isExam && typeof passVal === "number" && passVal > maxScore) {
+      feedback.error(`합격 기준(${passVal})이 만점(${maxScore})을 초과할 수 없습니다.`);
       return;
     }
     retakeMutation.mutate({
       clinicLinkId: data.clinic_link_id,
       score: val,
-      maxScore: sourceType === "homework" ? data.max_score : undefined,
+      maxScore,
+      passScore: isExam && typeof passVal === "number" ? passVal : undefined,
     });
   }
 
   const nextAttemptIndex = (data?.attempts.length ?? 0) + 1;
   const canAddRetake = data?.clinic_link_id && !data?.resolved;
+  const newAttemptPassScoreLabel = isExam
+    ? (retakePassScore.trim() || (data?.pass_score != null ? String(data.pass_score) : ""))
+    : (data?.pass_score != null ? String(data.pass_score) : "");
 
   return (
     <div className="student-scores-drawer__retry-section">
@@ -626,6 +681,8 @@ function AttemptTimeline({
             const isEditing = editingAttempt === a.attempt_index;
             const canEdit = a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null);
             const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;
+            const attemptMax = a.max_score ?? data.max_score;
+            const attemptPassScore = a.pass_score ?? data.pass_score;
 
             return (
               <div
@@ -643,7 +700,11 @@ function AttemptTimeline({
                       <button
                         type="button"
                         className="ssd-attempt-card__edit-btn"
-                        onClick={() => { setEditingAttempt(a.attempt_index); setEditScore(a.score != null ? String(a.score) : ""); }}
+                        onClick={() => {
+                          setEditingAttempt(a.attempt_index);
+                          setEditScore(a.score != null ? String(a.score) : "");
+                          setEditPassScore(a.attempt_index >= 2 && attemptPassScore != null ? String(attemptPassScore) : "");
+                        }}
                         title="점수 수정"
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -664,15 +725,32 @@ function AttemptTimeline({
                       className="ssd-attempt-card__input"
                       value={editScore}
                       onChange={(e) => setEditScore(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSubmit(a.attempt_index); } if (e.key === "Escape") { setEditingAttempt(null); setEditScore(""); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSubmit(a.attempt_index); } if (e.key === "Escape") { setEditingAttempt(null); setEditScore(""); setEditPassScore(""); } }}
                       placeholder="점수"
                       min={0}
-                      max={data.max_score ?? undefined}
+                      max={attemptMax ?? undefined}
                       step="any"
                       disabled={isMutating}
                       autoFocus
                     />
-                    <span className="ssd-attempt-card__max">/ {data.max_score}</span>
+                    <span className="ssd-attempt-card__max">/ {attemptMax}</span>
+                    {isExam && a.attempt_index >= 2 && (
+                      <label className="ssd-attempt-card__field">
+                        <span>컷</span>
+                        <input
+                          type="number"
+                          className="ssd-attempt-card__input ssd-attempt-card__input--cutline"
+                          value={editPassScore}
+                          onChange={(e) => setEditPassScore(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSubmit(a.attempt_index); } }}
+                          placeholder="기준"
+                          min={0}
+                          max={attemptMax ?? undefined}
+                          step="any"
+                          disabled={isMutating}
+                        />
+                      </label>
+                    )}
                     <button
                       type="button"
                       className="ssd-attempt-card__save"
@@ -684,7 +762,7 @@ function AttemptTimeline({
                     <button
                       type="button"
                       className="ssd-attempt-card__cancel"
-                      onClick={() => { setEditingAttempt(null); setEditScore(""); }}
+                      onClick={() => { setEditingAttempt(null); setEditScore(""); setEditPassScore(""); }}
                       disabled={isMutating}
                     >
                       취소
@@ -695,18 +773,18 @@ function AttemptTimeline({
                     <span className="ssd-attempt-card__score">
                       {a.score != null ? a.score : "—"}
                     </span>
-                    <span className="ssd-attempt-card__max">/ {data.max_score}</span>
-                    {a.score != null && data.max_score > 0 && (
+                    <span className="ssd-attempt-card__max">/ {attemptMax}</span>
+                    {a.score != null && attemptMax != null && attemptMax > 0 && (
                       <span className={`ssd-attempt-card__pct ${a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
-                        {Math.round((a.score / data.max_score) * 100)}%
+                        {Math.round((a.score / attemptMax) * 100)}%
                       </span>
                     )}
                   </div>
                 )}
 
-                {data.pass_score != null && !isEditing && (
+                {attemptPassScore != null && !isEditing && (
                   <div className="ssd-attempt-card__cutline">
-                    합격 기준: {data.pass_score}점
+                    합격 기준: {attemptPassScore}점
                   </div>
                 )}
               </div>
@@ -718,7 +796,10 @@ function AttemptTimeline({
             <button
               type="button"
               className="ssd-add-attempt-btn"
-              onClick={() => setShowNewAttempt(true)}
+              onClick={() => {
+                setShowNewAttempt(true);
+                setRetakePassScore(data.pass_score != null ? String(data.pass_score) : "");
+              }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -754,6 +835,23 @@ function AttemptTimeline({
                   autoFocus
                 />
                 <span className="ssd-attempt-card__max">/ {data.max_score}</span>
+                {isExam && (
+                  <label className="ssd-attempt-card__field">
+                    <span>컷</span>
+                    <input
+                      type="number"
+                      className="ssd-attempt-card__input ssd-attempt-card__input--cutline"
+                      value={retakePassScore}
+                      onChange={(e) => setRetakePassScore(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRetakeSubmit(); } }}
+                      placeholder="기준"
+                      min={0}
+                      max={data.max_score ?? undefined}
+                      step="any"
+                      disabled={retakeMutation.isPending}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="ssd-attempt-card__save"
@@ -765,15 +863,15 @@ function AttemptTimeline({
                 <button
                   type="button"
                   className="ssd-attempt-card__cancel"
-                  onClick={() => { setShowNewAttempt(false); setRetakeScore(""); }}
+                  onClick={() => { setShowNewAttempt(false); setRetakeScore(""); setRetakePassScore(""); }}
                   disabled={retakeMutation.isPending}
                 >
                   취소
                 </button>
               </div>
-              {data.pass_score != null && (
+              {newAttemptPassScoreLabel && (
                 <div className="ssd-attempt-card__cutline">
-                  합격 기준: {data.pass_score}점
+                  합격 기준: {newAttemptPassScoreLabel}점
                 </div>
               )}
             </div>
@@ -886,4 +984,3 @@ function PercentBadge({ value, passed }: { value: number; passed?: boolean | nul
     </span>
   );
 }
-

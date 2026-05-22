@@ -50,7 +50,7 @@ test('tchul.com/landing/reports - React #310 fix confirm', async ({ browser }) =
   await page.goto('https://tchul.com/landing/reports', { waitUntil: 'networkidle', timeout: 30000 });
   await page.locator('body').waitFor({ state: 'visible', timeout: 10000 });
 
-  const screenshotDir = 'C:/academy/e2e/screenshots/tchul-react310-confirm';
+  const screenshotDir = 'e2e/screenshots/tchul-react310-confirm';
   fs.mkdirSync(screenshotDir, { recursive: true });
   await page.screenshot({ path: path.join(screenshotDir, 'result.png'), fullPage: true });
 

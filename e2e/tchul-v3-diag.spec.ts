@@ -5,7 +5,7 @@ import { test } from "@playwright/test";
 
 const TCHUL = "https://tchul.com";
 const SS = (name: string) =>
-  `C:/academy/e2e/screenshots/tchul-blueprint-final-20260512/${name}.png`;
+  `e2e/screenshots/tchul-blueprint-final-20260512/${name}.png`;
 
 test("V3-diag console errors on /landing/reports", async ({ page }) => {
   const errors: string[] = [];

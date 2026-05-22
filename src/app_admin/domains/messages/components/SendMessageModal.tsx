@@ -42,6 +42,12 @@ import {
   ALWAYS_AVAILABLE_VARS,
 } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
+import {
+  getDefaultTemplatePreset,
+  getTemplatePresetsForCategory,
+  toPersistedTemplateCategory,
+  type ProvidedTemplatePreset,
+} from "../constants/templatePresets";
 import GradesBlockPanel from "./GradesBlockPanel";
 import TemplatePickerModal from "./TemplatePickerModal";
 import {
@@ -61,6 +67,8 @@ export type SendMessageModalProps = {
   recipientLabel?: string;
   blockCategory?: TemplateCategory;
   initialBody?: string;
+  initialTemplateId?: number | null;
+  initialLetterPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
@@ -107,13 +115,13 @@ function getVarStatuses(
  * 자동 선택 우선순위:
  *   1. 본 테넌트 양식: 카테고리 일치 + 기본 지정
  *   2. 본 테넌트 양식: 카테고리 일치 (가장 최근)
- *   3. 시스템 기본: 카테고리 매핑 일치 (오너 테넌트 4종)
- *   4. 시스템 기본: is_user_default
- *   5. 첫 번째 시스템 기본 (최후 폴백)
+ *   3. 기본 제공 편지지
+ *   4. 시스템 기본 (최후 호환)
  */
 function pickAutoSelectTemplate(
   list: MessageTemplateItem[],
   blockCategory: TemplateCategory,
+  systemOnly = false,
 ): MessageTemplateItem | undefined {
   const systemCategoryMap: Record<string, string> = {
     clinic: "clinic", attendance: "attendance", exam: "exam",
@@ -123,12 +131,15 @@ function pickAutoSelectTemplate(
     notice: "default", community: "default", staff: "default",
   };
   const systemCat = systemCategoryMap[blockCategory] || "default";
+  const userCat = blockCategory === "student" ? "default" : blockCategory;
 
-  const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === blockCategory && t.is_user_default);
-  if (myMatchDefault) return myMatchDefault;
+  if (!systemOnly) {
+    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default);
+    if (myMatchDefault) return myMatchDefault;
 
-  const myMatch = list.find((t) => !isSystemTpl(t) && t.category === blockCategory);
-  if (myMatch) return myMatch;
+    const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat);
+    if (myMatch) return myMatch;
+  }
 
   const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat);
   if (sysMatch) return sysMatch;
@@ -151,6 +162,8 @@ export default function SendMessageModal({
   recipientLabel,
   blockCategory = "default",
   initialBody,
+  initialTemplateId,
+  initialLetterPresetId,
   alimtalkExtraVars,
   alimtalkExtraVarsPerStudent,
   recomputePerStudentVarsRef,
@@ -163,6 +176,7 @@ export default function SendMessageModal({
   const [body, setBody] = useState("");
   const [freeContent] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(true);
   const [sending, setSending] = useState(false);
@@ -200,7 +214,11 @@ export default function SendMessageModal({
       })();
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const providedPresets = useMemo(() => getTemplatePresetsForCategory(blockCategory), [blockCategory]);
+  const selectedPreset = providedPresets.find((p) => p.id === selectedPresetId) ?? null;
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
+  const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
+  const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
 
   // 변수 상태는 selectedTemplate.body 기준 (이전 logic 복원, 2026-05-14 hotfix).
   // 직전 fix에서 body 기준으로 변경했더니 학원장 양식의 #{시험1명}/#{시험1}/#{시험1만점} 등
@@ -208,9 +226,10 @@ export default function SendMessageModal({
   // (학원장 limglish 보고). 양식 변수는 backend가 학생별 자동 치환 → frontend가 차단할 이유 없음.
   // body 수정 path 의도(학원장이 양식 변수 일부 제거해도 발송 가능)는 양식 자체 편집 UI로 따로 해결.
   const varStatuses = useMemo(() => {
-    if (!selectedTemplate) return [];
-    return getVarStatuses(selectedTemplate.body, alimtalkExtraVars, freeContent);
-  }, [selectedTemplate, alimtalkExtraVars, freeContent]);
+    const sourceBody = selectedTemplate?.body ?? selectedPreset?.body ?? "";
+    if (!sourceBody) return [];
+    return getVarStatuses(sourceBody, alimtalkExtraVars, freeContent);
+  }, [selectedTemplate, selectedPreset, alimtalkExtraVars, freeContent]);
 
   // ─── Can Send ───
   // missing 변수 — #{내용}/#{공지내용}/#{선생님메모} 등 학원장 편집 영역(편지)이 비어있거나
@@ -226,17 +245,17 @@ export default function SendMessageModal({
       body,
       renderedBody: body,
       blockCategory,
-      templateCategory: selectedTemplate?.category,
-      templateName: selectedTemplate?.name,
+      templateCategory: selectedTemplate?.category ?? (selectedPreset ? toPersistedTemplateCategory(selectedPreset.category) : undefined),
+      templateName: selectedTemplate?.name ?? selectedPreset?.name,
       extraVars: alimtalkExtraVars,
     });
-  }, [body, blockCategory, selectedTemplate, alimtalkExtraVars]);
+  }, [body, blockCategory, selectedTemplate, selectedPreset, alimtalkExtraVars]);
   const qualityBlockers = qualityIssues.filter((issue) => issue.severity === "blocker");
   const hasQualityBlockers = qualityBlockers.length > 0;
 
   const canSend = (() => {
     if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
-    if (!selectedTemplate && !alimtalkFreeForm) return false;
+    if (!hasSelectedBodySource) return false;
     if (!body.trim()) return false;
     if (hasMissingVars) return false;
     if (hasQualityBlockers) return false;
@@ -251,11 +270,12 @@ export default function SendMessageModal({
   // 학원장이 친 본문이 곧 발송 본문 → 그대로 preview에 노출되어야 일치.
   const previewBody = renderPreviewWithActualData(body, alimtalkExtraVars, freeContent);
 
-  // 카카오 봉투 미리보기용 letterBody: callback이 있으면 첫 학생 substituted body 사용.
-  // 학원장이 #{학생이름}/#{시험1명} 등 변수를 양식에 둬도 미리보기엔 실 데이터로 치환된 모습 표시.
-  // 학원장 limglish 보고 "미리보기 렌더 이상하네" — raw #{...} 노출이 학원장 입장 신뢰 X.
+  // 카카오 봉투 미리보기용 letterBody.
+  // 성적 발송은 선생님이 양식 자체를 검수해야 하므로 raw template을 보여주고,
+  // 그 외 단건 알림은 기존처럼 첫 수신자 기준 치환 미리보기를 유지한다.
   const previewLetterBody = useMemo(() => {
     if (!body) return "";
+    if (blockCategory === "grades") return body;
     if (!recomputePerStudentVarsRef?.current) return body;
     try {
       const perStudent = recomputePerStudentVarsRef.current(body);
@@ -265,7 +285,7 @@ export default function SendMessageModal({
     } catch {
       return body;
     }
-  }, [body, recomputePerStudentVarsRef]);
+  }, [body, blockCategory, recomputePerStudentVarsRef]);
   const previewSubject = subject
     ? renderPreviewWithActualData(subject, alimtalkExtraVars)
     : selectedTemplate
@@ -281,17 +301,18 @@ export default function SendMessageModal({
     if (!justOpened) return;
     setSubject("");
     setBody(initialBody ?? "");
-    setSelectedTemplateId(null);
+    setSelectedTemplateId(initialTemplateId ?? null);
+    setSelectedPresetId(initialLetterPresetId ?? null);
     setSendToParent(true);
     setSendToStudent(true);
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowPickerModal(false);
-    setAlimtalkFreeForm(false);
-    setTemplateBodySnapshot(null);
+    setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId && !initialLetterPresetId));
+    setTemplateBodySnapshot(initialBody ?? null);
     setShowConfirm(false);
     sendingRef.current = false;
-  }, [open, initialBody]);
+  }, [open, initialBody, initialTemplateId, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
   // initialBody가 있어도 봉투(카카오 검수 통과 4종)는 카테고리에 맞춰 자동 선택해야 함.
@@ -303,17 +324,32 @@ export default function SendMessageModal({
     fetchMessageTemplates(undefined, true).then((list) => {
       if (cancelled) return;
       setTemplates(list);
-      if (!selectedTemplateId) {
+      if (!selectedTemplateId && !selectedPresetId && !initialBody) {
         const match = pickAutoSelectTemplate(list, blockCategory);
         if (match) {
           setSelectedTemplateId(match.id);
-          if (!initialBody) setBody(match.body);
+          setSelectedPresetId(null);
+          setBody(match.body);
           // initialBody가 있으면 학원장 작성 본문이 곧 발송 본문 → snapshot 동기화로 "수정됨" 오인 방지
-          setTemplateBodySnapshot(initialBody ?? match.body);
+          setTemplateBodySnapshot(match.body);
           setAlimtalkFreeForm(false);
-        } else if (initialBody) {
-          // 카테고리 매칭 실패 fallback: 학원장 입력 보존 위해 free-form
-          setAlimtalkFreeForm(true);
+        } else {
+          const preset = getDefaultTemplatePreset(blockCategory);
+          if (preset) {
+            setSelectedPresetId(preset.id);
+            setBody(preset.body);
+            setTemplateBodySnapshot(preset.body);
+            setAlimtalkFreeForm(false);
+          } else {
+            const systemMatch = pickAutoSelectTemplate(list, blockCategory, true);
+            if (systemMatch) {
+              setSelectedTemplateId(systemMatch.id);
+              setSelectedPresetId(null);
+              setBody(systemMatch.body);
+              setTemplateBodySnapshot(systemMatch.body);
+              setAlimtalkFreeForm(false);
+            }
+          }
         }
       }
     }).catch(() => { if (!cancelled) setTemplates([]); });
@@ -351,14 +387,25 @@ export default function SendMessageModal({
 
   const selectTemplate = useCallback((t: MessageTemplateItem) => {
     setSelectedTemplateId(t.id);
+    setSelectedPresetId(null);
     setSubject(t.subject ?? "");
     setBody(t.body ?? "");
     setTemplateBodySnapshot(t.body ?? "");
     setAlimtalkFreeForm(false);
   }, []);
 
+  const selectPreset = useCallback((preset: ProvidedTemplatePreset) => {
+    setSelectedTemplateId(null);
+    setSelectedPresetId(preset.id);
+    setSubject("");
+    setBody(preset.body);
+    setTemplateBodySnapshot(preset.body);
+    setAlimtalkFreeForm(false);
+  }, []);
+
   const selectFreeForm = useCallback(() => {
     setSelectedTemplateId(null);
+    setSelectedPresetId(null);
     setBody("");
     setSubject("");
     setTemplateBodySnapshot(null);
@@ -370,13 +417,14 @@ export default function SendMessageModal({
     setSavingTemplate(true);
     try {
       const created = await createMessageTemplate({
-        category: (blockCategory === "default" ? "default" : blockCategory) as Parameters<typeof createMessageTemplate>[0]["category"],
+        category: toPersistedTemplateCategory(blockCategory),
         name: saveTemplateName.trim(),
         subject: subject || "",
         body,
       });
       setTemplates((prev) => [created, ...prev]);
       setSelectedTemplateId(created.id);
+      setSelectedPresetId(null);
       setTemplateBodySnapshot(created.body);
       feedback.success(`"${created.name}" 양식이 저장되었습니다.`);
       setShowSaveForm(false);
@@ -551,7 +599,7 @@ export default function SendMessageModal({
   const disableReason = (() => {
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
-    if (!selectedTemplate && !alimtalkFreeForm) return "양식을 선택하거나 직접 작성해 주세요";
+    if (!hasSelectedBodySource) return "양식을 선택하거나 직접 작성해 주세요";
     if (!body.trim()) return "본문을 입력해 주세요";
     if (hasMissingVars) {
       const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
@@ -619,12 +667,13 @@ export default function SendMessageModal({
               )}
 
               {/* 적용된 양식 — inline */}
-              {hasRecipients && selectedTemplate && (
+              {hasRecipients && (selectedTemplate || selectedPreset) && (
                 <div className="send-modal__applied-tpl">
                   <Check size={ICON.xs} className="send-modal__icon-success" />
-                  <span className="send-modal__applied-tpl-name">{selectedTemplate.name}</span>
-                  {selectedTemplate.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
-                  {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
+                  <span className="send-modal__applied-tpl-name">{selectedTemplate?.name ?? selectedPreset?.name}</span>
+                  {selectedTemplate?.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
+                  {selectedPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
+                  {selectedTemplate && isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                 </div>
               )}
 
@@ -635,7 +684,9 @@ export default function SendMessageModal({
                     일괄 발송 · {recipientCount}명
                   </div>
                   <div className="send-modal__bulk-hint-desc">
-                    미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.
+                    {blockCategory === "grades"
+                      ? <>미리보기는 양식 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>
+                      : <>미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>}
                   </div>
                 </div>
               )}
@@ -648,7 +699,9 @@ export default function SendMessageModal({
               <div className="send-modal__card-label">
                 카카오톡 미리보기
                 {hasRecipients && recipientCount > 1 && (
-                  <span className="send-modal__card-sublabel"> · 첫 학생 기준 · 학생별로 자동 치환됨</span>
+                  <span className="send-modal__card-sublabel">
+                    {blockCategory === "grades" ? " · 양식 기준 · 학생별 자동 치환" : " · 첫 학생 기준 · 학생별로 자동 치환됨"}
+                  </span>
                 )}
               </div>
               {(() => {
@@ -658,9 +711,8 @@ export default function SendMessageModal({
                 // 직전엔 selectedTemplate.body의 substituted ReactNode[]를 letterBody로 썼는데
                 // (a) renderAlimtalkFullPreview는 raw string body를 받아 자체 렌더, (b) 학원장 수정 반영 안 됨.
                 // 둘 다 해결 위해 body raw string 그대로 전달.
-                // SSOT: 일괄 path에서 callback 결과(첫 학생 substituted)를 미리보기에 사용해
-                // 학원장이 변수가 실 데이터로 치환된 모습을 볼 수 있게 함.
-                const letterBody = body && (selectedTemplate || alimtalkFreeForm) ? previewLetterBody : "";
+                // 성적 발송은 callback 결과 대신 raw 양식을 표시해 다수 학생에게 공통 적용될 모양을 검수한다.
+                const letterBody = body && hasSelectedBodySource ? previewLetterBody : "";
                 const channelLabel = alimtalkType
                   ? alimtalkType === "score" ? "성적표 안내"
                     : alimtalkType === "attendance" ? "출석 안내"
@@ -709,7 +761,7 @@ export default function SendMessageModal({
               })()}
 
               {/* 변수 상태 — 미리보기 카드 하단 inline */}
-              {selectedTemplate && varStatuses.length > 0 && (
+              {(selectedTemplate || selectedPreset) && varStatuses.length > 0 && (
                 <div className="send-modal__var-status">
                   {varStatuses.map((v) => (
                     <div key={v.name} className="send-modal__var-row" data-status={v.status}>
@@ -759,6 +811,13 @@ export default function SendMessageModal({
                     {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                     {bodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
+                ) : selectedPreset ? (
+                  <div className="send-modal__tpl-bar-name-row">
+                    <span className="send-modal__tpl-bar-name">{selectedPreset.name}</span>
+                    <Badge tone="primary" size="xs">기본 제공</Badge>
+                    {selectedPreset.recommended && <Badge tone="success" size="xs">추천</Badge>}
+                    {presetBodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
+                  </div>
                 ) : alimtalkFreeForm ? (
                   <span className="send-modal__tpl-bar-freeform">직접 작성 모드</span>
                 ) : (
@@ -767,7 +826,7 @@ export default function SendMessageModal({
               </div>
 
               {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
-              {!showSaveForm && body.trim() && (selectedTemplate || alimtalkFreeForm) && (
+              {!showSaveForm && body.trim() && hasSelectedBodySource && (
                 <div className="send-modal__tpl-bar-save">
                   {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
                     <>
@@ -802,7 +861,7 @@ export default function SendMessageModal({
                 onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {selectedTemplate || alimtalkFreeForm ? "양식 변경" : "양식 선택"}
+                {hasSelectedBodySource ? "양식 변경" : "양식 선택"}
               </Button>
             </div>
 
@@ -846,7 +905,7 @@ export default function SendMessageModal({
             <div className="send-modal__editor">
               <div ref={bodyWrapRef} className="send-modal__editor-body">
                 {/* 빈 상태 오버레이 */}
-                {!body && !selectedTemplate && !alimtalkFreeForm && (
+                {!body && !hasSelectedBodySource && (
                   <div className="send-modal__editor-empty">
                     <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
                     <div className="send-modal__editor-empty-text">
@@ -867,14 +926,14 @@ export default function SendMessageModal({
                 )}
                 <Input.TextArea
                   value={body}
-                  onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); }}
+                  onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
                   disabled={sending}
                   className="message-domain-input send-modal__editor-textarea"
                   placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요. (봉투 장식은 카카오에서 자동으로 더해집니다)"
                   // 빈 상태 오버레이가 위에 떠 있을 때 textarea 클릭이 통과되지 않도록 동적 차단.
                   // eslint-disable-next-line no-restricted-syntax
                   style={{
-                    pointerEvents: !body && !selectedTemplate && !alimtalkFreeForm ? "none" : undefined,
+                    pointerEvents: !body && !hasSelectedBodySource ? "none" : undefined,
                   }}
                 />
               </div>
@@ -901,7 +960,7 @@ export default function SendMessageModal({
                             <button
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => { if (!alimtalkFreeForm && !selectedTemplate) setAlimtalkFreeForm(true); insertBlock(block.insertText); }}
+                              onClick={() => { if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); insertBlock(block.insertText); }}
                               disabled={sending}
                               className="template-editor__block-tag send-modal__var-palette-block-btn"
                               // 블록 ID별 고유 색상 동적 적용 — getBlockColor() 반환값(static SSOT). className 으로는 N종 색상 표현 불가.
@@ -954,11 +1013,11 @@ export default function SendMessageModal({
                   })()}
                 </span>
               </div>
-              {(selectedTemplate || alimtalkFreeForm) && (
+              {hasSelectedBodySource && (
                 <div className="send-modal__confirm-row">
                   <span className="send-modal__confirm-key">템플릿</span>
                   <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
-                    {selectedTemplate ? selectedTemplate.name : "직접 작성"}
+                    {selectedTemplate?.name ?? selectedPreset?.name ?? "직접 작성"}
                   </span>
                 </div>
               )}
@@ -967,9 +1026,7 @@ export default function SendMessageModal({
                 <span className="send-modal__confirm-val">{body.length}자</span>
               </div>
               <div className="send-modal__confirm-preview">
-                {/* SSOT (2026-05-14): confirm preview도 첫 학생 substituted body 사용. raw #{강의명}/#{차시명}
-                    노출 시 학원장이 "변수 미치환?" 오해 (limglish 보고). previewLetterBody 가 callback 결과
-                    의 첫 학생 _body_subst 라 backend 자동 치환 변수가 실 데이터로 표시됨. */}
+                {/* 성적 발송은 양식 기준, 그 외는 첫 수신자 기준 previewLetterBody를 사용한다. */}
                 {previewLetterBody.slice(0, 200)}{previewLetterBody.length > 200 ? "…" : ""}
               </div>
               {qualityIssues.length > 0 && (
@@ -1024,10 +1081,13 @@ export default function SendMessageModal({
       open={showPickerModal}
       onClose={() => setShowPickerModal(false)}
       templates={templates}
+      defaultPresets={providedPresets}
       blockCategory={blockCategory}
       selectedTemplateId={selectedTemplateId}
+      selectedPresetId={selectedPresetId}
       alimtalkExtraVars={alimtalkExtraVars}
       onPick={selectTemplate}
+      onPickPreset={selectPreset}
       onPickFreeForm={selectFreeForm}
       onSetDefault={handleSetDefault}
       onDuplicate={handleDuplicate}

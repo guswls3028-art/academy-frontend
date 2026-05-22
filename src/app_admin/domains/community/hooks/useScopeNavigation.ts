@@ -20,6 +20,7 @@ export function useScopeNavigation(options: Options = {}) {
       next.set("scope", "all");
       next.delete("lectureId");
       next.delete("sessionId");
+      next.delete("id");
       return next;
     });
   }, [setSearchParams, onChange]);
@@ -32,6 +33,7 @@ export function useScopeNavigation(options: Options = {}) {
         next.set("scope", "lecture");
         next.set("lectureId", String(lecId));
         next.delete("sessionId");
+        next.delete("id");
         return next;
       });
     },
@@ -46,6 +48,7 @@ export function useScopeNavigation(options: Options = {}) {
         next.set("scope", "session");
         next.set("lectureId", String(lecId));
         next.set("sessionId", String(sesId));
+        next.delete("id");
         return next;
       });
     },

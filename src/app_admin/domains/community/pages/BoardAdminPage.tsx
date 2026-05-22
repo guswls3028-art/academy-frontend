@@ -5,7 +5,7 @@
 // inline style baseline 면제 — 3-pane 동적 width/scoping + bulk action bar 동적 색.
 /* eslint-disable no-restricted-syntax */
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/useCommunityScope";
@@ -231,6 +231,11 @@ export default function BoardAdminPage() {
     onChange: () => setShowCreate(false),
   });
 
+  useEffect(() => {
+    if (selectedId == null || showCreate || postsQ.isLoading) return;
+    if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
+  }, [filtered, selectedId, showCreate, postsQ.isLoading, setSelectedId]);
+
   // j/k keyboard nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -286,8 +291,7 @@ export default function BoardAdminPage() {
             <div className="qna-inbox__list-title-group">
               <h2 className="qna-inbox__list-title">게시물</h2>
               <CommunityContextBar
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                scope={scope as any}
+                scope={scope}
                 lectureName={lectures.find((l) => l.id === lectureId)?.title ?? null}
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
               />
@@ -459,7 +463,7 @@ function BoardCreatePane({
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = { current: null as HTMLInputElement | null };
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resolvedScope = useMemo(
     () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
@@ -470,7 +474,7 @@ function BoardCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
     : scopeParams.scope === "lecture"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
-    : "전체 게시물";
+    : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
@@ -509,7 +513,7 @@ function BoardCreatePane({
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               {scopeParams.scope === "all"
-                ? "모든 강의의 학생에게 보이는 게시물입니다."
+                ? "이 글은 전체 학생에게 보입니다."
                 : <>이 글은 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
             </p>
           </div>
@@ -600,7 +604,7 @@ function BoardPostCard({
   const scopeType = resolveScopeType(post);
   const nd = post.mappings?.[0]?.node_detail;
   const scopePath = scopeType === "global"
-    ? "모든 강의 대상"
+    ? "전체 대상"
     : nd?.session_title
     ? `${nd.lecture_title} > ${nd.session_title}`
     : nd?.lecture_title ?? "";
@@ -611,7 +615,7 @@ function BoardPostCard({
       <div className="cms-list-card__inner">
         <div className="cms-list-card__header">
           <span className={`cms-list-card__type cms-list-card__type--${scopeType}`}>
-            {scopeType === "global" ? "전체" : scopeType === "session" ? "차시" : "강의"}
+            {scopeType === "global" ? "전체 대상" : scopeType === "session" ? "차시" : "강의"}
           </span>
           <span className="cms-list-card__scope">{scopePath}</span>
           <span className="cms-list-card__date">{timeAgo(post.created_at)}</span>
@@ -803,7 +807,7 @@ function AdminAttachmentSection({
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const fileInputRef = { current: null as HTMLInputElement | null };
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadMut = useMutation({
     mutationFn: (files: File[]) => uploadPostAttachments(postId, files),

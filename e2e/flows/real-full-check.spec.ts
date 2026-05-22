@@ -75,9 +75,6 @@ test.describe.serial("전체 운영 검증", () => {
   test("09 학생 로그인 (01034137466/0000)", async () => {
     S = await (await browser.newContext()).newPage();
     await gotoAndSettle(S, `${BASE}/login/hakwonplus`);
-    const expandBtn = S.locator('[data-testid="login-expand-btn"]');
-    await expandBtn.waitFor({ state: "visible", timeout: 10000 });
-    await expandBtn.click();
     const usernameInput = S.locator('[data-testid="login-username"]');
     await usernameInput.waitFor({ state: "visible", timeout: 10000 });
     await usernameInput.fill("01034137466");

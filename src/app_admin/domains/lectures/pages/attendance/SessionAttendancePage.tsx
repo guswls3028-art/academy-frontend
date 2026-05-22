@@ -30,7 +30,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, generateScoreReport, buildScoreDetail } from "@admin/domains/scores/utils/generateScoreReport";
+import { substituteScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@admin/domains/scores/utils/generateScoreReport";
+import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
 import { fetchSessionScores } from "@admin/domains/scores/api/sessionScores";
 import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
 import "./attendance-ui.css";
@@ -400,6 +401,8 @@ export default function SessionAttendancePage({
         let lectureName = "";
         let sessionTitle = "";
         let initialBody: string | undefined;
+        let initialTemplateId: number | null = null;
+        let initialLetterPresetId: string | null = null;
         let scoreDetail = "";
         let recomputePerStudentVars: ((currentBody: string) => Record<number, Record<string, string>>) | undefined;
         try {
@@ -423,36 +426,32 @@ export default function SessionAttendancePage({
             scoreDetail = buildScoreDetail(firstRow, scoresData.meta);
           }
 
-          if (studentIds.length === 1 && firstRow) {
-            // 1명 path — initialBody는 이미 substituted text. textarea에서 자유 수정 가능.
-            initialBody = chosenTpl
-              ? substituteScoreVars(chosenTpl.body, firstRow, scoresData.meta, { lectureName, sessionTitle })
-              : generateScoreReport(firstRow, scoresData.meta, { lectureName, sessionTitle });
-          } else {
-            // 일괄 path — initialBody는 변수 그대로의 양식 본문. 학생별 치환은 callback에서.
-            initialBody = chosenTpl?.body;
-            // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
-            // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
-            recomputePerStudentVars = (currentBody: string) => {
-              const result: Record<number, Record<string, string>> = {};
-              for (const sid of studentIds) {
-                const sRow = scoresData.rows.find((r) => r.student_id === sid);
-                if (!sRow || sRow.student_id == null) continue;
-                result[sRow.student_id] = {
-                  시험성적: buildScoreDetail(sRow, scoresData.meta),
-                  학생이름: sRow.student_name || "",
-                  _body_subst: substituteScoreVars(currentBody, sRow, scoresData.meta, { lectureName, sessionTitle }),
-                };
-              }
-              return result;
-            };
-          }
+          initialBody = chosenTpl?.body ?? buildGenericScoreTemplate({ lectureName, sessionTitle });
+          initialTemplateId = chosenTpl?.id ?? null;
+          initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
+          // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
+          // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
+          recomputePerStudentVars = (currentBody: string) => {
+            const result: Record<number, Record<string, string>> = {};
+            for (const sid of studentIds) {
+              const sRow = scoresData.rows.find((r) => r.student_id === sid);
+              if (!sRow || sRow.student_id == null) continue;
+              result[sRow.student_id] = {
+                시험성적: buildScoreDetail(sRow, scoresData.meta),
+                학생이름: sRow.student_name || "",
+                _body_subst: substituteScoreVars(currentBody, sRow, scoresData.meta, { lectureName, sessionTitle }),
+              };
+            }
+            return result;
+          };
         } catch {
           // fallback: meta/scores fetch 실패 시 qc cache라도
           const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
           const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
           lectureName = lecture?.title ?? lecture?.name ?? "";
           sessionTitle = session?.title ?? "";
+          initialBody = buildGenericScoreTemplate({ lectureName, sessionTitle });
+          initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
         }
 
         openSendMessageModal({
@@ -460,6 +459,8 @@ export default function SessionAttendancePage({
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
           initialBody,
+          initialTemplateId,
+          initialLetterPresetId,
           alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
           recomputePerStudentVars,
         });

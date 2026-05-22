@@ -75,7 +75,7 @@ export async function unresolveClinicLink(id: number) {
  */
 export async function submitClinicRetake(
   id: number,
-  payload: { score: number; max_score?: number },
+  payload: { score: number; max_score?: number; pass_score?: number },
 ) {
   const res = await api.post(
     `/progress/clinic-links/${id}/submit-retake/`,
@@ -90,7 +90,7 @@ export async function submitClinicRetake(
  */
 export async function updateClinicRetake(
   id: number,
-  payload: { attempt_index: number; score: number; max_score?: number },
+  payload: { attempt_index: number; score: number; max_score?: number; pass_score?: number },
 ) {
   const res = await api.post(
     `/progress/clinic-links/${id}/update-retake/`,

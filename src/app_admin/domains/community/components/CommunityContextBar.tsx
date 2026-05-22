@@ -19,7 +19,7 @@ type CommunityContextBarProps = {
 const SCOPE_CONFIG = {
   all: {
     icon: Globe,
-    label: "전체",
+    label: "전체 보기",
     className: "community-scope-chip--all",
   },
   lecture: {

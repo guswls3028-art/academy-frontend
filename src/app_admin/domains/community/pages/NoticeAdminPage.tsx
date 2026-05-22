@@ -139,6 +139,11 @@ export default function NoticeAdminPage() {
     onChange: () => setShowCreate(false),
   });
 
+  useEffect(() => {
+    if (selectedId == null || showCreate || isLoading) return;
+    if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
+  }, [filtered, selectedId, showCreate, isLoading, setSelectedId]);
+
   const canShowList =
     scope === "all" ||
     (scope === "lecture" && effectiveLectureId != null) ||
@@ -272,11 +277,11 @@ function NoticeCard({
   const isGlobal = scopeType === "global";
   const nd = post.mappings?.[0]?.node_detail;
   const scopePath = isGlobal
-    ? "모든 강의 대상"
+    ? "전체 대상"
     : nd?.session_title
     ? `${nd.lecture_title} > ${nd.session_title}`
     : nd?.lecture_title ?? "";
-  const typeLabel = isGlobal ? "전체 공지" : nd?.session_title ? "차시 공지" : "강의 공지";
+  const typeLabel = isGlobal ? "전체 대상" : nd?.session_title ? "차시 공지" : "강의 공지";
 
   return (
     <button
@@ -598,7 +603,7 @@ function NoticeCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
     : scopeParams.scope === "lecture"
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
-    : "전체 공지";
+    : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
 
@@ -632,7 +637,7 @@ function NoticeCreatePane({
               <Badge tone="primary">대상: {scopeLabel}</Badge>
               <span className="cms-form__scope-help">
                 {scopeParams.scope === "all"
-                  ? "모든 강의의 학생에게 보이는 공지입니다."
+                  ? "이 공지는 전체 학생에게 보입니다."
                   : scopeParams.scope === "lecture"
                   ? `${scopeLabel} 수강생에게만 보입니다.`
                   : `${scopeLabel} 학생에게만 보입니다.`}

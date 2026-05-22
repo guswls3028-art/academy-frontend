@@ -4,6 +4,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Settings } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
+import { ICON } from "@/shared/ui/ds";
 import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import "@admin/domains/community/community.css";
 
@@ -27,7 +28,7 @@ function SettingsButton() {
       onClick={() => navigate("/admin/community/settings")}
       className={`domain-header-action-btn community-settings-btn${isActive ? " community-settings-btn--active" : ""}`}
     >
-      <Settings size={14} aria-hidden />
+      <Settings size={ICON.xs} aria-hidden />
       설정
     </button>
   );

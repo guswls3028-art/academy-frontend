@@ -101,6 +101,11 @@ export default function CounselAdminPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [filtered, selectedId, setSelectedId]);
 
+  useEffect(() => {
+    if (selectedId == null || isLoading) return;
+    if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
+  }, [filtered, selectedId, isLoading, setSelectedId]);
+
   return (
     <div className="qna-inbox qna-inbox--viewport">
       <aside className="qna-inbox__list">

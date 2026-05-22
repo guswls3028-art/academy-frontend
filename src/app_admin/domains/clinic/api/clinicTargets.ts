@@ -84,6 +84,7 @@ export type RetakeResponse = {
   passed: boolean;
   score: number;
   max_score: number;
+  pass_score?: number | null;
   attempt_index: number;
   resolution_type: ResolutionType;
   resolved_at: string | null;

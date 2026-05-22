@@ -91,12 +91,12 @@ test.describe("테넌트 격리 검증", () => {
   test("d) 테넌트별 페이지 타이틀이 올바르다", async ({ page }) => {
     await page.goto("https://tchul.com");
     await page.waitForLoadState("domcontentloaded");
-    expect(await page.title()).toContain("박철과학");
+    expect((await page.title()).replace(/\s/g, "")).toContain("박철과학");
 
     await page.goto("https://hakwonplus.com");
     await page.waitForLoadState("domcontentloaded");
     const hpTitle = await page.title();
-    expect(hpTitle).not.toContain("박철과학");
+    expect(hpTitle.replace(/\s/g, "")).not.toContain("박철과학");
 
     await page.goto("https://sswe.co.kr");
     await page.waitForLoadState("domcontentloaded");

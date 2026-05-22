@@ -26,9 +26,9 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     S = await (await browser.newContext()).newPage();
     await S.goto(`${BASE}/login/hakwonplus`);
     await S.waitForLoadState("networkidle");
-    await S.locator('[data-testid="login-expand-btn"]').waitFor({ state: "visible", timeout: 10000 });
-    await S.locator('[data-testid="login-expand-btn"]').click();
-    await S.locator('[data-testid="login-username"]').fill("01034137466");
+    const usernameInput = S.locator('[data-testid="login-username"]');
+    await usernameInput.waitFor({ state: "visible", timeout: 10000 });
+    await usernameInput.fill("01034137466");
     await S.locator('[data-testid="login-password"]').fill("0000");
     await S.locator('[data-testid="login-submit"]').click();
     await S.waitForURL(/\/student/, { timeout: 20000 });

@@ -71,6 +71,8 @@ export interface PostEntity {
   created_at: string;
   updated_at?: string;
   replies_count?: number;
+  like_count?: number;
+  is_liked?: boolean;
   mappings: PostMappingItem[];
   attachments?: PostAttachment[];
   category_label?: string | null;
