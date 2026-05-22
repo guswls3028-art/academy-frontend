@@ -168,8 +168,8 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     const cap = attachNetCapture(page);
     await visit(page, "/teacher/storage");
 
-    await expect(page.getByRole("heading", { name: "내 자료" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /업로드/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "자료 저장소" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "폴더", exact: true })).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/storage-my.png`, fullPage: true });

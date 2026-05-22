@@ -16,7 +16,7 @@ import {
   fetchStudents, exportStudentsExcel, uploadStudentBulkExcel,
   bulkDeleteStudents, bulkAttachTag, fetchTags, createTag, sendPasswordReset,
 } from "../api";
-import type { ClientStudent } from "@admin/domains/students/api/students.api";
+import type { ClientStudent } from "@/shared/api/contracts/students";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 import { sendMessage } from "@teacher/domains/comms/api";
 import { useConfirm } from "@/shared/ui/confirm";

@@ -99,7 +99,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
     const { errors, netFails } = attachCapture(page);
     await visit(page, "/teacher/students");
     await page.screenshot({ path: `${SCREEN_DIR}/03a-students.png`, fullPage: true });
-    await expect(page.getByRole("button", { name: /등록/ }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "추가" })).toBeVisible({ timeout: 10_000 });
 
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);

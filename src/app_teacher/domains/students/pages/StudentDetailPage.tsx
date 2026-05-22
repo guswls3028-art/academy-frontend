@@ -13,7 +13,7 @@ import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/B
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import type { TeacherStudentExamResult } from "../api";
-import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@admin/domains/students/api/students.api";
+import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";

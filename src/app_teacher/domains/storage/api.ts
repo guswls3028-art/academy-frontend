@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/storage/api.ts
-// 자료실 API — 데스크톱 admin API 경로 그대로 재사용
+// 자료실 API — shared storage contract facade
 export {
   type StorageQuota,
   type InventoryFolder,
@@ -15,4 +15,4 @@ export {
   renameFolder,
   renameFile,
   getPresignedUrl,
-} from "@admin/domains/storage/api/storage.api";
+} from "@/shared/api/contracts/storage";

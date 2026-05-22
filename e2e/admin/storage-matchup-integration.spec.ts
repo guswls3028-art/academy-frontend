@@ -72,14 +72,21 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("매치업 페이지에서 '저장소에서 보기' 버튼 노출 + 클릭 시 저장소 탭 이동", async ({ page }) => {
+    const docsResponse = page.waitForResponse(
+      (resp) => resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET",
+      { timeout: 15_000 },
+    );
     await gotoStorage(page, "/admin/storage/matchup");
+    const docs = (await (await docsResponse).json()) as Array<{ id: number; inventory_file_id: number | null }>;
+    const targetDoc = docs.find((doc) => doc.inventory_file_id);
 
-    const firstDoc = page.locator(MATCHUP_DOC_ROW).first();
-    if (await firstDoc.count() === 0) {
-      test.skip(true, "no matchup docs in this tenant");
+    if (!targetDoc) {
+      test.skip(true, "no matchup docs with inventory_file_id in this tenant");
       return;
     }
-    await firstDoc.click();
+
+    await page.locator(`${MATCHUP_DOC_ROW}[data-doc-id='${targetDoc.id}']`).click();
+    await page.locator("[data-testid='matchup-doc-more-menu-trigger']").click();
 
     const storageLink = page.locator("[data-testid='matchup-doc-storage-link']");
     await expect(storageLink, "storage 링크 버튼 노출 (inventory_file_id 있을 때만)").toBeVisible({ timeout: 5000 });

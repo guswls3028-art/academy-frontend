@@ -1,226 +1,24 @@
 // PATH: src/app_admin/domains/storage/api/storage.api.ts
-// 저장소 API (멀티테넌트 인벤토리)
-
-import api from "@/shared/api/axios";
-
-export type StorageQuota = {
-  usedBytes: number;
-  limitBytes: number;
-  plan: "standard" | "pro" | "max";
-};
-
-export async function fetchStorageQuota(): Promise<StorageQuota> {
-  try {
-    const { data } = await api.get<StorageQuota>("/storage/quota/");
-    return data;
-  } catch {
-    return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "pro" };
-  }
-}
-
-export type InventoryFolder = {
-  id: string;
-  name: string;
-  parentId: string | null;
-};
-
-export type InventoryFileMatchupInfo = {
-  documentId: number;
-  status: "pending" | "processing" | "done" | "failed";
-  problemCount: number;
-};
-
-export type InventoryFile = {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  icon: string;
-  folderId: string | null;
-  sizeBytes: number;
-  r2Key: string;
-  contentType: string;
-  createdAt: string;
-  // admin scope에서만 채워짐. 매치업 자료로 승격된 경우 doc 정보 포함.
-  matchup?: InventoryFileMatchupInfo;
-};
-
-export type InventoryListResponse = {
-  folders: InventoryFolder[];
-  files: InventoryFile[];
-};
-
-export async function fetchInventoryList(
-  scope: "admin" | "student",
-  studentPs?: string
-): Promise<InventoryListResponse> {
-  const params: Record<string, string> = { scope };
-  if (studentPs) params.student_ps = studentPs;
-  try {
-    const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
-    return data;
-  } catch {
-    return { folders: [], files: [] };
-  }
-}
-
-export async function createFolder(
-  scope: "admin" | "student",
-  parentId: string | null,
-  name: string,
-  studentPs?: string
-): Promise<InventoryFolder> {
-  const body: Record<string, unknown> = { scope, parent_id: parentId, name };
-  if (studentPs) body.student_ps = studentPs;
-  const { data } = await api.post<InventoryFolder>("/storage/inventory/folders/", body);
-  return data;
-}
-
-export type UploadFilePayload = {
-  scope: "admin" | "student";
-  folderId: string | null;
-  displayName: string;
-  description: string;
-  icon: string;
-  file: File;
-  studentPs?: string;
-  // 매치업 승격 토글 (admin scope + PDF/PNG/JPG일 때만 효과)
-  promoteToMatchup?: boolean;
-  subject?: string;
-  gradeLevel?: string;
-};
-
-export type UploadFileResponse = InventoryFile & {
-  matchupDocumentId?: number;
-  matchupAiJobId?: string | null;
-  matchupPromoteFailed?: boolean;
-  matchupError?: string;
-};
-
-export async function uploadFile(payload: UploadFilePayload): Promise<UploadFileResponse> {
-  const form = new FormData();
-  form.append("file", payload.file);
-  form.append("display_name", payload.displayName);
-  form.append("description", payload.description);
-  form.append("icon", payload.icon);
-  form.append("scope", payload.scope);
-  if (payload.folderId) form.append("folder_id", payload.folderId);
-  if (payload.studentPs) form.append("student_ps", payload.studentPs);
-  if (payload.promoteToMatchup) form.append("promote_to_matchup", "true");
-  if (payload.subject) form.append("subject", payload.subject);
-  if (payload.gradeLevel) form.append("grade_level", payload.gradeLevel);
-
-  const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-    // 파일 업로드는 axios 기본 20초 timeout이 부족 — 운영 사용자 보고 (2026-04-28):
-    // 7개 동시 업로드 → "20000ms" 에러로 1개만 성공. 5분 override.
-    timeout: 5 * 60_000,
-  });
-  return data;
-}
-
-export async function deleteFile(scope: "admin" | "student", fileId: string, studentPs?: string): Promise<void> {
-  const params: Record<string, string> = { scope };
-  if (studentPs) params.student_ps = studentPs;
-  await api.delete(`/storage/inventory/files/${fileId}/`, { params });
-}
-
-export type RecursiveDeleteResult = {
-  ok: true;
-  deleted: {
-    folders: number;
-    files: number;
-    matchup_docs: number;
-    r2_objects: number;
-  };
-};
-
-export async function deleteFolder(
-  scope: "admin" | "student",
-  folderId: string,
-  studentPs?: string,
-  options?: { recursive?: boolean }
-): Promise<RecursiveDeleteResult | void> {
-  const params: Record<string, string> = { scope };
-  if (studentPs) params.student_ps = studentPs;
-  if (options?.recursive) params.recursive = "true";
-  const res = await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
-  if (options?.recursive) {
-    return res.data as RecursiveDeleteResult;
-  }
-}
-
-export async function renameFolder(
-  scope: "admin" | "student",
-  folderId: string,
-  name: string,
-  studentPs?: string
-): Promise<void> {
-  const params: Record<string, string> = { scope };
-  if (studentPs) params.student_ps = studentPs;
-  await api.patch(`/storage/inventory/folders/${folderId}/`, { name }, { params });
-}
-
-export async function renameFile(
-  scope: "admin" | "student",
-  fileId: string,
-  displayName: string,
-  studentPs?: string
-): Promise<void> {
-  const params: Record<string, string> = { scope };
-  if (studentPs) params.student_ps = studentPs;
-  await api.patch(`/storage/inventory/files/${fileId}/`, { displayName }, { params });
-}
-
-export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promise<{ url: string }> {
-  const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
-    r2_key: r2Key,
-    expires_in: expiresIn ?? 3600,
-  });
-  return data;
-}
-
-export type MoveParams = {
-  scope: "admin" | "student";
-  type: "file" | "folder";
-  sourceId: string;
-  targetFolderId: string | null;
-  studentPs?: string;
-  onDuplicate?: "overwrite" | "rename";
-};
-
-export type MoveConflictError = {
-  status: number;
-  code: string;
-  existing_name: string;
-  detail: string;
-};
-
-export async function moveInventoryItem(params: MoveParams): Promise<{ ok: true }> {
-  const body: Record<string, unknown> = {
-    type: params.type,
-    source_id: params.sourceId,
-    target_folder_id: params.targetFolderId ?? null,
-    scope: params.scope,
-  };
-  if (params.scope === "student" && params.studentPs) body.student_ps = params.studentPs;
-  if (params.onDuplicate) body.on_duplicate = params.onDuplicate;
-
-  try {
-    const { data } = await api.post<{ ok?: boolean }>("/storage/inventory/move/", body);
-    return data as { ok: true };
-  } catch (e: unknown) {
-    if (e && typeof e === "object" && "response" in e) {
-      const ax = (e as { response?: { status?: number; data?: Record<string, unknown> } }).response;
-      if (ax?.status === 409 && ax?.data) {
-        const err = new Error(String(ax.data.detail ?? "Conflict")) as Error & MoveConflictError;
-        err.status = 409;
-        err.code = String(ax.data.code ?? "duplicate");
-        err.existing_name = String(ax.data.existing_name ?? "");
-        err.detail = String(ax.data.detail ?? "");
-        throw err;
-      }
-    }
-    throw e;
-  }
-}
+// Compatibility facade. Canonical storage/inventory API contract lives in shared.
+export {
+  createFolder,
+  deleteFile,
+  deleteFolder,
+  fetchInventoryList,
+  fetchStorageQuota,
+  getPresignedUrl,
+  moveInventoryItem,
+  renameFile,
+  renameFolder,
+  uploadFile,
+  type InventoryFile,
+  type InventoryFileMatchupInfo,
+  type InventoryFolder,
+  type InventoryListResponse,
+  type MoveConflictError,
+  type MoveParams,
+  type RecursiveDeleteResult,
+  type StorageQuota,
+  type UploadFilePayload,
+  type UploadFileResponse,
+} from "@/shared/api/contracts/storage";

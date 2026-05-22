@@ -1,4 +1,4 @@
-// PATH: src/app_student/domains/inventory/api/inventory.ts
+// PATH: src/app_student/domains/inventory/api/inventory.api.ts
 // 학생 인벤토리 API — 학생 scope 전용, ps_number 기반 격리
 
 import {
@@ -11,7 +11,7 @@ import {
   type InventoryFile,
   type InventoryFolder,
   type InventoryListResponse,
-} from "@admin/domains/storage/api/storage.api";
+} from "@/shared/api/contracts/storage";
 
 export type { InventoryFile, InventoryFolder, InventoryListResponse };
 

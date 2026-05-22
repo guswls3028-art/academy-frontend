@@ -2,8 +2,8 @@
 // 학생 API — 기존 students API 래핑 (모바일 전용 정규화)
 import api from "@/shared/api/axios";
 import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
-import { applyDisplayNames, mapStudent } from "@admin/domains/students/api/students.api";
-import type { ClientStudent, ClientStudentTag } from "@admin/domains/students/api/students.api";
+import { applyDisplayNames, mapStudent } from "@/shared/api/contracts/students";
+import type { ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 
 export type TeacherStudentsResponse = {
   data: ClientStudent[];
@@ -118,7 +118,7 @@ export async function updateStudent(studentId: number, payload: {
 
 /* ─── 엑셀 내보내기 ─── */
 export async function exportStudentsExcel() {
-  const mod = await import("@admin/domains/students/excel/studentExcel");
+  const mod = await import("@/shared/product/students/studentExcel");
   const pageSize = 500;
   let page = 1;
   let allData: ClientStudent[] = [];

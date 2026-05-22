@@ -3,7 +3,7 @@
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchStorageQuota } from "@/app_admin/domains/storage/api/storage.api";
+import { fetchStorageQuota } from "@/shared/api/contracts/storage";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import EmptyState from "@student/layout/EmptyState";

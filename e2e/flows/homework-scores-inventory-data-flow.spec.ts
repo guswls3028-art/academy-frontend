@@ -110,8 +110,8 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/05-student-grades-hub.png" });
 
-    // GradesPage의 title 확인
-    await expect(S.locator("div", { hasText: /^성적$/ }).first()).toBeVisible({ timeout: 10000 });
+    // GradesPage의 current title 확인
+    await expect(S.getByRole("heading", { name: "성적 보드" })).toBeVisible({ timeout: 10000 });
 
     // 시험 결과 섹션 존재 (탭 또는 섹션 헤더)
     const hasExamSection = await S.locator("text=시험 결과").isVisible({ timeout: 10000 }).catch(() => false);
@@ -223,8 +223,8 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/hw-scores/10-student-inventory.png" });
 
-    // 내 인벤토리 타이틀
-    await expect(S.locator("div", { hasText: /^내 인벤토리$/ }).first()).toBeVisible({ timeout: 10000 });
+    // MyInventoryPage의 current title 확인
+    await expect(S.getByRole("heading", { name: "학습 자료함" })).toBeVisible({ timeout: 10000 });
 
     // 파일이 있으면 파일 목록, 없으면 빈 상태
     const hasFiles = await S.locator("text=/다운로드|미리보기/").isVisible({ timeout: 3000 }).catch(() => false);

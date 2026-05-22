@@ -16,7 +16,7 @@ import {
   type InventoryFile,
 } from "../api";
 import { fetchStudents } from "@teacher/domains/students/api";
-import type { ClientStudent } from "@admin/domains/students/api/students.api";
+import type { ClientStudent } from "@/shared/api/contracts/students";
 import { useConfirm } from "@/shared/ui/confirm";
 import styles from "./StudentInventoryPage.module.css";
 
