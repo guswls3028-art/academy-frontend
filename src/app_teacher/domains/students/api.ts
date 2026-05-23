@@ -141,8 +141,12 @@ export async function exportStudentsExcel() {
 }
 
 /* ─── 엑셀 벌크 업로드 ─── */
-export async function uploadStudentBulkExcel(file: File, initialPassword: string) {
-  return uploadStudentBulkFromExcel(file, initialPassword);
+export async function uploadStudentBulkExcel(
+  file: File,
+  initialPassword: string,
+  sendWelcomeMessage = true,
+) {
+  return uploadStudentBulkFromExcel(file, initialPassword, sendWelcomeMessage);
 }
 
 /* ─── 학생 삭제 (soft delete) ─── */

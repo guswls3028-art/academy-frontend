@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentListPage.tsx
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
-import { useState, useDeferredValue } from "react";
+import { useEffect, useState, useDeferredValue } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -44,6 +44,7 @@ export default function StudentListPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [excelImportFile, setExcelImportFile] = useState<File | null>(null);
   const [filters, setFilters] = useState<FilterState>({});
   const deferredSearch = useDeferredValue(search);
 
@@ -161,15 +162,7 @@ export default function StudentListPage() {
                 const f = e.target.files?.[0];
                 setMoreOpen(false);
                 if (f) {
-                  uploadStudentBulkExcel(f, "0000")
-                    .then(async ({ job_id }) => {
-                      if (job_id) {
-                        asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
-                      }
-                      await qc.invalidateQueries({ queryKey: ["students-mobile"] });
-                      teacherToast.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
-                    })
-                    .catch((err) => teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다.")));
+                  setExcelImportFile(f);
                 }
                 e.target.value = "";
               }} />
@@ -314,6 +307,16 @@ export default function StudentListPage() {
         </div>
       </BottomSheet>
 
+      <ExcelImportSheet
+        open={!!excelImportFile}
+        file={excelImportFile}
+        onClose={() => setExcelImportFile(null)}
+        onDone={async (jobId) => {
+          asyncStatusStore.addWorkerJob("학생 일괄 등록", jobId, "excel_parsing");
+          await qc.invalidateQueries({ queryKey: ["students-mobile"] });
+        }}
+      />
+
       {/* Create student sheet */}
       <CreateStudentSheet open={createOpen} onClose={() => setCreateOpen(false)} />
 
@@ -325,6 +328,142 @@ export default function StudentListPage() {
       <BulkPasswordSheet open={bulkAction === "password"} onClose={() => setBulkAction(null)}
         students={selectedStudents} onDone={exitSelectMode} />
     </div>
+  );
+}
+
+function ExcelImportSheet({ open, file, onClose, onDone }: {
+  open: boolean; file: File | null; onClose: () => void; onDone: (jobId: string) => Promise<void>;
+}) {
+  const [password, setPassword] = useState("0000");
+  const [sendWelcome, setSendWelcome] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open || !file) return;
+    setPassword("0000");
+    setSendWelcome(true);
+  }, [file, open]);
+
+  if (!file) return null;
+
+  const handleClose = () => {
+    if (submitting) return;
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    const initialPassword = password.trim();
+    if (initialPassword.length < 4) {
+      teacherToast.error("초기 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { job_id } = await uploadStudentBulkExcel(file, initialPassword, sendWelcome);
+      if (!job_id) {
+        teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      await onDone(job_id);
+      teacherToast.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
+      onClose();
+    } catch (err) {
+      teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canSubmit = password.trim().length >= 4 && !submitting;
+
+  return (
+    <BottomSheet open={open} onClose={handleClose} title="엑셀 가져오기">
+      <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
+        <div
+          className="flex items-center gap-2"
+          style={{
+            padding: "10px 12px",
+            borderRadius: "var(--tc-radius)",
+            border: "1px solid var(--tc-border)",
+            background: "var(--tc-surface-soft)",
+          }}>
+          <Upload size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+              {file.name}
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+              {Math.max(1, Math.round(file.size / 1024)).toLocaleString()}KB
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+            초기 비밀번호
+          </label>
+          <input
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="0000"
+            className="w-full text-sm"
+            style={{
+              padding: "10px 12px",
+              borderRadius: "var(--tc-radius-sm)",
+              border: "1px solid var(--tc-border-strong)",
+              background: "var(--tc-surface-soft)",
+              color: "var(--tc-text)",
+              outline: "none",
+            }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between"
+          style={{
+            padding: "10px 12px",
+            borderRadius: "var(--tc-radius-sm)",
+            border: "1px solid var(--tc-border-subtle)",
+            background: sendWelcome ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+          }}>
+          <div className="flex items-center gap-2">
+            <MessageSquare size={ICON.xs} style={{ color: sendWelcome ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡</div>
+              <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                {sendWelcome ? "등록된 학생과 학부모에게 발송" : "발송 안 함"}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setSendWelcome((v) => !v)}
+            type="button"
+            aria-pressed={sendWelcome}
+            className="cursor-pointer shrink-0"
+            style={{ background: "none", border: "none", padding: 0 }}>
+            <div className="w-10 h-5 rounded-full relative"
+              style={{ background: sendWelcome ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
+              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                style={{ left: sendWelcome ? 20 : 2, transition: "left 150ms" }} />
+            </div>
+          </button>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="w-full text-sm font-bold cursor-pointer"
+          style={{
+            padding: "12px",
+            borderRadius: "var(--tc-radius)",
+            border: "none",
+            background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)",
+            color: canSubmit ? "#fff" : "var(--tc-text-muted)",
+          }}>
+          {submitting ? "업로드 중..." : "업로드 시작"}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 
