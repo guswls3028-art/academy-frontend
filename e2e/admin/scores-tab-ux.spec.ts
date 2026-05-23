@@ -121,6 +121,12 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const ok = await navigateToScoresTab(page);
     if (!ok) { test.skip(); return; }
 
+    // 학생 상세 드로어를 먼저 열어 둔 뒤 편집 모드로 진입한다.
+    // 실제 리스크는 편집 중에도 기존 드로어가 유지될 때 단건 발송이 가능한지 여부다.
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    const drawer = page.locator(".student-scores-drawer");
+    await expect(drawer).toBeVisible({ timeout: 5_000 });
+
     // 편집 모드 진입
     const editBtn = page.locator("button").filter({ hasText: "편집 모드" }).first();
     await expect(editBtn).toBeVisible({ timeout: 5000 });
@@ -143,9 +149,12 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(scoreSendButton).toHaveAttribute("title", "점수를 저장한 뒤 발송할 수 있습니다.");
     console.log("[알림톡] 편집 모드에서는 저장 전 발송 차단 확인됨");
 
-    await page.locator('tbody tr[role="button"]').first().click();
-    const drawer = page.locator(".student-scores-drawer");
-    await expect(drawer).toBeVisible({ timeout: 5_000 });
+    const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
+    if (await draftDialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await draftDialog.getByRole("button", { name: "버리기" }).click();
+      await expect(draftDialog).toBeHidden({ timeout: 3_000 });
+    }
+
     await expect(drawer.getByRole("button", { name: /알림톡 발송/ })).toBeDisabled();
     await expect(drawer.getByRole("button", { name: /성적 발송/ })).toBeDisabled();
     console.log("[알림톡] 편집 모드에서는 학생 상세 단건 발송도 차단 확인됨");

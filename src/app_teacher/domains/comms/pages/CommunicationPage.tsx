@@ -98,8 +98,8 @@ export default function CommunicationPage() {
             onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
             className={styles.iconButton}
             type="button"
-            aria-label="검색 닫기"
-            title="검색 닫기"
+            aria-label="검색창 닫기"
+            title="검색창 닫기"
           >
             <X size={ICON.sm} />
           </button>
@@ -133,8 +133,8 @@ export default function CommunicationPage() {
               onClick={() => setSearchOpen(!searchOpen)}
               className={`${styles.iconButtonLarge} ${searchOpen ? styles.iconButtonActive : ""}`}
               type="button"
-              aria-label={searchOpen ? "검색 닫기" : "검색 열기"}
-              title={searchOpen ? "검색 닫기" : "검색 열기"}
+              aria-label={searchOpen ? "검색 접기" : "검색 열기"}
+              title={searchOpen ? "검색 접기" : "검색 열기"}
             >
               <Search size={ICON.md} />
             </button>
