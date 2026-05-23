@@ -22,6 +22,35 @@ export type OMRParams = {
   n_choices: number;
 };
 
+function toStaticPreviewHtml(html: string): string {
+  if (!html) return html;
+
+  if (typeof DOMParser !== "undefined") {
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll("script, iframe, object, embed").forEach((el) => el.remove());
+      doc.querySelectorAll("*").forEach((el) => {
+        for (const attr of Array.from(el.attributes)) {
+          const name = attr.name.toLowerCase();
+          const value = attr.value.trim().toLowerCase();
+          if (name.startsWith("on") || value.startsWith("javascript:")) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+      return `<!doctype html>\n${doc.documentElement.outerHTML}`;
+    } catch {
+      // Fall back to string cleanup below.
+    }
+  }
+
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<script\b[^>]*\/?>/gi, "")
+    .replace(/\s+on\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, "")
+    .replace(/\s(href|src)\s*=\s*(['"]?)javascript:[^\s>]*\2/gi, "");
+}
+
 /** 시험 기반 OMR 기본값 조회 */
 export async function fetchOMRDefaults(examId: number): Promise<OMRDefaults> {
   const { data } = await api.get<OMRDefaults>(`/exams/${examId}/omr/defaults/`);
@@ -34,7 +63,7 @@ export async function fetchOMRPreview(examId: number, params: OMRParams): Promis
     responseType: "text",
     headers: { Accept: "text/html" },
   });
-  return data;
+  return toStaticPreviewHtml(data);
 }
 
 /** 시험 기반 OMR PDF 다운로드 — PDF 생성은 무거운 endpoint, axios 글로벌 20s 부족 (참고: matchup hit-report.pdf adf1e387) */
@@ -53,7 +82,7 @@ export async function fetchToolsOMRPreview(params: OMRParams & { exam_title: str
     responseType: "text",
     headers: { Accept: "text/html" },
   });
-  return data;
+  return toStaticPreviewHtml(data);
 }
 
 /** 도구 페이지용 OMR PDF 다운로드 — PDF 생성은 무거운 endpoint, axios 글로벌 20s 부족 */

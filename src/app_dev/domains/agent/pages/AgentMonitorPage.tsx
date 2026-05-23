@@ -15,7 +15,7 @@ type FilterMode = "all" | "active" | "blocked" | "done" | "failed";
 type ViewMode = "office" | "list";
 
 export default function AgentMonitorPage() {
-  const { agentList, connected, sessionId, loadDemo, resetSession } = useAgentStream();
+  const { agentList, connected, sessionId, bridgeAvailable, loadDemo, resetSession } = useAgentStream();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("office");
@@ -98,9 +98,11 @@ export default function AgentMonitorPage() {
           {sessionId && <span className={s.sessionId}>session: {sessionId.slice(0, 8)}</span>}
         </div>
         <div className={s.headerRight}>
-          <span className={s.liveHint}>hooks auto-bridge active</span>
-          <button className={s.actionBtn} onClick={resetSession}>Reset</button>
-          <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={loadDemo} title="Load simulated agents for UI testing only">Demo</button>
+          <span className={s.liveHint}>
+            {bridgeAvailable ? "hooks auto-bridge active" : "local bridge only"}
+          </span>
+          <button className={s.actionBtn} onClick={resetSession} disabled={!bridgeAvailable}>Reset</button>
+          <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={loadDemo} disabled={!bridgeAvailable} title="Load simulated agents for UI testing only">Demo</button>
         </div>
       </div>
 

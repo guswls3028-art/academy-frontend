@@ -8,6 +8,13 @@ const SSE_URL = "/__agents/stream";
 const RECONNECT_BASE = 2000;
 const RECONNECT_MAX = 30000;
 
+function isAgentBridgeAvailable() {
+  if (typeof window === "undefined") return false;
+  if (import.meta.env.DEV) return true;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
 export interface AgentStreamState {
   agents: Map<string, AgentState>;
   sessionId: string | null;
@@ -17,6 +24,7 @@ export interface AgentStreamState {
 }
 
 export function useAgentStream() {
+  const bridgeAvailable = isAgentBridgeAvailable();
   const [state, setState] = useState<AgentStreamState>({
     agents: new Map(),
     sessionId: null,
@@ -32,6 +40,7 @@ export function useAgentStream() {
 
   const connect = useCallback(() => {
     if (!isMounted.current) return;
+    if (!bridgeAvailable) return;
 
     if (esRef.current) {
       esRef.current.close();
@@ -96,41 +105,45 @@ export function useAgentStream() {
       reconnectDelay.current = Math.min(delay * 2, RECONNECT_MAX);
       reconnectTimer.current = setTimeout(connect, delay);
     };
-  }, []);
+  }, [bridgeAvailable]);
 
   useEffect(() => {
     isMounted.current = true;
-    connect();
+    if (bridgeAvailable) connect();
     return () => {
       isMounted.current = false;
       if (esRef.current) esRef.current.close();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
-  }, [connect]);
+  }, [bridgeAvailable, connect]);
 
   // Memoize agentList
   const agentList = useMemo(() => Array.from(state.agents.values()), [state.agents]);
 
   // Helper actions
   const pushEvent = useCallback(async (event: Record<string, unknown>) => {
+    if (!bridgeAvailable) return;
     await fetch("/__agents/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(event),
     }).catch(() => {});
-  }, []);
+  }, [bridgeAvailable]);
 
   const resetSession = useCallback(async () => {
+    if (!bridgeAvailable) return;
     await fetch("/__agents/reset", { method: "POST" }).catch(() => {});
-  }, []);
+  }, [bridgeAvailable]);
 
   const loadDemo = useCallback(async () => {
+    if (!bridgeAvailable) return;
     await fetch("/__agents/demo", { method: "POST" }).catch(() => {});
-  }, []);
+  }, [bridgeAvailable]);
 
   return {
     ...state,
     agentList,
+    bridgeAvailable,
     pushEvent,
     resetSession,
     loadDemo,

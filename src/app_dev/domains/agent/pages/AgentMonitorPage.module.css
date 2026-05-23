@@ -99,11 +99,22 @@
   color: var(--dev-dark-text);
 }
 
+.actionBtn:disabled {
+  color: var(--dev-dark-text-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.actionBtn:disabled:hover {
+  background: var(--dev-dark-border);
+  color: var(--dev-dark-text-muted);
+}
+
 .actionBtnMuted {
   opacity: 0.5;
 }
 
-.actionBtnMuted:hover {
+.actionBtnMuted:hover:not(:disabled) {
   opacity: 0.8;
 }
 
