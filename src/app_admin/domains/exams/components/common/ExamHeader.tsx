@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Exam } from "../../types";
 import { saveExamAsTemplate } from "../../api/adminExam";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import "./ExamHeader.css";
@@ -71,7 +71,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
               onClick={() => setTemplateModalOpen(true)}
               disabled={saveAsTemplateMut.isPending}
               className="assessment-template-button"
-              leftIcon={<FiSave size={16} />}
+              leftIcon={<FiSave size={ICON_FOR_BUTTON.sm} />}
             >
               템플릿으로 저장
             </Button>
@@ -86,7 +86,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
                 className="assessment-template-button"
-                rightIcon={<FiChevronDown size={16} />}
+                rightIcon={<FiChevronDown size={ICON_FOR_BUTTON.sm} />}
               >
                 템플릿으로 저장됨
               </Button>
@@ -110,12 +110,11 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
                     type="button"
                     className="exam-header-template-dropdown-item exam-header-template-dropdown-item--danger"
                     role="menuitem"
-                    onClick={() => {
-                      setTemplateDropdownOpen(false);
-                      feedback.info("이 템플릿 삭제(연결 해제) 기능은 준비 중입니다.");
-                    }}
+                    disabled
+                    aria-disabled="true"
+                    title="템플릿 연결 해제는 현재 시험 추가/불러오기 흐름에서 관리합니다."
                   >
-                    이 템플릿 삭제
+                    템플릿 연결 해제
                   </button>
                 </div>
               )}

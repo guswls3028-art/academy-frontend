@@ -53,17 +53,17 @@ function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
   const groups: HwGroup[] = [];
   for (const [key, items] of map) {
     if (key === UNGROUPED_KEY) continue;
-    const withMax = items.filter((h) => h.max_score != null && h.max_score > 0);
+    const withMax = items.filter((h) => h.score != null && h.max_score != null && h.max_score > 0);
     const avgPct = withMax.length > 0
-      ? Math.round(withMax.reduce((s, h) => s + (h.score / h.max_score!) * 100, 0) / withMax.length)
+      ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
       : null;
     groups.push({ key, label: key, homeworks: items, avgPct });
   }
   const ungrouped = map.get(UNGROUPED_KEY);
   if (ungrouped) {
-    const withMax = ungrouped.filter((h) => h.max_score != null && h.max_score > 0);
+    const withMax = ungrouped.filter((h) => h.score != null && h.max_score != null && h.max_score > 0);
     const avgPct = withMax.length > 0
-      ? Math.round(withMax.reduce((s, h) => s + (h.score / h.max_score!) * 100, 0) / withMax.length)
+      ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
       : null;
     groups.push({ key: UNGROUPED_KEY, label: "기타 과제", homeworks: ungrouped, avgPct });
   }

@@ -27,6 +27,8 @@ import {
   type ReportTargetKind,
   type UserBlockEntry,
 } from "@/landing/api/publicCommunity";
+import { useConfirm } from "@/shared/ui/confirm";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
 type Tab = "reviews" | "reports" | "blocks";
@@ -120,8 +122,11 @@ function PendingReviewsPanel({ onChange }: { onChange: () => void }) {
   const act = async (id: number, payload: Parameters<typeof moderateReview>[1]) => {
     try {
       await moderateReview(id, payload);
+      feedback.success("후기 상태를 변경했습니다.");
       load(); onChange();
-    } catch { window.alert("처리 실패"); }
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "후기 처리에 실패했습니다."));
+    }
   };
 
   if (list === null) return <Skeleton rows={3} />;
@@ -173,8 +178,11 @@ function ReportsPanel({ onChange }: { onChange: () => void }) {
   const act = async (id: number, payload: Parameters<typeof reviewReport>[1]) => {
     try {
       await reviewReport(id, payload);
+      feedback.success("신고 처리를 저장했습니다.");
       load(); onChange();
-    } catch { window.alert("처리 실패"); }
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "신고 처리에 실패했습니다."));
+    }
   };
 
   if (list === null) return <Skeleton rows={3} />;
@@ -224,6 +232,7 @@ function BlocksPanel() {
   const [list, setList] = useState<UserBlockEntry[] | null>(null);
   const [userIdInput, setUserIdInput] = useState("");
   const [reasonInput, setReasonInput] = useState("");
+  const confirm = useConfirm();
 
   const load = useCallback(() => {
     fetchUserBlocks().then((r) => setList(r.results)).catch(() => setList([]));
@@ -232,19 +241,34 @@ function BlocksPanel() {
 
   const add = async () => {
     const uid = Number(userIdInput.trim());
-    if (!Number.isFinite(uid) || uid <= 0) { window.alert("user_id 입력 필요"); return; }
+    if (!Number.isFinite(uid) || uid <= 0) {
+      feedback.warning("차단할 사용자 ID를 숫자로 입력해 주세요.");
+      return;
+    }
     try {
       await blockUser(uid, reasonInput.trim());
       setUserIdInput(""); setReasonInput("");
+      feedback.success("사용자를 차단했습니다.");
       load();
     } catch (e: unknown) {
-      window.alert(extractApiError(e, "차단 실패"));
+      feedback.error(extractApiError(e, "사용자 차단에 실패했습니다."));
     }
   };
 
   const remove = async (uid: number) => {
-    if (!window.confirm(`사용자 #${uid} 차단 해제하시겠어요?`)) return;
-    try { await unblockUser(uid); load(); } catch { window.alert("해제 실패"); }
+    const ok = await confirm({
+      title: "차단 해제",
+      message: `사용자 #${uid}의 공개 커뮤니티 차단을 해제하시겠어요?`,
+      confirmText: "해제",
+    });
+    if (!ok) return;
+    try {
+      await unblockUser(uid);
+      feedback.success("차단을 해제했습니다.");
+      load();
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "차단 해제에 실패했습니다."));
+    }
   };
 
   return (
@@ -254,11 +278,13 @@ function BlocksPanel() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input type="number" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)}
             data-testid="block-user-id"
-            placeholder="user_id"
+            aria-label="차단할 사용자 ID"
+            placeholder="사용자 ID"
             style={{ width: 140, padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.1)", fontSize: 13, outline: "none" }}
           />
           <input type="text" value={reasonInput} onChange={(e) => setReasonInput(e.target.value)}
             data-testid="block-reason"
+            aria-label="차단 사유"
             placeholder="사유 (선택)" maxLength={200}
             style={{ flex: "1 1 220px", minWidth: 200, padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.1)", fontSize: 13, outline: "none" }}
           />

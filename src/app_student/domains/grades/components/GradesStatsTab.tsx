@@ -87,13 +87,14 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
-    const passed = homeworks.filter((h) => h.passed).length;
-    const withMax = homeworks.filter((h) => h.max_score != null && h.max_score > 0);
+    const graded = homeworks.filter((h) => h.score != null);
+    const passed = graded.filter((h) => h.passed).length;
+    const withMax = graded.filter((h) => h.max_score != null && h.max_score > 0);
     const avgPct = withMax.length > 0
-      ? Math.round(withMax.reduce((s, h) => s + (h.score / h.max_score!) * 100, 0) / withMax.length)
+      ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
       : null;
-    const passRate = Math.round((passed / homeworks.length) * 100);
-    return { passed, failed: homeworks.length - passed, total: homeworks.length, avgPct, passRate };
+    const passRate = graded.length > 0 ? Math.round((passed / graded.length) * 100) : 0;
+    return { passed, failed: graded.length - passed, graded: graded.length, total: homeworks.length, avgPct, passRate };
   }, [homeworks]);
 
   const rankInsight = useMemo(() => {
@@ -245,8 +246,8 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
         <div>
           <div className={styles.sectionTitle}>과제 현황</div>
           <StatGrid>
-            <StatCard label="채점 완료" value={`${hwStats.total}건`} />
-            <StatCard label="평균 점수" value={hwStats.avgPct != null ? `${hwStats.avgPct}점` : "-"} />
+            <StatCard label="채점 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
+            <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "-"} />
             <StatCard label="합격률" value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
           </StatGrid>
 

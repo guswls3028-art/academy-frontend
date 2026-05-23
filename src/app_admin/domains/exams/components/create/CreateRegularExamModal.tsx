@@ -14,7 +14,6 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Badge, Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
-import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import SessionItemBrowser, { type SelectedExamItem } from "@admin/domains/sessions/components/SessionItemBrowser";
@@ -157,6 +156,15 @@ export default function CreateRegularExamModal({
       setError("시험 제목을 하나 이상 입력하세요.");
       return;
     }
+    const invalidScoreRow = validRows.find((row) => {
+      const ms = Number(row.maxScore);
+      const ps = Number(row.passScore);
+      return Number.isFinite(ms) && Number.isFinite(ps) && ms > 0 && ps > ms;
+    });
+    if (invalidScoreRow) {
+      setError(`'${invalidScoreRow.title.trim()}'의 합격 점수는 만점을 초과할 수 없습니다.`);
+      return;
+    }
 
     setError(null);
     setSubmitting(true);
@@ -168,23 +176,19 @@ export default function CreateRegularExamModal({
 
     for (const row of validRows) {
       try {
+        const ms = Number(row.maxScore);
+        const ps = Number(row.passScore);
         const res = await api.post("/exams/", {
           title: row.title.trim(),
           description: "",
           exam_type: "regular",
           session_id: sessionId,
-        });
-        const newExamId = Number(res.data?.id);
-        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
-
-        // Save max_score, pass_score, answer_visibility
-        const ms = Number(row.maxScore);
-        const ps = Number(row.passScore);
-        await updateAdminExam(newExamId, {
           max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
           pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
           answer_visibility: "hidden",
         });
+        const newExamId = Number(res.data?.id);
+        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
         const enrollResult = await autoEnroll(newExamId);
         enrollMaxPerExam = Math.max(enrollMaxPerExam, enrollResult.enrolled);
@@ -303,22 +307,21 @@ export default function CreateRegularExamModal({
 
     for (const item of items) {
       try {
+        if (Number(item.pass_score) > Number(item.max_score)) {
+          throw new Error("합격 점수가 만점을 초과합니다.");
+        }
         // Create new exam in current session (copy — no template link)
         const res = await api.post("/exams/", {
           title: item.title,
           description: "",
           exam_type: "regular",
           session_id: sessionId,
-        });
-        const newExamId = Number(res.data?.id);
-        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
-
-        // Copy max_score, pass_score from source
-        await updateAdminExam(newExamId, {
           max_score: item.max_score,
           pass_score: item.pass_score,
           answer_visibility: "hidden",
         });
+        const newExamId = Number(res.data?.id);
+        if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
         const enrollResult = await autoEnroll(newExamId);
         enrollMaxPerExam = Math.max(enrollMaxPerExam, enrollResult.enrolled);

@@ -1,14 +1,27 @@
 // PATH: src/app_admin/domains/materials/messages/MessagesPage.tsx
-import { Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { useNavigate } from "react-router-dom";
+import { Section, Panel, EmptyState, Button } from "@/shared/ui/ds";
 
 export default function MessagesPage() {
+  const navigate = useNavigate();
+
   return (
     <Section>
       <Panel>
         <div className="panel-body">
           <EmptyState
-            title="메시지"
-            description="아직 구현되지 않은 기능입니다."
+            title="알림톡 템플릿과 발송 이력은 메시지 메뉴에서 관리합니다"
+            description="자료 메뉴 안의 메시지 보관함은 아직 별도 기능으로 분리하지 않았습니다. 운영 중인 알림톡 본문, 자동 발송 설정, 발송 이력은 메시지 메뉴가 정본입니다."
+            actions={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button intent="primary" size="md" onClick={() => navigate("/admin/message/templates")}>
+                  템플릿 관리
+                </Button>
+                <Button intent="secondary" size="md" onClick={() => navigate("/admin/message/log")}>
+                  발송 이력 보기
+                </Button>
+              </div>
+            }
           />
         </div>
       </Panel>

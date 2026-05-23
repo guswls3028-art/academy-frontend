@@ -6,7 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentExam, fetchStudentExams } from "@student/domains/exams/api/exams.api";
 
-export function useStudentExams(params?: { session_id?: number }) {
+export function useStudentExams(params?: { session_id?: number; include_upcoming?: boolean }) {
   const sessionId = params?.session_id;
   const enabled = sessionId == null ? true : Number.isFinite(Number(sessionId));
 

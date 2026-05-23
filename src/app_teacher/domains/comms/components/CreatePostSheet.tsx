@@ -5,7 +5,7 @@
 import { useState, useMemo, useRef } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchScopeNodes, createPost, uploadPostAttachment } from "../api";
+import { fetchScopeNodes, createPost, uploadPostAttachment, deletePost } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
@@ -84,9 +84,17 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
         node_ids: resolvedNodeIds,
         is_urgent: isUrgent,
       });
-      // Upload attachments after post creation
-      for (const file of files) {
-        await uploadPostAttachment(post.id, file);
+      try {
+        for (const file of files) {
+          await uploadPostAttachment(post.id, file);
+        }
+      } catch (error) {
+        try {
+          await deletePost(post.id);
+        } catch {
+          // 첨부 실패 시 부분 게시글 제거를 최우선으로 시도하고, 실패 원인은 원래 업로드 오류로 보여준다.
+        }
+        throw error;
       }
       return post;
     },

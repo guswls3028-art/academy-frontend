@@ -41,6 +41,7 @@ export async function createCounselingPost(data: {
   const res = await api.post("/community/posts/", {
     ...data,
     post_type: "counsel",
+    category_label: "teacher_internal_memo",
     status: "published",
     node_ids: data.node_ids ?? [],
   });

@@ -10,6 +10,8 @@ export interface Post {
   title: string;
   content: string;
   author_display_name?: string;
+  created_by_display?: string;
+  category_label?: string | null;
   author_role?: string;
   replies_count?: number;
   is_urgent?: boolean;
@@ -22,6 +24,7 @@ export interface Reply {
   post: number;
   content: string;
   author_display_name?: string;
+  created_by_display?: string;
   author_role?: string;
   created_at: string;
 }
@@ -97,6 +100,7 @@ export async function createPost(data: {
   title: string;
   content: string;
   node_ids: number[];
+  category_label?: string;
   is_urgent?: boolean;
   is_pinned?: boolean;
 }): Promise<Post> {
@@ -389,6 +393,7 @@ export const MESSAGE_MODE_LABELS: Record<string, string> = {
 export interface NotificationSummary {
   total: number;
   qna_pending: number;
+  counsel_pending?: number;
   registration_pending: number;
   clinic_pending: number;
 }

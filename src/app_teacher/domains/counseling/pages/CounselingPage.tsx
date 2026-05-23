@@ -23,6 +23,8 @@ interface CounselingPost {
   created_at?: string;
   created_by_name?: string;
   created_by_display?: string;
+  author_role?: string;
+  category_label?: string | null;
 }
 
 interface CounselingReply {
@@ -31,6 +33,7 @@ interface CounselingReply {
   created_at?: string;
   created_by_name?: string;
   created_by_display?: string;
+  author_role?: string;
 }
 
 export default function CounselingPage() {
@@ -44,7 +47,9 @@ export default function CounselingPage() {
     staleTime: 60_000,
   });
 
-  const posts = data?.results ?? [];
+  const posts = ((data?.results ?? []) as CounselingPost[]).filter(
+    (p) => p.category_label === "teacher_internal_memo" || p.author_role === "staff"
+  );
 
   const createMut = useMutation({
     mutationFn: createCounselingPost,
@@ -83,7 +88,7 @@ export default function CounselingPage() {
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : posts.length > 0 ? (
         <div className="flex flex-col gap-2">
-          {(posts as CounselingPost[]).map((p) => (
+          {posts.map((p) => (
             <button
               key={p.id}
               onClick={() => setSelectedPost(p)}
@@ -110,9 +115,9 @@ export default function CounselingPage() {
                   {p.content.replace(/<[^>]*>/g, "").slice(0, 100)}
                 </p>
               )}
-              {p.created_by_name && (
+              {displayName(p) && (
                 <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  {p.created_by_name}
+                  {displayName(p)}
                 </span>
               )}
             </button>
@@ -258,7 +263,7 @@ function DetailSheet({
           {post.content?.replace(/<[^>]*>/g, "") || "(내용 없음)"}
         </div>
         <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-          {post.created_by_name} · {post.created_at ? new Date(post.created_at).toLocaleString("ko-KR") : ""}
+          {displayName(post)} · {post.created_at ? new Date(post.created_at).toLocaleString("ko-KR") : ""}
         </div>
 
         {/* Replies */}
@@ -270,7 +275,7 @@ function DetailSheet({
                   {r.content}
                 </div>
                 <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  {r.created_by_name} · {r.created_at ? new Date(r.created_at).toLocaleString("ko-KR") : ""}
+                  {displayName(r)} · {r.created_at ? new Date(r.created_at).toLocaleString("ko-KR") : ""}
                 </span>
               </div>
             ))}
@@ -335,4 +340,8 @@ function DetailSheet({
       </div>
     </BottomSheet>
   );
+}
+
+function displayName(item: { created_by_display?: string; created_by_name?: string; author_role?: string }): string {
+  return item.created_by_display || item.created_by_name || (item.author_role === "student" ? "학생" : "선생님");
 }

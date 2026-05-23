@@ -22,7 +22,7 @@ export type ExamsListResponse = {
   items: StudentExam[];
 };
 
-export async function fetchStudentExams(params?: { session_id?: number }): Promise<ExamsListResponse> {
+export async function fetchStudentExams(params?: { session_id?: number; include_upcoming?: boolean }): Promise<ExamsListResponse> {
   const res = await api.get<ExamsListResponse | StudentExam[]>("/student/exams/", { params });
   const data = res.data;
   if (data && !Array.isArray(data) && Array.isArray(data.items)) return data;

@@ -76,10 +76,10 @@ export default function StudentInventoryPage() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteFile("student", id, selected!.ps),
-    onSuccess: () => {
+    mutationFn: (file: InventoryFile) => deleteFile("student", file.id, selected!.ps),
+    onSuccess: (_data, file) => {
       qc.invalidateQueries({ queryKey: ["teacher-student-inventory", selected?.ps] });
-      teacherToast.success("삭제됨");
+      teacherToast.success(`'${file.displayName || file.name}' 파일을 삭제했습니다.`);
     },
     onError: () => teacherToast.error("삭제에 실패했습니다."),
   });
@@ -195,6 +195,8 @@ export default function StudentInventoryPage() {
                     <button
                       type="button"
                       onClick={() => handleDownload(f)}
+                      aria-label={`${f.displayName || f.name} 다운로드`}
+                      title={`${f.displayName || f.name} 다운로드`}
                       className={`${styles.iconButton} ${styles.primaryIconButton} cursor-pointer shrink-0`}
                     >
                       <Download size={ICON.xs} />
@@ -202,9 +204,11 @@ export default function StudentInventoryPage() {
                     <button
                       type="button"
                       onClick={async () => {
-                        const ok = await confirm({ title: "파일 삭제", message: "이 파일을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
-                        if (ok) deleteMut.mutate(f.id);
+                        const ok = await confirm({ title: "파일 삭제", message: `'${f.displayName || f.name}' 파일을 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
+                        if (ok) deleteMut.mutate(f);
                       }}
+                      aria-label={`${f.displayName || f.name} 삭제`}
+                      title={`${f.displayName || f.name} 삭제`}
                       className={`${styles.iconButton} ${styles.mutedIconButton} cursor-pointer shrink-0`}
                     >
                       <Trash2 size={ICON.xs} />

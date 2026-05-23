@@ -49,6 +49,8 @@ type ListEnvelope<T> = {
 
 type CommunityPostRow = {
   replies_count?: number | null;
+  author_role?: string | null;
+  category_label?: string | null;
 };
 
 type SubmissionRow = {
@@ -102,7 +104,12 @@ async function fetchAdminPosts(params: {
 async function countPendingPosts(postType: "qna" | "counsel"): Promise<number | null> {
   try {
     const { results } = await fetchAdminPosts({ postType, pageSize: 100 });
-    return results.filter((p) => (p.replies_count ?? 0) === 0).length;
+    return results.filter((p) => {
+      if (postType === "counsel" && (p.author_role === "staff" || p.category_label === "teacher_internal_memo")) {
+        return false;
+      }
+      return (p.replies_count ?? 0) === 0;
+    }).length;
   } catch {
     return null;
   }

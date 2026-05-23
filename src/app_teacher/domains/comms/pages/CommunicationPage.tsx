@@ -54,6 +54,10 @@ export default function CommunicationPage() {
     queryFn: () => fetchPosts(postType, 50, searchQuery || undefined),
     enabled: isPostTab,
   });
+  const visiblePosts = (posts ?? []).filter((p) => {
+    if (tab !== "counsel") return true;
+    return p.category_label !== "teacher_internal_memo" && p.author_role !== "staff";
+  });
 
   const { data: reqData, isLoading: reqLoading } = useQuery({
     queryKey: ["teacher-registration-requests"],
@@ -165,13 +169,13 @@ export default function CommunicationPage() {
           )
         ) : postsLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        ) : posts && posts.length > 0 ? (
+        ) : visiblePosts.length > 0 ? (
           <div className={styles.postList}>
-            {posts.map((p) => (
+            {visiblePosts.map((p) => (
               <PostListItem
                 key={p.id}
                 post={p}
-                showReplyBadge={tab === "qna"}
+                showReplyBadge={tab === "qna" || tab === "counsel"}
                 onClick={() => setSelectedPost(p)}
               />
             ))}

@@ -6,10 +6,22 @@ import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import StorageLayout from "./StorageLayout";
 import MyStoragePage from "./pages/MyStoragePage";
 import StudentInventoryPage from "./pages/StudentInventoryPage";
+import { EmptyState } from "@/shared/ui/ds";
 
 const MatchupPage = lazy(() => import("./pages/MatchupPage"));
 const HitReportListPage = lazy(() => import("./pages/HitReportListPage"));
 const ProposalReviewPage = lazy(() => import("./pages/ProposalReviewPage"));
+
+function StorageRouteFallback() {
+  return (
+    <EmptyState
+      scope="panel"
+      tone="loading"
+      title="자료 화면을 불러오는 중..."
+      description="용량이 큰 자료나 검수 화면은 여는 데 몇 초 걸릴 수 있습니다."
+    />
+  );
+}
 
 function StudentRedirect() {
   const { studentPs } = useParams<{ studentPs: string }>();
@@ -27,7 +39,7 @@ export default function StorageRoutes() {
         <Route
           path="matchup/*"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<StorageRouteFallback />}>
               <MatchupPage />
             </Suspense>
           }
@@ -43,7 +55,7 @@ export default function StorageRoutes() {
         <Route
           path="hit-reports"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<StorageRouteFallback />}>
               <HitReportListPage />
             </Suspense>
           }
@@ -53,7 +65,7 @@ export default function StorageRoutes() {
         <Route
           path="proposals"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<StorageRouteFallback />}>
               <ProposalReviewPage />
             </Suspense>
           }

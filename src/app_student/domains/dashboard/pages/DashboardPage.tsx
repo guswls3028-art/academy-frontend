@@ -207,7 +207,7 @@ export default function DashboardPage() {
   const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
   const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
   const { data: grades } = useMyGradesSummary();
-  const { data: examsResp } = useStudentExams();
+  const { data: examsResp } = useStudentExams({ include_upcoming: true });
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
   const today = ymdToday();

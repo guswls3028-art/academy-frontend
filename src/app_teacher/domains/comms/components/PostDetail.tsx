@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import useAuth from "@/auth/hooks/useAuth";
 import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin } from "../api";
 import type { Post, Reply } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -21,8 +20,10 @@ interface Props {
 export default function PostDetail({ post: initialPost, onBack }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { user } = useAuth();
-  const isQnA = initialPost.post_type === "qna";
+  const [post, setPost] = useState(initialPost);
+  const isAnswerPost = post.post_type === "qna" || post.post_type === "counsel";
+  const canReply = post.post_type !== "materials";
+  const authorName = getAuthorName(post);
 
   // Editable state
   const [editing, setEditing] = useState(false);
@@ -31,32 +32,33 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Staff members can edit/delete posts created by staff
-  const isStaffPost = initialPost.author_role === "staff";
+  const isStaffPost = post.author_role === "staff";
 
   const { data: replies, isLoading } = useQuery({
-    queryKey: ["post-replies", initialPost.id],
-    queryFn: () => fetchPostReplies(initialPost.id),
+    queryKey: ["post-replies", post.id],
+    queryFn: () => fetchPostReplies(post.id),
   });
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
 
   const replyMutation = useMutation({
-    mutationFn: () => createReply(initialPost.id, replyText),
+    mutationFn: () => createReply(post.id, replyText),
     onSuccess: () => {
       setReplyText("");
       setReplyOpen(false);
-      qc.invalidateQueries({ queryKey: ["post-replies", initialPost.id] });
+      qc.invalidateQueries({ queryKey: ["post-replies", post.id] });
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
-      teacherToast.success(isQnA ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
+      teacherToast.success(isAnswerPost ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
-    onError: (e) => teacherToast.error(extractApiError(e, isQnA ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
+    onError: (e) => teacherToast.error(extractApiError(e, isAnswerPost ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => updatePost(initialPost.id, { title: editTitle, content: editContent }),
-    onSuccess: () => {
+    mutationFn: () => updatePost(post.id, { title: editTitle, content: editContent }),
+    onSuccess: (updated) => {
+      setPost(updated);
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.success("게시글이 수정되었습니다.");
@@ -65,7 +67,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deletePost(initialPost.id),
+    mutationFn: () => deletePost(post.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.info("게시글이 삭제되었습니다.");
@@ -75,9 +77,9 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   });
 
   const deleteReplyMutation = useMutation({
-    mutationFn: (replyId: number) => deleteReply(initialPost.id, replyId),
+    mutationFn: (replyId: number) => deleteReply(post.id, replyId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", initialPost.id] });
+      qc.invalidateQueries({ queryKey: ["post-replies", post.id] });
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
       teacherToast.info("댓글이 삭제되었습니다.");
     },
@@ -85,19 +87,21 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   });
 
   const pinMutation = useMutation({
-    mutationFn: () => togglePostPin(initialPost.id, !initialPost.is_pinned),
-    onSuccess: () => {
+    mutationFn: () => togglePostPin(post.id, !post.is_pinned),
+    onSuccess: (updated) => {
+      setPost(updated);
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
-      teacherToast.success(initialPost.is_pinned ? "고정이 해제되었습니다." : "공지가 고정되었습니다.");
+      teacherToast.success(updated.is_pinned ? "공지가 고정되었습니다." : "고정이 해제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "고정 상태를 변경하지 못했습니다.")),
   });
 
   const urgentMutation = useMutation({
-    mutationFn: () => updatePost(initialPost.id, { is_urgent: !initialPost.is_urgent } as any),
-    onSuccess: () => {
+    mutationFn: () => updatePost(post.id, { is_urgent: !post.is_urgent } as any),
+    onSuccess: (updated) => {
+      setPost(updated);
       qc.invalidateQueries({ queryKey: ["teacher-comms"] });
-      teacherToast.success(initialPost.is_urgent ? "긴급 설정이 해제되었습니다." : "긴급 공지로 설정되었습니다.");
+      teacherToast.success(updated.is_urgent ? "긴급 공지로 설정되었습니다." : "긴급 설정이 해제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "긴급 설정을 변경하지 못했습니다.")),
   });
@@ -109,7 +113,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   };
 
   const postTypeLabel = (() => {
-    switch (initialPost.post_type) {
+    switch (post.post_type) {
       case "notice": return "공지사항";
       case "board": return "게시판";
       case "materials": return "자료";
@@ -150,12 +154,12 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                   <button onClick={() => { pinMutation.mutate(); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                    <Star size={ICON.xs} /> {initialPost.is_pinned ? "고정 해제" : "고정"}
+                    <Star size={ICON.xs} /> {post.is_pinned ? "고정 해제" : "고정"}
                   </button>
                   <button onClick={() => { urgentMutation.mutate(); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-danger)", borderTop: "1px solid var(--tc-border-subtle)" }}>
-                    <AlertCircle size={ICON.xs} /> {initialPost.is_urgent ? "긴급 해제" : "긴급 설정"}
+                    <AlertCircle size={ICON.xs} /> {post.is_urgent ? "긴급 해제" : "긴급 설정"}
                   </button>
                   <button onClick={handleDelete}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
@@ -185,7 +189,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
                 <Save size={ICON.sm} /> 저장
               </button>
-              <button onClick={() => { setEditing(false); setEditTitle(initialPost.title); setEditContent(initialPost.content); }}
+              <button onClick={() => { setEditing(false); setEditTitle(post.title); setEditContent(post.content); }}
                 className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
                 <X size={ICON.sm} /> 취소
@@ -195,17 +199,17 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         ) : (
           <>
             <div className="flex items-start gap-2 mb-2">
-              {initialPost.is_urgent && (
+              {post.is_urgent && (
                 <span className="text-[10px] font-bold shrink-0 rounded px-1"
                   style={{ background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>긴급</span>
               )}
-              <h2 className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{editTitle || initialPost.title}</h2>
+              <h2 className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{editTitle || post.title}</h2>
             </div>
             <div className="text-xs mb-3" style={{ color: "var(--tc-text-muted)" }}>
-              {initialPost.author_display_name || "학생"} · {new Date(initialPost.created_at).toLocaleDateString("ko-KR")}
+              {authorName} · {new Date(post.created_at).toLocaleDateString("ko-KR")}
             </div>
             <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--tc-text-secondary)" }}>
-              {editContent || initialPost.content}
+              {editContent || post.content}
             </div>
           </>
         )}
@@ -215,15 +219,22 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
-            {isQnA ? "답변" : "댓글"} {replies?.length ?? 0}건
+            {isAnswerPost ? "답변" : "댓글"} {replies?.length ?? 0}건
           </span>
-          <button onClick={() => setReplyOpen(true)} className="text-xs font-bold cursor-pointer"
-            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary)", color: "#fff", border: "none" }}>
-            {isQnA ? "답변 작성" : "댓글 작성"}
-          </button>
+          {canReply && (
+            <button onClick={() => setReplyOpen(true)} className="text-xs font-bold cursor-pointer"
+              style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary)", color: "#fff", border: "none" }}>
+              {isAnswerPost ? "답변 작성" : "댓글 작성"}
+            </button>
+          )}
         </div>
 
-        {isLoading ? (
+        {!canReply ? (
+          <div className="text-sm text-center rounded-lg"
+            style={{ padding: "var(--tc-space-4)", color: "var(--tc-text-muted)", background: "var(--tc-surface-soft)" }}>
+            자료 게시글은 댓글을 사용하지 않습니다
+          </div>
+        ) : isLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : replies && replies.length > 0 ? (
           replies.map((r) => (
@@ -237,16 +248,16 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         ) : (
           <div className="text-sm text-center rounded-lg"
             style={{ padding: "var(--tc-space-4)", color: "var(--tc-text-muted)", background: "var(--tc-surface-soft)" }}>
-            {isQnA ? "아직 답변이 없습니다" : "댓글이 없습니다"}
+            {isAnswerPost ? "아직 답변이 없습니다" : "댓글이 없습니다"}
           </div>
         )}
       </div>
 
       {/* Reply BottomSheet */}
-      <BottomSheet open={replyOpen} onClose={() => setReplyOpen(false)} title={isQnA ? "답변 작성" : "댓글 작성"}>
+      <BottomSheet open={canReply && replyOpen} onClose={() => setReplyOpen(false)} title={isAnswerPost ? "답변 작성" : "댓글 작성"}>
         <div className="flex flex-col gap-3">
           <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)}
-            placeholder={isQnA ? "답변을 입력하세요…" : "댓글을 입력하세요…"} rows={5}
+            placeholder={isAnswerPost ? "답변을 입력하세요…" : "댓글을 입력하세요…"} rows={5}
             className="w-full text-sm"
             style={{ padding: "var(--tc-space-3)", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", resize: "vertical", outline: "none" }} />
           <div className="flex gap-2">
@@ -265,12 +276,14 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
 }
 
 function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void }) {
+  const authorName = reply.author_display_name || reply.created_by_display || (reply.author_role === "staff" ? "선생님" : "학생");
+
   return (
     <div className="rounded-lg" style={{ padding: "var(--tc-space-3)", background: "var(--tc-surface)", border: "1px solid var(--tc-border-subtle)" }}>
       <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--tc-text)" }}>{reply.content}</div>
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs" style={{ color: "var(--tc-text-muted)" }}>
-          {reply.author_display_name || (reply.author_role === "staff" ? "선생님" : "학생")} · {new Date(reply.created_at).toLocaleDateString("ko-KR")}
+          {authorName} · {new Date(reply.created_at).toLocaleDateString("ko-KR")}
         </span>
         {onDelete && (
           <button onClick={onDelete} className="flex items-center gap-0.5 text-[11px] cursor-pointer"
@@ -281,4 +294,8 @@ function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void })
       </div>
     </div>
   );
+}
+
+function getAuthorName(post: Post): string {
+  return post.author_display_name || post.created_by_display || (post.author_role === "staff" ? "선생님" : "학생");
 }

@@ -120,6 +120,7 @@ export default function NotificationPreviewModal(props: Props) {
 
   const sendable = preview?.recipients?.filter((r) => !r.excluded) ?? [];
   const excluded = preview?.recipients?.filter((r) => r.excluded) ?? [];
+  const sendableCount = sendable.length;
 
   return (
     <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
@@ -147,7 +148,7 @@ export default function NotificationPreviewModal(props: Props) {
             {/* 발송 건수 */}
             <div className="flex items-center gap-4 text-sm">
               <span>
-                발송 대상: <strong className="text-blue-600">{preview.total_count}명</strong>
+                발송 가능: <strong className="text-blue-600">{sendableCount}명</strong>
               </span>
               {preview.excluded_count > 0 && (
                 <span className="text-gray-500">제외: {preview.excluded_count}명</span>
@@ -196,12 +197,14 @@ export default function NotificationPreviewModal(props: Props) {
             )}
 
             {/* 대상 없음 */}
-            {preview.total_count === 0 && (
-              <div className="py-4 text-center text-sm text-gray-500">발송 대상이 없습니다.</div>
+            {sendableCount === 0 && (
+              <div className="py-4 text-center text-sm text-gray-500">
+                발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.
+              </div>
             )}
 
             {/* 동의 체크 */}
-            {preview.total_count > 0 && !confirmed && (
+            {sendableCount > 0 && !confirmed && (
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"
@@ -209,7 +212,7 @@ export default function NotificationPreviewModal(props: Props) {
                   onChange={(e) => setAgreed(e.target.checked)}
                   className="rounded"
                 />
-                위 {preview.total_count}명에게 {label}을 발송합니다.
+                위 {sendableCount}명에게 {label}을 발송합니다.
               </label>
             )}
 
@@ -228,7 +231,7 @@ export default function NotificationPreviewModal(props: Props) {
             <Button type="button" intent="secondary" size="sm" onClick={onClose}>
               {confirmed ? "닫기" : "취소"}
             </Button>
-            {preview && preview.total_count > 0 && !confirmed && (
+            {preview && sendableCount > 0 && !confirmed && (
               <Button
                 type="button"
                 intent="primary"
@@ -236,7 +239,7 @@ export default function NotificationPreviewModal(props: Props) {
                 onClick={handleConfirm}
                 disabled={!agreed || confirmMutation.isPending}
               >
-                {confirmMutation.isPending ? "발송 중..." : `${preview.total_count}건 발송`}
+                {confirmMutation.isPending ? "발송 중..." : `${sendableCount}건 발송`}
               </Button>
             )}
           </div>

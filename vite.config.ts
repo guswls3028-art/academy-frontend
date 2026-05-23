@@ -19,6 +19,7 @@ function versionJsonPlugin() {
 }
 
 const buildTimestamp = Date.now().toString();
+const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || "http://localhost:8000";
 
 export default defineConfig({
   define: {
@@ -42,7 +43,7 @@ export default defineConfig({
     // 로컬 개발 시 API를 백엔드(academy)로 프록시. 백엔드가 먼저 localhost:8000 에서 기동되어 있어야 함.
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: devProxyTarget,
         changeOrigin: true,
       },
     },

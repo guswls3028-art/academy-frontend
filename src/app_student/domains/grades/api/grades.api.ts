@@ -29,7 +29,7 @@ export type MyHomeworkGradeSummary = {
   homework_id: number;
   enrollment_id: number;
   title: string;
-  score: number;
+  score: number | null;
   max_score: number | null;
   passed: boolean | null;
   achievement?: Achievement;

@@ -90,20 +90,20 @@ export default function MyStoragePage() {
   });
 
   const deleteFileMut = useMutation({
-    mutationFn: (id: string) => deleteFile("admin", id),
-    onSuccess: () => {
+    mutationFn: (file: InventoryFile) => deleteFile("admin", file.id),
+    onSuccess: (_data, file) => {
       qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
       qc.invalidateQueries({ queryKey: ["teacher-storage-quota"] });
-      teacherToast.success("삭제됨");
+      teacherToast.success(`'${file.displayName || file.name}' 파일을 삭제했습니다.`);
     },
     onError: () => teacherToast.error("삭제에 실패했습니다."),
   });
 
   const deleteFolderMut = useMutation({
-    mutationFn: (id: string) => deleteFolder("admin", id),
-    onSuccess: () => {
+    mutationFn: (folder: InventoryFolder) => deleteFolder("admin", folder.id),
+    onSuccess: (_data, folder) => {
       qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
-      teacherToast.success("폴더 삭제됨");
+      teacherToast.success(`'${folder.name}' 폴더를 삭제했습니다.`);
     },
     onError: () => teacherToast.error("폴더 삭제에 실패했습니다. (내용이 있으면 먼저 비워 주세요)"),
   });
@@ -282,9 +282,11 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const ok = await confirm({ title: "폴더 삭제", message: `'${f.name}' 폴더를 삭제하시겠습니까? 안의 파일도 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
-                    if (ok) deleteFolderMut.mutate(f.id);
+                    const ok = await confirm({ title: "폴더 삭제", message: `'${f.name}' 폴더와 안의 파일을 함께 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
+                    if (ok) deleteFolderMut.mutate(f);
                   }}
+                  aria-label={`${f.name} 폴더 삭제`}
+                  title={`${f.name} 폴더 삭제`}
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >
@@ -319,6 +321,8 @@ export default function MyStoragePage() {
                 </div>
                 <button
                   onClick={() => handleDownload(f)}
+                  aria-label={`${f.displayName || f.name} 다운로드`}
+                  title={`${f.displayName || f.name} 다운로드`}
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-primary)" }}
                 >
@@ -326,9 +330,11 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const ok = await confirm({ title: "파일 삭제", message: "이 파일을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
-                    if (ok) deleteFileMut.mutate(f.id);
+                    const ok = await confirm({ title: "파일 삭제", message: `'${f.displayName || f.name}' 파일을 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
+                    if (ok) deleteFileMut.mutate(f);
                   }}
+                  aria-label={`${f.displayName || f.name} 삭제`}
+                  title={`${f.displayName || f.name} 삭제`}
                   className="cursor-pointer shrink-0"
                   style={{ padding: 8, minWidth: 36, minHeight: 36, background: "none", border: "none", color: "var(--tc-text-muted)" }}
                 >

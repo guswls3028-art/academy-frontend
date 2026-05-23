@@ -15,6 +15,7 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 
 export default function PostListItem({ post, showReplyBadge, onClick }: Props) {
   const noReply = showReplyBadge && (post.replies_count ?? 0) === 0;
+  const authorName = post.author_display_name || post.created_by_display || (post.author_role === "staff" ? "선생님" : "학생");
 
   return (
     <button
@@ -39,7 +40,7 @@ export default function PostListItem({ post, showReplyBadge, onClick }: Props) {
             </span>
           </div>
           <div className={styles.meta}>
-            {post.author_display_name || "관리자"} · {formatDate(post.created_at)}
+            {authorName} · {formatDate(post.created_at)}
           </div>
         </div>
         {noReply && (
