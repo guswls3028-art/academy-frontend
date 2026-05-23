@@ -121,7 +121,7 @@ export default function LandingBoardPage() {
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
             Public Board · 자유게시판
           </div>
-          <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25 }}>
+          <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25, wordBreak: "keep-all", overflowWrap: "break-word" }}>
             학원 가족이 함께 쓰는 자유게시판
           </h1>
           <p style={{ marginTop: 12, fontSize: 14, color: textSecondary, maxWidth: 640, lineHeight: 1.6 }}>
