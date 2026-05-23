@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/comms/components/PostDetail.tsx
 // 게시글 상세 + Q&A 답변 + 편집/삭제 기능
 import { useState } from "react";
