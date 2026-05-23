@@ -170,6 +170,10 @@ export default function ClinicPage() {
       studentToast.error("변경할 예약을 찾을 수 없습니다.");
       return;
     }
+    if (existingBooking.status !== "pending") {
+      studentToast.info("승인된 예약 변경은 학원으로 연락해 주세요.");
+      return;
+    }
 
     if (!selectedSessionId) {
       studentToast.info("변경할 클리닉 시간을 선택해주세요.");
@@ -266,6 +270,8 @@ export default function ClinicPage() {
   const isChangeMode = existingBookingForDate != null;
   const existingBookingIsApproved =
     existingBookingForDate?.status === "booked" || existingBookingForDate?.status === "approved";
+  const existingBookingCanChange = existingBookingForDate?.status === "pending";
+  const bookingChangeLocked = existingBookingForDate != null && !existingBookingCanChange;
   const activeBookingCount = pendingBookings.length + approvedBookings.length;
 
   if (isLoading) {
@@ -347,7 +353,12 @@ export default function ClinicPage() {
         {selectedDate && (
           <div className="stu-section stu-section--nested">
             <div className={styles.sectionTitle}>
-              {formatYmd(selectedDate)} {isChangeMode ? "일정 변경" : "예약하기"}
+              {formatYmd(selectedDate)}{" "}
+              {isChangeMode
+                ? existingBookingCanChange
+                  ? "일정 변경"
+                  : "예약 확인"
+                : "예약하기"}
             </div>
 
             {existingBookingForDate && (
@@ -386,6 +397,7 @@ export default function ClinicPage() {
                           session.max_participants != null &&
                           (session.booked_count ?? 0) >= session.max_participants;
                         const isSelected = selectedSessionId === session.id;
+                        const isDisabled = isFull || bookingChangeLocked;
                         const remaining =
                           session.max_participants != null
                             ? Math.max(0, session.max_participants - (session.booked_count ?? 0))
@@ -395,10 +407,16 @@ export default function ClinicPage() {
                           <button
                             key={session.id}
                             type="button"
-                            disabled={isFull}
-                            className={`stu-panel ${styles.sessionButton} ${isFull ? styles.sessionButtonFull : "stu-panel--pressable"} ${isSelected && !isFull ? `stu-panel--accent ${styles.sessionButtonSelected}` : ""}`}
+                            disabled={isDisabled}
+                            className={`stu-panel ${styles.sessionButton} ${
+                              isFull
+                                ? styles.sessionButtonFull
+                                : bookingChangeLocked
+                                  ? styles.sessionButtonLocked
+                                  : "stu-panel--pressable"
+                            } ${isSelected && !isDisabled ? `stu-panel--accent ${styles.sessionButtonSelected}` : ""}`}
                             onClick={() => {
-                              if (isFull) return;
+                              if (isDisabled) return;
                               setSelectedSessionId(session.id);
                             }}
                           >
@@ -462,16 +480,29 @@ export default function ClinicPage() {
               )}
 
               {existingBookingForDate && (
-                <button
-                  type="button"
-                  className={`stu-btn stu-btn--secondary ${styles.fullWidth}`}
-                  disabled={!selectedSessionId || selectedSessionIsFull || changeMutation.isPending || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
-                  onClick={handleChangeRequest}
-                >
-                  {changeMutation.isPending
-                    ? "처리 중…"
-                    : "일정 변경 신청하기"}
-                </button>
+                existingBookingCanChange ? (
+                  <button
+                    type="button"
+                    className={`stu-btn stu-btn--secondary ${styles.fullWidth}`}
+                    disabled={
+                      !selectedSessionId ||
+                      selectedSessionIsFull ||
+                      changeMutation.isPending ||
+                      bookingMutation.isPending ||
+                      cancelMutation.isPending ||
+                      selectedDateSessions.length === 0
+                    }
+                    onClick={handleChangeRequest}
+                  >
+                    {changeMutation.isPending
+                      ? "처리 중…"
+                      : "일정 변경 신청하기"}
+                  </button>
+                ) : (
+                  <div className={`stu-panel ${styles.lockedNotice}`}>
+                    승인된 예약은 학생 앱에서 직접 변경할 수 없습니다. 변경이 필요하면 학원으로 연락해 주세요.
+                  </div>
+                )
               )}
 
               {(bookingMutation.isError || cancelMutation.isError || changeMutation.isError) && (

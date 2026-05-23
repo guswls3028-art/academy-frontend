@@ -145,6 +145,12 @@
   opacity: 0.65;
 }
 
+.sessionButtonLocked {
+  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-soft);
+  cursor: default;
+}
+
 .sessionRow,
 .requestRow,
 .scheduleHeader {
@@ -185,6 +191,15 @@
 .errorText {
   color: var(--stu-danger);
   font-size: 13px;
+}
+
+.lockedNotice {
+  padding: var(--stu-space-3);
+  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-soft);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .scheduleHeader {
