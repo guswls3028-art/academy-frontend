@@ -553,12 +553,20 @@
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
 
-.student-scores-drawer__send-btn:hover {
+.student-scores-drawer__send-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
 }
 
-.student-scores-drawer__send-btn:active {
+.student-scores-drawer__send-btn:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.student-scores-drawer__send-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
 }
 
 .student-scores-drawer__send-btn:focus-visible {

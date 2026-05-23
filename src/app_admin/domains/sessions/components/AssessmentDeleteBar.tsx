@@ -22,7 +22,7 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
   const label = type === "exam" ? "시험 삭제하기" : "과제 삭제하기";
   const confirmMessage = type === "exam"
     ? "이 차시에서 시험을 제거합니다. 다른 차시에 연결된 같은 시험은 유지됩니다."
-    : "정말로 삭제하시겠습니까? 연결된 모든 데이터가 삭제됩니다.";
+    : "이 과제를 삭제합니다. 대상 학생과 제출 상태도 함께 정리되며, 이미 제출된 기록은 정책에 따라 보존됩니다.";
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });

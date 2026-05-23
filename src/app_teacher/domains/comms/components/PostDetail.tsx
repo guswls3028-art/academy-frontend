@@ -123,7 +123,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={onBack} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button onClick={onBack} className="flex p-1 cursor-pointer" aria-label="목록으로 돌아가기" title="목록으로 돌아가기" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-base font-bold truncate flex-1" style={{ color: "var(--tc-text)" }}>
@@ -133,7 +133,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         {/* Actions menu for staff posts */}
         {isStaffPost && !editing && (
           <div className="relative">
-            <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
+            <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer" aria-label="게시글 작업 메뉴" title="게시글 작업 메뉴"
               style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
               <MoreVertical size={ICON.md} />
             </button>

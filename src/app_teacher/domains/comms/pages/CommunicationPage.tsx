@@ -98,6 +98,8 @@ export default function CommunicationPage() {
             onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
             className={styles.iconButton}
             type="button"
+            aria-label="검색 닫기"
+            title="검색 닫기"
           >
             <X size={ICON.sm} />
           </button>
@@ -131,6 +133,8 @@ export default function CommunicationPage() {
               onClick={() => setSearchOpen(!searchOpen)}
               className={`${styles.iconButtonLarge} ${searchOpen ? styles.iconButtonActive : ""}`}
               type="button"
+              aria-label={searchOpen ? "검색 닫기" : "검색 열기"}
+              title={searchOpen ? "검색 닫기" : "검색 열기"}
             >
               <Search size={ICON.md} />
             </button>
@@ -140,6 +144,8 @@ export default function CommunicationPage() {
               onClick={() => setCreateOpen(true)}
               className={`${styles.iconButtonLarge} ${styles.createButton}`}
               type="button"
+              aria-label={`${TAB_LABELS[tab]} 작성`}
+              title={`${TAB_LABELS[tab]} 작성`}
             >
               <Plus size={ICON.md} />
             </button>

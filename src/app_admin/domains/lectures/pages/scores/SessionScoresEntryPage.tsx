@@ -317,6 +317,12 @@ export default function SessionScoresEntryPage(_props: Props) {
   const hasSelection = selectedEnrollmentIds.length > 0;
   const showSelectionActions = hasSelection || !isMobile;
   const dimSelectionBar = !hasSelection && !isMobile;
+  const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0 || isEditMode;
+  const scoreAlimtalkTitle = isEditMode
+    ? "점수를 저장한 뒤 발송할 수 있습니다."
+    : selectedEnrollmentIds.length === 0
+      ? "학생을 선택하세요."
+      : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
@@ -347,7 +353,12 @@ export default function SessionScoresEntryPage(_props: Props) {
           <Button
             intent="primary"
             size="sm"
+            title={scoreAlimtalkTitle}
             onClick={async () => {
+              if (isEditMode) {
+                feedback.info("점수를 저장한 뒤 알림톡을 발송해 주세요.");
+                return;
+              }
               const rows = data?.rows ?? [];
               const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
               const meta = data?.meta ?? null;
@@ -415,7 +426,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                 recomputePerStudentVars,
               });
             }}
-            disabled={selectedEnrollmentIds.length === 0}
+            disabled={scoreAlimtalkDisabled}
           >
             수업결과 알림톡 발송
           </Button>

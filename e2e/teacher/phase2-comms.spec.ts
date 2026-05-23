@@ -28,16 +28,20 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
     });
   });
 
-  test("소통탭 5탭 렌더링 (공지/Q&A/가입신청/게시판/자료)", async ({ page }) => {
+  test("소통탭 6탭 렌더링과 검색·작성 진입점", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/teacher/comms`, { timeout: 20_000 });
     await waitForTeacherPageReady(page);
 
-    // 5개 탭 확인 — 뱃지 숫자 포함 가능하므로 포함 매칭
+    // 6개 탭 확인 — 뱃지 숫자 포함 가능하므로 포함 매칭
     await expect(page.getByRole("button", { name: /공지/ }).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: /Q&A/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /상담/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /가입신청/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /게시판/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /자료/ }).first()).toBeVisible();
+
+    await expect(page.getByRole("button", { name: "검색 열기" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "공지사항 작성" })).toBeVisible();
 
     // Q&A 탭 클릭
     await page.getByRole("button", { name: /Q&A/ }).first().click();

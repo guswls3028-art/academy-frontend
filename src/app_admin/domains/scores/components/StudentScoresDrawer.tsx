@@ -34,6 +34,7 @@ type Props = {
   row: SessionScoreRow;
   meta: SessionScoreMeta | null;
   sessionId?: number;
+  isEditMode?: boolean;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -44,7 +45,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
@@ -63,6 +64,12 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
     () => getSessionRowFailedItemTitles(row),
     [row],
   );
+  const scoreSendDisabled = isEditMode || row.student_id == null;
+  const scoreSendTitle = isEditMode
+    ? "점수를 저장한 뒤 알림톡을 발송할 수 있습니다."
+    : row.student_id == null
+      ? "학생 정보가 없어 발송할 수 없습니다."
+      : "이 학생에게만 알림톡을 발송합니다.";
 
   // Overall stats + completion rates
   const stats = useMemo(() => {
@@ -111,6 +118,14 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(async () => {
+    if (isEditMode) {
+      feedback.info("점수를 저장한 뒤 알림톡을 발송해 주세요.");
+      return;
+    }
+    if (row.student_id == null) {
+      feedback.warning("학생 정보가 없어 알림톡을 발송할 수 없습니다.");
+      return;
+    }
     // SSOT (2026-05-13): 1순위 backend 응답 meta — session_scores_view.py가 응답 meta에 항상 채움 (lecture_title/session_title).
     // 2/3순위는 캐시·row fallback (호환). 진짜 진리는 meta.* — 어디서 발송하든 일관됨.
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
@@ -167,7 +182,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
       },
       recomputePerStudentVars,
     });
-  }, [row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
+  }, [isEditMode, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
 
   return (
     <div className="student-scores-drawer-side-panel">
@@ -207,11 +222,12 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
           <button
             type="button"
             onClick={handleSendScoreReport}
+            disabled={scoreSendDisabled}
             className="ds-button"
             data-intent="primary"
             data-size="md"
             style={{ flexShrink: 0, fontWeight: 700, marginRight: 12 }}
-            title="이 학생에게만 알림톡 발송"
+            title={scoreSendTitle}
           >
             📨 알림톡 발송
           </button>
@@ -324,6 +340,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, onClose, onO
               type="button"
               className="student-scores-drawer__send-btn"
               onClick={handleSendScoreReport}
+              disabled={scoreSendDisabled}
+              title={scoreSendTitle}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2L11 13" />

@@ -138,7 +138,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
           <ActionBtn label="템플릿으로 저장" color="var(--tc-text-secondary)" onClick={() => saveTemplateMut.mutate()} />
           <ActionBtn label="성적 재계산" color="var(--tc-warn)" onClick={() => recalcMut.mutate()} />
           <ActionBtn label="삭제" color="var(--tc-danger)" onClick={async () => {
-            const ok = await confirm({ title: "시험 삭제", message: "이 시험을 삭제하시겠습니까? 학생 응시 결과도 함께 삭제됩니다.", confirmText: "삭제", danger: true });
+            const ok = await confirm({ title: "시험 삭제", message: "이 시험을 삭제합니다. 연결된 응시 대상과 성적 표시가 함께 정리되며, 이미 제출된 기록은 정책에 따라 보존 또는 정리됩니다.", confirmText: "삭제", danger: true });
             if (ok) deleteMut.mutate();
           }} />
         </div>

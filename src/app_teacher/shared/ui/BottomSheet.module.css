@@ -35,11 +35,40 @@
   background: var(--tc-border-strong);
 }
 
-.title {
+.header {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tc-space-2);
   padding: 0 var(--tc-space-4) var(--tc-space-3);
+}
+
+.title {
+  min-width: 0;
+  flex-shrink: 0;
   color: var(--tc-text);
   font-weight: 700;
+}
+
+.closeButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius-full);
+  color: var(--tc-text-secondary);
+  background: var(--tc-surface-soft);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:active {
+  transform: translateY(1px);
 }
 
 .content {

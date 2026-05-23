@@ -31,7 +31,20 @@ export default function BottomSheet({ open, onClose, title, children }: Props) {
         </div>
 
         {/* Title */}
-        {title && <div className={styles.title}>{title}</div>}
+        {title && (
+          <div className={styles.header}>
+            <div className={styles.title}>{title}</div>
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={onClose}
+              aria-label="닫기"
+              title="닫기"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className={styles.content}>{children}</div>

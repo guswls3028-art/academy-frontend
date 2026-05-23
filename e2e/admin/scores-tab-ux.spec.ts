@@ -132,8 +132,23 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(hint).toContainText("Enter");
     await expect(hint).toContainText("Tab");
     await expect(hint).toContainText("Esc");
+    await expect(hint).toContainText("상단 저장하기로 반영");
     await snap(page, "02-edit-mode");
     console.log("[키보드 힌트] 표시 확인됨");
+
+    const firstStudentCheckbox = page.locator('input[type="checkbox"][aria-label]:not([aria-label="전체 선택"])').first();
+    await firstStudentCheckbox.check({ force: true });
+    const scoreSendButton = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+    await expect(scoreSendButton).toBeDisabled();
+    await expect(scoreSendButton).toHaveAttribute("title", "점수를 저장한 뒤 발송할 수 있습니다.");
+    console.log("[알림톡] 편집 모드에서는 저장 전 발송 차단 확인됨");
+
+    await page.locator('tbody tr[role="button"]').first().click();
+    const drawer = page.locator(".student-scores-drawer");
+    await expect(drawer).toBeVisible({ timeout: 5_000 });
+    await expect(drawer.getByRole("button", { name: /알림톡 발송/ })).toBeDisabled();
+    await expect(drawer.getByRole("button", { name: /성적 발송/ })).toBeDisabled();
+    console.log("[알림톡] 편집 모드에서는 학생 상세 단건 발송도 차단 확인됨");
 
     // 편집 컨트롤 확인
     await expect(page.getByRole("group", { name: "시험 점수 입력 방식" })).toBeVisible({ timeout: 3000 });
