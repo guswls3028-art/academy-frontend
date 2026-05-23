@@ -884,7 +884,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <td
                   className="ds-text-name min-w-0 text-[var(--color-text-primary)] align-middle"
                   data-col-type="name"
-                  onClick={() => onSelectRow(row)}
+                  onClick={(e) => { e.stopPropagation(); onSelectRow(row); }}
                 >
                   {/* 성적표 전용: 학생명 우선, 강의는 아래 보조 메타로 낮춰 표 가독성 확보.
                       아바타도 SSOT 동일: 사진 없으면 이니셜 표시 (다른 30+ 화면과 정합).
