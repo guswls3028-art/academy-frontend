@@ -3987,6 +3987,64 @@ details[open] > .clinic-tree__summary {
   cursor: not-allowed;
 }
 
+@media (max-width: 640px) {
+  .clinic-domain-layout .domain-header__tabs-wrap {
+    width: 100%;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .clinic-domain-layout .domain-header__tabs-wrap .ds-tabs {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .clinic-domain-layout .domain-header__tabs-wrap .ds-tab {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: var(--space-2) 5px;
+    font-size: 13px;
+  }
+
+  .clinic-ops__header {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .clinic-ops__header-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clinic-ops__header-title-row,
+  .clinic-ops__header-meta,
+  .clinic-ops__kpi-counters,
+  .clinic-ops__filters {
+    flex-wrap: wrap;
+  }
+
+  .clinic-ops__header-actions {
+    width: 100%;
+    min-width: 0;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .clinic-ops__action-btn {
+    flex: 1 1 calc(50% - var(--space-2));
+    min-width: 0;
+    justify-content: center;
+    padding: 8px 10px;
+  }
+
+  .clinic-ops__action-btn--primary {
+    flex-basis: 100%;
+  }
+}
+
 /* ── KPI counters ── */
 .clinic-ops__kpi-row {
   display: flex;
@@ -4406,6 +4464,29 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__confirm-bar-send:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .clinic-ops__confirm-bar {
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+  }
+
+  .clinic-ops__confirm-bar-actions {
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 1;
+  }
+
+  .clinic-ops__confirm-bar-actions > .clinic-ops__confirm-bar-info {
+    justify-content: flex-start;
+  }
+
+  .clinic-ops__confirm-bar-cancel,
+  .clinic-ops__confirm-bar-send {
+    justify-content: center;
+  }
 }
 
 /* 개별 알림 발송 버튼 (카드 내) */
@@ -5120,6 +5201,53 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__inline-retake-submit:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .clinic-ops__card-main,
+  .clinic-ops__card-detail-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clinic-ops__card-identity {
+    flex-wrap: wrap;
+  }
+
+  .clinic-ops__card-actions {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .clinic-ops__att-btn {
+    flex: 1 1 50%;
+    justify-content: center;
+    padding: 8px 10px;
+  }
+
+  .clinic-ops__att-btn--send {
+    flex-basis: 100%;
+    border-top: 1px solid var(--color-border-divider);
+    border-left: 0;
+  }
+
+  .clinic-ops__inline-btn {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .clinic-ops__inline-retake {
+    flex-wrap: wrap;
+  }
+
+  .clinic-ops__inline-retake-input {
+    flex: 1 1 80px;
+  }
+
+  .clinic-ops__inline-retake-submit {
+    flex: 1 1 72px;
+  }
 }
 
 /* Drawer: self-study completed state */

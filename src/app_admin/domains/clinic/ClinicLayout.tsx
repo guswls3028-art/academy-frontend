@@ -9,9 +9,9 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 const CLINIC_TABS = [
   { key: "home", label: "오늘", path: "/admin/clinic/home" },
   { key: "operations", label: "클리닉 진행", path: "/admin/clinic/operations" },
-  { key: "bookings", label: "진행중 항목", path: "/admin/clinic/bookings" },
+  { key: "bookings", label: "진행중", path: "/admin/clinic/bookings" },
   { key: "settings", label: "패스카드", path: "/admin/clinic/settings" },
-  { key: "msg-settings", label: "메시지 설정", path: "/admin/clinic/msg-settings" },
+  { key: "msg-settings", label: "메시지", path: "/admin/clinic/msg-settings" },
 ];
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -24,6 +24,7 @@ export default function ClinicLayout() {
 
   return (
     <DomainLayout
+      className="clinic-domain-layout"
       title="클리닉"
       description={DESCRIPTIONS[clinicMode] ?? DESCRIPTIONS.remediation}
       tabs={CLINIC_TABS}

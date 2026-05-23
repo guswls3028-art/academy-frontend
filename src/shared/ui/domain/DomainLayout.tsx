@@ -23,6 +23,8 @@ type DomainLayoutProps = {
   density?: "default" | "compact";
   /** 제목 행 우측 액션 영역 (예: 설정 아이콘) */
   headerActions?: ReactNode;
+  /** 도메인별 반응형 보정이 필요할 때만 쓰는 루트 클래스 */
+  className?: string;
   children: ReactNode;
 };
 
@@ -33,6 +35,7 @@ export default function DomainLayout({
   tabs,
   density = "default",
   headerActions,
+  className,
   children,
 }: DomainLayoutProps) {
   const navigate = useNavigate();
@@ -41,7 +44,11 @@ export default function DomainLayout({
   const hasTabs = tabs != null && tabs.length > 0;
 
   return (
-    <div className="domain-layout" data-app="admin" data-domain-density={density}>
+    <div
+      className={["domain-layout", className].filter(Boolean).join(" ")}
+      data-app="admin"
+      data-domain-density={density}
+    >
       {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트, 탭 있으면 맨 바닥에 여백 없이 */}
       <div
         className={[
