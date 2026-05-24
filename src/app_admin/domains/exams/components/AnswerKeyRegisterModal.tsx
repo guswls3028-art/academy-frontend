@@ -20,7 +20,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { fetchOMRPreview, downloadOMRPdf } from "../api/omr.api";
+import OmrSheetBuilder from "./omr/OmrSheetBuilder";
 import {
   fetchExplanations,
   saveExplanationsBulk,
@@ -49,6 +49,9 @@ type ExplanationState = {
   imageUrl: string | null;
   imageKey: string | null;
 };
+
+const EMPTY_QUESTIONS: ExamQuestion[] = [];
+const EMPTY_EXPLANATIONS: ExplanationData[] = [];
 
 const CHOICES = ["1", "2", "3", "4", "5"];
 const CIRCLED_CHOICE_MAP: Record<string, string> = {
@@ -148,11 +151,12 @@ export default function AnswerKeyRegisterModal({
   const { data: exam } = useAdminExam(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
-  const { data: questions = [] } = useQuery({
+  const { data: questionsData } = useQuery({
     queryKey: ["exam-questions", examId],
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
     enabled: open && Number.isFinite(examId),
   });
+  const questions = questionsData ?? EMPTY_QUESTIONS;
 
   const { data: answerKeyList } = useQuery({
     queryKey: ["answer-key", examId],
@@ -193,11 +197,12 @@ export default function AnswerKeyRegisterModal({
   const [explanationSaveBusy, setExplanationSaveBusy] = useState(false);
 
   /** 해설 데이터 로드 — AI 추출 결과 포함 */
-  const { data: explanationsFromApi = [] } = useQuery({
+  const { data: explanationsData } = useQuery({
     queryKey: ["exam-explanations", examId],
     queryFn: () => fetchExplanations(examId),
     enabled: open && Number.isFinite(examId) && questions.length > 0,
   });
+  const explanationsFromApi = explanationsData ?? EMPTY_EXPLANATIONS;
 
   const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -265,11 +270,15 @@ export default function AnswerKeyRegisterModal({
   useEffect(() => {
     if (sortedQuestions.length === 0) return;
     setScoreDraft((prev) => {
+      let changed = false;
       const next = { ...prev };
       sortedQuestions.forEach((q) => {
-        if (next[q.id] === undefined) next[q.id] = q.score ?? 0;
+        if (next[q.id] === undefined) {
+          next[q.id] = q.score ?? 0;
+          changed = true;
+        }
       });
-      return next;
+      return changed ? next : prev;
     });
   }, [sortedQuestions]);
 
@@ -277,6 +286,7 @@ export default function AnswerKeyRegisterModal({
   useEffect(() => {
     if (sortedQuestions.length === 0) return;
     setExplanationDraft((prev) => {
+      let changed = false;
       const next = { ...prev };
       // 해설 API 데이터 → question_id 기준으로 매핑
       const explByQuestionId: Record<number, ExplanationData> = {};
@@ -287,15 +297,27 @@ export default function AnswerKeyRegisterModal({
         // 이미 사용자가 수동 수정한 draft가 있으면 유지
         if (prev[q.id] && (prev[q.id].text || prev[q.id].problemImageUrl || prev[q.id].imageUrl)) continue;
         const apiExpl = explByQuestionId[q.id];
-        next[q.id] = {
+        const candidate = {
           text: apiExpl?.text ?? "",
           problemImageUrl: q.image_url ?? q.image ?? null,
           problemImageKey: q.image_key ?? null,
           imageUrl: apiExpl?.image_url ?? null,
           imageKey: apiExpl?.image_key ?? null,
         };
+        const current = prev[q.id];
+        if (
+          current?.text === candidate.text &&
+          current?.problemImageUrl === candidate.problemImageUrl &&
+          current?.problemImageKey === candidate.problemImageKey &&
+          current?.imageUrl === candidate.imageUrl &&
+          current?.imageKey === candidate.imageKey
+        ) {
+          continue;
+        }
+        next[q.id] = candidate;
+        changed = true;
       }
-      return next;
+      return changed ? next : prev;
     });
   }, [explanationsFromApi, sortedQuestions]);
 
@@ -1289,115 +1311,15 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
 }) {
-  const [omrExam, setOmrExam] = useState(examTitle || "");
-  const [omrLecture, setOmrLecture] = useState(lectureName || "");
-  const [omrSession, setOmrSession] = useState(sessionName || "");
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Sync props → state when they change
-  useEffect(() => { if (examTitle) setOmrExam(examTitle); }, [examTitle]);
-  useEffect(() => { if (lectureName) setOmrLecture(lectureName); }, [lectureName]);
-  useEffect(() => { if (sessionName) setOmrSession(sessionName); }, [sessionName]);
-
-  const getParams = useCallback(() => ({
-    exam_title: omrExam,
-    lecture_name: omrLecture,
-    session_name: omrSession,
-    mc_count: choiceCount,
-    essay_count: essayCount,
-    n_choices: 5,
-  }), [omrExam, omrLecture, omrSession, choiceCount, essayCount]);
-
-  // Auto-load preview when tab opens or params change
-  const loadPreview = useCallback(async () => {
-    if (choiceCount + essayCount < 1) return;
-    setPreviewLoading(true);
-    try {
-      const html = await fetchOMRPreview(examId, getParams());
-      setPreviewHtml(html);
-    } catch {
-      setPreviewHtml("<html><body><p style='padding:20px;color:#999'>미리보기를 불러올 수 없습니다.</p></body></html>");
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [examId, getParams, choiceCount, essayCount]);
-
-  useEffect(() => { loadPreview(); }, [loadPreview]);
-
-  const handleDownload = async () => {
-    if (choiceCount + essayCount < 1) return;
-    setPdfLoading(true);
-    try {
-      await downloadOMRPdf(examId, getParams(), omrExam);
-      feedback.success("PDF 다운로드 완료");
-    } catch {
-      feedback.error("PDF 다운로드 실패");
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  /* OMR 탭: 답안등록/이미지등록 탭과 동일한 모달 높이 사용.
-     미리보기는 A4 가로(297:210 = 1.414:1) 비율 유지. */
   return (
-    <div className="answer-key-two-panels answer-key-two-panels--omr">
-      {/* 좌측: 설정 */}
-      <div className="answer-key-panel--choice answer-key-panel--omr-settings">
-        <div className="answer-key-omr-title">답안지 설정</div>
-        <div className="answer-key-omr-description">
-          답안지에 인쇄될 정보를 확인하고 필요시 수정하세요.
-        </div>
-
-        <div>
-          <label className="answer-key-omr-field-label">시험명</label>
-          <input type="text" value={omrExam} onChange={(e) => setOmrExam(e.target.value)} className="ds-input answer-key-omr-input" placeholder="시험명 입력" />
-        </div>
-        <div>
-          <label className="answer-key-omr-field-label">강의명</label>
-          <input type="text" value={omrLecture} onChange={(e) => setOmrLecture(e.target.value)} className="ds-input answer-key-omr-input" placeholder="강의명 입력" />
-        </div>
-        <div>
-          <label className="answer-key-omr-field-label">차시명</label>
-          <input type="text" value={omrSession} onChange={(e) => setOmrSession(e.target.value)} className="ds-input answer-key-omr-input" placeholder="차시명 입력" />
-        </div>
-
-        <div className="answer-key-omr-summary">
-          {choiceCount > 0 && <span>객관식 {choiceCount}문항</span>}
-          {choiceCount > 0 && essayCount > 0 && <span> · </span>}
-          {essayCount > 0 && <span>서술형 {essayCount}문항</span>}
-          {choiceCount === 0 && essayCount === 0 && <span>문항 없음</span>}
-          <span> · 총 {choiceCount + essayCount}문항</span>
-        </div>
-
-        <div className="answer-key-omr-actions">
-          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || choiceCount + essayCount < 1}>
-            {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
-          </Button>
-          <Button type="button" intent="ghost" size="sm" className="w-full" onClick={loadPreview} disabled={previewLoading}>
-            {previewLoading ? "로딩 중..." : "미리보기 새로고침"}
-          </Button>
-        </div>
-      </div>
-
-      {/* 우측: 미리보기 (A4 가로 비율) */}
-      <div className="answer-key-panel--essay answer-key-panel--omr-preview">
-        {previewHtml ? (
-          <iframe
-            ref={iframeRef}
-            srcDoc={previewHtml}
-            className="answer-key-omr-frame"
-            title="OMR 답안지 미리보기"
-            sandbox="allow-same-origin"
-          />
-        ) : (
-          <div className="answer-key-omr-empty">
-            {previewLoading ? "미리보기 로딩 중..." : "문항을 설정하면 미리보기가 표시됩니다."}
-          </div>
-        )}
-      </div>
-    </div>
+    <OmrSheetBuilder
+      target={{ type: "exam", examId }}
+      initialExamTitle={examTitle || ""}
+      initialLectureName={lectureName || ""}
+      initialSessionName={sessionName || ""}
+      initialMcCount={choiceCount}
+      initialEssayCount={essayCount}
+      layout="modal"
+    />
   );
 }
