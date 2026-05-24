@@ -42,7 +42,7 @@ src/
 ## 빠른 시작
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 

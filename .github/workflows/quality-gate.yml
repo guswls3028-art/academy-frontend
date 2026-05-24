@@ -26,10 +26,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          # no cache: pnpm-lock.yaml is not committed
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --shamefully-hoist
+        run: pnpm install --frozen-lockfile --shamefully-hoist
 
       # 차단 게이트: 타입 에러 = 배포 차단
       - name: Typecheck
@@ -157,10 +157,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          # no cache: pnpm-lock.yaml is not committed
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --shamefully-hoist
+        run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium

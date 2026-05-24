@@ -31,10 +31,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          # no cache: pnpm-lock.yaml is not committed
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --shamefully-hoist
+        run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
         run: npx playwright install chromium --with-deps
