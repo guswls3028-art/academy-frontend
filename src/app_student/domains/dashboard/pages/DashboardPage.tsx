@@ -14,6 +14,7 @@
  * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
  */
 import { useState, useEffect, useMemo, memo } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
@@ -27,6 +28,7 @@ import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import styles from "./DashboardPage.module.css";
 
 /* ============================================================================
  * 유틸
@@ -123,42 +125,25 @@ const CountdownCard = memo(function CountdownCard({
   return (
     <Link
       to={linkTo}
-      style={{
-        display: "block", textDecoration: "none", color: "inherit",
-        borderRadius: "var(--stu-radius-lg, 12px)",
-        background: isClinic
-          ? "linear-gradient(135deg, color-mix(in srgb, var(--stu-success) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 60%)"
-          : "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 60%)",
-        border: isClinic
-          ? "1.5px solid color-mix(in srgb, var(--stu-success) 22%, transparent)"
-          : `1.5px solid color-mix(in srgb, var(--stu-primary) ${isImminent ? 38 : 22}%, transparent)`,
-        padding: "14px 16px",
-      }}
+      className={`${styles.countdownCard} ${isClinic ? styles.countdownCardClinic : ""}`}
+      data-imminent={!isClinic && isImminent ? "true" : undefined}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 12,
-          background: isClinic
-            ? "color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
-            : "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))",
-          display: "grid", placeItems: "center", flexShrink: 0,
-        }}>
+      <div className={styles.countdownInner}>
+        <div className={styles.countdownIcon}>
           {isClinic
-            ? <IconClinic style={{ width: 22, height: 22, color: "var(--stu-success, #10b981)" }} />
-            : <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />}
+            ? <IconClinic />
+            : <IconCalendar />}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.04em", marginBottom: 2, textTransform: "uppercase" }}>다음 일정</div>
-          <div style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.title}</div>
-          <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
+        <div className={styles.countdownCopy}>
+          <div className={styles.countdownLabel}>다음 일정</div>
+          <div className={styles.countdownTitle}>{session.title}</div>
+          <div className={styles.countdownTimeText}>
             {formatYmd(session.date ?? null)}
             {session.start_time && ` ${session.start_time.slice(0, 5)}`}
           </div>
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: isClinic ? "var(--stu-success, #10b981)" : "var(--stu-primary)" }}>
-            {formatRemaining(remainingMs)}
-          </div>
+        <div className={styles.countdownValue}>
+          {formatRemaining(remainingMs)}
         </div>
       </div>
     </Link>
@@ -171,30 +156,14 @@ const CountdownCard = memo(function CountdownCard({
 
 function AppIcon({
   to, icon, label, badge,
-}: { to: string; icon: React.ReactNode; label: string; badge?: number; }) {
+}: { to: string; icon: ReactNode; label: string; badge?: number; }) {
   return (
-    <Link
-      to={to}
-      style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        gap: 8, textDecoration: "none", color: "inherit",
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
-      <div style={{
-        width: 56, height: 56, borderRadius: 14,
-        background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1)))",
-        border: "1px solid color-mix(in srgb, var(--stu-primary) 15%, transparent)",
-        display: "grid", placeItems: "center",
-        position: "relative",
-        transition: "transform var(--stu-motion-fast)",
-      }}>
+    <Link to={to} className={styles.shortcut}>
+      <div className={styles.shortcutIcon}>
         {icon}
         {badge != null && badge > 0 && <NotificationBadge count={badge} />}
       </div>
-      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text)", letterSpacing: "-0.01em", textAlign: "center" }}>
-        {label}
-      </span>
+      <span className={styles.shortcutLabel}>{label}</span>
     </Link>
   );
 }
@@ -309,25 +278,35 @@ export default function DashboardPage() {
   const hasNotices = (dashboard?.notices?.length ?? 0) > 0;
 
   return (
-    <div style={{ padding: "var(--stu-space-2) 0", display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
-
-      {/* ─── 1. 다음 일정 카운트다운 (있을 때 최상단) ─── */}
-      {nextSession && (
-        <div data-guide="dash-countdown">
-          <CountdownCard session={nextSession.session} dt={nextSession.dt} />
-        </div>
-      )}
-
-      {/* ─── 2. 긴급 공지 (긴급일 때만 상단 강조) ─── */}
+    <div className={styles.page}>
       {hasUrgentNotice && (
         <UrgentNotice notices={(dashboard?.notices ?? []).filter((n) => n.is_urgent)} />
       )}
 
-      {/* ─── 3. 오늘 할 일 ─── */}
-      <section data-guide="dash-todo">
-        <SectionLabel>오늘 할 일</SectionLabel>
+      <section className={styles.hero} data-guide="dash-todo">
+        <div className={styles.heroTop}>
+          <div>
+            <div className={styles.heroEyebrow}>오늘 할 일</div>
+            <h2 className={styles.heroTitle}>
+              {todoCount > 0 ? "오늘 확인할 일이 있어요" : "오늘은 급한 일이 없어요"}
+            </h2>
+            <p className={styles.heroDescription}>
+              {todoCount > 0
+                ? "시험, 답변, 클리닉처럼 지금 확인하면 좋은 항목만 모았어요."
+                : "수업과 영상 학습 흐름만 차근차근 이어가면 됩니다."}
+            </p>
+          </div>
+          <div className={styles.heroPill}>{todoCount > 0 ? `${todoCount}건` : "정리됨"}</div>
+        </div>
+
+        {nextSession && (
+          <div data-guide="dash-countdown">
+            <CountdownCard session={nextSession.session} dt={nextSession.dt} />
+          </div>
+        )}
+
         {todoCount > 0 ? (
-          <div className="stu-panel" style={{ padding: 0, overflow: "hidden" }}>
+          <div className={`stu-panel ${styles.todoPanel}`}>
             {upcomingExams.length > 0 && (() => {
               const preview = upcomingExams.slice(0, 2).map((x) => x.exam.title);
               const nearest = upcomingExams[0];
@@ -335,23 +314,19 @@ export default function DashboardPage() {
                 ? (nearest.d === 0 ? "오늘" : nearest.d === 1 ? "내일" : `D-${nearest.d}`)
                 : "";
               const more = upcomingExams.length - 2 > 0 ? ` 외 ${upcomingExams.length - 2}건` : "";
-              const restCount = todoCount - upcomingExams.length;
               return (
                 <TodoRow
                   to="/student/exams"
-                  icon={<IconExam style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />}
+                  icon={<IconExam />}
                   iconBg="color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))"
                   label={`다가오는 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
                   labelColor="var(--stu-primary)"
                   detail={preview.join(", ") + more}
-                  hasBorder={restCount > 0}
                 />
               );
             })()}
 
             {replyCount > 0 && (() => {
-              const restCount =
-                failedHomeworks.length + failedExams.length + (clinicUpcoming ? 1 : 0);
               /* qna가 더 많으면 QnA 탭, 아니면 상담 탭으로 prefill */
               const qnaC = notificationCounts?.qna ?? 0;
               const counselC = notificationCounts?.counsel ?? 0;
@@ -360,12 +335,11 @@ export default function DashboardPage() {
                 <TodoRow
                   to="/student/community"
                   state={{ tab: prefillTab }}
-                  icon={<IconBell style={{ width: 18, height: 18, color: "var(--stu-success)" }} />}
+                  icon={<IconBell />}
                   iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
                   label={`새 답변 ${replyCount}건`}
                   labelColor="var(--stu-success)"
                   detail="질문/상담에 선생님이 답변했어요"
-                  hasBorder={restCount > 0}
                 />
               );
             })()}
@@ -373,11 +347,10 @@ export default function DashboardPage() {
             {clinicUpcoming && (
               <TodoRow
                 to="/student/clinic"
-                icon={<IconClinic style={{ width: 18, height: 18, color: "var(--stu-primary)" }} />}
+                icon={<IconClinic />}
                 iconBg="color-mix(in srgb, var(--stu-primary) 16%, var(--stu-surface-1))"
                 label="클리닉 예약이 있어요"
                 labelColor="var(--stu-primary)"
-                hasBorder={failedHomeworks.length > 0 || failedExams.length > 0}
               />
             )}
 
@@ -387,12 +360,11 @@ export default function DashboardPage() {
               return (
                 <TodoRow
                   to="/student/grades"
-                  icon={<IconClipboard style={{ width: 18, height: 18, color: "var(--stu-warn)" }} />}
+                  icon={<IconClipboard />}
                   iconBg="var(--stu-warn-bg)"
                   label={`과제 미통과 ${failedHomeworks.length}건`}
                   labelColor="var(--stu-warn-text)"
                   detail={preview.join(", ") + more}
-                  hasBorder={failedExams.length > 0}
                 />
               );
             })()}
@@ -403,30 +375,25 @@ export default function DashboardPage() {
               return (
                 <TodoRow
                   to="/student/exams"
-                  icon={<IconExam style={{ width: 18, height: 18, color: "var(--stu-danger)" }} />}
+                  icon={<IconExam />}
                   iconBg="var(--stu-danger-bg)"
                   label={`재시험 필요 ${failedExams.length}건`}
                   labelColor="var(--stu-danger)"
                   detail={preview.join(", ") + more}
-                  hasBorder={false}
                 />
               );
             })()}
           </div>
         ) : (
-          <div className="stu-panel" style={{ padding: "16px", display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: "color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))",
-              display: "grid", placeItems: "center", flexShrink: 0,
-            }}>
-              <IconCheck style={{ width: 20, height: 20, color: "var(--stu-success)" }} />
+          <div className={styles.heroDone}>
+            <div className={styles.heroDoneIcon}>
+              <IconCheck />
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--stu-text)" }}>
+            <div>
+              <div className={styles.heroDoneTitle}>
                 오늘은 급한 할 일이 없어요
               </div>
-              <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
+              <div className={styles.heroDoneText}>
                 오늘 수업과 영상 학습으로 차근차근 진행해 보세요
               </div>
             </div>
@@ -434,35 +401,29 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ─── 4. 오늘 수업 ─── */}
       {todaySessions.length > 0 && (
-        <section>
+        <section className={styles.section}>
           <SectionLabel>오늘 수업</SectionLabel>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+          <div className={styles.sessionList}>
             {todaySessions.slice(0, 3).map((s) => {
               const isClinic = s.type === "clinic";
               return (
                 <Link
                   key={s.id}
                   to={isClinic ? "/student/clinic" : `/student/sessions/${s.id}`}
-                  className={`stu-panel stu-panel--pressable stu-panel--accent ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
-                  style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}
+                  className={`stu-panel stu-panel--pressable ${styles.sessionCard} ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
                 >
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 10,
-                    background: isClinic ? "var(--stu-success, #10b981)" : "var(--stu-primary)",
-                    opacity: 0.9, display: "grid", placeItems: "center",
-                  }}>
+                  <div className={`${styles.sessionIcon} ${isClinic ? styles.sessionIconClinic : ""}`}>
                     {isClinic
-                      ? <IconClinic style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />
-                      : <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />}
+                      ? <IconClinic />
+                      : <IconCalendar />}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div className={styles.sessionBody}>
+                    <div className={styles.sessionTitle}>
                       {s.title}
-                      {s.start_time && <span style={{ fontWeight: 400, color: "var(--stu-text-muted)", marginLeft: 6, fontSize: 13 }}>{s.start_time.slice(0, 5)}</span>}
+                      {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
                     </div>
-                    <div className="stu-muted" style={{ fontSize: 12 }}>오늘 수업</div>
+                    <div className="stu-muted">오늘 수업</div>
                   </div>
                 </Link>
               );
@@ -471,47 +432,37 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* ─── 5. 학습 현황 (활동성 우선) ─── */}
       <div data-guide="dash-stats">
         <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} />
       </div>
 
-      {/* ─── 6. 공지 (긴급 없을 때) ─── */}
       {!hasUrgentNotice && (
         <NoticeStrip notices={dashboard?.notices ?? []} hasNotices={hasNotices} />
       )}
 
-      {/* ─── 7. 앱 아이콘 메뉴 (탭바 중복 제거 + 출석) ─── */}
-      <section data-guide="dash-apps">
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "16px 0",
-          justifyItems: "center",
-          padding: "var(--stu-space-4) 0",
-        }}>
+      <section className={styles.shortcutSection} data-guide="dash-apps">
+        <div className={styles.shortcutGrid}>
           <AppIcon to="/student/grades" label="성적"
-            icon={<IconGrade style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
+            icon={<IconGrade />}
             badge={!countsLoading ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconExam />} />
           <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconClipboard />} />
           <AppIcon to="/student/clinic" label="클리닉"
-            icon={<IconClinic style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />}
+            icon={<IconClinic />}
             badge={!countsLoading ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/attendance" label="출결"
-            icon={<IconCheck style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconCheck />} />
           <AppIcon to="/student/notices" label="공지"
-            icon={<IconNotice style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconNotice />} />
           <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconFolder />} />
           <AppIcon to="/student/profile" label="내 정보"
-            icon={<IconUser style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />} />
+            icon={<IconUser />} />
         </div>
       </section>
 
-      {/* ─── 8. 학원문의 (압축, 하단) ─── */}
       {dashboard?.tenant_info && <AcademyContact tenantInfo={dashboard.tenant_info} />}
     </div>
   );
@@ -559,15 +510,13 @@ function LearningStatusCard({
   };
 
   return (
-    <section className="stu-panel" style={{ padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          나의 학습 현황
-        </div>
-        <span style={{ fontSize: 11, color: "var(--stu-text-subtle)" }}>최근 4주</span>
+    <section className={`stu-panel ${styles.surface}`}>
+      <div className={styles.surfaceHeader}>
+        <div className={styles.surfaceEyebrow}>나의 학습 현황</div>
+        <span className={styles.surfaceMeta}>최근 4주</span>
       </div>
       {hasData ? (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={styles.statGrid}>
           <Stat label="수업" value={recentSessionCount} unit="회" tone="var(--stu-text)" />
           <Divider />
           <Stat label="과제 통과" value={hwRate} unit={hwRate != null ? "%" : ""} tone={tone(hwRate)} />
@@ -575,28 +524,19 @@ function LearningStatusCard({
           <Stat label="시험 합격" value={examRate} unit={examRate != null ? "%" : ""} tone={tone(examRate)} />
         </div>
       ) : (
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          padding: "8px 4px",
-        }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-            background: "linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1)))",
-            display: "grid", placeItems: "center",
-          }}>
+        <div className={styles.learningEmpty}>
+          <div className={styles.learningEmptyIcon}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="var(--stu-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="var(--stu-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 7h6M9 11h4" stroke="var(--stu-primary)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 7h6M9 11h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
             </svg>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text)", marginBottom: 2 }}>
+          <div>
+            <div className={styles.learningEmptyTitle}>
               아직 학습 기록이 없어요
             </div>
-            <div style={{ fontSize: 12, color: "var(--stu-text-muted)", lineHeight: 1.5 }}>
+            <div className={styles.learningEmptyText}>
               수업에 참여하면 현황이 여기에 표시돼요
             </div>
           </div>
@@ -608,70 +548,56 @@ function LearningStatusCard({
 
 function Stat({ label, value, unit, tone }: { label: string; value: number | null; unit: string; tone: string }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "8px 4px" }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.02em" }}>{label}</span>
+    <div className={styles.stat}>
+      <span className={styles.statLabel}>{label}</span>
       <div>
-        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", color: tone }}>
+        <span className={styles.statValue} style={{ "--stat-tone": tone } as CSSProperties}>
           {value != null ? value : "-"}
         </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)", marginLeft: 1 }}>{unit}</span>
+        <span className={styles.statUnit}>{unit}</span>
       </div>
     </div>
   );
 }
 
 function Divider() {
-  return <div style={{ width: 1, background: "var(--stu-border)", alignSelf: "stretch", margin: "4px 0" }} />;
+  return <div className={styles.statDivider} />;
 }
 
 /* ============================================================================
  * 공지 / TODO / 학원문의 보조 컴포넌트
  * ========================================================================== */
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.06em", marginBottom: 10, textTransform: "uppercase" }}>
+    <div className={styles.sectionLabel}>
       {children}
     </div>
   );
 }
 
-function TodoRow({ to, state, icon, iconBg, label, labelColor, detail, hasBorder }: {
-  to: string; state?: unknown; icon: React.ReactNode; iconBg: string;
-  label: string; labelColor: string; detail?: string; hasBorder: boolean;
+function TodoRow({ to, state, icon, iconBg, label, labelColor, detail }: {
+  to: string; state?: unknown; icon: ReactNode; iconBg: string;
+  label: string; labelColor: string; detail?: string;
 }) {
   return (
     <Link
       to={to}
       state={state}
-      style={{
-        display: "flex", alignItems: "flex-start", gap: 12,
-        padding: "12px 16px", textDecoration: "none", color: "inherit",
-        borderBottom: hasBorder ? "1px solid var(--stu-border)" : "none",
-        WebkitTapHighlightColor: "transparent",
-      }}
+      className={styles.todoRow}
     >
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: iconBg, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>
+      <div className={styles.rowIcon} style={{ background: iconBg, color: labelColor }}>
         {icon}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: labelColor, lineHeight: 1.3 }}>{label}</div>
+      <div className={styles.rowBody}>
+        <div className={styles.rowTitle} style={{ color: labelColor }}>{label}</div>
         {detail && (
-          <div
-            style={{
-              fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2,
-              lineHeight: 1.4,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <div className={styles.rowDetail}>
             {detail}
           </div>
         )}
       </div>
-      <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0, marginTop: 10 }} />
+      <IconChevronRight className={styles.rowChevron} />
     </Link>
   );
 }
@@ -681,30 +607,15 @@ function UrgentNotice({ notices }: { notices: Array<{ id: number; title: string;
   const more = notices.length - 1;
   if (!top) return null;
   return (
-    <Link
-      to="/student/notices"
-      style={{
-        display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "inherit",
-        borderRadius: "var(--stu-radius-lg, 12px)",
-        background: "var(--stu-danger-bg)",
-        border: "1.5px solid var(--stu-danger-border)",
-        padding: "12px 14px",
-      }}
-    >
-      <span style={{
-        fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)",
-        background: "var(--stu-danger)", borderRadius: 4, padding: "2px 6px", letterSpacing: "0.02em", flexShrink: 0,
-      }}>긴급</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 14, fontWeight: 600, color: "var(--stu-danger-text)",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>{top.title}</div>
+    <Link to="/student/notices" className={styles.urgentNotice}>
+      <span className={styles.urgentBadge}>긴급</span>
+      <div className={styles.urgentBody}>
+        <div className={styles.urgentTitle}>{top.title}</div>
         {more > 0 && (
-          <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>외 {more}건의 긴급 공지</div>
+          <div className={styles.urgentMore}>외 {more}건의 긴급 공지</div>
         )}
       </div>
-      <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-danger)", flexShrink: 0 }} />
+      <IconChevronRight className={styles.rowChevron} />
     </Link>
   );
 }
@@ -720,47 +631,23 @@ function NoticeStrip({
     && (Date.now() - new Date(top.created_at).getTime()) < SEVEN_DAYS_MS;
 
   return (
-    <Link
-      to="/student/notices"
-      style={{
-        display: "flex", alignItems: "center", gap: 10,
-        textDecoration: "none", color: "inherit",
-        borderRadius: "var(--stu-radius-md, 8px)",
-        border: "1px solid var(--stu-border)",
-        background: "var(--stu-surface)",
-        padding: "10px 14px",
-      }}
-    >
-      <div style={{
-        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-        background: "color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1))",
-        display: "grid", placeItems: "center",
-      }}>
-        <IconNotice style={{ width: 16, height: 16, color: "var(--stu-primary)" }} />
+    <Link to="/student/notices" className={styles.noticeStrip}>
+      <div className={styles.noticeIcon}>
+        <IconNotice />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>공지사항</div>
-        <div style={{
-          fontSize: 13, fontWeight: 500, color: "var(--stu-text)", marginTop: 1,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
+      <div className={styles.noticeBody}>
+        <div className={styles.surfaceEyebrow}>공지사항</div>
+        <div className={styles.noticeTitle}>
           {isNew && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: "var(--stu-primary-contrast)",
-              background: "var(--stu-primary)", borderRadius: 4, padding: "1px 5px",
-              marginRight: 5, letterSpacing: "0.02em",
-            }}>NEW</span>
+            <span className={styles.noticeNew}>NEW</span>
           )}
           {hasNotices && top ? top.title : "최신 공지를 확인하세요"}
         </div>
       </div>
       {notices.length > 0 && (
-        <span style={{
-          background: "var(--stu-primary)", color: "var(--stu-primary-contrast)",
-          borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 700, flexShrink: 0,
-        }}>{notices.length}</span>
+        <span className={styles.noticeCount}>{notices.length}</span>
       )}
-      <IconChevronRight style={{ width: 14, height: 14, color: "var(--stu-text-muted)", flexShrink: 0 }} />
+      <IconChevronRight className={styles.noticeChevron} />
     </Link>
   );
 }
@@ -784,29 +671,17 @@ function AcademyContact({
     return (
       <a
         href={`tel:${a.phone.replace(/\D/g, "")}`}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          textDecoration: "none", color: "inherit",
-          borderRadius: "var(--stu-radius-md, 8px)",
-          border: "1px solid var(--stu-border)",
-          background: "var(--stu-surface)",
-          padding: "10px 14px",
-        }}
+        className={styles.contactCard}
       >
-        <div style={{
-          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-          background: "color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1))",
-          display: "grid", placeItems: "center",
-          color: "var(--stu-primary)",
-        }}>
+        <div className={styles.contactIcon}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
           </svg>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--stu-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>학원문의</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {a.name || "학원"} · <span style={{ color: "var(--stu-primary)" }}>{a.phone}</span>
+        <div className={styles.contactBody}>
+          <div className={styles.surfaceEyebrow}>학원문의</div>
+          <div className={styles.contactTitle}>
+            {a.name || "학원"} · <span className={styles.contactPhone}>{a.phone}</span>
           </div>
         </div>
       </a>
@@ -815,19 +690,14 @@ function AcademyContact({
 
   /* 다중 분점 — 카드형 */
   return (
-    <section style={{
-      borderRadius: "var(--stu-radius-md, 8px)",
-      background: "var(--stu-surface)",
-      border: "1px solid var(--stu-border)",
-      padding: "12px 14px",
-    }}>
-      <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 8, textTransform: "uppercase" }}>학원문의</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <section className={`${styles.contactCard} ${styles.contactMulti}`}>
+      <div className={styles.surfaceEyebrow}>학원문의</div>
+      <div className={styles.contactRows}>
         {contactable.map((a, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name || "학원"}</span>
+          <div key={i} className={styles.contactRow}>
+            <span className={styles.contactName}>{a.name || "학원"}</span>
             {a.phone && (
-              <a href={`tel:${a.phone.replace(/\D/g, "")}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-primary)", textDecoration: "none", flexShrink: 0 }}>
+              <a href={`tel:${a.phone.replace(/\D/g, "")}`} className={styles.contactPhone}>
                 {a.phone}
               </a>
             )}

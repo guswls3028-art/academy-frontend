@@ -1,0 +1,651 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 0 6px;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 58%),
+    var(--stu-surface-1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 14px 38px color-mix(in srgb, var(--stu-primary) 13%, transparent);
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 16px 0;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: var(--stu-gradient, var(--stu-primary));
+  opacity: 0.88;
+}
+
+.heroTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heroEyebrow,
+.sectionLabel,
+.surfaceEyebrow {
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.heroEyebrow,
+.sectionLabel {
+  letter-spacing: 0;
+}
+
+.heroTitle {
+  margin: 4px 0 0;
+  color: var(--stu-text);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.16;
+  word-break: keep-all;
+}
+
+.heroDescription {
+  margin: 6px 0 0;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.heroPill {
+  flex-shrink: 0;
+  min-width: 58px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 22%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
+  color: var(--stu-primary);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.heroDone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-success) 18%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-success) 7%, var(--stu-surface-1));
+}
+
+.heroDoneIcon,
+.rowIcon,
+.noticeIcon,
+.contactIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: var(--stu-radius-md);
+}
+
+.heroDoneIcon {
+  width: 42px;
+  height: 42px;
+  background: color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1));
+  color: var(--stu-success);
+}
+
+.heroDoneTitle {
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.heroDoneText {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.countdownCard {
+  position: relative;
+  z-index: 1;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+}
+
+.countdownCard[data-imminent="true"] {
+  border-color: color-mix(in srgb, var(--stu-primary) 42%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--stu-primary) 8%, transparent);
+}
+
+.countdownCardClinic {
+  border-color: color-mix(in srgb, var(--stu-success) 24%, transparent);
+  background: color-mix(in srgb, var(--stu-success) 7%, var(--stu-surface-1));
+}
+
+.countdownInner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.countdownIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1));
+  color: var(--stu-primary);
+}
+
+.countdownCardClinic .countdownIcon {
+  background: color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1));
+  color: var(--stu-success);
+}
+
+.countdownIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.countdownCopy {
+  flex: 1;
+  min-width: 0;
+}
+
+.countdownLabel {
+  margin-bottom: 2px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.countdownTitle {
+  overflow: hidden;
+  color: var(--stu-text);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.countdownTimeText {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.countdownValue {
+  flex-shrink: 0;
+  color: var(--stu-primary);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.countdownCardClinic .countdownValue {
+  color: var(--stu-success);
+}
+
+.todoPanel {
+  position: relative;
+  z-index: 1;
+  padding: 0;
+}
+
+.todoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: inherit;
+  padding: 12px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.todoRow + .todoRow {
+  border-top: 1px solid color-mix(in srgb, var(--stu-border) 76%, transparent);
+}
+
+.rowIcon {
+  width: 36px;
+  height: 36px;
+  margin-top: 1px;
+}
+
+.rowIcon svg,
+.heroDoneIcon svg,
+.noticeIcon svg,
+.contactIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.rowBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.rowDetail {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.rowChevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 10px;
+  color: var(--stu-text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  padding-left: 2px;
+}
+
+.sessionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sessionCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sessionIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+}
+
+.sessionIconClinic {
+  background: var(--stu-success);
+}
+
+.sessionIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sessionBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.sessionTitle {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionTime {
+  margin-left: 6px;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.surface {
+  padding: 16px;
+}
+
+.surfaceHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.surfaceEyebrow {
+  color: var(--stu-text-muted);
+}
+
+.surfaceMeta {
+  color: var(--stu-text-subtle);
+  font-size: 11px;
+}
+
+.statGrid {
+  display: flex;
+  gap: 8px;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+}
+
+.statLabel {
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.statValue {
+  color: var(--stat-tone, var(--stu-text));
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.statUnit {
+  margin-left: 1px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.statDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--stu-border) 76%, transparent);
+}
+
+.learningEmpty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 4px;
+}
+
+.learningEmptyIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
+  color: var(--stu-primary);
+}
+
+.learningEmptyIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.learningEmptyTitle {
+  margin-bottom: 2px;
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.learningEmptyText {
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.noticeStrip,
+.contactCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface);
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.noticeIcon,
+.contactIcon {
+  width: 32px;
+  height: 32px;
+  background: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
+  color: var(--stu-primary);
+}
+
+.noticeBody,
+.contactBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.noticeTitle,
+.contactTitle {
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noticeNew {
+  display: inline-flex;
+  margin-right: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.noticeCount {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.noticeChevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--stu-text-muted);
+}
+
+.shortcutSection {
+  padding: 12px 2px 6px;
+}
+
+.shortcutGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 4px;
+}
+
+.shortcut {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shortcutIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent);
+  border-radius: var(--stu-radius-md);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--stu-primary) 15%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)));
+  color: var(--stu-primary);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 8px 18px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+.shortcutIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.shortcutLabel {
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.urgentNotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  padding: 12px;
+  border: 1px solid var(--stu-danger-border);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-danger-bg);
+  text-decoration: none;
+}
+
+.urgentBadge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--stu-danger);
+  color: var(--stu-primary-contrast);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.urgentBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.urgentTitle {
+  overflow: hidden;
+  color: var(--stu-danger-text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.urgentMore {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+}
+
+.contactMulti {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px;
+}
+
+.contactRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.contactName {
+  overflow: hidden;
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contactPhone {
+  flex-shrink: 0;
+  color: var(--stu-primary);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}

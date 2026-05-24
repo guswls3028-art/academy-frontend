@@ -38,7 +38,7 @@ body:has([data-app="student"]) {
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
   line-height: var(--stu-line-20);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
@@ -206,7 +206,7 @@ html:has([data-app="student"]) {
 .student-page-shell {
   display: flex;
   flex-direction: column;
-  gap: var(--stu-space-4);
+  gap: var(--stu-space-5);
 }
 
 .student-page-shell__header {
@@ -214,7 +214,7 @@ html:has([data-app="student"]) {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--stu-space-4);
-  padding: 2px 4px 0;
+  padding: 0 2px;
 }
 
 .student-page-shell__copy {
@@ -229,8 +229,8 @@ html:has([data-app="student"]) {
 .student-page-shell__title {
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
-  font-size: 26px;
-  line-height: 1.08;
+  font-size: 24px;
+  line-height: 1.12;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -250,7 +250,7 @@ html:has([data-app="student"]) {
   color: var(--stu-text-muted);
   font-size: var(--stu-font-size-13);
   line-height: var(--stu-line-18);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .student-page-shell__actions {
@@ -308,26 +308,40 @@ html:has([data-app="student"]) {
   flex-direction: column;
   align-items: center;
   gap: var(--stu-space-3);
-  margin-bottom: var(--stu-space-6);
+  width: 100%;
+  margin-bottom: var(--stu-space-5);
+  padding: 22px 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 12%, transparent), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 92%, transparent), var(--stu-surface));
+  box-shadow: var(--stu-shadow-1);
 }
 
 .student-profile-photo {
   box-shadow:
-    0 8px 20px rgba(15, 23, 42, 0.08),
-    0 0 0 4px color-mix(in srgb, var(--stu-primary) 7%, transparent);
+    0 12px 28px rgba(15, 23, 42, 0.12),
+    0 0 0 5px color-mix(in srgb, var(--stu-primary) 9%, transparent);
 }
 
 .student-profile-card {
   padding: var(--stu-space-5) !important;
+  border-color: color-mix(in srgb, var(--stu-border) 78%, transparent) !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, transparent), var(--stu-surface)),
+    var(--stu-surface);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055) !important;
 }
 
 .student-profile-card__body {
   position: relative;
-  padding-right: 38px;
+  padding-right: 0;
 }
 
 .student-profile-edit-btn {
-  box-shadow: none;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.08);
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface)) !important;
 }
 
 .student-profile-fields {
@@ -337,7 +351,7 @@ html:has([data-app="student"]) {
 }
 
 .student-profile-fields > div {
-  padding: 11px 0;
+  padding: 12px 0;
   border-top: 1px solid color-mix(in srgb, var(--stu-border) 72%, transparent);
 }
 
@@ -367,10 +381,12 @@ html:has([data-app="student"]) {
 .student-settings-link,
 .student-settings-card {
   width: 100%;
-  border: 1px solid var(--stu-border);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
   border-radius: var(--stu-radius-md);
-  background: var(--stu-surface);
-  box-shadow: var(--stu-shadow-1);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 94%, transparent), var(--stu-surface)),
+    var(--stu-surface);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
 }
 
 .student-settings-link {
@@ -383,6 +399,17 @@ html:has([data-app="student"]) {
   text-decoration: none;
   font-size: 15px;
   font-weight: 800;
+  transition:
+    transform var(--stu-motion-fast),
+    border-color var(--stu-motion-fast),
+    box-shadow var(--stu-motion-fast);
+}
+
+.student-settings-link:hover,
+.student-settings-link:focus-visible {
+  border-color: color-mix(in srgb, var(--stu-primary) 36%, var(--stu-border));
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.075);
+  transform: translateY(-1px);
 }
 
 .student-settings-stack {
@@ -392,9 +419,13 @@ html:has([data-app="student"]) {
 }
 
 .student-settings-link__icon {
-  width: 22px;
-  height: 22px;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
   flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 22%, var(--stu-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface));
   color: var(--stu-primary);
 }
 
@@ -424,9 +455,9 @@ html:has([data-app="student"]) {
   gap: var(--stu-space-2);
   min-height: 74px;
   padding: 10px 8px;
-  border: 1px solid var(--stu-border);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
   border-radius: 8px;
-  background: var(--stu-surface-soft);
+  background: color-mix(in srgb, var(--stu-surface-soft) 82%, var(--stu-surface));
   color: var(--stu-text-muted);
   cursor: pointer;
   transition:
@@ -444,9 +475,12 @@ html:has([data-app="student"]) {
 
 .student-settings-mode--active {
   border-color: color-mix(in srgb, var(--stu-primary) 70%, var(--stu-border));
-  background: var(--stu-tint-primary);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface)), var(--stu-tint-primary));
   color: var(--stu-primary);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--stu-primary) 14%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--stu-primary) 14%, transparent),
+    0 8px 18px color-mix(in srgb, var(--stu-primary) 13%, transparent);
 }
 
 .student-settings-mode--active span {
@@ -649,28 +683,25 @@ html:has([data-app="student"]) {
    Action Slot Container - 사용자 상태 기반 UI
    ========================= */
 .stu-panel {
-  background: var(--stu-surface-1);
-  border: 2px solid var(--stu-border-subtle);
-  border-radius: 12px;
-  padding: var(--stu-space-5);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  padding: 14px;
   position: relative;
   overflow: hidden;
-  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 10px 28px rgba(15, 23, 42, 0.055);
 }
 
 .stu-panel::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(0, 0, 0, 0.02) 100%
-  );
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
   pointer-events: none;
   z-index: 0;
 }
@@ -1077,14 +1108,14 @@ button.media-tile--course {
    3) Section (기존 호환성 유지)
    ========================= */
 .stu-section {
-  background: var(--stu-surface-1);
-  border: 2px solid var(--stu-border-subtle);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 10px 28px rgba(15, 23, 42, 0.055);
   position: relative;
   overflow: hidden;
 }
@@ -1093,12 +1124,9 @@ button.media-tile--course {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(0, 0, 0, 0.02) 100%
-  );
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
   pointer-events: none;
   z-index: 0;
 }
@@ -1110,11 +1138,10 @@ button.media-tile--course {
 
 .stu-section--nested {
   background: var(--stu-surface-2);
-  border: 2px solid var(--stu-border-subtle);
-  /* 중첩된 섹션은 더 미묘한 그림자 */
+  border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
   box-shadow: 
-    0 2px 6px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 1px 0 rgba(255, 255, 255, 0.58) inset,
+    0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
 .stu-section--pressable {
@@ -1349,9 +1376,9 @@ button.media-tile--course {
 .domain-tab-shell--plain .domain-tab-shell__title {
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
-  font-size: 28px;
-  line-height: 1.05;
-  font-weight: 950;
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 900;
 }
 
 .domain-tab-shell--plain .domain-tab-shell__title::after {
@@ -1420,7 +1447,7 @@ button.media-tile--course {
   }
 
   .domain-tab-shell--plain .domain-tab-shell__title {
-    font-size: 28px;
+    font-size: 26px;
   }
 
   .domain-tab-shell--plain .domain-tab-shell__actions {
@@ -1430,14 +1457,14 @@ button.media-tile--course {
 
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
-  background: var(--stu-surface-1);
-  border: 2px solid var(--stu-border-subtle);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 10px 28px rgba(15, 23, 42, 0.055);
   position: relative;
   overflow: hidden;
 }
@@ -1446,12 +1473,9 @@ button.media-tile--course {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(0, 0, 0, 0.02) 100%
-  );
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
   pointer-events: none;
   z-index: 0;
 }
@@ -1463,11 +1487,10 @@ button.media-tile--course {
 
 .stu-card--soft {
   background: var(--stu-surface-2);
-  border: 2px solid var(--stu-border-subtle);
-  /* 부드러운 카드는 더 미묘한 그림자 */
+  border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
   box-shadow: 
-    0 2px 6px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 1px 0 rgba(255, 255, 255, 0.58) inset,
+    0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
 .stu-card--pressable {
@@ -1502,14 +1525,12 @@ button.media-tile--course {
 /* Back-compat for existing class used in StudentPageShell */
 .student-card {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄 스타일 적용 */
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.01);
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 10px 28px rgba(15, 23, 42, 0.055);
   background-image: 
     radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
   background-size: 20px 20px;
@@ -1826,14 +1847,16 @@ button.media-tile--course {
    7) Skeleton
    ========================= */
 .stu-skel {
+  border: 1px solid color-mix(in srgb, var(--stu-border) 70%, transparent);
   border-radius: var(--stu-radius-md);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--stu-surface-2) 85%, #fff),
-    color-mix(in srgb, var(--stu-surface-1) 85%, #fff),
-    color-mix(in srgb, var(--stu-surface-2) 85%, #fff)
+    color-mix(in srgb, var(--stu-surface-2) 92%, var(--stu-primary) 8%),
+    color-mix(in srgb, var(--stu-surface-1) 82%, #ffffff 18%),
+    color-mix(in srgb, var(--stu-surface-2) 92%, var(--stu-primary) 8%)
   );
   background-size: 200% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   animation: stuShimmer 1.05s ease-in-out infinite;
 }
 
@@ -2137,6 +2160,39 @@ button.media-tile--course {
 
 [data-app="student"] [role="tab"]:active {
   transform: scale(0.97);
+}
+
+[data-app="student"] .domain-tab-shell__tabs[role="tablist"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 4px;
+  overflow: visible;
+  padding: 4px;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-surface-soft) 84%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
+}
+
+[data-app="student"] .domain-tab-shell__tab[role="tab"] {
+  flex-shrink: 1;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: calc(var(--stu-radius-md) - 4px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+[data-app="student"] .domain-tab-shell__tab[role="tab"][aria-selected="true"],
+[data-app="student"] .domain-tab-shell__tab--active[role="tab"] {
+  background: var(--stu-surface-1);
+  color: var(--stu-primary);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 7px 18px rgba(15, 23, 42, 0.07);
 }
 
 /* =========================

@@ -130,7 +130,7 @@
 }
 
 /* ── 앱 배경 그라디언트 ── */
-[data-student-theme="dnb"] [data-app="student"] {
+[data-app="student"][data-student-theme="dnb"] {
   background-image:
     linear-gradient(135deg, rgba(97, 46, 141, 0.035) 0%, rgba(123, 63, 170, 0.02) 50%, rgba(243, 235, 64, 0.012) 100%) !important,
     var(--stu-bg-pattern) !important;
@@ -141,27 +141,27 @@
 }
 
 /* 헤더 배경 미묘한 그라디언트 */
-[data-student-theme="dnb"] [data-app="student"] header {
+[data-app="student"][data-student-theme="dnb"] header {
   background-image: linear-gradient(135deg, rgba(97, 46, 141, 0.06) 0%, rgba(123, 63, 170, 0.04) 50%, rgba(243, 235, 64, 0.015) 100%) !important;
   background-size: 100% 100%;
 }
 
 /* 탭바 배경 */
-[data-student-theme="dnb"] [data-app="student"] .stu-tabbar {
+[data-app="student"][data-student-theme="dnb"] .stu-tabbar {
   background-image: linear-gradient(135deg, rgba(97, 46, 141, 0.06) 0%, rgba(123, 63, 170, 0.04) 50%, rgba(243, 235, 64, 0.015) 100%) !important;
   background-size: 100% 100%;
 }
 
 /* ── 패널, 카드, 섹션 ── */
-[data-student-theme="dnb"] [data-app="student"] .stu-panel {
+[data-app="student"][data-student-theme="dnb"] .stu-panel {
   background-image:
     linear-gradient(135deg, rgba(97, 46, 141, 0.04) 0%, rgba(123, 63, 170, 0.025) 50%, rgba(243, 235, 64, 0.012) 100%),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.01));
   background-color: var(--stu-surface-1);
 }
 
-[data-student-theme="dnb"] [data-app="student"] .stu-section,
-[data-student-theme="dnb"] [data-app="student"] .stu-card {
+[data-app="student"][data-student-theme="dnb"] .stu-section,
+[data-app="student"][data-student-theme="dnb"] .stu-card {
   background-image:
     linear-gradient(135deg, rgba(97, 46, 141, 0.035) 0%, rgba(123, 63, 170, 0.02) 50%, rgba(243, 235, 64, 0.010) 100%);
   background-color: var(--stu-surface-1);

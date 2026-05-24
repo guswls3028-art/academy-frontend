@@ -125,7 +125,7 @@
     fill: url(#stu-gradient-limglish);
 }
 
-[data-student-theme="limglish"] [data-app="student"] {
+[data-app="student"][data-student-theme="limglish"] {
     background-image:
         linear-gradient(135deg, rgba(20, 38, 62, 0.03) 0%, rgba(42, 74, 107, 0.02) 50%, rgba(15, 28, 48, 0.02) 100%) !important,
         var(--stu-bg-pattern) !important;
@@ -135,25 +135,25 @@
     background-attachment: fixed !important;
 }
 
-[data-student-theme="limglish"] [data-app="student"] header {
+[data-app="student"][data-student-theme="limglish"] header {
     background-image: linear-gradient(135deg, rgba(20, 38, 62, 0.06) 0%, rgba(42, 74, 107, 0.04) 50%, rgba(15, 28, 48, 0.04) 100%) !important;
     background-size: 100% 100%;
 }
 
-[data-student-theme="limglish"] [data-app="student"] .stu-tabbar {
+[data-app="student"][data-student-theme="limglish"] .stu-tabbar {
     background-image: linear-gradient(135deg, rgba(20, 38, 62, 0.06) 0%, rgba(42, 74, 107, 0.04) 50%, rgba(15, 28, 48, 0.04) 100%) !important;
     background-size: 100% 100%;
 }
 
-[data-student-theme="limglish"] [data-app="student"] .stu-panel {
+[data-app="student"][data-student-theme="limglish"] .stu-panel {
     background-image:
         linear-gradient(135deg, rgba(20, 38, 62, 0.04) 0%, rgba(42, 74, 107, 0.03) 50%, rgba(15, 28, 48, 0.03) 100%),
         linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.02));
     background-color: var(--stu-surface-1);
 }
 
-[data-student-theme="limglish"] [data-app="student"] .stu-section,
-[data-student-theme="limglish"] [data-app="student"] .stu-card {
+[data-app="student"][data-student-theme="limglish"] .stu-section,
+[data-app="student"][data-student-theme="limglish"] .stu-card {
     background-image:
         linear-gradient(135deg, rgba(20, 38, 62, 0.04) 0%, rgba(42, 74, 107, 0.02) 50%, rgba(15, 28, 48, 0.02) 100%);
     background-color: var(--stu-surface-1);
