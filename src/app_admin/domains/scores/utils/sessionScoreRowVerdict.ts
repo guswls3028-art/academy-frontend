@@ -10,6 +10,10 @@
 import type { ScoreBlock, SessionScoreRow } from "../api/sessionScores";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
 
+export function isSessionRowProgressCompleted(row: SessionScoreRow): boolean {
+  return row.progress_completed === true || row.progress_status === "completed";
+}
+
 export function getScoreBlockOmrReviewStatus(block: ScoreBlock | null | undefined): "review" | null {
   return block?.meta?.status === "OMR_REVIEW_REQUIRED" ? "review" : null;
 }
@@ -33,6 +37,8 @@ function blockIsFailed(block: ScoreBlock): boolean {
 
 /** 미달로 볼 항목 제목 (시험/과제). 드로어 failedItems와 동일 조건. */
 export function getSessionRowFailedItemTitles(row: SessionScoreRow): string[] {
+  if (isSessionRowProgressCompleted(row)) return [];
+
   const items: string[] = [];
   for (const exam of row.exams ?? []) {
     if (blockIsFailed(exam.block)) {
@@ -55,6 +61,7 @@ export type SessionScoresTableVerdictKind = "clinic_target" | "review" | "fail" 
  * - 그 외는 미달 항목 수가 드로어와 동일하게 계산된 뒤 합격/불합/데이터 없음.
  */
 export function getSessionScoresTableVerdict(row: SessionScoreRow): SessionScoresTableVerdictKind {
+  if (isSessionRowProgressCompleted(row)) return "pass";
   if (row.clinic_required) return "clinic_target";
   if ((row.exams ?? []).some((exam) => getScoreBlockOmrReviewStatus(exam.block) === "review")) {
     return "review";

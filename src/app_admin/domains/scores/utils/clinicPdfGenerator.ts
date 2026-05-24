@@ -2,10 +2,13 @@
 // 클리닉 대상자 안내 PDF — 3열 레이아웃 (시험+과제 | 시험 | 과제 미통과)
 
 import type {
+  ScoreBlock,
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { deriveFinalPass } from "@/shared/scoring/achievement";
+import { isSessionRowProgressCompleted } from "./sessionScoreRowVerdict";
 
 // ── 공통 ──
 
@@ -436,6 +439,35 @@ type AnalysisResult = {
   totalStudents: number;
 };
 
+function isUnresolvedClinicBlock(block: ScoreBlock | null | undefined): boolean {
+  if (!block) return false;
+  if (block.meta?.status === "OMR_REVIEW_REQUIRED") return false;
+
+  const finalPass = deriveFinalPass({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    final_pass: block.final_pass ?? null,
+    remediated: block.remediated ?? null,
+    meta_status: block.meta?.status ?? null,
+  });
+  if (finalPass === true) return false;
+  if (finalPass === false) return true;
+
+  return block.passed === false;
+}
+
+function hasCompletedScoreSignal(block: ScoreBlock | null | undefined): boolean {
+  if (!block) return false;
+  const finalPass = deriveFinalPass({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    final_pass: block.final_pass ?? null,
+    remediated: block.remediated ?? null,
+    meta_status: block.meta?.status ?? null,
+  });
+  return finalPass === true || block.passed === true || block.score != null;
+}
+
 function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?: Record<number, string>): AnalysisResult {
   const passScoreMap = new Map<number, number>();
   for (const e of meta?.exams ?? []) passScoreMap.set(e.exam_id, e.pass_score);
@@ -449,14 +481,18 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
   for (const row of filteredRows) {
     const allExams = row.exams ?? [];
     const allHws = row.homeworks ?? [];
-    const examFailed = allExams.some((e) => e.block.passed === false);
-    const hwFailed = allHws.some((h) => h.block.passed === false);
+    if (isSessionRowProgressCompleted(row)) {
+      passed.push(row.student_name);
+      continue;
+    }
+
+    const examFailed = allExams.some((e) => isUnresolvedClinicBlock(e.block));
+    const hwFailed = allHws.some((h) => isUnresolvedClinicBlock(h.block));
 
     if (!examFailed && !hwFailed) {
-      // passed===null(미입력/기준미설정)만 있고 passed===true가 없으면 통과로 카운트하지 않음
-      const hasAnyTruePass = allExams.some((e) => e.block.passed === true) || allHws.some((h) => h.block.passed === true);
-      const hasAnyScore = allExams.some((e) => e.block.score != null) || allHws.some((h) => h.block.score != null);
-      if (hasAnyTruePass || hasAnyScore) {
+      // 미입력/기준미설정만 있고 완료 신호가 없으면 통과로 카운트하지 않음
+      const hasAnyDoneSignal = allExams.some((e) => hasCompletedScoreSignal(e.block)) || allHws.some((h) => hasCompletedScoreSignal(h.block));
+      if (hasAnyDoneSignal) {
         passed.push(row.student_name);
       }
       continue;
@@ -464,7 +500,7 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
 
     let almostPassed = false;
     if (examFailed) {
-      const failedExams = (row.exams ?? []).filter((e) => e.block.passed === false);
+      const failedExams = (row.exams ?? []).filter((e) => isUnresolvedClinicBlock(e.block));
       almostPassed = failedExams.every((e) => {
         const ps = passScoreMap.get(e.exam_id) ?? 70;
         const score = e.block.score;

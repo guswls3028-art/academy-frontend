@@ -20,7 +20,7 @@ import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/ap
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { buildGenericScoreTemplate, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
-import { getSessionRowFailedItemTitles } from "../utils/sessionScoreRowVerdict";
+import { getSessionRowFailedItemTitles, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
@@ -64,6 +64,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     () => getSessionRowFailedItemTitles(row),
     [row],
   );
+  const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
   const scoreSendDisabled = isEditMode || row.student_id == null;
   const scoreSendTitle = isEditMode
     ? "점수를 저장한 뒤 알림톡을 발송할 수 있습니다."
@@ -236,7 +237,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         {/* Body */}
         <div className="student-scores-drawer__body">
           {/* ── Final verdict banner ── */}
-          <VerdictBanner clinicRequired={!!row.clinic_required} failedCount={failedItems.length} />
+          <VerdictBanner clinicRequired={clinicRequired} failedCount={failedItems.length} />
 
           {/* ── Overall summary ── */}
           {stats.count > 0 && (

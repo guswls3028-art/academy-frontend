@@ -95,6 +95,9 @@ async function openClinicTool(page: Page) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
   if (isLocal) {
+    await page.route("**/version.json?*", async (route) => {
+      await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
+    });
     await installClinicToolLocalApiFallbacks(page, localAccessToken);
     await page.addInitScript((access) => {
       localStorage.setItem("access", access);
@@ -319,6 +322,32 @@ const EXTERNAL_PLATFORM_PASTE_WITH_TARGET_LABEL = EXTERNAL_PLATFORM_PASTE
   );
 
 test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", () => {
+  test("미제출 값이 있어도 최종 상태가 완료이면 클리닉 대상에서 제외한다", async ({ page }) => {
+    await openClinicTool(page);
+
+    await page.locator("#clinic-paste-ta").fill([
+      "이예리",
+      "현장",
+      "미제출",
+      "완료",
+      "85점",
+      "완료",
+      "김미달",
+      "현장",
+      "0%",
+      "진행",
+      "40점",
+      "진행",
+    ].join("\n"));
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+
+    const frame = page.frameLocator("#cprev");
+    await expect(frame.locator(".columns")).toContainText("김미달", { timeout: 8000 });
+    await expect(frame.locator(".columns")).not.toContainText("이예리");
+    await expect(frame.locator(".section-header.both")).toContainText("(1명)");
+    await expect(frame.locator(".footer-left")).toContainText("클리닉 대상 1명 / 전체 출석 2명");
+  });
+
   test("진행/+1 형식과 동명이인을 파싱하고 실제 PDF를 내려받는다", async ({ page }) => {
     await openClinicTool(page);
 

@@ -21,7 +21,7 @@ import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
-import { getScoreBlockOmrReviewStatus, getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
+import { getScoreBlockOmrReviewStatus, getSessionScoresTableVerdict, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -95,6 +95,7 @@ function pendingKeyForChange(p: PendingChange): string {
 /** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제)
  *  row.clinic_required (서버 판정)이 SSOT. 사유만 로컬에서 표시용으로 추론. */
 function getClinicReason(row: SessionScoreRow): { target: boolean; reason: string } {
+  if (isSessionRowProgressCompleted(row)) return { target: false, reason: "" };
   if (!row.clinic_required) return { target: false, reason: "" };
   const examFail = row.exams?.some((e) => e.block.passed === false) ?? false;
   const hwFail =

@@ -21,6 +21,9 @@ async function openClinicTool(page: Page) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
   if (isLocalBaseUrl(baseUrl)) {
+    await page.route("**/version.json?*", async (route) => {
+      await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
+    });
     const token = createLocalJwt();
     await page.addInitScript((jwt) => {
       localStorage.setItem("access", jwt);
@@ -34,6 +37,244 @@ async function openClinicTool(page: Page) {
   await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
   await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
   await expect(page.locator("#clinic-paste-ta")).toBeVisible({ timeout: 30_000 });
+}
+
+async function openScoreClinicPreviewWithLocalStubs(page: Page) {
+  const baseUrl = getBaseUrl("admin");
+  test.skip(!isLocalBaseUrl(baseUrl), "성적탭 API stub 검증은 로컬 dev 서버 전용");
+
+  const token = createLocalJwt();
+  await page.route("**/version.json?*", async (route) => {
+    await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
+  });
+  const corsHeaders = {
+    "access-control-allow-origin": baseUrl,
+    "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
+    "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
+  };
+  const scoreRows = [
+    {
+      enrollment_id: 9101,
+      student_id: 9101,
+      student_name: "이예리",
+      exams: [
+        {
+          exam_id: 3101,
+          title: "주간평가",
+          pass_score: 70,
+          block: {
+            score: 50,
+            max_score: 100,
+            passed: false,
+            clinic_required: false,
+            is_locked: false,
+            lock_reason: null,
+            objective_score: 50,
+            subjective_score: 0,
+            remediated: null,
+            final_pass: false,
+            achievement: "FAIL",
+            meta: null,
+          },
+          items: [],
+          attempt_count: 1,
+          clinic_link_id: null,
+          attempts: [],
+        },
+      ],
+      homeworks: [
+        {
+          homework_id: 4101,
+          title: "오늘 과제",
+          block: {
+            score: null,
+            max_score: 100,
+            passed: false,
+            clinic_required: false,
+            is_locked: false,
+            lock_reason: null,
+            meta: { status: "NOT_SUBMITTED" },
+          },
+          attempt_count: 1,
+          clinic_link_id: null,
+        },
+      ],
+      updated_at: new Date().toISOString(),
+      clinic_required: false,
+      progress_completed: true,
+      progress_status: "completed",
+      name_highlight_clinic_target: false,
+    },
+    {
+      enrollment_id: 9102,
+      student_id: 9102,
+      student_name: "박보강",
+      exams: [
+        {
+          exam_id: 3101,
+          title: "주간평가",
+          pass_score: 70,
+          block: {
+            score: 55,
+            max_score: 100,
+            passed: false,
+            clinic_required: false,
+            is_locked: false,
+            lock_reason: null,
+            objective_score: 55,
+            subjective_score: 0,
+            remediated: true,
+            final_pass: true,
+            achievement: "REMEDIATED",
+            meta: null,
+          },
+          items: [],
+          attempt_count: 2,
+          clinic_link_id: null,
+          attempts: [],
+        },
+      ],
+      homeworks: [],
+      updated_at: new Date().toISOString(),
+      clinic_required: false,
+      progress_completed: false,
+      progress_status: "in_progress",
+      name_highlight_clinic_target: false,
+    },
+    {
+      enrollment_id: 9103,
+      student_id: 9103,
+      student_name: "김미달",
+      exams: [
+        {
+          exam_id: 3101,
+          title: "주간평가",
+          pass_score: 70,
+          block: {
+            score: 42,
+            max_score: 100,
+            passed: false,
+            clinic_required: true,
+            is_locked: false,
+            lock_reason: null,
+            objective_score: 42,
+            subjective_score: 0,
+            remediated: false,
+            final_pass: false,
+            achievement: "FAIL",
+            meta: null,
+          },
+          items: [],
+          attempt_count: 1,
+          clinic_link_id: 7103,
+          attempts: [],
+        },
+      ],
+      homeworks: [],
+      updated_at: new Date().toISOString(),
+      clinic_required: true,
+      progress_completed: false,
+      progress_status: "in_progress",
+      name_highlight_clinic_target: true,
+    },
+  ];
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    const pathname = new URL(request.url()).pathname;
+    if (pathname.endsWith("/token/refresh/")) {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: { access: token, refresh: `${token}-refresh` } });
+      return;
+    }
+    if (pathname.endsWith("/core/program/")) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        json: { tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true },
+      });
+      return;
+    }
+    if (pathname.endsWith("/core/me/")) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        json: { id: 12, username: "t1_admin97", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false },
+      });
+      return;
+    }
+    if (pathname.endsWith("/lectures/lectures/990001/")) {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: { id: 990001, title: "테스트 강의" } });
+      return;
+    }
+    if (pathname.endsWith("/lectures/sessions/990002/")) {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: { id: 990002, lecture: 990001, order: 1, title: "1주차" } });
+      return;
+    }
+    if (pathname.endsWith("/lectures/attendance/")) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        json: {
+          count: 3,
+          next: null,
+          previous: null,
+          page_size: 500,
+          results: scoreRows.map((row, idx) => ({
+            id: 8000 + idx,
+            enrollment_id: row.enrollment_id,
+            student_id: row.student_id,
+            student_name: row.student_name,
+            status: "PRESENT",
+          })),
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/results/admin/sessions/990002/scores/")) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        json: {
+          meta: {
+            session_title: "1주차",
+            lecture_title: "테스트 강의",
+            lecture_id: 990001,
+            exams: [{ exam_id: 3101, title: "주간평가", pass_score: 70, max_score: 100, display_order: 1, questions: [] }],
+            homeworks: [{ homework_id: 4101, title: "오늘 과제", unit: null, max_score: 100, display_order: 1 }],
+          },
+          rows: scoreRows,
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/results/admin/sessions/990002/score-draft/")) {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: { changes: [] } });
+      return;
+    }
+    if (pathname.endsWith("/results/admin/clinic-targets/") || pathname.endsWith("/staffs/currently-working/")) {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: [] });
+      return;
+    }
+    await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", json: { count: 0, next: null, previous: null, results: [] } });
+  });
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+    localStorage.setItem("tenant_code", "hakwonplus");
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+  }, token);
+
+  await page.goto(`${baseUrl}/admin/lectures/990001/sessions/990002/scores`, { waitUntil: "load" });
+  await expect(page.locator("button[title='추가 기능']")).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
@@ -191,6 +432,19 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(alignment.maxCenterDelta).toBeLessThanOrEqual(1.5);
     expect(alignment.maxGap).toBeLessThanOrEqual(6);
     expect(alignment.minGap).toBeGreaterThanOrEqual(0);
+  });
+
+  test("성적탭 클리닉 미리보기는 완료 상태와 보강합격 학생을 제외한다", async ({ page }) => {
+    await openScoreClinicPreviewWithLocalStubs(page);
+
+    await page.locator("button[title='추가 기능']").click();
+    await page.locator("button").filter({ hasText: "클리닉 대상 보기" }).first().click();
+
+    const frame = page.frameLocator('iframe[title="클리닉 대상자 미리보기"]');
+    await expect(frame.locator(".columns")).toContainText("김미달", { timeout: 10_000 });
+    await expect(frame.locator(".columns")).not.toContainText("이예리");
+    await expect(frame.locator(".columns")).not.toContainText("박보강");
+    await expect(frame.locator(".footer-left")).toContainText("클리닉 대상 1명 / 전체 출석 3명");
   });
 
   test("긴 이름을 자르지 않고 실제 PDF를 내려받는다", async ({ page }) => {

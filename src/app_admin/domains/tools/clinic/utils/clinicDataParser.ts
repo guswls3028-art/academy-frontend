@@ -171,9 +171,10 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
       if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, isDash: false, status: a.status };
       // "-" 또는 "미제출"/"미응시"인 경우 컬럼 타입으로 보정
       const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
-      // 미제출/미응시는 무조건 "진행중"(미통과)으로 판정
+      // 미제출/미응시도 뒤따르는 최종 상태(진행/완료)를 신뢰한다.
+      // 오늘 등록 등으로 값은 미제출이어도 최종 상태가 완료인 학생은 클리닉 대상이 아니다.
       // "-"는 해당 행/열에 적용할 데이터가 없다는 뜻이라 "진행"이 붙어도 미통과로 보지 않는다.
-      const effectiveStatus = a.isSpecial ? "진행중" : a.isDash ? "-" : a.status;
+      const effectiveStatus = a.isDash ? "-" : a.status;
       return { isExam: ct === "exam", isHw: ct === "hw", isDash: a.isDash, status: effectiveStatus };
     }),
   }));
