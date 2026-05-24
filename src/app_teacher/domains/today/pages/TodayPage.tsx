@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 인사 + KPI 4개 + 지금 처리할 일 + 오늘 수업
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -14,6 +14,19 @@ import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
 import SessionCard from "../components/SessionCard";
+
+const notificationLinkStyle: CSSProperties = {
+  minHeight: 28,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  borderRadius: 999,
+  border: "1px solid var(--tc-border)",
+  background: "var(--tc-surface)",
+  color: "var(--tc-text-secondary)",
+  padding: "4px 8px 4px 10px",
+  fontWeight: 700,
+};
 
 export default function TodayPage() {
   const today = todayISO();
@@ -63,7 +76,7 @@ export default function TodayPage() {
             fontSize: 13,
             color: "var(--tc-text-muted)",
             fontWeight: 500,
-            letterSpacing: "-0.01em",
+            letterSpacing: 0,
           }}
         >
           {dateStr}
@@ -74,7 +87,7 @@ export default function TodayPage() {
             fontWeight: 800,
             color: "var(--tc-text)",
             margin: "2px 0 0 0",
-            letterSpacing: "-0.02em",
+            letterSpacing: 0,
             lineHeight: 1.25,
           }}
         >
@@ -130,10 +143,12 @@ export default function TodayPage() {
             )}
             <button
               onClick={() => navigate("/teacher/notifications")}
-              className="text-[11px] cursor-pointer"
-              style={{ background: "none", border: "none", color: "var(--tc-text-muted)", padding: "2px 4px" }}
+              aria-label="알림 전체 보기"
+              className="text-[12px] cursor-pointer"
+              style={notificationLinkStyle}
             >
-              전체 보기 →
+              전체
+              <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
             </button>
           </div>
         }

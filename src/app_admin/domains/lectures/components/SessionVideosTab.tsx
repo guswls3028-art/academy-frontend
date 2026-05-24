@@ -1,15 +1,14 @@
 // PATH: src/app_admin/domains/lectures/components/SessionVideosTab.tsx
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
 import { getRetryErrorMessage, updateVideo } from "@admin/domains/videos/api/videos.api";
-import { canShowRetryButton } from "@admin/domains/videos/constants/videoProcessing";
+import { canShowRetryButton } from "@/shared/api/contracts/videos";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
-import VideoUploadModal from "@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal";
-import VideoThumbnail from "@admin/domains/videos/ui/VideoThumbnail";
-import VideoStatusBadge from "@admin/domains/videos/ui/VideoStatusBadge";
+import VideoThumbnail from "@/shared/media/video/VideoThumbnail";
+import VideoStatusBadge from "@/shared/media/video/VideoStatusBadge";
 import { useAsyncStatus, asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
@@ -17,9 +16,11 @@ import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
-import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
-import VideoReorderModal from "@admin/domains/videos/components/VideoReorderModal";
 import styles from "./SessionVideosTab.module.css";
+
+const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
+const VideoEditModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoEditModal"));
+const VideoReorderModal = lazy(() => import("@admin/domains/videos/components/VideoReorderModal"));
 
 /** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
 function formatTimeAgo(isoDate: string): string {
@@ -412,26 +413,36 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         )}
       </div>
 
-      <VideoUploadModal sessionId={sessionId} isOpen={showModal} onClose={() => setShowModal(false)} />
+      {showModal && (
+        <Suspense fallback={null}>
+          <VideoUploadModal sessionId={sessionId} isOpen={true} onClose={() => setShowModal(false)} />
+        </Suspense>
+      )}
 
       {editTarget && (
-        <VideoEditModal
-          open={!!editTarget}
-          onClose={() => setEditTarget(null)}
-          videoId={editTarget.id}
-          initialTitle={editTarget.title}
-          initialOrder={editTarget.order ?? 1}
-          sessionId={sessionId}
-        />
+        <Suspense fallback={null}>
+          <VideoEditModal
+            open={true}
+            onClose={() => setEditTarget(null)}
+            videoId={editTarget.id}
+            initialTitle={editTarget.title}
+            initialOrder={editTarget.order ?? 1}
+            sessionId={sessionId}
+          />
+        </Suspense>
       )}
-      <VideoReorderModal
-        open={reorderOpen}
-        onClose={() => setReorderOpen(false)}
-        videos={videos}
-        onSaved={() => {
-          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-        }}
-      />
+      {reorderOpen && (
+        <Suspense fallback={null}>
+          <VideoReorderModal
+            open={true}
+            onClose={() => setReorderOpen(false)}
+            videos={videos}
+            onSaved={() => {
+              qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

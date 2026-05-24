@@ -2,7 +2,7 @@
 // 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import api from "@/shared/api/axios";
@@ -17,20 +17,20 @@ import {
   type ClientEnrollmentLite,
   type ClientStudentTag,
 } from "../api/students.api";
-
-import StudentFormModal from "../components/EditStudentModal";
-import TagCreateModal from "../components/TagCreateModal";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
-import StudentEnrollmentMatrixDrawer from "../components/StudentEnrollmentMatrixDrawer";
-import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import StudentStorageExplorer from "@admin/domains/storage/components/StudentStorageExplorer";
 import styles from "./StudentsDetailOverlay.module.css";
+
+const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
+const TagCreateModal = lazy(() => import("../components/TagCreateModal"));
+const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal"));
+const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
+const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
 type StatTabKey = "enroll" | "score" | "homework" | "clinic" | "question";
 type AchievementStatus = "PASS" | "FAIL" | "REMEDIATED" | "NOT_SUBMITTED";
@@ -129,6 +129,8 @@ export default function StudentsDetailOverlay({
     navigate(-1);
   }, [closeOverride, navigate]);
   const qc = useQueryClient();
+  const studentQueryKey = ["student", id] as const;
+  const studentsQueryKey = ["students"] as const;
   const { openSendMessageModal } = useSendMessageModal();
 
   const [tab, setTab] = useState<StatTabKey>("enroll");
@@ -532,7 +534,9 @@ export default function StudentsDetailOverlay({
                 </div>
               </div>
               <div className={styles.inventoryExplorerBody}>
-                <StudentStorageExplorer studentPs={student.psNumber} />
+                <Suspense fallback={<div className={styles.inventoryLoading}>로딩 중...</div>}>
+                  <StudentStorageExplorer studentPs={student.psNumber} />
+                </Suspense>
               </div>
             </div>
           </>,
@@ -541,45 +545,51 @@ export default function StudentsDetailOverlay({
 
       {editOpen &&
         createPortal(
-          <StudentFormModal
-            open={true}
-            initialValue={student}
-            onClose={() => setEditOpen(false)}
-            onSuccess={() => {
-              setEditOpen(false);
-              qc.invalidateQueries({ queryKey: ["student", id] });
-              qc.invalidateQueries({ queryKey: ["students"] });
-            }}
-          />,
+          <Suspense fallback={null}>
+            <StudentFormModal
+              open={true}
+              initialValue={student}
+              onClose={() => setEditOpen(false)}
+              onSuccess={() => {
+                setEditOpen(false);
+                qc.invalidateQueries({ queryKey: studentQueryKey });
+                qc.invalidateQueries({ queryKey: studentsQueryKey });
+              }}
+            />
+          </Suspense>,
           document.body
         )}
 
       {tagCreateOpen &&
         createPortal(
-          <TagCreateModal
-            open={true}
-            onClose={() => setTagCreateOpen(false)}
-            onSuccess={(tag) => {
-              addTag.mutate(tag.id);
-              setTagCreateOpen(false);
-            }}
-            usedColors={tags?.map((tag) => tag.color).filter((color): color is string => Boolean(color)) ?? []}
-          />,
+          <Suspense fallback={null}>
+            <TagCreateModal
+              open={true}
+              onClose={() => setTagCreateOpen(false)}
+              onSuccess={(tag) => {
+                addTag.mutate(tag.id);
+                setTagCreateOpen(false);
+              }}
+              usedColors={tags?.map((tag) => tag.color).filter((color): color is string => Boolean(color)) ?? []}
+            />
+          </Suspense>,
           document.body
         )}
 
       {deleteConfirmOpen && (
-        <DeleteConfirmModal
-          open={true}
-          id={id}
-          onClose={() => setDeleteConfirmOpen(false)}
-          onSuccess={() => {
-            setDeleteConfirmOpen(false);
-            qc.invalidateQueries({ queryKey: ["students"] });
-            feedback.success("학생이 삭제되었습니다. 30일간 보관 후 자동 삭제됩니다.");
-            onClose();
-          }}
-        />
+        <Suspense fallback={null}>
+          <DeleteConfirmModal
+            open={true}
+            id={id}
+            onClose={() => setDeleteConfirmOpen(false)}
+            onSuccess={() => {
+              setDeleteConfirmOpen(false);
+              qc.invalidateQueries({ queryKey: studentsQueryKey });
+              feedback.success("학생이 삭제되었습니다. 30일간 보관 후 자동 삭제됩니다.");
+              onClose();
+            }}
+          />
+        </Suspense>
       )}
     </>
   );
@@ -792,11 +802,13 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
       )}
       {matrixOpen && activeLectures.length > 0 && (
         <div className={styles.matrixPanel}>
-          <StudentEnrollmentMatrixDrawer
-            studentId={studentId}
-            studentName={studentName}
-            lectures={activeLectures}
-          />
+          <Suspense fallback={<div className={styles.matrixLoading}>로딩 중...</div>}>
+            <StudentEnrollmentMatrixDrawer
+              studentId={studentId}
+              studentName={studentName}
+              lectures={activeLectures}
+            />
+          </Suspense>
         </div>
       )}
       <div className={styles.tabList}>

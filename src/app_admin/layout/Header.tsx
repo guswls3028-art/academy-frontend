@@ -1,7 +1,7 @@
 // PATH: src/shared/ui/layout/Header.tsx
 //
 // 헤더 레이아웃은 design-system/patterns/header.css의 app-header 패턴을 SSOT로 사용.
-import { useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
@@ -20,7 +20,6 @@ import {
   Inbox as InboxIcon,
   Check as CheckIcon,
 } from "lucide-react";
-import NoticeOverlay from "@admin/domains/notice/overlays/NoticeOverlay";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
@@ -39,6 +38,8 @@ import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { getThemeMeta } from "@/shared/theme/themes";
+
+const NoticeOverlay = lazy(() => import("@admin/domains/notice/overlays/NoticeOverlay"));
 
 /** 네이티브 프로필 드롭다운 — Ant Design Dropdown 대신 직접 구현 (모바일 터치 호환) */
 function ProfileDropdown({
@@ -593,7 +594,11 @@ export default function Header() {
         </div>
       </div>
 
-      {openNotice && <NoticeOverlay onClose={() => setOpenNotice(false)} />}
+      {openNotice && (
+        <Suspense fallback={null}>
+          <NoticeOverlay onClose={() => setOpenNotice(false)} />
+        </Suspense>
+      )}
     </>
   );
 }

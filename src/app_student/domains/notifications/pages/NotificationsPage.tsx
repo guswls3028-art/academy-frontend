@@ -66,7 +66,7 @@ export default function NotificationsPage() {
 
   const approvedClinicBookings = useMemo(
     () => (clinicBookings || []).filter((booking) => {
-      if (booking.status !== "booked" && booking.status !== "approved") return false;
+      if (booking.status !== "booked") return false;
       return isRecent(booking.status_changed_at ?? booking.updated_at ?? booking.created_at, recentCutoffTime);
     }),
     [clinicBookings, recentCutoffTime],

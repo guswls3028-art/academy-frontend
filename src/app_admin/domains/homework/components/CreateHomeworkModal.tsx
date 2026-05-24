@@ -19,7 +19,7 @@ import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from 
 import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
 import { fetchSessionEnrollments } from "../api/sessionEnrollments";
 import { putHomeworkAssignments } from "../api/homeworkAssignments";
-import SessionItemBrowser, { type SelectedHomeworkItem } from "@admin/domains/sessions/components/SessionItemBrowser";
+import SessionItemBrowser, { type SelectedHomeworkItem } from "@/shared/ui/assessment/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {

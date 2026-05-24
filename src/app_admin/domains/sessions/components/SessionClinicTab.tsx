@@ -22,8 +22,8 @@ import {
   type Section,
   fetchSectionAssignments,
   type SectionAssignment,
-} from "@admin/domains/lectures/api/sections";
-import { fetchSessions, type Session as LectureSession } from "@admin/domains/lectures/api/sessions";
+} from "@/shared/api/contracts/lectureSections";
+import { fetchSessions, type Session as LectureSession } from "@/shared/api/contracts/sessions";
 import {
   fetchSessionEnrollments,
   type SessionEnrollmentRow,

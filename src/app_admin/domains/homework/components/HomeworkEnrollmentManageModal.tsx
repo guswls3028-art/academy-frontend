@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/shared/ui/confirm";
-import type { EnrollmentRow } from "@admin/domains/sessions/components/enrollment/types";
+import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";

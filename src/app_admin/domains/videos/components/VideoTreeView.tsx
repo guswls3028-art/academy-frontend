@@ -14,7 +14,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
+import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import VideoExplorerTree, { type VideoFolderId } from "./VideoExplorerTree";
 import VideoUploadModal from "./features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "../ui/VideoThumbnail";
@@ -37,7 +37,7 @@ import {
   sortSessionsByDateDesc,
   type Lecture,
   type Session,
-} from "@admin/domains/lectures/api/sessions";
+} from "@/shared/api/contracts/sessions";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";

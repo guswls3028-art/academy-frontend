@@ -12,6 +12,7 @@ import { MODAL_WIDTH } from "@/shared/ui/modal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
+import { clinicQueryKeys } from "../queryKeys";
 
 // 미리 정의된 색상 팔레트
 const COLOR_PALETTE = [
@@ -142,7 +143,7 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
 export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }) {
   const qc = useQueryClient();
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["clinic-settings"],
+    queryKey: clinicQueryKeys.settings,
     queryFn: fetchClinicSettings,
     refetchInterval: 2000, // 2초마다 자동 갱신 (다른 선생님이 변경했을 경우 대비)
   });
@@ -153,8 +154,8 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
   const updateMutation = useMutation({
     mutationFn: (colors: [string, string, string]) => updateClinicSettings(colors),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
-      qc.invalidateQueries({ queryKey: ["clinic-idcard"] }); // 학생 앱도 갱신되도록
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.settings });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.idcard }); // 학생 앱도 갱신되도록
       feedback.success("색상이 즉시 적용되었습니다!");
     },
     onError: (e: unknown) => {

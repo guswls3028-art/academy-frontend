@@ -12,6 +12,7 @@ import { MODAL_WIDTH } from "@/shared/ui/modal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
+import { clinicQueryKeys } from "../../queryKeys";
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (!error || typeof error !== "object") return fallback;
@@ -86,7 +87,7 @@ export default function ClinicSettingsPage() {
 function ClinicIdcardColorSettings() {
   const qc = useQueryClient();
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["clinic-settings"],
+    queryKey: clinicQueryKeys.settings,
     queryFn: fetchClinicSettings,
   });
 
@@ -98,8 +99,8 @@ function ClinicIdcardColorSettings() {
     mutationFn: (payload: { colors?: [string, string, string]; use_daily_random?: boolean }) =>
       updateClinicSettings(payload.colors, payload.use_daily_random),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
-      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.settings });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.idcard });
       feedback.success("설정이 저장되었습니다.");
     },
     onError: (e: unknown) => {

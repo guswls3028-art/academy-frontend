@@ -11,21 +11,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
-import { useSessionParams } from "@admin/domains/sessions/hooks/useSessionParams";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import {
   useExamEnrollmentRows,
   useUpdateExamEnrollmentRows,
 } from "../../hooks/useExamEnrollments";
 import BlockReason from "../../components/BlockReason";
-import type { EnrollmentRow } from "@admin/domains/sessions/components/enrollment/types";
-import EnrollmentManageModal from "@admin/domains/sessions/components/enrollment/EnrollmentManageModal";
+import EnrollmentManageModal from "@/shared/ui/enrollment/EnrollmentManageModal";
+import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import styles from "./ExamEnrollmentPanel.module.css";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
-  const { sessionId: sessionIdFromPath } = useSessionParams();
+  const { sessionId: sessionIdFromPath } = useLectureSessionParams();
   const [sp] = useSearchParams();
   const sessionIdFromQuery = Number(sp.get("session_id"));
   const sessionId = Number.isFinite(sessionIdFromQuery) && sessionIdFromQuery > 0

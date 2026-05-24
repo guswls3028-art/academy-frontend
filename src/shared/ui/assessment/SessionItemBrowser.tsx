@@ -1,14 +1,17 @@
-// PATH: src/app_admin/domains/sessions/components/SessionItemBrowser.tsx
+// PATH: src/shared/ui/assessment/SessionItemBrowser.tsx
 // ------------------------------------------------------------
 // 다른 강의/차시의 시험 또는 과제를 탐색하는 공유 컴포넌트
 // cascade: 강의 선택 → 차시 선택 → 항목 목록 (멀티 선택)
 // ------------------------------------------------------------
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { fetchLectures, fetchSessions, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
-import { fetchExams } from "@admin/domains/exams/api/exams.api";
-import type { Exam } from "@admin/domains/exams/types";
-import { fetchHomeworks, type HomeworkListItem } from "@admin/domains/homework/api/homeworks";
+import {
+  fetchAssessmentExams,
+  fetchAssessmentHomeworks,
+  type AssessmentExamListItem,
+  type AssessmentHomeworkListItem,
+} from "@/shared/api/contracts/assessments";
+import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import type { ExamSelection, HomeworkSelection } from "@/shared/types/selection";
 
 export type BrowseMode = "exam" | "homework";
@@ -51,8 +54,8 @@ export default function SessionItemBrowser({
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   // items
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [homeworks, setHomeworks] = useState<HomeworkListItem[]>([]);
+  const [exams, setExams] = useState<AssessmentExamListItem[]>([]);
+  const [homeworks, setHomeworks] = useState<AssessmentHomeworkListItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // loading & error
@@ -124,7 +127,7 @@ export default function SessionItemBrowser({
 
     setItemsError(false);
     if (mode === "exam") {
-      fetchExams({ session_id: selectedSessionId, exam_type: "regular" })
+      fetchAssessmentExams({ session_id: selectedSessionId, exam_type: "regular" })
         .then((items) => {
           if (!cancelled) setExams(items);
         })
@@ -135,7 +138,7 @@ export default function SessionItemBrowser({
           if (!cancelled) setItemsLoading(false);
         });
     } else {
-      fetchHomeworks({ session_id: selectedSessionId })
+      fetchAssessmentHomeworks({ session_id: selectedSessionId })
         .then((items) => {
           if (!cancelled) setHomeworks(items);
         })
@@ -312,7 +315,7 @@ export default function SessionItemBrowser({
               {filteredItems.map((item) => {
                 const checked = selectedIds.has(item.id);
                 const isExam = mode === "exam";
-                const exam = isExam ? (item as Exam) : null;
+                const exam = isExam ? (item as AssessmentExamListItem) : null;
                 return (
                   <label
                     key={item.id}

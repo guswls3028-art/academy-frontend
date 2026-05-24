@@ -6,11 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
-import { useSessionParams } from "./hooks/useSessionParams";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 export default function SessionLayout() {
-  const { lectureId, sessionId } = useSessionParams();
+  const { lectureId, sessionId } = useLectureSessionParams();
   const { sectionMode } = useSectionMode();
   const location = useLocation();
 

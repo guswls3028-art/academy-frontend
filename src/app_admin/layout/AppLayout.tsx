@@ -1,10 +1,10 @@
 /* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
+import { lazy, Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import AppLayoutMobile from "./AppLayoutMobile";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
 import { WorkboxProvider } from "@/shared/ui/layout/WorkboxContext";
@@ -20,6 +20,8 @@ import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 
 // useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
+const AppLayoutMobile = lazy(() => import("./AppLayoutMobile"));
+
 function AppLayoutContent() {
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -31,7 +33,9 @@ function AppLayoutContent() {
         <AdminLayoutProvider>
           <WorkboxProvider>
             {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
-            <AppLayoutMobile />
+            <Suspense fallback={null}>
+              <AppLayoutMobile />
+            </Suspense>
           </WorkboxProvider>
         </AdminLayoutProvider>
       ) : (

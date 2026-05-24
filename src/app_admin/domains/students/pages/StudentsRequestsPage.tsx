@@ -54,7 +54,7 @@ function formatDate(s: string | null) {
   }
 }
 
-function formatDateShort(s: string | null) {
+function shortDateLabel(s: string | null) {
   if (!s) return "";
   try {
     const d = new Date(s);
@@ -589,7 +589,7 @@ export default function StudentsRequestsPage() {
                             <span className="students-requests__card-meta-sep">
                               ·
                             </span>
-                            <span>{formatDateShort(r.createdAt)} 신청</span>
+                            <span>{shortDateLabel(r.createdAt)} 신청</span>
                           </>
                         )}
                       </div>

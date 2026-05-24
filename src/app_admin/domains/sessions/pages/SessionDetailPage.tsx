@@ -11,29 +11,27 @@
 // - 점수/합불/정책 해석
 // ------------------------------------------------------------
 
-import { useState, useMemo } from "react";
+import { lazy, Suspense, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
-
-import EnrollStudentModal from "@admin/domains/lectures/components/EnrollStudentModal";
-import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
-import SessionEnrollModal from "@admin/domains/lectures/components/SessionEnrollModal";
-import SessionVideosTab from "@admin/domains/lectures/components/SessionVideosTab";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
 import { EmptyState } from "@/shared/ui/ds";
+import RouteFallback from "@/core/router/RouteFallback";
 
-import SessionAssessmentSidePanel
-  from "../components/SessionAssessmentSidePanel";
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
-import { readAssessmentItemId } from "../utils/assessmentQueryParams";
+import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 
-/* ================= 기존 페이지 재사용 ================= */
-import SessionAttendancePage from "@admin/domains/lectures/pages/attendance/SessionAttendancePage";
-import SessionScoresEntryPage from "@admin/domains/lectures/pages/scores/SessionScoresEntryPage";
-import SessionAssessmentWorkspace from "@admin/domains/sessions/components/SessionAssessmentWorkspace";
-import SessionClinicTab from "@admin/domains/sessions/components/SessionClinicTab";
+const EnrollStudentModal = lazy(() => import("@admin/domains/lectures/components/EnrollStudentModal"));
+const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
+const SessionEnrollModal = lazy(() => import("@admin/domains/lectures/components/SessionEnrollModal"));
+const SessionVideosTab = lazy(() => import("@admin/domains/lectures/components/SessionVideosTab"));
+const SessionAssessmentSidePanel = lazy(() => import("../components/SessionAssessmentSidePanel"));
+const SessionAttendancePage = lazy(() => import("@admin/domains/lectures/pages/attendance/SessionAttendancePage"));
+const SessionScoresEntryPage = lazy(() => import("@admin/domains/lectures/pages/scores/SessionScoresEntryPage"));
+const SessionAssessmentWorkspace = lazy(() => import("@admin/domains/sessions/components/SessionAssessmentWorkspace"));
+const SessionClinicTab = lazy(() => import("@admin/domains/sessions/components/SessionClinicTab"));
 
 type SessionTab =
   | "attendance"
@@ -130,7 +128,7 @@ export default function SessionDetailPage() {
     activeTab === "assignments";
 
   return (
-    <>
+    <Suspense fallback={<RouteFallback />}>
       {/* 차시블럭: 출결탭에서만 노출 */}
       {activeTab === "attendance" && (
         <SessionBlock lectureId={lecId} currentSessionId={sId} />
@@ -233,6 +231,6 @@ export default function SessionDetailPage() {
           onSuccess={invalidateSession}
         />
       )}
-    </>
+    </Suspense>
   );
 }

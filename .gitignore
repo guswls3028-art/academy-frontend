@@ -98,6 +98,11 @@ probe*.mjs
 seed*.mjs
 verify-*.cjs
 verify-*.mjs
+!scripts/verify-admin-routes.mjs
+!scripts/verify-landing-routes.mjs
+!scripts/verify-lazy-route-imports.mjs
+!scripts/verify-student-routes.mjs
+!scripts/verify-teacher-routes.mjs
 # 로컬 playwright 리뷰용 별도 config (공식 playwright.config.ts/local.config.js 외)
 playwright.local-*.config.ts
 

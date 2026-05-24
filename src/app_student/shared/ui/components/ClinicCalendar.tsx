@@ -41,10 +41,10 @@ export default function ClinicCalendar({
   // availableDates를 Set으로 변환 (O(1) lookup)
   const availableDateSet = useMemo(() => new Set(availableDates), [availableDates]);
 
-  // 날짜별 예약 상태 매핑 — 활성 예약(pending/booked/approved)을 우선 표시
+  // 날짜별 예약 상태 매핑 — 활성 예약(pending/booked)을 우선 표시
   const bookingByDate = useMemo(() => {
     const map = new Map<string, ClinicBookingRequest>();
-    const isActive = (s: string) => ["pending", "booked", "approved"].includes(s);
+    const isActive = (s: string) => ["pending", "booked"].includes(s);
     // Sort: active bookings first, then by most recent
     const sorted = [...bookings].sort((a, b) => {
       const aPri = isActive(a.status) ? 0 : 1;
@@ -131,7 +131,7 @@ export default function ClinicCalendar({
     if (capacityStatus) return capacityStatus;
     // 2) 없으면 기존: 내 예약 상태로 색상 (하위 호환)
     if (!booking) return null;
-    if (booking.status === "booked" || booking.status === "approved") {
+    if (booking.status === "booked") {
       return "booked";
     }
     if (booking.status === "pending") {

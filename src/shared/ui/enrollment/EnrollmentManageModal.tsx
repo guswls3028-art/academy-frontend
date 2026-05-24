@@ -1,6 +1,6 @@
-// PATH: src/app_admin/domains/sessions/components/enrollment/EnrollmentManageModal.tsx
+// PATH: src/shared/ui/enrollment/EnrollmentManageModal.tsx
 /**
- * EnrollmentManageModal (시험 대상 학생 관리)
+ * EnrollmentManageModal
  *
  * ✅ 차시 수강생 등록 모달(SessionEnrollModal)과 동일한 디자인·레이아웃 적용
  * - AdminModal + ModalHeader/ModalBody/ModalFooter

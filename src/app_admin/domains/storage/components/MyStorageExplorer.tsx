@@ -38,7 +38,7 @@ const MATCHUP_SUPPORTED_TYPES = new Set([
 function isMatchupSupported(file: InventoryFile): boolean {
   return MATCHUP_SUPPORTED_TYPES.has(file.contentType ?? "");
 }
-import Breadcrumb from "./Breadcrumb";
+import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
 import MoveDuplicateModal from "./MoveDuplicateModal";

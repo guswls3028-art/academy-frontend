@@ -16,6 +16,7 @@ import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSetti
 import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
 import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
 
@@ -92,7 +93,7 @@ export default function ClinicHomePage() {
     return { year: d.year(), month: d.month() + 1 };
   }, [today]);
   const sessionTreeQ = useQuery({
-    queryKey: ["clinic-sessions-tree", todayYM.year, todayYM.month],
+    queryKey: clinicQueryKeys.sessionsTreeByMonth(todayYM.year, todayYM.month),
     queryFn: () => fetchClinicSessionTree(todayYM),
     staleTime: 30_000,
   });
@@ -108,7 +109,7 @@ export default function ClinicHomePage() {
   const targetsQ = useClinicTargets();
   const pendingQ = useClinicParticipants({ status: "pending" });
   const settingsQ = useQuery({
-    queryKey: ["clinic-settings"],
+    queryKey: clinicQueryKeys.settings,
     queryFn: fetchClinicSettings,
     staleTime: 60_000,
   });
@@ -143,9 +144,10 @@ export default function ClinicHomePage() {
         end: "",
         location: s.location || "",
         total: pg?.total ?? s.booked_count ?? 0,
-        booked: pg?.booked ?? s.booked_count ?? 0,
+        booked: pg?.booked ?? s.booked_confirmed_count ?? Math.max(0, (s.booked_count ?? 0) - (s.pending_count ?? 0)),
         attended: pg?.attended ?? 0,
         noShow: pg?.noShow ?? s.no_show_count ?? 0,
+        approvalPending: s.pending_count ?? 0,
         maxParticipants: s.max_participants ?? null,
         sectionLabel: s.section_label ?? null,
       };
@@ -153,7 +155,7 @@ export default function ClinicHomePage() {
     // 참가자에만 있고 세션 트리에 없는 경우 (혹시 모를 정합성 보장)
     for (const pg of participantGroups) {
       if (!todaySessions.some((s) => s.id === pg.sessionId)) {
-        merged.push({ ...pg, maxParticipants: null, sectionLabel: null });
+        merged.push({ ...pg, approvalPending: 0, maxParticipants: null, sectionLabel: null });
       }
     }
     merged.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
@@ -183,9 +185,9 @@ export default function ClinicHomePage() {
     mutationFn: (on: boolean) =>
       updateClinicSettings(undefined, undefined, on),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.settings });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
     },
     onError: (err: unknown) => {
       feedback.error(
@@ -205,13 +207,13 @@ export default function ClinicHomePage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
       feedback.success("일괄 승인되었습니다.");
     },
     onError: (err: Error) => {
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
       feedback.error(err.message || "일부 예약의 승인 처리에 실패했습니다.");
     },
   });
@@ -363,6 +365,9 @@ export default function ClinicHomePage() {
                         )}
                         <span className="clinic-home__timeline-card-fill">
                           {s.booked}/{s.total}명
+                          {s.approvalPending > 0 && (
+                            <span className="clinic-home__timeline-card-alert"> · 승인 대기 {s.approvalPending}</span>
+                          )}
                           {s.noShow > 0 && (
                             <span className="clinic-home__timeline-card-alert"> · 불참 {s.noShow}</span>
                           )}

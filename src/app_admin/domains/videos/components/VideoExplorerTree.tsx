@@ -1,8 +1,7 @@
 // 좌측 폴더 트리 — 영상: 공개 영상(맨위) + 강의명 > 1~n차시
 
 import { FolderOpen } from "lucide-react";
-import type { Lecture } from "@admin/domains/lectures/api/sessions";
-import type { Session } from "@admin/domains/lectures/api/sessions";
+import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import type { VideoFolder } from "../api/videos.api";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import styles from "./VideoExplorerTree.module.css";

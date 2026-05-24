@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCommunityQuestions } from "@admin/domains/community/api/community.api";
 import { fetchExams } from "@admin/domains/exams/api/exams.api";
-import { fetchLectures } from "@admin/domains/lectures/api/sessions";
+import { fetchLectures } from "@/shared/api/contracts/sessions";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";
 import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmissions";
 import { Button } from "@/shared/ui/ds";

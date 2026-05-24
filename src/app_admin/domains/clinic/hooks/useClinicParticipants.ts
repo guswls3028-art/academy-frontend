@@ -5,6 +5,7 @@ import {
   patchClinicParticipantStatus,
   ClinicParticipantStatus,
 } from "../api/clinicParticipants.api";
+import { clinicQueryKeys } from "../queryKeys";
 
 type PatchClinicParticipantPayload = Parameters<typeof patchClinicParticipantStatus>[1];
 
@@ -23,7 +24,7 @@ export function useClinicParticipants(params: {
     params.status === "pending";
 
   const listQ = useQuery({
-    queryKey: ["clinic-participants", params],
+    queryKey: clinicQueryKeys.participantsList(params),
     queryFn: () => fetchClinicParticipants(params),
     enabled,
     // ClinicHomePage는 같은 페이지에서 weekQ/pendingQ 등 여러 인스턴스를 띄우므로,
@@ -35,8 +36,8 @@ export function useClinicParticipants(params: {
     mutationFn: ({ id, payload }: { id: number; payload: PatchClinicParticipantPayload }) =>
       patchClinicParticipantStatus(id, payload),
     onSuccess: (_data: unknown, variables: { id: number; payload: PatchClinicParticipantPayload }) => {
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
       const statusLabel: Record<string, string> = { booked: "승인", attended: "출석", no_show: "결석", cancelled: "취소", rejected: "거절" };
       const label = statusLabel[variables.payload.status] ?? "변경";
       import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${label} 처리되었습니다.`));

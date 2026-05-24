@@ -1,11 +1,11 @@
 import { useSearchParams } from "react-router-dom";
-import { useSessionParams } from "@admin/domains/sessions/hooks/useSessionParams";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import ExamPolicyPanel from "./ExamPolicyPanel";
 import ExamEnrollmentPanel from "./ExamEnrollmentPanel";
 import ExamBulkActionsPanel from "./ExamBulkActionsPanel";
 
 export default function ExamSetupPanel({ examId }: { examId: number }) {
-  const { sessionId: sessionIdFromPath, lectureId: lectureIdFromPath } = useSessionParams();
+  const { sessionId: sessionIdFromPath, lectureId: lectureIdFromPath } = useLectureSessionParams();
   const [sp] = useSearchParams();
   const sessionIdFromQuery = Number(sp.get("session_id"));
   const sessionId = Number.isFinite(sessionIdFromQuery) && sessionIdFromQuery > 0

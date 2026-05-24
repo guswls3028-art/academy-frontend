@@ -13,6 +13,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
 import type { ClinicSessionTreeNode } from "../api/clinicSessions.api";
+import { clinicQueryKeys } from "../queryKeys";
 
 dayjs.locale("ko");
 
@@ -57,14 +58,14 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   }, [currentDate]);
 
   const sessionsQ = useQuery({
-    queryKey: ["clinic-sessions-tree", prevWeekYM.year, prevWeekYM.month, "import"],
+    queryKey: clinicQueryKeys.sessionsTreeImport(prevWeekYM.year, prevWeekYM.month, "import"),
     queryFn: () => fetchClinicSessionTree({ year: prevWeekYM.year, month: prevWeekYM.month }),
     enabled: open,
   });
 
   // 이번 주 세션도 조회 (다른 월일 수 있으므로 별도)
   const currentWeekSessionsQ = useQuery({
-    queryKey: ["clinic-sessions-tree", currentWeekYM.year, currentWeekYM.month, "import-current"],
+    queryKey: clinicQueryKeys.sessionsTreeImport(currentWeekYM.year, currentWeekYM.month, "import-current"),
     queryFn: () => fetchClinicSessionTree({ year: currentWeekYM.year, month: currentWeekYM.month }),
     enabled: open,
   });
@@ -175,7 +176,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
       const ok = results.filter((r) => r.status === "fulfilled").length;
       const fail = results.filter((r) => r.status === "rejected").length;
 
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
 
       if (ok > 0 && fail === 0 && skipped === 0) {
         feedback.success(`${ok}건의 클리닉이 생성되었습니다.`);

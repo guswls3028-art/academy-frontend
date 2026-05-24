@@ -22,7 +22,7 @@ import {
   type InventoryFile,
   type MoveConflictError,
 } from "../api/storage.api";
-import Breadcrumb from "./Breadcrumb";
+import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
 import MoveDuplicateModal from "./MoveDuplicateModal";

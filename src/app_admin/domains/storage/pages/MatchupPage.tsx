@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/pages/MatchupPage.tsx
 // 매치업 메인 페이지 — 2-패널 (문서 목록 + 문제 그리드/유사 추천)
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus, Layers, ShieldCheck } from "lucide-react";
@@ -28,23 +28,11 @@ import {
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
 import DocumentList from "../components/matchup/DocumentList";
-import DocumentUploadModal from "../components/matchup/DocumentUploadModal";
-import PromoteFromInventoryModal from "../components/matchup/PromoteFromInventoryModal";
 import ProblemGrid from "../components/matchup/ProblemGrid";
 import SimilarResults from "../components/matchup/SimilarResults";
 import CrossMatchesPanel from "../components/matchup/CrossMatchesPanel";
-import ProblemDetailModal from "../components/matchup/ProblemDetailModal";
-import DocumentPreviewModal from "../components/matchup/DocumentPreviewModal";
-import ManualCropModal from "../components/matchup/ManualCropModal";
-import LowConfPageReviewer from "../components/matchup/LowConfPageReviewer";
-import PageStateGrid from "../components/matchup/PageStateGrid";
-import MergeProblemsModal from "../components/matchup/MergeProblemsModal";
-import HitReportEditor from "../components/matchup/HitReportEditor";
-import HitReportListModal from "../components/matchup/HitReportListModal";
 import MatchupEmptyState from "../components/matchup/MatchupEmptyState";
 import DocumentGuidanceBanner from "../components/matchup/DocumentGuidanceBanner";
-import BulkDeleteModal from "../components/matchup/BulkDeleteModal";
-import ProposalReviewPanel from "../components/matchup/ProposalReviewPanel";
 import HeaderMoreMenu from "./MatchupPage.parts/HeaderMoreMenu";
 import MergeModeRightPanel from "./MatchupPage.parts/MergeModeRightPanel";
 import IntentToggle from "./MatchupPage.parts/IntentToggle";
@@ -53,6 +41,19 @@ import {
   type MatchupSourceType,
 } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+
+const DocumentUploadModal = lazy(() => import("../components/matchup/DocumentUploadModal"));
+const PromoteFromInventoryModal = lazy(() => import("../components/matchup/PromoteFromInventoryModal"));
+const ProblemDetailModal = lazy(() => import("../components/matchup/ProblemDetailModal"));
+const DocumentPreviewModal = lazy(() => import("../components/matchup/DocumentPreviewModal"));
+const ManualCropModal = lazy(() => import("../components/matchup/ManualCropModal"));
+const LowConfPageReviewer = lazy(() => import("../components/matchup/LowConfPageReviewer"));
+const PageStateGrid = lazy(() => import("../components/matchup/PageStateGrid"));
+const MergeProblemsModal = lazy(() => import("../components/matchup/MergeProblemsModal"));
+const HitReportEditor = lazy(() => import("../components/matchup/HitReportEditor"));
+const HitReportListModal = lazy(() => import("../components/matchup/HitReportListModal"));
+const BulkDeleteModal = lazy(() => import("../components/matchup/BulkDeleteModal"));
+const ProposalReviewPanel = lazy(() => import("../components/matchup/ProposalReviewPanel"));
 
 // P2-θ — svh (small viewport height) 지원 여부 모듈 1회 detect. 미지원 브라우저
 // (Safari 15.x 등) 에서는 vh fallback. CSS.supports 가 dev 환경에서 SSR 호환 위해
@@ -1058,16 +1059,18 @@ export default function MatchupPage() {
       <>
         <MatchupEmptyState onUpload={openUpload} />
         {uploadOpen && (
-          <DocumentUploadModal
-            onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
-            onUpload={handleUpload}
-            intent={uploadIntent}
-            existingTitles={existingTitles}
-            categorySuggestions={categorySuggestions}
-            subjectSuggestions={subjectSuggestions}
-            gradeLevelSuggestions={gradeLevelSuggestions}
-            defaultCategory={uploadDefaultCategory}
-          />
+          <Suspense fallback={null}>
+            <DocumentUploadModal
+              onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
+              onUpload={handleUpload}
+              intent={uploadIntent}
+              existingTitles={existingTitles}
+              categorySuggestions={categorySuggestions}
+              subjectSuggestions={subjectSuggestions}
+              gradeLevelSuggestions={gradeLevelSuggestions}
+              defaultCategory={uploadDefaultCategory}
+            />
+          </Suspense>
         )}
       </>
     );
@@ -1925,200 +1928,202 @@ export default function MatchupPage() {
         </div>
       </div>
 
-      {uploadOpen && (
-        <DocumentUploadModal
-          onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
-          onUpload={handleUpload}
-          intent={uploadIntent}
-          existingTitles={existingTitles}
-          categorySuggestions={categorySuggestions}
-          subjectSuggestions={subjectSuggestions}
-          gradeLevelSuggestions={gradeLevelSuggestions}
-          defaultCategory={uploadDefaultCategory}
-        />
-      )}
-
-      {promoteOpen && (
-        <PromoteFromInventoryModal
-          onClose={() => { setPromoteOpen(false); setPromoteDefaultCategory(""); }}
-          defaultCategory={promoteDefaultCategory}
-          categorySuggestions={categorySuggestions}
-        />
-      )}
-
-      {previewDocId && (() => {
-        const doc = documents.find((d) => d.id === previewDocId);
-        return doc ? (
-          <DocumentPreviewModal
-            documentId={previewDocId}
-            documentTitle={doc.title}
-            onClose={() => setPreviewDocId(null)}
+      <Suspense fallback={null}>
+        {uploadOpen && (
+          <DocumentUploadModal
+            onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
+            onUpload={handleUpload}
+            intent={uploadIntent}
+            existingTitles={existingTitles}
+            categorySuggestions={categorySuggestions}
+            subjectSuggestions={subjectSuggestions}
+            gradeLevelSuggestions={gradeLevelSuggestions}
+            defaultCategory={uploadDefaultCategory}
           />
-        ) : null;
-      })()}
+        )}
 
-      {cropDocId && (() => {
-        const doc = documents.find((d) => d.id === cropDocId);
-        return doc ? (
-          <ManualCropModal
-            document={doc}
-            initialPage={cropInitialPage ?? undefined}
-            onClose={() => {
-              setCropDocId(null);
-              setCropInitialPage(null);
-            }}
+        {promoteOpen && (
+          <PromoteFromInventoryModal
+            onClose={() => { setPromoteOpen(false); setPromoteDefaultCategory(""); }}
+            defaultCategory={promoteDefaultCategory}
+            categorySuggestions={categorySuggestions}
           />
-        ) : null;
-      })()}
+        )}
 
-      {reviewerDocId && (() => {
-        const doc = documents.find((d) => d.id === reviewerDocId);
-        const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
-        if (!doc || lowConfPages.length === 0) return null;
-        return (
-          <LowConfPageReviewer
-            document={doc}
-            lowConfPages={lowConfPages}
-            onClose={() => setReviewerDocId(null)}
-            onRequestManualCrop={(pageIndex) => {
-              setReviewerDocId(null);
-              setCropInitialPage(pageIndex);
-              setCropDocId(doc.id);
-            }}
-          />
-        );
-      })()}
+        {previewDocId && (() => {
+          const doc = documents.find((d) => d.id === previewDocId);
+          return doc ? (
+            <DocumentPreviewModal
+              documentId={previewDocId}
+              documentTitle={doc.title}
+              onClose={() => setPreviewDocId(null)}
+            />
+          ) : null;
+        })()}
 
-      {hitReportDocId && (
-        <HitReportEditor
-          docId={hitReportDocId}
-          onClose={() => setHitReportDocId(null)}
-        />
-      )}
-
-      {/* MVP Phase B (2026-05-09) — 페이지별 auto/skip/manual 설정 모달.
-          basic_definition_2026_05_09 SSOT. PageStateGrid 가 자체 모달 wrapper 처리. */}
-      {pageStateGridDocId && (() => {
-        const doc = documents.find((d) => d.id === pageStateGridDocId);
-        if (!doc) return null;
-        return (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="페이지 설정"
-            style={/* eslint-disable-line no-restricted-syntax */ {
-              position: "fixed", inset: 0, zIndex: 1100,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-            }}
-            onClick={() => setPageStateGridDocId(null)}
-          >
-            <div
-              data-testid="matchup-page-state-grid-modal"
-              style={/* eslint-disable-line no-restricted-syntax */ {
-                background: "var(--color-bg-surface)",
-                borderRadius: "var(--radius-xl)",
-                width: "min(1280px, 96vw)", height: "min(840px, 92vh)",
-                display: "flex", flexDirection: "column",
-                boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-                overflow: "auto",
+        {cropDocId && (() => {
+          const doc = documents.find((d) => d.id === cropDocId);
+          return doc ? (
+            <ManualCropModal
+              document={doc}
+              initialPage={cropInitialPage ?? undefined}
+              onClose={() => {
+                setCropDocId(null);
+                setCropInitialPage(null);
               }}
-              onClick={(e) => e.stopPropagation()}
+            />
+          ) : null;
+        })()}
+
+        {reviewerDocId && (() => {
+          const doc = documents.find((d) => d.id === reviewerDocId);
+          const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
+          if (!doc || lowConfPages.length === 0) return null;
+          return (
+            <LowConfPageReviewer
+              document={doc}
+              lowConfPages={lowConfPages}
+              onClose={() => setReviewerDocId(null)}
+              onRequestManualCrop={(pageIndex) => {
+                setReviewerDocId(null);
+                setCropInitialPage(pageIndex);
+                setCropDocId(doc.id);
+              }}
+            />
+          );
+        })()}
+
+        {hitReportDocId && (
+          <HitReportEditor
+            docId={hitReportDocId}
+            onClose={() => setHitReportDocId(null)}
+          />
+        )}
+
+        {/* MVP Phase B (2026-05-09) — 페이지별 auto/skip/manual 설정 모달.
+            basic_definition_2026_05_09 SSOT. PageStateGrid 가 자체 모달 wrapper 처리. */}
+        {pageStateGridDocId && (() => {
+          const doc = documents.find((d) => d.id === pageStateGridDocId);
+          if (!doc) return null;
+          return (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="페이지 설정"
+              style={/* eslint-disable-line no-restricted-syntax */ {
+                position: "fixed", inset: 0, zIndex: 1100,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+              }}
+              onClick={() => setPageStateGridDocId(null)}
             >
-              <PageStateGrid
-                document={doc}
-                onClose={() => setPageStateGridDocId(null)}
-                onRequestDetail={(pageIndex) => {
-                  // PageStateGrid 안에서 페이지 detail 보기 요청 → LowConfPageReviewer 로 전환
-                  // (low-conf 페이지가 있을 때만)
-                  setPageStateGridDocId(null);
-                  const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
-                  if (lowConfPages.length > 0) {
-                    setReviewerDocId(doc.id);
-                  } else {
-                    // 직접 자르기 모달로 점프
-                    setCropInitialPage(pageIndex);
-                    setCropDocId(doc.id);
-                  }
+              <div
+                data-testid="matchup-page-state-grid-modal"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "var(--color-bg-surface)",
+                  borderRadius: "var(--radius-xl)",
+                  width: "min(1280px, 96vw)", height: "min(840px, 92vh)",
+                  display: "flex", flexDirection: "column",
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+                  overflow: "auto",
                 }}
-              />
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PageStateGrid
+                  document={doc}
+                  onClose={() => setPageStateGridDocId(null)}
+                  onRequestDetail={(pageIndex) => {
+                    // PageStateGrid 안에서 페이지 detail 보기 요청 → LowConfPageReviewer 로 전환
+                    // (low-conf 페이지가 있을 때만)
+                    setPageStateGridDocId(null);
+                    const lowConfPages = doc?.meta?.paper_type_summary?.low_conf_pages ?? [];
+                    if (lowConfPages.length > 0) {
+                      setReviewerDocId(doc.id);
+                    } else {
+                      // 직접 자르기 모달로 점프
+                      setCropInitialPage(pageIndex);
+                      setCropDocId(doc.id);
+                    }
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
-      {proposalReviewDocId !== null && (() => {
-        const doc = documents.find((d) => d.id === proposalReviewDocId);
-        if (!doc) return null;
-        return (
-          <ProposalReviewPanel
-            documentId={doc.id}
-            documentTitle={doc.title}
-            onClose={() => setProposalReviewDocId(null)}
+        {proposalReviewDocId !== null && (() => {
+          const doc = documents.find((d) => d.id === proposalReviewDocId);
+          if (!doc) return null;
+          return (
+            <ProposalReviewPanel
+              documentId={doc.id}
+              documentTitle={doc.title}
+              onClose={() => setProposalReviewDocId(null)}
+            />
+          );
+        })()}
+
+        {bulkDeleteOpen && selectedDoc && (
+          <BulkDeleteModal
+            problems={problems}
+            onClose={() => setBulkDeleteOpen(false)}
+            onConfirm={async ({ numberFrom, numberTo }) => {
+              try {
+                const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
+                  number_from: numberFrom,
+                  number_to: numberTo,
+                });
+                const preservedNote = res.preserved_manual > 0
+                  ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+                  : "";
+                feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
+                await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+                await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+              } catch (e: unknown) {
+                const msg = (e as Error)?.message ?? "일괄삭제 실패";
+                feedback.error(msg);
+                throw e;  // 모달 닫지 않도록 — 사용자가 재시도 가능
+              }
+            }}
           />
-        );
-      })()}
+        )}
 
-      {bulkDeleteOpen && selectedDoc && (
-        <BulkDeleteModal
-          problems={problems}
-          onClose={() => setBulkDeleteOpen(false)}
-          onConfirm={async ({ numberFrom, numberTo }) => {
-            try {
-              const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
-                number_from: numberFrom,
-                number_to: numberTo,
-              });
-              const preservedNote = res.preserved_manual > 0
-                ? ` (직접 자른 ${res.preserved_manual}개 보호)`
-                : "";
-              feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
-              await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-              await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-            } catch (e: unknown) {
-              const msg = (e as Error)?.message ?? "일괄삭제 실패";
-              feedback.error(msg);
-              throw e;  // 모달 닫지 않도록 — 사용자가 재시도 가능
-            }
-          }}
-        />
-      )}
-
-      {hitReportListOpen && (
-        <HitReportListModal
-          isAdmin={isAcademyAdmin}
-          onClose={() => setHitReportListOpen(false)}
-          onOpen={(docId) => {
-            setHitReportListOpen(false);
-            setHitReportDocId(docId);
-          }}
-        />
-      )}
-
-      {mergeModalOpen && selectedDocId && mergeSelectedIds.length >= 2 && (() => {
-        const selectedProblems = mergeSelectedIds
-          .map((id) => problems.find((p) => p.id === id))
-          .filter((p): p is NonNullable<typeof p> => Boolean(p));
-        if (selectedProblems.length < 2) return null;
-        return (
-          <MergeProblemsModal
-            docId={selectedDocId}
-            problems={selectedProblems}
-            onClose={() => setMergeModalOpen(false)}
-            onSuccess={handleMergeSuccess}
+        {hitReportListOpen && (
+          <HitReportListModal
+            isAdmin={isAcademyAdmin}
+            onClose={() => setHitReportListOpen(false)}
+            onOpen={(docId) => {
+              setHitReportListOpen(false);
+              setHitReportDocId(docId);
+            }}
           />
-        );
-      })()}
+        )}
 
-      {detailProblem && (
-        <ProblemDetailModal
-          problem={detailProblem}
-          sourceProblem={problems.find((p) => p.id === selectedProblemId) ?? null}
-          sourceDocumentTitle={selectedDoc?.title ?? ""}
-          onClose={() => setDetailProblem(null)}
-          onNavigate={handleNavigateToProblem}
-        />
-      )}
+        {mergeModalOpen && selectedDocId && mergeSelectedIds.length >= 2 && (() => {
+          const selectedProblems = mergeSelectedIds
+            .map((id) => problems.find((p) => p.id === id))
+            .filter((p): p is NonNullable<typeof p> => Boolean(p));
+          if (selectedProblems.length < 2) return null;
+          return (
+            <MergeProblemsModal
+              docId={selectedDocId}
+              problems={selectedProblems}
+              onClose={() => setMergeModalOpen(false)}
+              onSuccess={handleMergeSuccess}
+            />
+          );
+        })()}
+
+        {detailProblem && (
+          <ProblemDetailModal
+            problem={detailProblem}
+            sourceProblem={problems.find((p) => p.id === selectedProblemId) ?? null}
+            sourceDocumentTitle={selectedDoc?.title ?? ""}
+            onClose={() => setDetailProblem(null)}
+            onNavigate={handleNavigateToProblem}
+          />
+        )}
+      </Suspense>
     </>
   );
 }

@@ -15,7 +15,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 import ExamPdfUploadModal from "../../components/ExamPdfUploadModal";
-import { fetchLectures, fetchSessions } from "@admin/domains/lectures/api/sessions";
+import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
 
 export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }: { examId: number; lectureId?: number; sessionId?: number }) {
   const qc = useQueryClient();

@@ -2,8 +2,7 @@
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { VIDEO_STATUS_IN_PROGRESS } from "@admin/domains/videos/constants/videoProcessing";
-import type { VideoStatus } from "@admin/domains/videos/api/videos.api";
+import { VIDEO_STATUS_IN_PROGRESS, type VideoStatus } from "@/shared/api/contracts/videos";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_BACKOFF_AFTER_MS = 3 * 60 * 1000; // 3 minutes

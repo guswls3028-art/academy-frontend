@@ -13,7 +13,7 @@ function readPositiveNumber(raw: string | null): number | null {
 
 export function readAssessmentItemId(
   searchParams: URLSearchParams,
-  kind: AssessmentKind
+  kind: AssessmentKind,
 ): number | null {
   const keys = ASSESSMENT_QUERY_KEYS[kind];
   return (

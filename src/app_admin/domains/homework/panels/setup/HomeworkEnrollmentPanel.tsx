@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import HomeworkEnrollmentManageModal from "@admin/domains/homework/components/HomeworkEnrollmentManageModal";
-import type { EnrollmentRow } from "@admin/domains/sessions/components/enrollment/types";
+import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";

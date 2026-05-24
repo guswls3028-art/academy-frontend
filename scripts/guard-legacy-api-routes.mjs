@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-const tracked = execFileSync("git", ["ls-files", "-z", "--", "src", "e2e"], {
+const tracked = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "src", "e2e"], {
   encoding: "utf8",
 });
 
@@ -9,7 +9,8 @@ const sourceFiles = tracked
   .split("\0")
   .filter(Boolean)
   .filter((file) => /\.(tsx?|jsx?)$/.test(file))
-  .filter((file) => !file.startsWith("e2e/reports/"));
+  .filter((file) => !file.startsWith("e2e/reports/"))
+  .filter((file) => existsSync(file));
 
 const rules = [
   {

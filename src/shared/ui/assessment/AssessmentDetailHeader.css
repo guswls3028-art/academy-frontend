@@ -1,4 +1,4 @@
-/* 시험 헤더 — 템플릿 저장됨 드롭다운 */
+/* Shared assessment detail header. */
 
 .assessment-detail-header__top {
   display: flex;
@@ -68,7 +68,7 @@
   }
 }
 
-.exam-header-template-dropdown-item {
+.assessment-template-dropdown-item {
   display: block;
   width: 100%;
   padding: var(--space-2) var(--space-3);
@@ -81,25 +81,30 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-.exam-header-template-dropdown-item:hover {
+
+.assessment-template-dropdown-item:hover {
   background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
 }
-.exam-header-template-dropdown-item:disabled,
-.exam-header-template-dropdown-item[aria-disabled="true"] {
+
+.assessment-template-dropdown-item:disabled,
+.assessment-template-dropdown-item[aria-disabled="true"] {
   color: var(--color-text-muted);
   cursor: not-allowed;
   opacity: 0.72;
 }
-.exam-header-template-dropdown-item:disabled:hover,
-.exam-header-template-dropdown-item[aria-disabled="true"]:hover {
+
+.assessment-template-dropdown-item:disabled:hover,
+.assessment-template-dropdown-item[aria-disabled="true"]:hover {
   background: transparent;
 }
-.exam-header-template-dropdown-item--danger:hover {
+
+.assessment-template-dropdown-item--danger:hover {
   color: var(--color-error);
   background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
 }
-.exam-header-template-dropdown-item--danger:disabled:hover,
-.exam-header-template-dropdown-item--danger[aria-disabled="true"]:hover {
+
+.assessment-template-dropdown-item--danger:disabled:hover,
+.assessment-template-dropdown-item--danger[aria-disabled="true"]:hover {
   color: var(--color-text-muted);
   background: transparent;
 }

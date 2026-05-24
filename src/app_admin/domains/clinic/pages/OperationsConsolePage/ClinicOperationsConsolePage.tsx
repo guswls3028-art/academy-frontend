@@ -24,6 +24,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
 
@@ -57,9 +58,9 @@ export default function ClinicOperationsConsolePage() {
   const deleteSessionM = useMutation({
     mutationFn: (id: number) => deleteClinicSession(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsMonth });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
       // 삭제된 세션이 현재 선택된 세션이면 선택 해제
       if (deleteConfirm && selectedSessionId === deleteConfirm.id) {
         setSelectedSessionId(null);
@@ -97,7 +98,7 @@ export default function ClinicOperationsConsolePage() {
   }, [selectedDate]);
 
   const treeQ = useQuery({
-    queryKey: ["clinic-sessions-tree", ym.year, ym.month],
+    queryKey: clinicQueryKeys.sessionsTreeByMonth(ym.year, ym.month),
     queryFn: () => fetchClinicSessionTree({ year: ym.year, month: ym.month }),
     retry: 0,
   });
@@ -286,8 +287,8 @@ export default function ClinicOperationsConsolePage() {
             onUpdated={() => {
               setEditModalOpen(false);
               setEditSession(null);
-              qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-              qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+              qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+              qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
             }}
           />
         )}

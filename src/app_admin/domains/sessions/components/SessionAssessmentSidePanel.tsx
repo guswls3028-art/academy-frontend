@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentSidePanel.tsx
-import { useMemo, useState, useEffect, type CSSProperties } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, type CSSProperties } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -12,14 +12,15 @@ import { updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
 import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
-import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
-import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
-import ApplyBundleModal from "@admin/domains/exams/components/create/ApplyBundleModal";
 import {
   buildAssessmentSearch,
   readAssessmentItemId,
-} from "../utils/assessmentQueryParams";
+} from "@/shared/lib/assessmentQueryParams";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+
+const CreateRegularExamModal = lazy(() => import("@admin/domains/exams/components/create/CreateRegularExamModal"));
+const CreateHomeworkModal = lazy(() => import("@admin/domains/homework/components/CreateHomeworkModal"));
+const ApplyBundleModal = lazy(() => import("@admin/domains/exams/components/create/ApplyBundleModal"));
 
 type Props = {
   lectureId: number;
@@ -426,45 +427,53 @@ export default function SessionAssessmentSidePanel({
       </section>
 
       {/* ── Modals ── */}
-      <CreateRegularExamModal
-        open={openCreateExam}
-        onClose={handleCloseCreateExam}
-        sessionId={sessionId}
-        lectureId={lectureId}
-        onCreated={async (id) => {
-          try { await updateAdminExam(id, { status: "OPEN" }); } catch { /* noop */ }
-          invalidateExams();
-          invalidateExamsSummary();
-          invalidateSessionScores();
-          feedback.success("시험이 생성되어 진행 상태로 전환되었습니다.");
-          onSelectExam(id);
-        }}
-      />
-      <CreateHomeworkModal
-        open={openCreateHomework}
-        onClose={handleCloseCreateHomework}
-        sessionId={sessionId}
-        onCreated={async (id) => {
-          try { await updateAdminHomework(id, { status: "OPEN" }); } catch { /* noop */ }
-          invalidateHomeworks();
-          invalidateSessionScores();
-          feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
-          onSelectHomework(id);
-        }}
-      />
-      <ApplyBundleModal
-        open={openApplyBundle}
-        onClose={() => setOpenApplyBundle(false)}
-        sessionId={sessionId}
-        onApplied={({ examIds, homeworkIds }) => {
-          invalidateExams();
-          invalidateExamsSummary();
-          invalidateHomeworks();
-          invalidateSessionScores();
-          if (examIds.length > 0) onSelectExam(examIds[0]);
-          else if (homeworkIds.length > 0) onSelectHomework(homeworkIds[0]);
-        }}
-      />
+      <Suspense fallback={null}>
+        {openCreateExam && (
+          <CreateRegularExamModal
+            open={openCreateExam}
+            onClose={handleCloseCreateExam}
+            sessionId={sessionId}
+            lectureId={lectureId}
+            onCreated={async (id) => {
+              try { await updateAdminExam(id, { status: "OPEN" }); } catch { /* noop */ }
+              invalidateExams();
+              invalidateExamsSummary();
+              invalidateSessionScores();
+              feedback.success("시험이 생성되어 진행 상태로 전환되었습니다.");
+              onSelectExam(id);
+            }}
+          />
+        )}
+        {openCreateHomework && (
+          <CreateHomeworkModal
+            open={openCreateHomework}
+            onClose={handleCloseCreateHomework}
+            sessionId={sessionId}
+            onCreated={async (id) => {
+              try { await updateAdminHomework(id, { status: "OPEN" }); } catch { /* noop */ }
+              invalidateHomeworks();
+              invalidateSessionScores();
+              feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
+              onSelectHomework(id);
+            }}
+          />
+        )}
+        {openApplyBundle && (
+          <ApplyBundleModal
+            open={openApplyBundle}
+            onClose={() => setOpenApplyBundle(false)}
+            sessionId={sessionId}
+            onApplied={({ examIds, homeworkIds }) => {
+              invalidateExams();
+              invalidateExamsSummary();
+              invalidateHomeworks();
+              invalidateSessionScores();
+              if (examIds.length > 0) onSelectExam(examIds[0]);
+              else if (homeworkIds.length > 0) onSelectHomework(homeworkIds[0]);
+            }}
+          />
+        )}
+      </Suspense>
     </aside>
   );
 }

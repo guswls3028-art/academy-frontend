@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
+import { clinicQueryKeys } from "../../queryKeys";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -79,7 +80,7 @@ export default function ClinicReportsPage() {
   );
 
   const sessionsQ = useQuery({
-    queryKey: ["clinic-sessions-month", range.from, range.to],
+    queryKey: clinicQueryKeys.sessionsMonthRange(range.from, range.to),
     queryFn: async () => {
       const rows = await fetchClinicSessions({
         date_from: range.from,

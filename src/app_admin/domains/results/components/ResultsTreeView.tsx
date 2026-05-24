@@ -8,7 +8,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart2 } from "lucide-react";
-import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
+import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import LectureSessionTree from "@admin/domains/exams/components/LectureSessionTree";
 import {
   fetchAllSessions,
@@ -16,7 +16,7 @@ import {
   sortSessionsByDateDesc,
   type Lecture,
   type Session,
-} from "@admin/domains/lectures/api/sessions";
+} from "@/shared/api/contracts/sessions";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./ResultsExplorer.module.css";
 

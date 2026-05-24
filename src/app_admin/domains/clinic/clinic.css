@@ -2141,6 +2141,16 @@ details[open] > .clinic-tree__summary {
   margin: 0 auto;
 }
 
+.clinic-bookings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.clinic-bookings-page__remediation {
+  min-width: 0;
+}
+
 /* ── Toolbar ────────────────────────────────────────────────────────────── */
 
 .clinic-bookings__toolbar {
@@ -2283,6 +2293,9 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-bookings__pending-item-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -2299,6 +2312,7 @@ details[open] > .clinic-tree__summary {
 .clinic-bookings__action-btn {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
@@ -3915,6 +3929,16 @@ details[open] > .clinic-tree__summary {
   color: var(--color-text-muted);
 }
 
+.clinic-ops__header-meta-note {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .clinic-ops__header-actions {
   display: flex;
   align-items: center;
@@ -4080,6 +4104,7 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__kpi--attended { color: var(--color-success); }
 .clinic-ops__kpi--noshow { color: var(--color-error); }
 .clinic-ops__kpi--pending { color: var(--color-text-muted); }
+.clinic-ops__kpi--approval { color: var(--color-brand-primary); }
 
 /* Progress bar */
 .clinic-ops__progress-bar {
@@ -4412,6 +4437,10 @@ details[open] > .clinic-tree__summary {
   background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
   color: var(--scale-Error700);
 }
+.clinic-ops__confirm-bar-badge--approval {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
 .clinic-ops__confirm-bar-badge--delta {
   opacity: 0.85;
   font-size: 0.82rem;
@@ -4595,6 +4624,12 @@ details[open] > .clinic-tree__summary {
   border-color: var(--color-text-secondary);
   background: color-mix(in srgb, var(--color-text-secondary) 8%, var(--color-bg-surface));
   color: var(--color-text-secondary);
+}
+
+.clinic-ops__filter-chip--requests.clinic-ops__filter-chip--active {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
 }
 
 .clinic-ops__filter-chip--attended.clinic-ops__filter-chip--active {
@@ -4851,6 +4886,10 @@ details[open] > .clinic-tree__summary {
   background: var(--color-warning, #eab308);
 }
 
+.clinic-ops__card-indicator--approval {
+  background: var(--color-brand-primary);
+}
+
 .clinic-ops__card-indicator--attended {
   background: var(--color-success);
 }
@@ -4879,6 +4918,10 @@ details[open] > .clinic-tree__summary {
 
 .clinic-ops__card--pending {
   border-color: color-mix(in srgb, var(--color-warning, #eab308) 25%, var(--color-border-divider));
+}
+
+.clinic-ops__card--approval {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
 }
 
 .clinic-ops__card-main {
@@ -4936,6 +4979,11 @@ details[open] > .clinic-tree__summary {
 .clinic-ops__status-badge--pending {
   color: var(--color-warning, #d97706);
   background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent);
+}
+
+.clinic-ops__status-badge--approval {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
 }
 
 .clinic-ops__status-badge--lg {
@@ -5000,6 +5048,26 @@ details[open] > .clinic-tree__summary {
 
 .clinic-ops__att-btn--noshow.clinic-ops__att-btn--active:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
+}
+
+.clinic-ops__att-btn--approve {
+  color: var(--scale-Success700);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface));
+}
+
+.clinic-ops__att-btn--approve:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 18%, var(--color-bg-surface));
+  color: var(--scale-Success700);
+}
+
+.clinic-ops__att-btn--reject {
+  color: var(--scale-Error700);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+}
+
+.clinic-ops__att-btn--reject:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 16%, var(--color-bg-surface));
+  color: var(--scale-Error700);
 }
 
 /* Detail row: reasons + detail button */
@@ -5644,6 +5712,18 @@ details[open] > .clinic-tree__summary {
   color: var(--scale-Error700);
 }
 
+.clinic-ops__drawer-status-btn--approve {
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 38%, var(--color-border-divider));
+  color: var(--scale-Success700);
+}
+
+.clinic-ops__drawer-status-btn--reject {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-error) 34%, var(--color-border-divider));
+  color: var(--scale-Error700);
+}
+
 /* Drawer body */
 .clinic-ops__drawer-body {
   flex: 1;
@@ -6089,12 +6169,20 @@ details[open] > .clinic-tree__summary {
   background: var(--color-warning, #eab308);
 }
 
+.clinic-ops__filter-dot--approval {
+  background: var(--color-brand-primary);
+}
+
 .clinic-ops__filter-dot--noshow {
   background: var(--color-error);
 }
 
 /* 미확인 카드 좌측 바 강화 — 더 넓게 */
 .clinic-ops__card--pending .clinic-ops__card-indicator {
+  width: 5px;
+}
+
+.clinic-ops__card--approval .clinic-ops__card-indicator {
   width: 5px;
 }
 

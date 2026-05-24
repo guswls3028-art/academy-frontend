@@ -44,7 +44,7 @@ export async function fetchNotificationCounts(
     let clinic = 0;
     if (clinicResult.status === "fulfilled") {
       clinic = clinicResult.value.filter((b) => {
-        if (b.status !== "booked" && b.status !== "approved") return false;
+        if (b.status !== "booked") return false;
         const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
         if (new Date(t).getTime() <= sevenDaysAgo) return false;
         return !isNotificationSeen("clinic", b.id);

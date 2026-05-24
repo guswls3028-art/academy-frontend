@@ -71,6 +71,22 @@
   overflow: hidden;
 }
 
+.inventoryLoading {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.matrixLoading {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
 .tabList {
   display: grid;
   gap: 8px;

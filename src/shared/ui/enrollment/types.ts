@@ -1,4 +1,4 @@
-// PATH: src/app_admin/domains/sessions/components/enrollment/types.ts
+// PATH: src/shared/ui/enrollment/types.ts
 
 /**
  * EnrollmentRow

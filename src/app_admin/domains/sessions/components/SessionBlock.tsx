@@ -8,8 +8,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } from "lucide-react";
 
-import { fetchSessions, sortSessionsByDateDesc, updateSession, deleteSession, type Session } from "@admin/domains/lectures/api/sessions";
-import { fetchSections, type Section as SectionType } from "@admin/domains/lectures/api/sections";
+import { fetchSessions, sortSessionsByDateDesc, type Session } from "@/shared/api/contracts/sessions";
+import { fetchSections, type Section as SectionType } from "@/shared/api/contracts/lectureSections";
+import { updateSession, deleteSession } from "@admin/domains/lectures/api/sessions";
 import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
 import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";

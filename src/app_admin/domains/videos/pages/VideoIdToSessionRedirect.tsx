@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchVideoDetail } from "../api/videos.api";
-import { fetchSession } from "@admin/domains/lectures/api/sessions";
+import { fetchSession } from "@/shared/api/contracts/sessions";
 import styles from "./VideoIdToSessionRedirect.module.css";
 
 export default function VideoIdToSessionRedirect() {

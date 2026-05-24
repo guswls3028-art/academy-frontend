@@ -122,6 +122,12 @@ const metrics = {
   inline_style_objects: 0,
   raw_badge_classes: 0,
   api_response_type_defs: 0,
+  direct_axios_calls: 0,
+  fetch_calls: 0,
+  local_storage_refs: 0,
+  session_storage_refs: 0,
+  explicit_any_refs: 0,
+  ts_expect_error_refs: 0,
 };
 
 for (const file of srcFiles) {
@@ -136,6 +142,12 @@ for (const file of srcFiles) {
   metrics.inline_style_objects += countMatches(text, /\bstyle\s*=\s*\{\s*\{/g);
   metrics.raw_badge_classes += countMatches(text, /\bclassName\s*=\s*["'][^"']*\bds-[^"']*badge\b[^"']*["']/g);
   metrics.api_response_type_defs += countMatches(text, /\b(?:interface|type)\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b/g);
+  metrics.direct_axios_calls += countMatches(text, /\baxios\s*\./g);
+  metrics.fetch_calls += countMatches(text, /\bfetch\s*\(/g);
+  metrics.local_storage_refs += countMatches(text, /\blocalStorage\b/g);
+  metrics.session_storage_refs += countMatches(text, /\bsessionStorage\b/g);
+  metrics.explicit_any_refs += countMatches(text, /\bany\b/g);
+  metrics.ts_expect_error_refs += countMatches(text, /@ts-expect-error/g);
 
   for (const { spec, index } of specs) {
     const line = lineNumber(text, index);
@@ -200,6 +212,50 @@ for (const finding of findings) {
   summary[finding.kind] = (summary[finding.kind] ?? 0) + 1;
 }
 
+function argValue(...names) {
+  for (const name of names) {
+    const index = process.argv.indexOf(name);
+    if (index >= 0) return process.argv[index + 1];
+  }
+  return null;
+}
+
+function loadBudget() {
+  const budgetPath = argValue('--budget', '--budget-file');
+  if (!budgetPath) return null;
+
+  const absolute = path.isAbsolute(budgetPath)
+    ? budgetPath
+    : path.join(ROOT, budgetPath);
+  const data = JSON.parse(fs.readFileSync(absolute, 'utf8'));
+  return {
+    path: absolute,
+    summary: data.summary ?? {},
+    metrics: data.metrics ?? {},
+  };
+}
+
+function compareBudgetGroup(groupName, actual, expected) {
+  const out = [];
+  for (const [name, maxValue] of Object.entries(expected)) {
+    const value = Number(actual[name] ?? 0);
+    const max = Number(maxValue);
+    if (!Number.isFinite(max)) continue;
+    if (value > max) {
+      out.push({ group: groupName, name, value, max });
+    }
+  }
+  return out;
+}
+
+const budget = loadBudget();
+const budgetViolations = budget
+  ? [
+      ...compareBudgetGroup('summary', summary, budget.summary),
+      ...compareBudgetGroup('metrics', metrics, budget.metrics),
+    ]
+  : [];
+
 const payload = {
   frontend: ROOT,
   files_scanned: {
@@ -213,6 +269,13 @@ const payload = {
     hot_pairs: topEntries(domainPairs, 15),
   },
   summary: Object.fromEntries(Object.entries(summary).sort(([a], [b]) => a.localeCompare(b))),
+  budget: budget
+    ? {
+        path: budget.path,
+        passed: budgetViolations.length === 0,
+        violations: budgetViolations,
+      }
+    : null,
   findings,
 };
 
@@ -234,6 +297,17 @@ if (asJson) {
   for (const [name, value] of Object.entries(metrics)) {
     console.log(`  ${name}: ${value}`);
   }
+  if (budget) {
+    console.log('budget:');
+    if (budgetViolations.length) {
+      console.log(`  failed: ${budgetViolations.length} violation(s)`);
+      for (const violation of budgetViolations) {
+        console.log(`  ${violation.group}.${violation.name}: ${violation.value} > ${violation.max}`);
+      }
+    } else {
+      console.log(`  passed: ${budget.path}`);
+    }
+  }
   if (payload.domain_boundary.same_app_imports) {
     console.log('domain boundary hotspots:');
     for (const entry of payload.domain_boundary.hot_outbound_domains.slice(0, 10)) {
@@ -253,5 +327,9 @@ if (asJson) {
 }
 
 if (strict && findings.length) {
+  process.exitCode = 1;
+}
+
+if (budgetViolations.length) {
   process.exitCode = 1;
 }

@@ -1,8 +1,7 @@
 // 좌측 폴더 트리 — 시험/성적 공통: 강의명 > 1~n차시
 
 import { FolderOpen } from "lucide-react";
-import type { Lecture } from "@admin/domains/lectures/api/sessions";
-import type { Session } from "@admin/domains/lectures/api/sessions";
+import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import styles from "./LectureSessionTree.module.css";
 

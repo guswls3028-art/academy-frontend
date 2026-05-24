@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { bulkCreateAttendance } from "../api/attendance";
-import { fetchStudents } from "@admin/domains/students/api/students.api";
+import { fetchStudents } from "@/shared/api/contracts/students";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";

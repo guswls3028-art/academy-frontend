@@ -17,7 +17,7 @@ import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
-import SessionItemBrowser, { type SelectedExamItem } from "@admin/domains/sessions/components/SessionItemBrowser";
+import SessionItemBrowser, { type SelectedExamItem } from "@/shared/ui/assessment/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {

@@ -15,6 +15,8 @@ export type ClinicSessionTreeNode = {
 
   participant_count: number;
   booked_count: number;
+  pending_count?: number;
+  booked_confirmed_count?: number;
   no_show_count: number;
   /** 정원. 있으면 날짜 상태 dot(🟢🟡🔴) 계산에 사용 */
   max_participants?: number | null;
@@ -101,6 +103,8 @@ export async function fetchClinicSessionTree(params: {
       duration_minutes: toOptionalNumber(row.duration_minutes),
       participant_count: toNumber(row.participant_count),
       booked_count: toNumber(row.booked_count),
+      pending_count: toNumber(row.pending_count),
+      booked_confirmed_count: toNumber(row.booked_confirmed_count),
       no_show_count: toNumber(row.no_show_count),
       max_participants: toNullableNumber(row.max_participants),
       section: toNullableNumber(row.section),
@@ -173,6 +177,8 @@ export async function fetchClinicSessions(params: {
       target_lecture_ids: toNumberArray(row.target_lecture_ids),
       participant_count: toNumber(row.participant_count),
       booked_count: toNumber(row.booked_count),
+      pending_count: toNumber(row.pending_count),
+      booked_confirmed_count: toNumber(row.booked_confirmed_count),
       section: toNullableNumber(row.section),
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
@@ -192,6 +198,8 @@ export type ClinicSessionDetail = {
   target_lecture_ids?: number[];
   participant_count: number;
   booked_count: number;
+  pending_count?: number;
+  booked_confirmed_count?: number;
   section?: number | null;
   section_label?: string | null;
   section_type?: "CLASS" | "CLINIC" | null;

@@ -10,8 +10,7 @@ import { fetchSessionEnrollments, fetchLectureEnrollments, lectureEnrollFromExce
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
-import { fetchStudents } from "@admin/domains/students/api/students.api";
-import type { ClientStudent } from "@admin/domains/students/api/students.api";
+import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import StudentCreateModal from "@admin/domains/students/components/StudentCreateModal";
 import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";

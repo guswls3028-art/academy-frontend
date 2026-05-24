@@ -62,7 +62,7 @@ export default function ClinicPage() {
   const bookingMutation = useMutation({
     mutationFn: (data: { session: number; memo?: string }) =>
       createClinicBookingRequest(data),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.session);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
@@ -71,10 +71,11 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
+      const baseMessage = data.status === "booked" ? "예약이 확정되었습니다." : "예약 신청이 접수되었습니다.";
       studentToast.success(
         bookedCount != null
-          ? `예약이 완료되었습니다. (현재 예약인원 ${bookedCount}명)`
-          : "예약이 완료되었습니다."
+          ? `${baseMessage} (현재 예약인원 ${bookedCount}명)`
+          : baseMessage
       );
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
@@ -105,7 +106,7 @@ export default function ClinicPage() {
   const changeMutation = useMutation({
     mutationFn: (data: { oldId: number; newSessionId: number; memo?: string }) =>
       changeClinicBooking(data.oldId, data.newSessionId, data.memo),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.newSessionId);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
@@ -114,10 +115,11 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setSelectedSessionId(null);
       setMemo("");
+      const baseMessage = data.status === "booked" ? "일정 변경이 확정되었습니다." : "일정 변경 신청이 접수되었습니다.";
       studentToast.success(
         bookedCount != null
-          ? `일정 변경이 완료되었습니다. (현재 예약인원 ${bookedCount}명)`
-          : "일정 변경이 완료되었습니다."
+          ? `${baseMessage} (현재 예약인원 ${bookedCount}명)`
+          : baseMessage
       );
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
@@ -135,7 +137,7 @@ export default function ClinicPage() {
     setSelectedSessionId(null);
 
     const existingBooking = myRequests.find((r) => r.session_date === date);
-    if (existingBooking && (existingBooking.status === "pending" || existingBooking.status === "booked" || existingBooking.status === "approved")) {
+    if (existingBooking && (existingBooking.status === "pending" || existingBooking.status === "booked")) {
       setSelectedSessionId(existingBooking.session ?? null);
     }
   };
@@ -164,7 +166,7 @@ export default function ClinicPage() {
     const existingBooking = myRequests.find(
       (r) =>
         r.session_date === selectedDate &&
-        (r.status === "pending" || r.status === "booked" || r.status === "approved")
+        (r.status === "pending" || r.status === "booked")
     );
     if (!existingBooking) {
       studentToast.error("변경할 예약을 찾을 수 없습니다.");
@@ -200,7 +202,7 @@ export default function ClinicPage() {
     [myRequests]
   );
   const approvedBookings = useMemo(
-    () => myRequests.filter((r) => r.status === "booked" || r.status === "approved"),
+    () => myRequests.filter((r) => r.status === "booked"),
     [myRequests]
   );
   const rejectedBookings = useMemo(
@@ -215,7 +217,7 @@ export default function ClinicPage() {
     const dates = new Set<string>();
     sessions.forEach((s) => dates.add(s.date));
     myRequests.forEach((r) => {
-      if (r.status === "pending" || r.status === "booked" || r.status === "approved") {
+      if (r.status === "pending" || r.status === "booked") {
         dates.add(r.session_date);
       }
     });
@@ -263,13 +265,13 @@ export default function ClinicPage() {
     return myRequests.find(
       (r) =>
         r.session_date === selectedDate &&
-        (r.status === "pending" || r.status === "booked" || r.status === "approved")
+        (r.status === "pending" || r.status === "booked")
     );
   }, [selectedDate, myRequests]);
 
   const isChangeMode = existingBookingForDate != null;
   const existingBookingIsApproved =
-    existingBookingForDate?.status === "booked" || existingBookingForDate?.status === "approved";
+    existingBookingForDate?.status === "booked";
   const existingBookingCanChange = existingBookingForDate?.status === "pending";
   const bookingChangeLocked = existingBookingForDate != null && !existingBookingCanChange;
   const activeBookingCount = pendingBookings.length + approvedBookings.length;

@@ -9,11 +9,11 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FilePlus, ClipboardList, FileCheck } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import Breadcrumb from "@admin/domains/storage/components/Breadcrumb";
+import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
-import { fetchAllSessions, fetchLectures, sortSessionsByDateDesc, type Lecture, type Session } from "@admin/domains/lectures/api/sessions";
+import { fetchAllSessions, fetchLectures, sortSessionsByDateDesc, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import { fetchExams } from "../api/exams.api";
-import { buildAssessmentSearch } from "@admin/domains/sessions/utils/assessmentQueryParams";
+import { buildAssessmentSearch } from "@/shared/lib/assessmentQueryParams";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ExamExplorer.module.css";
 

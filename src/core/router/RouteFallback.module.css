@@ -1,0 +1,12 @@
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-tertiary, #666);
+  font-size: var(--text-sm, 13px);
+}
+
+.fullPage {
+  min-height: 100vh;
+}

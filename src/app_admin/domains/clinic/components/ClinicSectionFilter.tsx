@@ -3,7 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
-import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
+import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 
 type Props = {
   value: number | null;

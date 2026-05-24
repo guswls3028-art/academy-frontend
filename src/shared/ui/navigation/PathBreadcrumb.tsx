@@ -1,15 +1,13 @@
-// PATH: src/app_admin/domains/storage/components/Breadcrumb.tsx
+import styles from "./PathBreadcrumb.module.css";
 
-import styles from "./Breadcrumb.module.css";
+export type PathCrumb = { id: string | null; name: string };
 
-type Crumb = { id: string | null; name: string };
-
-type BreadcrumbProps = {
-  path: Crumb[];
+type PathBreadcrumbProps = {
+  path: PathCrumb[];
   onSelect: (folderId: string | null) => void;
 };
 
-export default function Breadcrumb({ path, onSelect }: BreadcrumbProps) {
+export default function PathBreadcrumb({ path, onSelect }: PathBreadcrumbProps) {
   return (
     <nav className={styles.root} aria-label="경로">
       {path.map((crumb, i) => (

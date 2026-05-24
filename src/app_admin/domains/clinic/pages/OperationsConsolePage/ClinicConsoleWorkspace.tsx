@@ -56,6 +56,7 @@ import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
 
@@ -120,8 +121,12 @@ function formatScoreDetail(target: ClinicTarget): string {
 }
 
 function getStatusLabel(status: string): string {
+  if (status === "pending") return "승인 대기";
+  if (status === "booked") return "미확인";
   if (status === "attended") return "출석";
   if (status === "no_show") return "불참";
+  if (status === "cancelled") return "취소";
+  if (status === "rejected") return "거절";
   return "미확인";
 }
 
@@ -147,7 +152,15 @@ function scoreWidthStyle(score: number, cutline: number): CSSProperties {
   return widthPercentStyle(Math.min(100, (score / cutline) * 100));
 }
 
-type StatusFilter = "all" | "pending" | "attended" | "no_show";
+type StatusFilter = "all" | "requests" | "pending" | "attended" | "no_show";
+
+function isApprovalPending(status: string): boolean {
+  return status === "pending";
+}
+
+function isAttendancePending(status: string): boolean {
+  return status === "booked";
+}
 
 type Props = {
   selectedDate: string;
@@ -275,9 +288,9 @@ export default function ClinicConsoleWorkspace({
   }, [clinicTargets]);
 
   const invalidateAll = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-    qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-    qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
   }, [qc]);
 
   const timeLabel = session ? formatTime(session.start_time) : "—";
@@ -288,27 +301,16 @@ export default function ClinicConsoleWorkspace({
     const attended = participants.filter((p) => p.status === "attended").length;
     const noShow = participants.filter((p) => p.status === "no_show").length;
     const completed = participants.filter((p) => !!p.completed_at).length;
-    const pending = participants.filter(
-      (p) =>
-        p.status !== "attended" &&
-        p.status !== "no_show" &&
-        p.status !== "cancelled" &&
-        p.status !== "rejected"
-    ).length;
+    const approvalPending = participants.filter((p) => isApprovalPending(p.status)).length;
+    const pending = participants.filter((p) => isAttendancePending(p.status)).length;
     const total = attended + noShow + pending;
-    return { attended, noShow, pending, completed, total };
+    return { attended, noShow, pending, approvalPending, completed, total };
   }, [participants]);
 
   const pendingIds = useMemo(
     () =>
       participants
-        .filter(
-          (p) =>
-            p.status !== "attended" &&
-            p.status !== "no_show" &&
-            p.status !== "cancelled" &&
-            p.status !== "rejected"
-        )
+        .filter((p) => isAttendancePending(p.status))
         .map((p) => p.id),
     [participants]
   );
@@ -317,20 +319,16 @@ export default function ClinicConsoleWorkspace({
   const filteredParticipants = useMemo(() => {
     let list: ClinicParticipant[];
     if (statusFilter === "all") list = [...participants];
+    else if (statusFilter === "requests")
+      list = participants.filter((p) => isApprovalPending(p.status));
     else if (statusFilter === "attended")
       list = participants.filter((p) => p.status === "attended");
     else if (statusFilter === "no_show")
       list = participants.filter((p) => p.status === "no_show");
     else
-      list = participants.filter(
-        (p) =>
-          p.status !== "attended" &&
-          p.status !== "no_show" &&
-          p.status !== "cancelled" &&
-          p.status !== "rejected"
-      );
-    // Sort: pending(0) → no_show(1) → booked(2) → attended(3)
-    const ORDER: Record<string, number> = { pending: 0, booked: 0, no_show: 1, attended: 2 };
+      list = participants.filter((p) => isAttendancePending(p.status));
+    // Sort: approval requests → attendance queue → no_show → attended.
+    const ORDER: Record<string, number> = { pending: 0, booked: 1, no_show: 2, attended: 3 };
     list.sort((a, b) => (ORDER[a.status] ?? 0) - (ORDER[b.status] ?? 0));
     return list;
   }, [participants, statusFilter]);
@@ -365,6 +363,10 @@ export default function ClinicConsoleWorkspace({
     p: ClinicParticipant,
     target: "attended" | "no_show"
   ) {
+    if (!isAttendancePending(p.status) && p.status !== target) {
+      feedback.info("승인된 예약만 출석/불참 처리할 수 있습니다.");
+      return;
+    }
     setPendingStatuses((prev) => {
       const next = new Map(prev);
       const current = next.get(p.id);
@@ -412,6 +414,30 @@ export default function ClinicConsoleWorkspace({
       .catch(() => {
         invalidateAll();
         feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
+      })
+      .finally(() => {
+        setMutatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(p.id);
+          return next;
+        });
+      });
+  }
+
+  function handleBookingDecision(
+    p: ClinicParticipant,
+    target: "booked" | "rejected"
+  ) {
+    if (mutatingIds.has(p.id)) return;
+    setMutatingIds((prev) => new Set(prev).add(p.id));
+    patchClinicParticipantStatus(p.id, { status: target })
+      .then(() => {
+        invalidateAll();
+        feedback.success(target === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.");
+      })
+      .catch(() => {
+        invalidateAll();
+        feedback.error(target === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.");
       })
       .finally(() => {
         setMutatingIds((prev) => {
@@ -558,8 +584,8 @@ export default function ClinicConsoleWorkspace({
         } else {
           feedback.warning(`미통과 (${result.score}점) — 재도전 필요`);
         }
-        qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-        qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
         setRetakeScores((prev) => {
           const next = new Map(prev);
           next.delete(clinicLinkId);
@@ -598,6 +624,7 @@ export default function ClinicConsoleWorkspace({
 
   const filterCounts = {
     all: participants.length,
+    requests: progress.approvalPending,
     pending: progress.pending,
     attended: progress.attended,
     no_show: progress.noShow,
@@ -605,6 +632,7 @@ export default function ClinicConsoleWorkspace({
 
   const filters: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "전체" },
+    { key: "requests", label: "승인 대기" },
     { key: "pending", label: "미확인" },
     { key: "attended", label: "출석" },
     { key: "no_show", label: "불참" },
@@ -645,6 +673,11 @@ export default function ClinicConsoleWorkspace({
               <span className="clinic-ops__header-meta-item clinic-ops__header-meta-item--count">
                 <Users size={16} aria-hidden />
                 예약 <strong>{participants.length}</strong>명
+                {progress.approvalPending > 0 && (
+                  <span className="clinic-ops__header-meta-note">
+                    승인 대기 {progress.approvalPending}
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -725,6 +758,12 @@ export default function ClinicConsoleWorkspace({
                   <span className="clinic-ops__kpi-label">미확인</span>
                 </div>
               )}
+              {progress.approvalPending > 0 && (
+                <div className="clinic-ops__kpi clinic-ops__kpi--approval clinic-ops__kpi--highlight">
+                  <span className="clinic-ops__kpi-value">{progress.approvalPending}</span>
+                  <span className="clinic-ops__kpi-label">승인 대기</span>
+                </div>
+              )}
               <div className="clinic-ops__kpi clinic-ops__kpi--attended">
                 <span className="clinic-ops__kpi-value">{progress.attended}</span>
                 <span className="clinic-ops__kpi-label">출석</span>
@@ -782,7 +821,7 @@ export default function ClinicConsoleWorkspace({
                 </div>
               </>
             )}
-            {progress.total > 0 && progress.pending === 0 && (
+            {progress.total > 0 && progress.pending === 0 && progress.approvalPending === 0 && (
               <p className="clinic-ops__all-done">
                 <CheckCircle size={14} aria-hidden />
                 모든 학생 확인 완료
@@ -902,6 +941,9 @@ export default function ClinicConsoleWorkspace({
                 } ${f.key !== "all" ? `clinic-ops__filter-chip--${f.key}` : ""}`}
                 onClick={() => setStatusFilter(f.key)}
               >
+                {f.key === "requests" && filterCounts.requests > 0 && (
+                  <span className="clinic-ops__filter-dot clinic-ops__filter-dot--approval" aria-hidden />
+                )}
                 {f.key === "pending" && filterCounts.pending > 0 && (
                   <span className="clinic-ops__filter-dot clinic-ops__filter-dot--pending" aria-hidden />
                 )}
@@ -943,7 +985,12 @@ export default function ClinicConsoleWorkspace({
                   미확인 {progress.pending}명
                 </span>
               )}
-              {progress.attended === 0 && progress.noShow === 0 && progress.pending === 0 && (
+              {progress.approvalPending > 0 && (
+                <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--approval">
+                  승인 대기 {progress.approvalPending}명
+                </span>
+              )}
+              {progress.attended === 0 && progress.noShow === 0 && progress.pending === 0 && progress.approvalPending === 0 && (
                 <span className="clinic-ops__confirm-bar-badge">참가자 없음</span>
               )}
             </div>
@@ -1009,6 +1056,7 @@ export default function ClinicConsoleWorkspace({
       ) : filteredParticipants.length === 0 ? (
         <div className="clinic-ops__empty-filter">
           <p className="clinic-ops__empty-filter-text">
+            {statusFilter === "requests" && "승인 대기 신청이 없습니다."}
             {statusFilter === "pending" && "미확인 학생이 없습니다."}
             {statusFilter === "attended" && "출석 처리된 학생이 없습니다."}
             {statusFilter === "no_show" && "불참 처리된 학생이 없습니다."}
@@ -1019,7 +1067,8 @@ export default function ClinicConsoleWorkspace({
           {filteredParticipants.map((p) => {
             const targets = getTargetsForParticipant(p);
             // pending 체크 상태 우선, 없으면 서버 상태
-            const pendingStatus = pendingStatuses.get(p.id);
+            const isApprovalRequest = isApprovalPending(p.status);
+            const pendingStatus = isApprovalRequest ? undefined : pendingStatuses.get(p.id);
             const effectiveStatus = pendingStatus ?? p.status;
             const isAttended = effectiveStatus === "attended";
             const isNoShow = effectiveStatus === "no_show";
@@ -1034,6 +1083,8 @@ export default function ClinicConsoleWorkspace({
                     ? "clinic-ops__card--attended"
                     : isNoShow
                     ? "clinic-ops__card--noshow"
+                    : isApprovalRequest
+                    ? "clinic-ops__card--approval"
                     : "clinic-ops__card--pending"
                 }${msgSelectionMode && selectedForMsg.has(p.student) ? " clinic-ops__card--msg-selected" : ""}`}
                 onClick={() => setDrawerParticipantId(p.id)}
@@ -1069,6 +1120,8 @@ export default function ClinicConsoleWorkspace({
                       ? "clinic-ops__card-indicator--attended"
                       : isNoShow
                       ? "clinic-ops__card-indicator--noshow"
+                      : isApprovalRequest
+                      ? "clinic-ops__card-indicator--approval"
                       : "clinic-ops__card-indicator--pending"
                   }`}
                 />
@@ -1100,6 +1153,8 @@ export default function ClinicConsoleWorkspace({
                             ? "clinic-ops__status-badge--attended"
                             : isNoShow
                             ? "clinic-ops__status-badge--noshow"
+                            : isApprovalRequest
+                            ? "clinic-ops__status-badge--approval"
                             : "clinic-ops__status-badge--pending"
                         }`}
                       >
@@ -1112,44 +1167,71 @@ export default function ClinicConsoleWorkspace({
                     </div>
 
                     <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className={`clinic-ops__att-btn clinic-ops__att-btn--attend ${
-                          isAttended ? "clinic-ops__att-btn--active" : ""
-                        }`}
-                        onClick={() => handleToggleStatus(p, "attended")}
-                        disabled={isMutating}
-                        aria-label="출석"
-                      >
-                        <CheckCircle size={14} aria-hidden />
-                        출석
-                      </button>
-                      <button
-                        type="button"
-                        className={`clinic-ops__att-btn clinic-ops__att-btn--noshow ${
-                          isNoShow ? "clinic-ops__att-btn--active" : ""
-                        }`}
-                        onClick={() => handleToggleStatus(p, "no_show")}
-                        disabled={isMutating}
-                        aria-label="불참"
-                      >
-                        <XCircle size={14} aria-hidden />
-                        불참
-                      </button>
-                      {/* 개별 알림 발송 버튼 — 체크 시 활성화 */}
-                      {hasPending && (
-                        <button
-                          type="button"
-                          className={`clinic-ops__att-btn clinic-ops__att-btn--send ${
-                            pendingStatus === "attended" ? "clinic-ops__att-btn--send-attend" : "clinic-ops__att-btn--send-noshow"
-                          }`}
-                          onClick={() => handleConfirmStatus(p)}
-                          disabled={isMutating}
-                          aria-label={pendingStatus === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
-                        >
-                          <Send size={16} aria-hidden />
-                          {isMutating ? "발송중…" : pendingStatus === "attended" ? "출석 알림" : "결석 알림"}
-                        </button>
+                      {isApprovalRequest ? (
+                        <>
+                          <button
+                            type="button"
+                            className="clinic-ops__att-btn clinic-ops__att-btn--approve"
+                            onClick={() => handleBookingDecision(p, "booked")}
+                            disabled={isMutating}
+                            aria-label="예약 승인"
+                          >
+                            <CheckCircle size={14} aria-hidden />
+                            승인
+                          </button>
+                          <button
+                            type="button"
+                            className="clinic-ops__att-btn clinic-ops__att-btn--reject"
+                            onClick={() => handleBookingDecision(p, "rejected")}
+                            disabled={isMutating}
+                            aria-label="예약 거절"
+                          >
+                            <XCircle size={14} aria-hidden />
+                            거절
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`clinic-ops__att-btn clinic-ops__att-btn--attend ${
+                              isAttended ? "clinic-ops__att-btn--active" : ""
+                            }`}
+                            onClick={() => handleToggleStatus(p, "attended")}
+                            disabled={isMutating}
+                            aria-label="출석"
+                          >
+                            <CheckCircle size={14} aria-hidden />
+                            출석
+                          </button>
+                          <button
+                            type="button"
+                            className={`clinic-ops__att-btn clinic-ops__att-btn--noshow ${
+                              isNoShow ? "clinic-ops__att-btn--active" : ""
+                            }`}
+                            onClick={() => handleToggleStatus(p, "no_show")}
+                            disabled={isMutating}
+                            aria-label="불참"
+                          >
+                            <XCircle size={14} aria-hidden />
+                            불참
+                          </button>
+                          {/* 개별 알림 발송 버튼 — 체크 시 활성화 */}
+                          {hasPending && (
+                            <button
+                              type="button"
+                              className={`clinic-ops__att-btn clinic-ops__att-btn--send ${
+                                pendingStatus === "attended" ? "clinic-ops__att-btn--send-attend" : "clinic-ops__att-btn--send-noshow"
+                              }`}
+                              onClick={() => handleConfirmStatus(p)}
+                              disabled={isMutating}
+                              aria-label={pendingStatus === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
+                            >
+                              <Send size={16} aria-hidden />
+                              {isMutating ? "발송중…" : pendingStatus === "attended" ? "출석 알림" : "결석 알림"}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1203,8 +1285,13 @@ export default function ClinicConsoleWorkspace({
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
                     const isCompleted = !!p.completed_at;
-                    // 결석/취소/거절 상태에서는 완료 버튼 숨김 (알림 발송은 카드 액션으로 이동)
-                    if (p.status === "no_show" || p.status === "cancelled" || p.status === "rejected") return null;
+                    // 승인 대기/결석/취소/거절 상태에서는 완료 버튼 숨김.
+                    if (
+                      p.status === "pending" ||
+                      p.status === "no_show" ||
+                      p.status === "cancelled" ||
+                      p.status === "rejected"
+                    ) return null;
 
                     if (isSelfStudy) {
                       // 자율학습: 완료 토글 버튼
@@ -1326,7 +1413,8 @@ export default function ClinicConsoleWorkspace({
             {/* Status action — 최상단에 배치하여 처리 공간화 */}
             {(() => {
               const dp = drawerParticipant;
-              const dpPending = pendingStatuses.get(dp.id);
+              const dpIsApprovalRequest = isApprovalPending(dp.status);
+              const dpPending = dpIsApprovalRequest ? undefined : pendingStatuses.get(dp.id);
               const dpEffective = dpPending ?? dp.status;
               const dpIsMutating = mutatingIds.has(dp.id);
               return (
@@ -1341,6 +1429,8 @@ export default function ClinicConsoleWorkspace({
                           ? "clinic-ops__status-badge--attended"
                           : dpEffective === "no_show"
                           ? "clinic-ops__status-badge--noshow"
+                          : dpIsApprovalRequest
+                          ? "clinic-ops__status-badge--approval"
                           : "clinic-ops__status-badge--pending"
                       }`}
                     >
@@ -1350,40 +1440,65 @@ export default function ClinicConsoleWorkspace({
                     </span>
                   </div>
                   <div className="clinic-ops__drawer-status-actions">
-                    <button
-                      type="button"
-                      className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--attend ${
-                        dpEffective === "attended" ? "clinic-ops__drawer-status-btn--active" : ""
-                      }`}
-                      disabled={dpIsMutating}
-                      onClick={() => handleToggleStatus(dp, "attended")}
-                    >
-                      <CheckCircle size={16} aria-hidden />
-                      출석
-                    </button>
-                    <button
-                      type="button"
-                      className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--noshow ${
-                        dpEffective === "no_show" ? "clinic-ops__drawer-status-btn--active" : ""
-                      }`}
-                      disabled={dpIsMutating}
-                      onClick={() => handleToggleStatus(dp, "no_show")}
-                    >
-                      <XCircle size={16} aria-hidden />
-                      불참
-                    </button>
-                    {dpPending && (
-                      <button
-                        type="button"
-                        className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--send ${
-                          dpPending === "attended" ? "clinic-ops__drawer-status-btn--send-attend" : "clinic-ops__drawer-status-btn--send-noshow"
-                        }`}
-                        disabled={dpIsMutating}
-                        onClick={() => handleConfirmStatus(dp)}
-                      >
-                        <Send size={15} aria-hidden />
-                        {dpIsMutating ? "발송 중…" : dpPending === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
-                      </button>
+                    {dpIsApprovalRequest ? (
+                      <>
+                        <button
+                          type="button"
+                          className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--approve"
+                          disabled={dpIsMutating}
+                          onClick={() => handleBookingDecision(dp, "booked")}
+                        >
+                          <CheckCircle size={16} aria-hidden />
+                          예약 승인
+                        </button>
+                        <button
+                          type="button"
+                          className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject"
+                          disabled={dpIsMutating}
+                          onClick={() => handleBookingDecision(dp, "rejected")}
+                        >
+                          <XCircle size={16} aria-hidden />
+                          예약 거절
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--attend ${
+                            dpEffective === "attended" ? "clinic-ops__drawer-status-btn--active" : ""
+                          }`}
+                          disabled={dpIsMutating}
+                          onClick={() => handleToggleStatus(dp, "attended")}
+                        >
+                          <CheckCircle size={16} aria-hidden />
+                          출석
+                        </button>
+                        <button
+                          type="button"
+                          className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--noshow ${
+                            dpEffective === "no_show" ? "clinic-ops__drawer-status-btn--active" : ""
+                          }`}
+                          disabled={dpIsMutating}
+                          onClick={() => handleToggleStatus(dp, "no_show")}
+                        >
+                          <XCircle size={16} aria-hidden />
+                          불참
+                        </button>
+                        {dpPending && (
+                          <button
+                            type="button"
+                            className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--send ${
+                              dpPending === "attended" ? "clinic-ops__drawer-status-btn--send-attend" : "clinic-ops__drawer-status-btn--send-noshow"
+                            }`}
+                            disabled={dpIsMutating}
+                            onClick={() => handleConfirmStatus(dp)}
+                          >
+                            <Send size={15} aria-hidden />
+                            {dpIsMutating ? "발송 중…" : dpPending === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1438,6 +1553,10 @@ export default function ClinicConsoleWorkspace({
                           완료 취소
                         </button>
                       </div>
+                    ) : drawerParticipant.status === "pending" ? (
+                      <p className="clinic-ops__drawer-empty">예약 승인 후 완료 처리할 수 있습니다.</p>
+                    ) : drawerParticipant.status === "no_show" || drawerParticipant.status === "cancelled" || drawerParticipant.status === "rejected" ? (
+                      <p className="clinic-ops__drawer-empty">현재 상태에서는 완료 처리할 수 없습니다.</p>
                     ) : (
                       <button
                         type="button"
@@ -1589,7 +1708,7 @@ export default function ClinicConsoleWorkspace({
                                       max_attempts: 99,
                                     });
                                     feedback.success("재시험이 허용되었습니다. 학생이 다시 응시할 수 있습니다.");
-                                    qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+                                    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
                                   } catch {
                                     feedback.error("재시험 허용에 실패했습니다.");
                                   } finally {
@@ -1612,8 +1731,8 @@ export default function ClinicConsoleWorkspace({
                                 try {
                                   await resolveClinicLink(linkId, "수동 통과");
                                   feedback.success("통과 처리되었습니다.");
-                                  qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-                                  qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
                                 } catch {
                                   feedback.error("통과 처리에 실패했습니다.");
                                 } finally {
@@ -1634,8 +1753,8 @@ export default function ClinicConsoleWorkspace({
                                 try {
                                   await waiveClinicLink(linkId, "면제");
                                   feedback.success("면제 처리되었습니다.");
-                                  qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-                                  qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
                                 } catch {
                                   feedback.error("면제 처리에 실패했습니다.");
                                 } finally {
@@ -1656,8 +1775,8 @@ export default function ClinicConsoleWorkspace({
                                 try {
                                   await carryOverClinicLink(linkId);
                                   feedback.success("다음 차수로 이월되었습니다.");
-                                  qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-                                  qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
                                 } catch {
                                   feedback.error("이월 처리에 실패했습니다.");
                                 } finally {
@@ -1951,8 +2070,8 @@ export default function ClinicConsoleWorkspace({
           const failed = results.filter(
             (r) => r.status === "rejected"
           ).length;
-          qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-          qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+          qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+          qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
           const added = ids.length - failed;
           if (skipped > 0 && failed > 0) {
             feedback.warning(

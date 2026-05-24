@@ -12,8 +12,8 @@ import { Button } from "@/shared/ui/ds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
-import { fetchLectures, type Lecture } from "@admin/domains/lectures/api/sessions";
-import { fetchAllSections, type Section } from "@admin/domains/lectures/api/sections";
+import { fetchLectures, type Lecture } from "@/shared/api/contracts/sessions";
+import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../utils/buildParticipantPayload";
 
@@ -22,6 +22,7 @@ import { createClinicParticipant } from "../api/clinicParticipants.api";
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { clinicQueryKeys } from "../queryKeys";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -329,8 +330,8 @@ export default function ClinicCreatePanel({
           ...(showSectionPicker ? { section: selectedSectionId } : {}),
         });
         message.success("클리닉이 수정되었습니다.");
-        qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-        qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
         onUpdated?.();
       } catch (e: unknown) {
         message.error(apiErrorMessage(e, "클리닉을 수정하지 못했습니다."));
@@ -381,13 +382,13 @@ export default function ClinicCreatePanel({
       setSelected([]);
       setMemo("");
       setTimeRange("");
-      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-      qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsMonth });
       const y = selectedDate.year();
       const m = selectedDate.month() + 1;
       await qc.fetchQuery({
-        queryKey: ["clinic-sessions-tree", y, m],
+        queryKey: clinicQueryKeys.sessionsTreeByMonth(y, m),
         queryFn: () => fetchClinicSessionTree({ year: y, month: m }),
       });
       onCreated?.(selectedDate.format("YYYY-MM-DD"));

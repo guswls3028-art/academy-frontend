@@ -16,7 +16,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { saveHomeworkAsTemplate } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
-import "../../../exams/components/common/ExamHeader.css";
+import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 type Props = {
   homework: HomeworkSummary;
@@ -99,12 +99,12 @@ export default function HomeworkHeader({ homework }: Props) {
               </Button>
               {templateDropdownOpen && (
                 <div
-                  className="exam-header-template-dropdown absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
+                  className="assessment-template-dropdown absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                   role="menu"
                 >
                   <button
                     type="button"
-                    className="exam-header-template-dropdown-item"
+                    className="assessment-template-dropdown-item"
                     role="menuitem"
                     onClick={() => {
                       setTemplateDropdownOpen(false);

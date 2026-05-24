@@ -1,13 +1,15 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentWorkspace.tsx
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useSessionParams } from "../hooks/useSessionParams";
-import { readAssessmentItemId } from "../utils/assessmentQueryParams";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
+import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 
-import AdminExamDetail from "@admin/domains/exams/components/AdminExamDetail";
-import AdminHomeworkDetail from "@admin/domains/homework/components/AdminHomeworkDetail";
 import { Panel } from "@/shared/ui/ds";
+import RouteFallback from "@/core/router/RouteFallback";
+
+const AdminExamDetail = lazy(() => import("@admin/domains/exams/components/AdminExamDetail"));
+const AdminHomeworkDetail = lazy(() => import("@admin/domains/homework/components/AdminHomeworkDetail"));
 
 type Mode = "exam" | "homework";
 
@@ -16,7 +18,7 @@ type Props = {
 };
 
 export default function SessionAssessmentWorkspace({ mode }: Props) {
-  const { sessionId } = useSessionParams();
+  const { sessionId } = useLectureSessionParams();
   const [searchParams] = useSearchParams();
 
   const activeId = useMemo(() => {
@@ -51,7 +53,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
           </div>
         </div>
       ) : (
-        <>
+        <Suspense fallback={<RouteFallback />}>
           {mode === "exam" && (
             <AdminExamDetail
               examId={activeId}
@@ -66,7 +68,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
               mode="operate"
             />
           )}
-        </>
+        </Suspense>
       )}
     </Panel>
   );

@@ -9,11 +9,13 @@
  * - Tab/Enter로 빠른 이동
  */
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock,
   FileQuestion,
   BookOpen,
   Users,
@@ -23,10 +25,14 @@ import {
   MoreHorizontal,
   Search,
   ArrowRight,
+  XCircle,
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicTarget } from "../../api/clinicTargets";
+import type { ClinicParticipant } from "../../api/clinicParticipants.api";
+import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import {
   resolveClinicLink,
   waiveClinicLink,
@@ -36,6 +42,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
+import { clinicQueryKeys } from "../../queryKeys";
 
 /* ── Types ── */
 
@@ -89,9 +96,119 @@ function formatScoreDisplay(item: ClinicTarget): string {
   return `${score}/${cutline ?? "-"}`;
 }
 
+function requestScheduleText(row: ClinicParticipant): string {
+  const time = row.session_start_time ? row.session_start_time.slice(0, 5) : "-";
+  const location = row.session_location ? ` · ${row.session_location}` : "";
+  return `${row.session_date} ${time}${location}`;
+}
+
 /* ══════════════════════════════════════════ */
 
 export default function ClinicBookingsPage() {
+  const [sp] = useSearchParams();
+  const qc = useQueryClient();
+  const [approvalsOpen, setApprovalsOpen] = useState(() => sp.get("focus") === "pending");
+  const pendingParticipants = useClinicParticipants({ status: "pending" });
+  const pendingRows = pendingParticipants.listQ.data ?? [];
+
+  useEffect(() => {
+    if (sp.get("focus") === "pending") setApprovalsOpen(true);
+  }, [sp]);
+
+  const approvalMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>
+      patchClinicParticipantStatus(id, { status }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
+      feedback.success(variables.status === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.");
+    },
+    onError: (_error, variables) => {
+      feedback.error(variables.status === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.");
+    },
+  });
+
+  return (
+    <div className="clinic-page clinic-bookings-page">
+      <section className="clinic-bookings__pending" aria-label="예약 승인 대기">
+        <button
+          type="button"
+          className="clinic-bookings__pending-header"
+          onClick={() => setApprovalsOpen((v) => !v)}
+          aria-expanded={approvalsOpen}
+        >
+          <span className="clinic-bookings__pending-toggle">
+            {approvalsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </span>
+          <span className="clinic-bookings__pending-title">예약 승인 대기</span>
+          {pendingRows.length > 0 ? (
+            <span className="clinic-bookings__pending-badge">{pendingRows.length}</span>
+          ) : (
+            <span className="clinic-bookings__pending-done">
+              <CheckCircle2 size={14} />
+              처리할 신청 없음
+            </span>
+          )}
+        </button>
+
+        {approvalsOpen && (
+          <div className="clinic-bookings__pending-body">
+            {pendingParticipants.listQ.isLoading ? (
+              <div className="clinic-bookings__targets-empty">예약 신청을 불러오는 중...</div>
+            ) : pendingRows.length === 0 ? (
+              <div className="clinic-bookings__targets-empty">
+                <p className="clinic-bookings__targets-empty-title">승인 대기 예약이 없습니다.</p>
+                <p className="clinic-bookings__targets-empty-desc">학생 신청이 들어오면 이곳에서 승인하거나 거절할 수 있습니다.</p>
+              </div>
+            ) : (
+              <ul className="clinic-bookings__pending-list">
+                {pendingRows.map((row) => {
+                  const busy = approvalMutation.isPending;
+                  return (
+                    <li key={row.id} className="clinic-bookings__pending-item">
+                      <div className="clinic-bookings__pending-item-info">
+                        <span className="clinic-bookings__pending-item-name">{row.student_name}</span>
+                        <span className="clinic-bookings__pending-item-meta">
+                          <Clock size={13} aria-hidden />
+                          {requestScheduleText(row)}
+                        </span>
+                      </div>
+                      <div className="clinic-bookings__pending-actions">
+                        <button
+                          type="button"
+                          className="clinic-bookings__action-btn clinic-bookings__action-btn--approve"
+                          disabled={busy}
+                          onClick={() => approvalMutation.mutate({ id: row.id, status: "booked" })}
+                        >
+                          <CheckCircle2 size={13} aria-hidden />
+                          승인
+                        </button>
+                        <button
+                          type="button"
+                          className="clinic-bookings__action-btn clinic-bookings__action-btn--reject"
+                          disabled={busy}
+                          onClick={() => approvalMutation.mutate({ id: row.id, status: "rejected" })}
+                        >
+                          <XCircle size={13} aria-hidden />
+                          거절
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
+
+      <RemediationWorkspace />
+    </div>
+  );
+}
+
+function RemediationWorkspace() {
   const qc = useQueryClient();
   const [sectionFilter, setSectionFilter] = useState<number | null>(null);
   const { data: targets = [], isLoading } = useClinicTargets(
@@ -106,8 +223,8 @@ export default function ClinicBookingsPage() {
 
   /* ── Mutations ── */
   const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-    qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
   };
 
   const resolveMutation = useMutation({
@@ -217,7 +334,7 @@ export default function ClinicBookingsPage() {
   /* ══════════════════════════════════════════ */
 
   return (
-    <div className="clinic-page">
+    <section className="clinic-bookings-page__remediation">
       <div className="clinic-hub">
         {/* ── KPI Row ── */}
         <div className="clinic-hub__kpi-row">
@@ -443,7 +560,7 @@ export default function ClinicBookingsPage() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 

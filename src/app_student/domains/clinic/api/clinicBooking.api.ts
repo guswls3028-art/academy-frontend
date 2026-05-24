@@ -6,6 +6,8 @@ import api from "@student/shared/api/student.api";
 /** DRF Paginated wrapper — list endpoint 가 page_size param 으로 응답할 때. */
 type Paginated<T> = { results?: T[]; count?: number; next?: string | null; previous?: string | null };
 
+export type ClinicBookingStatus = "pending" | "rejected" | "cancelled" | "booked";
+
 /** 학생앱이 실제로 사용하는 ClinicParticipant 응답 필드 (어드민 ClinicParticipant 보다 좁음). */
 type ClinicParticipantRaw = {
   id: number;
@@ -13,7 +15,7 @@ type ClinicParticipantRaw = {
   session_date: string;
   session_start_time: string;
   session_location: string | null;
-  status: "pending" | "approved" | "rejected" | "cancelled" | "booked";
+  status: ClinicBookingStatus | "approved" | "attended" | "no_show";
   memo?: string;
   created_at: string;
   updated_at?: string;
@@ -48,12 +50,20 @@ export type ClinicBookingRequest = {
   session_date: string;
   session_start_time: string;
   session_location: string | null; // ✅ 세션이 없으면 null
-  status: "pending" | "approved" | "rejected" | "cancelled" | "booked";
+  status: ClinicBookingStatus;
   memo?: string;
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
 };
+
+function normalizeBookingStatus(status: ClinicParticipantRaw["status"]): ClinicBookingStatus | null {
+  if (status === "approved") return "booked";
+  if (status === "pending" || status === "booked" || status === "rejected" || status === "cancelled") {
+    return status;
+  }
+  return null;
+}
 
 /**
  * 예약 가능한 클리닉 세션 목록 조회
@@ -110,23 +120,19 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
 
   // 예약 신청 상태인 것만 필터링 (pending, booked 등)
   return participants
-    .filter((p) =>
-      p.status === "pending" ||
-      p.status === "booked" ||
-      p.status === "approved" ||
-      p.status === "rejected"
-    )
-    .map((p) => ({
-      id: p.id,
-      session: p.session ?? null, // ✅ 세션이 없을 수 있음
-      session_date: p.session_date,
-      session_start_time: p.session_start_time,
-      session_location: p.session_location ?? null, // ✅ 세션이 없으면 null
-      status: (p.status === "approved" ? "booked" : p.status) as ClinicBookingRequest["status"], // approved는 booked로 매핑
-      memo: p.memo,
-      created_at: p.created_at,
-      updated_at: p.updated_at,
-      status_changed_at: p.status_changed_at,
+    .map((p) => ({ raw: p, status: normalizeBookingStatus(p.status) }))
+    .filter((p): p is { raw: ClinicParticipantRaw; status: ClinicBookingStatus } => p.status !== null)
+    .map(({ raw, status }) => ({
+      id: raw.id,
+      session: raw.session ?? null, // ✅ 세션이 없을 수 있음
+      session_date: raw.session_date,
+      session_start_time: raw.session_start_time,
+      session_location: raw.session_location ?? null, // ✅ 세션이 없으면 null
+      status,
+      memo: raw.memo,
+      created_at: raw.created_at,
+      updated_at: raw.updated_at,
+      status_changed_at: raw.status_changed_at,
     }));
 }
 
@@ -151,13 +157,14 @@ export async function createClinicBookingRequest(data: {
     memo: data.memo ?? undefined,
   });
 
+  const status = normalizeBookingStatus(res.data.status) ?? "pending";
   return {
     id: res.data.id,
     session: res.data.session,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,
-    status: res.data.status,
+    status,
     memo: res.data.memo,
     created_at: res.data.created_at,
   };
@@ -193,13 +200,14 @@ export async function changeClinicBooking(
     }
   );
 
+  const status = normalizeBookingStatus(res.data.status) ?? "pending";
   return {
     id: res.data.id,
     session: res.data.session,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,
-    status: res.data.status,
+    status,
     memo: res.data.memo,
     created_at: res.data.created_at,
   };

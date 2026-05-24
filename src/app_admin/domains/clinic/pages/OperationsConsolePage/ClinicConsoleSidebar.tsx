@@ -257,13 +257,12 @@ export default function ClinicConsoleSidebar({
             {sessionsForDay.map((s) => {
               const time = (s.start_time || "").slice(0, 5) || "—";
               const isActive = selectedSessionId === s.id;
-              const booked = s.booked_count ?? 0;
-              const total = s.participant_count ?? booked;
+              const reserved = s.booked_count ?? 0;
+              const approvalPending = s.pending_count ?? 0;
+              const booked = s.booked_confirmed_count ?? Math.max(0, reserved - approvalPending);
+              const total = s.participant_count ?? reserved;
               const noShow = s.no_show_count ?? 0;
-              // Derive attended from participant_count minus others
-              // participant_count = all non-cancelled; booked = pending; no_show is separate
-              // attended ≈ total - booked - no_show (approximate from tree data)
-              const attended = Math.max(0, total - booked - noShow);
+              const attended = Math.max(0, total - booked - approvalPending - noShow);
               const progressPct =
                 total > 0 ? ((attended + noShow) / total) * 100 : 0;
               const progressValue = Math.min(100, progressPct);
@@ -320,8 +319,11 @@ export default function ClinicConsoleSidebar({
                         )}
                       </div>
                       <div className="clinic-console__sidebar-session-meta">
-                        {booked > 0 && (
-                          <span className="clinic-console__sidebar-session-pending-dot" aria-label={`미확인 ${booked}명`} />
+                        {(booked > 0 || approvalPending > 0) && (
+                          <span
+                            className="clinic-console__sidebar-session-pending-dot"
+                            aria-label={`승인 대기 ${approvalPending}명, 미확인 ${booked}명`}
+                          />
                         )}
                         <span className="clinic-console__sidebar-session-badge">
                           {total}명

@@ -6,7 +6,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { FiSave, FiChevronDown } from "react-icons/fi";
-import "./ExamHeader.css";
+import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 /**
  * 시험 헤더: 제목 + 템플릿 저장(regular만).
@@ -92,12 +92,12 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
               </Button>
               {templateDropdownOpen && (
                 <div
-                  className="exam-header-template-dropdown absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
+                  className="assessment-template-dropdown absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] py-1 shadow-lg"
                   role="menu"
                 >
                   <button
                     type="button"
-                    className="exam-header-template-dropdown-item"
+                    className="assessment-template-dropdown-item"
                     role="menuitem"
                     onClick={() => {
                       setTemplateDropdownOpen(false);
@@ -108,7 +108,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
                   </button>
                   <button
                     type="button"
-                    className="exam-header-template-dropdown-item exam-header-template-dropdown-item--danger"
+                    className="assessment-template-dropdown-item assessment-template-dropdown-item--danger"
                     role="menuitem"
                     disabled
                     aria-disabled="true"
