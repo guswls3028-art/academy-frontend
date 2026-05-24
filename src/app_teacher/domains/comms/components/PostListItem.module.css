@@ -1,4 +1,5 @@
 .item {
+  position: relative;
   width: 100%;
   padding: var(--tc-space-3) 0;
   border: 0;
@@ -8,6 +9,17 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.itemAttention {
+  padding: var(--tc-space-3) 8px var(--tc-space-3) 10px;
+  background: var(--tc-danger-bg);
+  border-left: 3px solid var(--tc-danger);
+  border-bottom-color: color-mix(in srgb, var(--tc-danger) 20%, var(--tc-border-subtle));
+}
+
+.itemAttention + .itemAttention {
+  border-top: 1px solid color-mix(in srgb, var(--tc-danger) 20%, var(--tc-border-subtle));
 }
 
 .inner {
@@ -45,6 +57,11 @@
 .urgent {
   background: var(--tc-danger-bg);
   color: var(--tc-danger);
+}
+
+.waiting {
+  color: #fff;
+  background: var(--tc-danger);
 }
 
 .title {

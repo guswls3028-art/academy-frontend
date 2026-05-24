@@ -6,6 +6,7 @@ import styles from "./PostListItem.module.css";
 interface Props {
   post: Post;
   showReplyBadge?: boolean;
+  attention?: boolean;
   onClick: () => void;
 }
 
@@ -13,18 +14,24 @@ function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
 
-export default function PostListItem({ post, showReplyBadge, onClick }: Props) {
+export default function PostListItem({ post, showReplyBadge, attention = false, onClick }: Props) {
   const noReply = showReplyBadge && (post.replies_count ?? 0) === 0;
+  const pendingQuestion = attention && noReply && post.post_type === "qna";
   const authorName = post.author_display_name || post.created_by_display || (post.author_role === "staff" ? "선생님" : "학생");
 
   return (
     <button
       onClick={onClick}
-      className={styles.item}
+      className={cx(styles.item, pendingQuestion && styles.itemAttention)}
     >
       <div className={styles.inner}>
         <div className={styles.body}>
           <div className={styles.titleRow}>
+            {pendingQuestion && (
+              <span className={cx(styles.flag, styles.waiting)}>
+                새 질문
+              </span>
+            )}
             {post.is_pinned && (
               <span className={cx(styles.flag, styles.pinned)}>
                 고정

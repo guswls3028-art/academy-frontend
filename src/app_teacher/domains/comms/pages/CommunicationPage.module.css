@@ -96,6 +96,38 @@
   border-radius: 999px;
 }
 
+.pendingBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tc-space-2);
+  margin: var(--tc-space-2) var(--tc-space-3) 0;
+  padding: 10px 12px;
+  color: var(--tc-danger);
+  font: inherit;
+  text-align: left;
+  background: var(--tc-danger-bg);
+  border: 1px solid color-mix(in srgb, var(--tc-danger) 28%, transparent);
+  border-radius: var(--tc-radius-sm);
+  cursor: pointer;
+}
+
+.pendingBannerText,
+.pendingBannerAction {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.pendingBannerText {
+  font-weight: 800;
+}
+
+.pendingBannerAction {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
 .actions {
   display: flex;
   flex-shrink: 0;

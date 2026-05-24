@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/comms/pages/CommunicationPage.tsx
 // 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) + 작성 + 검색
 import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
@@ -35,9 +36,16 @@ const TAB_LABELS: Record<Tab, string> = {
 
 // Tabs that support post creation by staff
 const WRITABLE_TABS: Tab[] = ["notices", "board", "materials"];
+const VALID_TABS: Tab[] = ["notices", "qna", "counsel", "requests", "board", "materials"];
+
+function resolveTab(value: string | null): Tab {
+  return VALID_TABS.includes(value as Tab) ? (value as Tab) : "notices";
+}
 
 export default function CommunicationPage() {
-  const [tab, setTab] = useState<Tab>("notices");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = resolveTab(searchParams.get("tab"));
+  const [tab, setTab] = useState<Tab>(tabFromUrl);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -51,6 +59,14 @@ export default function CommunicationPage() {
   const canWrite = WRITABLE_TABS.includes(tab);
 
   useEffect(() => {
+    setTab(tabFromUrl);
+    setSelectedPost(null);
+    setSearchInput("");
+    setSearchQuery("");
+    setSearchOpen(false);
+  }, [tabFromUrl]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearchQuery(searchInput.trim());
     }, 300);
@@ -61,6 +77,7 @@ export default function CommunicationPage() {
     queryKey: ["teacher-comms", tab, searchQuery],
     queryFn: () => fetchPosts(postType, 50, searchQuery || undefined),
     enabled: isPostTab,
+    refetchInterval: tab === "qna" || tab === "counsel" ? 15_000 : false,
   });
   const visiblePosts = (posts ?? []).filter((p) => {
     if (tab !== "counsel") return true;
@@ -84,10 +101,20 @@ export default function CommunicationPage() {
 
   const handleTabChange = useCallback((t: Tab) => {
     setTab(t);
+    const nextParams = new URLSearchParams(searchParams);
+    if (t === "notices") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", t);
+    }
+    setSearchParams(nextParams, { replace: false });
     setSearchInput("");
     setSearchQuery("");
     setSearchOpen(false);
-  }, []);
+    setSelectedPost(null);
+  }, [searchParams, setSearchParams]);
+
+  const pendingQnaCount = counts?.qnaPending ?? 0;
 
   if (selectedPost) {
     return <PostDetail post={selectedPost} onBack={() => setSelectedPost(null)} />;
@@ -166,6 +193,17 @@ export default function CommunicationPage() {
         </div>
       </div>
 
+      {pendingQnaCount > 0 && tab !== "qna" && (
+        <button
+          type="button"
+          className={styles.pendingBanner}
+          onClick={() => handleTabChange("qna")}
+        >
+          <span className={styles.pendingBannerText}>답변 대기 질문 {pendingQnaCount}건</span>
+          <span className={styles.pendingBannerAction}>Q&A 보기</span>
+        </button>
+      )}
+
       {/* Content */}
       <div className={styles.content}>
         {tab === "requests" ? (
@@ -185,6 +223,7 @@ export default function CommunicationPage() {
                 key={p.id}
                 post={p}
                 showReplyBadge={tab === "qna" || tab === "counsel"}
+                attention={tab === "qna" && (p.replies_count ?? 0) === 0}
                 onClick={() => setSelectedPost(p)}
               />
             ))}

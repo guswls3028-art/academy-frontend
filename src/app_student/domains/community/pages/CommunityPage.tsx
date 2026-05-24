@@ -489,6 +489,13 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
   const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
+  const hasLectureOptions = lectureOptions.length > 0;
+
+  useEffect(() => {
+    if (videoMe && !hasLectureOptions && categoryLabel) {
+      setCategoryLabel("");
+    }
+  }, [videoMe, hasLectureOptions, categoryLabel]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -559,15 +566,24 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           </span>
           <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" required />
         </label>
-        {lectureOptions.length > 0 && (
-          <label className="community-field">
-            <span className="community-label">강의 (선택)</span>
-            <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input community-input-full">
-              <option value="">선택 안 함</option>
-              {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-        )}
+        <label className="community-field">
+          <span className="community-label">강의 (선택)</span>
+          <select
+            value={hasLectureOptions ? categoryLabel : ""}
+            onChange={(e) => setCategoryLabel(e.target.value)}
+            className="stu-input community-input-full"
+            disabled={!hasLectureOptions}
+          >
+            {hasLectureOptions ? (
+              <>
+                <option value="">선택 안 함</option>
+                {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+              </>
+            ) : (
+              <option value="">수강 중인 강의 없음</option>
+            )}
+          </select>
+        </label>
         <div className="community-field community-field--grow">
           <span className="community-label">
             내용 <span className="community-required" aria-hidden>*</span>
