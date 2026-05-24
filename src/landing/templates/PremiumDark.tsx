@@ -781,6 +781,9 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
             lineHeight: 1.06,
             margin: "0 0 24px",
             letterSpacing: 0,
+            wordBreak: "keep-all",
+            overflowWrap: "normal",
+            textWrap: "balance",
             color: "#FFFFFF",
             textShadow: "0 3px 22px rgba(0,0,0,0.62)",
           }}>
