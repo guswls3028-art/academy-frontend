@@ -14,11 +14,11 @@ import { fetchLandingPublic } from "../api";
 import { fetchMatchupShowcaseDetail, type MatchupShowcaseCard } from "../api/matchupShowcase";
 import type { LandingPublicResponse } from "../types";
 import {
-  MATCHUP_COLORS,
   MatchupCenterSpin,
   MatchupCenterState,
   MatchupLandingShell,
 } from "./LandingMatchupBoardShell";
+import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import useAuth from "@/auth/hooks/useAuth";
