@@ -9,6 +9,8 @@ import { fetchToolsOMRPreview, downloadToolsOMRPdf } from "@admin/domains/exams/
 import styles from "./OmrGeneratorPage.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
+const MAX_MC_COUNT = 60;
+const MAX_ESSAY_COUNT = 10;
 
 export default function OmrGeneratorPage() {
   const [examName, setExamName] = useState("제1회 단원평가");
@@ -124,16 +126,16 @@ export default function OmrGeneratorPage() {
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">객관식 (0~45)</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">객관식 (0~60)</label>
               <input
                 type="number"
                 min={0}
-                max={45}
+                max={MAX_MC_COUNT}
                 value={mcCount}
                 onChange={(e) => {
-                  const n = Math.max(0, Math.min(45, Number(e.target.value) || 0));
-                  if ((Number(e.target.value) || 0) > 45) {
-                    feedback.warning("객관식은 최대 45문항입니다.");
+                  const n = Math.max(0, Math.min(MAX_MC_COUNT, Number(e.target.value) || 0));
+                  if ((Number(e.target.value) || 0) > MAX_MC_COUNT) {
+                    feedback.warning(`객관식은 최대 ${MAX_MC_COUNT}문항입니다.`);
                   }
                   setMcCount(n);
                 }}
@@ -145,12 +147,12 @@ export default function OmrGeneratorPage() {
               <input
                 type="number"
                 min={0}
-                max={10}
+                max={MAX_ESSAY_COUNT}
                 value={essayCount}
                 onChange={(e) => {
-                  const n = Math.max(0, Math.min(10, Number(e.target.value) || 0));
-                  if ((Number(e.target.value) || 0) > 10) {
-                    feedback.warning("서술형은 최대 10문항입니다.");
+                  const n = Math.max(0, Math.min(MAX_ESSAY_COUNT, Number(e.target.value) || 0));
+                  if ((Number(e.target.value) || 0) > MAX_ESSAY_COUNT) {
+                    feedback.warning(`서술형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
                   }
                   setEssayCount(n);
                 }}

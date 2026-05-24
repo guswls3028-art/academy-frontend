@@ -29,6 +29,9 @@ type TeacherExamResultRow = {
   student?: { name?: string | null } | null;
 };
 
+const MAX_MC_COUNT = 60;
+const MAX_ESSAY_COUNT = 10;
+
 export default function OmrPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
@@ -139,8 +142,8 @@ export default function OmrPage() {
 
   useEffect(() => {
     if (defaults) {
-      setMcCount(defaults.mc_count);
-      setEssayCount(defaults.essay_count);
+      setMcCount(clampInt(defaults.mc_count, 0, MAX_MC_COUNT));
+      setEssayCount(clampInt(defaults.essay_count, 0, MAX_ESSAY_COUNT));
       setNChoices(defaults.n_choices);
     }
   }, [defaults]);
@@ -180,10 +183,10 @@ export default function OmrPage() {
         <div className={`${styles.title} text-sm font-bold mb-2`}>OMR 답안지 설정</div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
-            <Fld label="객관식 문항 수" value={mcCount} onChange={setMcCount} />
-            <Fld label="주관식 문항 수" value={essayCount} onChange={setEssayCount} />
+            <Fld label="객관식 문항 수" value={mcCount} onChange={setMcCount} min={0} max={MAX_MC_COUNT} />
+            <Fld label="주관식 문항 수" value={essayCount} onChange={setEssayCount} min={0} max={MAX_ESSAY_COUNT} />
           </div>
-          <Fld label="객관식 선택지 수" value={nChoices} onChange={setNChoices} />
+          <Fld label="객관식 선택지 수" value={nChoices} onChange={setNChoices} min={5} max={5} />
         </div>
 
         <button
@@ -346,14 +349,19 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
   );
 }
 
-function Fld({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function Fld({ label, value, onChange, min = 0, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) {
   return (
     <div className="flex-1">
       <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>{label}</label>
-      <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)}
+      <input type="number" value={value} min={min} max={max} onChange={(e) => onChange(clampInt(Number(e.target.value) || 0, min, max))}
         className={`${styles.numberInput} w-full text-sm`} />
     </div>
   );
+}
+
+function clampInt(value: number, min: number, max = Number.MAX_SAFE_INTEGER): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
 function getEnrollmentId(row: TeacherExamResultRow): number | null {
