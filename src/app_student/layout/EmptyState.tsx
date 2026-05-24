@@ -30,7 +30,7 @@ export default function EmptyState({
   compact = false,
   onRetry,
 }: EmptyStateProps) {
-  const rootClassName = cx(styles.root, compact && styles.compact);
+  const rootClassName = cx("stu-emptystate", styles.root, compact && styles.compact);
   const iconClassName = cx("stu-emptystate__icon", styles.iconFrame);
 
   const renderedIcon = (

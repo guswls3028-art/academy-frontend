@@ -206,7 +206,7 @@ html:has([data-app="student"]) {
 .student-page-shell {
   display: flex;
   flex-direction: column;
-  gap: var(--stu-space-5);
+  gap: var(--stu-space-4);
 }
 
 .student-page-shell__header {
@@ -214,7 +214,8 @@ html:has([data-app="student"]) {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--stu-space-4);
-  padding: 0 2px;
+  padding: 0 2px 2px;
+  background-image: none;
 }
 
 .student-page-shell__copy {
@@ -229,8 +230,8 @@ html:has([data-app="student"]) {
 .student-page-shell__title {
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
-  font-size: 24px;
-  line-height: 1.12;
+  font-size: 22px;
+  line-height: 1.16;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -238,19 +239,19 @@ html:has([data-app="student"]) {
 .student-page-shell__title::after {
   content: "";
   display: block;
-  width: 26px;
+  width: 24px;
   height: 3px;
-  margin-top: 7px;
+  margin-top: 6px;
   border-radius: 999px;
   background: var(--stu-primary);
 }
 
 .student-page-shell__description {
-  margin: var(--stu-space-2) 0 0;
+  margin: var(--stu-space-3) 0 0;
   color: var(--stu-text-muted);
   font-size: var(--stu-font-size-13);
   line-height: var(--stu-line-18);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .student-page-shell__actions {
@@ -683,25 +684,23 @@ html:has([data-app="student"]) {
    Action Slot Container - 사용자 상태 기반 UI
    ========================= */
 .stu-panel {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
   padding: 14px;
   position: relative;
   overflow: hidden;
   box-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 10px 28px rgba(15, 23, 42, 0.055);
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
 }
 
 .stu-panel::after {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  opacity: 0.55;
   pointer-events: none;
   z-index: 0;
 }
@@ -720,8 +719,8 @@ html:has([data-app="student"]) {
 
 .stu-panel--action {
   /* 지금 해야함 - Primary 강조 */
-  border-color: var(--stu-primary);
-  background: var(--stu-tint-primary);
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  background: var(--stu-surface-1);
 }
 
 .stu-panel--danger {
@@ -761,7 +760,7 @@ html:has([data-app="student"]) {
 }
 
 .stu-panel--soft {
-  background: var(--stu-surface-2);
+  background: color-mix(in srgb, var(--stu-surface-2) 70%, var(--stu-surface-1));
 }
 
 .stu-panel--media {
@@ -1047,19 +1046,19 @@ button.media-tile--course {
    항상 존재하는 Primary Accent Flow
    ========================= */
 .stu-panel--accent {
-  padding-left: calc(var(--stu-space-5) + 4px);
+  padding-left: calc(var(--stu-space-5) + 3px);
 }
 
 .stu-panel--accent::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 4px;
-  border-radius: 2px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
   background: var(--stu-gradient, var(--stu-primary));
-  opacity: 0.9;
+  opacity: 0.62;
   z-index: 1;
 }
 
@@ -1085,8 +1084,8 @@ button.media-tile--course {
 .stu-panel--pressable:hover {
   /* 상태 variant가 있으면 hover 효과 제거 */
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
   border-color: var(--stu-border-normal);
 }
 
@@ -1108,14 +1107,13 @@ button.media-tile--course {
    3) Section (기존 호환성 유지)
    ========================= */
 .stu-section {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
-  padding: var(--stu-space-8);
+  padding: 14px;
   box-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 10px 28px rgba(15, 23, 42, 0.055);
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
   position: relative;
   overflow: hidden;
 }
@@ -1124,9 +1122,8 @@ button.media-tile--course {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0));
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
@@ -1137,11 +1134,11 @@ button.media-tile--course {
 }
 
 .stu-section--nested {
-  background: var(--stu-surface-2);
+  background: color-mix(in srgb, var(--stu-surface-2) 48%, var(--stu-surface-1));
   border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
   box-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.58) inset,
-    0 8px 22px rgba(15, 23, 42, 0.04);
+    0 1px 0 rgba(255, 255, 255, 0.54) inset,
+    0 6px 16px rgba(15, 23, 42, 0.035);
 }
 
 .stu-section--pressable {
@@ -1154,18 +1151,17 @@ button.media-tile--course {
 }
 
 .stu-section--pressable:hover {
-  background: var(--stu-tint-hover);
+  background: var(--stu-surface-1);
   border-color: var(--stu-border-normal);
   /* 호버 시 그림자 강화 */
   box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 4px 8px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(15, 23, 42, 0.015);
   transform: translateY(-1px);
 }
 
 .stu-section--pressable:active {
-  background: var(--stu-tint-primary);
+  background: color-mix(in srgb, var(--stu-surface-2) 42%, var(--stu-surface-1));
   transform: translateY(0);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.03),
@@ -1191,35 +1187,28 @@ button.media-tile--course {
 .domain-tab-shell {
   display: flex;
   flex-direction: column;
-  gap: var(--stu-space-5);
+  gap: var(--stu-space-4);
 }
 
 .domain-tab-shell__header {
   position: relative;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--stu-space-5);
-  min-height: 92px;
-  padding: var(--stu-space-6);
-  border: 1px solid var(--stu-border);
+  gap: var(--stu-space-4);
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 88%, transparent);
   border-radius: var(--stu-radius-md);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 10%, transparent), transparent 54%),
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 94%, white), var(--stu-surface));
-  box-shadow: var(--stu-shadow-1);
+  background: var(--stu-surface-1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.64) inset,
+    0 8px 20px rgba(15, 23, 42, 0.04);
   overflow: hidden;
 }
 
 .domain-tab-shell__header::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  background: var(--stu-gradient, var(--stu-primary));
-  opacity: 0.82;
+  display: none;
 }
 
 .domain-tab-shell__mark {
@@ -1227,17 +1216,17 @@ button.media-tile--course {
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--stu-radius-md);
   color: var(--stu-primary);
-  background: color-mix(in srgb, var(--stu-primary) 11%, var(--stu-surface));
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 24%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
 }
 
 .domain-tab-shell__mark svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .domain-tab-shell__initial {
@@ -1262,7 +1251,7 @@ button.media-tile--course {
 .domain-tab-shell__title {
   margin: 2px 0 0;
   color: var(--stu-text);
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.22;
   font-weight: 900;
   letter-spacing: 0;
@@ -1284,11 +1273,11 @@ button.media-tile--course {
 .domain-tab-shell__tabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-  gap: var(--stu-space-3);
+  gap: 4px;
   padding: 4px;
   border-radius: var(--stu-radius-md);
-  background: color-mix(in srgb, var(--stu-surface-soft) 78%, var(--stu-surface));
-  border: 1px solid var(--stu-border);
+  background: color-mix(in srgb, var(--stu-surface-soft) 70%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 86%, transparent);
 }
 
 .domain-tab-shell__tab {
@@ -1319,7 +1308,7 @@ button.media-tile--course {
   background: var(--stu-surface);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.64) inset,
-    0 6px 16px rgba(15, 23, 42, 0.08);
+    0 5px 14px rgba(15, 23, 42, 0.055);
 }
 
 .domain-tab-shell__content {
@@ -1360,12 +1349,9 @@ button.media-tile--course {
   height: 38px;
   border-radius: 8px;
   color: var(--stu-primary);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--stu-primary) 18%, white), color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface)));
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 28%, var(--stu-border));
-  box-shadow:
-    0 8px 18px color-mix(in srgb, var(--stu-primary) 16%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .domain-tab-shell--plain .domain-tab-shell__mark svg {
@@ -1376,8 +1362,8 @@ button.media-tile--course {
 .domain-tab-shell--plain .domain-tab-shell__title {
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
-  font-size: 26px;
-  line-height: 1.1;
+  font-size: 24px;
+  line-height: 1.14;
   font-weight: 900;
 }
 
@@ -1447,7 +1433,7 @@ button.media-tile--course {
   }
 
   .domain-tab-shell--plain .domain-tab-shell__title {
-    font-size: 26px;
+    font-size: 24px;
   }
 
   .domain-tab-shell--plain .domain-tab-shell__actions {
@@ -1457,14 +1443,13 @@ button.media-tile--course {
 
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--stu-surface-1));
+  background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
-  padding: var(--stu-space-8);
+  padding: 14px;
   box-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 10px 28px rgba(15, 23, 42, 0.055);
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
   position: relative;
   overflow: hidden;
 }
@@ -1473,9 +1458,8 @@ button.media-tile--course {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 44%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0));
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
@@ -1486,7 +1470,7 @@ button.media-tile--course {
 }
 
 .stu-card--soft {
-  background: var(--stu-surface-2);
+  background: color-mix(in srgb, var(--stu-surface-2) 48%, var(--stu-surface-1));
   border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
   box-shadow: 
     0 1px 0 rgba(255, 255, 255, 0.58) inset,
@@ -1503,13 +1487,13 @@ button.media-tile--course {
 }
 
 .stu-card--pressable:hover {
-  background: var(--stu-tint-hover);
+  background: var(--stu-surface-1);
   border-color: var(--stu-border-normal);
   /* 호버 시 그림자 강화와 미묘한 상승 효과 */
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  transform: translateY(-1px);
 }
 
 .stu-card--pressable:active {
@@ -1527,13 +1511,11 @@ button.media-tile--course {
   background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
-  padding: var(--stu-space-8);
+  padding: 14px;
   box-shadow: 
-    0 1px 0 rgba(255, 255, 255, 0.7) inset,
-    0 10px 28px rgba(15, 23, 42, 0.055);
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
-  background-size: 20px 20px;
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
+  background-image: none;
 }
 
 /* =========================
@@ -1551,7 +1533,7 @@ button.media-tile--course {
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
   font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
-  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
+  letter-spacing: 0;
 
   border: 1px solid transparent;
   background: transparent;
@@ -2152,8 +2134,8 @@ button.media-tile--course {
 }
 
 [data-app="student"] [role="tab"][aria-selected="true"] {
-  background: var(--stu-tint-primary);
-  border-color: var(--stu-primary);
+  background: var(--stu-surface-1);
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
   color: var(--stu-primary);
   font-weight: 700;
 }
@@ -2169,7 +2151,7 @@ button.media-tile--course {
   overflow: visible;
   padding: 4px;
   border-radius: var(--stu-radius-md);
-  background: color-mix(in srgb, var(--stu-surface-soft) 84%, var(--stu-surface));
+  background: color-mix(in srgb, var(--stu-surface-soft) 72%, var(--stu-surface));
   border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
 }
 
@@ -2192,7 +2174,7 @@ button.media-tile--course {
   color: var(--stu-primary);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 7px 18px rgba(15, 23, 42, 0.07);
+    0 5px 14px rgba(15, 23, 42, 0.055);
 }
 
 /* =========================
@@ -2351,14 +2333,14 @@ button.media-tile--course {
 /* Secondary 버튼 — primary outline 강조 (HTML 느낌 제거) */
 [data-app="student"] .stu-btn--secondary {
   background: var(--stu-surface-1);
-  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 22%, var(--stu-border));
-  color: var(--stu-primary);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 88%, transparent);
+  color: var(--stu-text);
   font-weight: 600;
   box-shadow: none;
 }
 [data-app="student"] .stu-btn--secondary:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--stu-primary) 36%, var(--stu-border));
-  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface-1));
   transform: none;
   box-shadow: none;
 }
@@ -2369,8 +2351,8 @@ button.media-tile--course {
 
 /* Ghost 버튼 — 모바일 터치에서도 버튼감 유지 */
 [data-app="student"] .stu-btn--ghost {
-  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, transparent);
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--stu-text);
   font-weight: 600;
   box-shadow: none;
@@ -2394,7 +2376,7 @@ button.media-tile--course {
   color: var(--stu-text);
   font-weight: 600;
   font-size: 13px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), transform var(--stu-motion-fast);

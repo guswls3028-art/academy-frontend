@@ -2,6 +2,7 @@
  * 영상 홈 탭 — 강의 코스 그리드 (VideoHomePage에서 추출)
  */
 import EmptyState from "@student/layout/EmptyState";
+import { IconVideo } from "@student/shared/ui/icons/Icons";
 import CourseCard from "./CourseCard";
 import type { StudentVideoMeLecture, StudentVideoMePublic } from "../api/video.api";
 
@@ -19,6 +20,7 @@ export default function VideoHomeTab({ lectures, publicData }: Props) {
       <EmptyState
         title="등록된 영상이 없습니다"
         description="공개 영상이나 수강 중인 강의 영상이 여기에 표시됩니다."
+        icon={<IconVideo className="stu-emptystate__icon-svg" aria-hidden="true" />}
       />
     );
   }

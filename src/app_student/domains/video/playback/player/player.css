@@ -581,10 +581,11 @@
 .vpp-root {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--stu-space-4);
-  padding-bottom: var(--stu-space-8);
+  padding: 10px var(--stu-space-4) var(--stu-space-8);
   min-height: 100vh;
-  background-color: var(--stu-bg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 180px),
+    var(--stu-bg);
   color: var(--stu-text);
 }
 
@@ -657,36 +658,76 @@
 }
 
 .vpp-player-section {
-  margin-top: var(--stu-space-2);
+  margin-top: 0;
+}
+
+.vpp-player-section .svpPlayerWrap {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 22px 60px rgba(2, 6, 23, 0.28);
+}
+
+.vpp-player-section .svpTopBar {
+  padding: 16px 18px 12px;
+}
+
+.vpp-player-section .svpControls {
+  padding: 10px 14px 14px;
 }
 
 /* ── 영상 정보 ── */
 
 .vpp-info {
-  padding: var(--stu-space-4) 0 var(--stu-space-3) 0;
-  border-bottom: 1px solid var(--stu-border);
+  position: relative;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 96%, white), var(--stu-surface)),
+    var(--stu-surface);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 16px 38px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.vpp-info::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.46), transparent 44%, rgba(255, 255, 255, 0.12));
+  opacity: 0.7;
 }
 
 .vpp-title {
-  font-size: 20px;
-  font-weight: 800;
+  position: relative;
+  z-index: 1;
+  font-size: 22px;
+  font-weight: 900;
   color: var(--stu-text);
   margin: 0 0 var(--stu-space-2) 0;
-  line-height: 1.35;
-  letter-spacing: -0.3px;
+  line-height: 1.28;
+  letter-spacing: 0;
 }
 
 .vpp-meta-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: var(--stu-space-2);
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
 .vpp-meta-item {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 760;
   color: var(--stu-text-muted);
 }
 
@@ -697,6 +738,8 @@
 }
 
 .vpp-info-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -722,12 +765,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 6px 13px;
+  min-height: 38px;
+  padding: 7px 14px;
   border-radius: 999px;
-  border: 1px solid var(--stu-border);
-  background: var(--stu-surface-soft);
-  color: var(--stu-text-muted);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 9%, var(--stu-border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 92%, white), var(--stu-surface-soft));
+  color: color-mix(in srgb, var(--stu-text-muted) 92%, var(--stu-text));
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
@@ -750,21 +794,22 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   border-radius: 999px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 850;
   cursor: pointer;
   transition: background var(--stu-motion-fast), color var(--stu-motion-fast), opacity var(--stu-motion-fast);
   text-decoration: none;
   border: none;
-  min-height: 34px;
+  min-height: 38px;
 }
 
 .vpp-back-link {
-  background: var(--stu-surface-soft);
-  color: var(--stu-text-muted);
-  border: 1px solid var(--stu-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 92%, white), var(--stu-surface-soft));
+  color: color-mix(in srgb, var(--stu-text-muted) 88%, var(--stu-text));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 9%, var(--stu-border));
 }
 
 .vpp-back-link:hover {
@@ -773,8 +818,12 @@
 }
 
 .vpp-next-link {
-  background: var(--stu-primary);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 86%, white), var(--stu-primary));
   color: var(--stu-primary-contrast);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 10px 22px color-mix(in srgb, var(--stu-primary) 24%, transparent);
 }
 
 .vpp-next-link--countdown {
@@ -790,9 +839,13 @@
 .vpp-playlist {
   margin-top: var(--stu-space-4);
   max-height: 480px;
-  border-radius: 12px;
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 96%, white), var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 16px 38px rgba(15, 23, 42, 0.08);
   overflow: hidden;
   transition: max-height 0.3s ease, margin-top 0.3s ease;
 }
@@ -806,7 +859,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px 10px 16px;
+  padding: 15px 16px 11px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stu-primary) 8%, var(--stu-border));
 }
 
 .vpp-playlist-label {
@@ -845,7 +899,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px 8px 8px;
+  padding: 10px 16px 10px 10px;
   text-decoration: none;
   color: var(--stu-text);
   transition: background 0.12s ease;
@@ -858,7 +912,9 @@
 }
 
 .vpp-pl-item--active {
-  background: var(--stu-tint-primary);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--stu-primary) 10%, transparent), transparent),
+    var(--stu-tint-primary);
   border-left-color: var(--stu-primary, #3b82f6);
 }
 
@@ -886,9 +942,20 @@
   flex-shrink: 0;
   width: 168px;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: 11px;
   overflow: hidden;
-  background: var(--stu-surface-soft);
+  background: linear-gradient(145deg, #0f172a, #23314d);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.vpp-pl-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    linear-gradient(0deg, rgba(4, 10, 24, 0.36), transparent 45%);
 }
 
 .vpp-pl-thumb-img {
@@ -915,7 +982,7 @@
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
   letter-spacing: 0.2px;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* 프로그레스 바 (파란 바) */
@@ -926,12 +993,13 @@
   bottom: 0;
   height: 3px;
   background: var(--stu-border-strong);
+  z-index: 2;
 }
 
 .vpp-pl-progress-bar {
   width: var(--vpp-progress, 0%);
   height: 100%;
-  background: var(--stu-primary, #3b82f6);
+  background: linear-gradient(90deg, var(--stu-primary, #3b82f6), color-mix(in srgb, var(--stu-success) 42%, var(--stu-primary)));
   border-radius: 0 1px 0 0;
   transition: width 0.3s ease;
 }
@@ -977,7 +1045,7 @@
 
 @media (max-width: 640px) {
   .vpp-root {
-    padding: 0 var(--stu-space-2);
+    padding: 8px 10px 18px;
   }
 
   .vpp-info-row {
@@ -993,15 +1061,15 @@
   }
 
   .vpp-title {
-    font-size: 17px;
+    font-size: 20px;
   }
 
   .vpp-pl-thumb {
-    width: 120px;
+    width: 118px;
   }
 
   .vpp-pl-item {
-    padding: 6px 10px 6px 4px;
+    padding: 9px 10px 9px 6px;
     gap: 8px;
   }
 
@@ -1011,7 +1079,7 @@
   }
 
   .vpp-pl-item-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .vpp-playlist-list {

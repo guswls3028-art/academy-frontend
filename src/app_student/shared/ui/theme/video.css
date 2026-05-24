@@ -531,6 +531,435 @@
   background: rgba(239, 68, 68, 0.9);
 }
 
+/* Visual polish: video domain should feel like a crafted learning surface, not plain cards. */
+[data-app="student"][data-video-page="true"] {
+  --video-surface: color-mix(in srgb, var(--stu-surface) 92%, #eef5ff);
+  --video-surface-strong: color-mix(in srgb, var(--stu-surface) 96%, white);
+  --video-surface-soft: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface-soft));
+  --video-line: color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
+  --video-line-strong: color-mix(in srgb, var(--stu-primary) 30%, var(--stu-border-strong));
+  --video-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 18px 42px rgba(15, 23, 42, 0.1);
+  --video-shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 24px 54px rgba(15, 23, 42, 0.14);
+  --video-ink: #0b1426;
+}
+
+[data-app="student"][data-video-page="true"][data-student-dark="true"] {
+  --video-surface: color-mix(in srgb, var(--stu-surface) 92%, #0f1b31);
+  --video-surface-strong: color-mix(in srgb, var(--stu-surface) 88%, #1b2740);
+  --video-surface-soft: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-soft));
+  --video-line: color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+  --video-line-strong: color-mix(in srgb, var(--stu-primary) 34%, var(--stu-border-strong));
+  --video-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 20px 48px rgba(0, 0, 0, 0.42);
+  --video-shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 26px 60px rgba(0, 0, 0, 0.52);
+  --video-ink: var(--stu-text);
+}
+
+[data-app="student"][data-video-page="true"] .student-layout__main {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 5%, transparent) 0%, transparent 148px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34), transparent 42%, rgba(255, 255, 255, 0.18)),
+    var(--stu-bg);
+}
+
+[data-app="student"][data-video-page="true"] .video-page-content {
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: 12px 12px 18px;
+  gap: 14px;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell {
+  gap: 12px;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header {
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 9%, var(--stu-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 8%, transparent), transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 92%, white), color-mix(in srgb, var(--stu-surface-soft) 82%, var(--stu-surface)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 16px 38px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.48), transparent 40%, rgba(255, 255, 255, 0.14));
+  opacity: 0.78;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark {
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.36)),
+    color-mix(in srgb, var(--stu-primary) 11%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 28%, rgba(255, 255, 255, 0.7));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 10px 26px color-mix(in srgb, var(--stu-primary) 18%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title {
+  position: relative;
+  z-index: 1;
+  color: var(--video-ink);
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 950;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title::after {
+  height: 5px;
+  width: 36px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, var(--stu-primary), color-mix(in srgb, var(--stu-success) 42%, var(--stu-primary)));
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--stu-primary) 24%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tabs[role="tablist"] {
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  border-radius: 15px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.18)),
+    color-mix(in srgb, var(--stu-surface-soft) 78%, var(--stu-surface));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab[role="tab"] {
+  min-height: 48px;
+  border-radius: 11px;
+  color: color-mix(in srgb, var(--stu-text-muted) 90%, var(--stu-text));
+  font-size: 15px;
+  font-weight: 850;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab[role="tab"][aria-selected="true"],
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab--active[role="tab"] {
+  background:
+    linear-gradient(180deg, var(--video-surface-strong), var(--video-surface));
+  color: var(--stu-primary);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.86) inset,
+    0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+[data-app="student"][data-video-page="true"] .video-course-grid {
+  grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  gap: 12px;
+}
+
+[data-app="student"][data-video-page="true"] .video-course-grid > .media-tile--course:only-child {
+  grid-column: 1 / -1;
+  max-width: 440px;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course {
+  overflow: hidden;
+  border: 1px solid var(--video-line);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, var(--video-surface-strong), var(--video-surface));
+  box-shadow: var(--video-shadow);
+  isolation: isolate;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.86) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.04) inset;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course:hover {
+  border-color: var(--video-line-strong);
+  box-shadow: var(--video-shadow-hover);
+  transform: translateY(-3px);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__thumb--course {
+  border-radius: 13px 13px 0 0;
+  background: linear-gradient(145deg, #101827, #22314f);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__thumb--course::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 44%),
+    linear-gradient(0deg, rgba(3, 7, 18, 0.5) 0%, transparent 38%);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__fallback {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--stu-primary) 86%, #0f172a), #14213d 58%, #07111f);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__fallback-icon {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 9px 18px rgba(0, 0, 0, 0.26));
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__count {
+  right: 8px;
+  bottom: 8px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: rgba(6, 12, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__content {
+  margin-top: 0;
+  padding: 12px 12px 13px;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__title--course {
+  color: var(--video-ink);
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__meta {
+  margin-top: 5px;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+[data-app="student"][data-video-page="true"] .video-back {
+  min-height: 40px;
+  border-color: var(--video-line);
+  background:
+    linear-gradient(180deg, var(--video-surface-strong), var(--video-surface));
+  color: var(--video-ink);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+[data-app="student"][data-video-page="true"] .video-hero {
+  border: 1px solid var(--video-line);
+  border-radius: 16px;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 10%, transparent) 0%, transparent 46%),
+    linear-gradient(180deg, var(--video-surface-strong), var(--video-surface));
+  box-shadow: var(--video-shadow);
+}
+
+[data-app="student"][data-video-page="true"] .video-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.48), transparent 38%, rgba(255, 255, 255, 0.18));
+  opacity: 0.54;
+}
+
+[data-app="student"][data-video-page="true"] .video-hero__eyebrow,
+[data-app="student"][data-video-page="true"] .video-hero__title,
+[data-app="student"][data-video-page="true"] .video-hero__desc,
+[data-app="student"][data-video-page="true"] .video-hero__stats {
+  position: relative;
+  z-index: 1;
+}
+
+[data-app="student"][data-video-page="true"] .video-hero__title {
+  color: var(--video-ink);
+  font-size: 28px;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+[data-app="student"][data-video-page="true"] .video-hero__desc {
+  max-width: 560px;
+  color: color-mix(in srgb, var(--stu-text-muted) 86%, var(--video-ink));
+  font-size: 15px;
+}
+
+[data-app="student"][data-video-page="true"] .video-stat-pill {
+  min-height: 38px;
+  padding: 8px 13px;
+  border-color: color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.2)),
+    color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.74) inset;
+}
+
+[data-app="student"][data-video-page="true"] .video-section-head {
+  padding: 0 2px;
+}
+
+[data-app="student"][data-video-page="true"] .video-section-title {
+  color: var(--video-ink);
+  font-size: 22px;
+}
+
+[data-app="student"][data-video-page="true"] .video-section-sub {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
+  color: color-mix(in srgb, var(--stu-primary) 70%, var(--stu-text-muted));
+  font-weight: 900;
+}
+
+[data-app="student"][data-video-page="true"] .video-card {
+  position: relative;
+  border-color: var(--video-line);
+  border-radius: 16px;
+  padding: 10px;
+  background:
+    linear-gradient(180deg, var(--video-surface-strong), var(--video-surface));
+  box-shadow: var(--video-shadow);
+  overflow: hidden;
+}
+
+[data-app="student"][data-video-page="true"] .video-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.04) inset;
+}
+
+[data-app="student"][data-video-page="true"] .video-card[href]:hover {
+  border-color: var(--video-line-strong);
+  background:
+    linear-gradient(180deg, var(--video-surface-strong), color-mix(in srgb, var(--stu-primary) 5%, var(--video-surface)));
+  transform: translateY(-2px);
+  box-shadow: var(--video-shadow-hover);
+}
+
+[data-app="student"][data-video-page="true"] .video-thumb {
+  border-radius: 13px;
+  background: linear-gradient(145deg, #0f172a, #26344f);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 10px 22px rgba(15, 23, 42, 0.12);
+}
+
+[data-app="student"][data-video-page="true"] .video-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    linear-gradient(0deg, rgba(4, 10, 24, 0.38), transparent 45%);
+}
+
+[data-app="student"][data-video-page="true"] .video-thumb-badge {
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  border-radius: 9px;
+  background: rgba(5, 11, 24, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+}
+
+[data-app="student"][data-video-page="true"] .video-progress-track {
+  z-index: 2;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-app="student"][data-video-page="true"] .video-progress-fill {
+  background:
+    linear-gradient(90deg, var(--stu-primary), color-mix(in srgb, var(--stu-success) 44%, var(--stu-primary)));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--stu-primary) 38%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .video-card__kicker {
+  color: color-mix(in srgb, var(--stu-primary) 88%, var(--video-ink));
+  font-size: 12px;
+}
+
+[data-app="student"][data-video-page="true"] .video-card__title {
+  color: var(--video-ink);
+  font-size: 17px;
+}
+
+[data-app="student"][data-video-page="true"] .video-card__meta {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+}
+
+[data-app="student"][data-video-page="true"] .video-card__cta {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface));
+  color: var(--stu-primary);
+}
+
+[data-app="student"][data-video-page="true"] .video-status-overlay {
+  border-radius: 13px;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.28), rgba(2, 6, 23, 0.72));
+  backdrop-filter: blur(2px);
+}
+
+[data-app="student"][data-video-page="true"] .stu-skel {
+  background:
+    linear-gradient(90deg, var(--video-surface-soft), var(--video-surface-strong), var(--video-surface-soft));
+  background-size: 220% 100%;
+}
+
+[data-app="student"][data-video-page="true"]:has(.vpp-root) .student-layout__main {
+  padding-bottom: max(14px, var(--stu-safe-bottom));
+}
+
+[data-app="student"][data-video-page="true"]:has(.vpp-root) .stu-tabbar {
+  display: none;
+}
+
 @media (max-width: 520px) {
   .video-page-content {
     padding: var(--stu-space-3);
@@ -573,5 +1002,363 @@
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-page-content {
+    padding: 10px;
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header {
+    min-height: 84px;
+    padding: 13px;
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title {
+    font-size: 30px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-course-grid > .media-tile--course:only-child {
+    max-width: none;
+  }
+
+  [data-app="student"][data-video-page="true"] .media-tile__content {
+    padding: 11px;
+  }
+
+  [data-app="student"][data-video-page="true"] .media-tile__title--course {
+    font-size: 17px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-hero {
+    padding: 18px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-hero__title {
+    font-size: 25px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-card {
+    border-radius: 15px;
+    padding: 10px;
+  }
+}
+
+/* Final visual tuning: compact, crafted surfaces without falling back to plain panels. */
+[data-app="student"][data-video-page="true"] .student-layout__main {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 4%, transparent) 0, transparent 150px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34), transparent 44%, rgba(255, 255, 255, 0.14)),
+    var(--stu-bg);
+}
+
+[data-app="student"][data-video-page="true"] .video-page-content {
+  width: 100%;
+  max-width: min(860px, var(--stu-page-max-w));
+  padding: 12px 14px calc(104px + var(--stu-safe-bottom));
+  gap: 14px;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell {
+  gap: var(--stu-space-4);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header {
+  position: relative;
+  min-height: 78px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 8%, transparent), transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), color-mix(in srgb, var(--stu-surface-soft) 84%, var(--stu-surface-1)));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 30px rgba(15, 23, 42, 0.065);
+  overflow: hidden;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header::after {
+  display: none;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header::before {
+  display: block;
+  opacity: 0.66;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark {
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.32)),
+    color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 24%, rgba(255, 255, 255, 0.64));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 8px 20px color-mix(in srgb, var(--stu-primary) 15%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark svg {
+  width: 25px;
+  height: 25px;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title {
+  font-size: 29px;
+  line-height: 1.08;
+  font-weight: 950;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title::after {
+  width: 32px;
+  height: 4px;
+  margin-top: 7px;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--stu-primary) 18%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tabs[role="tablist"] {
+  padding: 5px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.18)),
+    color-mix(in srgb, var(--stu-surface-soft) 78%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 9px 22px rgba(15, 23, 42, 0.045);
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab[role="tab"] {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab[role="tab"][aria-selected="true"],
+[data-app="student"][data-video-page="true"] .domain-tab-shell__tab--active[role="tab"] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--video-surface));
+  color: var(--stu-primary);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 10px 20px rgba(15, 23, 42, 0.07);
+}
+
+[data-app="student"][data-video-page="true"] .video-course-grid {
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 10px;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course,
+[data-app="student"][data-video-page="true"] .video-card,
+[data-app="student"][data-video-page="true"] .video-stats-overview,
+[data-app="student"][data-video-page="true"] .video-stats-card {
+  border-radius: 16px;
+  border-color: color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--video-surface));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 14px 32px rgba(15, 23, 42, 0.075);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course:hover,
+[data-app="student"][data-video-page="true"] .video-card[href]:hover {
+  border-color: color-mix(in srgb, var(--stu-primary) 26%, var(--stu-border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 98%, white), color-mix(in srgb, var(--stu-primary) 4%, var(--video-surface)));
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+[data-app="student"][data-video-page="true"] .media-tile--course::before,
+[data-app="student"][data-video-page="true"] .video-card::before {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.035) inset;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__thumb--course,
+[data-app="student"][data-video-page="true"] .video-thumb {
+  border-radius: 14px;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__content {
+  padding: 11px 11px 12px;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__title--course,
+[data-app="student"][data-video-page="true"] .video-card__title,
+[data-app="student"][data-video-page="true"] .video-section-title,
+[data-app="student"][data-video-page="true"] .video-stats-overview__title {
+  color: var(--stu-text);
+  letter-spacing: 0;
+}
+
+[data-app="student"][data-video-page="true"] .media-tile__title--course {
+  font-size: 15px;
+  line-height: 1.36;
+}
+
+[data-app="student"][data-video-page="true"] .video-section-title {
+  font-size: 18px;
+}
+
+[data-app="student"][data-video-page="true"] .video-stats-overview__title {
+  font-size: 20px;
+}
+
+[data-app="student"][data-video-page="true"] .video-hero {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+  padding: 20px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 9%, transparent), transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--video-surface));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 16px 36px rgba(15, 23, 42, 0.075);
+}
+
+[data-app="student"][data-video-page="true"] .video-hero::after {
+  display: block;
+  opacity: 0.4;
+}
+
+[data-app="student"][data-video-page="true"] .video-hero__title {
+  font-size: 26px;
+  line-height: 1.16;
+}
+
+[data-app="student"][data-video-page="true"] .video-stat-pill,
+[data-app="student"][data-video-page="true"] .video-section-sub,
+[data-app="student"][data-video-page="true"] .video-card__cta {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 92%, white), color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface-1)));
+  border-color: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-border));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate {
+  position: relative;
+  min-height: 250px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 7%, transparent), transparent 54%),
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface-1) 96%, white), var(--video-surface));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 16px 36px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.42), transparent 42%, rgba(255, 255, 255, 0.14));
+  opacity: 0.58;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon,
+[data-app="student"][data-video-page="true"] .stu-emptystate__title,
+[data-app="student"][data-video-page="true"] .stu-emptystate__description {
+  position: relative;
+  z-index: 1;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.3)),
+    color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 22%, var(--stu-border));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 10px 22px color-mix(in srgb, var(--stu-primary) 14%, transparent);
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon-svg {
+  width: 30px;
+  height: 30px;
+  color: var(--stu-primary);
+  stroke: currentColor;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__title {
+  color: var(--video-ink);
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__description {
+  max-width: 420px;
+  color: color-mix(in srgb, var(--stu-text-muted) 86%, var(--video-ink));
+  font-size: 15px;
+  font-weight: 650;
+}
+
+@media (max-width: 520px) {
+  [data-app="student"][data-video-page="true"] .video-page-content {
+    padding: 10px 10px calc(104px + var(--stu-safe-bottom));
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__header {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  [data-app="student"][data-video-page="true"] .domain-tab-shell--plain .domain-tab-shell__title {
+    font-size: 28px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-hero {
+    padding: 17px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-hero__title {
+    font-size: 24px;
+  }
+
+  [data-app="student"][data-video-page="true"] .video-card {
+    border-radius: 16px;
+    padding: 10px;
+  }
+
+  [data-app="student"][data-video-page="true"] .stu-emptystate {
+    min-height: 230px;
+    padding: 26px 20px;
   }
 }

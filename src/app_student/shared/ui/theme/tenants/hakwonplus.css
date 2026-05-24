@@ -135,35 +135,30 @@
     background-attachment: fixed !important;
 }
 
-[data-app="student"][data-student-theme="hakwonplus"] header {
+[data-app="student"][data-student-theme="hakwonplus"] .student-layout__header {
     background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(96, 165, 250, 0.06) 50%, rgba(30, 58, 138, 0.06) 100%) !important;
     background-size: 100% 100%;
 }
 
 [data-app="student"][data-student-theme="hakwonplus"] .stu-tabbar {
-    background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(96, 165, 250, 0.06) 50%, rgba(30, 58, 138, 0.06) 100%) !important;
+    background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(96, 165, 250, 0.03) 50%, rgba(30, 58, 138, 0.03) 100%) !important;
     background-size: 100% 100%;
 }
 
 [data-app="student"][data-student-theme="hakwonplus"] .stu-panel {
-    background-image:
-        linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(96, 165, 250, 0.04) 50%, rgba(30, 58, 138, 0.04) 100%),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.02));
+    background-image: none;
     background-color: var(--stu-surface-1);
 }
 
 [data-app="student"][data-student-theme="hakwonplus"] .stu-section,
 [data-app="student"][data-student-theme="hakwonplus"] .stu-card {
-    background-image:
-        linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(96, 165, 250, 0.03) 50%, rgba(30, 58, 138, 0.03) 100%);
+    background-image: none;
     background-color: var(--stu-surface-1);
 }
 
 [data-app="student"][data-student-theme="hakwonplus"] .stu-action-tile {
     background-color: var(--stu-surface-1) !important;
-    background-image:
-        linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(96, 165, 250, 0.10) 50%, rgba(30, 58, 138, 0.10) 100%),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.03)) !important;
+    background-image: none !important;
     background-size: 100% 100%, 100% 100% !important;
     background-repeat: no-repeat !important;
     background-position: center center !important;
@@ -181,7 +176,7 @@
 
 [data-app="student"][data-student-theme="hakwonplus"] .stu-action-tile__icon {
     background-color: var(--stu-tint-primary) !important;
-    background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.20) 0%, rgba(96, 165, 250, 0.15) 50%, rgba(30, 58, 138, 0.15) 100%) !important;
+    background-image: none !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
     background-position: center center !important;

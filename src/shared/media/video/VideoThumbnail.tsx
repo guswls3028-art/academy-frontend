@@ -73,7 +73,11 @@ export default function VideoThumbnail({
     if (!thumbnail_url) return null;
 
     // ✅ 이미 절대 URL이면 그대로
-    if (thumbnail_url.startsWith("http://") || thumbnail_url.startsWith("https://")) {
+    if (
+      thumbnail_url.startsWith("http://") ||
+      thumbnail_url.startsWith("https://") ||
+      thumbnail_url.startsWith("data:")
+    ) {
       return thumbnail_url;
     }
 

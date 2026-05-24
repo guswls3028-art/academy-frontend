@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
+import { IconVideo } from "@student/shared/ui/icons/Icons";
 import { fetchVideoStats } from "../api/video.api";
 
 function formatDurationHM(seconds: number): string {
@@ -38,7 +39,13 @@ export default function VideoStatsTab() {
   }
 
   if (!stats || stats.total_videos === 0) {
-    return <EmptyState title="시청 기록이 없습니다" description="영상을 시청하면 통계가 표시됩니다." />;
+    return (
+      <EmptyState
+        title="시청 기록이 없습니다"
+        description="영상을 시청하면 통계가 표시됩니다."
+        icon={<IconVideo className="stu-emptystate__icon-svg" aria-hidden="true" />}
+      />
+    );
   }
 
   const lectureData = stats.lectures.map((l) => ({

@@ -411,5 +411,5 @@
   --space-3: 12px;
   --space-4: 16px;
   --font-sans: var(--stu-font-sans, "Pretendard Variable", sans-serif);
-  --letter-base: -0.01em;
+  --letter-base: 0;
 }

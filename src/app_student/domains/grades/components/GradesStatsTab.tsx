@@ -3,14 +3,6 @@
  * GradesPage에서 추출.
  */
 import { useState, useMemo } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
@@ -22,6 +14,12 @@ const ALL_FILTER = "__all__";
 type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+};
+
+type TrendDatum = {
+  name: string;
+  득점률: number;
+  전체평균?: number;
 };
 
 export default function GradesStatsTab({ exams, homeworks }: Props) {
@@ -180,25 +178,7 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
           )}
 
           <div className={styles.chartBox}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 8, right: 12, bottom: 4, left: -16 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--stu-text-muted)" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fontSize: 10, fill: "var(--stu-text-subtle)" }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8, border: "1px solid var(--stu-border)",
-                    background: "var(--stu-surface)", fontSize: 13, padding: "6px 10px",
-                  }}
-                  formatter={(v, name) => [`${v}%`, name === "전체평균" ? "전체 평균" : "내 점수"]}
-                />
-                <Line type="monotone" dataKey="득점률" stroke="var(--stu-primary)" strokeWidth={2.5}
-                  dot={{ r: 4, fill: "var(--stu-primary)", strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                {hasAvgLine && (
-                  <Line type="monotone" dataKey="전체평균" stroke="var(--stu-text-muted)" strokeWidth={1.5}
-                    strokeDasharray="4 3" dot={false} connectNulls />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
+            <TrendChart data={trendData} showAverage={hasAvgLine} />
           </div>
         </div>
       )}
@@ -280,5 +260,45 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
     >
       {label}
     </button>
+  );
+}
+
+function TrendChart({ data, showAverage }: { data: TrendDatum[]; showAverage: boolean }) {
+  const width = 320;
+  const height = 160;
+  const plot = { left: 34, right: 12, top: 12, bottom: 28 };
+  const plotWidth = width - plot.left - plot.right;
+  const plotHeight = height - plot.top - plot.bottom;
+  const x = (index: number) => plot.left + (data.length === 1 ? plotWidth / 2 : (plotWidth * index) / (data.length - 1));
+  const y = (value: number) => plot.top + plotHeight - (Math.max(0, Math.min(100, value)) / 100) * plotHeight;
+  const scorePoints = data.map((d, index) => `${x(index)},${y(d.득점률)}`).join(" ");
+  const avgPoints = data
+    .map((d, index) => d.전체평균 == null ? null : `${x(index)},${y(d.전체평균)}`)
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <svg className={styles.trendChart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="점수 추이">
+      {[0, 50, 100].map((tick) => (
+        <g key={tick}>
+          <line className={styles.chartGridLine} x1={plot.left} x2={width - plot.right} y1={y(tick)} y2={y(tick)} />
+          <text className={styles.chartYAxisLabel} x={6} y={y(tick) + 4}>{tick}</text>
+        </g>
+      ))}
+
+      {showAverage && avgPoints && (
+        <polyline className={styles.chartAverageLine} points={avgPoints} />
+      )}
+      <polyline className={styles.chartScoreLine} points={scorePoints} />
+
+      {data.map((d, index) => (
+        <g key={`${d.name}-${index}`}>
+          <circle className={styles.chartPoint} cx={x(index)} cy={y(d.득점률)} r={4} />
+          <text className={styles.chartXLabel} x={x(index)} y={height - 8} textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"}>
+            {d.name}
+          </text>
+        </g>
+      ))}
+    </svg>
   );
 }

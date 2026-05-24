@@ -4,7 +4,7 @@
 import { memo } from "react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { IconPlay, IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
 import VideoThumbnailWrapper from "./VideoThumbnailWrapper";
 
@@ -58,7 +58,7 @@ function CourseCard({
         {/* 콘텐츠 수 오버레이 */}
         {videoCount > 0 && (
           <div className="media-tile__count">
-            <IconChevronRight className="media-tile__count-icon" />
+            <IconPlay className="media-tile__count-icon" />
             {videoCount}
           </div>
         )}

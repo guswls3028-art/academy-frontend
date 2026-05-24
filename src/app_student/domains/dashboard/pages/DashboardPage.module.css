@@ -11,25 +11,23 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 86%, transparent);
   border-radius: var(--stu-radius-md);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 58%),
-    var(--stu-surface-1);
+  background: var(--stu-surface-1);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.78) inset,
-    0 14px 38px color-mix(in srgb, var(--stu-primary) 13%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.66) inset,
+    0 8px 22px rgba(15, 23, 42, 0.045);
 }
 
 .hero::after {
   content: "";
   position: absolute;
   inset: auto 16px 0;
-  height: 3px;
+  height: 2px;
   border-radius: 999px 999px 0 0;
   background: var(--stu-gradient, var(--stu-primary));
-  opacity: 0.88;
+  opacity: 0.72;
 }
 
 .heroTop {
@@ -58,9 +56,9 @@
 .heroTitle {
   margin: 4px 0 0;
   color: var(--stu-text);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
-  line-height: 1.16;
+  line-height: 1.22;
   word-break: keep-all;
 }
 
@@ -77,9 +75,9 @@
   flex-shrink: 0;
   min-width: 58px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, transparent);
   border-radius: var(--stu-radius-md);
-  background: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   color: var(--stu-primary);
   font-size: 12px;
   font-weight: 900;
@@ -137,9 +135,9 @@
   display: block;
   color: inherit;
   text-decoration: none;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
   border-radius: var(--stu-radius-md);
-  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface-1));
 }
 
 .countdownCard[data-imminent="true"] {
@@ -166,7 +164,7 @@
   height: 42px;
   flex-shrink: 0;
   border-radius: var(--stu-radius-md);
-  background: color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1));
+  background: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
   color: var(--stu-primary);
 }
 
@@ -213,7 +211,7 @@
 .countdownValue {
   flex-shrink: 0;
   color: var(--stu-primary);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
   line-height: 1.1;
   text-align: right;
@@ -318,12 +316,15 @@
   height: 40px;
   flex-shrink: 0;
   border-radius: var(--stu-radius-md);
-  background: var(--stu-primary);
-  color: var(--stu-primary-contrast);
+  background: color-mix(in srgb, var(--stu-primary) 9%, var(--stu-surface-1));
+  color: var(--stu-primary);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
 }
 
 .sessionIconClinic {
-  background: var(--stu-success);
+  background: color-mix(in srgb, var(--stu-success) 9%, var(--stu-surface-1));
+  color: var(--stu-success);
+  border-color: color-mix(in srgb, var(--stu-success) 18%, var(--stu-border));
 }
 
 .sessionIcon svg {
@@ -547,14 +548,13 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 12%, transparent);
   border-radius: var(--stu-radius-md);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--stu-primary) 15%, var(--stu-surface-1)), color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)));
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   color: var(--stu-primary);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 8px 18px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.68) inset,
+    0 5px 14px rgba(15, 23, 42, 0.04);
 }
 
 .shortcutIcon svg {
