@@ -1,7 +1,7 @@
 .student-name-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2, 8px);
   min-width: 0;
   max-width: 100%;
 }
@@ -10,8 +10,8 @@
   flex-shrink: 0;
   border-radius: 999px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
-  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--tc-primary, #3b82f6)) 15%, transparent);
+  color: var(--color-brand-primary, var(--tc-primary, #3b82f6));
   font-size: var(--text-xs, 12px);
   font-weight: 700;
   display: flex;
@@ -49,7 +49,7 @@
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2, 8px);
 }
 
 .student-name-chip__name {
@@ -58,13 +58,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary, var(--tc-text, #111827));
 }
 
 .student-name-chip--stacked {
   width: 100%;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2, 8px);
 }
 
 .student-name-chip--stacked .student-name-chip__body {
@@ -84,7 +84,7 @@
 .student-name-chip__lecture-row {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-1, 4px);
   min-width: 0;
   max-width: 100%;
 }
@@ -95,7 +95,7 @@
   gap: 5px;
   min-width: 0;
   max-width: 100%;
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, var(--tc-text-muted, #6b7280));
   font-size: var(--text-meta, 12px);
   line-height: 1.15;
 }
@@ -105,8 +105,8 @@
   height: 7px;
   border-radius: 2px;
   flex-shrink: 0;
-  background: var(--color-brand-primary);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-surface) 90%, transparent);
+  background: var(--color-brand-primary, var(--tc-primary, #3b82f6));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-surface, var(--tc-surface, #fff)) 90%, transparent);
 }
 
 .student-name-chip__lecture-text {

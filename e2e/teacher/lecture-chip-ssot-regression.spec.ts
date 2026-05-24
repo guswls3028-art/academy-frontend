@@ -1,5 +1,5 @@
 import { test, expect } from "../fixtures/strictTest";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { apiCall } from "../helpers/api";
 import { getBaseUrl, loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
@@ -54,11 +54,13 @@ test.describe("강의 딱지 SSOT 회귀", () => {
 
       const chip = row.locator("[data-lecture-chip]").first();
       await assertChipStable(chip, "수심");
+      await assertVisibleLectureChipContract(page);
 
       await gotoAndSettle(page, `${BASE}/admin/lectures`, { timeout: 20_000 });
       const adminRow = page.getByRole("button", { name: new RegExp(escapeRegex(title)) }).first();
       await expect(adminRow).toBeVisible({ timeout: 15_000 });
       await assertChipStable(adminRow.locator("[data-lecture-chip]").first(), "수심");
+      await assertVisibleLectureChipContract(page);
     } finally {
       if (lectureId) {
         await apiCall(page, "DELETE", `/lectures/lectures/${lectureId}/`);
@@ -86,6 +88,36 @@ async function assertChipStable(chip: Locator, expectedText: string): Promise<vo
   expect(Math.abs(metrics.width - metrics.height), JSON.stringify(metrics)).toBeLessThanOrEqual(1);
   expect(metrics.scrollWidth, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.clientWidth + 1);
   expect(metrics.scrollHeight, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.clientHeight + 1);
+}
+
+async function assertVisibleLectureChipContract(page: Page): Promise<void> {
+  const chipMetrics = await page.locator("[data-lecture-chip]:visible").evaluateAll((nodes) =>
+    nodes.map((el) => {
+      const rect = el.getBoundingClientRect();
+      return {
+        text: el.textContent?.trim() ?? "",
+        width: rect.width,
+        height: rect.height,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+      };
+    }),
+  );
+
+  expect(chipMetrics.length).toBeGreaterThan(0);
+  for (const metrics of chipMetrics) {
+    expect(metrics.text, JSON.stringify(metrics)).not.toContain("??");
+    expect(Math.abs(metrics.width - metrics.height), JSON.stringify(metrics)).toBeLessThanOrEqual(1);
+    expect(metrics.scrollWidth, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.clientWidth + 1);
+    expect(metrics.scrollHeight, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.clientHeight + 1);
+  }
+
+  const labelTexts = await page.locator("[data-lecture-chip-label]:visible").allTextContents();
+  for (const text of labelTexts) {
+    expect(text.trim()).not.toContain("??");
+  }
 }
 
 function escapeRegex(value: string): string {

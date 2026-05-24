@@ -29,7 +29,13 @@ type Props = {
 };
 
 function lecturesForCandidate(row: CandidateRow) {
-  return row.lecture_title ? [{ lectureName: row.lecture_title }] : [];
+  return row.lecture_title
+    ? [{
+        lectureName: row.lecture_title,
+        color: row.lecture_color,
+        chipLabel: row.lecture_chip_label,
+      }]
+    : [];
 }
 
 export default function StudentPickerModal({

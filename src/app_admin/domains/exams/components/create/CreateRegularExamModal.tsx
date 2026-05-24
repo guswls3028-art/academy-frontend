@@ -8,10 +8,11 @@
 /* eslint-disable no-restricted-syntax */
 // TODO(R-11 cleanup): 이 파일의 인라인 style → className/DS token 마이그레이션. baseline 동결 위해 file-level disable. 신규 인라인 style 추가 시 본 directive 무력화하지 말 것.
 
-import { useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
@@ -722,19 +723,12 @@ export default function CreateRegularExamModal({
                           {lecturesList.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5 ml-6">
                               {lecturesList.slice(0, 4).map((lec) => (
-                                <Badge
+                                <LectureChipLabel
                                   key={lec.lecture_id}
-                                  style={
-                                    lec.color
-                                      ? ({
-                                          "--badge-bg": `color-mix(in srgb, ${lec.color} 18%, var(--bg-surface-soft))`,
-                                          "--badge-text": "var(--text-primary)",
-                                        } as CSSProperties)
-                                      : undefined
-                                  }
-                                >
-                                  {(lec.chip_label ? `${lec.chip_label} ` : "") + lec.lecture_title}
-                                </Badge>
+                                  lectureName={lec.lecture_title}
+                                  color={lec.color}
+                                  chipLabel={lec.chip_label}
+                                />
                               ))}
                               {lecturesList.length > 4 && (
                                 <Badge>+{lecturesList.length - 4}</Badge>

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchSession, fetchSessionAttendance, fetchLectureEnrollments } from "../api";
@@ -90,6 +91,13 @@ export default function SessionDetailPage() {
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
 
   const title = session?.title || `${session?.order ?? ""}차시`;
+  const sessionLectureInfo: LectureInfo | undefined = session
+    ? {
+        lectureName: session.lecture_title,
+        color: session.lecture_color,
+        chipLabel: session.lecture_chip_label,
+      }
+    : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -181,11 +189,12 @@ export default function SessionDetailPage() {
         <StudentsTab
           enrollments={enrollments ?? []}
           attendances={attendances ?? []}
+          lectureInfo={sessionLectureInfo}
           navigate={navigate}
         />
       )}
-      {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} />}
-      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} navigate={navigate} />}
+      {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} lectureInfo={sessionLectureInfo} />}
+      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} />}
       {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} />}
       {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} />}
       {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
@@ -193,6 +202,7 @@ export default function SessionDetailPage() {
         <ClinicTab
           links={clinicLinks ?? []}
           enabled={!!sectionMode}
+          lectureInfo={sessionLectureInfo}
           navigate={navigate}
         />
       )}
@@ -303,10 +313,12 @@ const RESOLUTION_LABEL: Record<string, { label: string; color: string }> = {
 function ClinicTab({
   links,
   enabled,
+  lectureInfo,
   navigate,
 }: {
   links: ClinicLinkRow[];
   enabled: boolean;
+  lectureInfo?: LectureInfo;
   navigate: any;
 }) {
   if (!enabled) {
@@ -352,9 +364,11 @@ function ClinicTab({
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                    {l.student_name || "학생"}
-                  </span>
+                  <StudentNameWithLectureChip
+                    name={l.student_name || "학생"}
+                    lectures={lectureInfo ? [lectureInfo] : undefined}
+                    chipSize={18}
+                  />
                   {l.cycle_no > 1 && (
                     <span
                       className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
@@ -399,8 +413,9 @@ function ChevronRightIcon() {
 function StudentsTab({
   enrollments,
   attendances,
+  lectureInfo,
   navigate,
-}: { enrollments: any[]; attendances: any[]; navigate: any }) {
+}: { enrollments: any[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any }) {
   if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />;
 
   // enrollment_id → attendance row 매핑
@@ -433,14 +448,13 @@ function StudentsTab({
               border: "1px solid var(--tc-border)",
             }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-              style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}
-            >
-              {name[0]}
-            </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{name}</div>
+              <StudentNameWithLectureChip
+                name={name}
+                lectures={lectureInfo ? [lectureInfo] : undefined}
+                avatarSize={32}
+                chipSize={18}
+              />
               <div className="flex gap-3 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                 {parentPhone && <span>부 {formatPhone(parentPhone)}</span>}
                 {studentPhone && <span>학 {formatPhone(studentPhone)}</span>}
@@ -455,7 +469,7 @@ function StudentsTab({
 }
 
 /* === Attendance tab === */
-function AttendanceTab({ attendances }: { attendances: any[] }) {
+function AttendanceTab({ attendances, lectureInfo }: { attendances: any[]; lectureInfo?: LectureInfo }) {
   if (!attendances.length) return <EmptyState scope="panel" tone="empty" title="출석 데이터가 없습니다" />;
 
   const counts = attendances.reduce<Record<string, number>>((acc, a) => {
@@ -494,7 +508,11 @@ function AttendanceTab({ attendances }: { attendances: any[] }) {
               className="flex justify-between items-center py-2 border-b last:border-b-0"
               style={{ borderColor: "var(--tc-border)" }}
             >
-              <span className="text-sm" style={{ color: "var(--tc-text)" }}>{name}</span>
+              <StudentNameWithLectureChip
+                name={name}
+                lectures={lectureInfo ? [lectureInfo] : undefined}
+                chipSize={18}
+              />
               <StatusBadge label={st.label} color={st.color} />
             </div>
           );
@@ -508,8 +526,9 @@ function AttendanceTab({ attendances }: { attendances: any[] }) {
 function ScoresTab({
   exams,
   sessionId,
+  lectureInfo,
   navigate,
-}: { exams: any[]; sessionId: number; navigate: any }) {
+}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any }) {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const { data: results } = useQuery({
@@ -568,7 +587,12 @@ function ScoresTab({
                     className="flex justify-between items-center py-2 border-b last:border-b-0"
                     style={{ borderColor: "var(--tc-border)" }}
                   >
-                    <span className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--tc-text)" }}>{name}</span>
+                    <StudentNameWithLectureChip
+                      name={name}
+                      lectures={lectureInfo ? [lectureInfo] : undefined}
+                      chipSize={18}
+                      className="flex-1 min-w-0"
+                    />
                     <div className="flex items-center gap-2 shrink-0">
                       <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
                       <span

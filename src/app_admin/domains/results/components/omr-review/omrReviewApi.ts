@@ -114,6 +114,8 @@ export type CandidateRow = {
   student_phone_last4: string;
   parent_phone_last4: string;
   lecture_title: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
   already_matched: boolean;
 };
 

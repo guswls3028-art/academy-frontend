@@ -198,7 +198,7 @@ export default function StudentsTable({
             lectures={
               Array.isArray(s.enrollments) && s.enrollments.length > 0
                 ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
-                    lectureName: en.lectureName ?? "??",
+                    lectureName: en.lectureName ?? "",
                     color: en.lectureColor ?? undefined,
                     chipLabel: en.lectureChipLabel ?? undefined,
                   }))

@@ -21,6 +21,7 @@ import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { normalizeStudentName } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
@@ -409,12 +410,13 @@ function CounselThreadView({
           {studentDetail && studentDetail.enrollments.length > 0 && (
             <div className="counsel-enrollment-chips">
               {studentDetail.enrollments.slice(0, 6).map((en) => (
-                <span
+                <LectureChipLabel
                   key={en.id}
                   className="counsel-enrollment-chip"
-                >
-                  {en.lectureChipLabel || en.lectureName || "강의"}
-                </span>
+                  lectureName={en.lectureName}
+                  color={en.lectureColor}
+                  chipLabel={en.lectureChipLabel}
+                />
               ))}
               {studentDetail.enrollments.length > 6 && (
                 <span className="counsel-enrollment-more">+{studentDetail.enrollments.length - 6}</span>

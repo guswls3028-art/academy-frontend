@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { SectionTitle, TabBar } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "@teacher/domains/lectures/api";
@@ -47,6 +48,7 @@ export default function ResultsPage() {
     queryFn: async (): Promise<TeacherExamResultRow[]> => fetchExamResults(selectedExam!),
     enabled: selectedExam != null && tab === "list",
   });
+  const selectedLectureObj = (lectures ?? []).find((lecture) => lecture.id === selectedLecture);
 
   return (
     <div className={styles.page}>
@@ -119,7 +121,20 @@ export default function ResultsPage() {
                         const max = getExamResultMaxScore(result);
                         return (
                           <div key={enrollmentId ?? result.id ?? `result-${index}`} className={styles.resultRow}>
-                            <span className={styles.studentName}>{result.student_name ?? "이름 없음"}</span>
+                            <StudentNameWithLectureChip
+                              name={result.student_name ?? "이름 없음"}
+                              lectures={
+                                selectedLectureObj
+                                  ? [{
+                                      lectureName: selectedLectureObj.title,
+                                      color: selectedLectureObj.color,
+                                      chipLabel: selectedLectureObj.chip_label ?? selectedLectureObj.chipLabel,
+                                    }]
+                                  : undefined
+                              }
+                              chipSize={18}
+                              className={styles.studentName}
+                            />
                             <div className={styles.scoreGroup}>
                               <span className={styles.scoreText}>
                                 {score != null ? `${score}/${max}` : "-"}

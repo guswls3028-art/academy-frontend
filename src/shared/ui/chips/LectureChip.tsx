@@ -4,6 +4,7 @@
 import type { CSSProperties } from "react";
 import { contrastTextColor } from "@/shared/ui/domain/constants";
 import { normalizeLectureChipText } from "./lectureChipText";
+import { LECTURE_CHIP_SIZE } from "./lectureChipTokens";
 import "./LectureChip.css";
 
 const DEFAULT_LECTURE_COLOR = "#3b82f6";
@@ -18,10 +19,10 @@ type LectureChipStyle = CSSProperties & {
 export default function LectureChip({
   lectureName,
   color,
-  size = 22,
+  size = LECTURE_CHIP_SIZE.base,
   chipLabel,
 }: {
-  lectureName: string;
+  lectureName?: string | null;
   color?: string;
   size?: number;
   /** 강의 생성 시 지정한 2글자 (미지정 시 제목 앞 2자) */
@@ -45,7 +46,7 @@ export default function LectureChip({
   return (
     <span
       data-lecture-chip
-      title={lectureName}
+      title={lectureName ?? undefined}
       className="lecture-chip"
       style={chipStyle}
     >

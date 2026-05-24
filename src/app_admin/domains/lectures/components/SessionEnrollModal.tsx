@@ -966,7 +966,7 @@ export default function SessionEnrollModal({
                                         lectures={
                                           Array.isArray(row.enrollments) && row.enrollments.length > 0
                                             ? row.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
-                                                lectureName: en.lectureName ?? "??",
+                                                lectureName: en.lectureName ?? "",
                                                 color: en.lectureColor ?? undefined,
                                                 chipLabel: en.lectureChipLabel ?? undefined,
                                               }))

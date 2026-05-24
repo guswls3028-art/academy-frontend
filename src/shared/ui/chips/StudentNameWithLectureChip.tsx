@@ -4,11 +4,13 @@
 
 import React from "react";
 import LectureChip from "./LectureChip";
+import { normalizeLectureChipText } from "./lectureChipText";
+import { LECTURE_CHIP_SIZE } from "./lectureChipTokens";
 import { useClinicHighlight } from "@/shared/contexts/useClinicHighlight";
 import "./StudentNameWithLectureChip.css";
 
 export type LectureInfo = {
-  lectureName: string;
+  lectureName?: string | null;
   color?: string | null;
   /** 강의 생성 모달에서 지정한 2글자 딱지 (미지정 시 제목 앞 2자) */
   chipLabel?: string | null;
@@ -49,7 +51,7 @@ function avatarSizeClass(size?: number): string {
 export default function StudentNameWithLectureChip({
   name,
   lectures,
-  chipSize = 20,
+  chipSize = LECTURE_CHIP_SIZE.inline,
   profilePhotoUrl,
   avatarSize,
   className,
@@ -98,7 +100,8 @@ export default function StudentNameWithLectureChip({
         {layout === "stacked" && lectureDisplay === "meta" && list.length > 0 && (
           <span className="student-name-chip__lecture-row">
             {list.map((lec, i) => {
-              const label = lec.lectureName || "강의";
+              const label = lec.lectureName?.trim() || normalizeLectureChipText(lec.chipLabel);
+              if (!label) return null;
               return (
                 <span
                   key={`${lec.lectureName ?? ""}-${i}`}
@@ -119,7 +122,7 @@ export default function StudentNameWithLectureChip({
       {!(layout === "stacked" && lectureDisplay === "meta") && list.map((lec, i) => (
         <LectureChip
           key={`${lec.lectureName ?? ""}-${i}`}
-          lectureName={lec.lectureName || ""}
+          lectureName={lec.lectureName}
           color={lec.color ?? DEFAULT_COLOR}
           size={chipSizeResolved}
           chipLabel={lec.chipLabel}

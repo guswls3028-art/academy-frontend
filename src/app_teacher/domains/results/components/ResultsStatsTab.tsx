@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Card, SectionTitle, KpiCard } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "@teacher/domains/lectures/api";
@@ -109,6 +110,7 @@ export default function ResultsStatsTab() {
   const questionRows = (questionStats ?? []) as QuestionStat[];
   const resultRows = (results ?? []) as TeacherExamResultRow[];
   const selectedExamObj = examList.find((e) => e.id === selectedExam);
+  const selectedLectureObj = lectureList.find((lecture) => lecture.id === selectedLecture);
   // 시험 만점 = exam 객체의 max_score (summary.max_score는 "최고 득점"이므로 사용 금지)
   const rawExamMaxScore = selectedExamObj?.max_score;
   const examMaxScore = typeof rawExamMaxScore === "number" && rawExamMaxScore > 0 ? rawExamMaxScore : 100;
@@ -449,13 +451,20 @@ export default function ResultsStatsTab() {
                               >
                                 {typeof r.rank === "number" ? r.rank : idx + 1}
                               </span>
-                              <span
+                              <StudentNameWithLectureChip
+                                name={r.student_name ?? r.enrollment_name ?? "이름 없음"}
+                                lectures={
+                                  selectedLectureObj
+                                    ? [{
+                                        lectureName: selectedLectureObj.title,
+                                        color: selectedLectureObj.color,
+                                        chipLabel: selectedLectureObj.chip_label ?? selectedLectureObj.chipLabel,
+                                      }]
+                                    : undefined
+                                }
+                                chipSize={18}
                                 className={cx("truncate", styles.primaryText)}
-                              >
-                                {r.student_name ??
-                                  r.enrollment_name ??
-                                  "이름 없음"}
-                              </span>
+                              />
                             </div>
                             <div className="flex items-center gap-2">
                               <span

@@ -13,6 +13,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "../api/adminHomework";
 import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
@@ -751,7 +752,12 @@ export default function CreateHomeworkModal({
                           {(t.used_lectures?.length ?? 0) > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5 ml-6">
                               {t.used_lectures!.slice(0, 4).map((lec) => (
-                                <Badge key={lec.lecture_id}>{lec.lecture_title}</Badge>
+                                <LectureChipLabel
+                                  key={lec.lecture_id}
+                                  lectureName={lec.lecture_title}
+                                  color={lec.color}
+                                  chipLabel={lec.chip_label}
+                                />
                               ))}
                               {t.used_lectures!.length > 4 && <Badge>+{t.used_lectures!.length - 4}</Badge>}
                             </div>

@@ -346,7 +346,13 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                 <div className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">선택 학생 상세</div>
                   <div className="mt-0.5 text-base font-bold text-[var(--color-text-primary)] truncate" title={selectedRow.student_name}>
-                    {selectedRow.student_name}
+                    <StudentNameWithLectureChip
+                      name={selectedRow.student_name}
+                      lectures={selectedRow.lecture_title ? [{ lectureName: selectedRow.lecture_title, color: selectedRow.lecture_color, chipLabel: selectedRow.lecture_chip_label }] : undefined}
+                      profilePhotoUrl={selectedRow.profile_photo_url}
+                      avatarSize={24}
+                      clinicHighlight={selectedRow.name_highlight_clinic_target}
+                    />
                   </div>
                 </div>
 

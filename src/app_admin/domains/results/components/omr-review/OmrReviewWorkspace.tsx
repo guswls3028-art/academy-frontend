@@ -51,7 +51,13 @@ type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
 const CHOICES = ["1", "2", "3", "4", "5"];
 
 function lecturesForCandidate(row: CandidateRow) {
-  return row.lecture_title ? [{ lectureName: row.lecture_title }] : [];
+  return row.lecture_title
+    ? [{
+        lectureName: row.lecture_title,
+        color: row.lecture_color,
+        chipLabel: row.lecture_chip_label,
+      }]
+    : [];
 }
 
 function scoreFromManualEditResult(result: SubmissionManualEditResult | undefined): number | null {
