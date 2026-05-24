@@ -33,10 +33,34 @@ function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
 import "./StudentResultDrawer.css";
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+const CIRCLED_CHOICE_MAP: Record<string, string> = {
+  "①": "1",
+  "②": "2",
+  "③": "3",
+  "④": "4",
+  "⑤": "5",
+};
+
+function normalizeChoiceToken(value: string): string {
+  const token = String(value ?? "").trim();
+  return CIRCLED_CHOICE_MAP[token] ?? token;
+}
+
+function getChoiceCandidates(a: string): string[] {
+  return String(a ?? "")
+    .split(/\s*(?:[,;|]|또는|혹은|\bor\b)\s*/i)
+    .map(normalizeChoiceToken)
+    .filter((v) => CHOICES.includes(v));
+}
 
 function isChoiceAnswer(a: string): boolean {
-  const t = String(a ?? "").trim();
-  return t === "1" || t === "2" || t === "3" || t === "4" || t === "5";
+  return getChoiceCandidates(a).length > 0;
+}
+
+function doesChoiceAnswerMatch(answer: string, correct: string): boolean {
+  const answerChoices = getChoiceCandidates(answer);
+  if (answerChoices.length !== 1) return false;
+  return getChoiceCandidates(correct).includes(answerChoices[0]);
 }
 
 function getScanImageUrl(items: ExamResultItem[]): string {
@@ -160,7 +184,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {
     const ca = correctAnswersMap[String(it.question_id)] ?? "";
-    if (ca && isChoiceAnswer(it.answer)) return String(it.answer).trim() === ca.trim();
+    if (ca && isChoiceAnswer(it.answer) && isChoiceAnswer(ca)) return doesChoiceAnswerMatch(it.answer, ca);
     return it.is_correct;
   }, [correctAnswersMap]);
 
@@ -598,7 +622,7 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
     let newScore: number;
     if (newAnswer === "") newScore = 0;
     else if (!correct) newScore = scores[qid] ?? 0;
-    else if (newAnswer === correct) newScore = maxScore;
+    else if (doesChoiceAnswerMatch(newAnswer, correct)) newScore = maxScore;
     else newScore = 0;
     setScores((prev) => ({ ...prev, [qid]: newScore }));
     saveMutation.mutate({ questionId: qid, score: newScore, answer: newAnswer });
@@ -643,19 +667,21 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
                     <div className="srd-edit__bubbles">
                       {CHOICES.map((c) => {
                         const sel = answer === c;
-                        const isWrong = answer !== "" && correct !== "" && answer !== correct;
+                        const isCorrectChoice = doesChoiceAnswerMatch(answer, correct);
+                        const correctChoices = getChoiceCandidates(correct);
+                        const isWrong = answer !== "" && correct !== "" && !isCorrectChoice;
                         let cls = "";
                         if (!correct && sel) cls = "srd-edit__bubble--neutral";
-                        else if (sel && answer === correct) cls = "srd-edit__bubble--correct";
+                        else if (sel && isCorrectChoice) cls = "srd-edit__bubble--correct";
                         else if (sel && isWrong) cls = "srd-edit__bubble--wrong";
-                        else if (correct === c && isWrong) cls = "srd-edit__bubble--answer";
+                        else if (correctChoices.includes(c) && isWrong) cls = "srd-edit__bubble--answer";
                         return (
                           <button key={c} type="button" className={`srd-edit__bubble ${cls}`} onClick={() => handleBubbleClick(qid, c)}>{c}</button>
                         );
                       })}
                     </div>
                     <span className="srd-edit__choice-result">
-                      {answer ? (correct ? (answer === correct ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
+                      {answer ? (correct ? (doesChoiceAnswerMatch(answer, correct) ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
                     </span>
                   </div>
                 );

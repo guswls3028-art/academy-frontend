@@ -50,6 +50,30 @@ type ExplanationState = {
 };
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+const CIRCLED_CHOICE_MAP: Record<string, string> = {
+  "①": "1",
+  "②": "2",
+  "③": "3",
+  "④": "4",
+  "⑤": "5",
+};
+
+function normalizeChoiceToken(value: string): string {
+  const token = String(value ?? "").trim();
+  return CIRCLED_CHOICE_MAP[token] ?? token;
+}
+
+function parseChoiceDraft(value: string): Set<string> {
+  const tokens = String(value ?? "")
+    .split(/\s*(?:[,;|]|또는|혹은|\bor\b)\s*/i)
+    .map(normalizeChoiceToken)
+    .filter((v) => CHOICES.includes(v));
+  return new Set(tokens);
+}
+
+function formatChoiceDraft(values: Set<string>): string {
+  return CHOICES.filter((choice) => values.has(choice)).join(",");
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -212,7 +236,7 @@ export default function AnswerKeyRegisterModal({
       let choiceCnt = 0;
       for (const q of sortedQuestions) {
         const ans = (normalized[String(q.id)] ?? "").trim();
-        if (ans === "1" || ans === "2" || ans === "3" || ans === "4" || ans === "5") {
+        if (parseChoiceDraft(ans).size > 0) {
           choiceCnt++;
         }
       }
@@ -902,10 +926,24 @@ function ChoiceRow({
   onMoveToNextRow?: (currentValue: string) => void;
   onMoveToPreviousRow?: () => void;
 }) {
-  const currentIndex = CHOICES.indexOf(draft);
+  const selectedChoices = parseChoiceDraft(draft);
+  const firstSelected = CHOICES.find((choice) => selectedChoices.has(choice)) ?? "";
+  const currentIndex = CHOICES.indexOf(firstSelected);
   const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
 
+  const toggleChoice = (choice: string) => {
+    const next = new Set(selectedChoices);
+    if (next.has(choice)) next.delete(choice);
+    else next.add(choice);
+    onChange(formatChoiceDraft(next));
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (/^[1-5]$/.test(e.key)) {
+      e.preventDefault();
+      toggleChoice(e.key);
+      return;
+    }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       const next = selectedIndex <= 0 ? CHOICES[0] : CHOICES[selectedIndex - 1];
@@ -934,7 +972,7 @@ function ChoiceRow({
     if (e.key === " ") {
       e.preventDefault();
       const next = CHOICES[selectedIndex];
-      if (next) onChange(next);
+      if (next) toggleChoice(next);
       return;
     }
   };
@@ -945,7 +983,7 @@ function ChoiceRow({
       <div
         ref={bubblesRef}
         className="answer-key-row__bubbles"
-        role="radiogroup"
+        role="group"
         aria-label={`${question.number}번 정답`}
         tabIndex={0}
         onKeyDown={handleKeyDown}
@@ -953,15 +991,15 @@ function ChoiceRow({
         {CHOICES.map((c) => (
           <label key={c} className="answer-key-omr-label">
             <input
-              type="radio"
+              type="checkbox"
               name={`q-${question.id}`}
               value={c}
-              checked={draft === c}
-              onChange={() => onChange(c)}
+              checked={selectedChoices.has(c)}
+              onChange={() => toggleChoice(c)}
               className="ds-sr-only"
             />
             <span
-              className={`exam-omr-bubble ${draft === c ? "exam-omr-bubble--selected" : ""}`}
+              className={`exam-omr-bubble ${selectedChoices.has(c) ? "exam-omr-bubble--selected" : ""}`}
               aria-hidden
             >
               {c}
