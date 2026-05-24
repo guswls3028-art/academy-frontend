@@ -120,6 +120,17 @@ export default function PremiumDark({ config }: TemplateProps) {
                   primaryRgb={rgb}
                   cardBorder={cardBorder}
                 />
+                <PremiumDecisionBand
+                  sections={sections}
+                  primaryCta={primaryCta}
+                  textPrimary={textPrimary}
+                  textSecondary={textSecondary}
+                  textMuted={textMuted}
+                  gold={gold}
+                  goldRgb={goldRgb}
+                  cardBorder={cardBorder}
+                  bgAlt={bgAlt}
+                />
                 <TestimonialsSticky theme="dark" />
               </Fragment>
             );
@@ -442,6 +453,78 @@ function getHeroPosterFallback(config: LandingConfig): string {
   return heroImages[0] || compactText(config.hero_image_url);
 }
 
+function getItems<T>(sections: LandingSection[], type: string): T[] {
+  const section = sections.find((s) => s.type === type && s.enabled);
+  return ((section?.items as T[] | undefined) || []);
+}
+
+function splitSubtitle(value: unknown): { lead: string; tail: string } {
+  const text = compactText(value);
+  const parts = text.split(/\s[-–—]\s/);
+  if (parts.length <= 1) return { lead: text, tail: "" };
+  return { lead: compactText(parts[0]), tail: compactText(parts.slice(1).join(" - ")) };
+}
+
+function buildHeroMainTitle(config: LandingConfig, sections: LandingSection[]): string {
+  const subtitle = splitSubtitle(config.subtitle);
+  if (subtitle.lead && /내신|수능|입시|반$/.test(subtitle.lead)) return subtitle.lead;
+  const instructor = getInstructorProfiles(sections)[0];
+  const program = getItems<ProgramItem>(sections, "programs")[0];
+  const subject = compactText(program?.title).match(/통합과학|물리|화학|생명과학|지구과학|수학|영어|국어/)?.[0] || "";
+  if (instructor?.name && subject) return `${instructor.name} ${subject} 내신대비반`;
+  return compactText(config.tagline) || compactText(config.brand_name) || "프리미엄 내신대비";
+}
+
+function buildHeroMainBody(config: LandingConfig, sections: LandingSection[]): string {
+  const subtitle = splitSubtitle(config.subtitle);
+  const featureText = getItems<FeatureItem>(sections, "features")
+    .map((item) => `${item.title} ${item.description}`)
+    .join(" ");
+  const hasMock = /기출변형|모의고사/.test(featureText);
+  const hasClinic = /클리닉|질의응답/.test(featureText);
+  if (subtitle.tail && hasMock && hasClinic) {
+    return `${subtitle.tail}. 매주 기출변형 모의고사와 수업 후 클리닉으로 시험 전까지 관리합니다.`;
+  }
+  return subtitle.tail || compactText(config.subtitle) || compactText(config.tagline);
+}
+
+interface PremiumHeroFact {
+  label: string;
+  value: string;
+}
+
+function buildHeroFacts(sections: LandingSection[]): PremiumHeroFact[] {
+  const facts: PremiumHeroFact[] = [];
+  const seen = new Set<string>();
+  const add = (label: string, value: string) => {
+    const clean = compactText(value);
+    if (!clean || seen.has(label)) return;
+    seen.add(label);
+    facts.push({ label, value: clean });
+  };
+
+  const program = getItems<ProgramItem>(sections, "programs")[0];
+  const programText = `${program?.badge || ""} ${program?.title || ""} ${program?.description || ""}`;
+  const featureText = getItems<FeatureItem>(sections, "features").map((item) => `${item.title} ${item.description}`).join(" ");
+  const managementText = getItems<ManagementCardItem>(sections, "management_system").map((item) => `${item.title} ${item.description}`).join(" ");
+  const instructorText = getInstructorProfiles(sections).map((item) => `${item.bio || ""} ${(item.experience || []).join(" ")}`).join(" ");
+  const allText = `${programText} ${featureText} ${managementText} ${instructorText}`;
+
+  if (/마포.*고등학교|모든 고등학교|고등학생/.test(programText)) add("대상", "마포 고등학생");
+  if (program?.badge) add("개강", program.badge);
+  if (/6\s*\+?\s*1|직보/.test(programText)) add("구성", "6+1 직보");
+  if (/기출변형|모의고사/.test(allText)) add("실전", "매주 기출변형");
+  if (/클리닉|질의응답/.test(allText)) add("관리", "수업 후 클리닉");
+  if (/복습\s*영상|영상 무한|영상 무제한/.test(allText)) add("복습", "영상 무제한");
+  if (/대치/.test(instructorText)) add("검증", "대치동 출강");
+
+  return facts.slice(0, 4);
+}
+
+function getEnabledSection(sections: LandingSection[], type: string): LandingSection | undefined {
+  return sections.find((s) => s.type === type && s.enabled);
+}
+
 function targetFromLink(link: string, isInternal?: boolean): PremiumHeroTarget {
   if (isInternal || link.startsWith("/")) return { kind: "route", to: link || "/landing" };
   return { kind: "href", href: link || "/landing" };
@@ -460,10 +543,10 @@ function buildPremiumHeroItems({
 }): PremiumHeroStageItem[] {
   const items: PremiumHeroStageItem[] = [{
     key: "hero-main",
-    kicker: "Premium Class",
-    title: compactText(config.tagline) || compactText(config.brand_name) || "박철 과학",
-    body: compactText(config.subtitle),
-    navTitle: "메인",
+    kicker: compactText(config.tagline) || "Premium Class",
+    title: buildHeroMainTitle(config, sections),
+    body: buildHeroMainBody(config, sections),
+    navTitle: "처음으로",
     ctaLabel: primaryCta.label,
     target: targetFromLink(primaryCta.link, primaryCta.isInternal),
   }];
@@ -553,6 +636,13 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
   const heroSingle = compactText(config.hero_image_url);
   const visualSlides = heroImgs.length > 0 ? heroImgs : (heroSingle ? [heroSingle] : (featuredPhoto ? [featuredPhoto] : []));
   const visualUsesInstructorFallback = heroImgs.length === 0 && !heroSingle && Boolean(featuredPhoto);
+  const heroFacts = buildHeroFacts(sections);
+  const scheduleTarget: PremiumHeroTarget | null = getEnabledSection(sections, "programs")
+    ? { kind: "section", sectionType: "programs" }
+    : null;
+  const proofTarget: PremiumHeroTarget | null = getEnabledSection(sections, "hit_reports")
+    ? { kind: "route", to: "/landing/reports" }
+    : null;
   const current = heroItems[idx % heroItems.length] || heroItems[0];
   const activeVisual = visualSlides.length > 0 ? idx % visualSlides.length : -1;
 
@@ -665,8 +755,39 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
             </p>
           )}
 
+          {heroFacts.length > 0 && (
+            <div className="pd-hero-facts" style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${heroFacts.length}, minmax(0, 1fr))`,
+              gap: 8,
+              maxWidth: 620,
+              margin: "-12px 0 30px",
+            }}>
+              {heroFacts.map((fact) => (
+                <div key={fact.label} style={{
+                  minWidth: 0,
+                  padding: "11px 12px",
+                  borderRadius: 8,
+                  background: "rgba(7,11,20,0.46)",
+                  border: `1px solid ${cardBorder}`,
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 4 }}>{fact.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", lineHeight: 1.22, letterSpacing: 0 }}>{fact.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="pd-hero-cta" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <PremiumHeroCta label={cta.label} target={cta.target} gold={gold} goldRgb={goldRgb} />
+            {scheduleTarget && (
+              <PremiumHeroSecondaryCta label="시간표 보기" target={scheduleTarget} textPrimary={textPrimary} cardBorder={cardBorder} />
+            )}
+            {!scheduleTarget && proofTarget && (
+              <PremiumHeroSecondaryCta label="적중 사례" target={proofTarget} textPrimary={textPrimary} cardBorder={cardBorder} />
+            )}
             {config.contact?.phone && (
               <a href={`tel:${config.contact.phone.replace(/-/g,"")}`} style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
@@ -892,6 +1013,19 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
             min-height: 64px !important;
             padding: 0 14px !important;
           }
+          .pd-hero-facts {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            margin: -14px 0 24px !important;
+          }
+          .pd-hero-h1 {
+            font-size: 36px !important;
+            line-height: 1.08 !important;
+          }
+          .pd-hero-sub {
+            font-size: 15.5px !important;
+            line-height: 1.62 !important;
+            margin-bottom: 30px !important;
+          }
         }
         @media (prefers-reduced-motion: reduce) {
           .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-fade-target {
@@ -957,6 +1091,53 @@ function PremiumHeroCta({ label, target, gold, goldRgb }: { label: string; targe
   );
 }
 
+function PremiumHeroSecondaryCta({ label, target, textPrimary, cardBorder }: { label: string; target: PremiumHeroTarget; textPrimary: string; cardBorder: string }) {
+  const content = (
+    <>
+      {label}
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+    </>
+  );
+  const style = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    minHeight: 52,
+    padding: "0 22px",
+    background: "rgba(245,241,232,0.08)",
+    color: textPrimary,
+    border: `1px solid ${cardBorder}`,
+    borderRadius: 8,
+    fontSize: 15,
+    fontWeight: 900,
+    letterSpacing: 0,
+    textDecoration: "none",
+    cursor: "pointer",
+    backdropFilter: "blur(8px)",
+  };
+
+  if (target.kind === "section") {
+    return (
+      <button type="button" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
+        {content}
+      </button>
+    );
+  }
+  if (target.kind === "route") {
+    return (
+      <Link to={target.to} style={style}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <a href={target.href} style={style}>
+      {content}
+    </a>
+  );
+}
+
 function RailButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -978,6 +1159,88 @@ function RailButton({ label, onClick, children }: { label: string; onClick: () =
         {children}
       </svg>
     </button>
+  );
+}
+
+function PremiumDecisionBand({
+  sections,
+  primaryCta,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  gold,
+  goldRgb,
+  cardBorder,
+  bgAlt,
+}: {
+  sections: LandingSection[];
+  primaryCta: { label: string; link: string; isInternal: boolean };
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  gold: string;
+  goldRgb: string;
+  cardBorder: string;
+  bgAlt: string;
+}) {
+  const facts = buildHeroFacts(sections);
+  if (facts.length === 0) return null;
+  const hasPrograms = Boolean(getEnabledSection(sections, "programs"));
+  const hasReports = Boolean(getEnabledSection(sections, "hit_reports"));
+  return (
+    <div style={{
+      background: bgAlt,
+      borderTop: `1px solid ${cardBorder}`,
+      borderBottom: `1px solid ${cardBorder}`,
+      padding: "22px 24px",
+    }}>
+      <div style={{
+        maxWidth: 1200,
+        margin: "0 auto",
+        display: "grid",
+        gridTemplateColumns: "minmax(220px, 0.78fr) minmax(0, 1.22fr) auto",
+        gap: 18,
+        alignItems: "center",
+      }} className="pd-decision-band">
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0, textTransform: "uppercase", color: gold, marginBottom: 6 }}>Before You Call</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>수강 결정 전에 바로 보는 핵심</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))`, gap: 10 }} className="pd-decision-facts">
+          {facts.map((fact) => (
+            <div key={fact.label} style={{ minWidth: 0, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.035)", border: `1px solid ${cardBorder}` }}>
+              <div style={{ fontSize: 10, fontWeight: 900, color: textMuted, letterSpacing: 0, textTransform: "uppercase", marginBottom: 4 }}>{fact.label}</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>{fact.value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {hasPrograms && (
+            <button type="button" onClick={() => scrollToLandingSection("programs")} style={{ minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid rgba(${goldRgb},0.42)`, background: `rgba(${goldRgb},0.13)`, color: gold, fontSize: 13, fontWeight: 900, cursor: "pointer", letterSpacing: 0 }}>
+              시간표
+            </button>
+          )}
+          {hasReports && (
+            <Link to="/landing/reports" style={{ display: "inline-flex", alignItems: "center", minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid ${cardBorder}`, color: textSecondary, textDecoration: "none", fontSize: 13, fontWeight: 900, letterSpacing: 0 }}>
+              적중 사례
+            </Link>
+          )}
+          <a href={primaryCta.link || "/landing#contact"} style={{ display: "inline-flex", alignItems: "center", minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid ${cardBorder}`, color: textSecondary, textDecoration: "none", fontSize: 13, fontWeight: 900, letterSpacing: 0 }}>
+            문의
+          </a>
+        </div>
+      </div>
+      <style>{`
+        @media (max-width: 920px) {
+          .pd-decision-band {
+            grid-template-columns: 1fr !important;
+          }
+          .pd-decision-facts {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 
