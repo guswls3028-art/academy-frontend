@@ -399,16 +399,16 @@ function StudentAppProof() {
 
           <div className={styles.phoneWall} aria-label="학생전용앱 영상 화면 캡처">
             <figure className={`${styles.phoneFrame} ${styles.phoneFrameLead}`}>
-              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
-              <figcaption>재생 목록과 이어보기</figcaption>
+              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
+              <figcaption>플레이어·댓글·이어보기</figcaption>
             </figure>
             <figure className={styles.phoneFrame}>
               <img src="/promo/student-video-app.png" alt="학생전용앱 영상 강의 홈 화면" loading="lazy" />
               <figcaption>학생앱 강의 홈</figcaption>
             </figure>
             <figure className={styles.phoneFrame}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
-              <figcaption>플레이어·댓글</figcaption>
+              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
+              <figcaption>재생 목록과 진도</figcaption>
             </figure>
           </div>
         </div>

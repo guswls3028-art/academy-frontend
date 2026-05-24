@@ -2,8 +2,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
-  BookOpen,
-  ChevronDown,
   CircleHelp,
   ClipboardList,
   CreditCard,
@@ -14,6 +12,7 @@ import {
   MousePointer2,
   PanelLeftOpen,
   PhoneCall,
+  PlayCircle,
   Sparkles,
   X,
 } from "lucide-react";
@@ -23,39 +22,17 @@ import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/promo", icon: Home, note: "수업 OS 개요" },
-  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "도메인별 기능" },
-  { label: "랜딩", path: "/promo/landing-samples", icon: BookOpen, note: "수업 소개 샘플" },
+  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "핵심 기능·증거 화면" },
+  { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 영상 학습" },
   { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
   { label: "FAQ", path: "/promo/faq", icon: CircleHelp, note: "자주 묻는 질문" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "수업 맞춤 상담" },
 ];
 
-const QUICK_GROUPS = [
-  {
-    title: "수업 흐름",
-    links: [
-      { label: "수업·수강생 관리", path: "/promo/features" },
-      { label: "AI 채점", path: "/promo/ai-grading" },
-      { label: "영상 학습", path: "/promo/video-platform" },
-    ],
-  },
-  {
-    title: "비용 확인",
-    links: [
-      { label: "요금제 비교", path: "/promo/pricing" },
-      { label: "데모 요청", path: "/promo/demo" },
-      { label: "문의하기", path: "/promo/contact" },
-    ],
-  },
-  {
-    title: "수업 홍보",
-    links: [
-      { label: "랜딩 샘플", path: "/promo/landing-samples" },
-      { label: "기능 소개", path: "/promo/features" },
-      { label: "수업 소개 페이지", path: "/promo/landing-samples" },
-    ],
-  },
-];
+const ACTIVE_ALIASES: Record<string, string[]> = {
+  "/promo/features": ["/promo/ai-grading"],
+  "/promo/contact": ["/promo/demo"],
+};
 
 type PromoLocationState = {
   openLogin?: boolean;
@@ -63,7 +40,9 @@ type PromoLocationState = {
 
 function isActive(pathname: string, path: string) {
   if (path === "/promo") return pathname === "/promo";
-  return pathname === path || pathname.startsWith(`${path}/`);
+  const direct = pathname === path || pathname.startsWith(`${path}/`);
+  const aliased = ACTIVE_ALIASES[path]?.some((alias) => pathname === alias || pathname.startsWith(`${alias}/`));
+  return direct || Boolean(aliased);
 }
 
 function Header() {
@@ -124,22 +103,6 @@ function Header() {
                 );
               })}
             </nav>
-
-            <div className={styles.navPopover} aria-label="빠른 메뉴">
-              {QUICK_GROUPS.map((group) => (
-                <section key={group.title}>
-                  <h2>{group.title}</h2>
-                  <div>
-                    {group.links.map((link) => (
-                      <Link key={`${group.title}-${link.label}`} to={link.path}>
-                        {link.label}
-                        <ChevronDown size={14} aria-hidden="true" />
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
           </div>
 
           <div className={styles.headerActions}>

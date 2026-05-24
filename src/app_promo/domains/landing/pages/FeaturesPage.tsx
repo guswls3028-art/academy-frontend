@@ -1,122 +1,313 @@
-// PATH: src/app_promo/domains/landing/pages/FeaturesPage.tsx
 import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  BellRing,
+  BookOpenCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  GraduationCap,
+  MessageSquareText,
+  PlayCircle,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import CtaSection from "../components/CtaSection";
+import styles from "./PromoPages.module.css";
 
-interface FeatureGroup {
-  category: string;
-  color: string;
+type ProofCard = {
+  id: string;
+  badge: string;
+  title: string;
+  body: string;
+  image: string;
+  alt: string;
+  points: string[];
+  ctaPath: string;
+  ctaLabel: string;
+  tone: "video" | "alimtalk" | "admin";
+  phone?: boolean;
+  featured?: boolean;
+};
+
+type FeatureGroup = {
+  id: string;
+  title: string;
+  kicker: string;
+  body: string;
+  icon: LucideIcon;
+  accentBg: string;
   items: { title: string; desc: string }[];
-}
+};
 
-const GROUPS: FeatureGroup[] = [
+const PROOF_CARDS: ProofCard[] = [
   {
-    category: "수강생/수업 관리",
-    color: "bg-blue-600",
+    id: "student-video",
+    badge: "학생전용앱 실제 화면",
+    title: "수강생은 앱에서 영상을 이어 보고, 강사님은 시청 이력으로 챙깁니다",
+    body: "영상 기능은 강사님이 학부모에게 설명하기 가장 쉬운 상품 포인트입니다. 외부 링크가 아니라 학생전용앱 안에서 강의 목록, 재생, 댓글, 이어보기가 연결됩니다.",
+    image: "/promo/student-video-player.png",
+    alt: "학생전용앱 영상 플레이어와 댓글 화면",
+    points: ["영상 플레이어, 댓글, 좋아요가 학생앱 안에 표시", "마지막 재생 위치와 시청 상태를 후속 지도에 활용", "미시청 학생에게 영상 확인 알림톡으로 연결"],
+    ctaPath: "/promo/video-platform",
+    ctaLabel: "영상 기능 상세 보기",
+    tone: "video",
+    phone: true,
+    featured: true,
+  },
+  {
+    id: "alimtalk",
+    badge: "관리자 자동발송 화면",
+    title: "알림톡 자동발송은 반복 연락을 운영 이벤트로 바꿉니다",
+    body: "가입, 출결, 시험, 과제, 결제, 영상 안내처럼 반복되는 상황을 템플릿과 발송 시점으로 묶어 관리합니다.",
+    image: "/promo/admin-alimtalk-auto-send.png",
+    alt: "관리자 알림톡 자동발송 설정 화면",
+    points: ["운영 구간별 자동발송 트리거 설정", "항상 활성·수동 발송 상태를 화면에서 구분", "승인 템플릿과 발송 채널을 한 곳에서 관리"],
+    ctaPath: "/promo/features#communication",
+    ctaLabel: "알림톡 기능 보기",
+    tone: "alimtalk",
+  },
+  {
+    id: "exam-proof",
+    badge: "시험·성적 흐름",
+    title: "시험과 성적은 채점에서 멈추지 않고 피드백으로 이어집니다",
+    body: "시험 운영, 점수 입력, 성적 분석, 보강 판단이 따로 흩어지지 않게 같은 흐름에서 보이도록 정리합니다.",
+    image: "/promo/admin-scores.png",
+    alt: "관리자 성적 분석 화면",
+    points: ["수강생별 성적과 미처리 확인", "AI 채점은 강사 검수 구조로 설명", "성적표와 수업결과 안내로 연결"],
+    ctaPath: "/promo/ai-grading",
+    ctaLabel: "AI 채점 상세 보기",
+    tone: "admin",
+  },
+];
+
+const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    id: "class-management",
+    title: "수업·수강생 관리",
+    kicker: "CLASS CONTROL",
+    body: "강사님이 매일 확인하는 강의, 차시, 담당 수강생, 출결 상태를 한 화면 흐름으로 묶습니다.",
+    icon: BookOpenCheck,
+    accentBg: "#dff7f4",
     items: [
-      { title: "수강생 등록 및 상태 관리", desc: "수강생 기본 정보, 수강 상태, 수업 메모를 한 곳에서 관리합니다." },
-      { title: "반/수업 편성", desc: "강의·차시 단위로 반을 구성하고 수강생을 배정합니다." },
-      { title: "출결 관리", desc: "수업별 출결을 기록하고 이력을 추적합니다." },
-      { title: "학부모/수강생 연락 관리", desc: "수강생-학부모 연결 및 커뮤니케이션 채널을 통합합니다." },
+      { title: "강의·차시 구조", desc: "강의 목록, 지난 강의, 수강생, 출결, 리포트를 같은 도메인에서 관리합니다." },
+      { title: "수강생 상태 관리", desc: "수강 상태, 메모, 담당 강사, 학부모 연락 흐름을 수업 운영 기준으로 정리합니다." },
+      { title: "출결 기록", desc: "입실, 결석, 보강 필요 여부를 남기고 알림톡 안내와 연결합니다." },
+      { title: "오늘 할 일 확인", desc: "미답변 질문, 학생 제출, 채점·성적, 영상 관리를 대시보드에서 바로 확인합니다." },
     ],
   },
   {
-    category: "시험/과제/성적",
-    color: "bg-indigo-600",
+    id: "exam-score",
+    title: "시험·과제·성적",
+    kicker: "TEST TO FEEDBACK",
+    body: "시험이 끝난 뒤 강사님이 해야 하는 채점, 분석, 피드백, 보강 판단을 이어주는 영역입니다.",
+    icon: ClipboardCheck,
+    accentBg: "#e7ecff",
     items: [
-      { title: "시험 생성", desc: "객관식, 단답형, 서술형 등 다양한 문항 유형을 지원합니다." },
-      { title: "과제 생성 및 제출", desc: "과제를 생성하고 수강생 제출 현황을 실시간 확인합니다." },
-      { title: "성적 입력 및 분석", desc: "점수 입력, 등급 산정, 수강생별·시험별 분석 리포트를 제공합니다." },
-      { title: "리포트/피드백", desc: "수강생별 피드백을 기록하고 성적표에 반영합니다." },
+      { title: "시험 생성", desc: "객관식, OX형, 단답형, 서술형 등 문항 유형별 채점 정책을 설정합니다." },
+      { title: "과제 제출 확인", desc: "제출 대기, 제출 완료, 미처리 상태를 강사님이 바로 판단할 수 있게 보여줍니다." },
+      { title: "성적 분석", desc: "점수 입력, 총점 계산, 시험별·수강생별 분석을 후속 지도 자료로 남깁니다." },
+      { title: "피드백 기록", desc: "수업 결과와 성적 코멘트를 남기고 학부모 안내로 이어갈 수 있습니다." },
     ],
   },
   {
-    category: "AI 자동채점",
-    color: "bg-violet-600",
+    id: "student-video-flow",
+    title: "학생전용앱 영상 학습",
+    kicker: "STUDENT VIDEO",
+    body: "선생님들이 좋아할 핵심 기능입니다. 학생이 앱에서 바로 복습하고, 강사님은 시청 상태를 근거로 지도합니다.",
+    icon: Smartphone,
+    accentBg: "#fff0d2",
     items: [
-      { title: "객관식·단답형 자동채점", desc: "정답 매칭으로 즉시 채점합니다." },
-      { title: "서술형 보조 평가", desc: "키워드 분석, 루브릭 기반 점수 추천을 AI가 제안합니다." },
-      { title: "검수 워크플로우", desc: "자동채점 결과를 강사가 검토·확정하는 흐름을 제공합니다." },
+      { title: "앱 안의 영상 목록", desc: "수강생은 학생전용앱에서 강의별 영상 목록과 재생 목록을 확인합니다." },
+      { title: "자체 플레이어", desc: "이어보기, 배속, 전체화면, 댓글을 학습 흐름에 맞게 제공합니다." },
+      { title: "시청 이력", desc: "시청 시간, 마지막 위치, 완료 여부를 확인해 후속 지도를 잡습니다." },
+      { title: "영상 안내 연결", desc: "미시청 학생에게 복습 영상 확인을 알림톡으로 자연스럽게 안내합니다." },
     ],
   },
   {
-    category: "영상 학습",
-    color: "bg-rose-500",
+    id: "communication",
+    title: "알림톡·학부모 커뮤니케이션",
+    kicker: "PARENT TOUCHPOINT",
+    body: "반복 연락은 자동화하고, 중요한 피드백은 선생님 말투가 유지되도록 템플릿 기준을 잡습니다.",
+    icon: BellRing,
+    accentBg: "#ffe7ef",
     items: [
-      { title: "강의 영상 등록", desc: "차시별 영상을 업로드하고 공개 범위를 설정합니다." },
-      { title: "학생전용앱 재생", desc: "수강생이 앱에서 강의 목록, 재생 목록, 이어보기까지 확인합니다." },
-      { title: "자체 플레이어 재생", desc: "이어보기, 배속, 전체화면, 댓글 등 학습에 맞춘 재생 경험을 제공합니다." },
-      { title: "재생 이력 추적", desc: "수강생별 시청 시간, 마지막 위치, 완료 여부를 자동 수집합니다." },
-      { title: "학습 흐름 연동", desc: "영상 → 과제 → 시험 → 후속 안내로 자연스럽게 연결됩니다." },
+      { title: "알림톡 자동발송", desc: "가입, 출결, 시험, 과제, 클리닉, 결제, 커뮤니티 이벤트별 자동발송을 설정합니다." },
+      { title: "입실·결석 안내", desc: "출결 처리와 동시에 학부모에게 상황을 알려 반복 연락을 줄입니다." },
+      { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 기준으로 수업 결과 안내를 보냅니다." },
+      { title: "질문 응답 흐름", desc: "학생 질문과 강사 답변을 남겨 수업 이후 커뮤니케이션을 정리합니다." },
     ],
   },
   {
-    category: "커뮤니케이션",
-    color: "bg-amber-500",
+    id: "clinic",
+    title: "보강·클리닉·후속 조치",
+    kicker: "AFTER CLASS",
+    body: "성적이 낮거나 영상을 보지 않은 학생을 그냥 넘기지 않도록 후속 조치의 근거를 남깁니다.",
+    icon: GraduationCap,
+    accentBg: "#e7f7fb",
     items: [
-      { title: "알림톡 자동발송", desc: "학원 운영 이벤트가 발생하면 승인 템플릿 기준으로 알림톡을 자동 발송합니다." },
-      { title: "입실·결석 알림", desc: "출결 처리와 동시에 학부모에게 입실 또는 결석 상황을 안내합니다." },
-      { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 기준으로 수업 결과를 발송합니다." },
-      { title: "영상 시청 안내", desc: "미시청 학생에게 복습 영상 확인을 독려하는 안내를 보낼 수 있습니다." },
-      { title: "학부모 커뮤니케이션", desc: "학부모에게 학습 현황, 성적, 보강 결과를 일관된 문구로 공유합니다." },
-      { title: "질문 응답(QnA)", desc: "수강생 질문에 강사가 답변하는 게시판을 제공합니다." },
-    ],
-  },
-  {
-    category: "보강/클리닉",
-    color: "bg-emerald-600",
-    items: [
-      { title: "보강 예약 관리", desc: "보강 일정을 등록하고 수강생별 이력을 관리합니다." },
-      { title: "피드백 기록", desc: "상담·피드백 내용을 기록하고 후속 조치를 추적합니다." },
-      { title: "후속 조치 관리", desc: "보강 결과에 따른 학습 계획 조정을 지원합니다." },
+      { title: "보강 예약", desc: "보강 일정을 등록하고 학생별 보강 이력을 확인합니다." },
+      { title: "클리닉 메모", desc: "상담, 피드백, 약점, 과제 이력을 학생별로 누적합니다." },
+      { title: "후속 대상자 판단", desc: "성적, 과제, 영상 시청 상태를 기준으로 다음 조치가 필요한 학생을 찾습니다." },
+      { title: "운영 리포트", desc: "강사님이 학부모에게 설명할 수 있는 근거를 화면에 남깁니다." },
     ],
   },
 ];
 
+const NAV_LINKS = [
+  { label: "학생앱 영상", href: "#student-video" },
+  { label: "알림톡 자동발송", href: "#alimtalk" },
+  { label: "시험·성적", href: "#exam-score" },
+  { label: "커뮤니케이션", href: "#communication" },
+  { label: "보강·클리닉", href: "#clinic" },
+];
+
 export default function FeaturesPage() {
   return (
-    <>
-      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">기능 소개</h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            강사님의 수업 운영에 필요한 기능을 카테고리별로 확인하세요.
-          </p>
-        </div>
-      </section>
-
-      <section className="py-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
-          {GROUPS.map((g) => (
-            <div key={g.category}>
-              <div className="flex items-center gap-3 mb-5">
-                <div className={`w-1 h-6 rounded-full ${g.color}`} />
-                <h2 className="text-lg font-bold text-gray-900">{g.category}</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {g.items.map((item) => (
-                  <div key={item.title} className="p-5 rounded-xl border border-gray-100 bg-white hover:shadow-sm transition-shadow">
-                    <h3 className="font-semibold text-gray-900 mb-1.5 text-sm">{item.title}</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
+    <div className={styles.page}>
+      <section className={`${styles.hero} ${styles.heroFeatures}`} aria-labelledby="features-title">
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>FEATURES THAT TEACHERS CAN TRUST</span>
+            <h1 id="features-title">기능 목록이 아니라, 강사님의 수업 흐름으로 보여드립니다</h1>
+            <p>
+              강사님이 실제 홍보 전에 확인해야 할 핵심은 “학생이 무엇을 보고, 선생님은 무엇을 근거로 관리하는가”입니다.
+              학생전용앱 영상과 알림톡 자동발송을 증거 화면 중심으로 먼저 배치했습니다.
+            </p>
+            <div className={styles.heroActions}>
+              <a href="#student-video" className={styles.primaryCta}>
+                학생앱 영상 화면 보기
+                <PlayCircle size={18} />
+              </a>
+              <a href="#alimtalk" className={styles.secondaryCta}>
+                알림톡 자동발송 보기
+                <MessageSquareText size={18} />
+              </a>
             </div>
-          ))}
+          </div>
+
+          <aside className={styles.heroProofStack} aria-label="핵심 기능 미리보기">
+            <figure className={styles.heroScreen}>
+              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어 화면" />
+              <figcaption className={styles.heroScreenCaption}>
+                <strong>학생전용앱 영상</strong>
+                <span>이어보기 · 댓글 · 플레이어</span>
+              </figcaption>
+            </figure>
+            <div className={styles.miniProofGrid}>
+              <article>
+                <strong>알림톡 자동발송</strong>
+                <p>가입, 출결, 시험, 영상 안내를 이벤트 기준으로 발송합니다.</p>
+              </article>
+              <article>
+                <strong>강사 검수형 채점</strong>
+                <p>자동 판정과 AI 보조 평가를 강사 확정 구조로 설명합니다.</p>
+              </article>
+            </div>
+          </aside>
         </div>
       </section>
 
-      <section className="py-10 text-center">
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link to="/promo/ai-grading" className="px-6 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-            AI 자동채점 상세 →
-          </Link>
-          <Link to="/promo/video-platform" className="px-6 py-2.5 text-sm font-semibold text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors">
-            동영상 플레이어 상세 →
-          </Link>
+      <section className={styles.proofSection} aria-labelledby="proof-title">
+        <div className={styles.sectionWrap}>
+          <header className={styles.sectionHead}>
+            <span>
+              <Sparkles size={16} />
+              PRODUCT PROOF
+            </span>
+            <h2 id="proof-title">선생님이 “이건 학부모에게 설명된다”고 느낄 화면</h2>
+            <p>
+              기능명만 나열하면 설득력이 약합니다. 실제 학생앱과 관리자 화면을 크게 보여주고,
+              강사님이 수업 운영에서 체감할 이유를 바로 붙였습니다.
+            </p>
+          </header>
+
+          <div className={styles.proofGrid}>
+            {PROOF_CARDS.map((card) => (
+              <article
+                key={card.id}
+                id={card.id}
+                className={`${styles.proofCard} ${card.featured ? styles.proofCardFeatured : ""}`}
+                data-tone={card.tone}
+              >
+                <div className={`${styles.proofVisual} ${card.phone ? styles.proofPhoneVisual : ""}`}>
+                  <img src={card.image} alt={card.alt} loading="lazy" />
+                </div>
+                <div className={styles.proofText}>
+                  <span className={styles.proofBadge}>{card.badge}</span>
+                  <h3>{card.title}</h3>
+                  <p>{card.body}</p>
+                  <ul>
+                    {card.points.map((point) => (
+                      <li key={point}>
+                        <CheckCircle2 size={16} />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to={card.ctaPath} className={styles.textButton}>
+                    {card.ctaLabel}
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.catalogSection} aria-labelledby="feature-catalog-title">
+        <div className={styles.sectionWrap}>
+          <header className={styles.sectionHead}>
+            <span>FEATURE CATALOG</span>
+            <h2 id="feature-catalog-title">전체 기능도 같은 톤으로 정리했습니다</h2>
+            <p>강사님이 읽는 페이지라서 “있습니다”보다 “어떤 운영 부담이 줄어드는지”를 기준으로 문구를 다시 묶었습니다.</p>
+          </header>
+
+          <div className={styles.catalogLayout}>
+            <aside className={styles.catalogRail} aria-label="기능 바로가기">
+              <span className={styles.railTitle}>핵심 섹션</span>
+              {NAV_LINKS.map((link) => (
+                <a key={link.href} href={link.href}>
+                  {link.label}
+                  <ArrowRight size={14} />
+                </a>
+              ))}
+            </aside>
+
+            <div className={styles.groupStack}>
+              {FEATURE_GROUPS.map((group) => {
+                const Icon = group.icon;
+                return (
+                  <article key={group.id} id={group.id} className={styles.groupCard}>
+                    <div className={styles.groupHeader}>
+                      <span className={styles.groupIcon} style={{ "--accent-bg": group.accentBg } as CSSProperties}>
+                        <Icon size={22} />
+                      </span>
+                      <div>
+                        <span className={styles.groupKicker}>{group.kicker}</span>
+                        <h2>{group.title}</h2>
+                        <p>{group.body}</p>
+                      </div>
+                    </div>
+                    <div className={styles.featureGrid}>
+                      {group.items.map((item) => (
+                        <div key={item.title} className={styles.featureItem}>
+                          <strong>{item.title}</strong>
+                          <p>{item.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
       <CtaSection />
-    </>
+    </div>
   );
 }

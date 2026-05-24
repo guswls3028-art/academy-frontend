@@ -1,140 +1,194 @@
-// PATH: src/app_promo/domains/landing/pages/AiGradingPage.tsx
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  FileCheck2,
+  ScanSearch,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import styles from "./PromoPages.module.css";
 
 const TIERS = [
   {
     level: "1단계",
-    title: "안정적으로 구현된 범위",
-    color: "text-blue-600 bg-blue-50",
-    items: [
-      "객관식 자동채점",
-      "OX형 자동채점",
-      "단답형 키워드 일치 채점",
-      "문항별 배점 자동 계산",
-      "총점 자동 합산",
-      "정답/오답/미응답 구분",
-    ],
+    title: "즉시 자동 판정",
+    body: "정답이 명확한 문항은 제출 후 바로 판정해 강사님의 반복 채점 시간을 줄입니다.",
+    items: ["객관식 자동채점", "OX형 자동채점", "단답형 키워드 일치", "문항별 배점·총점 계산"],
   },
   {
     level: "2단계",
-    title: "수업 정책에 따라 확장 가능",
-    color: "text-indigo-600 bg-indigo-50",
-    items: [
-      "유사 정답 허용 사전",
-      "오탈자 허용 규칙",
-      "복수 정답 허용",
-      "부분 점수 규칙",
-      "문항별 피드백 템플릿 추천",
-    ],
+    title: "수업 정책 반영",
+    body: "강사님 수업에서 허용하는 유사 정답, 부분 점수, 복수 정답을 정책으로 관리합니다.",
+    items: ["유사 정답 허용", "오탈자 허용 규칙", "복수 정답", "부분 점수 기준"],
   },
   {
     level: "3단계",
     title: "AI 보조 평가",
-    color: "text-violet-600 bg-violet-50",
-    items: [
-      "서술형 초안 채점 제안",
-      "답변 요약",
-      "핵심 키워드 포함 분석",
-      "루브릭 기반 점수 추천",
-      "강사용 검수 화면 제공",
-    ],
+    body: "서술형은 완전 자동 확정이 아니라, AI가 초안을 제안하고 강사님이 검수합니다.",
+    items: ["서술형 초안 점수 제안", "핵심 키워드 포함 분석", "루브릭 기반 추천", "강사용 검수 화면"],
   },
 ];
 
 const WORKFLOW = [
-  "시험 생성 시 문항별 채점 방식 설정",
-  "자동채점 실행 또는 제출 시 자동 실행",
-  "채점 결과 대량 검토 화면",
-  "이의 가능 문항 필터",
-  "강사 검수 후 확정 처리",
-  "확정 결과를 성적표·통계로 반영",
+  { title: "문항별 채점 방식 설정", desc: "시험 생성 시 자동 판정, 키워드, 검수 필요 여부를 문항별로 정합니다." },
+  { title: "제출 후 자동채점 실행", desc: "명확한 문항은 자동으로 처리하고 애매한 문항은 검수 대상으로 남깁니다." },
+  { title: "이의 가능 문항 검토", desc: "유사 정답, 미응답, 부분 점수 후보를 강사님이 확인합니다." },
+  { title: "강사 확정 후 성적 반영", desc: "최종 점수는 성적표와 수업결과 안내 흐름에 반영됩니다." },
 ];
 
 export default function AiGradingPage() {
   return (
-    <>
-      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-            AI 자동채점
-          </h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            객관식부터 서술형 보조 평가까지.
-            반복 채점 업무를 줄이는 실무형 AI 채점 시스템.
-          </p>
-        </div>
-      </section>
-
-      {/* Definition */}
-      <section className="py-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="p-5 rounded-xl bg-blue-50/60 border border-blue-100">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              AI 자동채점은 모든 문제를 완전 자동으로 평가한다는 의미가 아니라,
-              <strong> 문항 유형에 따라 자동 판정 또는 강사 보조 평가를 지원하는 채점 시스템</strong>입니다.
+    <div className={styles.page}>
+      <section className={`${styles.hero} ${styles.heroAi}`} aria-labelledby="ai-grading-title">
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>AI GRADING, TEACHER IN CONTROL</span>
+            <h1 id="ai-grading-title">자동채점은 빠르게, 최종 판단은 강사님이 합니다</h1>
+            <p>
+              강사님에게 중요한 건 “AI가 다 해준다”는 과장이 아니라, 어떤 문항은 자동 판정되고
+              어떤 문항은 검수해야 하는지 명확히 보이는 구조입니다.
             </p>
+            <div className={styles.heroActions}>
+              <Link to="/promo/demo" className={styles.primaryCta}>
+                채점 흐름 데모 요청
+                <ArrowRight size={18} />
+              </Link>
+              <Link to="/promo/features#exam-score" className={styles.secondaryCta}>
+                시험·성적 기능 보기
+              </Link>
+            </div>
           </div>
+
+          <aside className={styles.heroProofStack} aria-label="AI 채점 화면 미리보기">
+            <figure className={styles.heroScreen}>
+              <img src="/promo/admin-exams.png" alt="관리자 시험 운영 화면" />
+              <figcaption className={styles.heroScreenCaption}>
+                <strong>시험 운영</strong>
+                <span>문항 · 채점 · 검수</span>
+              </figcaption>
+            </figure>
+            <div className={styles.miniProofGrid}>
+              <article>
+                <strong>명확한 문항 자동화</strong>
+                <p>객관식, OX형, 단답형은 반복 채점 시간을 줄입니다.</p>
+              </article>
+              <article>
+                <strong>서술형은 검수 구조</strong>
+                <p>AI 제안은 초안이고 최종 확정 권한은 강사님에게 있습니다.</p>
+              </article>
+            </div>
+          </aside>
         </div>
       </section>
 
-      {/* Tiers */}
-      <section className="py-14">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">지원 범위</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {TIERS.map((t) => (
-              <div key={t.level} className="p-6 rounded-2xl border border-gray-100 bg-white">
-                <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full mb-3 ${t.color}`}>
-                  {t.level}
-                </span>
-                <h3 className="font-bold text-gray-900 mb-4">{t.title}</h3>
-                <ul className="space-y-2">
-                  {t.items.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="text-gray-300 mt-0.5">·</span>
+      <section className={styles.proofSection} aria-labelledby="ai-definition-title">
+        <div className={styles.sectionWrap}>
+          <header className={styles.sectionHead}>
+            <span>
+              <ShieldCheck size={16} />
+              CLEAR DEFINITION
+            </span>
+            <h2 id="ai-definition-title">홍보 문구에서 가장 조심해야 할 지점부터 분리했습니다</h2>
+            <p>
+              AI 자동채점은 모든 답안을 무조건 확정한다는 뜻이 아닙니다. 정답 기준이 분명한 문항은 자동화하고,
+              해석이 필요한 답안은 AI 보조 평가와 강사 검수로 처리합니다.
+            </p>
+          </header>
+
+          <div className={styles.rangeGrid}>
+            {TIERS.map((tier) => (
+              <article key={tier.level} className={styles.rangeCard}>
+                <span className={styles.proofBadge}>{tier.level}</span>
+                <h3>{tier.title}</h3>
+                <p>{tier.body}</p>
+                <ul>
+                  {tier.items.map((item) => (
+                    <li key={item}>
+                      <CheckCircle2 size={16} />
                       {item}
                     </li>
                   ))}
                 </ul>
-              </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Workflow */}
-      <section className="py-14 bg-gray-50/60">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">강사 검수 워크플로우</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
-            {WORKFLOW.map((item, i) => (
-              <div key={item} className="flex items-start gap-3 p-4 rounded-xl bg-white border border-gray-100">
-                <span className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-sm text-gray-700">{item}</span>
+      <section className={styles.workflowSection} aria-labelledby="grading-workflow-title">
+        <div className={styles.sectionWrap}>
+          <div className={styles.workflowLayout}>
+            <div className={styles.workflowCopy}>
+              <span className={styles.compactLabel}>
+                <ClipboardCheck size={16} />
+                REVIEW WORKFLOW
+              </span>
+              <h2 id="grading-workflow-title">강사 검수가 남아 있어야 현장 신뢰가 생깁니다</h2>
+              <p>
+                성적은 민감합니다. 그래서 자동채점 결과를 바로 학부모에게 내보내기보다,
+                강사님이 확인하고 확정한 결과만 성적표와 안내에 반영하는 구조가 안전합니다.
+              </p>
+              <div className={styles.principleBox}>
+                <strong>채점 원칙</strong>
+                <p>최종 점수 확정 권한은 강사님에게 있고, 자동채점 결과는 검토 가능한 근거로 남깁니다.</p>
               </div>
-            ))}
+            </div>
+
+            <ol className={styles.processList}>
+              {WORKFLOW.map((step) => (
+                <li key={step.title}>
+                  <strong>{step.title}</strong>
+                  <p>{step.desc}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </section>
 
-      {/* Principle */}
-      <section className="py-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="p-5 rounded-xl bg-amber-50/60 border border-amber-100">
-            <h3 className="font-bold text-gray-900 mb-2 text-sm">채점 원칙</h3>
-            <ul className="space-y-1.5 text-sm text-gray-600">
-              <li>· 최종 점수 확정 권한은 강사님에게 있습니다.</li>
-              <li>· 자동채점 결과는 로그와 함께 검토 가능합니다.</li>
-              <li>· 문항 유형별로 자동채점 허용 여부를 설정할 수 있습니다.</li>
-              <li>· 서술형 평가는 '초안 채점 + 강사 검수' 구조를 권장합니다.</li>
-            </ul>
-          </div>
+      <section className={styles.catalogSection} aria-labelledby="grading-proof-title">
+        <div className={styles.sectionWrap}>
+          <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} id="exam-score">
+            <div className={styles.proofVisual}>
+              <img src="/promo/admin-scores.png" alt="관리자 성적 분석 화면" loading="lazy" />
+            </div>
+            <div className={styles.proofText}>
+              <span className={styles.proofBadge}>
+                <Sparkles size={15} />
+                성적 반영
+              </span>
+              <h3 id="grading-proof-title">채점 결과는 성적 분석과 수업결과 안내로 이어집니다</h3>
+              <p>
+                강사님이 검수한 결과만 성적표, 문항 분석, 보강 판단, 학부모 안내의 근거가 됩니다.
+                이 흐름이 있어야 AI 기능이 현장에서 불안하지 않습니다.
+              </p>
+              <ul>
+                <li>
+                  <FileCheck2 size={16} />
+                  문항별 판정 결과와 총점을 한 화면에서 확인
+                </li>
+                <li>
+                  <ScanSearch size={16} />
+                  검수가 필요한 답안을 따로 골라 확인
+                </li>
+                <li>
+                  <CheckCircle2 size={16} />
+                  확정 결과를 성적표와 알림톡 안내에 반영
+                </li>
+              </ul>
+              <Link to="/promo/features#alimtalk" className={styles.textButton}>
+                결과 안내 흐름 보기
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+          </article>
         </div>
       </section>
 
       <CtaSection />
-    </>
+    </div>
   );
 }

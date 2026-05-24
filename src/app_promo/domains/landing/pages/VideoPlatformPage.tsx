@@ -66,6 +66,34 @@ export default function VideoPlatformPage() {
         </div>
       </section>
 
+      <section className={styles.screenEvidence} aria-labelledby="video-screens-title">
+        <div className={styles.sectionWrap}>
+          <header className={styles.sectionHead}>
+            <span>ACTUAL STUDENT APP</span>
+            <h2 id="video-screens-title">학생이 보는 화면을 크게 보여줘야 기능이 팔립니다</h2>
+            <p>
+              영상은 설명보다 화면 증거가 먼저입니다. 학생전용앱의 플레이어와 재생 목록을 크게 배치해
+              강사님이 학부모에게 설명할 장면을 바로 떠올릴 수 있게 했습니다.
+            </p>
+          </header>
+
+          <div className={styles.evidenceGrid}>
+            <figure className={`${styles.evidencePhone} ${styles.evidencePhoneLead}`}>
+              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
+              <figcaption>학생전용앱 플레이어 · 댓글 · 이어보기</figcaption>
+            </figure>
+            <figure className={styles.evidencePhone}>
+              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
+              <figcaption>재생 목록 · 시청 진도</figcaption>
+            </figure>
+            <figure className={styles.evidencePhone}>
+              <img src="/promo/student-video-app.png" alt="학생전용앱 영상 강의 홈 화면" loading="lazy" />
+              <figcaption>학생앱 강의 홈</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       <section className={styles.proofSection} aria-labelledby="student-proof-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
@@ -148,7 +176,7 @@ export default function VideoPlatformPage() {
         </div>
       </section>
 
-      <section className={styles.alimtalkSection} aria-labelledby="video-alimtalk-title">
+      <section className={styles.alimtalkSection} id="alimtalk" aria-labelledby="video-alimtalk-title">
         <div className={styles.sectionWrap}>
           <div className={styles.alimtalkBox}>
             <div className={styles.alimtalkCopy}>
@@ -171,6 +199,10 @@ export default function VideoPlatformPage() {
                 </article>
               ))}
             </div>
+            <figure className={styles.alimtalkVisual}>
+              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 자동발송 설정 화면" loading="lazy" />
+              <figcaption>관리자 자동발송 설정 화면</figcaption>
+            </figure>
           </div>
         </div>
       </section>

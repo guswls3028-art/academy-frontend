@@ -85,11 +85,12 @@
 .desktopNav {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .headerScrolled .desktopNav {
@@ -99,17 +100,19 @@
 
 .desktopNav a,
 .mobileTabs a {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  border: 1px solid transparent;
   border-radius: 7px;
   color: currentColor;
   font-size: 13px;
   font-weight: 850;
   text-decoration: none;
-  opacity: 0.72;
-  transition: opacity 160ms ease, background 160ms ease, color 160ms ease;
+  opacity: 0.78;
+  transition: opacity 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
 .desktopNav a {
@@ -118,24 +121,63 @@
 }
 
 .desktopNav a:hover,
-.desktopNav a:focus-visible,
-.desktopNav a.isActive,
-.mobileTabs a:hover,
-.mobileTabs a:focus-visible,
-.mobileTabs a.isActive {
+.desktopNav a:focus-visible {
   opacity: 1;
   outline: none;
-  background: rgba(125, 211, 252, 0.16);
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(125, 211, 252, 0.14);
+  transform: translateY(-1px);
+}
+
+.desktopNav a.isActive {
+  opacity: 1;
+  color: #06131b;
+  border-color: rgba(125, 211, 252, 0.88);
+  background: #7dd3fc;
+  box-shadow: 0 10px 26px rgba(125, 211, 252, 0.24);
 }
 
 .headerScrolled .desktopNav a:hover,
-.headerScrolled .desktopNav a:focus-visible,
-.headerScrolled .desktopNav a.isActive,
+.headerScrolled .desktopNav a:focus-visible {
+  color: #0f172a;
+  border-color: rgba(8, 32, 42, 0.2);
+  background: #e7f7fb;
+}
+
+.headerScrolled .desktopNav a.isActive {
+  color: #fff;
+  border-color: #08202a;
+  background: #08202a;
+  box-shadow: 0 10px 24px rgba(8, 32, 42, 0.18);
+}
+
+.mobileTabs a:hover,
+.mobileTabs a:focus-visible {
+  opacity: 1;
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.32);
+  background: rgba(125, 211, 252, 0.12);
+}
+
+.mobileTabs a.isActive {
+  opacity: 1;
+  color: #06131b;
+  border-color: rgba(125, 211, 252, 0.85);
+  background: #7dd3fc;
+  box-shadow: 0 10px 24px rgba(125, 211, 252, 0.2);
+}
+
 .headerScrolled .mobileTabs a:hover,
-.headerScrolled .mobileTabs a:focus-visible,
+.headerScrolled .mobileTabs a:focus-visible {
+  color: #0f172a;
+  border-color: rgba(8, 32, 42, 0.18);
+  background: #e7f7fb;
+}
+
 .headerScrolled .mobileTabs a.isActive {
-  color: #075985;
-  background: #e0f7ff;
+  color: #fff;
+  border-color: #08202a;
+  background: #08202a;
 }
 
 .navPopover {
@@ -221,11 +263,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 900;
   text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease;
 }
 
 .phoneLink {
@@ -239,8 +283,42 @@
 }
 
 .demoLink {
+  border-color: rgba(125, 211, 252, 0.76);
   color: #06131b;
   background: #7dd3fc;
+}
+
+.phoneLink:hover,
+.phoneLink:focus-visible,
+.loginLink:hover,
+.loginLink:focus-visible,
+.demoLink:hover,
+.demoLink:focus-visible {
+  opacity: 1;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.phoneLink:hover,
+.phoneLink:focus-visible,
+.loginLink:hover,
+.loginLink:focus-visible {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.headerScrolled .phoneLink:hover,
+.headerScrolled .phoneLink:focus-visible,
+.headerScrolled .loginLink:hover,
+.headerScrolled .loginLink:focus-visible {
+  border-color: rgba(8, 32, 42, 0.12);
+  background: #eef7f8;
+}
+
+.demoLink:hover,
+.demoLink:focus-visible {
+  background: #9ee8df;
+  box-shadow: 0 12px 28px rgba(125, 211, 252, 0.2);
 }
 
 .mobileMenuButton {
@@ -538,7 +616,23 @@
   .header,
   .navPopover,
   .sidebarBackdrop,
-  .mobileSidebar {
+  .mobileSidebar,
+  .desktopNav a,
+  .mobileTabs a,
+  .phoneLink,
+  .loginLink,
+  .demoLink {
     transition: none;
+  }
+
+  .desktopNav a:hover,
+  .desktopNav a:focus-visible,
+  .phoneLink:hover,
+  .phoneLink:focus-visible,
+  .loginLink:hover,
+  .loginLink:focus-visible,
+  .demoLink:hover,
+  .demoLink:focus-visible {
+    transform: none;
   }
 }
