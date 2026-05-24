@@ -11,6 +11,7 @@ const PptGeneratorPage = lazy(() => import("./ppt/pages/PptGeneratorPage"));
 const OmrGeneratorPage = lazy(() => import("./omr/pages/OmrGeneratorPage"));
 const ClinicPrintoutPage = lazy(() => import("./clinic/pages/ClinicPrintoutPage"));
 const StopwatchPage = lazy(() => import("./stopwatch/pages/StopwatchPage"));
+const ProblemStudioPage = lazy(() => import("./problem-studio/pages/ProblemStudioPage"));
 
 function Fallback() {
   return (
@@ -30,6 +31,7 @@ export default function ToolsRoutes() {
           <Route path="omr" element={<Suspense fallback={<Fallback />}><OmrGeneratorPage /></Suspense>} />
           <Route path="clinic" element={<Suspense fallback={<Fallback />}><ClinicPrintoutPage /></Suspense>} />
           <Route path="stopwatch" element={<Suspense fallback={<Fallback />}><StopwatchPage /></Suspense>} />
+          <Route path="problem-studio" element={<Suspense fallback={<Fallback />}><ProblemStudioPage /></Suspense>} />
         </Route>
       </Routes>
     </Suspense>
