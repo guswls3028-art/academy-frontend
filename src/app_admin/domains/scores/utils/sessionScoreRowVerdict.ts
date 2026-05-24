@@ -10,7 +10,12 @@
 import type { ScoreBlock, SessionScoreRow } from "../api/sessionScores";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
 
+export function getScoreBlockOmrReviewStatus(block: ScoreBlock | null | undefined): "review" | null {
+  return block?.meta?.status === "OMR_REVIEW_REQUIRED" ? "review" : null;
+}
+
 function blockIsFailed(block: ScoreBlock): boolean {
+  if (getScoreBlockOmrReviewStatus(block)) return false;
   // 점수가 없으면 미달 (성적 입력 안 됨)
   if (block.score == null) return true;
   const fp = deriveFinalPass({
@@ -42,7 +47,7 @@ export function getSessionRowFailedItemTitles(row: SessionScoreRow): string[] {
   return items;
 }
 
-export type SessionScoresTableVerdictKind = "clinic_target" | "fail" | "pass" | "dash";
+export type SessionScoresTableVerdictKind = "clinic_target" | "review" | "fail" | "pass" | "dash";
 
 /**
  * ScoresTable「판정」열 표시.
@@ -51,6 +56,9 @@ export type SessionScoresTableVerdictKind = "clinic_target" | "fail" | "pass" | 
  */
 export function getSessionScoresTableVerdict(row: SessionScoreRow): SessionScoresTableVerdictKind {
   if (row.clinic_required) return "clinic_target";
+  if ((row.exams ?? []).some((exam) => getScoreBlockOmrReviewStatus(exam.block) === "review")) {
+    return "review";
+  }
   const failed = getSessionRowFailedItemTitles(row);
   if (failed.length > 0) return "fail";
   const hasItems = (row.exams?.length ?? 0) + (row.homeworks?.length ?? 0) > 0;

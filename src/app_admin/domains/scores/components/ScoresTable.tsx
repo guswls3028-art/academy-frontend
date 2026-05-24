@@ -21,7 +21,7 @@ import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
-import { getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
+import { getScoreBlockOmrReviewStatus, getSessionScoresTableVerdict } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -960,15 +960,18 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         if (col.sub === "total") {
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
-                          const scoreText = isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
+                          const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
-                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes;
+                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus;
                           const showAddRetake = isEditMode && hasClinicLink && !hasRetakes && block?.passed === false;
                           /* 2026-05-13 학원장 결정: 학생별 상태 = 진행중/이수/판정 — 클리닉 1차/2차/3차 정합.
                              셀 hover 시 tooltip 으로 노출. */
                           const achLabel = achievementLabel(block);
-                          const cellTitle = `${ex.title} · ${scoreText} · ${achLabel}`;
+                          const cellTitle = omrReviewStatus === "review"
+                            ? `${ex.title} · OMR 검토 필요`
+                            : `${ex.title} · ${scoreText} · ${achLabel}`;
                           return (
                             <td
                               key={col.key}
@@ -977,7 +980,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
                               {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
-                              {...(block?.achievement ? { "data-achievement": block.achievement } : isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
+                              {...(block?.achievement ? { "data-achievement": block.achievement } : omrReviewStatus === "review" ? { "data-achievement": "OMR_REVIEW_REQUIRED" } : isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
                               className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               title={cellTitle}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
@@ -1066,7 +1069,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   <span className="ds-cell-retake-badge">{entry?.attempt_count}차 시도</span>
                                 </div>
                               ) : (
-                                <span className={`font-medium ${isExamNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
+                                <span className={`font-medium ${omrReviewStatus === "review" || isExamNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
                               )}
                               {showAddRetake && (
                                 <div
@@ -1083,8 +1086,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "objective") {
                           const objScore = block?.objective_score ?? block?.score ?? null;
-                          const scoreText = objScore == null ? "-" : `${Math.round(objScore)}`;
-                          const canEdit = isEditMode && examEditObjective && !block?.is_locked;
+                          const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : `${Math.round(objScore)}`;
+                          const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus;
                           return (
                             <td
                               key={col.key}
@@ -1143,16 +1147,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }}
                                 />
                               ) : (
-                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
-                              )}
-                            </td>
+                              <span className={`font-medium ${omrReviewStatus === "review" ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
+                            )}
+                          </td>
                           );
                         }
 
                         if (col.sub === "subjective") {
                           const subScore = block?.subjective_score ?? null;
-                          const scoreText = subScore != null ? String(Math.round(subScore)) : "-";
-                          const canEdit = col.editable && !block?.is_locked;
+                          const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? String(Math.round(subScore)) : "-";
+                          const canEdit = col.editable && !block?.is_locked && !omrReviewStatus;
                           return (
                             <td
                               key={col.key}
@@ -1211,7 +1216,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }}
                                 />
                               ) : (
-                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                                <span className={`font-medium ${omrReviewStatus === "review" ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
                               )}
                             </td>
                           );
@@ -1537,6 +1542,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       badge = (
                         <span className="ds-scores-pass-fail-badge" data-tone="warning" title="클리닉 미해소 대상">
                           대상
+                        </span>
+                      );
+                    } else if (verdict === "review") {
+                      badge = (
+                        <span className="ds-scores-pass-fail-badge" data-tone="warning" title="OMR 검토가 필요한 답안지">
+                          검토
                         </span>
                       );
                     } else if (verdict === "fail") {

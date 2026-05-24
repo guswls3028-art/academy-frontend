@@ -43,6 +43,9 @@ export type ScoreBlock = {
 
   meta?: {
     status?: string | null;
+    manual_review_required?: boolean;
+    manual_review_reasons?: string[];
+    submission_id?: number;
   } | null;
 };
 
