@@ -124,7 +124,7 @@ const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\
 const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 const JOB_POLL_INTERVAL_MS = 1500;
-const JOB_TIMEOUT_MS = 600_000;
+const JOB_TIMEOUT_MS = 900_000;
 
 const GENERATION_VARIANTS: GenerationVariantItem[] = [
   {
