@@ -28,6 +28,7 @@ function nextImageIdentity() {
 }
 
 const MAX_IMAGES = 500;
+const MAX_TOTAL_IMAGE_BYTES = 1024 * 1024 * 1024;
 
 const DEFAULT_SETTINGS: PptSettings = {
   aspect_ratio: "16:9",
@@ -100,17 +101,42 @@ export default function PptGeneratorPage() {
       };
     });
     setImages((prev) => {
-      const available = MAX_IMAGES - prev.length;
-      if (available <= 0) {
+      const currentBytes = prev.reduce((sum, item) => sum + item.file.size, 0);
+      let nextBytes = currentBytes;
+      const accepted: ImageItem[] = [];
+      const rejectedByCount: ImageItem[] = [];
+      const rejectedByTotalSize: ImageItem[] = [];
+
+      for (const item of newItems) {
+        if (prev.length + accepted.length >= MAX_IMAGES) {
+          rejectedByCount.push(item);
+          continue;
+        }
+        if (nextBytes + item.file.size > MAX_TOTAL_IMAGE_BYTES) {
+          rejectedByTotalSize.push(item);
+          continue;
+        }
+        accepted.push(item);
+        nextBytes += item.file.size;
+      }
+
+      if (accepted.length === 0) {
         newItems.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-        feedback.warning(`최대 ${MAX_IMAGES}장까지 업로드할 수 있습니다.`);
+        if (rejectedByCount.length > 0) {
+          feedback.warning(`최대 ${MAX_IMAGES}장까지 업로드할 수 있습니다.`);
+        }
+        if (rejectedByTotalSize.length > 0) {
+          feedback.warning(`이미지는 총 ${formatBytes(MAX_TOTAL_IMAGE_BYTES)}까지 업로드할 수 있습니다.`);
+        }
         return prev;
       }
-      const accepted = newItems.slice(0, available);
-      const rejected = newItems.slice(available);
-      rejected.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-      if (rejected.length > 0) {
+
+      [...rejectedByCount, ...rejectedByTotalSize].forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      if (rejectedByCount.length > 0) {
         feedback.warning(`최대 ${MAX_IMAGES}장까지 업로드할 수 있어 ${accepted.length}장만 추가했습니다.`);
+      }
+      if (rejectedByTotalSize.length > 0) {
+        feedback.warning(`총 ${formatBytes(MAX_TOTAL_IMAGE_BYTES)} 한도 때문에 ${accepted.length}장만 추가했습니다.`);
       }
       return sortImageItems([...prev, ...accepted], sortMode);
     });
@@ -562,5 +588,6 @@ function Spinner() {
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
