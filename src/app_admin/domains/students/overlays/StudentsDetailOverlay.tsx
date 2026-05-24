@@ -24,6 +24,7 @@ import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import StudentEnrollmentMatrixDrawer from "../components/StudentEnrollmentMatrixDrawer";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
@@ -737,19 +738,6 @@ function StudentStatTabs({
   );
 }
 
-/** 2글자 강의 딱지 — chipLabel > 강의명 앞 2자 */
-function LectureChip({ name, color, chipLabel }: { name: string; color?: string; chipLabel?: string | null }) {
-  const label = (chipLabel && chipLabel.length >= 1 ? chipLabel : (name || "").replace(/\s/g, "")).slice(0, 2) || "강의";
-  return (
-    <span
-      className={styles.lectureChip}
-      style={{ "--lecture-chip-color": color || "var(--color-brand-primary)" } as CSSProperties}
-    >
-      {label}
-    </span>
-  );
-}
-
 function ChevronIcon() {
   return (
     <svg
@@ -825,7 +813,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
             data-inactive={isActive ? undefined : ""}
             onClick={canNav ? () => onNavigate(`/admin/lectures/${lectureId}`) : undefined}
           >
-            <LectureChip name={lectureName || ""} color={lectureColor ?? undefined} chipLabel={lectureChipLabel} />
+            <LectureChip lectureName={lectureName || ""} color={lectureColor ?? undefined} chipLabel={lectureChipLabel} size={24} />
             <div className={styles.recordMain}>
               <span className={styles.recordTitle}>{lectureName || "-"}</span>
               {enrolledAt && (
@@ -869,7 +857,7 @@ function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate
             data-clickable=""
             onClick={() => onNavigate("/admin/clinic/operations")}
           >
-            {lectureName && <LectureChip name={lectureName} color={lectureColor ?? undefined} chipLabel={lectureChip} />}
+            {lectureName && <LectureChip lectureName={lectureName} color={lectureColor ?? undefined} chipLabel={lectureChip} size={24} />}
             <div className={styles.recordMain}>
               <span className={styles.recordTitle}>
                 {p.student_name ? `${p.student_name} 클리닉` : "클리닉"}
@@ -967,7 +955,7 @@ function ScoreTab({ data, onNavigate }: { data: StudentExamGrade[]; onNavigate: 
             onClick={canNav ? () => onNavigate(navPath) : undefined}
           >
             {exam.lecture_title && (
-              <LectureChip name={exam.lecture_title} color={exam.lecture_color ?? undefined} chipLabel={exam.lecture_chip_label} />
+              <LectureChip lectureName={exam.lecture_title} color={exam.lecture_color ?? undefined} chipLabel={exam.lecture_chip_label} size={24} />
             )}
             <div className={styles.recordMain}>
               <span className={styles.recordTitle}>{exam.title}</span>
@@ -1032,7 +1020,7 @@ function HomeworkTab({ data, onNavigate }: { data: StudentHomeworkGrade[]; onNav
             onClick={canNav ? () => onNavigate(navPath) : undefined}
           >
             {hw.lecture_title && (
-              <LectureChip name={hw.lecture_title} color={hw.lecture_color ?? undefined} chipLabel={hw.lecture_chip_label} />
+              <LectureChip lectureName={hw.lecture_title} color={hw.lecture_color ?? undefined} chipLabel={hw.lecture_chip_label} size={24} />
             )}
             <div className={styles.recordMain}>
               <span className={styles.recordTitle}>{hw.title}</span>

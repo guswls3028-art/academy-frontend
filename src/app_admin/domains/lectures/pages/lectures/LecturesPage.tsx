@@ -8,8 +8,9 @@ import { Settings } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
 
@@ -87,23 +88,6 @@ function extractLectureListPayload(value: unknown): unknown[] {
 
 function columnWidthStyle(width: number): CSSProperties {
   return { width };
-}
-
-function lectureChipStyle(color?: string | null): CSSProperties {
-  const bg = color || DEFAULT_PRESET_COLOR;
-  return {
-    color: isLightColor(bg) ? "#1a1a1a" : "#fff",
-    background: bg,
-    border: "none",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
-    textShadow: "0 0 1px rgba(0,0,0,0.2)",
-    letterSpacing: 0,
-  };
-}
-
-function isLightColor(hex: string): boolean {
-  const c = String(hex || "").toLowerCase();
-  return ["#eab308", "#06b6d4"].includes(c);
 }
 
 function isLectureSortKey(key: string): key is LectureSortKey {
@@ -363,12 +347,12 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                     >
                       <td className="font-semibold">
                         <span className="inline-flex items-center gap-[10px]">
-                          <span
-                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[12px] font-extrabold"
-                            style={lectureChipStyle(lec.color)}
-                          >
-                            {(lec.chip_label || lec.title || "??").slice(0, 2)}
-                          </span>
+                          <LectureChip
+                            lectureName={lec.title}
+                            color={lec.color ?? undefined}
+                            chipLabel={lec.chip_label}
+                            size={32}
+                          />
                           {lec.title}
                         </span>
                       </td>

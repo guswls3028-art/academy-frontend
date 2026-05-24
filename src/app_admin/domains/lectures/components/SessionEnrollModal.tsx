@@ -546,7 +546,7 @@ export default function SessionEnrollModal({
     const profilePhotoUrl = student.profilePhotoUrl ?? undefined;
     const enrollments: LectureChipInfo[] = Array.isArray(student.enrollments)
       ? student.enrollments.map((en) => ({
-          lectureName: en.lectureName ?? "??",
+          lectureName: en.lectureName ?? "",
           color: en.lectureColor ?? undefined,
           chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
         }))
@@ -592,7 +592,7 @@ export default function SessionEnrollModal({
           profilePhotoUrl: s.profilePhotoUrl ?? undefined,
           enrollments: Array.isArray(s.enrollments)
             ? s.enrollments.map((en) => ({
-                lectureName: en.lectureName ?? "??",
+                lectureName: en.lectureName ?? "",
                 color: en.lectureColor ?? undefined,
                 chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
               }))

@@ -111,6 +111,7 @@ export async function createLecture(payload: {
   end_date?: string | null;
   lecture_time?: string | null;
   color?: string | null;
+  chip_label?: string | null;
   is_active?: boolean;
 }) {
   const res = await api.post("/lectures/lectures/", payload);

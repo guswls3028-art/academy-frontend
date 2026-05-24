@@ -366,7 +366,7 @@ export default function LectureStudentsPage() {
                             avatarSize={24}
                             lectures={
                               lecture?.title
-                                ? [{ lectureName: lecture.title, color: lecture.color }]
+                                ? [{ lectureName: lecture.title, color: lecture.color, chipLabel: lecture.chip_label }]
                                 : undefined
                             }
                             chipSize={16}

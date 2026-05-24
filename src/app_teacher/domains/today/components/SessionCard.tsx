@@ -82,6 +82,7 @@ export default function SessionCard({ session }: Props) {
         <LectureChip
           lectureName={session.lecture_title ?? session.title}
           color={session.lecture_color ?? undefined}
+          chipLabel={session.lecture_chip_label ?? undefined}
           size={36}
         />
         <div className="flex-1 min-w-0">

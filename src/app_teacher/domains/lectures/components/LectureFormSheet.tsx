@@ -8,6 +8,8 @@ import { createLecture, updateLecture } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import LectureChip from "@/shared/ui/chips/LectureChip";
+import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -25,6 +27,7 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [color, setColor] = useState(COLORS[0]);
+  const [chipLabel, setChipLabel] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [lectureTime, setLectureTime] = useState("");
@@ -35,19 +38,25 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
       setName(editData.name || editData.instructor || "");
       setSubject(editData.subject || "");
       setColor(editData.color || COLORS[0]);
+      setChipLabel(editData.chip_label ?? editData.chipLabel ?? "");
       setStartDate(editData.start_date || "");
       setEndDate(editData.end_date || "");
       setLectureTime(editData.lecture_time || editData.lectureTime || "");
     } else {
       setTitle(""); setName(""); setSubject(""); setColor(COLORS[0]);
+      setChipLabel("");
       setStartDate(""); setEndDate(""); setLectureTime("");
     }
   }, [editData, open]);
+
+  const effectiveChipLabel = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(title);
+  const previewChipLabel = effectiveChipLabel || "강의";
 
   const mutation = useMutation({
     mutationFn: () => {
       const payload = {
         title, name, subject, color,
+        chip_label: effectiveChipLabel || null,
         start_date: startDate || null,
         end_date: endDate || null,
         lecture_time: lectureTime || null,
@@ -63,15 +72,51 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
     onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "강의를 수정하지 못했습니다." : "강의를 생성하지 못했습니다.")),
   });
 
-  const canSubmit = title.trim().length > 0 && !mutation.isPending;
+  const canSubmit =
+    title.trim().length > 0 &&
+    name.trim().length > 0 &&
+    subject.trim().length > 0 &&
+    lectureTime.trim().length > 0 &&
+    !mutation.isPending;
 
   return (
     <BottomSheet open={open} onClose={onClose} title={isEdit ? "강의 편집" : "강의 생성"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="강의명 *" value={title} onChange={setTitle} placeholder="예: 수학 심화반" />
-        <Field label="강사" value={name} onChange={setName} placeholder="담당 강사명" />
-        <Field label="과목" value={subject} onChange={setSubject} placeholder="예: 수학, 영어" />
-        <Field label="수업 시간" value={lectureTime} onChange={setLectureTime} placeholder="예: 월수금 18:00~20:00" />
+        <Field label="강사 *" value={name} onChange={setName} placeholder="담당 강사명" />
+        <Field label="과목 *" value={subject} onChange={setSubject} placeholder="예: 수학, 영어" />
+        <Field label="수업 시간 *" value={lectureTime} onChange={setLectureTime} placeholder="예: 월수금 18:00~20:00" />
+
+        <div>
+          <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>강의 딱지</label>
+          <div className="flex items-center gap-2">
+            <LectureChip
+              lectureName={title}
+              color={color}
+              chipLabel={previewChipLabel}
+              size={32}
+            />
+            <input
+              type="text"
+              value={chipLabel}
+              onChange={(e) => setChipLabel(normalizeLectureChipText(e.target.value))}
+              maxLength={2}
+              placeholder={normalizeLectureChipText(title) || "딱지"}
+              aria-label="강의 딱지 2글자"
+              className="text-sm outline-none"
+              style={{
+                width: 72,
+                padding: "8px 10px",
+                borderRadius: "var(--tc-radius-sm)",
+                border: "1px solid var(--tc-border-strong)",
+                background: "var(--tc-surface-soft)",
+                color: "var(--tc-text)",
+                textAlign: "center",
+                fontWeight: 700,
+              }}
+            />
+          </div>
+        </div>
 
         <div className="flex gap-2">
           <Field label="시작일" value={startDate} onChange={setStartDate} type="date" />

@@ -117,14 +117,14 @@ export default function StudentNameWithLectureChip({
         )}
       </span>
       {!(layout === "stacked" && lectureDisplay === "meta") && list.map((lec, i) => (
-          <LectureChip
-            key={`${lec.lectureName ?? ""}-${i}`}
-            lectureName={lec.lectureName || "??"}
-            color={lec.color ?? DEFAULT_COLOR}
-            size={chipSizeResolved}
-            chipLabel={lec.chipLabel}
-          />
-        ))}
+        <LectureChip
+          key={`${lec.lectureName ?? ""}-${i}`}
+          lectureName={lec.lectureName || ""}
+          color={lec.color ?? DEFAULT_COLOR}
+          size={chipSizeResolved}
+          chipLabel={lec.chipLabel}
+        />
+      ))}
     </span>
   );
 }

@@ -11,6 +11,7 @@ import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
@@ -201,7 +202,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
 
   if (!isOpen) return null;
 
-  const effectiveChipLabel = (chipLabel.trim() || title.trim().slice(0, 2)).slice(0, 2);
+  const effectiveChipLabel = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(title);
+  const previewChipLabel = effectiveChipLabel || "강의";
 
   function submit() {
     setApiError("");
@@ -443,9 +445,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
           <div className="lecture-create-chip-layout">
             <div className="lecture-create-chip-preview">
               <LectureChip
-                lectureName=""
+                lectureName={title}
                 color={color}
-                chipLabel={effectiveChipLabel || undefined}
+                chipLabel={previewChipLabel}
                 size={36}
               />
             </div>
@@ -462,7 +464,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 className="ds-input lecture-create-chip-input"
                 placeholder="아이콘"
                 value={chipLabel}
-                onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
+                onChange={(e) => setChipLabel(normalizeLectureChipText(e.target.value))}
                 maxLength={2}
                 disabled={isPending}
                 aria-label="아이콘(딱지 2글자)"

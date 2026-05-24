@@ -12,6 +12,7 @@ export interface TodaySession {
   date: string | null;
   lecture_title?: string;
   lecture_color?: string | null;
+  lecture_chip_label?: string | null;
   start_time?: string | null;
   end_time?: string | null;
   location?: string | null;

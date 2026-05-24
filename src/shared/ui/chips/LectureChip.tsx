@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { contrastTextColor } from "@/shared/ui/domain/constants";
+import { normalizeLectureChipText } from "./lectureChipText";
 import "./LectureChip.css";
 
 const DEFAULT_LECTURE_COLOR = "#3b82f6";
@@ -31,12 +32,9 @@ export default function LectureChip({
   const chipSize = Number.isFinite(size) && size > 0 ? size : 22;
   // 강의명 미설정/누락 시 "??" 같은 의문스러운 라벨 대신 chip 자체 미렌더
   // (예전 동작: 빈 파란 박스 노출 → 학생/시험 카드 시각 노이즈로 학원장이 정보로 오인)
-  const two = (chipLabel && chipLabel.trim())
-    ? String(chipLabel).trim().slice(0, 2)
-    : (lectureName && lectureName.trim() ? lectureName.trim().slice(0, 2) : "");
+  const two = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(lectureName);
   if (!two) return null;
-  // 2026-05-12 학원장 가시성 보강 — 8/9/10 → 10/12/14 / 큰 chip은 16
-  const fontSize = chipSize <= 18 ? 10 : chipSize <= 24 ? 12 : chipSize <= 32 ? 14 : 16;
+  const fontSize = getLectureChipFontSize(chipSize, two);
   const chipStyle: LectureChipStyle = {
     "--lecture-chip-size": `${chipSize}px`,
     "--lecture-chip-font-size": `${fontSize}px`,
@@ -54,4 +52,16 @@ export default function LectureChip({
       {two}
     </span>
   );
+}
+
+function getLectureChipFontSize(chipSize: number, label: string): number {
+  const chars = Array.from(label);
+  const hasWideGlyph = chars.some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
+  if (chars.length >= 2 && hasWideGlyph) {
+    return Math.max(8, Math.min(18, Math.floor(chipSize * 0.46)));
+  }
+  if (chars.length >= 2) {
+    return Math.max(9, Math.min(18, Math.floor(chipSize * 0.55)));
+  }
+  return Math.max(10, Math.min(18, Math.floor(chipSize * 0.62)));
 }
