@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/comms/pages/CommunicationPage.tsx
 // 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) + 작성 + 검색
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
@@ -41,6 +41,7 @@ export default function CommunicationPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { counts } = useTeacherPendingCounts();
@@ -48,6 +49,13 @@ export default function CommunicationPage() {
   const postType = POST_TYPE_MAP[tab];
   const isPostTab = tab !== "requests";
   const canWrite = WRITABLE_TABS.includes(tab);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const { data: posts, isLoading: postsLoading } = useQuery({
     queryKey: ["teacher-comms", tab, searchQuery],
@@ -76,6 +84,7 @@ export default function CommunicationPage() {
 
   const handleTabChange = useCallback((t: Tab) => {
     setTab(t);
+    setSearchInput("");
     setSearchQuery("");
     setSearchOpen(false);
   }, []);
@@ -92,14 +101,14 @@ export default function CommunicationPage() {
           <Search size={ICON.sm} className={styles.searchIcon} />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="제목, 내용, 작성자 검색"
             autoFocus
             className={styles.searchInput}
           />
           <button
-            onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+            onClick={() => { setSearchOpen(false); setSearchInput(""); setSearchQuery(""); }}
             className={styles.iconButton}
             type="button"
             aria-label="검색창 닫기"
@@ -181,7 +190,7 @@ export default function CommunicationPage() {
             ))}
           </div>
         ) : (
-          <EmptyState scope="panel" tone="empty" title={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : emptyTitle(tab)} />
+          <EmptyState scope="panel" tone="empty" title={searchInput.trim() ? `"${searchInput.trim()}" 검색 결과가 없습니다` : emptyTitle(tab)} />
         )}
       </div>
 

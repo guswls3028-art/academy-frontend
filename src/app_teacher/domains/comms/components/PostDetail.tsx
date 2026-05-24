@@ -4,10 +4,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin } from "../api";
-import type { Post, Reply } from "../api";
+import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin, fetchPostAttachmentDownload } from "../api";
+import type { Post, Reply, PostAttachment } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle } from "@teacher/shared/ui/Icons";
+import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, Paperclip, Download } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -41,6 +41,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
 
   const replyMutation = useMutation({
     mutationFn: () => createReply(post.id, replyText),
@@ -110,6 +111,18 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     setMenuOpen(false);
     const ok = await confirm({ title: "글 삭제", message: "이 글을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
     if (ok) deleteMutation.mutate();
+  };
+
+  const handleDownloadAttachment = async (attachment: PostAttachment) => {
+    setDownloadingAttachmentId(attachment.id);
+    try {
+      const data = await fetchPostAttachmentDownload(post.id, attachment.id);
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      teacherToast.error(extractApiError(e, "첨부파일을 열지 못했습니다."));
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
   };
 
   const postTypeLabel = (() => {
@@ -215,6 +228,52 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         )}
       </div>
 
+      {post.attachments && post.attachments.length > 0 && (
+        <div
+          className="rounded-xl"
+          style={{
+            padding: "var(--tc-space-3)",
+            background: "var(--tc-surface)",
+            border: "1px solid var(--tc-border-subtle)",
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-2 text-xs font-bold" style={{ color: "var(--tc-text)" }}>
+            <Paperclip size={ICON.sm} />
+            첨부파일 {post.attachments.length}개
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {post.attachments.map((attachment) => (
+              <button
+                key={attachment.id}
+                type="button"
+                onClick={() => void handleDownloadAttachment(attachment)}
+                disabled={downloadingAttachmentId === attachment.id}
+                aria-label={`${attachment.original_name} 다운로드`}
+                title={`${attachment.original_name} 다운로드`}
+                className="flex items-center gap-2 text-left cursor-pointer"
+                style={{
+                  width: "100%",
+                  minHeight: 40,
+                  padding: "8px 10px",
+                  borderRadius: "var(--tc-radius-sm)",
+                  border: "1px solid var(--tc-border)",
+                  background: "var(--tc-surface-soft)",
+                  color: "var(--tc-text)",
+                }}
+              >
+                <Download size={ICON.sm} style={{ color: "var(--tc-primary)", flex: "0 0 auto" }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[12px] font-semibold truncate">{attachment.original_name}</span>
+                  <span className="block text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {formatBytes(attachment.size_bytes)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Replies */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -298,4 +357,11 @@ function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void })
 
 function getAuthorName(post: Post): string {
   return post.author_display_name || post.created_by_display || (post.author_role === "staff" ? "선생님" : "학생");
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "크기 정보 없음";
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }

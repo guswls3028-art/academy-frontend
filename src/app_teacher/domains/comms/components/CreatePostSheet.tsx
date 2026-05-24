@@ -11,6 +11,7 @@ import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,7 @@ type Scope = "all" | "lecture" | "session";
 
 export default function CreatePostSheet({ open, onClose, postType, postTypeLabel }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -71,6 +73,14 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     return [];
   }, [scopeNodes, scope, lectureId, sessionId]);
   const scopeReady = scope === "all" || resolvedNodeIds.length > 0;
+  const hasDraft =
+    title.trim().length > 0 ||
+    content.trim().length > 0 ||
+    files.length > 0 ||
+    isUrgent ||
+    scope !== "all" ||
+    lectureId !== null ||
+    sessionId !== null;
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -117,10 +127,25 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     onClose();
   };
 
+  const requestClose = async () => {
+    if (mutation.isPending) return;
+    if (hasDraft) {
+      const ok = await confirm({
+        title: "작성 취소",
+        message: "입력한 내용과 첨부파일 선택이 사라집니다. 닫을까요?",
+        confirmText: "닫기",
+        cancelText: "계속 작성",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    resetAndClose();
+  };
+
   const canSubmit = title.trim().length > 0 && content.trim().length > 0 && scopeReady && !mutation.isPending;
 
   return (
-    <BottomSheet open={open} onClose={resetAndClose} title={`${postTypeLabel} 작성`}>
+    <BottomSheet open={open} onClose={() => void requestClose()} title={`${postTypeLabel} 작성`}>
       <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-4) 0 var(--tc-space-2)" }}>
         {/* Scope selector */}
         <div>

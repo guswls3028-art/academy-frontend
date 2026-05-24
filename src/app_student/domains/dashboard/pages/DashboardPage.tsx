@@ -211,10 +211,20 @@ export default function DashboardPage() {
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
   const today = ymdToday();
-  const todaySessions = useMemo(
-    () => (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today),
-    [sessions, today],
-  );
+  const todaySessions = useMemo<StudentSession[]>(() => {
+    const dashboardSessions = dashboard?.today_sessions;
+    if (dashboardSessions) {
+      return dashboardSessions.map((s) => ({
+        id: s.id,
+        title: s.title,
+        date: s.date,
+        status: s.status,
+        type: s.type ?? "session",
+        start_time: s.start_time ?? null,
+      }));
+    }
+    return (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
+  }, [dashboard?.today_sessions, sessions, today]);
 
   const nextSession = useMemo(() => {
     if (!sessions?.length) return null;

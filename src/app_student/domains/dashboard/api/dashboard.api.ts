@@ -22,6 +22,8 @@ export type DashboardSession = {
   title: string;
   date: string | null;
   status: string | null;
+  type?: "session" | "clinic";
+  start_time?: string | null;
 };
 
 export type StudentDashboardBadges = {
@@ -55,12 +57,17 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
       }))
     : [];
   const today_sessions = Array.isArray(data.today_sessions)
-    ? (data.today_sessions as DashboardSession[]).map((s) => ({
-        id: Number(s.id),
-        title: String(s.title ?? ""),
-        date: s.date != null ? String(s.date) : null,
-        status: s.status != null ? String(s.status) : null,
-      }))
+    ? (data.today_sessions as DashboardSession[]).map((s): DashboardSession => {
+        const type: DashboardSession["type"] = s.type === "clinic" ? "clinic" : "session";
+        return {
+          id: Number(s.id),
+          title: String(s.title ?? ""),
+          date: s.date != null ? String(s.date) : null,
+          status: s.status != null ? String(s.status) : null,
+          type,
+          start_time: s.start_time != null ? String(s.start_time) : null,
+        };
+      })
     : [];
 
   return {

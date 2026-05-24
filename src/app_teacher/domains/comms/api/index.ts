@@ -9,6 +9,7 @@ export interface Post {
   post_type: string;
   title: string;
   content: string;
+  attachments?: PostAttachment[];
   author_display_name?: string;
   created_by_display?: string;
   category_label?: string | null;
@@ -26,6 +27,14 @@ export interface Reply {
   author_display_name?: string;
   created_by_display?: string;
   author_role?: string;
+  created_at: string;
+}
+
+export interface PostAttachment {
+  id: number;
+  original_name: string;
+  size_bytes: number;
+  content_type?: string | null;
   created_at: string;
 }
 
@@ -132,6 +141,14 @@ export async function uploadPostAttachment(postId: number, file: File): Promise<
   const formData = new FormData();
   formData.append("files", file);
   const res = await api.post(`/community/posts/${postId}/attachments/`, formData);
+  return res.data;
+}
+
+export async function fetchPostAttachmentDownload(postId: number, attachmentId: number): Promise<{
+  url: string;
+  original_name: string;
+}> {
+  const res = await api.get(`/community/posts/${postId}/attachments/${attachmentId}/download/`);
   return res.data;
 }
 
