@@ -325,12 +325,23 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
         .filter((textNode) => {
           const el = textNode as HTMLElement;
           const cs = getComputedStyle(el);
+          const textRect = el.getBoundingClientRect();
+          const rowRect = (el.closest(".name-row.single, .name-cell") as HTMLElement | null)?.getBoundingClientRect() ?? textRect;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const lineRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+          range.detach();
+          const lineOutsideBox = lineRects.some((rect) =>
+            rect.left < textRect.left - 1 ||
+            rect.right > textRect.right + 1 ||
+            rect.top < rowRect.top - 1 ||
+            rect.bottom > rowRect.bottom + 1
+          );
           return (
-            el.scrollWidth > el.clientWidth + 1 ||
-            el.scrollHeight > el.clientHeight + 1 ||
             cs.overflow === "hidden" ||
             cs.textOverflow === "ellipsis" ||
-            cs.whiteSpace === "nowrap"
+            cs.whiteSpace === "nowrap" ||
+            lineOutsideBox
           );
         });
       const firstCell = pageEl.querySelector(".name-cell") as HTMLElement | null;
@@ -342,13 +353,19 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
         if (!checkbox || !text) return null;
         const checkboxRect = checkbox.getBoundingClientRect();
         const textRect = text.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const lineRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+        range.detach();
         return {
           centerDelta: Math.abs(
             checkboxRect.top + checkboxRect.height / 2 - (textRect.top + textRect.height / 2),
           ),
           gap: textRect.left - checkboxRect.right,
+          minLineLeftGap: Math.min(...lineRects.map((rect) => rect.left - checkboxRect.right)),
+          maxLineRightOverflow: Math.max(...lineRects.map((rect) => rect.right - textRect.right)),
         };
-      }).filter((metric): metric is { centerDelta: number; gap: number } => metric != null);
+      }).filter((metric): metric is { centerDelta: number; gap: number; minLineLeftGap: number; maxLineRightOverflow: number } => metric != null);
       const sampleColors = [
         ".section-header.both",
         ".section-header.exam",
@@ -371,6 +388,8 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
           maxCenterDelta: Math.max(0, ...alignmentMetrics.map((metric) => metric.centerDelta)),
           maxGap: Math.max(0, ...alignmentMetrics.map((metric) => metric.gap)),
           minGap: Math.min(...alignmentMetrics.map((metric) => metric.gap)),
+          minLineLeftGap: Math.min(...alignmentMetrics.map((metric) => metric.minLineLeftGap)),
+          maxLineRightOverflow: Math.max(0, ...alignmentMetrics.map((metric) => metric.maxLineRightOverflow)),
         },
         allSampleColorsGray: sampleColors.every(isGray),
         clippedCount: clipped.length,
@@ -380,11 +399,13 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(visibility.pageClass).toContain("page--dense");
     expect(visibility.nameCount).toBe(132);
     expect(visibility.pairedNameCount).toBe(132);
-    expect(visibility.nameCellFontSize).toBeGreaterThanOrEqual(14);
+    expect(visibility.nameCellFontSize).toBeGreaterThanOrEqual(27);
     expect(visibility.alignment.rowCount).toBe(132);
     expect(visibility.alignment.maxCenterDelta).toBeLessThanOrEqual(1.5);
     expect(visibility.alignment.maxGap).toBeLessThanOrEqual(6);
     expect(visibility.alignment.minGap).toBeGreaterThanOrEqual(0);
+    expect(visibility.alignment.minLineLeftGap).toBeGreaterThanOrEqual(0);
+    expect(visibility.alignment.maxLineRightOverflow).toBeLessThanOrEqual(1);
     expect(visibility.allSampleColorsGray).toBe(true);
     expect(visibility.clippedCount).toBe(0);
   });
@@ -411,27 +432,40 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
         if (!checkbox || !text) return null;
         const checkboxRect = checkbox.getBoundingClientRect();
         const textRect = text.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const lineRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+        range.detach();
         return {
+          fontSize: parseFloat(getComputedStyle(row).fontSize),
           centerDelta: Math.abs(
             checkboxRect.top + checkboxRect.height / 2 - (textRect.top + textRect.height / 2),
           ),
           gap: textRect.left - checkboxRect.right,
+          minLineLeftGap: Math.min(...lineRects.map((rect) => rect.left - checkboxRect.right)),
+          maxLineRightOverflow: Math.max(...lineRects.map((rect) => rect.right - textRect.right)),
         };
-      }).filter((metric): metric is { centerDelta: number; gap: number } => metric != null);
+      }).filter((metric): metric is { fontSize: number; centerDelta: number; gap: number; minLineLeftGap: number; maxLineRightOverflow: number } => metric != null);
       return {
         pageClass: pageEl.className,
         rowCount: metrics.length,
+        minFontSize: Math.min(...metrics.map((metric) => metric.fontSize)),
         maxCenterDelta: Math.max(0, ...metrics.map((metric) => metric.centerDelta)),
         maxGap: Math.max(0, ...metrics.map((metric) => metric.gap)),
         minGap: Math.min(...metrics.map((metric) => metric.gap)),
+        minLineLeftGap: Math.min(...metrics.map((metric) => metric.minLineLeftGap)),
+        maxLineRightOverflow: Math.max(0, ...metrics.map((metric) => metric.maxLineRightOverflow)),
       };
     });
 
     expect(alignment.pageClass).toContain("page--comfortable");
     expect(alignment.rowCount).toBe(5);
+    expect(alignment.minFontSize).toBeGreaterThanOrEqual(38);
     expect(alignment.maxCenterDelta).toBeLessThanOrEqual(1.5);
     expect(alignment.maxGap).toBeLessThanOrEqual(6);
     expect(alignment.minGap).toBeGreaterThanOrEqual(0);
+    expect(alignment.minLineLeftGap).toBeGreaterThanOrEqual(0);
+    expect(alignment.maxLineRightOverflow).toBeLessThanOrEqual(1);
   });
 
   test("성적탭 클리닉 미리보기는 완료 상태와 보강합격 학생을 제외한다", async ({ page }) => {
@@ -461,12 +495,23 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     await expect(frame.locator(".columns")).toContainText(longNames[0]);
     await expect(frame.locator(".footer-left")).toContainText(`전체 출석 ${longNames.length}명`);
     const pageSize = await frame.locator(".page").evaluate((node) => {
-      const rect = (node as HTMLElement).getBoundingClientRect();
-      return { width: rect.width, height: rect.height, ratio: rect.width / rect.height };
+      const pageEl = node as HTMLElement;
+      const rect = pageEl.getBoundingClientRect();
+      const scheduleRect = pageEl.querySelector(".schedule-box")?.getBoundingClientRect();
+      const footerRect = pageEl.querySelector(".footer")?.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height,
+        ratio: rect.width / rect.height,
+        scheduleInPage: !!scheduleRect && scheduleRect.top >= rect.top - 1 && scheduleRect.bottom <= rect.bottom + 1,
+        footerInPage: !!footerRect && footerRect.top >= rect.top - 1 && footerRect.bottom <= rect.bottom + 1,
+      };
     });
     expect(pageSize.width).toBeGreaterThan(1100);
     expect(pageSize.height).toBeGreaterThan(1550);
     expect(pageSize.ratio).toBeCloseTo(297 / 420, 2);
+    expect(pageSize.scheduleInPage).toBe(true);
+    expect(pageSize.footerInPage).toBe(true);
 
     const clipping = await frame.locator(".name-text").evaluateAll((nodes, expectedNames) => {
       return nodes
@@ -474,6 +519,18 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
         .map((node) => {
           const el = node as HTMLElement;
           const cs = getComputedStyle(el);
+          const textRect = el.getBoundingClientRect();
+          const rowRect = (el.closest(".name-row.single, .name-cell") as HTMLElement | null)?.getBoundingClientRect() ?? textRect;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const lineRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+          range.detach();
+          const lineOutsideBox = lineRects.some((rect) =>
+            rect.left < textRect.left - 1 ||
+            rect.right > textRect.right + 1 ||
+            rect.top < rowRect.top - 1 ||
+            rect.bottom > rowRect.bottom + 1
+          );
           return {
             text: el.textContent?.trim() || "",
             clientWidth: el.clientWidth,
@@ -483,17 +540,47 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
             overflow: cs.overflow,
             textOverflow: cs.textOverflow,
             whiteSpace: cs.whiteSpace,
+            lineOutsideBox,
           };
         })
         .filter((item) =>
-          item.scrollWidth > item.clientWidth + 1 ||
-          item.scrollHeight > item.clientHeight + 1 ||
           item.overflow === "hidden" ||
           item.textOverflow === "ellipsis" ||
-          item.whiteSpace === "nowrap"
+          item.whiteSpace === "nowrap" ||
+          item.lineOutsideBox
         );
     }, longNames);
     expect(clipping).toEqual([]);
+
+    const wrapAlignment = await frame.locator(".name-row.single").evaluateAll((rows, expectedNames) => {
+      const metrics = rows
+        .filter((row) => expectedNames.includes((row.querySelector(".name-text")?.textContent || "").trim()))
+        .map((row) => {
+          const checkbox = row.querySelector<HTMLElement>(".checkbox");
+          const text = row.querySelector<HTMLElement>(".name-text");
+          if (!checkbox || !text) return null;
+          const checkboxRect = checkbox.getBoundingClientRect();
+          const textRect = text.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const lineRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
+          range.detach();
+          return {
+            fontSize: parseFloat(getComputedStyle(row as HTMLElement).fontSize),
+            minLineLeftGap: Math.min(...lineRects.map((rect) => rect.left - checkboxRect.right)),
+            maxLineRightOverflow: Math.max(0, ...lineRects.map((rect) => rect.right - textRect.right)),
+          };
+        })
+        .filter((metric): metric is { fontSize: number; minLineLeftGap: number; maxLineRightOverflow: number } => metric != null);
+      return {
+        minFontSize: Math.min(...metrics.map((metric) => metric.fontSize)),
+        minLineLeftGap: Math.min(...metrics.map((metric) => metric.minLineLeftGap)),
+        maxLineRightOverflow: Math.max(0, ...metrics.map((metric) => metric.maxLineRightOverflow)),
+      };
+    }, longNames);
+    expect(wrapAlignment.minFontSize).toBeGreaterThanOrEqual(20);
+    expect(wrapAlignment.minLineLeftGap).toBeGreaterThanOrEqual(0);
+    expect(wrapAlignment.maxLineRightOverflow).toBeLessThanOrEqual(1);
 
     await mkdir("e2e-out", { recursive: true });
     await frame.locator(".page").screenshot({ path: `e2e-out/clinic-pdf-long-names-${TS}.png` });

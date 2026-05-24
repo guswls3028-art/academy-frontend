@@ -81,6 +81,71 @@ export function shouldUsePairedNameRows(names: string[]): boolean {
   return names.length >= 32 && maxNameLength <= 8;
 }
 
+type NameLayoutProfile = {
+  fontSizePx: number;
+  checkSizeMm: number;
+  checkBorderMm: number;
+  gapMm: number;
+  padYmm: number;
+  padXmm: number;
+  lineHeight: number;
+};
+
+function getNameLayoutProfile(students: ClinicPrintStudent[]): NameLayoutProfile {
+  const names = students.map((student) => student.name);
+  const count = names.length;
+  const maxNameLength = Math.max(0, ...names.map(printableLength));
+  const paired = shouldUsePairedNameRows(names);
+
+  if (paired) {
+    if (count > 76) return { fontSizePx: 21, checkSizeMm: 3.6, checkBorderMm: 0.4, gapMm: 1, padYmm: 0.8, padXmm: 1.05, lineHeight: 1.02 };
+    if (count > 64) return { fontSizePx: 23, checkSizeMm: 3.8, checkBorderMm: 0.42, gapMm: 1.05, padYmm: 0.9, padXmm: 1.15, lineHeight: 1.02 };
+    if (count > 48) return { fontSizePx: 26, checkSizeMm: 4.1, checkBorderMm: 0.44, gapMm: 1.15, padYmm: 1.05, padXmm: 1.3, lineHeight: 1.02 };
+    if (count > 32) return { fontSizePx: 28, checkSizeMm: 4.4, checkBorderMm: 0.46, gapMm: 1.25, padYmm: 1.15, padXmm: 1.45, lineHeight: 1.02 };
+    return { fontSizePx: 32, checkSizeMm: 4.8, checkBorderMm: 0.48, gapMm: 1.45, padYmm: 1.45, padXmm: 1.8, lineHeight: 1.03 };
+  }
+
+  if (maxNameLength > 16) {
+    if (count > 28) return { fontSizePx: 15.5, checkSizeMm: 3.2, checkBorderMm: 0.34, gapMm: 0.95, padYmm: 0.75, padXmm: 1.25, lineHeight: 1.04 };
+    if (count > 18) return { fontSizePx: 18, checkSizeMm: 3.5, checkBorderMm: 0.36, gapMm: 1.1, padYmm: 1, padXmm: 1.55, lineHeight: 1.04 };
+    if (count > 8) return { fontSizePx: 21, checkSizeMm: 3.9, checkBorderMm: 0.4, gapMm: 1.25, padYmm: 1.25, padXmm: 1.9, lineHeight: 1.05 };
+    return { fontSizePx: 26, checkSizeMm: 4.4, checkBorderMm: 0.44, gapMm: 1.45, padYmm: 1.65, padXmm: 2.4, lineHeight: 1.05 };
+  }
+
+  if (maxNameLength > 12) {
+    if (count > 28) return { fontSizePx: 16.5, checkSizeMm: 3.3, checkBorderMm: 0.36, gapMm: 1, padYmm: 0.85, padXmm: 1.35, lineHeight: 1.04 };
+    if (count > 18) return { fontSizePx: 20, checkSizeMm: 3.7, checkBorderMm: 0.38, gapMm: 1.15, padYmm: 1.1, padXmm: 1.7, lineHeight: 1.04 };
+    if (count > 8) return { fontSizePx: 23, checkSizeMm: 4.1, checkBorderMm: 0.42, gapMm: 1.35, padYmm: 1.4, padXmm: 2.1, lineHeight: 1.05 };
+    return { fontSizePx: 30, checkSizeMm: 4.8, checkBorderMm: 0.48, gapMm: 1.65, padYmm: 2, padXmm: 2.8, lineHeight: 1.05 };
+  }
+
+  if (count > 46) return { fontSizePx: 17, checkSizeMm: 3.35, checkBorderMm: 0.36, gapMm: 1, padYmm: 0.85, padXmm: 1.35, lineHeight: 1.04 };
+  if (count > 32) return { fontSizePx: 20, checkSizeMm: 3.8, checkBorderMm: 0.4, gapMm: 1.15, padYmm: 1.1, padXmm: 1.65, lineHeight: 1.04 };
+  if (count > 24) return { fontSizePx: 25, checkSizeMm: 4.3, checkBorderMm: 0.44, gapMm: 1.35, padYmm: 1.45, padXmm: 2, lineHeight: 1.04 };
+  if (count > 16) return { fontSizePx: 29, checkSizeMm: 4.7, checkBorderMm: 0.48, gapMm: 1.5, padYmm: 1.8, padXmm: 2.45, lineHeight: 1.04 };
+  if (count > 10) return { fontSizePx: 34, checkSizeMm: 5.1, checkBorderMm: 0.5, gapMm: 1.75, padYmm: 2.35, padXmm: 3.2, lineHeight: 1.04 };
+  return { fontSizePx: 40, checkSizeMm: 5.6, checkBorderMm: 0.52, gapMm: 1.4, padYmm: 3.1, padXmm: 3.8, lineHeight: 1.04 };
+}
+
+function formatCssNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function buildNameLayoutStyle(students: ClinicPrintStudent[]): string {
+  if (students.length === 0) return "";
+  const profile = getNameLayoutProfile(students);
+  const lineHeight = Math.max(profile.lineHeight, profile.fontSizePx >= 20 ? 1.14 : 1.12);
+  return [
+    `--row-font-size:${formatCssNumber(profile.fontSizePx)}px`,
+    `--row-check-size:${formatCssNumber(profile.checkSizeMm)}mm`,
+    `--row-check-border:${formatCssNumber(profile.checkBorderMm)}mm`,
+    `--row-gap:${formatCssNumber(profile.gapMm)}mm`,
+    `--row-pad-y:${formatCssNumber(profile.padYmm)}mm`,
+    `--row-pad-x:${formatCssNumber(profile.padXmm)}mm`,
+    `--row-line-height:${formatCssNumber(lineHeight)}`,
+  ].join(";");
+}
+
 export const BASE_STYLE = `
   @page { size: A3; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -156,7 +221,7 @@ export const BASE_STYLE = `
   /* ── Name columns: max visibility ── */
   .columns {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4.2mm; flex: 1 1 auto; min-height: 0;
+    gap: 4.2mm; flex: 1 1 0; min-height: 0;
   }
   .col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -180,6 +245,13 @@ export const BASE_STYLE = `
     border-radius: 0; padding: 1mm 0;
     background: #fff;
     overflow: hidden;
+    --row-font-size: 40px;
+    --row-check-size: 5.6mm;
+    --row-check-border: 0.52mm;
+    --row-gap: 2mm;
+    --row-pad-y: 3.1mm;
+    --row-pad-x: 3.8mm;
+    --row-line-height: 1.04;
   }
   .section-header.exam + .name-list,
   .section-header.hw + .name-list { border-color: #000; }
@@ -194,14 +266,15 @@ export const BASE_STYLE = `
   /* 1명/줄: 기본. 긴 이름과 실제 인쇄 안정성이 가장 좋다. */
   .name-row.single {
     display: grid;
-    grid-template-columns: 3.8mm minmax(0, 1fr) auto;
+    grid-template-columns: var(--row-check-size) minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 1.45mm;
-    padding: 2.6mm 3.2mm;
-    font-size: 20px; font-weight: 900;
+    column-gap: var(--row-gap);
+    padding: var(--row-pad-y) var(--row-pad-x);
+    font-size: var(--row-font-size); font-weight: 900;
     color: #000;
-    line-height: 1.18; white-space: normal;
+    line-height: var(--row-line-height); white-space: normal;
     text-align: left;
+    break-inside: avoid;
   }
 
   /* 짧은 이름이 많은 게시물은 2명/줄로 키워서 멀리서도 찾게 한다. */
@@ -209,35 +282,38 @@ export const BASE_STYLE = `
     flex: 1;
     min-width: 0;
     display: grid;
-    grid-template-columns: 3.8mm minmax(0, 1fr) auto;
+    grid-template-columns: var(--row-check-size) minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 1.25mm;
-    padding: 1.8mm 2.4mm;
-    font-size: 17px; font-weight: 900;
+    column-gap: var(--row-gap);
+    padding: var(--row-pad-y) var(--row-pad-x);
+    font-size: var(--row-font-size); font-weight: 900;
     color: #000;
-    line-height: 1.16;
+    line-height: var(--row-line-height);
     white-space: normal;
     text-align: left;
+    break-inside: avoid;
   }
   .name-text {
-    flex: 1 1 auto; min-width: 0;
+    display: block;
+    min-width: 0; max-width: 100%;
     align-self: center;
     text-align: left;
     line-height: inherit;
     white-space: normal;
     word-break: keep-all;
     overflow-wrap: anywhere;
+    hyphens: none;
     overflow: visible;
     text-overflow: clip;
   }
 
   .checkbox {
     flex: 0 0 auto;
-    width: 3.8mm; height: 3.8mm;
+    width: var(--row-check-size); height: var(--row-check-size);
     align-self: center;
     justify-self: start;
     margin: 0;
-    border: 0.4mm solid #000;
+    border: var(--row-check-border) solid #000;
     border-radius: 1px;
     color: transparent;
   }
@@ -308,10 +384,16 @@ export const BASE_STYLE = `
   .page--compact .tip-box { padding: 2.3mm 3.4mm; margin-bottom: 3.8mm; }
   .page--compact .tip-box .text { font-size: 12.5px; }
   .page--compact .section-header { padding: 2.2mm 2.8mm; font-size: 13.5px; }
-  .page--compact .name-list { padding: 0.8mm 0; }
-  .page--compact .name-row.single { grid-template-columns: 3.7mm minmax(0, 1fr) auto; column-gap: 1.45mm; padding: 1.7mm 2.6mm; font-size: 17.5px; line-height: 1.16; }
-  .page--compact .name-cell { grid-template-columns: 3.25mm minmax(0, 1fr) auto; column-gap: 1.1mm; padding: 1.35mm 1.9mm; font-size: 15.8px; line-height: 1.12; }
-  .page--compact .checkbox { width: 3.25mm; height: 3.25mm; border-width: 0.36mm; }
+  .page--compact .name-list {
+    padding: 0.8mm 0;
+    --row-font-size: 24px;
+    --row-check-size: 4mm;
+    --row-check-border: 0.42mm;
+    --row-gap: 1.25mm;
+    --row-pad-y: 1.35mm;
+    --row-pad-x: 2mm;
+    --row-line-height: 1.04;
+  }
   .page--compact .schedule-box { margin-top: 4mm; min-height: 17mm; }
   .page--compact .schedule-content { padding: 2.5mm 3.5mm; font-size: 13.2px; line-height: 1.3; }
   .page--compact .footer { margin-top: 3mm; padding-top: 2.2mm; }
@@ -333,10 +415,16 @@ export const BASE_STYLE = `
   .page--dense .columns { gap: 3.5mm; }
   .page--dense .section-header { padding: 1.7mm 2.2mm; font-size: 11.5px; }
   .page--dense .section-header .cnt { font-size: 10px; }
-  .page--dense .name-list { padding: 0.5mm 0; }
-  .page--dense .name-row.single { grid-template-columns: 3.05mm minmax(0, 1fr) auto; column-gap: 1.05mm; padding: 1.05mm 1.8mm; font-size: 14.8px; line-height: 1.1; }
-  .page--dense .name-cell { grid-template-columns: 2.9mm minmax(0, 1fr) auto; column-gap: 0.95mm; padding: 0.9mm 1.25mm; font-size: 16px; line-height: 1.06; }
-  .page--dense .checkbox { width: 2.9mm; height: 2.9mm; border-width: 0.34mm; }
+  .page--dense .name-list {
+    padding: 0.5mm 0;
+    --row-font-size: 18px;
+    --row-check-size: 3.4mm;
+    --row-check-border: 0.36mm;
+    --row-gap: 1mm;
+    --row-pad-y: 0.85mm;
+    --row-pad-x: 1.35mm;
+    --row-line-height: 1.03;
+  }
   .page--dense .star { font-size: 10px; }
   .page--dense .schedule-box { margin-top: 2.8mm; min-height: 14mm; grid-template-columns: 23mm minmax(0, 1fr); }
   .page--dense .schedule-title { font-size: 9.8px; line-height: 1.05; padding-bottom: 1.6mm; }
@@ -601,8 +689,10 @@ function buildClinicPrintSection(
 ): string {
   const students = document.groups[group.key];
   const listAttrs = editable ? ` contenteditable="true" data-field="${group.key}"` : "";
+  const listStyle = buildNameLayoutStyle(students);
+  const styleAttr = listStyle ? ` style="${listStyle}"` : "";
   const listContent = students.length > 0 ? buildNameItems(students) : editable ? "" : emptyCell();
-  return `<div class="col"><div class="section-header ${group.className}">${group.label} <span class="cnt">(${students.length}명)</span></div><div class="name-list"${listAttrs}>${listContent}</div></div>`;
+  return `<div class="col"><div class="section-header ${group.className}">${group.label} <span class="cnt">(${students.length}명)</span></div><div class="name-list"${styleAttr}${listAttrs}>${listContent}</div></div>`;
 }
 
 function buildClinicPrintSubTitle(document: ClinicPrintDocument, editable: boolean): string {
