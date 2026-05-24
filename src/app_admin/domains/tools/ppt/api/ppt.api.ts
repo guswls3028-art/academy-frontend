@@ -53,8 +53,9 @@ export interface JobProgressResponse {
   error_message?: string | null;
 }
 
+const PPT_SUBMIT_TIMEOUT_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 180; // 6 minutes max
+const POLL_MAX_ATTEMPTS = 450; // 15 minutes max for 500-slide batches
 
 /**
  * Submit PPT generation job (images mode).
@@ -77,7 +78,7 @@ export async function submitPptJob(
 
   const resp = await api.post<PptJobResponse>("/tools/ppt/generate/", form, {
     headers: { "Content-Type": "multipart/form-data" },
-    timeout: 120_000,
+    timeout: PPT_SUBMIT_TIMEOUT_MS,
     onUploadProgress: onUploadProgress
       ? (e) => {
           if (e.total) onUploadProgress(Math.round((e.loaded / e.total) * 100));
@@ -102,7 +103,7 @@ export async function submitPdfPptJob(
 
   const resp = await api.post<PptJobResponse>("/tools/ppt/generate/", form, {
     headers: { "Content-Type": "multipart/form-data" },
-    timeout: 120_000,
+    timeout: PPT_SUBMIT_TIMEOUT_MS,
     onUploadProgress: onUploadProgress
       ? (e) => {
           if (e.total) onUploadProgress(Math.round((e.loaded / e.total) * 100));
