@@ -158,6 +158,7 @@ export default function SortableImageGrid({
                 src={item.previewUrl}
                 alt={`Slide ${idx + 1}`}
                 loading="lazy"
+                decoding="async"
                 className={styles.previewImage}
                 data-invert={item.invert ? "true" : "false"}
               />

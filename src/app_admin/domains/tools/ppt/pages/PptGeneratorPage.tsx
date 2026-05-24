@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/ppt/pages/PptGeneratorPage.tsx
 // PPT 생성기 메인 페이지 — 이미지/PDF 모드 선택 -> 설정 -> 생성/다운로드 (async worker)
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Download, Settings } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -82,10 +82,20 @@ export default function PptGeneratorPage() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [progressPct, setProgressPct] = useState<number | null>(null);
   const [progressLabel, setProgressLabel] = useState<string>("");
+  const imagesRef = useRef<ImageItem[]>([]);
 
   // 모드 전환
   const handleModeChange = useCallback((newMode: InputMode) => {
     setMode(newMode);
+  }, []);
+
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+
+  useEffect(() => () => {
+    imagesRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    imagesRef.current = [];
   }, []);
 
   // 이미지 추가
@@ -453,6 +463,7 @@ export default function PptGeneratorPage() {
                 alt={`슬라이드 ${previewIndex + 1} 미리보기`}
                 className={styles.previewImage}
                 data-fit={settings.fit_mode}
+                decoding="async"
                 // eslint-disable-next-line no-restricted-syntax
                 style={{ filter: previewFilter }}
               />
@@ -483,6 +494,7 @@ export default function PptGeneratorPage() {
                     src={item.previewUrl}
                     alt=""
                     className={styles.thumbnailImage}
+                    decoding="async"
                     // eslint-disable-next-line no-restricted-syntax
                     style={{ filter: buildPreviewFilter(item, settings) }}
                   />
