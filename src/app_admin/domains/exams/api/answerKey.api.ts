@@ -1,10 +1,12 @@
 // PATH: src/app_admin/domains/exams/api/answerKeyApi.ts
 import api from "@/shared/api/axios";
 
+export type AnswerKeyValue = string | string[];
+
 export interface AnswerKey {
   id: number;
   exam: number; // template exam id
-  answers: Record<string, string>;
+  answers: Record<string, AnswerKeyValue>;
   created_at: string;
   updated_at: string;
 }
@@ -14,13 +16,13 @@ export async function fetchAnswerKeyByExam(examId: number) {
   return api.get<AnswerKey[]>(`/exams/answer-keys/`, { params: { exam: examId } });
 }
 
-export async function createAnswerKey(payload: { exam: number; answers: Record<string, string> }) {
+export async function createAnswerKey(payload: { exam: number; answers: Record<string, AnswerKeyValue> }) {
   return api.post<AnswerKey>(`/exams/answer-keys/`, payload);
 }
 
 export async function updateAnswerKey(
   id: number,
-  payload: { exam: number; answers: Record<string, string> }
+  payload: { exam: number; answers: Record<string, AnswerKeyValue> }
 ) {
   return api.put<AnswerKey>(`/exams/answer-keys/${id}/`, payload);
 }

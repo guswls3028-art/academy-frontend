@@ -20,6 +20,17 @@ interface Props {
   onDeleted: () => void;
 }
 
+function parseAnswerKeyText(input: string): Record<string, string> {
+  const answers: Record<string, string> = {};
+  const pattern = /(\d+)\s*:\s*([^:]+?)(?=,\s*\d+\s*:|$)/g;
+  for (const match of input.matchAll(pattern)) {
+    const questionNo = match[1]?.trim();
+    const answer = match[2]?.trim();
+    if (questionNo && answer) answers[questionNo] = answer;
+  }
+  return answers;
+}
+
 export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -59,14 +70,10 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
     onError: (e) => teacherToast.error(extractApiError(e, "템플릿으로 저장하지 못했습니다.")),
   });
 
-  // 정답 등록: "1:2,2:3,3:1" 형식 → { "1":"2", "2":"3", "3":"1" }
+  // 정답 등록: "1:2,2:3" / 모두 마킹 "1:2,4,2:3" / 대체정답 "1:2|4"
   const answerKeyMut = useMutation({
     mutationFn: () => {
-      const answers: Record<string, string> = {};
-      answerKey.split(",").forEach((pair) => {
-        const [q, a] = pair.split(":").map((s) => s.trim());
-        if (q && a) answers[q] = a;
-      });
+      const answers = parseAnswerKeyText(answerKey);
       return api.post(`/exams/answer-keys/`, { exam: exam.id, answers });
     },
     onSuccess: () => { setMsg("정답 등록됨"); setAnswerKey(""); },
@@ -104,11 +111,11 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
         {/* Answer key registration */}
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
-            정답 등록 (형식: 1:2,2:3,3:1)
+            정답 등록 (예: 1:2,2:3 · 둘다: 1:2,4 · 또는: 1:2|4)
           </label>
           <div className="flex gap-2">
             <input type="text" value={answerKey} onChange={(e) => setAnswerKey(e.target.value)}
-              placeholder="문번:정답,문번:정답,..."
+              placeholder="1:2,2:3 또는 1:2,4,2:3"
               className="flex-1 text-sm"
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
             <button onClick={() => answerKeyMut.mutate()} disabled={!answerKey.trim()}

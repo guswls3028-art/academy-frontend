@@ -16,6 +16,7 @@ import {
   fetchAnswerKeyByExam,
   updateAnswerKey,
   type AnswerKey,
+  type AnswerKeyValue,
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
@@ -89,7 +90,11 @@ function isAnswerKey(value: unknown): value is AnswerKey {
   if (!isRecord(value)) return false;
   if (typeof value.id !== "number" || typeof value.exam !== "number") return false;
   if (!isRecord(value.answers)) return false;
-  return Object.values(value.answers).every((answer) => typeof answer === "string");
+  return Object.values(value.answers).every(
+    (answer) =>
+      typeof answer === "string" ||
+      (Array.isArray(answer) && answer.every((item) => typeof item === "string" || typeof item === "number"))
+  );
 }
 
 function answerKeysFromResponse(response: unknown): AnswerKey[] {
@@ -114,10 +119,17 @@ function distributeTotalToScores(total: number, count: number): number[] {
   return result;
 }
 
-function normalizeAnswers(input: Record<string, string>) {
+function answerValueToDraft(value: AnswerKeyValue | number | boolean | null | undefined): string {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v ?? "").trim()).filter(Boolean).join(",");
+  }
+  return String(value ?? "").trim();
+}
+
+function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
   const out: Record<string, string> = {};
   Object.entries(input || {}).forEach(([k, v]) => {
-    out[String(k)] = String(v ?? "").trim();
+    out[String(k)] = answerValueToDraft(v);
   });
   return out;
 }

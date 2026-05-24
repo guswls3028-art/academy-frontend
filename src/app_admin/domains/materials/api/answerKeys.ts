@@ -22,8 +22,18 @@ function normalizeAnswers(value: unknown): Record<string, string> {
   if (!isApiRecord(value)) return {};
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([, answer]) => typeof answer === "string" || typeof answer === "number" || typeof answer === "boolean")
-      .map(([key, answer]) => [key, String(answer)]),
+      .filter(([, answer]) =>
+        typeof answer === "string" ||
+        typeof answer === "number" ||
+        typeof answer === "boolean" ||
+        Array.isArray(answer)
+      )
+      .map(([key, answer]) => [
+        key,
+        Array.isArray(answer)
+          ? answer.map((item) => String(item ?? "").trim()).filter(Boolean).join(",")
+          : String(answer),
+      ]),
   );
 }
 
