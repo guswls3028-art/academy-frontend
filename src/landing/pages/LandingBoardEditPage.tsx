@@ -206,7 +206,7 @@ export default function LandingBoardEditPage() {
 
           <div>
             <label style={lblStyle(textSecondary)}>본문</label>
-            <div data-testid="board-edit-content-wrap" style={{ borderRadius: 12, background: "#fff", overflow: "hidden" }}>
+            <div data-app="admin" data-testid="board-edit-content-wrap" style={LANDING_RICH_EDITOR_THEME}>
               <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력해주세요" minHeight={240} />
             </div>
           </div>
@@ -291,3 +291,26 @@ function lblStyle(color: string): React.CSSProperties {
     color, marginBottom: 8, letterSpacing: "0.04em", textTransform: "uppercase",
   };
 }
+
+const LANDING_RICH_EDITOR_THEME = {
+  borderRadius: 12,
+  background: "#ffffff",
+  overflow: "visible",
+  "--color-border-divider": "#D1D5DB",
+  "--color-bg-surface": "#FFFFFF",
+  "--color-bg-surface-hover": "#F8FAFC",
+  "--color-bg-surface-active": "#E5E7EB",
+  "--color-text-primary": "#111827",
+  "--color-text-secondary": "#475569",
+  "--color-text-muted": "#94A3B8",
+  "--color-text-link": "#2563EB",
+  "--color-brand-primary": "#D4A04C",
+  "--font-sans": "inherit",
+  "--letter-base": "0",
+  "--radius-md": "12px",
+  "--radius-sm": "8px",
+  "--space-1": "4px",
+  "--space-2": "8px",
+  "--space-3": "12px",
+  "--space-4": "16px",
+} as React.CSSProperties;

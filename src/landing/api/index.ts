@@ -12,6 +12,15 @@ import type {
 /** 공개 랜딩 데이터 조회 (인증 불필요) */
 export async function fetchLandingPublic(): Promise<LandingPublicResponse> {
   const { data } = await api.get("/core/landing/public/", { skipAuth: true } as ApiRequestConfig);
+  if (data?.config && data.template_key) {
+    return {
+      ...data,
+      config: {
+        ...data.config,
+        template_key: data.template_key,
+      },
+    };
+  }
   return data;
 }
 

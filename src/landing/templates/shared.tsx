@@ -244,10 +244,11 @@ export interface NavBarTokens {
   panelBg: string;
 }
 
-export function LandingNavBar({ config, sections, tokens, brandMark }: { config: LandingConfig; sections: LandingSection[]; tokens: NavBarTokens; brandMark: React.ReactNode; mobileBreakpoint?: number }) {
+export function LandingNavBar({ config, sections, tokens, brandMark, topNavVariant }: { config: LandingConfig; sections: LandingSection[]; tokens: NavBarTokens; brandMark: React.ReactNode; mobileBreakpoint?: number; topNavVariant?: "minimal" | "slab" }) {
   const [open, setOpen] = useState(false);
   const cta = config.cta_text || "수강 문의";
   const ctaLink = config.cta_link || "/login";
+  const resolvedTopNavVariant = topNavVariant ?? (config.template_key === "premium_dark" ? "slab" : "minimal");
   const logoUrl = useResolvedLogo(config, "nav");
   const isDark = tokens.bg.includes("10,14,26");
   const { user } = useAuth();
@@ -278,6 +279,21 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
     navigate(item.target);
   };
 
+  const isInlineActive = (entry: { key: string; item: NavMenuItem }) => {
+    const item = entry.item;
+    if (entry.key === "matchup") {
+      return location.pathname === "/landing/reports"
+        || location.pathname.startsWith("/landing/reports/")
+        || location.pathname === "/landing/matchup-board"
+        || location.pathname.startsWith("/landing/matchup-board/");
+    }
+    if (item.kind === "route") {
+      if (item.target === "/landing") return location.pathname === "/landing";
+      return location.pathname === item.target || location.pathname.startsWith(`${item.target}/`);
+    }
+    return location.pathname === "/landing" && location.hash === `#${item.target}`;
+  };
+
   // ESC 키로 패널 닫기 + body scroll lock
   useEffect(() => {
     if (!open) return;
@@ -291,7 +307,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
   return (
     <>
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 20px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, gap: 12 }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: resolvedTopNavVariant === "slab" ? 64 : 60, gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <button
               type="button"
@@ -321,27 +337,50 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
           </div>
           {/* 가로 메뉴 — 데스크탑/태블릿에서만 노출(애플식 minimal top nav).
               모바일에선 햄버거 패널로 일임 (CSS .landing-nav-inline 미디어쿼리). */}
-          <div className="landing-nav-inline" style={{ display: "none", alignItems: "center", gap: 2, flex: 1, justifyContent: "center", overflow: "hidden" }}>
-            {inlineNav.map((it) => (
-              <button
-                key={it.key}
-                type="button"
-                onClick={() => handleNav(it.item)}
-                data-testid={`landing-nav-top-${it.key}`}
-                className="landing-nav-top-item"
-                style={{
-                  position: "relative",
-                  padding: "8px 14px",
-                  background: "transparent", border: "none",
-                  color: tokens.textPrimary,
-                  fontSize: 13.5, fontWeight: 500, letterSpacing: "-0.01em",
-                  cursor: "pointer", borderRadius: 6,
-                  transition: "color 0.16s ease",
-                  whiteSpace: "nowrap",
-                  ['--lh-accent' as never]: tokens.primaryColor,
-                } as React.CSSProperties}
-              >{it.label}</button>
-            ))}
+          <div
+            className="landing-nav-inline"
+            data-variant={resolvedTopNavVariant}
+            style={{
+              display: "none",
+              alignItems: "stretch",
+              gap: resolvedTopNavVariant === "slab" ? 0 : 2,
+              flex: 1,
+              justifyContent: "center",
+              alignSelf: "stretch",
+              overflow: "hidden",
+            }}
+          >
+            {inlineNav.map((it) => {
+              const active = isInlineActive(it);
+              return (
+                <button
+                  key={it.key}
+                  type="button"
+                  onClick={() => handleNav(it.item)}
+                  data-testid={`landing-nav-top-${it.key}`}
+                  data-active={active ? "true" : "false"}
+                  className="landing-nav-top-item"
+                  style={{
+                    position: "relative",
+                    minWidth: resolvedTopNavVariant === "slab" ? "clamp(78px, 8vw, 118px)" : undefined,
+                    padding: resolvedTopNavVariant === "slab" ? "0 16px" : "8px 14px",
+                    background: active && resolvedTopNavVariant === "slab" ? `rgba(${tokens.primaryRgb}, 0.12)` : "transparent",
+                    border: "none",
+                    borderLeft: resolvedTopNavVariant === "slab" ? `1px solid ${tokens.border}` : "none",
+                    borderRight: resolvedTopNavVariant === "slab" ? `1px solid ${tokens.border}` : "none",
+                    color: tokens.textPrimary,
+                    fontSize: resolvedTopNavVariant === "slab" ? 14 : 13.5,
+                    fontWeight: resolvedTopNavVariant === "slab" ? 800 : 500,
+                    letterSpacing: 0,
+                    cursor: "pointer",
+                    borderRadius: resolvedTopNavVariant === "slab" ? 0 : 6,
+                    transition: "color 0.16s ease, background 0.16s ease",
+                    whiteSpace: "nowrap",
+                    ['--lh-accent' as never]: tokens.primaryColor,
+                  } as React.CSSProperties}
+                >{it.label}</button>
+              );
+            })}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <NavRoleAuthMenu cta={cta} ctaLink={ctaLink} tokens={tokens} />
@@ -354,7 +393,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
             .landing-nav-inline { display: flex !important; }
             .landing-nav-burger { display: flex !important; }
           }
-          /* 가로 nav 메뉴 hover — Apple 톤 underline + subtle accent color */
+          /* 가로 nav 메뉴 hover — minimal underline 또는 dnfm식 사각 탭. */
           .landing-nav-top-item::after {
             content: "";
             position: absolute;
@@ -368,6 +407,25 @@ export function LandingNavBar({ config, sections, tokens, brandMark }: { config:
           }
           .landing-nav-top-item:hover { color: var(--lh-accent, currentColor); }
           .landing-nav-top-item:hover::after { transform: scaleX(1); }
+          .landing-nav-inline[data-variant="slab"] .landing-nav-top-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .landing-nav-inline[data-variant="slab"] .landing-nav-top-item::after {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 3px;
+          }
+          .landing-nav-inline[data-variant="slab"] .landing-nav-top-item:hover,
+          .landing-nav-inline[data-variant="slab"] .landing-nav-top-item[data-active="true"] {
+            color: var(--lh-accent, currentColor);
+            background: rgba(${tokens.primaryRgb}, 0.10);
+          }
+          .landing-nav-inline[data-variant="slab"] .landing-nav-top-item[data-active="true"]::after {
+            transform: scaleX(1);
+          }
         `}</style>
       </nav>
       {open && (

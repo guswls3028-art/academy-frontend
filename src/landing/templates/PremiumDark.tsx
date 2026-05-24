@@ -11,13 +11,12 @@ import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, Progr
 import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
-import HeroCarousel from "../components/HeroCarousel";
-import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
 import LandingSectionTabs from "../components/LandingSectionTabs";
 import { Fragment } from "react";
 import { hexToRgb } from "./colorUtils";
 import useAuth from "@/auth/hooks/useAuth";
+import { scrollToLandingSection } from "../utils/scrollToSection";
 
 export default function PremiumDark({ config }: TemplateProps) {
   const c = config.primary_color || "#1E3A5F";
@@ -89,6 +88,7 @@ export default function PremiumDark({ config }: TemplateProps) {
         sections={sections}
         tokens={navTokens}
         brandMark={<BrandMark name={config.brand_name || "Brand"} gold={gold} />}
+        topNavVariant="slab"
       />
       <LandingSectionTabs sections={sections} tokens={navTokens} />
 
@@ -105,164 +105,22 @@ export default function PremiumDark({ config }: TemplateProps) {
             const primaryCta = resolveHeroPrimaryCta(config, section);
             return (
               <Fragment key="hero">
-              {/* 디테일 애니메이션 SSOT — 박철 청사진 스튜디오 감성 (#D2, 2026-05-12).
-                  fade-up: 첫 진입 시 h1/subtitle/CTA 순차 등장.
-                  ambient glow pulse: 골드 글로우가 천천히 호흡.
-                  shimmer: 헤드라인 광택 sweep. */}
-              <style>{`
-                @keyframes premiumFadeUp {
-                  from { opacity: 0; transform: translateY(20px) }
-                  to { opacity: 1; transform: translateY(0) }
-                }
-                @keyframes premiumAmbientPulse {
-                  0%, 100% { opacity: 1 }
-                  50% { opacity: 0.78 }
-                }
-                @keyframes premiumShimmer {
-                  0% { background-position: -200% 0 }
-                  100% { background-position: 200% 0 }
-                }
-                .pd-hero-eyebrow { animation: premiumFadeUp 0.6s cubic-bezier(.2,.7,.2,1) both }
-                .pd-hero-h1      { animation: premiumFadeUp 0.7s 0.08s cubic-bezier(.2,.7,.2,1) both }
-                .pd-hero-sub     { animation: premiumFadeUp 0.7s 0.16s cubic-bezier(.2,.7,.2,1) both }
-                .pd-hero-cta     { animation: premiumFadeUp 0.7s 0.24s cubic-bezier(.2,.7,.2,1) both }
-                .pd-hero-visual  { animation: premiumFadeUp 0.9s 0.18s cubic-bezier(.2,.7,.2,1) both }
-                .pd-ambient-1, .pd-ambient-2 { animation: premiumAmbientPulse 8s ease-in-out infinite }
-                .pd-ambient-2 { animation-delay: 4s }
-
-                /* Section enter scroll animation (#D2 cycle 12) — viewport 진입 시 fade-up. */
-                .pd-fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(.2,.7,.2,1), transform 0.7s cubic-bezier(.2,.7,.2,1) }
-                .pd-fade-target.pd-in-view { opacity: 1; transform: translateY(0) }
-
-                /* Micro-interaction — CTA hover lift, card hover border glow. */
-                a[data-testid="landing-hero-primary-cta"] { transition: transform 0.2s cubic-bezier(.2,.7,.2,1), box-shadow 0.2s }
-                a[data-testid="landing-hero-primary-cta"]:hover { transform: translateY(-2px) }
-
-                @media (prefers-reduced-motion: reduce) {
-                  .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-hero-visual,
-                  .pd-ambient-1, .pd-ambient-2, .pd-fade-target { animation: none !important; opacity: 1 !important; transform: none !important; transition: none !important }
-                }
-              `}</style>
-              <section data-stype="hero" style={{ padding: "120px 24px 100px", position: "relative", overflow: "hidden" }}>
-                {/* multi-layer ambient lighting — 깊은 다크 + 골드 글로우 + 네이비 액센트 */}
-                <div className="pd-ambient-1" style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 70% 20%, rgba(${goldRgb},0.12) 0%, transparent 55%)`, pointerEvents: "none" }} />
-                <div className="pd-ambient-2" style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 50% at 20% 80%, rgba(${rgb},0.18) 0%, transparent 60%)`, pointerEvents: "none" }} />
-                {/* subtle grain */}
-                <div style={{ position: "absolute", inset: 0, opacity: 0.4, mixBlendMode: "overlay", pointerEvents: "none",
-                  backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.15'/></svg>\")",
-                }} />
-
-                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative", display: "flex", alignItems: "center", gap: 80, flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 520px", minWidth: 280 }}>
-                    {/* Eyebrow */}
-                    <div className="pd-hero-eyebrow" style={{
-                      display: "inline-flex", alignItems: "center", gap: 8,
-                      padding: "6px 14px", borderRadius: 99,
-                      background: `rgba(${goldRgb},0.08)`, border: `1px solid rgba(${goldRgb},0.25)`,
-                      color: gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
-                      marginBottom: 24,
-                    }}>
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: gold, boxShadow: `0 0 8px ${gold}` }} />
-                      Premium Class
-                    </div>
-
-                    <h1 className="pd-hero-h1" style={{
-                      fontSize: "clamp(40px, 6vw, 68px)", fontWeight: 800, lineHeight: 1.08,
-                      margin: "0 0 28px", letterSpacing: "-0.035em",
-                      background: `linear-gradient(180deg, #FFFFFF 0%, #C9CCD4 100%)`,
-                      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}>
-                      {config.tagline || config.brand_name}
-                    </h1>
-
-                    {config.subtitle && (
-                      <p className="pd-hero-sub" style={{
-                        fontSize: "clamp(17px, 2vw, 20px)", lineHeight: 1.7,
-                        color: textSecondary, margin: "0 0 44px", maxWidth: 560,
-                        fontWeight: 400,
-                      }}>
-                        {config.subtitle}
-                      </p>
-                    )}
-
-                    <div className="pd-hero-cta" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                      {primaryCta.isInternal ? (
-                        <Link
-                          to={primaryCta.link}
-                          data-testid="landing-hero-primary-cta"
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 10,
-                            padding: "16px 36px",
-                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-                            color: "#0A0E1A", borderRadius: 12,
-                            fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em",
-                            textDecoration: "none",
-                            boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
-                          }}
-                        >
-                          {primaryCta.label}
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                        </Link>
-                      ) : (
-                        <a
-                          href={primaryCta.link}
-                          data-testid="landing-hero-primary-cta"
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 10,
-                            padding: "16px 36px",
-                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-                            color: "#0A0E1A", borderRadius: 12,
-                            fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em",
-                            textDecoration: "none",
-                            boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
-                          }}
-                        >
-                          {primaryCta.label}
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                        </a>
-                      )}
-                      {config.contact?.phone && (
-                        <a href={`tel:${config.contact.phone.replace(/-/g,"")}`} style={{
-                          display: "inline-flex", alignItems: "center", gap: 8,
-                          padding: "16px 24px",
-                          background: "transparent", color: textPrimary,
-                          border: `1px solid ${cardBorder}`, borderRadius: 12,
-                          fontSize: 15, fontWeight: 600, textDecoration: "none",
-                          letterSpacing: "-0.01em",
-                        }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
-                          {config.contact.phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-
-                  {(() => {
-                    const heroImgs = (config.hero_images || []).filter(Boolean);
-                    const fallback = config.hero_image_url ? [config.hero_image_url] : [];
-                    const slides = heroImgs.length > 0 ? heroImgs : fallback;
-                    if (slides.length === 0) return null;
-                    return (
-                      <div className="pd-hero-visual" style={{ flex: "1 1 420px", minWidth: 280, position: "relative" }}>
-                        <div style={{ position: "absolute", inset: -20, background: `radial-gradient(ellipse, rgba(${goldRgb},0.2) 0%, transparent 70%)`, filter: "blur(40px)", pointerEvents: "none" }} />
-                        <div style={{ position: "relative", borderRadius: 20, border: `1px solid ${cardBorder}`, boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset", overflow: "hidden" }}>
-                          <HeroImageSlider
-                            images={slides}
-                            aspectRatio="4/5"
-                            borderRadius={20}
-                            altPrefix={config.brand_name}
-                            shadow="none"
-                            dotColor="#D4A04C"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </section>
-              <HeroCarousel items={hitItems} carouselItems={carouselItems} theme="dark" />
-              <TestimonialsSticky theme="dark" />
+                <PremiumHeroStage
+                  config={config}
+                  sections={sections}
+                  heroSection={section}
+                  carouselItems={carouselItems}
+                  hitItems={hitItems}
+                  primaryCta={primaryCta}
+                  textPrimary={textPrimary}
+                  textSecondary={textSecondary}
+                  textMuted={textMuted}
+                  gold={gold}
+                  goldRgb={goldRgb}
+                  primaryRgb={rgb}
+                  cardBorder={cardBorder}
+                />
+                <TestimonialsSticky theme="dark" />
               </Fragment>
             );
           }
@@ -549,6 +407,506 @@ export default function PremiumDark({ config }: TemplateProps) {
       <LandingCommunityShowcase theme="dark" />
       <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_DARK} />
     </div>
+  );
+}
+
+type PremiumHeroTarget =
+  | { kind: "route"; to: string }
+  | { kind: "href"; href: string }
+  | { kind: "section"; sectionType: string };
+
+interface PremiumHeroStageItem {
+  key: string;
+  kicker: string;
+  title: string;
+  body?: string;
+  navTitle: string;
+  ctaLabel?: string;
+  target?: PremiumHeroTarget;
+}
+
+function compactText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function targetFromLink(link: string, isInternal?: boolean): PremiumHeroTarget {
+  if (isInternal || link.startsWith("/")) return { kind: "route", to: link || "/landing" };
+  return { kind: "href", href: link || "/landing" };
+}
+
+function buildPremiumHeroItems({
+  config,
+  sections,
+  carouselItems,
+  primaryCta,
+}: {
+  config: LandingConfig;
+  sections: LandingSection[];
+  carouselItems?: HeroCarouselItem[];
+  primaryCta: { label: string; link: string; isInternal: boolean };
+}): PremiumHeroStageItem[] {
+  const items: PremiumHeroStageItem[] = [{
+    key: "hero-main",
+    kicker: "Premium Class",
+    title: compactText(config.tagline) || compactText(config.brand_name) || "박철 과학",
+    body: compactText(config.subtitle),
+    navTitle: "메인",
+    ctaLabel: primaryCta.label,
+    target: targetFromLink(primaryCta.link, primaryCta.isInternal),
+  }];
+
+  for (const [i, item] of (carouselItems || []).entries()) {
+    if (items.length >= 5) break;
+    if (item.kind === "custom") {
+      const title = compactText(item.title);
+      const body = compactText(item.subtitle);
+      if (!title && !body) continue;
+      const link = compactText(item.cta_link);
+      items.push({
+        key: `carousel-custom-${i}`,
+        kicker: compactText(item.category) || "Spotlight",
+        title: title || compactText(item.category) || "학원 소식",
+        body,
+        navTitle: title || compactText(item.category) || `배너 ${i + 1}`,
+        ctaLabel: compactText(item.cta_label) || "자세히 보기",
+        target: link ? targetFromLink(link) : { kind: "route", to: "/landing" },
+      });
+    }
+    if (item.kind === "hit_report" && Number.isFinite(item.report_id)) {
+      items.push({
+        key: `carousel-hit-${item.report_id}`,
+        kicker: "Matchup",
+        title: "학교별 적중 보고서",
+        body: "시험지와 강의 자료를 비교한 적중 근거를 바로 확인할 수 있습니다.",
+        navTitle: `적중 ${items.length}`,
+        ctaLabel: "보고서 보기",
+        target: { kind: "route", to: `/landing/reports/${item.report_id}` },
+      });
+    }
+  }
+
+  const find = (type: string) => sections.find((s) => s.type === type && s.enabled);
+  const addSection = (type: string, fallbackTitle: string, kicker: string, navTitle: string, ctaLabel?: string, target?: PremiumHeroTarget) => {
+    if (items.length >= 5) return;
+    const section = find(type);
+    if (!section) return;
+    const title = compactText(section.title) || fallbackTitle;
+    const body = compactText(section.description);
+    items.push({
+      key: `section-${type}`,
+      kicker,
+      title,
+      body,
+      navTitle,
+      ctaLabel,
+      target: target || { kind: "section", sectionType: type },
+    });
+  };
+
+  addSection("instructor_profile", "강사 프로필", "Instructor", "강사");
+  addSection("features", "차별화된 강의 시스템", "System", "시스템");
+  addSection("management_system", "학생 관리 시스템", "Care", "관리");
+  addSection("hit_reports", "최근 학교별 적중 사례", "Matchup", "적중", "보고서 보기", { kind: "route", to: "/landing/reports" });
+  addSection("programs", "프로그램 안내", "Class", "프로그램");
+  addSection("contact", "상담 문의", "Contact", "문의", compactText(config.cta_text) || "수강 문의", targetFromLink(compactText(config.cta_link) || "/login"));
+
+  return items.slice(0, 5);
+}
+
+function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouselItems, hitItems: _hitItems, primaryCta, textPrimary, textSecondary, textMuted, gold, goldRgb, primaryRgb, cardBorder }: {
+  config: LandingConfig;
+  sections: LandingSection[];
+  heroSection: LandingSection;
+  carouselItems?: HeroCarouselItem[];
+  hitItems?: HitReportShowcaseItem[];
+  primaryCta: { label: string; link: string; isInternal: boolean };
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  gold: string;
+  goldRgb: string;
+  primaryRgb: string;
+  cardBorder: string;
+}) {
+  const heroItems = buildPremiumHeroItems({ config, sections, carouselItems, primaryCta });
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const heroImgs = (config.hero_images || []).filter(Boolean);
+  const visualSlides = heroImgs.length > 0 ? heroImgs : (config.hero_image_url ? [config.hero_image_url] : []);
+  const current = heroItems[idx % heroItems.length] || heroItems[0];
+  const activeVisual = visualSlides.length > 0 ? idx % visualSlides.length : -1;
+
+  useEffect(() => {
+    if (heroItems.length <= 1 || paused) return;
+    const id = window.setInterval(() => {
+      setIdx((prev) => (prev + 1) % heroItems.length);
+    }, 7000);
+    return () => window.clearInterval(id);
+  }, [heroItems.length, paused]);
+
+  const goTo = (next: number) => {
+    if (!heroItems.length) return;
+    setPaused(true);
+    setIdx(((next % heroItems.length) + heroItems.length) % heroItems.length);
+  };
+
+  const cta = current?.ctaLabel && current.target
+    ? { label: current.ctaLabel, target: current.target }
+    : { label: primaryCta.label, target: targetFromLink(primaryCta.link, primaryCta.isInternal) };
+
+  return (
+    <section
+      data-stype="hero"
+      data-testid="landing-premium-hero-stage"
+      className="pd-hero-stage"
+      aria-labelledby="premium-hero-title"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      style={{
+        position: "relative",
+        minHeight: "clamp(560px, 74vh, 720px)",
+        display: "flex",
+        alignItems: "center",
+        padding: "clamp(72px, 8vh, 96px) 24px 116px",
+        overflow: "hidden",
+        background: "#070B14",
+        isolation: "isolate",
+      }}
+    >
+      <div className="pd-hero-media" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+        {visualSlides.length > 0 ? visualSlides.map((src, i) => (
+          <img
+            key={`${src}-${i}`}
+            src={src}
+            alt=""
+            loading={i === 0 ? "eager" : "lazy"}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center 28%",
+              opacity: i === activeVisual || visualSlides.length === 1 ? 0.62 : 0,
+              transform: i === activeVisual ? "scale(1.02)" : "scale(1.07)",
+              transition: "opacity 900ms ease, transform 7s ease",
+            }}
+          />
+        )) : null}
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, rgba(7,11,20,0.98) 0%, rgba(7,11,20,0.74) 12%, rgba(7,11,20,0.20) 34%, rgba(7,11,20,0.34) 100%), radial-gradient(ellipse 70% 58% at 76% 16%, rgba(${goldRgb},0.20) 0%, transparent 56%), radial-gradient(ellipse 62% 52% at 14% 84%, rgba(${primaryRgb},0.34) 0%, transparent 62%), linear-gradient(90deg, rgba(7,11,20,0.94) 0%, rgba(7,11,20,0.70) 46%, rgba(7,11,20,0.36) 100%)` }} />
+        <div className="pd-hero-grain" style={{ position: "absolute", inset: 0, opacity: 0.20, mixBlendMode: "overlay", backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>\")" }} />
+      </div>
+
+      <div className="pd-hero-copy" style={{ width: "min(1200px, 100%)", margin: "0 auto", position: "relative", zIndex: 2 }}>
+        <div style={{ maxWidth: 700 }}>
+          <div className="pd-hero-eyebrow" style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            minHeight: 30,
+            padding: "6px 14px",
+            borderRadius: 999,
+            background: `rgba(${goldRgb},0.12)`,
+            border: `1px solid rgba(${goldRgb},0.38)`,
+            color: gold,
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: 0,
+            textTransform: "uppercase",
+            marginBottom: 22,
+            boxShadow: `0 0 22px rgba(${goldRgb},0.20)`,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: gold, boxShadow: `0 0 10px ${gold}` }} />
+            {current.kicker}
+          </div>
+          <h1 id="premium-hero-title" className="pd-hero-h1" style={{
+            fontSize: "clamp(40px, 6vw, 72px)",
+            fontWeight: 900,
+            lineHeight: 1.06,
+            margin: "0 0 24px",
+            letterSpacing: 0,
+            color: "#FFFFFF",
+            textShadow: "0 3px 22px rgba(0,0,0,0.62)",
+          }}>
+            {current.title}
+          </h1>
+          {(current.body || config.subtitle) && (
+            <p className="pd-hero-sub" style={{
+              fontSize: "clamp(17px, 2vw, 21px)",
+              lineHeight: 1.68,
+              color: textSecondary,
+              margin: "0 0 36px",
+              maxWidth: 620,
+              fontWeight: 500,
+              textShadow: "0 2px 14px rgba(0,0,0,0.55)",
+              whiteSpace: "pre-line",
+            }}>
+              {current.body || config.subtitle}
+            </p>
+          )}
+
+          <div className="pd-hero-cta" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <PremiumHeroCta label={cta.label} target={cta.target} gold={gold} goldRgb={goldRgb} />
+            {config.contact?.phone && (
+              <a href={`tel:${config.contact.phone.replace(/-/g,"")}`} style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                minHeight: 52,
+                padding: "0 22px",
+                background: "rgba(7,11,20,0.38)",
+                color: textPrimary,
+                border: `1px solid ${cardBorder}`,
+                borderRadius: 8,
+                fontSize: 15,
+                fontWeight: 800,
+                textDecoration: "none",
+                letterSpacing: 0,
+                backdropFilter: "blur(8px)",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                {config.contact.phone}
+              </a>
+            )}
+          </div>
+
+          <div style={{ marginTop: 28, display: "flex", alignItems: "center", gap: 10, color: textMuted, fontSize: 13, fontWeight: 700 }}>
+            <span style={{ color: gold }}>{String((idx % heroItems.length) + 1).padStart(2, "0")}</span>
+            <span>/</span>
+            <span>{String(heroItems.length).padStart(2, "0")}</span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="pd-hero-rail"
+        aria-label="히어로 배너"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 5,
+          display: "grid",
+          gridTemplateColumns: "248px minmax(0, 1fr)",
+          minHeight: 76,
+          background: "rgba(7,9,13,0.78)",
+          borderTop: "1px solid rgba(245,241,232,0.12)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <div className="pd-hero-rail-controls" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderRight: "1px solid rgba(245,241,232,0.12)" }}>
+          <RailButton label="이전 배너" onClick={() => goTo(idx - 1)}>
+            <path d="M15 18l-6-6 6-6" />
+          </RailButton>
+          <RailButton label="다음 배너" onClick={() => goTo(idx + 1)}>
+            <path d="M9 6l6 6-6 6" />
+          </RailButton>
+          <button
+            type="button"
+            aria-label={paused ? "배너 자동 넘김 재생" : "배너 자동 넘김 정지"}
+            aria-pressed={paused}
+            onClick={() => setPaused((v) => !v)}
+            style={{
+              border: 0,
+              borderRight: "1px solid rgba(245,241,232,0.12)",
+              background: paused ? `rgba(${goldRgb},0.18)` : "rgba(17,20,30,0.36)",
+              color: paused ? gold : textPrimary,
+              fontSize: 16,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            {paused ? "▶" : "Ⅱ"}
+          </button>
+        </div>
+        <ol
+          className="pd-hero-rail-list"
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${heroItems.length}, minmax(0, 1fr))`,
+            margin: 0,
+            padding: 0,
+            listStyle: "none",
+            minWidth: 0,
+          }}
+        >
+          {heroItems.map((item, i) => {
+            const active = i === idx % heroItems.length;
+            return (
+              <li key={item.key} className={active ? "is-active" : undefined} style={{ minWidth: 0, borderRight: "1px solid rgba(245,241,232,0.10)", background: active ? `linear-gradient(90deg, rgba(${goldRgb},0.22), rgba(${goldRgb},0.03))` : "transparent" }}>
+                <button
+                  type="button"
+                  onClick={() => goTo(i)}
+                  data-testid={`landing-hero-rail-${item.key}`}
+                  aria-current={active ? "true" : undefined}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    width: "100%",
+                    height: "100%",
+                    minHeight: 76,
+                    minWidth: 0,
+                    padding: "0 20px",
+                    border: 0,
+                    background: "transparent",
+                    color: active ? gold : "rgba(245,241,232,0.72)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span style={{ display: "inline-grid", placeItems: "center", width: 24, height: 24, borderRadius: "50%", background: active ? `rgba(${goldRgb},0.30)` : "rgba(245,241,232,0.10)", color: active ? gold : "rgba(245,241,232,0.70)", fontSize: 12, fontWeight: 900, flex: "0 0 auto" }}>{i + 1}</span>
+                  <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: 900, letterSpacing: 0 }}>{item.navTitle}</strong>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <style>{`
+        @keyframes premiumFadeUp {
+          from { opacity: 0; transform: translateY(20px) }
+          to { opacity: 1; transform: translateY(0) }
+        }
+        .pd-hero-eyebrow { animation: premiumFadeUp 0.6s cubic-bezier(.2,.7,.2,1) both }
+        .pd-hero-h1 { animation: premiumFadeUp 0.7s 0.08s cubic-bezier(.2,.7,.2,1) both }
+        .pd-hero-sub { animation: premiumFadeUp 0.7s 0.16s cubic-bezier(.2,.7,.2,1) both }
+        .pd-hero-cta { animation: premiumFadeUp 0.7s 0.24s cubic-bezier(.2,.7,.2,1) both }
+        .pd-fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(.2,.7,.2,1), transform 0.7s cubic-bezier(.2,.7,.2,1) }
+        .pd-fade-target.pd-in-view { opacity: 1; transform: translateY(0) }
+        .pd-hero-rail button:hover,
+        .pd-hero-rail button:focus-visible {
+          color: ${gold} !important;
+          background: rgba(${goldRgb},0.10) !important;
+          outline: none;
+        }
+        a[data-testid="landing-hero-primary-cta"],
+        button[data-testid="landing-hero-primary-cta"] {
+          transition: transform 0.2s cubic-bezier(.2,.7,.2,1), box-shadow 0.2s;
+        }
+        a[data-testid="landing-hero-primary-cta"]:hover,
+        button[data-testid="landing-hero-primary-cta"]:hover {
+          transform: translateY(-2px);
+        }
+        @media (max-width: 880px) {
+          .pd-hero-stage {
+            min-height: clamp(600px, 82vh, 760px) !important;
+            padding: 64px 18px 132px !important;
+            align-items: flex-start !important;
+          }
+          .pd-hero-copy {
+            padding-top: 18px;
+          }
+          .pd-hero-rail {
+            grid-template-columns: 1fr !important;
+          }
+          .pd-hero-rail-controls {
+            min-height: 44px;
+            border-right: 0 !important;
+            border-bottom: 1px solid rgba(245,241,232,0.10);
+          }
+          .pd-hero-rail-list {
+            display: grid !important;
+            grid-auto-flow: column !important;
+            grid-auto-columns: minmax(150px, 1fr) !important;
+            grid-template-columns: none !important;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .pd-hero-rail-list::-webkit-scrollbar {
+            display: none;
+          }
+          .pd-hero-rail-list button {
+            min-height: 64px !important;
+            padding: 0 14px !important;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-fade-target {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+          }
+          .pd-hero-media img {
+            transform: none !important;
+            transition: none !important;
+          }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+function PremiumHeroCta({ label, target, gold, goldRgb }: { label: string; target: PremiumHeroTarget; gold: string; goldRgb: string }) {
+  const content = (
+    <>
+      {label}
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+    </>
+  );
+  const style = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    minHeight: 52,
+    padding: "0 30px",
+    background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+    color: "#0A0E1A",
+    borderRadius: 8,
+    border: "none",
+    fontSize: 16,
+    fontWeight: 900,
+    letterSpacing: 0,
+    textDecoration: "none",
+    boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
+    cursor: "pointer",
+  };
+
+  if (target.kind === "section") {
+    return (
+      <button type="button" data-testid="landing-hero-primary-cta" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
+        {content}
+      </button>
+    );
+  }
+  if (target.kind === "route") {
+    return (
+      <Link to={target.to} data-testid="landing-hero-primary-cta" style={style}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <a href={target.href} data-testid="landing-hero-primary-cta" style={style}>
+      {content}
+    </a>
+  );
+}
+
+function RailButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      style={{
+        border: 0,
+        borderRight: "1px solid rgba(245,241,232,0.12)",
+        background: "rgba(17,20,30,0.36)",
+        color: "#F5F1E8",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </button>
   );
 }
 

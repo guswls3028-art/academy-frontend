@@ -43,7 +43,7 @@ function BrandMark({ name }: { name: string }) {
 }
 
 export default function LandingBoardWritePage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
@@ -60,6 +60,8 @@ export default function LandingBoardWritePage() {
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
+  // useAuth hydrate race 방어 — 토큰이 있어도 /core/me 완료 전에는 user=null일 수 있다.
+  if (authLoading) return <CenterSpin />;
   // 비로그인 → 로그인. 학부모는 자유게시판 작성 차단(읽기만).
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role === "parent") {
@@ -162,7 +164,7 @@ export default function LandingBoardWritePage() {
           {/* 본문 */}
           <div>
             <label style={lblStyle(textSecondary)}>본문</label>
-            <div data-testid="board-write-content-wrap" style={{ borderRadius: 12, background: "#fff", overflow: "hidden" }}>
+            <div data-app="admin" data-testid="board-write-content-wrap" style={LANDING_RICH_EDITOR_THEME}>
               <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력해주세요" minHeight={240} />
             </div>
             <p style={{ marginTop: 6, fontSize: 11, color: textSecondary }}>이미지 / 링크 / 굵게 / 리스트 등 서식을 사용할 수 있어요.</p>
@@ -245,3 +247,26 @@ function lblStyle(color: string): React.CSSProperties {
     color, marginBottom: 8, letterSpacing: "0.04em", textTransform: "uppercase",
   };
 }
+
+const LANDING_RICH_EDITOR_THEME = {
+  borderRadius: 12,
+  background: "#ffffff",
+  overflow: "visible",
+  "--color-border-divider": "#D1D5DB",
+  "--color-bg-surface": "#FFFFFF",
+  "--color-bg-surface-hover": "#F8FAFC",
+  "--color-bg-surface-active": "#E5E7EB",
+  "--color-text-primary": "#111827",
+  "--color-text-secondary": "#475569",
+  "--color-text-muted": "#94A3B8",
+  "--color-text-link": "#2563EB",
+  "--color-brand-primary": "#D4A04C",
+  "--font-sans": "inherit",
+  "--letter-base": "0",
+  "--radius-md": "12px",
+  "--radius-sm": "8px",
+  "--space-1": "4px",
+  "--space-2": "8px",
+  "--space-3": "12px",
+  "--space-4": "16px",
+} as React.CSSProperties;

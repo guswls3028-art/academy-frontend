@@ -13,6 +13,12 @@ import { Link, useParams } from "react-router-dom";
 import { fetchLandingPublic } from "../api";
 import { fetchMatchupShowcaseDetail, type MatchupShowcaseCard } from "../api/matchupShowcase";
 import type { LandingPublicResponse } from "../types";
+import {
+  MATCHUP_COLORS,
+  MatchupCenterSpin,
+  MatchupCenterState,
+  MatchupLandingShell,
+} from "./LandingMatchupBoardShell";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import useAuth from "@/auth/hooks/useAuth";
@@ -77,29 +83,39 @@ export default function LandingMatchupBoardDetailPage() {
     }
   }, [card, config]);
 
-  const accent = config?.config?.primary_color || "#1E3A5F";
-  const brandName = config?.config?.brand_name || "학원";
+  const cfg = config?.config;
+  const accent = cfg?.primary_color || MATCHUP_COLORS.gold;
+  const brandName = cfg?.brand_name || "학원";
 
   if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#64748b", fontSize: 13 }}>불러오는 중…</div>
-      </div>
-    );
+    return <MatchupCenterSpin />;
   }
 
   if (error || !card) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 36, marginBottom: 4 }}>🔒</div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{error || "게시물 없음"}</h1>
-        <p style={{ fontSize: 13, color: "#64748b", margin: 0, lineHeight: 1.6 }}>
+      <MatchupCenterState>
+        <div style={{ fontSize: 34, marginBottom: 10 }}>!</div>
+        <h1 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>{error || "게시물 없음"}</h1>
+        <p style={{ fontSize: 13, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.65 }}>
           공개 기간이 끝났거나 학원에서 비공개로 전환했을 수 있어요.
         </p>
-        <Link to="/landing/matchup-board" style={{ marginTop: 12, color: "#2563eb", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
-          ← 적중 보고서 목록
+        <Link
+          to="/landing/matchup-board"
+          style={{
+            display: "inline-flex",
+            marginTop: 18,
+            padding: "10px 16px",
+            borderRadius: 8,
+            background: MATCHUP_COLORS.gold,
+            color: MATCHUP_COLORS.bg,
+            textDecoration: "none",
+            fontSize: 13,
+            fontWeight: 800,
+          }}
+        >
+          적중 보고서 목록
         </Link>
-      </div>
+      </MatchupCenterState>
     );
   }
 
@@ -122,54 +138,83 @@ export default function LandingMatchupBoardDetailPage() {
     return abs;
   })();
 
+  if (!cfg) {
+    return (
+      <MatchupCenterState>
+        <h1 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>랜딩 설정을 불러오지 못했습니다</h1>
+        <p style={{ fontSize: 13, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.65 }}>
+          잠시 후 다시 시도해주세요.
+        </p>
+      </MatchupCenterState>
+    );
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", display: "flex", flexDirection: "column" }}>
-      {/* 상단 brand bar */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "14px 24px", flexShrink: 0 }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "#0f172a" }}>
-            {config?.config?.logo_url && (
-              <img src={config.config.logo_url} alt="" style={{ height: 28, width: "auto", objectFit: "contain" }} />
-            )}
-            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em" }}>{brandName}</span>
-          </Link>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link to="/landing/matchup-board" style={{ padding: "7px 14px", borderRadius: 999, background: "rgba(15,23,42,0.05)", color: "#475569", fontSize: 12.5, fontWeight: 700, textDecoration: "none", border: "1px solid rgba(15,23,42,0.08)" }}>
-              ← 적중 보고서 목록
+    <MatchupLandingShell cfg={cfg} fill>
+      {/* 헤더 (카드 메타) */}
+      <div
+        style={{
+          background: `radial-gradient(circle at 20% 0%, rgba(212,160,76,0.16), transparent 30%), linear-gradient(180deg, ${MATCHUP_COLORS.bgAlt} 0%, ${MATCHUP_COLORS.bg} 100%)`,
+          borderBottom: `1px solid ${MATCHUP_COLORS.border}`,
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "22px 24px 18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 12 }}>
+            <Link
+              to="/landing/matchup-board"
+              style={{
+                padding: "8px 13px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.06)",
+                color: MATCHUP_COLORS.textSecondary,
+                fontSize: 12.5,
+                fontWeight: 800,
+                textDecoration: "none",
+                border: `1px solid ${MATCHUP_COLORS.border}`,
+              }}
+            >
+              적중 보고서 목록
             </Link>
             {isOwner && (
-              <Link to="/landing/admin/matchup-board" style={{ padding: "7px 14px", borderRadius: 999, background: "rgba(212,160,76,0.12)", color: "#B8862F", fontSize: 12.5, fontWeight: 700, textDecoration: "none", border: "1px solid rgba(212,160,76,0.35)" }}>
-                ⚙️ 게시판 관리
+              <Link
+                to="/landing/admin/matchup-board"
+                style={{
+                  padding: "8px 13px",
+                  borderRadius: 8,
+                  background: "rgba(212,160,76,0.14)",
+                  color: "#F5D08C",
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  border: "1px solid rgba(212,160,76,0.36)",
+                }}
+              >
+                게시판 관리
               </Link>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* 헤더 (카드 메타) */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", flexShrink: 0 }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "20px 24px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", background: accent, color: "#fff" }}>적중 보고서</span>
+            <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", background: accent, color: MATCHUP_COLORS.bg }}>적중 보고서</span>
             {hitRate !== undefined && (
-              <span style={{ fontSize: 12, fontWeight: 700, color: accent }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: accent }}>
                 적중률 {Math.round((hitRate || 0) * 100)}%
                 {hitCount !== undefined && countedEntries !== undefined && (
-                  <span style={{ color: "#94a3b8", fontWeight: 500, marginLeft: 4 }}>({hitCount}/{countedEntries})</span>
+                  <span style={{ color: MATCHUP_COLORS.textMuted, fontWeight: 600, marginLeft: 4 }}>({hitCount}/{countedEntries})</span>
                 )}
               </span>
             )}
             {!visibleNow && (
-              <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "rgba(245,158,11,0.12)", color: "#92400e" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, background: "rgba(245,158,11,0.12)", color: "#FBBF24" }}>
                 {card.expired ? "공개 기간 종료" : "비공개"}
               </span>
             )}
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em", lineHeight: 1.35 }}>{card.title}</h1>
+          <h1 style={{ fontSize: "clamp(22px, 3vw, 32px)", fontWeight: 900, margin: 0, lineHeight: 1.35 }}>{card.title}</h1>
           {card.description && (
-            <p style={{ fontSize: 13.5, color: "#475569", margin: "8px 0 0", lineHeight: 1.65 }}>{card.description}</p>
+            <p style={{ fontSize: 13.5, color: MATCHUP_COLORS.textSecondary, margin: "8px 0 0", lineHeight: 1.65 }}>{card.description}</p>
           )}
-          <div style={{ marginTop: 10, display: "flex", gap: 14, fontSize: 11.5, color: "#64748b", flexWrap: "wrap" }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 14, fontSize: 11.5, color: MATCHUP_COLORS.textMuted, flexWrap: "wrap" }}>
             <span>{card.snapshot_meta?.author_name || brandName}</span>
             <span>· {formatDate(card.published_at)}</span>
             <span>· 조회 {card.view_count}</span>
@@ -179,26 +224,26 @@ export default function LandingMatchupBoardDetailPage() {
 
       {/* PDF action bar — 학생 카톡 in-app browser fallback (iframe PDF 못 렌더하는 환경 대응) */}
       {pdfUrl && (
-        <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 24px", flexShrink: 0 }}>
+        <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "#64748b" }}>PDF가 안 보이면 ↓</span>
+            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>PDF가 안 보이면</span>
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ padding: "7px 14px", borderRadius: 999, background: accent, color: "#fff", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
-            >📄 새 탭에서 열기</a>
+              style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
+            >새 탭에서 열기</a>
             <a
               href={pdfUrl}
               download
-              style={{ padding: "7px 14px", borderRadius: 999, background: "rgba(15,23,42,0.05)", color: "#475569", fontSize: 12.5, fontWeight: 700, textDecoration: "none", border: "1px solid rgba(15,23,42,0.08)" }}
-            >⬇️ 다운로드</a>
+              style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: MATCHUP_COLORS.textSecondary, fontSize: 12.5, fontWeight: 800, textDecoration: "none", border: `1px solid ${MATCHUP_COLORS.border}` }}
+            >다운로드</a>
           </div>
         </div>
       )}
 
       {/* PDF iframe area */}
-      <div style={{ flex: 1, position: "relative", background: "#f1f5f9", minHeight: 600 }}>
+      <div style={{ flex: 1, position: "relative", background: "#101827", minHeight: 600 }}>
         {pdfUrl ? (
           <iframe
             src={pdfUrl}
@@ -206,13 +251,13 @@ export default function LandingMatchupBoardDetailPage() {
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", background: "#fff" }}
           />
         ) : (
-          <div style={{ padding: 48, textAlign: "center", color: "#64748b", lineHeight: 1.6 }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
-            <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 6px", color: "#0f172a" }}>본문 PDF를 볼 수 없습니다</p>
+          <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>!</div>
+            <p style={{ fontSize: 14, fontWeight: 800, margin: "0 0 6px", color: MATCHUP_COLORS.textPrimary }}>본문 PDF를 볼 수 없습니다</p>
             <p style={{ fontSize: 12.5, margin: 0 }}>공개 기간이 지났거나 학원에서 비공개 상태로 두었어요.</p>
           </div>
         )}
       </div>
-    </div>
+    </MatchupLandingShell>
   );
 }

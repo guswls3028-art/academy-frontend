@@ -36,7 +36,7 @@ function BrandMark({ name }: { name: string }) {
 }
 
 export default function LandingReviewWritePage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
@@ -56,6 +56,8 @@ export default function LandingReviewWritePage() {
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
+  // useAuth hydrate race 방어 — 토큰이 있어도 /core/me 완료 전에는 user=null일 수 있다.
+  if (authLoading) return <CenterSpin />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   // staff(owner/admin/staff/teacher) 자작 차단 — backend에서도 막지만 UI에서 명시
   if (!["student", "parent"].includes(role) && !u?.is_superuser) {
