@@ -4,11 +4,14 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BarChart3,
+  BellRing,
   BookOpen,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   ClipboardCheck,
+  Eye,
   FileText,
   GraduationCap,
   Layers3,
@@ -19,6 +22,7 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
+  Smartphone,
   UsersRound,
   Zap,
 } from "lucide-react";
@@ -49,21 +53,21 @@ const HERO_SLIDES = [
   {
     id: "message",
     eyebrow: "PARENT TOUCHPOINT",
-    title: "학부모 안내가 늦지 않게 이어집니다",
-    body: "성적과 과제, 보강 결과를 상황별 메시지로 정리해 반복 안내를 줄입니다.",
+    title: "수업결과와 출결 알림톡이 자동으로 이어집니다",
+    body: "입실·결석, 수업 결과, 영상 시청 안내를 조건별 알림톡으로 연결해 반복 연락을 줄입니다.",
     image: "/promo/admin-messages.png",
-    tone: "메시지",
-    stat: "상황별 안내 템플릿",
+    tone: "알림톡",
+    stat: "출결·성적·영상 안내 자동화",
     cta: "/promo/features",
   },
   {
     id: "video",
     eyebrow: "LEARNING MEDIA",
-    title: "영상 자료가 수업 흐름과 연결됩니다",
-    body: "수업 영상, 이어보기, 시청 이력을 강의와 수강생 흐름 안에서 확인합니다.",
+    title: "수강생은 학생전용앱에서 영상을 이어 봅니다",
+    body: "강사님은 누가 봤는지, 어디까지 봤는지 확인하고 필요한 안내까지 바로 이어갈 수 있습니다.",
     image: "/promo/admin-lectures.png",
-    tone: "영상 학습",
-    stat: "강의별 콘텐츠 허브",
+    tone: "학생앱 영상",
+    stat: "이어보기·시청 이력·댓글",
     cta: "/promo/video-platform",
   },
 ];
@@ -93,9 +97,9 @@ const OPERATING_TABS = [
     id: "message",
     label: "안내·메시지",
     icon: MessageSquareText,
-    title: "반복 안내를 줄이는 학부모 메시지",
-    body: "성적, 출결, 과제, 보강 결과를 메시지 템플릿과 연결해 안내 누락을 줄입니다.",
-    points: ["템플릿 발송", "연동 상태", "수강생/학부모 접점"],
+    title: "출결, 수업 결과, 영상 안내가 알림톡으로 자동 발송됩니다",
+    body: "입실·결석, 성적 피드백, 영상 시청 안내를 승인 템플릿과 연결해 강사님의 반복 연락을 줄입니다.",
+    points: ["입실·결석 알림", "수업결과 알림톡", "영상 시청 안내"],
     image: "/promo/admin-messages.png",
     accent: "rose",
   },
@@ -134,7 +138,25 @@ const WORKFLOW = [
   { icon: FileText, title: "평가", body: "시험·과제 생성과 응시" },
   { icon: BarChart3, title: "분석", body: "성적표와 문항별 분석" },
   { icon: CheckCircle2, title: "보강", body: "보강 대상자 판단" },
-  { icon: MessageSquareText, title: "안내", body: "수강생·학부모 메시지" },
+  { icon: MessageSquareText, title: "안내", body: "수업결과 알림톡 자동발송" },
+];
+
+const STUDENT_APP_POINTS = [
+  {
+    icon: Smartphone,
+    title: "학생전용앱 영상 학습",
+    body: "수강생은 모바일 앱에서 강의 목록, 재생 목록, 이어보기까지 한 흐름으로 봅니다.",
+  },
+  {
+    icon: Eye,
+    title: "시청 이력으로 후속 지도",
+    body: "강사님은 미시청·시청중·완료 상태와 마지막 재생 위치를 기준으로 피드백 대상을 찾습니다.",
+  },
+  {
+    icon: BellRing,
+    title: "알림톡 자동발송",
+    body: "입실·결석, 수업결과, 영상 시청 안내를 템플릿 기반 알림톡으로 자동 발송합니다.",
+  },
 ];
 
 const SAMPLE_CARDS = [
@@ -337,6 +359,64 @@ function OperatingHub() {
   );
 }
 
+function StudentAppProof() {
+  return (
+    <section className={styles.studentProof} aria-labelledby="student-proof-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.studentProofGrid}>
+          <div className={styles.studentProofCopy}>
+            <span>STUDENT APP + ALIMTALK</span>
+            <h2 id="student-proof-title">학생은 앱에서 보고, 강사님은 이력과 알림톡으로 챙깁니다</h2>
+            <p>
+              영상 기능은 강사님이 특히 체감하기 좋은 영역입니다. 수강생이 학생전용앱에서 바로 보고,
+              강사님은 시청 상태를 확인해 수업결과·출결·영상 안내 알림톡까지 이어갈 수 있습니다.
+            </p>
+            <ul className={styles.studentProofList}>
+              {STUDENT_APP_POINTS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.title}>
+                    <Icon size={20} />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.body}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className={styles.studentProofActions}>
+              <Link to="/promo/video-platform" className={`${styles.button} ${styles.buttonPrimary}`}>
+                영상 기능 자세히 보기
+                <ArrowRight size={18} />
+              </Link>
+              <Link to="/promo/features" className={`${styles.button} ${styles.buttonSecondary}`}>
+                알림톡 기능 보기
+                <Clock3 size={18} />
+              </Link>
+            </div>
+          </div>
+
+          <div className={styles.phoneWall} aria-label="학생전용앱 영상 화면 캡처">
+            <figure className={`${styles.phoneFrame} ${styles.phoneFrameLead}`}>
+              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
+              <figcaption>재생 목록과 이어보기</figcaption>
+            </figure>
+            <figure className={styles.phoneFrame}>
+              <img src="/promo/student-video-app.png" alt="학생전용앱 영상 강의 홈 화면" loading="lazy" />
+              <figcaption>학생앱 강의 홈</figcaption>
+            </figure>
+            <figure className={styles.phoneFrame}>
+              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
+              <figcaption>플레이어·댓글</figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function WorkflowSection() {
   return (
     <section className={styles.workflowSection} aria-labelledby="workflow-title">
@@ -436,6 +516,7 @@ export default function LandingPage() {
       <Hero />
       <ValueStrip />
       <OperatingHub />
+      <StudentAppProof />
       <WorkflowSection />
       <LandingSamples />
       <FinalCta />

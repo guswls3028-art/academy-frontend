@@ -1,0 +1,421 @@
+.hero {
+  overflow: hidden;
+  padding: 104px 0 88px;
+  color: #f8fafc;
+  background:
+    linear-gradient(135deg, rgba(6, 16, 24, 0.98), rgba(15, 45, 48, 0.95)),
+    url("/promo/admin-lectures.png") center / cover;
+}
+
+.heroInner,
+.sectionWrap {
+  width: min(1160px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.heroInner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(520px, 1fr);
+  gap: 58px;
+  align-items: center;
+}
+
+.heroCopy {
+  max-width: 620px;
+}
+
+.heroCopy > span,
+.sectionHead span,
+.workflowCopy span,
+.alimtalkCopy span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.heroCopy h1,
+.sectionHead h2,
+.workflowCopy h2,
+.alimtalkCopy h2 {
+  margin: 14px 0 0;
+  color: #101923;
+  font-size: 56px;
+  font-weight: 920;
+  line-height: 1.04;
+  letter-spacing: 0;
+  word-break: keep-all;
+}
+
+.heroCopy h1 {
+  color: #fff;
+  font-size: 66px;
+}
+
+.heroCopy p,
+.sectionHead p,
+.workflowCopy p,
+.alimtalkCopy p {
+  margin: 18px 0 0;
+  color: #556575;
+  font-size: 16px;
+  line-height: 1.76;
+  word-break: keep-all;
+}
+
+.heroCopy p {
+  color: rgba(248, 250, 252, 0.76);
+  font-size: 19px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 14px;
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.primaryButton {
+  border: 1px solid rgba(125, 211, 252, 0.6);
+  color: #06131b;
+  background: #13a8d8;
+  box-shadow: 0 18px 44px rgba(19, 168, 216, 0.26);
+}
+
+.secondaryButton {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-2px);
+}
+
+.heroScreens {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(270px, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.device {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  margin: 0;
+  aspect-ratio: 390 / 844;
+  background: #eaf0f7;
+  box-shadow: 0 28px 84px rgba(0, 0, 0, 0.38);
+}
+
+.deviceFront {
+  order: 2;
+  transform: translateY(24px);
+}
+
+.device img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.proofSection,
+.workflowSection,
+.alimtalkSection {
+  padding: 92px 0;
+  background: #f7fafb;
+}
+
+.sectionHead {
+  max-width: 800px;
+  margin-bottom: 34px;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.featurePanel {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 28px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.07);
+}
+
+.panelIcon {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #06313b;
+  background: #9ee8df;
+}
+
+.featurePanel h3 {
+  margin: 22px 0 18px;
+  color: #101923;
+  font-size: 24px;
+  font-weight: 920;
+}
+
+.featurePanel ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.featurePanel li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #263443;
+  font-size: 14px;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.featurePanel li svg {
+  flex: 0 0 auto;
+  color: #0ea5a8;
+}
+
+.workflowSection {
+  background: #fff;
+}
+
+.workflowLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(520px, 1fr);
+  gap: 46px;
+  align-items: center;
+}
+
+.workflowCopy {
+  max-width: 560px;
+}
+
+.workflowCopy span,
+.alimtalkCopy span {
+  color: #0ea5a8;
+}
+
+.routeList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.routeList li {
+  min-height: 190px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 22px;
+  background: #f7fafb;
+}
+
+.routeList svg {
+  color: #0ea5a8;
+}
+
+.routeList strong {
+  display: block;
+  margin-top: 28px;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 920;
+}
+
+.routeList p {
+  margin: 8px 0 0;
+  color: #5b6876;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.alimtalkSection {
+  background: #f7fafb;
+}
+
+.alimtalkBox {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(460px, 1fr);
+  gap: 34px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 36px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(237, 253, 250, 0.94)),
+    url("/promo/admin-messages.png") right center / cover;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.08);
+}
+
+.messageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.messageGrid article {
+  min-height: 190px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(12px);
+}
+
+.messageGrid svg {
+  color: #d97706;
+}
+
+.messageGrid strong {
+  display: block;
+  margin-top: 30px;
+  color: #101923;
+  font-size: 17px;
+  font-weight: 920;
+}
+
+.messageGrid p {
+  margin: 8px 0 0;
+  color: #5b6876;
+  font-size: 13px;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+@media (max-width: 1024px) {
+  .heroInner,
+  .workflowLayout,
+  .alimtalkBox {
+    grid-template-columns: 1fr;
+  }
+
+  .heroCopy h1,
+  .sectionHead h2,
+  .workflowCopy h2,
+  .alimtalkCopy h2 {
+    font-size: 44px;
+  }
+
+  .heroScreens {
+    max-width: 680px;
+  }
+
+  .alimtalkBox {
+    background: #fff;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero {
+    padding: 82px 0 66px;
+  }
+
+  .heroInner,
+  .sectionWrap {
+    width: min(100% - 28px, 1160px);
+  }
+
+  .heroInner {
+    gap: 34px;
+  }
+
+  .heroCopy h1,
+  .sectionHead h2,
+  .workflowCopy h2,
+  .alimtalkCopy h2 {
+    font-size: 34px;
+  }
+
+  .heroCopy p {
+    font-size: 15.5px;
+  }
+
+  .heroActions {
+    flex-direction: column;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .heroScreens {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .device {
+    border-radius: 18px;
+  }
+
+  .deviceFront {
+    transform: translateY(14px);
+  }
+
+  .proofSection,
+  .workflowSection,
+  .alimtalkSection {
+    padding: 66px 0;
+  }
+
+  .twoColumn,
+  .routeList,
+  .messageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .featurePanel,
+  .alimtalkBox {
+    padding: 20px;
+  }
+
+  .alimtalkBox {
+    gap: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .secondaryButton {
+    transition: none;
+  }
+}

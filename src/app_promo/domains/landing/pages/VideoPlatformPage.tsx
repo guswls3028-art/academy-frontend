@@ -1,97 +1,176 @@
-// PATH: src/app_promo/domains/landing/pages/VideoPlatformPage.tsx
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  BellRing,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  MessageSquareText,
+  PlayCircle,
+  Smartphone,
+} from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import styles from "./VideoPlatformPage.module.css";
 
-const PLAYER_FEATURES = [
-  "웹 기반 영상 재생",
-  "이어보기 (마지막 재생 위치 저장)",
-  "배속 조절",
-  "재생/일시정지/탐색 바",
-  "전체화면",
-  "모바일/태블릿 대응",
+const STUDENT_VISIBLE = [
+  "학생전용앱에서 강의 목록 확인",
+  "마지막으로 보던 지점부터 이어보기",
+  "모바일/태블릿 플레이어, 배속, 전체화면",
+  "영상별 댓글로 질문과 보충 설명 연결",
 ];
 
-const OPS_FEATURES = [
-  "수강생별 시청 이력 기록",
-  "차시 단위 영상 연결",
-  "수업/과제/시험과 연결",
-  "수강 상태 확인 (미시청/시청중/완료)",
+const TEACHER_VISIBLE = [
+  "수강생별 미시청·시청중·완료 상태",
+  "영상별 시청 시간과 마지막 재생 위치",
+  "차시, 과제, 시험으로 이어지는 학습 흐름",
+  "필요한 학생에게 영상 시청 안내 발송",
 ];
 
-const ADVANTAGES = [
-  { title: "브랜딩 일관성", desc: "외부 플랫폼 UI에 종속되지 않고 자체 브랜드 경험을 유지합니다." },
-  { title: "학습 흐름 유지", desc: "영상 시청에서 과제, 시험까지 제품 내부에서 연결됩니다." },
-  { title: "데이터 연결", desc: "시청 데이터를 성적·진도와 통합하여 수강생별 학습 현황을 파악합니다." },
-  { title: "UX 커스터마이징", desc: "수업 흐름에 맞춘 재생 경험을 제공합니다." },
+const AUTO_MESSAGES = [
+  { title: "입실·결석 알림", desc: "출결 처리와 동시에 학부모에게 상황을 안내합니다." },
+  { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 기준으로 결과 안내를 보냅니다." },
+  { title: "영상 시청 안내", desc: "미시청 학생에게 복습 영상 확인을 자연스럽게 독려합니다." },
 ];
 
 export default function VideoPlatformPage() {
   return (
     <>
-      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-            자체 동영상 플레이어
-          </h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            외부 영상 링크를 붙이는 수준을 넘어,
-            시청부터 진도 확인, 시험 연결까지 하나의 학습 경험으로.
-          </p>
-        </div>
-      </section>
-
-      {/* Definition */}
-      <section className="py-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="p-5 rounded-xl bg-violet-50/60 border border-violet-100">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              자체 동영상 플레이어는 단순 영상 재생기가 아니라,
-              <strong> 학습 경험과 수업 데이터를 연결하는 학습 인프라</strong>입니다.
+      <section className={styles.hero} aria-labelledby="video-platform-title">
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <span>STUDENT VIDEO EXPERIENCE</span>
+            <h1 id="video-platform-title">수강생이 학생전용앱에서 바로 보는 영상 학습</h1>
+            <p>
+              외부 링크를 던져주는 방식이 아니라, 강의 목록, 이어보기, 댓글, 시청 이력까지
+              학생앱 안에서 이어지는 영상 학습 흐름입니다.
             </p>
+            <div className={styles.heroActions}>
+              <Link to="/promo/demo" className={styles.primaryButton}>
+                데모 요청
+                <ArrowRight size={18} />
+              </Link>
+              <Link to="/promo/features" className={styles.secondaryButton}>
+                전체 기능 보기
+              </Link>
+            </div>
+          </div>
+
+          <div className={styles.heroScreens} aria-label="학생전용앱 영상 캡처">
+            <figure className={`${styles.device} ${styles.deviceFront}`}>
+              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어 화면" />
+            </figure>
+            <figure className={styles.device}>
+              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" />
+            </figure>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-14">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-7 rounded-2xl bg-white border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-5">플레이어 기능</h3>
-              <ul className="space-y-2.5">
-                {PLAYER_FEATURES.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="p-7 rounded-2xl bg-white border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-5">수업 연동</h3>
-              <ul className="space-y-2.5">
-                {OPS_FEATURES.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      <section className={styles.proofSection} aria-labelledby="student-proof-title">
+        <div className={styles.sectionWrap}>
+          <header className={styles.sectionHead}>
+            <span>WHAT TEACHERS CAN SELL</span>
+            <h2 id="student-proof-title">강사님이 학부모에게 설명하기 쉬운 기능이어야 합니다</h2>
+            <p>
+              “학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인한다”는 구조는
+              수업 관리의 성실함을 보여주는 가장 직관적인 증거가 됩니다.
+            </p>
+          </header>
 
-      {/* Advantages */}
-      <section className="py-14 bg-gray-50/60">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">왜 자체 플레이어인가</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
-            {ADVANTAGES.map((a) => (
-              <div key={a.title} className="p-6 rounded-xl bg-white border border-gray-100">
-                <h3 className="font-bold text-gray-900 mb-2 text-sm">{a.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{a.desc}</p>
+          <div className={styles.twoColumn}>
+            <article className={styles.featurePanel}>
+              <div className={styles.panelIcon}>
+                <Smartphone size={22} />
               </div>
-            ))}
+              <h3>학생에게 보이는 것</h3>
+              <ul>
+                {STUDENT_VISIBLE.map((item) => (
+                  <li key={item}>
+                    <CheckCircle2 size={16} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </article>
+
+            <article className={styles.featurePanel}>
+              <div className={styles.panelIcon}>
+                <Eye size={22} />
+              </div>
+              <h3>강사님이 확인하는 것</h3>
+              <ul>
+                {TEACHER_VISIBLE.map((item) => (
+                  <li key={item}>
+                    <CheckCircle2 size={16} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.workflowSection} aria-labelledby="video-workflow-title">
+        <div className={styles.sectionWrap}>
+          <div className={styles.workflowLayout}>
+            <div className={styles.workflowCopy}>
+              <span>CLASS TO FOLLOW-UP</span>
+              <h2 id="video-workflow-title">영상 시청이 끝이 아니라, 다음 안내까지 이어집니다</h2>
+              <p>
+                영상은 강의 자료 보관함이 아니라 후속 지도를 만드는 데이터입니다.
+                시청 상태가 남아야 미시청 학생을 챙기고, 알림톡으로 같은 안내를 반복하지 않을 수 있습니다.
+              </p>
+            </div>
+            <ol className={styles.routeList}>
+              <li>
+                <PlayCircle size={22} />
+                <strong>영상 등록</strong>
+                <p>차시별 복습 영상과 공개 범위를 정리합니다.</p>
+              </li>
+              <li>
+                <Clock3 size={22} />
+                <strong>이어보기</strong>
+                <p>학생은 마지막 재생 위치부터 다시 시작합니다.</p>
+              </li>
+              <li>
+                <Eye size={22} />
+                <strong>시청 이력</strong>
+                <p>강사님은 미시청·완료 상태를 확인합니다.</p>
+              </li>
+              <li>
+                <BellRing size={22} />
+                <strong>알림톡 안내</strong>
+                <p>필요한 학생과 학부모에게 후속 안내를 보냅니다.</p>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.alimtalkSection} aria-labelledby="video-alimtalk-title">
+        <div className={styles.sectionWrap}>
+          <div className={styles.alimtalkBox}>
+            <div className={styles.alimtalkCopy}>
+              <span>
+                <MessageSquareText size={17} />
+                ALIMTALK AUTOMATION
+              </span>
+              <h2 id="video-alimtalk-title">알림톡 자동발송은 운영 부담을 줄이는 핵심 기능입니다</h2>
+              <p>
+                수업 후 결과 안내, 출결 확인, 영상 시청 독려를 매번 손으로 반복하지 않도록
+                승인 템플릿과 이벤트 기준으로 자동 발송 흐름을 잡습니다.
+              </p>
+            </div>
+            <div className={styles.messageGrid}>
+              {AUTO_MESSAGES.map((item) => (
+                <article key={item.title}>
+                  <BellRing size={18} />
+                  <strong>{item.title}</strong>
+                  <p>{item.desc}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>

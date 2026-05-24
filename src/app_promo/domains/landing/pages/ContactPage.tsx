@@ -84,7 +84,7 @@ export default function ContactPage() {
             <h2>상담 전에 이 세 가지만 알려주세요</h2>
             <ol>
               <li>담당 수강생 수와 함께 쓰는 계정 수</li>
-              <li>시험·과제·영상·메시지 중 필요한 범위</li>
+              <li>시험·과제·학생앱 영상·알림톡 자동발송 중 필요한 범위</li>
               <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
