@@ -11,7 +11,7 @@ const PLAYER_FEATURES = [
 ];
 
 const OPS_FEATURES = [
-  "학생별 시청 이력 기록",
+  "수강생별 시청 이력 기록",
   "차시 단위 영상 연결",
   "수업/과제/시험과 연결",
   "수강 상태 확인 (미시청/시청중/완료)",
@@ -20,7 +20,7 @@ const OPS_FEATURES = [
 const ADVANTAGES = [
   { title: "브랜딩 일관성", desc: "외부 플랫폼 UI에 종속되지 않고 자체 브랜드 경험을 유지합니다." },
   { title: "학습 흐름 유지", desc: "영상 시청에서 과제, 시험까지 제품 내부에서 연결됩니다." },
-  { title: "데이터 연결", desc: "시청 데이터를 성적·진도와 통합하여 학습 현황을 파악합니다." },
+  { title: "데이터 연결", desc: "시청 데이터를 성적·진도와 통합하여 수강생별 학습 현황을 파악합니다." },
   { title: "UX 커스터마이징", desc: "수업 흐름에 맞춘 재생 경험을 제공합니다." },
 ];
 
@@ -45,7 +45,7 @@ export default function VideoPlatformPage() {
           <div className="p-5 rounded-xl bg-violet-50/60 border border-violet-100">
             <p className="text-sm text-gray-700 leading-relaxed">
               자체 동영상 플레이어는 단순 영상 재생기가 아니라,
-              <strong> 학습 경험과 운영 데이터를 연결하는 학습 인프라</strong>입니다.
+              <strong> 학습 경험과 수업 데이터를 연결하는 학습 인프라</strong>입니다.
             </p>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function VideoPlatformPage() {
               </ul>
             </div>
             <div className="p-7 rounded-2xl bg-white border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-5">운영 연동</h3>
+              <h3 className="font-bold text-gray-900 mb-5">수업 연동</h3>
               <ul className="space-y-2.5">
                 {OPS_FEATURES.map((f) => (
                   <li key={f} className="flex items-center gap-2.5 text-sm text-gray-700">

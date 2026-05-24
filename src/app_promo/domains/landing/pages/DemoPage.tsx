@@ -6,12 +6,12 @@ import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
 import styles from "./LeadPage.module.css";
 
 const INTEREST_OPTIONS = [
-  "학생 관리",
+  "수강생 관리",
   "시험/과제",
   "AI 자동채점",
   "동영상 플레이어",
   "메시지 기능",
-  "상담/클리닉",
+  "보강/클리닉",
 ];
 
 export default function DemoPage() {
@@ -88,8 +88,8 @@ export default function DemoPage() {
       <section className={styles.hero} aria-labelledby="demo-title">
         <div className={styles.heroInner}>
           <span>DEMO REQUEST</span>
-          <h1 id="demo-title">우리 학원 운영 흐름에 맞춰 데모를 잡습니다</h1>
-          <p>현재 관리 방식과 필요한 기능을 남겨주시면, 실제 도입 경로와 요금 기준을 함께 확인합니다.</p>
+          <h1 id="demo-title">강사님의 수업 흐름에 맞춰 데모를 잡습니다</h1>
+          <p>현재 수업 방식과 필요한 기능을 남겨주시면, 실제 시작 경로와 요금 기준을 함께 확인합니다.</p>
           <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
         </div>
       </section>
@@ -101,8 +101,8 @@ export default function DemoPage() {
             <h2>데모에서 확인할 내용</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면 흐름</li>
-              <li>학원 규모에 맞는 Standard/Pro/Max 기준</li>
-              <li>기존 자료 이전과 도입 일정의 현실적인 범위</li>
+              <li>수강생 수와 계정 수에 맞는 Standard/Pro/Max 기준</li>
+              <li>기존 자료 이전과 시작 일정의 현실적인 범위</li>
             </ol>
             <div className={styles.callBox}>
               <strong>{CONSULT_PHONE_DISPLAY}</strong>
@@ -136,7 +136,7 @@ export default function DemoPage() {
                 />
               </label>
               <label>
-                <span>학원명 *</span>
+                <span>소속/수업명 *</span>
                 <input
                   type="text"
                   required
@@ -144,7 +144,7 @@ export default function DemoPage() {
                   disabled={pending}
                   value={form.academy_name}
                   onChange={(e) => update("academy_name", e.target.value)}
-                  placeholder="학원 이름"
+                  placeholder="예: 홍길동영어, 고2 내신반"
                 />
               </label>
               <label>
@@ -171,7 +171,7 @@ export default function DemoPage() {
                 />
               </label>
               <label>
-                <span>학생 수</span>
+                <span>담당 수강생 수</span>
                 <input
                   type="text"
                   maxLength={40}
@@ -182,7 +182,7 @@ export default function DemoPage() {
                 />
               </label>
               <label>
-                <span>현재 운영 방식</span>
+                <span>현재 수업 관리 방식</span>
                 <input
                   type="text"
                   maxLength={120}
@@ -219,7 +219,7 @@ export default function DemoPage() {
                 disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
-                placeholder="추가로 궁금한 점이나 요청 사항을 적어주세요."
+                placeholder="데모에서 꼭 보고 싶은 수업 흐름이나 채점/피드백 고민을 적어주세요."
               />
             </label>
 

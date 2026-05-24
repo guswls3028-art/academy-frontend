@@ -22,25 +22,25 @@ import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../domains/landing/bus
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "홈", path: "/promo", icon: Home, note: "운영 OS 개요" },
+  { label: "홈", path: "/promo", icon: Home, note: "수업 OS 개요" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "도메인별 기능" },
-  { label: "랜딩", path: "/promo/landing-samples", icon: BookOpen, note: "학원 홈페이지 샘플" },
-  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "도입 비용" },
+  { label: "랜딩", path: "/promo/landing-samples", icon: BookOpen, note: "수업 소개 샘플" },
+  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
   { label: "FAQ", path: "/promo/faq", icon: CircleHelp, note: "자주 묻는 질문" },
-  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
+  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "수업 맞춤 상담" },
 ];
 
 const QUICK_GROUPS = [
   {
-    title: "운영 흐름",
+    title: "수업 흐름",
     links: [
-      { label: "수업·학생 관리", path: "/promo/features" },
+      { label: "수업·수강생 관리", path: "/promo/features" },
       { label: "AI 채점", path: "/promo/ai-grading" },
       { label: "영상 학습", path: "/promo/video-platform" },
     ],
   },
   {
-    title: "도입 검토",
+    title: "비용 확인",
     links: [
       { label: "요금제 비교", path: "/promo/pricing" },
       { label: "데모 요청", path: "/promo/demo" },
@@ -48,11 +48,11 @@ const QUICK_GROUPS = [
     ],
   },
   {
-    title: "브랜드 페이지",
+    title: "수업 홍보",
     links: [
       { label: "랜딩 샘플", path: "/promo/landing-samples" },
       { label: "기능 소개", path: "/promo/features" },
-      { label: "공개 홈페이지", path: "/promo/landing-samples" },
+      { label: "수업 소개 페이지", path: "/promo/landing-samples" },
     ],
   },
 ];
@@ -233,9 +233,9 @@ function Header() {
         <div className={styles.sidebarCta}>
           <span>
             <Sparkles size={16} />
-            빠른 도입 상담
+            빠른 수업 상담
           </span>
-          <p>현재 운영 방식에 맞는 시작 경로를 제안드립니다. 급하면 바로 전화주세요.</p>
+          <p>현재 수업 방식에 맞는 시작 경로를 제안드립니다. 급하면 바로 전화주세요.</p>
           <a href={CONSULT_PHONE_TEL}>
             {CONSULT_PHONE_DISPLAY}
             <PhoneCall size={16} />
@@ -262,7 +262,7 @@ function Footer() {
               <small>Academy OS</small>
             </span>
           </Link>
-          <p>수업부터 성적, 안내와 공개 홈페이지까지 하나의 흐름으로 묶는 학원 운영 SaaS</p>
+          <p>수업부터 성적, 안내와 수업 소개 페이지까지 하나의 흐름으로 묶는 강사용 SaaS</p>
           <a href={CONSULT_PHONE_TEL} className={styles.footerPhone}>
             전화 상담 {CONSULT_PHONE_DISPLAY}
           </a>
@@ -275,8 +275,8 @@ function Footer() {
           <Link to="/promo/video-platform">영상 학습</Link>
         </nav>
 
-        <nav aria-label="도입">
-          <h2>도입</h2>
+        <nav aria-label="상담">
+          <h2>상담</h2>
           <Link to="/promo/pricing">요금제</Link>
           <Link to="/promo/demo">데모 요청</Link>
           <Link to="/promo/contact">문의하기</Link>

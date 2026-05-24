@@ -28,29 +28,29 @@ import styles from "./LandingPage.module.css";
 const HERO_SLIDES = [
   {
     id: "control",
-    eyebrow: "ACADEMY OPERATING OS",
-    title: "수업·성적·안내를 한 화면에서 운영합니다",
-    body: "강의, 시험, 클리닉, 메시지를 따로 관리하지 않고 하나의 운영 흐름으로 연결합니다.",
+    eyebrow: "TEACHER WORKFLOW OS",
+    title: "강사님의 수업·성적·안내를 한 화면에서 정리합니다",
+    body: "수업 준비, 시험, 보강, 학부모 안내를 따로 관리하지 않고 하나의 흐름으로 연결합니다.",
     image: "/promo/admin-home.png",
-    tone: "운영 지휘실",
-    stat: "12개 메뉴를 한 흐름으로",
+    tone: "수업 허브",
+    stat: "수업 이후 업무를 한 흐름으로",
     cta: "/promo/features",
   },
   {
     id: "exam",
     eyebrow: "TEST TO ACTION",
-    title: "시험 이후 업무가 자동으로 이어집니다",
-    body: "응시 현황, 채점, 성적 분석, 보강 대상자 판단까지 다음 행동이 바로 보입니다.",
+    title: "시험이 끝나면 피드백까지 바로 이어집니다",
+    body: "응시 현황, 채점, 성적 분석, 보강 대상자 판단까지 강사님이 다음 행동을 바로 볼 수 있습니다.",
     image: "/promo/admin-exams.png",
-    tone: "평가 운영",
-    stat: "문항 분석부터 후속 조치",
+    tone: "채점·피드백",
+    stat: "문항 분석부터 보강 안내",
     cta: "/promo/ai-grading",
   },
   {
     id: "message",
     eyebrow: "PARENT TOUCHPOINT",
     title: "학부모 안내가 늦지 않게 이어집니다",
-    body: "성적과 과제, 클리닉 결과를 상황별 메시지로 정리해 반복 안내를 줄입니다.",
+    body: "성적과 과제, 보강 결과를 상황별 메시지로 정리해 반복 안내를 줄입니다.",
     image: "/promo/admin-messages.png",
     tone: "메시지",
     stat: "상황별 안내 템플릿",
@@ -59,8 +59,8 @@ const HERO_SLIDES = [
   {
     id: "video",
     eyebrow: "LEARNING MEDIA",
-    title: "영상 학습이 운영 데이터와 연결됩니다",
-    body: "수업 영상, 이어보기, 시청 이력을 강의와 학생 흐름 안에서 확인합니다.",
+    title: "영상 자료가 수업 흐름과 연결됩니다",
+    body: "수업 영상, 이어보기, 시청 이력을 강의와 수강생 흐름 안에서 확인합니다.",
     image: "/promo/admin-lectures.png",
     tone: "영상 학습",
     stat: "강의별 콘텐츠 허브",
@@ -71,11 +71,11 @@ const HERO_SLIDES = [
 const OPERATING_TABS = [
   {
     id: "classes",
-    label: "수업 운영",
+    label: "수업 준비",
     icon: BookOpen,
-    title: "강의, 차시, 학생 현황을 한 번에 정리",
-    body: "오늘의 수업과 제출, 미처리 업무를 같은 화면에서 확인해 선생님별 운영 편차를 줄입니다.",
-    points: ["강의/차시 구조", "학생별 상태", "빠른 미처리 확인"],
+    title: "강의, 차시, 담당 수강생 현황을 한 번에 정리",
+    body: "오늘 수업과 제출, 미처리 확인을 같은 화면에서 보며 수업 전후 시간을 줄입니다.",
+    points: ["강의/차시 구조", "수강생별 상태", "미처리 확인"],
     image: "/promo/admin-lectures.png",
     accent: "mint",
   },
@@ -84,8 +84,8 @@ const OPERATING_TABS = [
     label: "시험·성적",
     icon: ClipboardCheck,
     title: "평가 결과가 후속 조치로 바로 이어집니다",
-    body: "시험 생성, 채점, 성적표, 클리닉 대상자 판단을 하나의 흐름으로 이어 실무 시간을 줄입니다.",
-    points: ["시험 운영", "성적 분석", "클리닉 연결"],
+    body: "시험 생성, 채점, 성적표, 보강 대상자 판단을 하나의 흐름으로 이어 실무 시간을 줄입니다.",
+    points: ["시험 운영", "성적 분석", "보강 연결"],
     image: "/promo/admin-scores.png",
     accent: "amber",
   },
@@ -93,19 +93,19 @@ const OPERATING_TABS = [
     id: "message",
     label: "안내·메시지",
     icon: MessageSquareText,
-    title: "상황별 안내를 놓치지 않는 학부모 접점",
-    body: "성적, 출결, 과제, 클리닉 결과를 메시지 템플릿과 연결해 반복 안내를 안정화합니다.",
-    points: ["템플릿 발송", "연동 상태", "학생/학부모 접점"],
+    title: "반복 안내를 줄이는 학부모 메시지",
+    body: "성적, 출결, 과제, 보강 결과를 메시지 템플릿과 연결해 안내 누락을 줄입니다.",
+    points: ["템플릿 발송", "연동 상태", "수강생/학부모 접점"],
     image: "/promo/admin-messages.png",
     accent: "rose",
   },
   {
     id: "landing",
-    label: "공개 홈페이지",
+    label: "수업 홍보",
     icon: Megaphone,
-    title: "학원 브랜드 페이지까지 바로 운영",
-    body: "랜딩 페이지, 후기, 공개 게시판, 적중 보고서를 같은 관리자 경험 안에서 게시합니다.",
-    points: ["랜딩 편집", "후기/게시판", "공개 보고서"],
+    title: "강사님의 수업 소개 페이지까지 바로 정리",
+    body: "수업 소개, 후기, 공개 게시판, 적중 보고서를 같은 흐름 안에서 게시합니다.",
+    points: ["수업 소개", "후기/게시판", "공개 보고서"],
     image: "/promo/screenshot-dashboard.png",
     accent: "blue",
   },
@@ -119,27 +119,27 @@ const VALUE_CARDS = [
   },
   {
     icon: ShieldCheck,
-    title: "멀티 테넌트",
-    body: "캠퍼스와 브랜드는 독립적으로 보이고, 운영자는 하나의 기준으로 관리합니다.",
+    title: "팀 수업 확장",
+    body: "개인 강사부터 여러 반을 맡는 팀까지 같은 기준으로 수업 자료와 권한을 정리합니다.",
   },
   {
     icon: UsersRound,
     title: "현장형 UX",
-    body: "선생님과 데스크가 매일 반복해서 쓰는 화면을 기준으로 클릭 수와 판단 비용을 줄입니다.",
+    body: "강사님이 매일 반복해서 쓰는 화면을 기준으로 클릭 수와 판단 비용을 줄입니다.",
   },
 ];
 
 const WORKFLOW = [
-  { icon: GraduationCap, title: "수업", body: "강의와 학생 상태 확인" },
+  { icon: GraduationCap, title: "수업", body: "강의와 수강생 상태 확인" },
   { icon: FileText, title: "평가", body: "시험·과제 생성과 응시" },
   { icon: BarChart3, title: "분석", body: "성적표와 문항별 분석" },
-  { icon: CheckCircle2, title: "보강", body: "클리닉 대상자 판단" },
-  { icon: MessageSquareText, title: "안내", body: "학생·학부모 메시지" },
+  { icon: CheckCircle2, title: "보강", body: "보강 대상자 판단" },
+  { icon: MessageSquareText, title: "안내", body: "수강생·학부모 메시지" },
 ];
 
 const SAMPLE_CARDS = [
-  { title: "Minimal Tutor", body: "깔끔한 개인 학원형", color: "blue" },
-  { title: "Premium Dark", body: "프리미엄 브랜드형", color: "ink" },
+  { title: "Minimal Tutor", body: "깔끔한 개인 강사형", color: "blue" },
+  { title: "Premium Dark", body: "프리미엄 수업 브랜드형", color: "ink" },
   { title: "Academic Trust", body: "성적·관리 신뢰형", color: "mint" },
   { title: "Program Promo", body: "프로그램 모집형", color: "rose" },
 ];
@@ -200,9 +200,9 @@ function Hero() {
             </Link>
           </div>
           <ul className={styles.heroTags} aria-label="핵심 가치">
-            <li>시험 이후 후속 운영</li>
-            <li>학생앱·학부모 안내</li>
-            <li>공개 홈페이지</li>
+            <li>시험 이후 피드백</li>
+            <li>수강생앱·학부모 안내</li>
+            <li>수업 소개 페이지</li>
           </ul>
         </div>
 
@@ -284,12 +284,12 @@ function OperatingHub() {
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
           <span>PRODUCT FLOW</span>
-          <h2 id="product-flow-title">학원 운영의 주요 화면을 탭처럼 오가세요</h2>
-          <p>빠른 메뉴형 탐색을 Academy 제품 구조에 맞춰, 실제 운영자가 바로 이해하는 흐름으로 바꿨습니다.</p>
+          <h2 id="product-flow-title">강사님의 주요 업무 화면을 탭처럼 오가세요</h2>
+          <p>수업 준비부터 채점, 피드백, 안내까지 실제 수업 순서대로 바로 이해되는 흐름입니다.</p>
         </header>
 
         <div className={styles.hubShell}>
-          <nav className={styles.hubSidebar} aria-label="운영 화면">
+          <nav className={styles.hubSidebar} aria-label="수업 관리 화면">
             {OPERATING_TABS.map((item) => {
               const Icon = item.icon;
               return (
@@ -343,7 +343,7 @@ function WorkflowSection() {
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
           <span>OPERATING ROUTE</span>
-          <h2 id="workflow-title">시험 하나가 끝난 뒤에도 업무는 계속 이어집니다</h2>
+          <h2 id="workflow-title">시험 하나가 끝난 뒤에도 강사님의 일은 계속 이어집니다</h2>
         </header>
         <ol className={styles.workflow}>
           {WORKFLOW.map((step, index) => {
@@ -370,10 +370,10 @@ function LandingSamples() {
         <div className={styles.samplesLayout}>
           <div className={styles.samplesCopy}>
             <span>PUBLIC SITE</span>
-            <h2 id="samples-title">학원 홈페이지도 운영 도구처럼 관리합니다</h2>
+            <h2 id="samples-title">수업 소개 페이지도 강의 자료처럼 관리합니다</h2>
             <p>
-              학원별 공개 랜딩, 후기, 게시판, 적중 보고서를 관리자 플로우와 연결해
-              홍보 페이지가 방치되지 않게 합니다.
+              강사님의 수업 소개, 후기, 게시판, 적중 보고서를 수업 관리 흐름과 연결해
+              홍보 페이지가 오래된 안내문처럼 방치되지 않게 합니다.
             </p>
             <Link to="/promo/landing-samples" className={`${styles.button} ${styles.buttonDark}`}>
               랜딩 샘플 보기
@@ -407,10 +407,10 @@ function FinalCta() {
         <div className={styles.finalCtaInner}>
           <span>
             <Sparkles size={18} />
-            도입 상담
+            수업 상담
           </span>
-          <h2 id="final-cta-title">우리 학원 운영 흐름에 맞는 구성을 같이 잡아보세요</h2>
-          <p>현재 쓰는 강의, 시험, 메시지 방식부터 듣고 가장 작은 도입 경로를 제안드립니다.</p>
+          <h2 id="final-cta-title">강사님의 수업 흐름에 맞는 구성을 같이 잡아보세요</h2>
+          <p>현재 쓰는 강의, 시험, 피드백 방식부터 듣고 가장 작은 시작 경로를 제안드립니다.</p>
           <div className={styles.finalCtaActions}>
             <a href={CONSULT_PHONE_TEL} className={`${styles.button} ${styles.buttonPhone}`}>
               전화 상담 {CONSULT_PHONE_DISPLAY}

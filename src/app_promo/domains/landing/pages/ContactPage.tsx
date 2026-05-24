@@ -5,7 +5,7 @@ import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLe
 import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
 import styles from "./LeadPage.module.css";
 
-const INQUIRY_TYPES = ["가격 문의", "데모 요청", "도입 상담", "기능 문의", "제휴 문의"];
+const INQUIRY_TYPES = ["가격 문의", "데모 요청", "수업 맞춤 상담", "기능 문의", "제휴 문의"];
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -71,8 +71,8 @@ export default function ContactPage() {
       <section className={styles.hero} aria-labelledby="contact-title">
         <div className={styles.heroInner}>
           <span>CONTACT</span>
-          <h1 id="contact-title">가격과 도입 범위를 정확히 확인하세요</h1>
-          <p>폼 접수는 관리자 상담 수신함에 저장됩니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
+          <h1 id="contact-title">강사님의 수업에 맞는 가격과 범위를 확인하세요</h1>
+          <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드립니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
           <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
         </div>
       </section>
@@ -83,9 +83,9 @@ export default function ContactPage() {
             <span>CONSULT NOTE</span>
             <h2>상담 전에 이 세 가지만 알려주세요</h2>
             <ol>
-              <li>현재 학생 수와 관리자 수</li>
+              <li>담당 수강생 수와 함께 쓰는 계정 수</li>
               <li>시험·과제·영상·메시지 중 필요한 범위</li>
-              <li>도입 희망 일정과 기존 관리 방식</li>
+              <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
               <strong>{CONSULT_PHONE_DISPLAY}</strong>
@@ -142,18 +142,18 @@ export default function ContactPage() {
                 />
               </label>
               <label>
-                <span>학원명</span>
+                <span>소속/수업명</span>
                 <input
                   type="text"
                   maxLength={80}
                   disabled={pending}
                   value={form.academy_name}
                   onChange={(e) => update("academy_name", e.target.value)}
-                  placeholder="학원 이름"
+                  placeholder="예: 홍길동영어, 고2 내신반"
                 />
               </label>
               <label>
-                <span>학생 수</span>
+                <span>담당 수강생 수</span>
                 <input
                   type="text"
                   maxLength={40}
@@ -187,7 +187,7 @@ export default function ContactPage() {
                 disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
-                placeholder="궁금한 점이나 요청 사항을 자유롭게 작성해주세요."
+                placeholder="현재 수업 방식, 채점/피드백 고민, 필요한 기능을 적어주세요."
               />
             </label>
 

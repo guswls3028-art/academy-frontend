@@ -27,17 +27,17 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>PRICE DECK</span>
-            <h1 id="pricing-title">요금은 단순하게, 도입 범위는 정확하게</h1>
+            <h1 id="pricing-title">요금은 단순하게, 수업 범위는 정확하게</h1>
             <p>
-              월 구독료는 숨기지 않고 공개합니다. 학생 수, 관리자 계정, 저장공간,
-              메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
+              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 함께 쓰는 계정,
+              저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
             </p>
             <div className={styles.heroActions}>
               <a href={CONSULT_PHONE_TEL} className={styles.primaryCta}>
                 전화 상담 {CONSULT_PHONE_DISPLAY}
               </a>
               <Link to="/promo/demo" className={styles.secondaryCta}>
-                우리 학원 견적 확인
+                내 수업 견적 확인
               </Link>
             </div>
           </div>
@@ -45,7 +45,7 @@ export default function PricingPage() {
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
             <span>현재 프로모션 기준</span>
             <strong>99,000원부터</strong>
-            <p>부가세 별도 · 월 구독 · 활성 학생 수 기준</p>
+            <p>부가세 별도 · 월 구독 · 활성 수강생 수 기준</p>
             <dl>
               <div>
                 <dt>주력 플랜</dt>
@@ -64,8 +64,8 @@ export default function PricingPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
             <span>SELECT THE FIT</span>
-            <h2 id="plan-title">학원 규모별로 고르는 세 가지 운영 패키지</h2>
-            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 운영 한도와 지원 수준에서 납니다.</p>
+            <h2 id="plan-title">강사님의 수업 규모별로 고르는 세 가지 패키지</h2>
+            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 수강생 한도와 지원 수준에서 납니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -94,7 +94,7 @@ export default function PricingPage() {
 
                 <dl className={styles.planSpecs}>
                   <div>
-                    <dt>학생</dt>
+                    <dt>수강생</dt>
                     <dd>{plan.studentLimit}</dd>
                   </div>
                   <div>
@@ -141,7 +141,7 @@ export default function PricingPage() {
           <div className={styles.comparisonHead}>
             <span>COMPARE</span>
             <h2 id="comparison-title">플랜별 비교</h2>
-            <p>기능 포함 여부보다 운영 한도와 지원 방식 차이를 먼저 보세요.</p>
+            <p>기능 포함 여부보다 수강생 한도와 지원 방식 차이를 먼저 보세요.</p>
           </div>
 
           <div className={styles.tableShell}>
@@ -170,8 +170,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="우리 학원 규모에 맞는 견적을 받아보세요"
-        subtitle={`전화 ${CONSULT_PHONE_DISPLAY} 또는 데모 요청으로 실제 운영 조건을 확인합니다.`}
+        title="강사님의 수업 규모에 맞는 견적을 받아보세요"
+        subtitle={`전화 ${CONSULT_PHONE_DISPLAY} 또는 데모 요청으로 실제 수업 조건을 확인합니다.`}
       />
     </>
   );

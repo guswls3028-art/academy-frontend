@@ -58,10 +58,10 @@ export function submitPromoDemoLead(input: {
 }) {
   const interest = input.interests.length > 0 ? input.interests.join(", ") : "데모 요청";
   const message = linesToMessage([
-    ["학원명", input.academyName],
+    ["소속/수업명", input.academyName],
     ["이메일", input.email],
-    ["학생 수", input.studentCount],
-    ["현재 운영 방식", input.currentWorkflow],
+    ["담당 수강생 수", input.studentCount],
+    ["현재 수업 관리 방식", input.currentWorkflow],
     ["관심 기능", interest],
     ["요청 사항", input.message],
   ]);
@@ -88,9 +88,9 @@ export function submitPromoContactLead(input: {
 }) {
   const message = linesToMessage([
     ["문의 유형", input.inquiryType],
-    ["학원명", input.academyName],
+    ["소속/수업명", input.academyName],
     ["이메일", input.email],
-    ["학생 수", input.studentCount],
+    ["담당 수강생 수", input.studentCount],
     ["문의 내용", input.message],
   ]);
 

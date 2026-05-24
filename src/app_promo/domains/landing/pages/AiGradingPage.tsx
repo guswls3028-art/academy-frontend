@@ -17,7 +17,7 @@ const TIERS = [
   },
   {
     level: "2단계",
-    title: "운영 정책에 따라 확장 가능",
+    title: "수업 정책에 따라 확장 가능",
     color: "text-indigo-600 bg-indigo-50",
     items: [
       "유사 정답 허용 사전",
@@ -36,7 +36,7 @@ const TIERS = [
       "답변 요약",
       "핵심 키워드 포함 분석",
       "루브릭 기반 점수 추천",
-      "교사용 검수 화면 제공",
+      "강사용 검수 화면 제공",
     ],
   },
 ];
@@ -46,7 +46,7 @@ const WORKFLOW = [
   "자동채점 실행 또는 제출 시 자동 실행",
   "채점 결과 대량 검토 화면",
   "이의 가능 문항 필터",
-  "교사 검수 후 확정 처리",
+  "강사 검수 후 확정 처리",
   "확정 결과를 성적표·통계로 반영",
 ];
 
@@ -71,7 +71,7 @@ export default function AiGradingPage() {
           <div className="p-5 rounded-xl bg-blue-50/60 border border-blue-100">
             <p className="text-sm text-gray-700 leading-relaxed">
               AI 자동채점은 모든 문제를 완전 자동으로 평가한다는 의미가 아니라,
-              <strong> 문항 유형에 따라 자동 판정 또는 교사 보조 평가를 지원하는 채점 시스템</strong>입니다.
+              <strong> 문항 유형에 따라 자동 판정 또는 강사 보조 평가를 지원하는 채점 시스템</strong>입니다.
             </p>
           </div>
         </div>
@@ -105,7 +105,7 @@ export default function AiGradingPage() {
       {/* Workflow */}
       <section className="py-14 bg-gray-50/60">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">관리자 워크플로우</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">강사 검수 워크플로우</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
             {WORKFLOW.map((item, i) => (
               <div key={item} className="flex items-start gap-3 p-4 rounded-xl bg-white border border-gray-100">
@@ -123,12 +123,12 @@ export default function AiGradingPage() {
       <section className="py-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="p-5 rounded-xl bg-amber-50/60 border border-amber-100">
-            <h3 className="font-bold text-gray-900 mb-2 text-sm">운영 원칙</h3>
+            <h3 className="font-bold text-gray-900 mb-2 text-sm">채점 원칙</h3>
             <ul className="space-y-1.5 text-sm text-gray-600">
-              <li>· 최종 점수 확정 권한은 관리자/교사에게 있습니다.</li>
+              <li>· 최종 점수 확정 권한은 강사님에게 있습니다.</li>
               <li>· 자동채점 결과는 로그와 함께 검토 가능합니다.</li>
               <li>· 문항 유형별로 자동채점 허용 여부를 설정할 수 있습니다.</li>
-              <li>· 서술형 평가는 '초안 채점 + 교사 검수' 구조를 권장합니다.</li>
+              <li>· 서술형 평가는 '초안 채점 + 강사 검수' 구조를 권장합니다.</li>
             </ul>
           </div>
         </div>
