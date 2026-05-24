@@ -3,14 +3,16 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Plus, RotateCcw, SlidersHorizontal, X } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { parseClinicData } from "../utils/clinicDataParser";
 import {
-  BASE_STYLE,
+  buildClinicPrintHtml,
   htmlToPdfDownload,
-  formatName,
+  type ClinicPrintDocument,
+  type ClinicPrintStudent,
 } from "@admin/domains/scores/utils/clinicPdfGenerator";
+import styles from "./ClinicPrintoutPage.module.css";
 
 type ClinicCategory = "both" | "examOnly" | "hwOnly";
 type ManualTarget = { name: string; category: ClinicCategory; note?: string };
@@ -22,15 +24,6 @@ const CATEGORY_META: Record<ClinicCategory, { label: string; short: string }> = 
   hwOnly: { label: "과제", short: "과제" },
 };
 const CATEGORY_ORDER: ClinicCategory[] = ["both", "examOnly", "hwOnly"];
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function stripNameCellText(text: string): string {
   return text
@@ -58,136 +51,40 @@ function findNameCategory(lists: Record<ClinicCategory, string[]>, name: string)
   return null;
 }
 
-// ── 이름 목록 HTML 빌드 (clinicPdfGenerator 내부 함수와 동일) ──
-
-// 수동 지정 학생은 텍스트 딱지 대신 manual-name 음영만 부여 — 학생에게 노출 X, 선생님 식별용
-function buildNameSingle(name: string, manualNames: Set<string>): string {
-  const formatted = formatName(name);
-  const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span></div>`;
-}
-function buildNameCell(name: string, manualNames: Set<string>): string {
-  const formatted = formatName(name);
-  const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(formatted)}</span></div>`;
-}
-function buildNameItems(names: string[], manualNames: Set<string>): string {
-  if (names.length <= 15) return names.map((name) => buildNameSingle(name, manualNames)).join("\n");
-  const rows: string[] = [];
-  for (let i = 0; i < names.length; i += 2) {
-    const c1 = buildNameCell(names[i], manualNames);
-    const c2 = i + 1 < names.length ? buildNameCell(names[i + 1], manualNames) : '<div class="name-cell"></div>';
-    rows.push(`<div class="name-row">${c1}${c2}</div>`);
-  }
-  return rows.join("\n");
-}
-function emptyCell(): string { return '<div class="empty-item">해당 없음</div>'; }
-
-// ── 편집 가능 HTML 빌드 (BASE_STYLE 100% 사용 + contentEditable) ──
-
-function buildEditableHtml(p: {
-  both: string[]; examOnly: string[]; hwOnly: string[];
-  sessionTitle: string; lectureTitle: string; date: string;
-  schedule: string; totalPresent: number;
+type ToolPrintState = {
+  both: string[];
+  examOnly: string[];
+  hwOnly: string[];
+  sessionTitle: string;
+  lectureTitle: string;
+  date: string;
+  schedule: string;
+  totalPresent: number;
   manualNames: string[];
-}): string {
+};
+
+function toPrintStudents(names: string[], manualNameSet: Set<string>): ClinicPrintStudent[] {
+  return names.map((name) => ({
+    name,
+    manual: manualNameSet.has(name.trim()) || undefined,
+  }));
+}
+
+function buildToolPrintDocument(p: ToolPrintState): ClinicPrintDocument {
   const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
   const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
-  // 수동 지정 여부는 학생에게 노출하지 않음 — 음영만으로 선생님이 식별
-  const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
-
-  const scheduleContent = p.schedule
-    ? `<div class="schedule-content" contenteditable="true" data-field="schedule">${escapeHtml(p.schedule).replace(/\n/g, "<br>")}</div>`
-    : `<div class="schedule-content" contenteditable="true" data-field="schedule" data-placeholder="클리닉 일정을 입력하세요..."></div>`;
-
-  const bothHtml = p.both.length > 0 ? buildNameItems(p.both, manualNameSet) : "";
-  const examHtml = p.examOnly.length > 0 ? buildNameItems(p.examOnly, manualNameSet) : "";
-  const hwHtml = p.hwOnly.length > 0 ? buildNameItems(p.hwOnly, manualNameSet) : "";
-
-  // 편집 가능 영역 스타일 + placeholder
-  const editStyle = `
-    [contenteditable]:hover { outline: 1px dashed #94a3b8; outline-offset: 2px; border-radius: 4px; cursor: text; }
-    [contenteditable]:focus { outline: 2px solid #111827; outline-offset: 2px; border-radius: 4px; background: #f5f5f5; }
-    .sub [contenteditable] { display: inline; min-width: 40px; }
-    [data-placeholder]:empty:before { content: attr(data-placeholder); color: #737373; font-style: italic; }
-    .name-list[contenteditable] { min-height: 40px; cursor: text; font-size: 20px; font-weight: 800; color: #0f172a; text-align: center; line-height: 1.3; }
-    .name-list[contenteditable]:empty:before { content: "해당 없음"; color: #737373; font-size: 14px; font-weight: 500; padding: 7px 8px; display: flex; align-items: center; justify-content: center; }
-  `;
-
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
-<style>${BASE_STYLE}${editStyle}</style></head><body>
-<div class="page">
-  <div class="header">
-    <div class="badge">CLINIC</div>
-    <h1>클리닉 대상자 안내</h1>
-    <div class="sub"><span contenteditable="true" data-field="lectureTitle" data-placeholder="강의명">${escapeHtml(p.lectureTitle)}</span> &nbsp;|&nbsp; <span contenteditable="true" data-field="sessionTitle" data-placeholder="차시명">${escapeHtml(p.sessionTitle)}</span></div>
-  </div>
-  <div class="tip-box"><div class="icon">!</div><div class="text">${tipText}</div></div>
-  <div class="columns">
-    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list" contenteditable="true" data-field="both">${bothHtml}</div></div>
-    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list" contenteditable="true" data-field="examOnly">${examHtml}</div></div>
-    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list" contenteditable="true" data-field="hwOnly">${hwHtml}</div></div>
-  </div>
-  <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
-  <div class="footer">
-    <div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 <span contenteditable="true" data-field="totalPresent">${p.totalPresent ?? clinicTotal}</span>명</div>
-    <div class="footer-right"><span contenteditable="true" data-field="date">${escapeHtml(p.date)}</span></div>
-  </div>
-</div></body></html>`;
-}
-
-// ── PDF 전용 이름 빌더 (html2canvas가 <span class="suffix"> 렌더링 실패 → 접미사 분리 안 함) ──
-
-function buildPdfNameSingle(name: string, manualNames: Set<string>): string {
-  const manual = manualNames.has(name.trim());
-  return `<div class="name-row single${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span></div>`;
-}
-function buildPdfNameCell(name: string, manualNames: Set<string>): string {
-  const manual = manualNames.has(name.trim());
-  return `<div class="name-cell${manual ? " manual-name" : ""}"><span class="checkbox">☐</span><span class="name-text">${escapeHtml(name)}</span></div>`;
-}
-function buildPdfNameItems(names: string[], manualNames: Set<string>): string {
-  if (names.length <= 15) return names.map((name) => buildPdfNameSingle(name, manualNames)).join("\n");
-  const rows: string[] = [];
-  for (let i = 0; i < names.length; i += 2) {
-    const c1 = buildPdfNameCell(names[i], manualNames);
-    const c2 = i + 1 < names.length ? buildPdfNameCell(names[i + 1], manualNames) : '<div class="name-cell"></div>';
-    rows.push(`<div class="name-row">${c1}${c2}</div>`);
-  }
-  return rows.join("\n");
-}
-
-// ── PDF 전용 HTML 빌드 (contentEditable 없음, 원본과 100% 동일) ──
-
-function buildPdfHtml(p: {
-  both: string[]; examOnly: string[]; hwOnly: string[];
-  sessionTitle: string; lectureTitle: string; date: string;
-  schedule: string; totalPresent: number;
-  manualNames: string[];
-}): string {
-  const clinicTotal = p.both.length + p.examOnly.length + p.hwOnly.length;
-  const manualNameSet = new Set(p.manualNames.map((n) => n.trim()).filter(Boolean));
-  // 수동 지정 여부는 학생에게 노출하지 않음 — 음영만으로 선생님이 식별
-  const tipText = "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
-  const sub = [p.lectureTitle, p.sessionTitle].filter(Boolean).map(escapeHtml).join(" &nbsp;|&nbsp; ");
-
-  const scheduleContent = p.schedule
-    ? `<div class="schedule-content">${escapeHtml(p.schedule).replace(/\n/g, "<br>")}</div>`
-    : `<div class="schedule-empty">아직 개설된 클리닉 일정이 없습니다.</div>`;
-
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
-<style>${BASE_STYLE}</style></head><body>
-<div class="page">
-  <div class="header"><div class="badge">CLINIC</div><h1>클리닉 대상자 안내</h1><div class="sub">${sub}</div></div>
-  <div class="tip-box"><div class="icon">!</div><div class="text">${tipText}</div></div>
-  <div class="columns">
-    <div class="col"><div class="section-header both">시험+과제 미통과 <span class="cnt">(${p.both.length}명)</span></div><div class="name-list">${p.both.length > 0 ? buildPdfNameItems(p.both, manualNameSet) : emptyCell()}</div></div>
-    <div class="col"><div class="section-header exam">시험 미통과 <span class="cnt">(${p.examOnly.length}명)</span></div><div class="name-list">${p.examOnly.length > 0 ? buildPdfNameItems(p.examOnly, manualNameSet) : emptyCell()}</div></div>
-    <div class="col"><div class="section-header hw">과제 미통과 <span class="cnt">(${p.hwOnly.length}명)</span></div><div class="name-list">${p.hwOnly.length > 0 ? buildPdfNameItems(p.hwOnly, manualNameSet) : emptyCell()}</div></div>
-  </div>
-  <div class="schedule-box"><div class="schedule-title">클리닉 일정</div>${scheduleContent}</div>
-  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${p.totalPresent ?? clinicTotal}명</div><div class="footer-right">${escapeHtml(p.date)}</div></div>
-</div></body></html>`;
+  return {
+    lectureTitle: p.lectureTitle,
+    sessionTitle: p.sessionTitle,
+    date: p.date,
+    schedule: p.schedule,
+    totalPresent: p.totalPresent > 0 ? p.totalPresent : clinicTotal,
+    groups: {
+      both: toPrintStudents(p.both, manualNameSet),
+      examOnly: toPrintStudents(p.examOnly, manualNameSet),
+      hwOnly: toPrintStudents(p.hwOnly, manualNameSet),
+    },
+  };
 }
 
 // ── 컴포넌트 ──
@@ -232,7 +129,7 @@ export default function ClinicPrintoutPage() {
   // ── iframe에 HTML 주입 ── mount + 명시적 redrawSeq 증가 시에만 호출.
   useEffect(() => {
     if (!iframeRef.current) return;
-    const html = buildEditableHtml(stateRef.current);
+    const html = buildClinicPrintHtml(buildToolPrintDocument(stateRef.current), { editable: true });
     const doc = iframeRef.current.contentDocument ?? iframeRef.current.contentWindow?.document;
     if (!doc) return;
     doc.open();
@@ -463,13 +360,13 @@ export default function ClinicPrintoutPage() {
 
     setPdfLoading(true);
     try {
-      const html = buildPdfHtml({
+      const html = buildClinicPrintHtml(buildToolPrintDocument({
         both: bNames, examOnly: eNames, hwOnly: hNames,
         sessionTitle: curSession, lectureTitle: curLecture,
         date: curDate, schedule: curSchedule,
         totalPresent: curPresent ?? (bNames.length + eNames.length + hNames.length),
         manualNames,
-      });
+      }));
       const fname = `클리닉대상자_${curSession || "인쇄물"}_${curDate.replace(/\//g, "")}.pdf`;
       await htmlToPdfDownload(html, fname);
       feedback.success("PDF 다운로드 완료");
@@ -497,18 +394,22 @@ export default function ClinicPrintoutPage() {
   const adjustmentTotal = manualTargets.length + removedTargets.length;
 
   return (
-    <div className="flex gap-4">
+    <div className="flex min-w-0 gap-4">
       {/* ── 좌측: iframe 미리보기 (원본 CSS 100% 동일) ── */}
-      <div className="flex-1 rounded-lg bg-slate-200 p-4">
+      <div className="min-w-0 flex-1 overflow-auto rounded-lg bg-slate-200 p-4">
         <div
-          className="mx-auto min-h-[297mm] w-[210mm] bg-white shadow-lg"
+          className={`${styles.previewScaleBox} mx-auto`}
         >
-          <iframe
-            id="cprev"
-            ref={iframeRef}
-            title="클리닉 대상자 미리보기"
-            className="min-h-[297mm] w-full border-0"
-          />
+          <div
+            className={`${styles.previewPaper} bg-white shadow-lg`}
+          >
+            <iframe
+              id="cprev"
+              ref={iframeRef}
+              title="클리닉 대상자 미리보기"
+              className={styles.previewIframe}
+            />
+          </div>
         </div>
       </div>
 
@@ -542,7 +443,7 @@ export default function ClinicPrintoutPage() {
         <section className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-              <SlidersHorizontal size={16} />
+              <SlidersHorizontal size={ICON.sm} />
               수동 조정
             </div>
             <span className="text-[11px] font-semibold text-[var(--text-muted)]">
@@ -590,7 +491,7 @@ export default function ClinicPrintoutPage() {
             <Button
               intent="primary"
               size="sm"
-              leftIcon={<Plus size={14} />}
+              leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
               onClick={handleAddManualTarget}
               disabled={!manualName.trim()}
             >
@@ -622,7 +523,7 @@ export default function ClinicPrintoutPage() {
             <Button
               intent="danger"
               size="sm"
-              leftIcon={<X size={14} />}
+              leftIcon={<X size={ICON_FOR_BUTTON.sm} />}
               onClick={() => handleExcludeTarget()}
               disabled={!excludeName.trim()}
             >
@@ -659,7 +560,7 @@ export default function ClinicPrintoutPage() {
                     className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     title="수동 추가 취소"
                   >
-                    <X size={13} />
+                    <X size={ICON.xs} />
                   </button>
                 </div>
               ))}
@@ -678,7 +579,7 @@ export default function ClinicPrintoutPage() {
                     className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     title="다시 추가 준비"
                   >
-                    <RotateCcw size={13} />
+                    <RotateCcw size={ICON.xs} />
                   </button>
                 </div>
               ))}

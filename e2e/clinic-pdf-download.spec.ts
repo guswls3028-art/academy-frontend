@@ -6,15 +6,49 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "./helpers/
 
 const TS = Date.now();
 
+function isLocalBaseUrl(url: string) {
+  return /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(url);
+}
+
+function createLocalJwt() {
+  const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: now + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
+}
+
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
+  test("도구탭과 성적탭은 공통 출력 renderer를 공유한다", async () => {
+    const [toolSource, rendererSource] = await Promise.all([
+      readFile(path.resolve("src/app_admin/domains/tools/clinic/pages/ClinicPrintoutPage.tsx"), "utf8"),
+      readFile(path.resolve("src/app_admin/domains/scores/utils/clinicPdfGenerator.ts"), "utf8"),
+    ]);
+
+    expect(rendererSource).toContain("export function buildClinicPrintHtml");
+    expect(toolSource).toContain("buildClinicPrintHtml");
+    expect(toolSource).not.toContain('<div class="header"');
+    expect(toolSource).not.toContain('<div class="columns"');
+    expect(toolSource).not.toContain('<div class="schedule-box"');
+    expect(toolSource).not.toContain('class="name-row single');
+  });
+
   test("긴 이름을 자르지 않고 실제 PDF를 내려받는다", async ({ page }) => {
+    const baseUrl = getBaseUrl("admin");
     await installLocalAuthApiStubs(page);
     await installTenantOneInitScript(page);
-    await loginViaUI(page, "admin");
-    await page.goto(`${getBaseUrl("admin")}/admin/dashboard`, { waitUntil: "load" });
-    await page.getByRole("link", { name: "도구" }).first().click();
-    await page.getByRole("button", { name: "클리닉 대상자" }).first().click();
+    if (isLocalBaseUrl(baseUrl)) {
+      const token = createLocalJwt();
+      await page.addInitScript((jwt) => {
+        localStorage.setItem("access", jwt);
+        localStorage.setItem("refresh", `${jwt}-refresh`);
+        localStorage.setItem("tenant_code", "hakwonplus");
+        sessionStorage.setItem("tenantCode", "hakwonplus");
+      }, token);
+    } else {
+      await loginViaUI(page, "admin");
+    }
+    await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
     await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
+    await expect(page.locator("#clinic-paste-ta")).toBeVisible();
 
     const longNames = Array.from({ length: 18 }, (_, i) =>
       `[E2E-${TS}]김가나다라마바사아자${String(i + 1).padStart(2, "0")}`,
@@ -23,8 +57,16 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     await page.getByRole("button", { name: "생성", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
-    await expect(frame.locator(".name-cell").first()).toBeVisible({ timeout: 8000 });
+    await expect(frame.locator(".name-text").filter({ hasText: longNames[0] }).first()).toBeVisible({ timeout: 8000 });
     await expect(frame.locator(".columns")).toContainText(longNames[0]);
+    await expect(frame.locator(".footer-left")).toContainText(`전체 출석 ${longNames.length}명`);
+    const pageSize = await frame.locator(".page").evaluate((node) => {
+      const rect = (node as HTMLElement).getBoundingClientRect();
+      return { width: rect.width, height: rect.height, ratio: rect.width / rect.height };
+    });
+    expect(pageSize.width).toBeGreaterThan(1100);
+    expect(pageSize.height).toBeGreaterThan(1550);
+    expect(pageSize.ratio).toBeCloseTo(297 / 420, 2);
 
     const clipping = await frame.locator(".name-text").evaluateAll((nodes, expectedNames) => {
       return nodes

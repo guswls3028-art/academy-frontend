@@ -1,0 +1,19 @@
+/* PATH: src/app_admin/domains/tools/clinic/pages/ClinicPrintoutPage.module.css */
+
+.previewScaleBox {
+  width: 213.84mm;
+  min-height: 302.4mm;
+}
+
+.previewPaper {
+  width: 297mm;
+  min-height: 420mm;
+  transform: scale(0.72);
+  transform-origin: top left;
+}
+
+.previewIframe {
+  width: 100%;
+  height: 420mm;
+  border: 0;
+}

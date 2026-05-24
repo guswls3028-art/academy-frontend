@@ -8,7 +8,7 @@
 }
 
 .print-preview-modal__panel--clinic {
-  max-width: 900px;
+  max-width: 1120px;
 }
 
 .print-preview-modal__paper {
@@ -27,6 +27,12 @@
   transform: scale(0.75);
 }
 
+.print-preview-modal__paper--a3-portrait {
+  width: 297mm;
+  min-height: 420mm;
+  transform: scale(0.56);
+}
+
 .print-preview-modal__iframe {
   width: 100%;
   border: 0;
@@ -38,4 +44,8 @@
 
 .print-preview-modal__iframe--portrait {
   height: 297mm;
+}
+
+.print-preview-modal__iframe--a3-portrait {
+  height: 420mm;
 }

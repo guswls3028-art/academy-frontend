@@ -3,8 +3,14 @@
 
 import { useRef, useEffect, useMemo, useState } from "react";
 import { Download, FileText } from "lucide-react";
-import { buildClinicPdfHtml, downloadClinicPdf, type ClinicPdfParams } from "../utils/clinicPdfGenerator";
+import {
+  buildClinicPdfHtml,
+  CLINIC_PRINT_PAGE,
+  downloadClinicPdf,
+  type ClinicPdfParams,
+} from "../utils/clinicPdfGenerator";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import "./PrintPreviewModal.css";
 
 type Props = ClinicPdfParams & {
@@ -76,12 +82,12 @@ export default function ClinicPrintPreviewModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border-divider)]">
           <div className="flex items-center gap-3">
-            <FileText size={20} strokeWidth={2} className="text-[var(--color-text-muted)]" aria-hidden />
+            <FileText size={ICON.md} strokeWidth={2} className="text-[var(--color-text-muted)]" aria-hidden />
             <h2 id="clinic-print-preview-title" className="text-base font-semibold text-[var(--color-text-primary)]">
               클리닉 대상자 미리보기
             </h2>
             <span className="text-xs text-[var(--color-text-muted)]">
-              A4 세로
+              {CLINIC_PRINT_PAGE.label}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -91,7 +97,7 @@ export default function ClinicPrintPreviewModal({
               disabled={downloading}
               className="h-9 px-5 rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
             >
-              <Download size={16} strokeWidth={2} aria-hidden />
+              <Download size={ICON_FOR_BUTTON.md} strokeWidth={2} aria-hidden />
               {downloading ? "PDF 생성 중…" : "PDF 다운로드"}
             </button>
             <button
@@ -106,11 +112,11 @@ export default function ClinicPrintPreviewModal({
 
         {/* Preview area */}
         <div className="flex-1 overflow-auto bg-[#e5e7eb] p-4">
-          <div className="print-preview-modal__paper print-preview-modal__paper--portrait mx-auto bg-white shadow-lg">
+          <div className="print-preview-modal__paper print-preview-modal__paper--a3-portrait mx-auto bg-white shadow-lg">
             <iframe
               ref={iframeRef}
               title="클리닉 대상자 미리보기"
-              className="print-preview-modal__iframe print-preview-modal__iframe--portrait"
+              className="print-preview-modal__iframe print-preview-modal__iframe--a3-portrait"
             />
           </div>
         </div>
