@@ -75,7 +75,7 @@ export function getClinicPrintPageClass(density: ClinicPrintDensity): string {
 
 export function shouldUsePairedNameRows(names: string[]): boolean {
   const maxNameLength = Math.max(0, ...names.map(printableLength));
-  return names.length > 44 && maxNameLength <= 8;
+  return names.length >= 32 && maxNameLength <= 8;
 }
 
 export const BASE_STYLE = `
@@ -86,127 +86,127 @@ export const BASE_STYLE = `
   }
   body {
     font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
-    color: #111827; background: #fff;
+    color: #000; background: #fff;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .page {
     width: ${CLINIC_PRINT_PAGE.width}; height: ${CLINIC_PRINT_PAGE.height}; min-height: ${CLINIC_PRINT_PAGE.height};
-    margin: 0 auto; padding: 13mm 15mm;
+    margin: 0 auto; padding: 11mm 12mm;
     display: flex; flex-direction: column;
     overflow: hidden;
     background:
-      linear-gradient(90deg, #111827 0 5.5mm, transparent 5.5mm 100%),
+      linear-gradient(90deg, #000 0 5mm, transparent 5mm 100%),
       #fff;
   }
 
-  /* ── Header: print-stable editorial sheet ── */
+  /* ── Header: wall-posting sheet, black/white first ── */
   .header {
     display: grid;
-    grid-template-columns: 42mm minmax(0, 1fr);
+    grid-template-columns: 39mm minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 3mm 8mm;
+    gap: 2mm 7mm;
     align-items: end;
-    padding: 2.5mm 0 7mm 8mm;
-    margin-bottom: 6mm;
-    border-bottom: 0.55mm solid #111827;
+    padding: 1.5mm 0 5mm 8mm;
+    margin-bottom: 4.5mm;
+    border-bottom: 0.65mm solid #000;
     text-align: left;
   }
   .header .badge {
     grid-row: 1 / 3;
     align-self: stretch;
     display: flex; align-items: center; justify-content: center;
-    background: #111827; color: #fff;
-    border-radius: 4px;
-    font-size: 12px; font-weight: 900; padding: 0 4mm;
-    letter-spacing: 0.08em;
+    background: #000; color: #fff;
+    border-radius: 2px;
+    font-size: 12px; font-weight: 900; padding: 0 3mm;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
   .header h1 {
     grid-column: 2;
-    font-size: 42px; font-weight: 900; color: #111827;
-    line-height: 1.16; letter-spacing: 0;
+    font-size: 40px; font-weight: 900; color: #000;
+    line-height: 1.08; letter-spacing: 0;
   }
   .header .sub {
     grid-column: 2;
-    font-size: 16px; color: #475569; font-weight: 700;
-    line-height: 1.35; letter-spacing: 0;
+    font-size: 15px; color: #111; font-weight: 800;
+    line-height: 1.25; letter-spacing: 0;
     white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   }
 
   /* ── Tip box ── */
   .tip-box {
-    background: #f8fafc;
-    border: 0.35mm solid #cbd5e1; border-left: 1.8mm solid #111827; border-radius: 4px;
-    padding: 4mm 5mm; margin-bottom: 6mm;
-    display: flex; align-items: center; gap: 14px;
+    background: #fff;
+    border: 0.35mm solid #000; border-left: 1.7mm solid #000; border-radius: 2px;
+    padding: 2.6mm 4mm; margin-bottom: 4.5mm;
+    display: flex; align-items: center; gap: 10px;
   }
   .tip-box .icon {
-    flex-shrink: 0; width: 7mm; height: 7mm;
-    background: #111827; border-radius: 50%;
+    flex-shrink: 0; width: 5.8mm; height: 5.8mm;
+    background: #000; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 14px; font-weight: 900;
+    color: #fff; font-size: 12px; font-weight: 900;
   }
   .tip-box .text {
-    font-size: 15px; color: #1f2937; line-height: 1.45; font-weight: 700;
+    font-size: 13.5px; color: #000; line-height: 1.32; font-weight: 800;
   }
 
   /* ── Name columns: max visibility ── */
   .columns {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5mm; flex: 1 1 auto; min-height: 0;
+    gap: 4.2mm; flex: 1 1 auto; min-height: 0;
   }
   .col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
   .section-header {
-    text-align: left; padding: 3.2mm 4mm; border-radius: 4px 4px 0 0;
+    text-align: left; padding: 2.8mm 3.3mm; border-radius: 0;
     font-size: 15px; font-weight: 900;
-    letter-spacing: 0; border: 0.36mm solid #111827; border-bottom: none;
+    letter-spacing: 0; border: 0.48mm solid #000; border-bottom: none;
     white-space: normal; word-break: keep-all;
   }
-  .section-header.both { background: #111827; color: #fff; border-color: #111827; }
-  .section-header.exam { background: #eff6ff; color: #1e3a8a; border-color: #93c5fd; }
-  .section-header.hw { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
+  .section-header.both { background: #000; color: #fff; border-color: #000; }
+  .section-header.exam { background: #fff; color: #000; border-color: #000; }
+  .section-header.hw { background: #e9e9e9; color: #000; border-color: #000; }
   .section-header .cnt {
-    font-weight: 800; font-size: 12px; opacity: 0.9;
+    font-weight: 900; font-size: 12px; opacity: 1;
     margin-left: 6px;
   }
 
   .name-list {
     flex: 1 1 auto; min-height: 0;
-    border: 0.36mm solid #111827; border-top: none;
-    border-radius: 0 0 4px 4px; padding: 1.8mm 0;
+    border: 0.48mm solid #000; border-top: none;
+    border-radius: 0; padding: 1mm 0;
     background: #fff;
     overflow: hidden;
   }
-  .section-header.exam + .name-list { border-color: #93c5fd; }
-  .section-header.hw + .name-list { border-color: #6ee7b7; }
+  .section-header.exam + .name-list,
+  .section-header.hw + .name-list { border-color: #000; }
 
   /* ── Name rows ── */
   .name-row {
-    display: flex; border-bottom: 0.24mm solid #e5e7eb;
+    display: flex; border-bottom: 0.25mm solid #bdbdbd;
   }
   .name-row:last-child { border-bottom: none; }
-  .name-row:nth-child(even) { background: #f8fafc; }
+  .name-row:nth-child(even) { background: #f0f0f0; }
 
   /* 1명/줄: 기본. 긴 이름과 실제 인쇄 안정성이 가장 좋다. */
   .name-row.single {
-    display: flex; align-items: flex-start; gap: 2.8mm;
-    padding: 3mm 4mm;
-    font-size: 19px; font-weight: 800;
-    color: #111827;
-    line-height: 1.28; white-space: normal;
+    display: flex; align-items: flex-start; gap: 2.5mm;
+    padding: 2.6mm 3.2mm;
+    font-size: 20px; font-weight: 900;
+    color: #000;
+    line-height: 1.18; white-space: normal;
     text-align: left;
   }
 
-  /* 매우 많은 짧은 이름만 2명/줄 */
+  /* 짧은 이름이 많은 게시물은 2명/줄로 키워서 멀리서도 찾게 한다. */
   .name-cell {
     flex: 1;
     min-width: 0;
-    display: flex; align-items: flex-start; gap: 2mm;
-    padding: 2.2mm 2.8mm;
-    font-size: 16px; font-weight: 800;
-    color: #111827;
-    line-height: 1.24;
+    display: flex; align-items: flex-start; gap: 1.8mm;
+    padding: 1.8mm 2.4mm;
+    font-size: 17px; font-weight: 900;
+    color: #000;
+    line-height: 1.16;
     white-space: normal;
     text-align: left;
   }
@@ -223,113 +223,116 @@ export const BASE_STYLE = `
 
   .checkbox {
     flex: 0 0 auto;
-    width: 4mm; height: 4mm;
-    margin-top: 0.35mm;
-    border: 0.38mm solid #111827;
+    width: 3.7mm; height: 3.7mm;
+    margin-top: 0.2mm;
+    border: 0.4mm solid #000;
     border-radius: 1px;
     color: transparent;
   }
   .highlight {
-    background: #fff7ed !important;
-    box-shadow: inset 1.1mm 0 0 #f97316;
+    background: #e8e8e8 !important;
+    box-shadow: inset 1.1mm 0 0 #000;
   }
-  .star { flex: 0 0 auto; color: #9a3412; font-size: 13px; font-weight: 900; }
+  .star { flex: 0 0 auto; color: #000; font-size: 12px; font-weight: 900; margin-left: auto; }
   /* 수동 지정 학생 — 텍스트 딱지 없이 옅은 음영만. 학생에게 비노출, 선생님 식별용 */
   .manual-name {
-    background: #f8fafc !important;
-    box-shadow: inset 1mm 0 0 #64748b;
+    background: #f2f2f2 !important;
+    box-shadow: inset 0.9mm 0 0 #555;
   }
   .empty-item {
     display: flex; align-items: center; justify-content: center;
     min-height: 18mm;
     padding: 3mm 4mm;
-    color: #94a3b8; font-size: 15px; font-weight: 700;
+    color: #666; font-size: 15px; font-weight: 800;
   }
 
   /* ── Schedule box ── */
   .schedule-box {
     flex: 0 0 auto;
-    margin-top: 7mm;
-    display: grid; grid-template-columns: 35mm minmax(0, 1fr);
-    min-height: 25mm;
-    border: 0.4mm solid #111827; border-radius: 4px;
+    margin-top: 5mm;
+    display: grid; grid-template-columns: 31mm minmax(0, 1fr);
+    min-height: 20mm;
+    border: 0.48mm solid #000; border-radius: 0;
     background: #fff;
     overflow: hidden;
   }
   .schedule-title {
     display: flex; align-items: center; justify-content: center;
-    background: #111827; color: #fff;
-    font-size: 14px; font-weight: 900;
+    background: #000; color: #fff;
+    font-size: 13px; font-weight: 900;
     line-height: 1.08;
     letter-spacing: 0; text-transform: uppercase;
     padding: 0 3mm 2.2mm;
   }
   .schedule-content {
-    padding: 4.5mm 5.5mm;
-    font-size: 16px; color: #111827; line-height: 1.55; font-weight: 800;
+    padding: 3.2mm 4.2mm;
+    font-size: 15px; color: #000; line-height: 1.38; font-weight: 900;
     white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   }
   .schedule-empty {
     display: flex; align-items: center;
-    padding: 4.5mm 5.5mm;
-    font-size: 15px; color: #94a3b8; font-style: normal; font-weight: 700;
+    padding: 3.2mm 4.2mm;
+    font-size: 14px; color: #666; font-style: normal; font-weight: 800;
   }
 
   /* ── Footer: clean & professional ── */
   .footer {
     flex: 0 0 auto;
-    margin-top: 5mm; padding-top: 3.5mm;
-    border-top: 0.55mm solid #111827;
+    margin-top: 3.5mm; padding-top: 2.4mm;
+    border-top: 0.65mm solid #000;
     display: flex; justify-content: space-between; align-items: flex-end;
   }
   .footer-left {
-    font-size: 14px; color: #475569; line-height: 1.5; font-weight: 700;
+    font-size: 13px; color: #111; line-height: 1.35; font-weight: 800;
   }
   .footer-right {
-    text-align: right; font-size: 16px; font-weight: 900;
-    color: #111827; letter-spacing: 0;
+    text-align: right; font-size: 14px; font-weight: 900;
+    color: #000; letter-spacing: 0;
   }
 
-  .page--compact .header { padding-bottom: 5.5mm; margin-bottom: 4.5mm; }
-  .page--compact .header h1 { font-size: 36px; }
-  .page--compact .header .sub { font-size: 14px; }
-  .page--compact .tip-box { padding: 3mm 4mm; margin-bottom: 4.5mm; }
-  .page--compact .tip-box .text { font-size: 13px; }
-  .page--compact .section-header { padding: 2.6mm 3.2mm; font-size: 13.5px; }
-  .page--compact .name-list { padding: 1.2mm 0; }
-  .page--compact .name-row.single { padding: 2mm 3mm; font-size: 16.5px; line-height: 1.22; }
-  .page--compact .name-cell { padding: 1.5mm 2.2mm; font-size: 14.5px; line-height: 1.18; }
-  .page--compact .schedule-box { margin-top: 5mm; min-height: 20mm; }
-  .page--compact .schedule-content { padding: 3mm 4.5mm; font-size: 14px; line-height: 1.42; }
-  .page--compact .footer { margin-top: 4mm; padding-top: 2.8mm; }
+  .page--compact .header { padding-bottom: 4.2mm; margin-bottom: 3.8mm; }
+  .page--compact .header h1 { font-size: 35px; }
+  .page--compact .header .sub { font-size: 13.5px; }
+  .page--compact .tip-box { padding: 2.3mm 3.4mm; margin-bottom: 3.8mm; }
+  .page--compact .tip-box .text { font-size: 12.5px; }
+  .page--compact .section-header { padding: 2.2mm 2.8mm; font-size: 13.5px; }
+  .page--compact .name-list { padding: 0.8mm 0; }
+  .page--compact .name-row.single { padding: 1.7mm 2.6mm; font-size: 17.5px; line-height: 1.16; }
+  .page--compact .name-cell { padding: 1.35mm 1.9mm; font-size: 15.8px; line-height: 1.12; }
+  .page--compact .checkbox { width: 3.2mm; height: 3.2mm; border-width: 0.36mm; }
+  .page--compact .schedule-box { margin-top: 4mm; min-height: 17mm; }
+  .page--compact .schedule-content { padding: 2.5mm 3.5mm; font-size: 13.2px; line-height: 1.3; }
+  .page--compact .footer { margin-top: 3mm; padding-top: 2.2mm; }
 
   .page--dense {
-    padding: 10mm 12mm;
+    padding: 8.5mm 9.5mm;
   }
   .page--dense .header {
-    grid-template-columns: 34mm minmax(0, 1fr);
-    padding: 1.6mm 0 4mm 7mm;
-    margin-bottom: 3.5mm;
+    grid-template-columns: 30mm minmax(0, 1fr);
+    padding: 1mm 0 3mm 6mm;
+    margin-bottom: 2.8mm;
   }
-  .page--dense .header h1 { font-size: 30px; }
-  .page--dense .header .sub { font-size: 12.5px; }
-  .page--dense .header .badge { font-size: 10px; }
-  .page--dense .tip-box { padding: 2.4mm 3.2mm; margin-bottom: 3.5mm; }
-  .page--dense .tip-box .icon { width: 5.5mm; height: 5.5mm; font-size: 11px; }
-  .page--dense .tip-box .text { font-size: 11.5px; line-height: 1.32; }
-  .page--dense .section-header { padding: 2mm 2.6mm; font-size: 12px; }
-  .page--dense .section-header .cnt { font-size: 10.5px; }
-  .page--dense .name-list { padding: 0.8mm 0; }
-  .page--dense .name-row.single { padding: 1.35mm 2.4mm; font-size: 13.2px; line-height: 1.15; }
-  .page--dense .name-cell { padding: 1mm 1.6mm; font-size: 12px; line-height: 1.12; }
-  .page--dense .checkbox { width: 2.8mm; height: 2.8mm; border-width: 0.3mm; }
-  .page--dense .schedule-box { margin-top: 3.5mm; min-height: 16mm; grid-template-columns: 25mm minmax(0, 1fr); }
-  .page--dense .schedule-title { font-size: 10.5px; line-height: 1.08; padding-bottom: 2mm; }
-  .page--dense .schedule-content { padding: 2.2mm 3.5mm; font-size: 11.5px; line-height: 1.28; }
-  .page--dense .schedule-empty { padding: 2.2mm 3.5mm; font-size: 11px; }
-  .page--dense .footer { margin-top: 2.8mm; padding-top: 2mm; }
+  .page--dense .header h1 { font-size: 27px; }
+  .page--dense .header .sub { font-size: 11.5px; }
+  .page--dense .header .badge { font-size: 9px; }
+  .page--dense .tip-box { padding: 1.8mm 2.6mm; margin-bottom: 2.8mm; }
+  .page--dense .tip-box .icon { width: 4.8mm; height: 4.8mm; font-size: 10px; }
+  .page--dense .tip-box .text { font-size: 10.8px; line-height: 1.22; }
+  .page--dense .columns { gap: 3.5mm; }
+  .page--dense .section-header { padding: 1.7mm 2.2mm; font-size: 11.5px; }
+  .page--dense .section-header .cnt { font-size: 10px; }
+  .page--dense .name-list { padding: 0.5mm 0; }
+  .page--dense .name-row.single { padding: 1.05mm 1.8mm; font-size: 14.8px; line-height: 1.1; }
+  .page--dense .name-cell { padding: 0.9mm 1.25mm; font-size: 16px; line-height: 1.06; }
+  .page--dense .checkbox { width: 2.8mm; height: 2.8mm; border-width: 0.34mm; }
+  .page--dense .star { font-size: 10px; }
+  .page--dense .schedule-box { margin-top: 2.8mm; min-height: 14mm; grid-template-columns: 23mm minmax(0, 1fr); }
+  .page--dense .schedule-title { font-size: 9.8px; line-height: 1.05; padding-bottom: 1.6mm; }
+  .page--dense .schedule-content { padding: 1.8mm 2.8mm; font-size: 10.8px; line-height: 1.18; }
+  .page--dense .schedule-empty { padding: 1.8mm 2.8mm; font-size: 10.5px; }
+  .page--dense .footer { margin-top: 2.2mm; padding-top: 1.7mm; }
   .page--dense .footer-left,
-  .page--dense .footer-right { font-size: 11px; }
+  .page--dense .footer-right { font-size: 10.5px; }
 
   @media screen {
     body { background: #f1f5f9; }

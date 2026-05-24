@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { mkdir, readFile } from "fs/promises";
 import path from "path";
 import { getBaseUrl, loginViaUI } from "./helpers/auth";
@@ -16,6 +16,26 @@ function createLocalJwt() {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: now + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
+async function openClinicTool(page: Page) {
+  const baseUrl = getBaseUrl("admin");
+  await installLocalAuthApiStubs(page);
+  await installTenantOneInitScript(page);
+  if (isLocalBaseUrl(baseUrl)) {
+    const token = createLocalJwt();
+    await page.addInitScript((jwt) => {
+      localStorage.setItem("access", jwt);
+      localStorage.setItem("refresh", `${jwt}-refresh`);
+      localStorage.setItem("tenant_code", "hakwonplus");
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+    }, token);
+  } else {
+    await loginViaUI(page, "admin");
+  }
+  await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
+  await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
+  await expect(page.locator("#clinic-paste-ta")).toBeVisible();
+}
+
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
   test("도구탭과 성적탭은 공통 출력 renderer를 공유한다", async () => {
     const [toolSource, rendererSource] = await Promise.all([
@@ -31,24 +51,80 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(toolSource).not.toContain('class="name-row single');
   });
 
+  test("게시용 흑백 인쇄에서 짧은 이름을 크게 보여준다", async ({ page }) => {
+    await openClinicTool(page);
+
+    const makeNames = (prefix: string, count: number) =>
+      Array.from({ length: count }, (_, i) => `${prefix}${String(i + 1).padStart(2, "0")}`);
+    const bothNames = makeNames("양민준", 48);
+    const examNames = makeNames("김서연", 44);
+    const hwNames = makeNames("박도윤", 40);
+    const allNames = [...bothNames, ...examNames, ...hwNames];
+    await page.locator("#clinic-paste-ta").fill([
+      `시험+과제: ${bothNames.join(", ")}`,
+      `시험: ${examNames.join(", ")}`,
+      `과제: ${hwNames.join(", ")}`,
+    ].join("\n"));
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+
+    const frame = page.frameLocator("#cprev");
+    await expect(frame.locator(".name-text").filter({ hasText: bothNames[0] }).first()).toBeVisible({ timeout: 8000 });
+    const visibility = await frame.locator(".page").evaluate((node, expectedNames) => {
+      const pageEl = node as HTMLElement;
+      const parseRgb = (value: string) => {
+        const m = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+      };
+      const isGray = (value: string) => {
+        const rgb = parseRgb(value);
+        return !!rgb && Math.abs(rgb[0] - rgb[1]) <= 2 && Math.abs(rgb[1] - rgb[2]) <= 2;
+      };
+      const clipped = Array.from(pageEl.querySelectorAll(".name-text"))
+        .filter((textNode) => expectedNames.includes((textNode.textContent || "").trim()))
+        .filter((textNode) => {
+          const el = textNode as HTMLElement;
+          const cs = getComputedStyle(el);
+          return (
+            el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1 ||
+            cs.overflow === "hidden" ||
+            cs.textOverflow === "ellipsis" ||
+            cs.whiteSpace === "nowrap"
+          );
+        });
+      const firstCell = pageEl.querySelector(".name-cell") as HTMLElement | null;
+      const sampleColors = [
+        ".section-header.both",
+        ".section-header.exam",
+        ".section-header.hw",
+        ".name-row:nth-child(even)",
+        ".checkbox",
+      ].flatMap((selector) => {
+        const el = pageEl.querySelector(selector) as HTMLElement | null;
+        if (!el) return [];
+        const cs = getComputedStyle(el);
+        return [cs.color, cs.backgroundColor, cs.borderTopColor];
+      });
+      return {
+        pageClass: pageEl.className,
+        nameCount: pageEl.querySelectorAll(".name-text").length,
+        pairedNameCount: pageEl.querySelectorAll(".name-cell .name-text").length,
+        nameCellFontSize: firstCell ? parseFloat(getComputedStyle(firstCell).fontSize) : 0,
+        allSampleColorsGray: sampleColors.every(isGray),
+        clippedCount: clipped.length,
+      };
+    }, allNames);
+
+    expect(visibility.pageClass).toContain("page--dense");
+    expect(visibility.nameCount).toBe(132);
+    expect(visibility.pairedNameCount).toBe(132);
+    expect(visibility.nameCellFontSize).toBeGreaterThanOrEqual(14);
+    expect(visibility.allSampleColorsGray).toBe(true);
+    expect(visibility.clippedCount).toBe(0);
+  });
+
   test("긴 이름을 자르지 않고 실제 PDF를 내려받는다", async ({ page }) => {
-    const baseUrl = getBaseUrl("admin");
-    await installLocalAuthApiStubs(page);
-    await installTenantOneInitScript(page);
-    if (isLocalBaseUrl(baseUrl)) {
-      const token = createLocalJwt();
-      await page.addInitScript((jwt) => {
-        localStorage.setItem("access", jwt);
-        localStorage.setItem("refresh", `${jwt}-refresh`);
-        localStorage.setItem("tenant_code", "hakwonplus");
-        sessionStorage.setItem("tenantCode", "hakwonplus");
-      }, token);
-    } else {
-      await loginViaUI(page, "admin");
-    }
-    await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
-    await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
-    await expect(page.locator("#clinic-paste-ta")).toBeVisible();
+    await openClinicTool(page);
 
     const longNames = Array.from({ length: 18 }, (_, i) =>
       `[E2E-${TS}]김가나다라마바사아자${String(i + 1).padStart(2, "0")}`,
