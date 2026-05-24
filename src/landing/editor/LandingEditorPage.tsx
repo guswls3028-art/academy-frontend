@@ -24,6 +24,7 @@ import type {
   TestimonialItem,
   ProgramItem,
   FaqItem,
+  InstructorProfileItem,
 } from "../types";
 import { ALLOWED_COLORS, SECTION_META } from "../types";
 import { getTemplateComponent } from "../templates";
@@ -808,11 +809,11 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
 
       {section.enabled && (
         <>
-          {/* Title/Description for about, notice */}
-          {(sectionType === "about" || sectionType === "notice") && (
+          {/* Title/Description for text-led sections */}
+          {(sectionType === "about" || sectionType === "notice" || sectionType === "instructor_profile") && (
             <>
               <FieldRow label="제목">
-                <TextInput value={section.title || ""} onChange={(v) => updateSection((s) => ({ ...s, title: v }))} placeholder={sectionType === "about" ? "소개" : "공지"} />
+                <TextInput value={section.title || ""} onChange={(v) => updateSection((s) => ({ ...s, title: v }))} placeholder={sectionType === "about" ? "소개" : sectionType === "instructor_profile" ? "강사 프로필" : "공지"} />
               </FieldRow>
               <FieldRow label="내용">
                 <TextArea value={section.description || ""} onChange={(v) => updateSection((s) => ({ ...s, description: v }))} placeholder="내용을 입력하세요" rows={4} />
@@ -823,6 +824,13 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
           {/* Items for features, testimonials, programs, faq */}
           {["features", "testimonials", "programs", "faq"].includes(sectionType) && (
             <ItemsEditor sectionType={sectionType} items={(section.items || []) as any[]} updateSection={updateSection} />
+          )}
+
+          {sectionType === "instructor_profile" && (
+            <InstructorProfileItemsEditor
+              items={(section.items || []) as InstructorProfileItem[]}
+              updateSection={updateSection}
+            />
           )}
 
           {/* hero_carousel: 자유 mix(hit_report/post/custom). 학원장 자율(#48 #22). */}
@@ -905,6 +913,88 @@ function SectionEditor({ sectionType, sections, updateDraft }: { sectionType: st
         </div>
       </div>
     </EditorSection>
+  );
+}
+
+function InstructorProfileItemsEditor({ items, updateSection }: {
+  items: InstructorProfileItem[];
+  updateSection: (fn: (s: LandingSection) => LandingSection) => void;
+}) {
+  const maxItems = 12;
+
+  const normalized: InstructorProfileItem[] = items.map((item) => ({
+    name: item.name || "",
+    title: item.title || "",
+    photo_url: item.photo_url || "",
+    bio: item.bio || "",
+    experience: Array.isArray(item.experience) ? item.experience : [],
+  }));
+
+  const updateItem = (idx: number, patch: Partial<InstructorProfileItem>) => {
+    updateSection((s) => ({
+      ...s,
+      items: ((s.items || []) as InstructorProfileItem[]).map((item, i) => (
+        i === idx ? { ...item, ...patch } : item
+      )),
+    }));
+  };
+
+  const removeItem = (idx: number) => {
+    updateSection((s) => ({
+      ...s,
+      items: ((s.items || []) as InstructorProfileItem[]).filter((_, i) => i !== idx),
+    }));
+  };
+
+  const addItem = () => {
+    if (normalized.length >= maxItems) return;
+    updateSection((s) => ({
+      ...s,
+      items: [
+        ...((s.items || []) as InstructorProfileItem[]),
+        { name: "", title: "", photo_url: "", bio: "", experience: [] },
+      ],
+    }));
+  };
+
+  return (
+    <div>
+      {normalized.map((item, idx) => (
+        <div key={idx} style={{ padding: 16, borderRadius: 8, border: "1px solid var(--color-border-divider, #e2e8f0)", marginBottom: 12, background: "var(--color-bg-surface, #fff)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted, #94a3b8)" }}>강사 {idx + 1}</span>
+            <button onClick={() => removeItem(idx)} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "#dc2626" }}>삭제</button>
+          </div>
+
+          <FieldRow label="이름">
+            <TextInput value={item.name} onChange={(v) => updateItem(idx, { name: v })} placeholder="박철T" maxLength={40} />
+          </FieldRow>
+          <FieldRow label="직함">
+            <TextInput value={item.title} onChange={(v) => updateItem(idx, { title: v })} placeholder="통합과학 전임 강사" maxLength={60} />
+          </FieldRow>
+          <FieldRow label="프로필 사진 URL">
+            <TextInput value={item.photo_url || ""} onChange={(v) => updateItem(idx, { photo_url: v })} placeholder="https://..." />
+          </FieldRow>
+          <FieldRow label="소개">
+            <TextArea value={item.bio || ""} onChange={(v) => updateItem(idx, { bio: v })} placeholder="강사 소개" rows={4} />
+          </FieldRow>
+          <FieldRow label="경력 (줄바꿈으로 구분)">
+            <TextArea
+              value={(item.experience || []).join("\n")}
+              onChange={(v) => updateItem(idx, { experience: v.split("\n").map((line) => line.trim()).filter(Boolean) })}
+              placeholder={"현 대치명인학원 통합과학 출강\n현 대치두각학원 통합과학 출강"}
+              rows={5}
+            />
+          </FieldRow>
+        </div>
+      ))}
+
+      {normalized.length < maxItems && (
+        <button onClick={addItem} style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px dashed var(--color-border-divider, #d1d5db)", background: "transparent", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary, #64748b)" }}>
+          + 강사 추가 (최대 {maxItems}명)
+        </button>
+      )}
+    </div>
   );
 }
 

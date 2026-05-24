@@ -140,6 +140,7 @@ export default function LandingAboutPage() {
             <SectionBlock
               key={sec.type}
               section={sec}
+              heroImageUrl={(cfg.hero_images || []).find(Boolean) || cfg.hero_image_url || ""}
               primary={primary}
               isDark={isDark}
               textPrimary={textPrimary}
@@ -169,9 +170,10 @@ export default function LandingAboutPage() {
 }
 
 function SectionBlock({
-  section, primary, isDark, textPrimary, textSecondary, cardBg, cardBorder,
+  section, heroImageUrl, primary, isDark, textPrimary, textSecondary, cardBg, cardBorder,
 }: {
   section: LandingSection;
+  heroImageUrl?: string;
   primary: string;
   isDark: boolean;
   textPrimary: string;
@@ -205,12 +207,17 @@ function SectionBlock({
 
       {section.type === "instructor_profile" && (
         <div style={{ display: "grid", gap: 16 }}>
-          {(items as InstructorProfileItem[]).map((it, i) => (
-            <div key={i} style={{ padding: 24, borderRadius: 16, background: cardBg, border: `1px solid ${cardBorder}`, display: "grid", gridTemplateColumns: "120px 1fr", gap: 20, alignItems: "start" }}>
-              {it.photo_url ? (
-                <img src={it.photo_url} alt={it.name} style={{ width: 120, height: 150, borderRadius: 12, objectFit: "cover", border: `1px solid ${cardBorder}` }} />
+          {(items as InstructorProfileItem[]).map((it, i) => {
+            const photoUrl = (it.photo_url || "").trim() || (i === 0 ? (heroImageUrl || "").trim() : "");
+            const usesHeroPoster = !((it.photo_url || "").trim()) && Boolean(photoUrl);
+            return (
+              <div key={i} style={{ padding: 24, borderRadius: 8, background: cardBg, border: `1px solid ${cardBorder}`, display: "grid", gridTemplateColumns: "120px 1fr", gap: 20, alignItems: "start" }}>
+                {photoUrl ? (
+                <div style={{ width: 120, height: 150, borderRadius: 8, overflow: "hidden", border: `1px solid ${cardBorder}`, background: `${primary}18` }}>
+                  <img src={photoUrl} alt={it.name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: usesHeroPoster ? "78% 60%" : "center top", transform: usesHeroPoster ? "scale(2.75)" : "none", transformOrigin: usesHeroPoster ? "78% 61%" : "center" }} />
+                </div>
               ) : (
-                <div style={{ width: 120, height: 150, borderRadius: 12, background: `linear-gradient(135deg, ${primary}30 0%, ${primary}10 100%)`, display: "flex", alignItems: "center", justifyContent: "center", color: primary, fontSize: 48, fontWeight: 800, border: `1px solid ${cardBorder}` }}>
+                <div style={{ width: 120, height: 150, borderRadius: 8, background: `linear-gradient(135deg, ${primary}30 0%, ${primary}10 100%)`, display: "flex", alignItems: "center", justifyContent: "center", color: primary, fontSize: 48, fontWeight: 800, border: `1px solid ${cardBorder}` }}>
                   {(it.name || "").trim().charAt(0) || "•"}
                 </div>
               )}
@@ -227,7 +234,8 @@ function SectionBlock({
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -173,6 +173,7 @@ export default function PremiumDark({ config }: TemplateProps) {
             // 강사 카드 비면 hide (#D2 cycle 13 — 빈 검정 공간 방지).
             const instructorItems = (section.items as InstructorProfileItem[] | undefined) || [];
             if (instructorItems.length === 0) return null;
+            const fallbackPhotoUrl = getHeroPosterFallback(config);
             return (
               <section key="instructor_profile" data-stype="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
@@ -180,7 +181,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                   <SectionHeader eyebrow="Instructor" title={section.title || "강사 프로필"} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 32, marginTop: 64 }}>
                     {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
-                      <InstructorCard key={i} item={it} reportIds={reportIds} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
+                      <InstructorCard key={i} item={it} fallbackPhotoUrl={i === 0 ? fallbackPhotoUrl : ""} reportIds={reportIds} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
                     ))}
                   </div>
                 </div>
@@ -429,6 +430,18 @@ function compactText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function getInstructorProfiles(sections: LandingSection[]): InstructorProfileItem[] {
+  const section = sections.find((s) => s.type === "instructor_profile" && s.enabled);
+  return ((section?.items as InstructorProfileItem[] | undefined) || []).filter((it) => (
+    compactText(it.name) || compactText(it.title) || compactText(it.bio)
+  ));
+}
+
+function getHeroPosterFallback(config: LandingConfig): string {
+  const heroImages = (config.hero_images || []).map((src) => compactText(src)).filter(Boolean);
+  return heroImages[0] || compactText(config.hero_image_url);
+}
+
 function targetFromLink(link: string, isInternal?: boolean): PremiumHeroTarget {
   if (isInternal || link.startsWith("/")) return { kind: "route", to: link || "/landing" };
   return { kind: "href", href: link || "/landing" };
@@ -531,8 +544,15 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
   const heroItems = buildPremiumHeroItems({ config, sections, carouselItems, primaryCta });
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const instructorItems = getInstructorProfiles(sections);
+  const heroPosterFallback = getHeroPosterFallback(config);
+  const featuredInstructor = instructorItems.find((it) => compactText(it.photo_url)) || instructorItems[0] || null;
+  const featuredPhoto = featuredInstructor ? (compactText(featuredInstructor.photo_url) || heroPosterFallback) : "";
+  const featuredUsesHeroPoster = Boolean(featuredInstructor && featuredPhoto && !compactText(featuredInstructor.photo_url));
   const heroImgs = (config.hero_images || []).filter(Boolean);
-  const visualSlides = heroImgs.length > 0 ? heroImgs : (config.hero_image_url ? [config.hero_image_url] : []);
+  const heroSingle = compactText(config.hero_image_url);
+  const visualSlides = heroImgs.length > 0 ? heroImgs : (heroSingle ? [heroSingle] : (featuredPhoto ? [featuredPhoto] : []));
+  const visualUsesInstructorFallback = heroImgs.length === 0 && !heroSingle && Boolean(featuredPhoto);
   const current = heroItems[idx % heroItems.length] || heroItems[0];
   const activeVisual = visualSlides.length > 0 ? idx % visualSlides.length : -1;
 
@@ -588,8 +608,8 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              objectPosition: "center 28%",
-              opacity: i === activeVisual || visualSlides.length === 1 ? 0.62 : 0,
+              objectPosition: visualUsesInstructorFallback ? "72% 30%" : "center 28%",
+              opacity: i === activeVisual || visualSlides.length === 1 ? (visualUsesInstructorFallback ? 0.48 : 0.66) : 0,
               transform: i === activeVisual ? "scale(1.02)" : "scale(1.07)",
               transition: "opacity 900ms ease, transform 7s ease",
             }}
@@ -600,7 +620,7 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
       </div>
 
       <div className="pd-hero-copy" style={{ width: "min(1200px, 100%)", margin: "0 auto", position: "relative", zIndex: 2 }}>
-        <div style={{ maxWidth: 700 }}>
+        <div style={{ maxWidth: featuredPhoto ? 620 : 700 }}>
           <div className="pd-hero-eyebrow" style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             minHeight: 30,
@@ -675,6 +695,52 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
           </div>
         </div>
       </div>
+
+      {featuredInstructor && featuredPhoto && (
+        <div
+          className="pd-hero-featured-instructor"
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            right: "max(24px, calc((100vw - 1200px) / 2 + 24px))",
+            bottom: 116,
+            width: 268,
+            zIndex: 2,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            pointerEvents: "none",
+          }}
+        >
+          <InstructorPortrait
+            src={featuredPhoto}
+            name={featuredInstructor.name}
+            initial={(featuredInstructor.name || "").trim().charAt(0) || "•"}
+            isHeroPosterCrop={featuredUsesHeroPoster}
+            width="100%"
+            height={346}
+            gold={gold}
+            goldRgb={goldRgb}
+            cardBorder={cardBorder}
+            bg="#0A0E1A"
+          />
+          <div style={{
+            padding: "12px 14px",
+            borderRadius: 8,
+            background: "rgba(7,11,20,0.62)",
+            border: `1px solid ${cardBorder}`,
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 18px 44px rgba(0,0,0,0.28)",
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0, textTransform: "uppercase", color: gold, marginBottom: 4 }}>Lead Instructor</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: "#fff", lineHeight: 1.15, letterSpacing: 0 }}>{featuredInstructor.name}</div>
+            {featuredInstructor.title && (
+              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: "rgba(245,241,232,0.72)", lineHeight: 1.35 }}>{featuredInstructor.title}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div
         className="pd-hero-rail"
@@ -788,6 +854,11 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
         a[data-testid="landing-hero-primary-cta"]:hover,
         button[data-testid="landing-hero-primary-cta"]:hover {
           transform: translateY(-2px);
+        }
+        @media (max-width: 1080px) {
+          .pd-hero-featured-instructor {
+            display: none !important;
+          }
         }
         @media (max-width: 880px) {
           .pd-hero-stage {
@@ -967,12 +1038,81 @@ function FeatureCard({ item, gold, goldRgb, cardBg, cardBorder, cardHoverBorder,
   );
 }
 
-function InstructorCard({ item, reportIds = [], gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; reportIds?: number[]; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
-  const initial = (item.name || "").trim().charAt(0) || "•";
-  const stats = useTenantHitStats(reportIds);
+function InstructorPortrait({
+  src,
+  name,
+  initial,
+  isHeroPosterCrop,
+  width,
+  height,
+  gold,
+  goldRgb,
+  cardBorder,
+  bg,
+}: {
+  src?: string;
+  name: string;
+  initial: string;
+  isHeroPosterCrop?: boolean;
+  width: number | string;
+  height: number | string;
+  gold: string;
+  goldRgb: string;
+  cardBorder: string;
+  bg: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const photo = compactText(src);
+  const showPhoto = Boolean(photo && !failed);
+
   return (
     <div style={{
-      padding: 36, borderRadius: 20,
+      position: "relative",
+      width,
+      height,
+      borderRadius: 8,
+      overflow: "hidden",
+      background: `linear-gradient(135deg, ${bg} 0%, rgba(${goldRgb},0.15) 100%)`,
+      border: `1px solid ${cardBorder}`,
+      boxShadow: `0 18px 46px rgba(0,0,0,0.48), 0 0 0 1px rgba(${goldRgb},0.12) inset`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: gold,
+      fontSize: 64,
+      fontWeight: 900,
+      letterSpacing: 0,
+    }}>
+      {showPhoto ? (
+        <img
+          src={photo}
+          alt={name}
+          onError={() => setFailed(true)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: isHeroPosterCrop ? "78% 60%" : "center top",
+            transform: isHeroPosterCrop ? "scale(2.75)" : "none",
+            transformOrigin: isHeroPosterCrop ? "78% 61%" : "center",
+          }}
+        />
+      ) : (
+        <span>{initial}</span>
+      )}
+      <div style={{ position: "absolute", inset: 0, boxShadow: `inset 0 0 38px rgba(${goldRgb},0.12)`, pointerEvents: "none" }} />
+    </div>
+  );
+}
+
+function InstructorCard({ item, fallbackPhotoUrl = "", reportIds = [], gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; fallbackPhotoUrl?: string; reportIds?: number[]; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
+  const initial = (item.name || "").trim().charAt(0) || "•";
+  const stats = useTenantHitStats(reportIds);
+  const ownPhoto = compactText(item.photo_url);
+  const photo = ownPhoto || compactText(fallbackPhotoUrl);
+  return (
+    <div style={{
+      padding: 36, borderRadius: 8,
       background: `linear-gradient(180deg, rgba(${goldRgb},0.04) 0%, rgba(${goldRgb},0.01) 100%)`,
       border: `1px solid ${cardBorder}`,
       display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap",
@@ -980,23 +1120,20 @@ function InstructorCard({ item, reportIds = [], gold, goldRgb, cardBg, cardBorde
     }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.5), transparent)` }} />
       {/* 사진 (URL 있으면 img, 없으면 이니셜 mark) */}
-      <div style={{ flex: "0 0 180px", position: "relative" }}>
+      <div style={{ flex: "0 0 220px", position: "relative", maxWidth: "100%" }}>
         <div style={{ position: "absolute", inset: -8, background: `radial-gradient(ellipse, rgba(${goldRgb},0.18) 0%, transparent 70%)`, filter: "blur(20px)", pointerEvents: "none" }} />
-        {item.photo_url ? (
-          <img src={item.photo_url} alt={item.name} style={{
-            position: "relative", width: 180, height: 220, borderRadius: 16, objectFit: "cover",
-            border: `1px solid ${cardBorder}`,
-            boxShadow: `0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(${goldRgb},0.12) inset`,
-          }} />
-        ) : (
-          <div style={{
-            position: "relative", width: 180, height: 220, borderRadius: 16,
-            background: `linear-gradient(135deg, ${bg} 0%, rgba(${goldRgb},0.15) 100%)`,
-            border: `1px solid ${cardBorder}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: gold, fontSize: 64, fontWeight: 800, letterSpacing: "-0.04em",
-          }}>{initial}</div>
-        )}
+        <InstructorPortrait
+          src={photo}
+          name={item.name}
+          initial={initial}
+          isHeroPosterCrop={!ownPhoto && Boolean(photo)}
+          width={220}
+          height={282}
+          gold={gold}
+          goldRgb={goldRgb}
+          cardBorder={cardBorder}
+          bg={bg}
+        />
       </div>
       {/* 이름 + 직함 + 경력 + bio */}
       <div style={{ flex: "1 1 280px", minWidth: 280 }}>
