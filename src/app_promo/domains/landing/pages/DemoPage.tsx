@@ -2,6 +2,8 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
+import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import styles from "./LeadPage.module.css";
 
 const INTEREST_OPTIONS = [
   "학생 관리",
@@ -66,23 +68,15 @@ export default function DemoPage() {
 
   if (submitted) {
     return (
-      <section className="py-24 text-center">
-        <div className="max-w-lg mx-auto px-4">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">데모 요청이 접수되었습니다</h2>
-          <p className="text-gray-500 mb-3">
-            담당자가 확인 후 빠르게 연락드리겠습니다.
-          </p>
-          <p className="text-sm text-gray-400 mb-8">
-            보통 1영업일 이내에 연락드리며, 운영 환경에 맞는 시연을 준비합니다.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/promo/features" className="px-6 py-2.5 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-              기능 소개 보기
-            </Link>
-            <Link to="/promo/pricing" className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              요금제 보기
-            </Link>
+      <section className={styles.resultSection}>
+        <div className={styles.resultCard}>
+          <span>DEMO REQUESTED</span>
+          <h1>데모 요청이 접수되었습니다</h1>
+          <p>보통 1영업일 이내에 연락드리며, 급한 일정은 전화로 바로 상담 가능합니다.</p>
+          <div className={styles.resultActions}>
+            <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+            <Link to="/promo/pricing">요금제 보기</Link>
+            <Link to="/promo/features">기능 소개 보기</Link>
           </div>
         </div>
       </section>
@@ -91,18 +85,32 @@ export default function DemoPage() {
 
   return (
     <>
-      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">데모 요청</h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            우리 학원 운영 흐름에 맞는 도입 방식을 상담받아보세요.
-          </p>
+      <section className={styles.hero} aria-labelledby="demo-title">
+        <div className={styles.heroInner}>
+          <span>DEMO REQUEST</span>
+          <h1 id="demo-title">우리 학원 운영 흐름에 맞춰 데모를 잡습니다</h1>
+          <p>현재 관리 방식과 필요한 기능을 남겨주시면, 실제 도입 경로와 요금 기준을 함께 확인합니다.</p>
+          <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
         </div>
       </section>
 
-      <section className="py-16">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+      <section className={styles.body}>
+        <div className={styles.leadGrid}>
+          <aside className={styles.sidePanel}>
+            <span>DEMO FLOW</span>
+            <h2>데모에서 확인할 내용</h2>
+            <ol>
+              <li>수업·시험·성적·메시지의 실제 화면 흐름</li>
+              <li>학원 규모에 맞는 Standard/Pro/Max 기준</li>
+              <li>기존 자료 이전과 도입 일정의 현실적인 범위</li>
+            </ol>
+            <div className={styles.callBox}>
+              <strong>{CONSULT_PHONE_DISPLAY}</strong>
+              <p>광고 집행 전 가격표나 기능 범위를 바로 맞춰야 하면 전화가 빠릅니다.</p>
+            </div>
+          </aside>
+
+          <form onSubmit={handleSubmit} className={styles.formCard}>
             <input
               type="text"
               name="website"
@@ -111,11 +119,12 @@ export default function DemoPage() {
               tabIndex={-1}
               autoComplete="off"
               aria-hidden="true"
-              className="absolute left-[-9999px] h-px w-px opacity-0"
+              className={styles.honeypot}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">이름 *</label>
+
+            <div className={styles.formGrid}>
+              <label>
+                <span>이름 *</span>
                 <input
                   type="text"
                   required
@@ -123,12 +132,11 @@ export default function DemoPage() {
                   disabled={pending}
                   value={form.name}
                   onChange={(e) => update("name", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="홍길동"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">학원명 *</label>
+              </label>
+              <label>
+                <span>학원명 *</span>
                 <input
                   type="text"
                   required
@@ -136,15 +144,11 @@ export default function DemoPage() {
                   disabled={pending}
                   value={form.academy_name}
                   onChange={(e) => update("academy_name", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="학원 이름"
                 />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">연락처 *</label>
+              </label>
+              <label>
+                <span>연락처 *</span>
                 <input
                   type="tel"
                   required
@@ -152,96 +156,76 @@ export default function DemoPage() {
                   disabled={pending}
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="010-0000-0000"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">이메일</label>
+              </label>
+              <label>
+                <span>이메일</span>
                 <input
                   type="email"
                   maxLength={120}
                   disabled={pending}
                   value={form.email}
                   onChange={(e) => update("email", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="example@email.com"
                 />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">학생 수</label>
+              </label>
+              <label>
+                <span>학생 수</span>
                 <input
                   type="text"
                   maxLength={40}
                   disabled={pending}
                   value={form.student_count}
                   onChange={(e) => update("student_count", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="예: 50명"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">현재 운영 방식</label>
+              </label>
+              <label>
+                <span>현재 운영 방식</span>
                 <input
                   type="text"
                   maxLength={120}
                   disabled={pending}
                   value={form.current_workflow}
                   onChange={(e) => update("current_workflow", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
                   placeholder="예: 수기 관리, 엑셀, 타 솔루션"
                 />
-              </div>
+              </label>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">관심 기능 (복수 선택)</label>
-              <div className="flex flex-wrap gap-2">
+            <fieldset className={styles.choiceGroup}>
+              <legend>관심 기능</legend>
+              <div>
                 {INTEREST_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     disabled={pending}
                     onClick={() => toggleInterest(opt)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                      form.interests.includes(opt)
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
-                    }`}
+                    className={form.interests.includes(opt) ? styles.isSelected : ""}
                   >
                     {opt}
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">요청 사항</label>
+            <label className={styles.fullField}>
+              <span>요청 사항</span>
               <textarea
                 rows={4}
                 maxLength={1500}
                 disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm resize-none"
                 placeholder="추가로 궁금한 점이나 요청 사항을 적어주세요."
               />
-            </div>
+            </label>
 
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {error}
-              </div>
-            )}
+            {error && <div className={styles.errorBox}>{error}</div>}
 
-            <button
-              type="submit"
-              disabled={pending}
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-wait transition-colors text-sm"
-            >
+            <button type="submit" disabled={pending} className={styles.submitButton}>
               {pending ? "전송 중..." : "데모 요청하기"}
             </button>
           </form>

@@ -1,0 +1,127 @@
+.cta {
+  position: relative;
+  overflow: hidden;
+  padding: 92px 0;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(8, 16, 24, 0.97), rgba(11, 42, 49, 0.94)),
+    url("/promo/admin-home.png") center / cover;
+}
+
+.cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(90deg, #000 0%, transparent 78%);
+  opacity: 0.32;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: min(820px, calc(100% - 40px));
+  margin: 0 auto;
+  text-align: center;
+}
+
+.inner span {
+  display: inline-flex;
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.inner h2 {
+  margin: 14px 0 0;
+  color: #fff;
+  font-size: 42px;
+  font-weight: 930;
+  line-height: 1.12;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+.inner p {
+  max-width: 680px;
+  margin: 18px auto 0;
+  color: rgba(248, 250, 252, 0.74);
+  font-size: 17px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.actions a {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.actions a:hover {
+  transform: translateY(-2px);
+}
+
+.actions a:first-child {
+  color: #081018;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+}
+
+.actions a:not(:first-child) {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 760px) {
+  .cta {
+    padding: 72px 0;
+  }
+
+  .inner {
+    width: min(100% - 28px, 820px);
+    text-align: left;
+  }
+
+  .inner h2 {
+    font-size: 31px;
+  }
+
+  .inner p {
+    font-size: 15.5px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions a {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actions a {
+    transition: none;
+  }
+}

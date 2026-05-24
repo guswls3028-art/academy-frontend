@@ -1,328 +1,397 @@
 // PATH: src/app_promo/domains/landing/pages/LandingPage.tsx
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import CtaSection from "../components/CtaSection";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  GraduationCap,
+  Layers3,
+  Megaphone,
+  MessageSquareText,
+  MousePointer2,
+  Pause,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  UsersRound,
+  Zap,
+} from "lucide-react";
+import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import styles from "./LandingPage.module.css";
 
-/* ─── Shared icon ─── */
-function ArrowRight({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-    </svg>
-  );
-}
+const HERO_SLIDES = [
+  {
+    id: "control",
+    eyebrow: "ACADEMY OPERATING OS",
+    title: "수업·성적·안내를 한 화면에서 운영합니다",
+    body: "강의, 시험, 클리닉, 메시지를 따로 관리하지 않고 하나의 운영 흐름으로 연결합니다.",
+    image: "/promo/admin-home.png",
+    tone: "운영 지휘실",
+    stat: "12개 메뉴를 한 흐름으로",
+    cta: "/promo/features",
+  },
+  {
+    id: "exam",
+    eyebrow: "TEST TO ACTION",
+    title: "시험 이후 업무가 자동으로 이어집니다",
+    body: "응시 현황, 채점, 성적 분석, 보강 대상자 판단까지 다음 행동이 바로 보입니다.",
+    image: "/promo/admin-exams.png",
+    tone: "평가 운영",
+    stat: "문항 분석부터 후속 조치",
+    cta: "/promo/ai-grading",
+  },
+  {
+    id: "message",
+    eyebrow: "PARENT TOUCHPOINT",
+    title: "학부모 안내가 늦지 않게 이어집니다",
+    body: "성적과 과제, 클리닉 결과를 상황별 메시지로 정리해 반복 안내를 줄입니다.",
+    image: "/promo/admin-messages.png",
+    tone: "메시지",
+    stat: "상황별 안내 템플릿",
+    cta: "/promo/features",
+  },
+  {
+    id: "video",
+    eyebrow: "LEARNING MEDIA",
+    title: "영상 학습이 운영 데이터와 연결됩니다",
+    body: "수업 영상, 이어보기, 시청 이력을 강의와 학생 흐름 안에서 확인합니다.",
+    image: "/promo/admin-lectures.png",
+    tone: "영상 학습",
+    stat: "강의별 콘텐츠 허브",
+    cta: "/promo/video-platform",
+  },
+];
 
-/* ═══════════════════════════════════════════════════════
-   1. HERO
-   ═══════════════════════════════════════════════════════ */
+const OPERATING_TABS = [
+  {
+    id: "classes",
+    label: "수업 운영",
+    icon: BookOpen,
+    title: "강의, 차시, 학생 현황을 한 번에 정리",
+    body: "오늘의 수업과 제출, 미처리 업무를 같은 화면에서 확인해 선생님별 운영 편차를 줄입니다.",
+    points: ["강의/차시 구조", "학생별 상태", "빠른 미처리 확인"],
+    image: "/promo/admin-lectures.png",
+    accent: "mint",
+  },
+  {
+    id: "scores",
+    label: "시험·성적",
+    icon: ClipboardCheck,
+    title: "평가 결과가 후속 조치로 바로 이어집니다",
+    body: "시험 생성, 채점, 성적표, 클리닉 대상자 판단을 하나의 흐름으로 이어 실무 시간을 줄입니다.",
+    points: ["시험 운영", "성적 분석", "클리닉 연결"],
+    image: "/promo/admin-scores.png",
+    accent: "amber",
+  },
+  {
+    id: "message",
+    label: "안내·메시지",
+    icon: MessageSquareText,
+    title: "상황별 안내를 놓치지 않는 학부모 접점",
+    body: "성적, 출결, 과제, 클리닉 결과를 메시지 템플릿과 연결해 반복 안내를 안정화합니다.",
+    points: ["템플릿 발송", "연동 상태", "학생/학부모 접점"],
+    image: "/promo/admin-messages.png",
+    accent: "rose",
+  },
+  {
+    id: "landing",
+    label: "공개 홈페이지",
+    icon: Megaphone,
+    title: "학원 브랜드 페이지까지 바로 운영",
+    body: "랜딩 페이지, 후기, 공개 게시판, 적중 보고서를 같은 관리자 경험 안에서 게시합니다.",
+    points: ["랜딩 편집", "후기/게시판", "공개 보고서"],
+    image: "/promo/screenshot-dashboard.png",
+    accent: "blue",
+  },
+];
+
+const VALUE_CARDS = [
+  {
+    icon: Layers3,
+    title: "흐름 중심",
+    body: "메뉴를 많이 늘리는 대신 수업 이후의 업무가 자연스럽게 다음 단계로 이어지게 설계했습니다.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "멀티 테넌트",
+    body: "캠퍼스와 브랜드는 독립적으로 보이고, 운영자는 하나의 기준으로 관리합니다.",
+  },
+  {
+    icon: UsersRound,
+    title: "현장형 UX",
+    body: "선생님과 데스크가 매일 반복해서 쓰는 화면을 기준으로 클릭 수와 판단 비용을 줄입니다.",
+  },
+];
+
+const WORKFLOW = [
+  { icon: GraduationCap, title: "수업", body: "강의와 학생 상태 확인" },
+  { icon: FileText, title: "평가", body: "시험·과제 생성과 응시" },
+  { icon: BarChart3, title: "분석", body: "성적표와 문항별 분석" },
+  { icon: CheckCircle2, title: "보강", body: "클리닉 대상자 판단" },
+  { icon: MessageSquareText, title: "안내", body: "학생·학부모 메시지" },
+];
+
+const SAMPLE_CARDS = [
+  { title: "Minimal Tutor", body: "깔끔한 개인 학원형", color: "blue" },
+  { title: "Premium Dark", body: "프리미엄 브랜드형", color: "ink" },
+  { title: "Academic Trust", body: "성적·관리 신뢰형", color: "mint" },
+  { title: "Program Promo", body: "프로그램 모집형", color: "rose" },
+];
 
 function Hero() {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const current = HERO_SLIDES[active];
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (paused || mediaQuery.matches) return undefined;
+    const timer = window.setInterval(() => {
+      setActive((value) => (value + 1) % HERO_SLIDES.length);
+    }, 6500);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+
+  const move = (delta: number) => {
+    setPaused(true);
+    setActive((value) => (value + delta + HERO_SLIDES.length) % HERO_SLIDES.length);
+  };
+
   return (
-    <section className="relative overflow-hidden">
-      {/* 배경 — 좌우 비대칭 그라데이션으로 시각적 깊이 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-indigo-50/40" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-blue-100/30 blur-[120px] -translate-y-1/2 translate-x-1/4" />
+    <section className={styles.hero} aria-labelledby="promo-hero-title">
+      <div className={styles.heroMedia} aria-hidden="true">
+        {HERO_SLIDES.map((slide, index) => (
+          <img
+            key={slide.id}
+            src={slide.image}
+            alt=""
+            className={`${styles.heroImage} ${index === active ? styles.heroImageActive : ""}`}
+            loading={index === 0 ? "eager" : "lazy"}
+          />
+        ))}
+        <div className={styles.heroVeil} />
+        <div className={styles.heroGrid} />
+      </div>
 
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 sm:pt-32 sm:pb-20 text-center">
-        <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
-          수업부터 성적,
-          <br className="sm:hidden" />
-          {" "}안내까지
-          <br />
-          <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            하나의 흐름
-          </span>
-          으로
-        </h1>
-
-        <p className="text-lg sm:text-xl text-gray-500 leading-relaxed max-w-xl mx-auto mb-10">
-          시험 · 과제 · 성적 · 클리닉 · 메시지를
-          <br className="hidden sm:block" />
-          끊김 없이 연결하는 학원 운영 SaaS
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
-          <Link
-            to="/promo/demo"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white bg-blue-600 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-600/30"
-          >
-            데모 요청
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            to="/promo/features"
-            className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white/80 backdrop-blur rounded-2xl hover:bg-white transition-all border border-gray-200/80 shadow-sm"
-          >
-            기능 둘러보기
-          </Link>
-        </div>
-
-        {/* 제품 스크린샷 */}
-        <div className="hidden sm:block relative mx-auto max-w-4xl">
-          <div className="rounded-2xl overflow-hidden shadow-2xl shadow-gray-300/40 border border-gray-200/60 bg-white">
-            <div className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-            </div>
-            <img
-              src="/promo/admin-home.png"
-              alt="학원플러스 관리자 대시보드"
-              className="w-full"
-              loading="lazy"
-            />
+      <div className={styles.heroInner}>
+        <div className={styles.heroCopy}>
+          <span className={styles.heroEyebrow}>{current.eyebrow}</span>
+          <h1 id="promo-hero-title" className={styles.heroTitle}>
+            {current.title}
+          </h1>
+          <p className={styles.heroBody}>{current.body}</p>
+          <div className={styles.heroActions}>
+            <a href={CONSULT_PHONE_TEL} className={`${styles.button} ${styles.buttonPhone}`}>
+              전화 상담 {CONSULT_PHONE_DISPLAY}
+            </a>
+            <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
+              <MousePointer2 size={18} />
+              데모 요청
+            </Link>
+            <Link to={current.cta} className={`${styles.button} ${styles.buttonSecondary}`}>
+              {current.tone} 보기
+              <ArrowRight size={18} />
+            </Link>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   2. VALUE PROPS — 핵심 가치 3개 (히어로 아래 강조 띠)
-   ═══════════════════════════════════════════════════════ */
-
-const VALUES = [
-  {
-    title: "평가 → 후속조치 연결",
-    desc: "시험이 끝나면 끝이 아닌, 클리닉·보강까지 자동 연결",
-    accent: "from-blue-500 to-blue-600",
-  },
-  {
-    title: "멀티 브랜드 운영",
-    desc: "캠퍼스마다 독립 브랜드, 운영은 하나의 시스템",
-    accent: "from-indigo-500 to-indigo-600",
-  },
-  {
-    title: "학생앱 · 학부모 안내",
-    desc: "결과를 학생이 직접 확인하고 학부모에게 즉시 전달",
-    accent: "from-violet-500 to-violet-600",
-  },
-];
-
-function ValueProps() {
-  return (
-    <section className="relative -mt-6 sm:-mt-10 z-10 pb-8">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {VALUES.map((v) => (
-            <div
-              key={v.title}
-              className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg shadow-gray-200/50 border border-gray-100/80"
-            >
-              {/* 좌측 컬러 바 */}
-              <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${v.accent}`} />
-              <h3 className="text-sm font-bold text-gray-900 mb-1.5 pl-3">{v.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed pl-3">{v.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   3. PAIN POINTS — 공감 → 해결
-   ═══════════════════════════════════════════════════════ */
-
-const PAINS = [
-  {
-    pain: "시험, 성적, 후속조치가 따로 놀아 관리가 번거롭다",
-    fix: "평가 → 성적 → 클리닉 → 안내를 하나의 흐름으로 연결",
-  },
-  {
-    pain: "학부모 안내가 늦고 반복 업무가 많다",
-    fix: "템플릿 기반 메시지 발송으로 속도와 일관성 확보",
-  },
-  {
-    pain: "선생님마다 운영 방식이 달라 품질이 흔들린다",
-    fix: "표준화된 워크플로우로 운영 품질을 일정하게 유지",
-  },
-];
-
-function PainPoints() {
-  return (
-    <section className="py-24 bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
-          이런 고민, 익숙하시죠?
-        </h2>
-        <p className="text-gray-500 text-center mb-14 max-w-md mx-auto">
-          기능이 많아도 흐름이 끊기면 운영은 정리되지 않습니다
-        </p>
-
-        <div className="space-y-5">
-          {PAINS.map((item) => (
-            <div
-              key={item.pain}
-              className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 sm:gap-6 items-center p-6 rounded-2xl bg-gray-50/80"
-            >
-              {/* Pain */}
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
-                </span>
-                <span className="text-[15px] text-gray-500 leading-snug">{item.pain}</span>
-              </div>
-
-              {/* Arrow */}
-              <div className="hidden sm:flex items-center justify-center">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                  <ArrowRight className="w-4 h-4 text-blue-400" />
-                </div>
-              </div>
-
-              {/* Fix */}
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                </span>
-                <span className="text-[15px] font-medium text-gray-800 leading-snug">{item.fix}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   4. FEATURES — 6개 도메인 (카드에 시각적 무게감 추가)
-   ═══════════════════════════════════════════════════════ */
-
-const DOMAINS = [
-  { title: "수업 · 학생 관리", desc: "강의/차시/수강생 구조 관리, 학생별 학습 흐름 파악", color: "bg-blue-500", text: "text-blue-600",
-    icon: "M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" },
-  { title: "시험 · 과제 · 성적", desc: "시험 생성, 자동채점, 과제 운영, 문항별 분석까지 원스톱", color: "bg-indigo-500", text: "text-indigo-600",
-    icon: "M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15a2.25 2.25 0 0 1 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" },
-  { title: "클리닉 · 보강", desc: "성적 기반 대상자 판단, 클리닉 예약, 후속 학습 연결", color: "bg-rose-500", text: "text-rose-600",
-    icon: "M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" },
-  { title: "메시지 · 알림", desc: "템플릿 기반 SMS/알림톡 발송, 학부모·학생 커뮤니케이션", color: "bg-amber-500", text: "text-amber-600",
-    icon: "M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" },
-  { title: "커뮤니티 · 학생앱", desc: "Q&A 게시판, 학생 전용 앱에서 성적·과제·영상 확인", color: "bg-emerald-500", text: "text-emerald-600",
-    icon: "M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" },
-  { title: "영상 학습", desc: "자체 플레이어, 이어보기, 시청 이력, 수업 연동", color: "bg-violet-500", text: "text-violet-600",
-    icon: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" },
-];
-
-function Features() {
-  return (
-    <section className="py-20 bg-gray-50/60">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
-          운영에 필요한 모든 도메인
-        </h2>
-        <p className="text-gray-500 text-center mb-14 max-w-lg mx-auto">
-          기능을 나열하지 않습니다. 운영 흐름 안에서 자연스럽게 연결됩니다.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {DOMAINS.map((d) => (
-            <div
-              key={d.title}
-              className="group relative overflow-hidden rounded-2xl bg-white p-6 border border-gray-100 hover:shadow-lg hover:shadow-gray-100/80 transition-all duration-300"
-            >
-              {/* 상단 컬러 바 */}
-              <div className={`absolute top-0 left-0 right-0 h-1 ${d.color}`} />
-              <div className={`${d.text} mb-4 mt-1`}>
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={d.icon} />
-                </svg>
-              </div>
-              <h3 className="text-[15px] font-bold text-gray-900 mb-2">{d.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{d.desc}</p>
-            </div>
-          ))}
+          <ul className={styles.heroTags} aria-label="핵심 가치">
+            <li>시험 이후 후속 운영</li>
+            <li>학생앱·학부모 안내</li>
+            <li>공개 홈페이지</li>
+          </ul>
         </div>
 
-        <div className="mt-10 text-center">
-          <Link
-            to="/promo/features"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            전체 기능 보기
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   5. WORKFLOW — 운영 흐름 시각화
-   ═══════════════════════════════════════════════════════ */
-
-const STEPS = [
-  { n: "01", title: "수업 운영", desc: "강의·차시 구성" },
-  { n: "02", title: "시험·과제", desc: "평가 생성·응시" },
-  { n: "03", title: "성적 확인", desc: "자동채점·분석" },
-  { n: "04", title: "클리닉·보강", desc: "후속 학습 연결" },
-  { n: "05", title: "학부모 안내", desc: "결과 메시지 전달" },
-];
-
-function Workflow() {
-  return (
-    <section className="py-20 bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
-          끊기지 않는 운영 흐름
-        </h2>
-        <p className="text-gray-500 text-center mb-14 max-w-md mx-auto">
-          수업부터 학부모 안내까지, 하나의 워크플로우로 연결됩니다
-        </p>
-
-        {/* Desktop: horizontal */}
-        <div className="hidden md:block">
-          <div className="relative">
-            {/* 연결선 */}
-            <div className="absolute top-7 left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-blue-200 via-indigo-200 to-violet-200" />
-
-            <div className="grid grid-cols-5 gap-4 relative">
-              {STEPS.map((s, i) => (
-                <div key={s.n} className="flex flex-col items-center text-center">
-                  <div className={`relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center text-sm font-bold shadow-md transition-transform hover:scale-105 ${
-                    i === 0 ? "bg-blue-600 text-white shadow-blue-200" :
-                    i === STEPS.length - 1 ? "bg-indigo-600 text-white shadow-indigo-200" :
-                    "bg-white text-gray-700 border-2 border-blue-100 shadow-gray-100"
-                  }`}>
-                    {s.n}
-                  </div>
-                  <h4 className="mt-4 text-sm font-bold text-gray-900">{s.title}</h4>
-                  <p className="mt-1 text-xs text-gray-400">{s.desc}</p>
-                </div>
-              ))}
-            </div>
+        <aside className={styles.heroRail} aria-label="히어로 배너">
+          <div className={styles.heroRailHead}>
+            <span>LIVE VIEW</span>
+            <strong>{String(active + 1).padStart(2, "0")}</strong>
           </div>
-        </div>
+          <div className={styles.heroRailMeta}>
+            <span>{current.tone}</span>
+            <p>{current.stat}</p>
+          </div>
+          <div className={styles.heroControls}>
+            <button type="button" onClick={() => move(-1)} aria-label="이전 배너">
+              <ChevronLeft size={18} />
+            </button>
+            <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? "배너 재생" : "배너 일시정지"}>
+              {paused ? <Play size={16} /> : <Pause size={16} />}
+            </button>
+            <button type="button" onClick={() => move(1)} aria-label="다음 배너">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <div className={styles.heroTabs} role="tablist" aria-label="배너 선택">
+            {HERO_SLIDES.map((slide, index) => (
+              <button
+                key={slide.id}
+                type="button"
+                role="tab"
+                aria-selected={active === index}
+                className={active === index ? styles.isActive : ""}
+                onClick={() => {
+                  setPaused(true);
+                  setActive(index);
+                }}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{slide.tone}</strong>
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
 
-        {/* Mobile: vertical */}
-        <div className="md:hidden">
-          <div className="relative pl-10 space-y-6">
-            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-blue-200 to-indigo-200" />
-            {STEPS.map((s, i) => (
-              <div key={s.n} className="relative flex items-start gap-4">
-                <div className={`absolute left-[-25px] z-10 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                  i === 0 || i === STEPS.length - 1
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-600 border-2 border-gray-100"
-                }`}>
-                  {s.n}
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">{s.title}</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
-                </div>
-              </div>
+function ValueStrip() {
+  return (
+    <section className={styles.valueStrip} aria-label="학원플러스 핵심 가치">
+      <div className={styles.sectionWrap}>
+        <div className={styles.valueGrid}>
+          {VALUE_CARDS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article className={styles.valueCard} key={item.title}>
+                <Icon size={24} />
+                <h2>{item.title}</h2>
+                <p>{item.body}</p>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OperatingHub() {
+  const [activeTab, setActiveTab] = useState(OPERATING_TABS[0].id);
+  const active = useMemo(
+    () => OPERATING_TABS.find((item) => item.id === activeTab) ?? OPERATING_TABS[0],
+    [activeTab],
+  );
+  const ActiveIcon = active.icon;
+
+  return (
+    <section className={styles.operatingHub} id="product-flow" aria-labelledby="product-flow-title">
+      <div className={styles.sectionWrap}>
+        <header className={styles.sectionHead}>
+          <span>PRODUCT FLOW</span>
+          <h2 id="product-flow-title">학원 운영의 주요 화면을 탭처럼 오가세요</h2>
+          <p>빠른 메뉴형 탐색을 Academy 제품 구조에 맞춰, 실제 운영자가 바로 이해하는 흐름으로 바꿨습니다.</p>
+        </header>
+
+        <div className={styles.hubShell}>
+          <nav className={styles.hubSidebar} aria-label="운영 화면">
+            {OPERATING_TABS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={item.id === active.id ? styles.isActive : ""}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <article className={styles.hubPanel} data-accent={active.accent}>
+            <div className={styles.hubCopy}>
+              <span className={styles.hubKicker}>
+                <ActiveIcon size={16} />
+                {active.label}
+              </span>
+              <h3>{active.title}</h3>
+              <p>{active.body}</p>
+              <ul>
+                {active.points.map((point) => (
+                  <li key={point}>
+                    <CheckCircle2 size={16} />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/promo/features" className={styles.textLink}>
+                기능 전체 보기
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+            <div className={styles.hubVisual}>
+              <img src={active.image} alt={`${active.label} 화면 미리보기`} loading="lazy" />
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection() {
+  return (
+    <section className={styles.workflowSection} aria-labelledby="workflow-title">
+      <div className={styles.sectionWrap}>
+        <header className={styles.sectionHead}>
+          <span>OPERATING ROUTE</span>
+          <h2 id="workflow-title">시험 하나가 끝난 뒤에도 업무는 계속 이어집니다</h2>
+        </header>
+        <ol className={styles.workflow}>
+          {WORKFLOW.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <li key={step.title}>
+                <span className={styles.workflowNum}>{String(index + 1).padStart(2, "0")}</span>
+                <Icon size={22} />
+                <strong>{step.title}</strong>
+                <p>{step.body}</p>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function LandingSamples() {
+  return (
+    <section className={styles.samplesSection} aria-labelledby="samples-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.samplesLayout}>
+          <div className={styles.samplesCopy}>
+            <span>PUBLIC SITE</span>
+            <h2 id="samples-title">학원 홈페이지도 운영 도구처럼 관리합니다</h2>
+            <p>
+              학원별 공개 랜딩, 후기, 게시판, 적중 보고서를 관리자 플로우와 연결해
+              홍보 페이지가 방치되지 않게 합니다.
+            </p>
+            <Link to="/promo/landing-samples" className={`${styles.button} ${styles.buttonDark}`}>
+              랜딩 샘플 보기
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+          <div className={styles.samplesGrid} aria-label="랜딩 템플릿">
+            {SAMPLE_CARDS.map((sample) => (
+              <Link
+                key={sample.title}
+                to="/promo/landing-samples"
+                className={styles.sampleCard}
+                data-color={sample.color}
+              >
+                <span />
+                <strong>{sample.title}</strong>
+                <small>{sample.body}</small>
+              </Link>
             ))}
           </div>
         </div>
@@ -331,146 +400,45 @@ function Workflow() {
   );
 }
 
-
-/* ═══════════════════════════════════════════════════════
-   6. WHY US — 차별점 (hero card + 3 supporting)
-   ═══════════════════════════════════════════════════════ */
-
-function WhyUs() {
+function FinalCta() {
   return (
-    <section className="py-20 bg-gray-50/60">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">
-          왜 학원플러스인가
-        </h2>
-
-        {/* Hero 차별점 — 풀 폭 강조 */}
-        <div className="mb-6 p-8 sm:p-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 blur-3xl -translate-y-1/2 translate-x-1/4" />
-          <div className="relative">
-            <div className="inline-flex items-center px-3 py-1 bg-white/15 rounded-full mb-4">
-              <span className="text-xs font-semibold text-blue-100">핵심 차별점</span>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold mb-3">평가 이후 후속 운영까지 연결</h3>
-            <p className="text-blue-100 leading-relaxed max-w-2xl mb-6">
-              시험이 끝나면 성적 확인 → 대상자 판단 → 클리닉/보강 → 학부모 안내까지
-              하나의 흐름으로 이어집니다. 평가에서 끝나지 않고, 학습 보완까지 완결합니다.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {["시험 완료", "성적 확인", "클리닉 연결", "안내 발송"].map((tag, i) => (
-                <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-white/15 rounded-full backdrop-blur-sm">
-                  {i > 0 && (
-                    <svg className="w-3 h-3 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                    </svg>
-                  )}
-                  {tag}
-                </span>
-              ))}
-            </div>
+    <section className={styles.finalCta} aria-labelledby="final-cta-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.finalCtaInner}>
+          <span>
+            <Sparkles size={18} />
+            도입 상담
+          </span>
+          <h2 id="final-cta-title">우리 학원 운영 흐름에 맞는 구성을 같이 잡아보세요</h2>
+          <p>현재 쓰는 강의, 시험, 메시지 방식부터 듣고 가장 작은 도입 경로를 제안드립니다.</p>
+          <div className={styles.finalCtaActions}>
+            <a href={CONSULT_PHONE_TEL} className={`${styles.button} ${styles.buttonPhone}`}>
+              전화 상담 {CONSULT_PHONE_DISPLAY}
+            </a>
+            <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
+              데모 요청
+              <Zap size={18} />
+            </Link>
+            <Link to="/promo/contact" className={`${styles.button} ${styles.buttonSecondary}`}>
+              문의하기
+              <ArrowRight size={18} />
+            </Link>
           </div>
         </div>
-
-        {/* Supporting 3 cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[
-            { title: "학생앱으로 결과 전달", desc: "시험 결과, 과제 현황, 성적 추이를 학생이 직접 확인하는 전용 앱으로 연결됩니다.", accent: "border-t-violet-400" },
-            { title: "멀티 브랜드 독립 운영", desc: "각 캠퍼스의 로고, 컬러, 운영 구성을 독립적으로 관리. 하나의 시스템으로 통합 운영합니다.", accent: "border-t-emerald-400" },
-            { title: "실무자 중심 UX", desc: "최소 클릭으로 핵심 기능에 도달. 나이 불문 누구나 바로 쓸 수 있는 직관적 구조.", accent: "border-t-amber-400" },
-          ].map((c) => (
-            <div key={c.title} className={`p-7 rounded-2xl bg-white border border-gray-100 border-t-2 ${c.accent}`}>
-              <h3 className="text-base font-bold text-gray-900 mb-2">{c.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{c.desc}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );
 }
-
-
-/* ═══════════════════════════════════════════════════════
-   7. LANDING SAMPLES — 미니 프리뷰 형태
-   ═══════════════════════════════════════════════════════ */
-
-const TEMPLATES = [
-  { name: "Minimal Tutor", mood: "깔끔 · 신뢰", previewClass: "from-blue-600 to-blue-500", desc: "밝은 배경의 미니멀 디자인" },
-  { name: "Premium Dark", mood: "프리미엄 · 세련", previewClass: "from-slate-800 to-slate-700", desc: "다크 톤의 세련된 디자인" },
-  { name: "Academic Trust", mood: "체계 · 관리", previewClass: "from-indigo-600 to-indigo-500", desc: "성적·관리 강조 신뢰형" },
-  { name: "Program Promo", mood: "홍보 · 활기", previewClass: "from-orange-500 to-orange-400", desc: "프로그램 홍보 중심" },
-];
-
-function LandingSamples() {
-  return (
-    <section className="py-20 bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="inline-flex items-center px-3 py-1 bg-blue-50 border border-blue-100 rounded-full mb-5">
-          <span className="text-xs font-semibold text-blue-600">NEW</span>
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
-          선생님 전용 랜딩 페이지
-        </h2>
-        <p className="text-gray-500 mb-12 max-w-md mx-auto">
-          각 학원 도메인에 세련된 브랜드 페이지를 제공합니다.
-          비개발자도 쉽게 꾸밀 수 있는 편집 시스템.
-        </p>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl mx-auto mb-10">
-          {TEMPLATES.map((t) => (
-            <Link
-              key={t.name}
-              to="/promo/landing-samples"
-              className="group rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-gray-200 transition-all"
-            >
-              {/* 미니 프리뷰 */}
-              <div
-                className={`h-24 relative bg-gradient-to-br ${t.previewClass}`}
-              >
-                {/* 미니 목업 라인 */}
-                <div className="absolute inset-x-4 bottom-3 space-y-1.5">
-                  <div className="h-1.5 w-12 bg-white/30 rounded-full" />
-                  <div className="h-1 w-20 bg-white/20 rounded-full" />
-                </div>
-              </div>
-              <div className="p-3 text-left">
-                <span className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-                  {t.name}
-                </span>
-                <p className="text-[11px] text-gray-400 mt-0.5">{t.mood}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <Link
-          to="/promo/landing-samples"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-        >
-          모든 샘플 미리보기
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   PAGE
-   ═══════════════════════════════════════════════════════ */
 
 export default function LandingPage() {
   return (
     <>
       <Hero />
-      <ValueProps />
-      <PainPoints />
-      <Features />
-      <Workflow />
-      <WhyUs />
+      <ValueStrip />
+      <OperatingHub />
+      <WorkflowSection />
       <LandingSamples />
-      <CtaSection />
+      <FinalCta />
     </>
   );
 }

@@ -1,19 +1,70 @@
 // PATH: src/app_promo/layout/PromoLayout.tsx
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  BookOpen,
+  ChevronDown,
+  CircleHelp,
+  ClipboardList,
+  CreditCard,
+  Home,
+  LogIn,
+  Menu,
+  MessageCircle,
+  MousePointer2,
+  PanelLeftOpen,
+  PhoneCall,
+  Sparkles,
+  X,
+} from "lucide-react";
 import LoginModal from "../domains/landing/components/LoginModal";
+import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../domains/landing/business";
+import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "기능 소개", path: "/promo/features" },
-  { label: "랜딩 샘플", path: "/promo/landing-samples" },
-  { label: "요금제", path: "/promo/pricing" },
-  { label: "FAQ", path: "/promo/faq" },
-  { label: "문의하기", path: "/promo/contact" },
+  { label: "홈", path: "/promo", icon: Home, note: "운영 OS 개요" },
+  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "도메인별 기능" },
+  { label: "랜딩", path: "/promo/landing-samples", icon: BookOpen, note: "학원 홈페이지 샘플" },
+  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "도입 비용" },
+  { label: "FAQ", path: "/promo/faq", icon: CircleHelp, note: "자주 묻는 질문" },
+  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
+];
+
+const QUICK_GROUPS = [
+  {
+    title: "운영 흐름",
+    links: [
+      { label: "수업·학생 관리", path: "/promo/features" },
+      { label: "AI 채점", path: "/promo/ai-grading" },
+      { label: "영상 학습", path: "/promo/video-platform" },
+    ],
+  },
+  {
+    title: "도입 검토",
+    links: [
+      { label: "요금제 비교", path: "/promo/pricing" },
+      { label: "데모 요청", path: "/promo/demo" },
+      { label: "문의하기", path: "/promo/contact" },
+    ],
+  },
+  {
+    title: "브랜드 페이지",
+    links: [
+      { label: "랜딩 샘플", path: "/promo/landing-samples" },
+      { label: "기능 소개", path: "/promo/features" },
+      { label: "공개 홈페이지", path: "/promo/landing-samples" },
+    ],
+  },
 ];
 
 type PromoLocationState = {
   openLogin?: boolean;
 };
+
+function isActive(pathname: string, path: string) {
+  if (path === "/promo") return pathname === "/promo";
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
 
 function Header() {
   const location = useLocation();
@@ -22,158 +73,224 @@ function Header() {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const previous = document.body.style.overflow;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
   return (
-    <header
-      className={`sticky top-0 z-50 transition-all duration-200 ${
-        scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm shadow-gray-100/50"
-          : "bg-transparent border-b border-transparent"
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/promo" className="flex items-center gap-1.5 font-bold text-xl text-gray-900 tracking-tight">
-            <span className="text-blue-600">학원</span>플러스
+    <>
+      <header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
+        <div className={styles.headerInner}>
+          <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
+            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandText}>
+              <strong>HakwonPlus</strong>
+              <small>Academy OS</small>
+            </span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === item.path
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <div className={styles.desktopNavWrap}>
+            <nav className={styles.desktopNav} aria-label="프로모션 메뉴">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={isActive(location.pathname, item.path) ? styles.isActive : ""}
+                  >
+                    <Icon size={16} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
 
-          <div className="hidden md:flex items-center gap-3">
-            <a
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
-            >
+            <div className={styles.navPopover} aria-label="빠른 메뉴">
+              {QUICK_GROUPS.map((group) => (
+                <section key={group.title}>
+                  <h2>{group.title}</h2>
+                  <div>
+                    {group.links.map((link) => (
+                      <Link key={`${group.title}-${link.label}`} to={link.path}>
+                        {link.label}
+                        <ChevronDown size={14} aria-hidden="true" />
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.headerActions}>
+            <a href={CONSULT_PHONE_TEL} className={styles.phoneLink}>
+              <PhoneCall size={16} />
+              {CONSULT_PHONE_DISPLAY}
+            </a>
+            <a href="/login" className={styles.loginLink}>
+              <LogIn size={16} />
               로그인
             </a>
-            <Link
-              to="/promo/demo"
-              className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20"
-            >
+            <Link to="/promo/demo" className={styles.demoLink}>
+              <MousePointer2 size={16} />
               데모 요청
             </Link>
           </div>
 
-          {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            onClick={() => setMobileOpen(!mobileOpen)}
+            type="button"
+            className={styles.mobileMenuButton}
+            aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-expanded={mobileOpen}
+            aria-controls="promo-mobile-sidebar"
+            onClick={() => setMobileOpen((value) => !value)}
           >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {mobileOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden py-4 border-t border-gray-100">
-            <nav className="flex flex-col gap-1">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileOpen(false)}
-                  className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    location.pathname === item.path
-                      ? "text-blue-600 bg-blue-50"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-gray-100">
-                <a
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2.5 text-sm font-medium text-gray-600 text-left"
-                >
-                  로그인
-                </a>
-                <Link
-                  to="/promo/demo"
-                  onClick={() => setMobileOpen(false)}
-                  className="px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg text-center"
-                >
-                  데모 요청
-                </Link>
-              </div>
-            </nav>
-          </div>
-        )}
-      </div>
-    </header>
+        <nav className={styles.mobileTabs} aria-label="프로모션 빠른 메뉴">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={isActive(location.pathname, item.path) ? styles.isActive : ""}
+              >
+                <Icon size={15} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </header>
+
+      <button
+        type="button"
+        className={`${styles.sidebarBackdrop} ${mobileOpen ? styles.isOpen : ""}`}
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => setMobileOpen(false)}
+      />
+      <aside
+        id="promo-mobile-sidebar"
+        className={`${styles.mobileSidebar} ${mobileOpen ? styles.isOpen : ""}`}
+        aria-label="프로모션 사이드 메뉴"
+      >
+        <div className={styles.sidebarHead}>
+          <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
+            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandText}>
+              <strong>HakwonPlus</strong>
+              <small>Academy OS</small>
+            </span>
+          </Link>
+          <button type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className={styles.sidebarNav} aria-label="프로모션 메뉴">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={isActive(location.pathname, item.path) ? styles.isActive : ""}
+              >
+                <Icon size={18} />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.note}</small>
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className={styles.sidebarCta}>
+          <span>
+            <Sparkles size={16} />
+            빠른 도입 상담
+          </span>
+          <p>현재 운영 방식에 맞는 시작 경로를 제안드립니다. 급하면 바로 전화주세요.</p>
+          <a href={CONSULT_PHONE_TEL}>
+            {CONSULT_PHONE_DISPLAY}
+            <PhoneCall size={16} />
+          </a>
+          <Link to="/promo/demo">
+            데모 요청
+            <PanelLeftOpen size={16} />
+          </Link>
+        </div>
+      </aside>
+    </>
   );
 }
 
 function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="md:col-span-1">
-            <div className="font-bold text-lg text-white mb-3 tracking-tight">
-              <span className="text-blue-400">학원</span>플러스
-            </div>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              학원 운영의 흐름을 하나로 묶는
-              <br />
-              프리미엄 교육 운영 SaaS
-            </p>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-white text-sm mb-4">제품</h4>
-            <nav className="flex flex-col gap-2.5">
-              <Link to="/promo/features" className="text-sm text-gray-400 hover:text-white transition-colors">기능 소개</Link>
-              <Link to="/promo/pricing" className="text-sm text-gray-400 hover:text-white transition-colors">요금제</Link>
-            </nav>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-white text-sm mb-4">지원</h4>
-            <nav className="flex flex-col gap-2.5">
-              <Link to="/promo/faq" className="text-sm text-gray-400 hover:text-white transition-colors">자주 묻는 질문</Link>
-              <Link to="/promo/contact" className="text-sm text-gray-400 hover:text-white transition-colors">문의하기</Link>
-              <Link to="/promo/demo" className="text-sm text-gray-400 hover:text-white transition-colors">데모 요청</Link>
-            </nav>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-white text-sm mb-4">법적 고지</h4>
-            <nav className="flex flex-col gap-2.5">
-              <Link to="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">개인정보처리방침</Link>
-              <Link to="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">이용약관</Link>
-            </nav>
-          </div>
+    <footer className={styles.footer}>
+      <div className={styles.footerInner}>
+        <div className={styles.footerBrand}>
+          <Link to="/promo" className={styles.brand}>
+            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandText}>
+              <strong>HakwonPlus</strong>
+              <small>Academy OS</small>
+            </span>
+          </Link>
+          <p>수업부터 성적, 안내와 공개 홈페이지까지 하나의 흐름으로 묶는 학원 운영 SaaS</p>
+          <a href={CONSULT_PHONE_TEL} className={styles.footerPhone}>
+            전화 상담 {CONSULT_PHONE_DISPLAY}
+          </a>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-gray-800 text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} 학원플러스. All rights reserved.
-        </div>
+        <nav aria-label="제품">
+          <h2>제품</h2>
+          <Link to="/promo/features">기능 소개</Link>
+          <Link to="/promo/ai-grading">AI 채점</Link>
+          <Link to="/promo/video-platform">영상 학습</Link>
+        </nav>
+
+        <nav aria-label="도입">
+          <h2>도입</h2>
+          <Link to="/promo/pricing">요금제</Link>
+          <Link to="/promo/demo">데모 요청</Link>
+          <Link to="/promo/contact">문의하기</Link>
+        </nav>
+
+        <nav aria-label="법적 고지">
+          <h2>법적 고지</h2>
+          <Link to="/privacy">개인정보처리방침</Link>
+          <Link to="/terms">이용약관</Link>
+          <Link to="/promo/faq">FAQ</Link>
+        </nav>
+      </div>
+      <div className={styles.footerBottom}>
+        <span>&copy; {new Date().getFullYear()} 학원플러스. All rights reserved.</span>
       </div>
     </footer>
   );
@@ -183,7 +300,6 @@ export default function PromoLayout() {
   const [loginOpen, setLoginOpen] = useState(false);
   const location = useLocation();
 
-  // /login → /promo 리다이렉트 시 로그인 모달 자동 오픈
   useEffect(() => {
     const state = location.state as PromoLocationState | null;
     if (state?.openLogin) {
@@ -193,9 +309,9 @@ export default function PromoLayout() {
   }, [location.state]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className={styles.layout}>
       <Header />
-      <main className="flex-1">
+      <main className={styles.main}>
         <Outlet />
       </main>
       <Footer />

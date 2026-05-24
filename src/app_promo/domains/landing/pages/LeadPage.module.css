@@ -1,0 +1,445 @@
+.hero {
+  position: relative;
+  overflow: hidden;
+  color: #f8fafc;
+  background:
+    linear-gradient(135deg, rgba(8, 16, 24, 0.96), rgba(13, 47, 54, 0.9)),
+    url("/promo/admin-messages.png") center / cover;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 110px;
+  background: linear-gradient(180deg, transparent, #f4f8f8);
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  width: min(920px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 128px 0 104px;
+  text-align: center;
+}
+
+.heroInner > span,
+.sidePanel > span,
+.resultCard > span {
+  display: inline-flex;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.heroInner h1,
+.resultCard h1 {
+  margin: 14px 0 0;
+  color: #fff;
+  font-size: 56px;
+  font-weight: 930;
+  line-height: 1.08;
+  letter-spacing: 0;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+.heroInner p,
+.resultCard p {
+  max-width: 690px;
+  margin: 18px auto 0;
+  color: rgba(248, 250, 252, 0.76);
+  font-size: 18px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.heroInner a {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 30px;
+  border-radius: 14px;
+  padding: 0 22px;
+  color: #081018;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.body {
+  padding: 76px 0 92px;
+  background: #f4f8f8;
+}
+
+.leadGrid {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 22px;
+  width: min(1040px, calc(100% - 40px));
+  margin: 0 auto;
+  align-items: start;
+}
+
+.sidePanel,
+.formCard,
+.resultCard {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+}
+
+.sidePanel {
+  position: sticky;
+  top: 96px;
+  padding: 24px;
+}
+
+.sidePanel > span,
+.resultCard > span {
+  color: #0ea5a8;
+}
+
+.sidePanel h2 {
+  margin: 12px 0 0;
+  color: #101923;
+  font-size: 28px;
+  font-weight: 930;
+  line-height: 1.18;
+  word-break: keep-all;
+}
+
+.sidePanel ol {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lead-step;
+}
+
+.sidePanel li {
+  position: relative;
+  padding-left: 38px;
+  color: #4f5f6f;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.6;
+  word-break: keep-all;
+  counter-increment: lead-step;
+}
+
+.sidePanel li::before {
+  content: counter(lead-step, decimal-leading-zero);
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #0ea5a8;
+  font-size: 12px;
+  font-weight: 930;
+}
+
+.callBox {
+  margin-top: 28px;
+  border-radius: 8px;
+  padding: 18px;
+  color: #f8fafc;
+  background: #101923;
+}
+
+.callBox strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 930;
+}
+
+.callBox p {
+  margin: 10px 0 0;
+  color: rgba(248, 250, 252, 0.7);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.formCard {
+  padding: 28px;
+}
+
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.formCard label,
+.fullField {
+  display: grid;
+  gap: 8px;
+}
+
+.formCard label span,
+.fullField span,
+.choiceGroup legend {
+  color: #253342;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.formCard input,
+.formCard select,
+.formCard textarea {
+  width: 100%;
+  border: 1px solid #dce5ec;
+  border-radius: 8px;
+  padding: 13px 14px;
+  color: #101923;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.formCard input:focus,
+.formCard select:focus,
+.formCard textarea:focus {
+  border-color: #0ea5a8;
+  box-shadow: 0 0 0 4px rgba(14, 165, 168, 0.12);
+}
+
+.formCard input:disabled,
+.formCard select:disabled,
+.formCard textarea:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.fullField,
+.choiceGroup {
+  margin-top: 18px;
+}
+
+.formCard textarea {
+  resize: vertical;
+  min-height: 132px;
+}
+
+.choiceGroup {
+  border: 0;
+  padding: 0;
+}
+
+.choiceGroup legend {
+  margin-bottom: 10px;
+}
+
+.choiceGroup div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choiceGroup button {
+  min-height: 38px;
+  border: 1px solid #dce5ec;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #435363;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.choiceGroup button:hover,
+.choiceGroup button:focus-visible,
+.choiceGroup button.isSelected {
+  border-color: #0ea5a8;
+  color: #063638;
+  background: #dff7f4;
+  outline: none;
+}
+
+.errorBox {
+  margin-top: 18px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 13px 14px;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 800;
+  background: #fef2f2;
+}
+
+.submitButton {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 22px;
+  border: 0;
+  border-radius: 8px;
+  color: #06131b;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 930;
+  background: #7dd3fc;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #67c7f2;
+}
+
+.submitButton:disabled {
+  color: #d8e4ef;
+  background: #64748b;
+  cursor: wait;
+}
+
+.resultSection {
+  min-height: 620px;
+  display: grid;
+  place-items: center;
+  padding: 120px 20px 80px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(8, 16, 24, 0.96), rgba(13, 47, 54, 0.9)),
+    url("/promo/admin-home.png") center / cover;
+}
+
+.resultCard {
+  max-width: 620px;
+  padding: 34px;
+  text-align: center;
+}
+
+.resultCard h1 {
+  color: #101923;
+  font-size: 34px;
+}
+
+.resultCard p {
+  color: #596878;
+  font-size: 16px;
+}
+
+.resultActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.resultActions a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #101923;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+  background: #eef3f7;
+}
+
+.resultActions a:first-child {
+  color: #06131b;
+  background: #7dd3fc;
+}
+
+@media (max-width: 960px) {
+  .leadGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .heroInner,
+  .leadGrid {
+    width: min(100% - 28px, 1040px);
+  }
+
+  .heroInner {
+    padding: 112px 0 74px;
+    text-align: left;
+  }
+
+  .heroInner h1 {
+    font-size: clamp(33px, 9vw, 42px);
+  }
+
+  .heroInner p {
+    font-size: 15.5px;
+  }
+
+  .heroInner a {
+    width: 100%;
+  }
+
+  .body {
+    padding: 58px 0 72px;
+  }
+
+  .sidePanel,
+  .formCard {
+    padding: 20px;
+  }
+
+  .sidePanel h2 {
+    font-size: 24px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .resultCard {
+    padding: 26px 20px;
+    text-align: left;
+  }
+
+  .resultCard h1 {
+    font-size: 30px;
+  }
+
+  .resultActions {
+    flex-direction: column;
+  }
+
+  .resultActions a {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formCard input,
+  .formCard select,
+  .formCard textarea,
+  .choiceGroup button,
+  .submitButton {
+    transition: none;
+  }
+}

@@ -1,174 +1,166 @@
 // PATH: src/app_promo/domains/landing/pages/PricingPage.tsx
 import { Link } from "react-router-dom";
 import CtaSection from "../components/CtaSection";
+import {
+  CONSULT_PHONE_DISPLAY,
+  CONSULT_PHONE_TEL,
+  PRICE_COMPARISON,
+  PRICE_POLICY_NOTES,
+  PROMO_PLANS,
+  formatWon,
+} from "../business";
+import styles from "./PricingPage.module.css";
 
-interface PlanDef {
-  name: string;
-  key: string;
-  price: string;
-  target: string;
-  popular?: boolean;
-  features: string[];
-  cta: string;
-  ctaLink: string;
+function PlanAction({ href, label, popular }: { href: string; label: string; popular?: boolean }) {
+  const className = `${styles.planAction} ${popular ? styles.planActionFeatured : ""}`;
+
+  if (href.startsWith("tel:")) {
+    return <a href={href} className={className}>{label}</a>;
+  }
+  return <Link to={href} className={className}>{label}</Link>;
 }
-
-const PLANS: PlanDef[] = [
-  {
-    name: "Standard",
-    key: "standard",
-    price: "99,000",
-    target: "소형 학원 / 학생 100명 이하",
-    features: [
-      "학생 수 100명 이하",
-      "관리자 계정 3개",
-      "Pro와 동일한 전체 기능 제공",
-      "시험/과제 관리",
-      "AI 자동채점 (객관식·단답형)",
-      "성적 분석 (리포트·통계)",
-      "동영상 플레이어 고급",
-      "문자 자동발송",
-      "카카오톡/전화 지원",
-    ],
-    cta: "문의하기",
-    ctaLink: "/promo/contact",
-  },
-  {
-    name: "Pro",
-    key: "pro",
-    price: "198,000",
-    target: "중형 학원 / 실무 운영",
-    popular: true,
-    features: [
-      "학생 수 300명 이하",
-      "관리자 계정 5개",
-      "Standard의 모든 기능 포함",
-      "메시지/상담 기능 강화",
-      "AI 자동채점 고급 설정",
-      "시청 이력 관리",
-      "인벤토리 50GB",
-      "우선 지원",
-    ],
-    cta: "데모 요청",
-    ctaLink: "/promo/demo",
-  },
-  {
-    name: "Max",
-    key: "max",
-    price: "330,000",
-    target: "대형 학원 / 프리미엄",
-    features: [
-      "학생 수 무제한",
-      "관리자 계정 무제한",
-      "Pro의 모든 기능 포함",
-      "커스텀 정책 지원",
-      "관리자 권한 구조 확장",
-      "AI 서술형 보조 평가",
-      "인벤토리 200GB",
-      "별도 온보딩 + 전담 매니저",
-    ],
-    cta: "데모 요청",
-    ctaLink: "/promo/demo",
-  },
-];
-
-const COMPARISON = [
-  { feature: "학생 수", standard: "100명", pro: "300명", max: "무제한" },
-  { feature: "관리자 계정", standard: "3개", pro: "5개", max: "무제한" },
-  { feature: "시험/과제 관리", standard: "✓", pro: "✓", max: "✓" },
-  { feature: "성적 분석", standard: "고급", pro: "고급", max: "고급 + 커스텀" },
-  { feature: "AI 자동채점 (객관식)", standard: "✓", pro: "✓", max: "✓" },
-  { feature: "AI 자동채점 (고급)", standard: "✓", pro: "✓", max: "✓" },
-  { feature: "AI 서술형 보조", standard: "—", pro: "—", max: "✓" },
-  { feature: "동영상 플레이어", standard: "고급", pro: "고급", max: "고급 + 분석" },
-  { feature: "문자 자동발송", standard: "✓", pro: "✓", max: "✓" },
-  { feature: "상담/클리닉", standard: "✓", pro: "✓", max: "✓" },
-  { feature: "인벤토리 용량", standard: "10GB", pro: "50GB", max: "200GB" },
-  { feature: "지원 방식", standard: "카카오톡/전화", pro: "우선 지원", max: "전담 매니저" },
-  { feature: "온보딩", standard: "가이드", pro: "가이드", max: "전담" },
-];
 
 export default function PricingPage() {
   return (
     <>
-      <section className="bg-gradient-to-b from-slate-50 to-white pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">요금제</h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            학원 규모와 운영 방식에 맞는 플랜을 선택하세요.
-          </p>
+      <section className={styles.hero} aria-labelledby="pricing-title">
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>PRICE DECK</span>
+            <h1 id="pricing-title">요금은 단순하게, 도입 범위는 정확하게</h1>
+            <p>
+              월 구독료는 숨기지 않고 공개합니다. 학생 수, 관리자 계정, 저장공간,
+              메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
+            </p>
+            <div className={styles.heroActions}>
+              <a href={CONSULT_PHONE_TEL} className={styles.primaryCta}>
+                전화 상담 {CONSULT_PHONE_DISPLAY}
+              </a>
+              <Link to="/promo/demo" className={styles.secondaryCta}>
+                우리 학원 견적 확인
+              </Link>
+            </div>
+          </div>
+
+          <aside className={styles.priceBrief} aria-label="요금 기준 요약">
+            <span>현재 프로모션 기준</span>
+            <strong>99,000원부터</strong>
+            <p>부가세 별도 · 월 구독 · 활성 학생 수 기준</p>
+            <dl>
+              <div>
+                <dt>주력 플랜</dt>
+                <dd>Pro</dd>
+              </div>
+              <div>
+                <dt>상담 번호</dt>
+                <dd>{CONSULT_PHONE_DISPLAY}</dd>
+              </div>
+            </dl>
+          </aside>
         </div>
       </section>
 
-      {/* Plan Cards */}
-      <section className="py-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {PLANS.map((p) => (
-              <div
-                key={p.key}
-                className={`flex flex-col p-7 rounded-2xl border-2 ${
-                  p.popular
-                    ? "border-blue-500 shadow-xl shadow-blue-100 relative"
-                    : "border-gray-100"
-                }`}
+      <section className={styles.planSection} aria-labelledby="plan-title">
+        <div className={styles.sectionWrap}>
+          <div className={styles.sectionHead}>
+            <span>SELECT THE FIT</span>
+            <h2 id="plan-title">학원 규모별로 고르는 세 가지 운영 패키지</h2>
+            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 운영 한도와 지원 수준에서 납니다.</p>
+          </div>
+
+          <div className={styles.planGrid}>
+            {PROMO_PLANS.map((plan) => (
+              <article
+                key={plan.key}
+                className={styles.planCard}
+                data-plan={plan.key}
+                data-popular={plan.popular ? "true" : undefined}
               >
-                {p.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs font-semibold text-white bg-blue-600 rounded-full">
-                    추천
-                  </span>
-                )}
-                <h3 className="text-xl font-bold text-gray-900">{p.name}</h3>
-                <p className="text-sm text-gray-500 mt-1 mb-5">{p.target}</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-extrabold text-gray-900">{p.price}</span>
-                  <span className="text-sm text-gray-400"> 원 / 월</span>
+                {plan.popular && <span className={styles.popularBadge}>가장 현실적인 선택</span>}
+
+                <div className={styles.planTop}>
+                  <span>{plan.positioning}</span>
+                  <h3>{plan.name}</h3>
+                  <p>{plan.target}</p>
                 </div>
-                <ul className="space-y-2.5 flex-1 mb-8">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="text-blue-500 mt-0.5 flex-shrink-0">✓</span>
-                      {f}
-                    </li>
+
+                <div className={styles.priceLine}>
+                  <strong>{formatWon(plan.monthlyPrice)}</strong>
+                  <span>원 / 월</span>
+                  <small>부가세 별도</small>
+                </div>
+
+                <p className={styles.verdict}>{plan.verdict}</p>
+
+                <dl className={styles.planSpecs}>
+                  <div>
+                    <dt>학생</dt>
+                    <dd>{plan.studentLimit}</dd>
+                  </div>
+                  <div>
+                    <dt>계정</dt>
+                    <dd>{plan.adminLimit}</dd>
+                  </div>
+                  <div>
+                    <dt>저장</dt>
+                    <dd>{plan.storage}</dd>
+                  </div>
+                  <div>
+                    <dt>지원</dt>
+                    <dd>{plan.support}</dd>
+                  </div>
+                </dl>
+
+                <ul className={styles.featureList}>
+                  {plan.features.map((feature) => (
+                    <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <Link
-                  to={p.ctaLink}
-                  className={`block text-center py-3 rounded-xl font-semibold text-sm transition-colors ${
-                    p.popular
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {p.cta}
-                </Link>
-              </div>
+
+                <PlanAction href={plan.ctaLink} label={plan.cta} popular={plan.popular} />
+              </article>
             ))}
+          </div>
+
+          <div className={styles.policyBox}>
+            <div>
+              <span>PRICE RULE</span>
+              <h2>비용이 달라지는 기준</h2>
+            </div>
+            <ul>
+              {PRICE_POLICY_NOTES.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
 
-      {/* Comparison Table */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">플랜별 비교</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      <section className={styles.comparisonSection} aria-labelledby="comparison-title">
+        <div className={styles.sectionWrap}>
+          <div className={styles.comparisonHead}>
+            <span>COMPARE</span>
+            <h2 id="comparison-title">플랜별 비교</h2>
+            <p>기능 포함 여부보다 운영 한도와 지원 방식 차이를 먼저 보세요.</p>
+          </div>
+
+          <div className={styles.tableShell}>
+            <table>
               <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-3 pr-4 font-semibold text-gray-900">기능</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-900">Standard</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-600">Pro</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-900">Max</th>
+                <tr>
+                  <th>항목</th>
+                  <th>Standard</th>
+                  <th>Pro</th>
+                  <th>Max</th>
                 </tr>
               </thead>
               <tbody>
-                {COMPARISON.map((row) => (
-                  <tr key={row.feature} className="border-b border-gray-100">
-                    <td className="py-3 pr-4 text-gray-700">{row.feature}</td>
-                    <td className="py-3 px-4 text-center text-gray-500">{row.standard}</td>
-                    <td className="py-3 px-4 text-center text-gray-700 font-medium">{row.pro}</td>
-                    <td className="py-3 px-4 text-center text-gray-500">{row.max}</td>
+                {PRICE_COMPARISON.map((row) => (
+                  <tr key={row.feature}>
+                    <td>{row.feature}</td>
+                    <td>{row.standard}</td>
+                    <td>{row.pro}</td>
+                    <td>{row.max}</td>
                   </tr>
                 ))}
               </tbody>
@@ -179,7 +171,7 @@ export default function PricingPage() {
 
       <CtaSection
         title="우리 학원 규모에 맞는 견적을 받아보세요"
-        subtitle="데모 후 맞춤 제안을 드립니다."
+        subtitle={`전화 ${CONSULT_PHONE_DISPLAY} 또는 데모 요청으로 실제 운영 조건을 확인합니다.`}
       />
     </>
   );

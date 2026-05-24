@@ -1,5 +1,6 @@
 // PATH: src/app_promo/domains/landing/pages/FaqPage.tsx
 import CtaSection from "../components/CtaSection";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 
 const FAQS = [
   {
@@ -20,7 +21,7 @@ const FAQS = [
   },
   {
     q: "학원 규모에 따라 요금이 어떻게 달라지나요?",
-    a: "Standard(99,000원/월), Pro(198,000원/월), Max(330,000원/월) 3단계로 구성됩니다. Standard와 Pro는 동일한 기능을 제공하며, 학생 수와 관리자 계정 수에 차이가 있습니다.",
+    a: "Standard(99,000원/월), Pro(198,000원/월), Max(330,000원/월) 3단계로 구성됩니다. 부가세는 별도이며, 문자/SMS/알림톡 발송비와 대량 이전·커스텀 개발은 별도 협의입니다. 애매한 경우 전화 상담으로 바로 확인하실 수 있습니다.",
   },
   {
     q: "데모 요청 후 도입 절차는 어떻게 되나요?",
@@ -71,7 +72,7 @@ export default function FaqPage() {
 
       <CtaSection
         title="더 궁금한 점이 있으신가요?"
-        subtitle="문의 폼을 통해 자유롭게 질문해주세요."
+        subtitle={`문의 폼 또는 전화 ${CONSULT_PHONE_DISPLAY}로 자유롭게 질문해주세요.`}
       />
     </>
   );
