@@ -43,8 +43,12 @@ import {
   type HangulSourceFile,
 } from "../utils/worksheetDocument";
 import {
+  createProblemStudioJob,
   generateProblemStudioDraft,
+  getProblemStudioJob,
   type ProblemStudioGeneratedQuestion,
+  type ProblemStudioGeneratePayload,
+  type ProblemStudioGenerateResponse,
 } from "../api/problemStudio.api";
 import styles from "./ProblemStudioPage.module.css";
 
@@ -119,6 +123,8 @@ const DEFAULT_PROMPT = "문제 내용을 입력하거나, 스캔/PDF 파일을 �
 const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5";
 const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
+const JOB_POLL_INTERVAL_MS = 1500;
+const JOB_TIMEOUT_MS = 600_000;
 
 const GENERATION_VARIANTS: GenerationVariantItem[] = [
   {
@@ -454,6 +460,34 @@ function mergeImportedQuestions(current: WorksheetQuestion[], imported: Workshee
   return [...current, ...imported];
 }
 
+function toSourceEntries(files: Array<HangulSourceFile & { extractedChars?: number; warning?: string | null }>): SourceFileEntry[] {
+  return files.map((file) => ({
+    id: makeId("src"),
+    name: file.name,
+    kind: file.kind,
+    sizeLabel: file.sizeLabel,
+    extractedChars: file.extractedChars,
+    warning: file.warning,
+  }));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForProblemStudioJob(jobId: string): Promise<ProblemStudioGenerateResponse> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < JOB_TIMEOUT_MS) {
+    const status = await getProblemStudioJob(jobId);
+    if (status.status === "DONE" && status.result) return status.result;
+    if (["FAILED", "REJECTED_BAD_INPUT"].includes(status.status)) {
+      throw new Error(status.error || "워커가 문항 초안 생성을 완료하지 못했습니다.");
+    }
+    await sleep(JOB_POLL_INTERVAL_MS);
+  }
+  throw new Error("문항 생성 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
+}
+
 export default function ProblemStudioPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -622,48 +656,45 @@ export default function ProblemStudioPage() {
     setGenerating(true);
     setGenerationWarnings([]);
     try {
-      const response = await generateProblemStudioDraft(
-        {
-          title: draft.title,
-          class_name: draft.className,
-          subject: draft.subject,
-          template_name: templateName,
-          variant_mode: variantMode,
-          variant_count: variantMode === "copy" ? 1 : variantCount,
-          note_policy: notePolicy,
-          use_ai: true,
-          questions: [
-            ...draft.questions.map((q) => ({
-              prompt: q.prompt,
-              choices: q.choices,
-              answer: q.answer,
-              explanation: q.explanation,
-            })),
-            ...(pasteText.trim() ? [{ prompt: pasteText, choices: "", answer: "", explanation: "" }] : []),
-          ],
-        },
-        sourceFileBlobs,
-      );
+      const payload: ProblemStudioGeneratePayload = {
+        title: draft.title,
+        class_name: draft.className,
+        subject: draft.subject,
+        template_name: templateName,
+        variant_mode: variantMode,
+        variant_count: variantMode === "copy" ? 1 : variantCount,
+        note_policy: notePolicy,
+        use_ai: true,
+        questions: [
+          ...draft.questions.filter(hasRealQuestion).map((q) => ({
+            prompt: q.prompt,
+            choices: q.choices,
+            answer: q.answer,
+            explanation: q.explanation,
+          })),
+          ...(pasteText.trim() ? [{ prompt: pasteText, choices: "", answer: "", explanation: "" }] : []),
+        ],
+      };
+      const job = await createProblemStudioJob(payload, sourceFileBlobs);
+      if (job.source_files.length > 0) {
+        setSourceFiles(toSourceEntries(job.source_files));
+      }
+      setGenerationWarnings(job.warnings);
+      setGenerationNote(`워커 처리 중 · ${job.job_id.slice(0, 8)}`);
+      const response = await waitForProblemStudioJob(job.job_id);
       const generated = response.questions.map(generatedToQuestion);
       if (generated.length > 0) {
         setDraft((prev) => ({ ...prev, questions: generated }));
         setPasteText("");
       }
       if (response.source_files.length > 0) {
-        setSourceFiles(response.source_files.map((file) => ({
-          id: makeId("src"),
-          name: file.name,
-          kind: file.kind,
-          sizeLabel: file.sizeLabel,
-          extractedChars: file.extractedChars,
-          warning: file.warning,
-        })));
+        setSourceFiles(toSourceEntries(response.source_files));
       }
       setGenerationWarnings(response.warnings);
       setGenerationNote(
         response.generation_engine === "ai"
-          ? `${response.mode_label} · AI 초안 ${response.questions.length}문항`
-          : `${response.mode_label} · 규칙 기반 초안 ${response.questions.length}문항`,
+          ? `${response.mode_label} · AI 워커 초안 ${response.questions.length}문항`
+          : `${response.mode_label} · 워커 초안 ${response.questions.length}문항`,
       );
       feedback.success(`${response.questions.length}개 문항 초안을 만들었습니다.`);
     } catch (error) {
@@ -706,14 +737,7 @@ export default function ProblemStudioPage() {
         sourceFileBlobs,
       );
       const nextSourceFiles = response.source_files.length > 0
-        ? response.source_files.map((file) => ({
-          id: makeId("src"),
-          name: file.name,
-          kind: file.kind,
-          sizeLabel: file.sizeLabel,
-          extractedChars: file.extractedChars,
-          warning: file.warning,
-        }))
+        ? toSourceEntries(response.source_files)
         : sourceFiles;
       const generated = response.questions.map(generatedToQuestion);
       const localVisualQuestions = draft.questions.filter((q) => hasRealQuestion(q) && q.attachments.length > 0);

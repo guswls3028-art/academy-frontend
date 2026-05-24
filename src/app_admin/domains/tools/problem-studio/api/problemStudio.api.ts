@@ -28,6 +28,21 @@ export type ProblemStudioGenerateResponse = {
   source_text_chars: number;
 };
 
+export type ProblemStudioJobCreateResponse = {
+  job_id: string;
+  status: string;
+  source_files: ProblemStudioSourceFile[];
+  warnings: string[];
+  source_text_chars: number;
+};
+
+export type ProblemStudioJobStatusResponse = {
+  job_id: string;
+  status: "PENDING" | "RUNNING" | "DONE" | "FAILED" | "REJECTED_BAD_INPUT" | string;
+  error: string;
+  result: ProblemStudioGenerateResponse | null;
+};
+
 export type ProblemStudioGeneratePayload = {
   title: string;
   class_name: string;
@@ -62,5 +77,29 @@ export async function generateProblemStudioDraft(
       timeout: 120_000,
     },
   );
+  return data;
+}
+
+export async function createProblemStudioJob(
+  payload: ProblemStudioGeneratePayload,
+  sourceFiles: File[],
+): Promise<ProblemStudioJobCreateResponse> {
+  const form = new FormData();
+  form.append("payload", JSON.stringify(payload));
+  sourceFiles.forEach((file) => form.append("source_files", file));
+
+  const { data } = await api.post<ProblemStudioJobCreateResponse>(
+    "/tools/problem-studio/jobs/",
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120_000,
+    },
+  );
+  return data;
+}
+
+export async function getProblemStudioJob(jobId: string): Promise<ProblemStudioJobStatusResponse> {
+  const { data } = await api.get<ProblemStudioJobStatusResponse>(`/tools/problem-studio/jobs/${jobId}/`);
   return data;
 }
