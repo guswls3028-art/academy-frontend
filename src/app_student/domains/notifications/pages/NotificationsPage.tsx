@@ -15,7 +15,7 @@ import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/commu
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
+import { IconChevronRight, IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import styles from "./NotificationsPage.module.css";
@@ -163,6 +163,17 @@ export default function NotificationsPage() {
         />
       ) : (
         <div className={styles.stack}>
+          <div className={styles.summaryPanel}>
+            <div className={styles.summaryCopy}>
+              <span className={styles.summaryEyebrow}>최근 7일</span>
+              <strong className={styles.summaryTitle}>{seenItems.length}개 알림</strong>
+              <span className={styles.summaryMeta}>예약, 답변, 성적 업데이트를 모았습니다.</span>
+            </div>
+            <span className={styles.summaryBadge}>
+              {Math.max(counts?.total ?? 0, seenItems.length)}
+            </span>
+          </div>
+
           {/* 클리닉 예약 승인 */}
           {approvedClinicBookings.length > 0 && (
             <NotificationSection icon={<IconClinic className={styles.sectionIcon} />} title="클리닉 예약" count={approvedClinicBookings.length}>
@@ -238,11 +249,11 @@ function NotificationSection({
   children: ReactNode;
 }) {
   return (
-    <section>
+    <section className={styles.section}>
       <div className={styles.sectionHeader}>
         {icon}
         <h3 className={styles.sectionTitle}>{title}</h3>
-        <span className={styles.sectionCount}>({count})</span>
+        <span className={styles.sectionCount}>{count}건</span>
       </div>
       <div className={styles.list}>{children}</div>
     </section>
@@ -266,8 +277,13 @@ function NotificationLink({
       state={state}
       className={`stu-panel stu-panel--pressable ${styles.card}`}
     >
-      <div className={styles.itemTitle}>{title}</div>
-      <div className={`stu-muted ${styles.itemMeta}`}>{meta}</div>
+      <div className={styles.cardText}>
+        <div className={styles.itemTitle}>{title}</div>
+        <div className={`stu-muted ${styles.itemMeta}`}>{meta}</div>
+      </div>
+      <span className={styles.cardArrow} aria-hidden="true">
+        <IconChevronRight className={styles.cardArrowIcon} />
+      </span>
     </Link>
   );
 }

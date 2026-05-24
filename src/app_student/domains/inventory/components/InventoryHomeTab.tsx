@@ -25,6 +25,7 @@ import {
   IconPlus,
   IconChevronRight,
 } from "@student/shared/ui/icons/Icons";
+import styles from "./InventoryHomeTab.module.css";
 
 const MAX_SIZE_MB = 100;
 
@@ -39,10 +40,9 @@ type Props = {
 function FileIcon({ file }: { file: InventoryFile }) {
   const ct = file.contentType || "";
   const icon = file.icon || "";
-  const s = { width: 20, height: 20, color: "var(--stu-text-muted)", flexShrink: 0 } as const;
-  if (ct.startsWith("video/") || icon === "video") return <IconVideo style={s} />;
-  if (ct.startsWith("image/") || icon === "image") return <IconImage style={s} />;
-  return <IconFileText style={s} />;
+  if (ct.startsWith("video/") || icon === "video") return <IconVideo className={styles.fileIcon} />;
+  if (ct.startsWith("image/") || icon === "image") return <IconImage className={styles.fileIcon} />;
+  return <IconFileText className={styles.fileIcon} />;
 }
 
 function formatBytes(bytes: number): string {
@@ -145,17 +145,16 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
   const isEmpty = currentFolders.length === 0 && currentFiles.length === 0;
 
   return (
-    <div>
+    <div className={styles.root}>
       {/* 액션 버튼 */}
       {!isParentReadOnly && (
-        <div style={{ display: "flex", gap: 8, marginBottom: "var(--stu-space-4)" }}>
-          <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => setShowNewFolder(true)}
-            style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <IconPlus style={{ width: 14, height: 14, flexShrink: 0 }} /> 새 폴더
+        <div className={styles.actionBar}>
+          <button type="button" className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.actionButton}`} onClick={() => setShowNewFolder(true)}>
+            <IconPlus className={styles.actionIcon} /> 새 폴더
           </button>
-          <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMut.isPending} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--stu-primary)", borderColor: "color-mix(in srgb, var(--stu-primary) 30%, var(--stu-border))" }}>
-            <IconUpload style={{ width: 14, height: 14, flexShrink: 0 }} />
+          <button type="button" className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.actionButton} ${styles.uploadButton}`} onClick={() => fileInputRef.current?.click()}
+            disabled={uploadMut.isPending}>
+            <IconUpload className={styles.actionIcon} />
             {uploadMut.isPending ? "업로드 중…" : "파일 업로드"}
           </button>
         </div>

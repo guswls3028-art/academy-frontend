@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--stu-space-4);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 5%, transparent), transparent 58%),
+    var(--stu-surface-2);
 }
 
 .alert {
@@ -63,17 +66,22 @@
 
 .chooseButton {
   align-self: flex-start;
+  min-width: min(100%, 280px);
+  justify-content: center;
 }
 
 .selectedFile {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--stu-space-2) var(--stu-space-3);
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-3);
   font-size: 14px;
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
-  border-radius: var(--stu-radius);
+  font-weight: 650;
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset;
 }
 
 .selectedFileName,
@@ -85,35 +93,40 @@
 
 .submitButton {
   align-self: flex-end;
+  min-width: min(100%, 180px);
   min-height: 44px;
 }
 
 .recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-2);
   margin-top: var(--stu-space-2);
+  padding-top: var(--stu-space-2);
 }
 
 .recentTitle {
-  margin-bottom: 8px;
-  color: var(--stu-text-muted);
+  color: var(--stu-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 850;
 }
 
 .recentList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--stu-space-2);
 }
 
 .recentItem {
   display: flex;
-  gap: 8px;
+  gap: var(--stu-space-2);
   align-items: center;
-  padding: 8px 10px;
+  min-height: 52px;
+  padding: var(--stu-space-3);
   font-size: 13px;
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
-  border-radius: var(--stu-radius);
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
+  border-radius: var(--stu-radius-md);
 }
 
 .fileIcon {
@@ -125,6 +138,7 @@
 
 .fileName {
   flex: 1;
+  font-weight: 700;
 }
 
 .fileMeta {
@@ -134,10 +148,33 @@
 }
 
 .iconButton {
-  padding: 4px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
 }
 
 .downloadIcon {
   width: 14px;
   height: 14px;
+}
+
+@media (max-width: 520px) {
+  .selectedFile,
+  .recentItem {
+    align-items: stretch;
+  }
+
+  .selectedFile {
+    flex-direction: column;
+  }
+
+  .submitButton,
+  .chooseButton {
+    width: 100%;
+  }
+
+  .fileMeta {
+    white-space: nowrap;
+  }
 }

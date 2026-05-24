@@ -1,27 +1,31 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: var(--stu-space-6);
+  gap: var(--stu-space-5);
 }
 
 .sectionHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--stu-space-3) var(--stu-space-4);
-  margin-bottom: var(--stu-space-2);
-  background: var(--stu-tint-primary);
-  border-left: 4px solid var(--stu-primary);
-  border-radius: 0 var(--stu-radius-xl) var(--stu-radius-xl) 0;
+  gap: var(--stu-space-3);
+  padding: 0 2px;
+  margin-bottom: var(--stu-space-3);
 }
 
 .sectionTitle {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .sectionCount {
+  padding: 3px 8px;
+  color: var(--stu-primary);
   font-size: 12px;
+  font-weight: 800;
+  background: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, transparent);
+  border-radius: 999px;
 }
 
 .examList {
@@ -33,9 +37,11 @@
 .examRow {
   display: flex;
   align-items: center;
-  gap: var(--stu-space-4);
+  gap: var(--stu-space-3);
+  min-height: 76px;
   color: inherit;
   text-decoration: none;
+  border-color: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
 }
 
 .rowBody {
@@ -48,8 +54,11 @@
   width: 44px;
   height: 44px;
   place-items: center;
-  background: var(--stu-surface-soft);
-  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 12%, transparent), transparent),
+    var(--stu-surface-soft);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, transparent);
+  border-radius: 14px;
 }
 
 .examIcon {
@@ -60,7 +69,10 @@
 
 .examTitle {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .examMeta {
@@ -72,4 +84,10 @@
   width: 20px;
   height: 20px;
   color: var(--stu-text-muted);
+}
+
+@media (max-width: 420px) {
+  .examRow {
+    gap: var(--stu-space-2);
+  }
 }

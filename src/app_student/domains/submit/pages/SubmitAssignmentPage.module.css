@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--stu-space-4);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 5%, transparent), transparent 60%),
+    var(--stu-surface-2);
 }
 
 .errorMessage {
@@ -19,6 +22,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--stu-space-3);
+  border: 1px solid var(--stu-success-border);
   border-radius: var(--stu-radius);
   background: var(--stu-success-bg);
   color: var(--stu-success-text);
@@ -26,16 +30,30 @@
 }
 
 .successLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--stu-primary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 800;
+}
+
+.successLinkIcon {
+  width: 14px;
+  height: 14px;
 }
 
 .stepLabel {
-  margin-bottom: 8px;
-  color: var(--stu-text-muted);
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--stu-space-3);
+  padding: 4px 10px;
+  color: var(--stu-primary);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, transparent);
+  border-radius: 999px;
 }
 
 .loadingText {
@@ -54,45 +72,55 @@
 .targetList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--stu-space-2);
 }
 
 .targetItem {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 2px solid var(--stu-border);
-  border-radius: var(--stu-radius);
-  background: var(--stu-surface);
+  gap: var(--stu-space-3);
+  min-height: 58px;
+  padding: var(--stu-space-3);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface-1);
   color: inherit;
   cursor: pointer;
   font-size: 14px;
   text-align: left;
   text-decoration: none;
-  transition: border-color 0.15s;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  transition:
+    background var(--stu-motion-fast),
+    border-color var(--stu-motion-fast),
+    box-shadow var(--stu-motion-fast);
 }
 
 .targetItem[data-selected="true"] {
-  border-color: var(--stu-primary);
-  background: var(--stu-primary-bg);
+  border-color: color-mix(in srgb, var(--stu-primary) 48%, var(--stu-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 8%, transparent), transparent 58%),
+    var(--stu-surface-1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 0 0 2px color-mix(in srgb, var(--stu-primary) 10%, transparent);
 }
 
 .targetIcon {
   display: inline-flex;
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: var(--stu-surface-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-soft));
 }
 
 .targetIconSvg {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   color: var(--stu-primary);
 }
 
@@ -133,10 +161,11 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 8px;
-  padding: var(--stu-space-2) var(--stu-space-3);
-  border: 1px solid var(--stu-border);
-  border-radius: var(--stu-radius);
-  background: var(--stu-surface);
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-3);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface-1);
   font-size: 14px;
 }
 
@@ -164,6 +193,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-3);
+  background: color-mix(in srgb, var(--stu-surface-1) 88%, var(--stu-primary));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
 }
 
 .submitSummary {
@@ -172,6 +206,7 @@
 }
 
 .submitButton {
+  min-width: 140px;
   min-height: 44px;
 }
 

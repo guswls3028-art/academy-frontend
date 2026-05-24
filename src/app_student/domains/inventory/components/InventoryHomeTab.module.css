@@ -1,0 +1,39 @@
+.root {
+  min-width: 0;
+}
+
+.actionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stu-space-2);
+  margin-bottom: var(--stu-space-4);
+  padding: var(--stu-space-3);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--stu-primary) 6%, transparent), transparent 60%),
+    var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 12%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  box-shadow: var(--stu-shadow-1);
+}
+
+.actionButton {
+  min-width: 118px;
+}
+
+.uploadButton {
+  color: var(--stu-primary);
+  border-color: color-mix(in srgb, var(--stu-primary) 30%, var(--stu-border));
+}
+
+.actionIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.fileIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--stu-text-muted);
+}

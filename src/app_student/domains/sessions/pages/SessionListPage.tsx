@@ -2,7 +2,7 @@
 /**
  * 일정 — 3탭: 내 일정(달력) | 예약 | 지난 일정
  */
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
@@ -22,6 +22,7 @@ import { IconCalendar, IconClinic, IconChevronRight, IconTrash } from "@student/
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useConfirm } from "@/shared/ui/confirm";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import styles from "./SessionListPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
 
@@ -238,28 +239,9 @@ export default function SessionListPage() {
       disabled={clearPastMutation.isPending}
       aria-label="지난 일정 비우기"
       title="지난 일정 비우기"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        border: "1px solid var(--stu-border, rgba(0,0,0,0.08))",
-        background: "var(--stu-surface-1, #fff)",
-        color: "var(--stu-text-muted)",
-        cursor: clearPastMutation.isPending ? "not-allowed" : "pointer",
-        opacity: clearPastMutation.isPending ? 0.5 : 1,
-        transition: "color 0.15s ease, background 0.15s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = "var(--stu-danger, #ef4444)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = "var(--stu-text-muted)";
-      }}
+      className={styles.clearPastButton}
     >
-      <IconTrash style={{ width: 18, height: 18 }} />
+      <IconTrash className={styles.clearPastIcon} />
     </button>
   ) : null;
 
@@ -269,7 +251,7 @@ export default function SessionListPage() {
       description="날짜를 누르면 해당 날의 일정을 볼 수 있어요."
       actions={clearPastButton}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+      <div className={styles.pageStack}>
         {/* 탭 */}
         <TabBar items={getTabItems()} value={tab} onChange={setTab} counts={{ upcoming: upcomingSessions.length, past: pastSessions.length }} />
 
@@ -284,7 +266,7 @@ export default function SessionListPage() {
             />
             {selectedDate ? (
               <div className="stu-section stu-section--nested">
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
+                <div className={styles.selectedSectionTitle}>
                   {formatYmd(selectedDate)} 일정
                 </div>
                 {selectedDaySessions.length === 0 ? (
@@ -294,7 +276,7 @@ export default function SessionListPage() {
                 )}
               </div>
             ) : (
-              <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-6)", fontSize: 14 }}>
+              <div className={`stu-muted ${styles.calendarHint}`}>
                 날짜를 선택하면 해당 날의 일정이 여기에 표시됩니다.
               </div>
             )}
@@ -316,7 +298,7 @@ export default function SessionListPage() {
             <EmptyState title="지난 일정이 없습니다." description="완료된 수업과 클리닉이 여기에 기록됩니다." />
           ) : (
             <>
-              <div className="stu-muted" style={{ fontSize: 13, textAlign: "center", padding: "2px 0 4px" }}>
+              <div className={`stu-muted ${styles.pastMeta}`}>
                 총 {pastSessions.length}건의 지난 일정 · 좌측으로 밀어 숨기기
               </div>
               <SessionList sessions={pastSessions} showDate isPast onHide={handleHide} />
@@ -349,39 +331,15 @@ function UndoBanner({
     <div
       role="status"
       aria-live="polite"
-      style={{
-        position: "fixed",
-        left: "50%",
-        bottom: "calc(var(--stu-safe-bottom, 0px) + var(--stu-tabbar-h, 56px) + 12px)",
-        transform: "translateX(-50%)",
-        zIndex: 9998,
-        maxWidth: "min(92vw, 380px)",
-        background: "var(--stu-text, #111827)",
-        color: "#fff",
-        borderRadius: 12,
-        padding: "10px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-      }}
+      className={styles.undoBanner}
     >
-      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div className={styles.undoTitle}>
         숨김 · {title}
       </div>
       <button
         type="button"
         onClick={onUndo}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "#93c5fd",
-          fontWeight: 800,
-          fontSize: 13,
-          padding: "6px 8px",
-          cursor: "pointer",
-          letterSpacing: "-0.01em",
-        }}
+        className={styles.undoButton}
       >
         되돌리기
       </button>
@@ -389,15 +347,7 @@ function UndoBanner({
         type="button"
         onClick={onDismiss}
         aria-label="닫기"
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "rgba(255,255,255,0.7)",
-          fontSize: 16,
-          lineHeight: 1,
-          padding: "4px 6px",
-          cursor: "pointer",
-        }}
+        className={styles.undoClose}
       >
         ×
       </button>
@@ -476,36 +426,15 @@ function SwipeRevealHide({
 
   return (
     <div
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 12,
-        maxHeight: removing ? 0 : 200,
-        marginBottom: removing ? 0 : undefined,
-        opacity: removing ? 0 : 1,
-        transition: removing ? "max-height 0.2s ease, opacity 0.2s ease, margin 0.2s ease" : undefined,
-      }}
+      className={styles.swipeRoot}
+      data-removing={removing ? "true" : undefined}
     >
       <div
         aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "var(--stu-danger, #ef4444)",
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          padding: "0 20px",
-          gap: 6,
-          fontWeight: 700,
-          fontSize: 13,
-          letterSpacing: "-0.01em",
-          opacity: revealOpacity,
-          pointerEvents: "none",
-        }}
+        className={styles.swipeReveal}
+        style={{ "--reveal-opacity": revealOpacity } as CSSProperties}
       >
-        <IconTrash style={{ width: 18, height: 18 }} />
+        <IconTrash className={styles.swipeRevealIcon} />
         숨기기
       </div>
       <div
@@ -514,11 +443,11 @@ function SwipeRevealHide({
         onPointerUp={release}
         onPointerCancel={release}
         onClickCapture={onClickCapture}
+        className={styles.swipeTrack}
         style={{
-          transform: `translateX(${dragX}px)`,
-          transition: dragX === 0 || removing ? "transform 0.2s ease" : undefined,
-          touchAction: "pan-y",
-        }}
+          "--swipe-x": `${dragX}px`,
+          "--swipe-transition": dragX === 0 || removing ? "transform 0.2s ease" : "none",
+        } as CSSProperties}
       >
         {children}
       </div>
@@ -539,15 +468,7 @@ function TabBar<T extends string>({
   counts?: Record<string, number>;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 3,
-        padding: 3,
-        background: "var(--stu-surface-soft)",
-        borderRadius: 12,
-      }}
-    >
+    <div className={styles.tabBar}>
       {items.map(({ key, label }) => {
         const active = value === key;
         const count = counts?.[key as string];
@@ -556,42 +477,14 @@ function TabBar<T extends string>({
             key={key}
             type="button"
             onClick={() => onChange(key)}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              border: "none",
-              borderRadius: 9,
-              background: active ? "var(--stu-surface-1)" : "transparent",
-              fontSize: 13,
-              fontWeight: active ? 700 : 500,
-              letterSpacing: "-0.01em",
-              color: active ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px color-mix(in srgb, var(--stu-primary) 14%, transparent)" : undefined,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              whiteSpace: "nowrap",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-            }}
+            className={styles.tabButton}
+            data-active={active ? "true" : undefined}
           >
             <span>{label}</span>
             {count != null && count > 0 && (
               <span
-                style={{
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 999,
-                  background: active ? "var(--stu-primary)" : "var(--stu-surface-soft)",
-                  color: active ? "var(--stu-primary-contrast)" : "var(--stu-text-muted)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className={styles.tabCount}
+                data-active={active ? "true" : undefined}
               >
                 {count}
               </span>
@@ -616,7 +509,7 @@ function SessionList({
   onHide?: (s: StudentSession) => void;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+    <div className={styles.sessionList}>
       {sessions.map((s) => {
         const isClinic = s.type === "clinic";
         const linkTo = isClinic ? "/student/clinic" : `/student/sessions/${s.id}`;
@@ -634,43 +527,30 @@ function SessionList({
           <Link
             key={s.id}
             to={linkTo}
-            className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--stu-space-4)",
-              textDecoration: "none",
-              color: "inherit",
-              opacity: isPast ? 0.7 : 1,
-            }}
+            className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant} ${styles.sessionCard}`}
+            data-past={isPast ? "true" : undefined}
           >
             <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: isClinic ? "rgba(16,185,129,0.1)" : isPast ? "var(--stu-surface-soft)" : "var(--stu-surface-soft)",
-                display: "grid",
-                placeItems: "center",
-                flexShrink: 0,
-              }}
+              className={styles.sessionIconWrap}
+              data-type={isClinic ? "clinic" : "session"}
+              data-past={isPast ? "true" : undefined}
             >
               {isClinic
-                ? <IconClinic style={{ width: 22, height: 22, color: isPast ? "var(--stu-text-muted)" : "var(--stu-success, #10b981)" }} />
-                : <IconCalendar style={{ width: 22, height: 22, color: isPast ? "var(--stu-text-muted)" : "var(--stu-primary)" }} />
+                ? <IconClinic className={styles.sessionIcon} />
+                : <IconCalendar className={styles.sessionIcon} />
               }
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: isPast ? 600 : 800, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div className={styles.sessionText}>
+              <div className={styles.sessionTitle}>
                 {s.title}
               </div>
-              <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
+              <div className={`stu-muted ${styles.sessionMeta}`}>
                 {showDate && s.date && <>{formatYmd(s.date)} · </>}
                 {s.start_time && s.start_time.slice(0, 5)}
                 {s.status ? ` · ${s.status}` : isPast ? " · 완료" : ""}
               </div>
             </div>
-            <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)", flexShrink: 0 }} />
+            <IconChevronRight className={`stu-chevron ${styles.sessionChevron}`} />
           </Link>
         );
         if (isPast && onHide) {

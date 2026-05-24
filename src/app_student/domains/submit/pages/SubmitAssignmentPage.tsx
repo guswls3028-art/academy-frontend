@@ -16,7 +16,7 @@ import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSum
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import studentApi from "@student/shared/api/student.api";
 import type { Submission } from "@/shared/api/contracts/submissions";
-import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
+import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import styles from "./SubmitAssignmentPage.module.css";
@@ -153,7 +153,10 @@ export default function SubmitAssignmentPage() {
         {uploadMut.isSuccess && (
           <div className={styles.successMessage}>
             <span>제출이 완료되었습니다.</span>
-            <Link to="/student/grades" className={styles.successLink}>성적 확인 →</Link>
+            <Link to="/student/grades" className={styles.successLink}>
+              성적 확인
+              <IconChevronRight className={styles.successLinkIcon} aria-hidden="true" />
+            </Link>
           </div>
         )}
 

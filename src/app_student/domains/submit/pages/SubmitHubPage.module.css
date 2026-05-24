@@ -1,24 +1,47 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: var(--stu-space-3);
+  gap: var(--stu-space-4);
 }
 
 .card {
   display: flex;
-  gap: var(--stu-space-3);
+  gap: var(--stu-space-4);
   align-items: center;
+  min-height: 92px;
   padding: var(--stu-space-4);
+  border-color: color-mix(in srgb, var(--stu-primary) 13%, var(--stu-border));
+}
+
+.card[data-tone="assignment"] {
+  --submit-card-accent: var(--stu-success, #10b981);
+}
+
+.card[data-tone="inventory"] {
+  --submit-card-accent: var(--stu-warn, #f59e0b);
+}
+
+.card::before {
+  background: var(--submit-card-accent, var(--stu-primary));
 }
 
 .iconWrap {
+  display: grid;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
+  place-items: center;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--submit-card-accent, var(--stu-primary)) 14%, transparent), transparent),
+    var(--stu-surface-soft);
+  border: 1px solid color-mix(in srgb, var(--submit-card-accent, var(--stu-primary)) 16%, transparent);
+  border-radius: 14px;
 }
 
 .icon {
-  width: 28px;
-  height: 28px;
-  color: var(--stu-primary);
+  width: 24px;
+  height: 24px;
+  color: var(--submit-card-accent, var(--stu-primary));
 }
 
 .content {
@@ -26,17 +49,47 @@
   min-width: 0;
 }
 
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-2);
+}
+
 .title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 850;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  color: var(--submit-card-accent, var(--stu-primary));
+  font-size: 11px;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--submit-card-accent, var(--stu-primary)) 9%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--submit-card-accent, var(--stu-primary)) 18%, transparent);
+  border-radius: 999px;
 }
 
 .description {
   margin-top: 2px;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .chevron {
   width: 18px;
   height: 18px;
+}
+
+@media (max-width: 420px) {
+  .card {
+    gap: var(--stu-space-3);
+  }
+
+  .topline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
