@@ -145,13 +145,20 @@ export default function PremiumDark({ config }: TemplateProps) {
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 40% at 50% 0%, rgba(${goldRgb},0.04) 0%, transparent 70%)`, pointerEvents: "none" }} />
                 <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
                   {section.title && (
-                    <SectionHeader eyebrow="System" title={section.title} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
+                    <SectionHeader eyebrow="System" title={section.title} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
                   )}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, marginTop: 64 }}>
-                    {featureItems.map((item, i) => (
-                      <FeatureCard key={i} item={item} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} cardHoverBorder={cardHoverBorder} textSecondary={textSecondary} />
-                    ))}
-                  </div>
+                  <PremiumSystemBoard
+                    items={featureItems}
+                    gold={gold}
+                    goldRgb={goldRgb}
+                    cardBg={cardBg}
+                    cardBorder={cardBorder}
+                    cardHoverBorder={cardHoverBorder}
+                    textPrimary={textPrimary}
+                    textSecondary={textSecondary}
+                    textMuted={textMuted}
+                    bg={bg}
+                  />
                 </div>
               </section>
             );
@@ -210,12 +217,12 @@ export default function PremiumDark({ config }: TemplateProps) {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginTop: 56 }}>
                     {mgItems.map((it, i) => (
                       <div key={i} style={{
-                        padding: 28, borderRadius: 16,
+                        padding: 28, borderRadius: 8,
                         background: bg, border: `1px solid ${cardBorder}`,
                         display: "flex", flexDirection: "column", gap: 12,
                       }}>
                         <div style={{
-                          width: 44, height: 44, borderRadius: 12,
+                          width: 44, height: 44, borderRadius: 8,
                           background: `linear-gradient(135deg, rgba(${goldRgb},0.15) 0%, rgba(${goldRgb},0.05) 100%)`,
                           border: `1px solid rgba(${goldRgb},0.2)`,
                           display: "flex", alignItems: "center", justifyContent: "center", color: gold,
@@ -314,32 +321,39 @@ export default function PremiumDark({ config }: TemplateProps) {
           case "programs": {
             const programItems = (section.items as ProgramItem[] | undefined) || [];
             if (programItems.length === 0) return null;
+            const heroSection = getEnabledSection(sections, "hero") || section;
+            const primaryCta = resolveHeroPrimaryCta(config, heroSection);
+            const hasReports = Boolean(getEnabledSection(sections, "hit_reports"));
             return (
-              <section key="programs" data-stype="programs" style={{ padding: "120px 24px", position: "relative" }}>
-                <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                  <SectionHeader eyebrow="Class" title={section.title || "프로그램"} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24, marginTop: 64 }}>
+              <section key="programs" data-stype="programs" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 42% 46% at 74% 18%, rgba(${goldRgb},0.08) 0%, transparent 72%)`, pointerEvents: "none" }} />
+                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
+                  <SectionHeader
+                    eyebrow="Class"
+                    title={section.title || "프로그램"}
+                    description={section.description || buildProgramSectionDescription(programItems[0])}
+                    gold={gold}
+                    goldRgb={goldRgb}
+                    textSecondary={textSecondary}
+                  />
+                  <div style={{ display: "grid", gap: 24, marginTop: 64 }}>
                     {programItems.map((item, i) => (
-                      <div key={i} style={{
-                        padding: 36, borderRadius: 20,
-                        background: `linear-gradient(180deg, rgba(${goldRgb},0.04) 0%, rgba(${goldRgb},0.01) 100%)`,
-                        border: `1px solid rgba(${goldRgb},0.2)`,
-                        position: "relative", overflow: "hidden",
-                      }}>
-                        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.5), transparent)` }} />
-                        {item.badge && (
-                          <span style={{
-                            display: "inline-block", padding: "5px 12px", borderRadius: 99,
-                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-                            color: "#0A0E1A", fontSize: 12, fontWeight: 700, marginBottom: 18,
-                            letterSpacing: "-0.01em",
-                          }}>
-                            {item.badge}
-                          </span>
-                        )}
-                        <h3 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 12px", letterSpacing: "-0.02em" }}>{item.title}</h3>
-                        <p style={{ fontSize: 15, lineHeight: 1.75, color: textSecondary, margin: 0, fontWeight: 400 }}>{item.description}</p>
-                      </div>
+                      <PremiumProgramOffer
+                        key={i}
+                        item={item}
+                        index={i}
+                        primaryCta={primaryCta}
+                        phone={config.contact?.phone}
+                        hasReports={hasReports}
+                        gold={gold}
+                        goldRgb={goldRgb}
+                        cardBorder={cardBorder}
+                        textPrimary={textPrimary}
+                        textSecondary={textSecondary}
+                        textMuted={textMuted}
+                        bg={bg}
+                        bgAlt={bgAlt}
+                      />
                     ))}
                   </div>
                 </div>
@@ -519,6 +533,38 @@ function buildHeroFacts(sections: LandingSection[]): PremiumHeroFact[] {
   if (/대치/.test(instructorText)) add("검증", "대치동 출강");
 
   return facts.slice(0, 4);
+}
+
+function buildProgramFacts(item?: ProgramItem): PremiumHeroFact[] {
+  if (!item) return [];
+  const facts: PremiumHeroFact[] = [];
+  const seen = new Set<string>();
+  const add = (label: string, value: string) => {
+    const clean = compactText(value).replace(/\s+/g, " ");
+    if (!clean || seen.has(label)) return;
+    seen.add(label);
+    facts.push({ label, value: clean });
+  };
+
+  const text = `${item.badge || ""} ${item.title || ""} ${item.description || ""}`;
+  const timeMatch = text.match(/(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2}\s*(?:[-~–]\s*(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2})?/i);
+  const clinicMatch = text.match(/~\s*(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2}/i);
+
+  if (item.badge) add("개강", item.badge);
+  if (/마포.*고등학교|모든 고등학교|고등학생|고교/.test(text)) add("대상", "마포 전 고교");
+  if (timeMatch?.[0]) add("수업", timeMatch[0].replace(/\s*[-–]\s*/g, "-").trim());
+  if (/6\s*\+?\s*1|직보/.test(text)) add("구성", "6+1 직보");
+  if (/기출변형|모의고사/.test(text)) add("실전", "매주 기출변형");
+  if (/클리닉|질의응답/.test(text)) add("클리닉", clinicMatch?.[0] ? `수업 후 ${clinicMatch[0].replace(/\s+/g, "")}` : "수업 후 관리");
+  if (/복습\s*영상|영상 무한|영상 무제한/.test(text)) add("복습", "영상 무제한");
+
+  return facts.slice(0, 6);
+}
+
+function buildProgramSectionDescription(item?: ProgramItem): string | undefined {
+  const facts = buildProgramFacts(item).slice(0, 4);
+  if (facts.length === 0) return undefined;
+  return facts.map((fact) => `${fact.label} ${fact.value}`).join(" · ");
 }
 
 function getEnabledSection(sections: LandingSection[], type: string): LandingSection | undefined {
@@ -1241,6 +1287,459 @@ function PremiumDecisionBand({
         }
       `}</style>
     </div>
+  );
+}
+
+function PremiumSystemBoard({
+  items,
+  gold,
+  goldRgb,
+  cardBg,
+  cardBorder,
+  cardHoverBorder,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  bg,
+}: {
+  items: FeatureItem[];
+  gold: string;
+  goldRgb: string;
+  cardBg: string;
+  cardBorder: string;
+  cardHoverBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  bg: string;
+}) {
+  const lead = items[0];
+  const tiles = items.slice(1);
+  const sequence = items.slice(0, 3).map((item) => compactText(item.title)).filter(Boolean);
+
+  return (
+    <div
+      className="pd-system-board"
+      data-testid="premium-system-board"
+      style={{
+        display: "grid",
+        gridTemplateColumns: tiles.length > 0 ? "minmax(280px, 0.95fr) minmax(0, 1.35fr)" : "minmax(0, 1fr)",
+        gap: 20,
+        marginTop: 64,
+        alignItems: "stretch",
+      }}
+    >
+      <div style={{
+        minHeight: 360,
+        padding: 34,
+        borderRadius: 8,
+        background: `linear-gradient(145deg, rgba(${goldRgb},0.18) 0%, rgba(${goldRgb},0.04) 42%, ${bg} 100%)`,
+        border: `1px solid rgba(${goldRgb},0.32)`,
+        boxShadow: `0 24px 70px rgba(${goldRgb},0.08), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}>
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, rgba(${goldRgb},0.14), transparent 42%)`, pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+            color: "#0A0E1A",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: `0 14px 34px rgba(${goldRgb},0.28)`,
+            marginBottom: 26,
+          }}>
+            <SvgIcon name={lead.icon} size={26} />
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 10 }}>
+            Core Method
+          </div>
+          <h3 style={{ fontSize: 30, lineHeight: 1.18, fontWeight: 900, color: textPrimary, letterSpacing: 0, margin: "0 0 16px" }}>
+            {lead.title}
+          </h3>
+          <p style={{ fontSize: 15.5, lineHeight: 1.78, color: textSecondary, margin: 0, fontWeight: 500 }}>
+            {lead.description}
+          </p>
+        </div>
+        {sequence.length > 1 && (
+          <div style={{
+            position: "relative",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 32,
+            paddingTop: 18,
+            borderTop: `1px solid ${cardBorder}`,
+          }}>
+            {sequence.map((label, i) => (
+              <span key={`${label}-${i}`} style={{
+                display: "inline-flex",
+                alignItems: "center",
+                minHeight: 30,
+                padding: "0 10px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.055)",
+                border: `1px solid ${cardBorder}`,
+                color: i === 0 ? gold : textMuted,
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: 0,
+              }}>
+                {String(i + 1).padStart(2, "0")} {label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {tiles.length > 0 && (
+        <div className="pd-system-tiles" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+          {tiles.map((item, i) => (
+            <div
+              key={i}
+              className="pd-system-tile"
+              style={{
+                minWidth: 0,
+                padding: 24,
+                borderRadius: 8,
+                background: cardBg,
+                border: `1px solid ${cardBorder}`,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <div style={{
+                  width: 42,
+                  height: 42,
+                  flex: "0 0 auto",
+                  borderRadius: 8,
+                  background: `rgba(${goldRgb},0.12)`,
+                  border: `1px solid rgba(${goldRgb},0.22)`,
+                  color: gold,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <SvgIcon name={item.icon} size={21} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: textMuted, fontWeight: 900, letterSpacing: 0, textTransform: "uppercase", marginBottom: 8 }}>
+                    System {String(i + 2).padStart(2, "0")}
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 900, color: textPrimary, margin: "0 0 10px", lineHeight: 1.28, letterSpacing: 0 }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ fontSize: 14, lineHeight: 1.68, color: textSecondary, margin: 0, fontWeight: 500 }}>
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        .pd-system-tile {
+          transition: border-color 0.24s cubic-bezier(.2,.7,.2,1), transform 0.24s cubic-bezier(.2,.7,.2,1), box-shadow 0.24s;
+        }
+        .pd-system-tile:hover {
+          border-color: ${cardHoverBorder} !important;
+          transform: translateY(-2px);
+          box-shadow: 0 18px 46px rgba(${goldRgb},0.08), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+        }
+        @media (max-width: 900px) {
+          .pd-system-board {
+            grid-template-columns: 1fr !important;
+            margin-top: 44px !important;
+          }
+          .pd-system-tiles {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function PremiumProgramOffer({
+  item,
+  index,
+  primaryCta,
+  phone,
+  hasReports,
+  gold,
+  goldRgb,
+  cardBorder,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  bg,
+  bgAlt,
+}: {
+  item: ProgramItem;
+  index: number;
+  primaryCta: { label: string; link: string; isInternal: boolean };
+  phone?: string;
+  hasReports: boolean;
+  gold: string;
+  goldRgb: string;
+  cardBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  bg: string;
+  bgAlt: string;
+}) {
+  const facts = buildProgramFacts(item);
+  const ctaTarget = targetFromLink(primaryCta.link || "/login", primaryCta.isInternal);
+  const dial = compactText(phone).replace(/[^\d+]/g, "");
+
+  return (
+    <div
+      className="pd-program-offer"
+      data-testid="premium-program-offer"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 0.96fr) minmax(0, 1.04fr)",
+        gap: 0,
+        borderRadius: 8,
+        background: `linear-gradient(135deg, rgba(${goldRgb},0.14) 0%, rgba(${goldRgb},0.03) 44%, ${bgAlt} 100%)`,
+        border: `1px solid rgba(${goldRgb},0.24)`,
+        boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{
+        padding: 38,
+        background: `linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)`,
+        borderRight: `1px solid ${cardBorder}`,
+        position: "relative",
+      }}>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.65), transparent)` }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+          <span style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase" }}>
+            Class {String(index + 1).padStart(2, "0")}
+          </span>
+          {item.badge && (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: 28,
+              padding: "0 11px",
+              borderRadius: 8,
+              background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+              color: "#0A0E1A",
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: 0,
+            }}>
+              {item.badge}
+            </span>
+          )}
+        </div>
+        <h3 style={{ fontSize: "clamp(26px, 3vw, 36px)", lineHeight: 1.16, fontWeight: 900, margin: "0 0 18px", color: textPrimary, letterSpacing: 0 }}>
+          {item.title}
+        </h3>
+        <p style={{ fontSize: 15.5, lineHeight: 1.78, color: textSecondary, margin: 0, fontWeight: 500, whiteSpace: "pre-line" }}>
+          {item.description}
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 30 }}>
+          <PremiumSectionCta label={primaryCta.label || "수강 문의"} target={ctaTarget} gold={gold} goldRgb={goldRgb} />
+          {dial && (
+            <a href={`tel:${dial}`} style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 46,
+              padding: "0 16px",
+              borderRadius: 8,
+              border: `1px solid ${cardBorder}`,
+              color: textPrimary,
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: 900,
+              letterSpacing: 0,
+              background: "rgba(255,255,255,0.045)",
+            }}>
+              {phone}
+            </a>
+          )}
+          {hasReports && (
+            <Link to="/landing/reports" style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 46,
+              padding: "0 16px",
+              borderRadius: 8,
+              border: `1px solid ${cardBorder}`,
+              color: textSecondary,
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: 900,
+              letterSpacing: 0,
+              background: "rgba(255,255,255,0.025)",
+            }}>
+              적중 사례
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: 30, background: bg, display: "flex", flexDirection: "column", gap: 18, justifyContent: "space-between" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 900, color: textMuted, letterSpacing: 0, textTransform: "uppercase", marginBottom: 5 }}>
+                Class Snapshot
+              </div>
+              <div style={{ fontSize: 19, lineHeight: 1.28, fontWeight: 900, color: textPrimary, letterSpacing: 0 }}>
+                등록 전에 확인할 정보
+              </div>
+            </div>
+            <div style={{
+              flex: "0 0 auto",
+              width: 42,
+              height: 42,
+              borderRadius: 8,
+              background: `rgba(${goldRgb},0.12)`,
+              border: `1px solid rgba(${goldRgb},0.24)`,
+              color: gold,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <SvgIcon name="calendar" size={21} />
+            </div>
+          </div>
+
+          <div className="pd-program-facts" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+            {facts.map((fact) => (
+              <div key={fact.label} style={{
+                minWidth: 0,
+                padding: "16px 14px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.035)",
+                border: `1px solid ${cardBorder}`,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 7 }}>
+                  {fact.label}
+                </div>
+                <div style={{ fontSize: 16, lineHeight: 1.22, fontWeight: 900, color: textPrimary, letterSpacing: 0 }}>
+                  {fact.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
+          paddingTop: 18,
+          borderTop: `1px solid ${cardBorder}`,
+        }} className="pd-program-flow">
+          {["상담 문의", "시간표 확인", "수업 합류"].map((label, i) => (
+            <div key={label} style={{
+              minHeight: 40,
+              borderRadius: 8,
+              border: `1px solid ${i === 0 ? `rgba(${goldRgb},0.32)` : cardBorder}`,
+              color: i === 0 ? gold : textMuted,
+              background: i === 0 ? `rgba(${goldRgb},0.10)` : "rgba(255,255,255,0.025)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: 0,
+              padding: "0 8px",
+            }}>
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .pd-program-offer {
+            grid-template-columns: 1fr !important;
+          }
+          .pd-program-offer > div:first-child {
+            border-right: 0 !important;
+            border-bottom: 1px solid ${cardBorder} !important;
+          }
+        }
+        @media (max-width: 560px) {
+          .pd-program-offer > div {
+            padding: 24px !important;
+          }
+          .pd-program-facts {
+            grid-template-columns: 1fr !important;
+          }
+          .pd-program-flow {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function PremiumSectionCta({ label, target, gold, goldRgb }: { label: string; target: PremiumHeroTarget; gold: string; goldRgb: string }) {
+  const content = (
+    <>
+      {label}
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+    </>
+  );
+  const style = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 46,
+    padding: "0 18px",
+    borderRadius: 8,
+    border: "none",
+    background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
+    color: "#0A0E1A",
+    textDecoration: "none",
+    fontSize: 14,
+    fontWeight: 900,
+    letterSpacing: 0,
+    boxShadow: `0 12px 28px rgba(${goldRgb},0.28)`,
+    cursor: "pointer",
+  };
+
+  if (target.kind === "section") {
+    return (
+      <button type="button" data-testid="landing-program-primary-cta" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
+        {content}
+      </button>
+    );
+  }
+  if (target.kind === "route") {
+    return (
+      <Link to={target.to} data-testid="landing-program-primary-cta" style={style}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <a href={target.href} data-testid="landing-program-primary-cta" style={style}>
+      {content}
+    </a>
   );
 }
 
