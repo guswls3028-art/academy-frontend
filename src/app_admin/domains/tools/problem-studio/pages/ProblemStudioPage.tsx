@@ -115,12 +115,16 @@ const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
 const SOURCE_KEY = "problem-studio:source-files:v1";
 const MAX_PDF_PAGES = 24;
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.png,.jpg,.jpeg,.webp";
+const DEFAULT_PROMPT = "문제 내용을 입력하거나, 스캔/PDF 파일을 올려 문항 이미지를 추가하세요.";
+const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5";
+const DEFAULT_ANSWER = "①";
+const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 
 const GENERATION_VARIANTS: GenerationVariantItem[] = [
   {
     key: "copy",
-    title: "단순 복사/정리",
-    detail: "원본 문제 구조를 학원 양식에 맞춰 정리하고, 답과 해설을 미주로 붙입니다.",
+    title: "원본 이관/정리",
+    detail: "애매하면 원본을 먼저 한글 파일로 옮기고, 답과 해설은 미주 검수 영역에 둡니다.",
     badge: "현재 단위",
   },
   {
@@ -147,7 +151,7 @@ const REQUIREMENT_FACTS = [
   "소스: EBS 교재, 사설 참고서, PDF/HWP/HWPX가 주력이고 스캔본은 보조입니다.",
   "산출물: 문제와 정답/해설을 한글 문서로 만들고, 정답/해설은 문항 미주 형태로 둡니다.",
   "양식 기준: 매치업 기존 양식을 우선 활용하고, 기준 샘플 파일을 추가 업로드할 수 있어야 합니다.",
-  "생성 기준: 지금 단위는 원본 문제 단순 복사/정리이고, 변주는 선생님이 직접 고릅니다.",
+  "생성 기준: 지금 단위는 원본을 한글 파일로 먼저 옮기는 것이고, 변주는 선생님이 직접 고릅니다.",
   "해설 기준: 교과서 개념 중심, 짧지만 충분히 자세하게, 오답 유도 포인트는 이유까지 표시합니다.",
 ];
 
@@ -266,10 +270,10 @@ function defaultDraft(): WorksheetDraft {
     instructions: "풀이 과정이 필요한 문항은 빈칸에 과정을 함께 적으세요.",
     questions: [
       createQuestion({
-        prompt: "문제 내용을 입력하거나, 스캔/PDF 파일을 올려 문항 이미지를 추가하세요.",
-        choices: "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5",
-        answer: "①",
-        explanation: "해설을 입력하면 해설지 PDF에만 표시됩니다.",
+        prompt: DEFAULT_PROMPT,
+        choices: DEFAULT_CHOICES,
+        answer: DEFAULT_ANSWER,
+        explanation: DEFAULT_EXPLANATION,
       }),
     ],
   };
@@ -433,11 +437,20 @@ function parseQuestionsFromText(text: string): WorksheetQuestion[] {
 }
 
 function hasRealQuestion(q: WorksheetQuestion): boolean {
+  if (
+    q.prompt === DEFAULT_PROMPT
+    && q.choices === DEFAULT_CHOICES
+    && q.answer === DEFAULT_ANSWER
+    && q.explanation === DEFAULT_EXPLANATION
+    && q.attachments.length === 0
+  ) {
+    return false;
+  }
   return Boolean(q.prompt.trim() || q.choices.trim() || q.answer.trim() || q.explanation.trim() || q.attachments.length > 0);
 }
 
 function mergeImportedQuestions(current: WorksheetQuestion[], imported: WorksheetQuestion[]): WorksheetQuestion[] {
-  if (current.length === 1 && !hasRealQuestion(current[0])) return imported;
+  if (current.every((question) => !hasRealQuestion(question))) return imported;
   return [...current, ...imported];
 }
 
@@ -456,6 +469,7 @@ export default function ProblemStudioPage() {
   const [pasteText, setPasteText] = useState("");
   const [importing, setImporting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const [generationNote, setGenerationNote] = useState("아직 생성 전입니다.");
   const [generationWarnings, setGenerationWarnings] = useState<string[]>([]);
   const [pdfLoading, setPdfLoading] = useState<WorksheetPdfKind | null>(null);
@@ -600,7 +614,7 @@ export default function ProblemStudioPage() {
   };
 
   const handleGenerateDraft = async () => {
-    const hasText = draft.questions.some((q) => q.prompt.trim() || q.choices.trim() || q.answer.trim() || q.explanation.trim()) || pasteText.trim();
+    const hasText = draft.questions.some(hasRealQuestion) || pasteText.trim();
     if (sourceFileBlobs.length === 0 && !hasText) {
       feedback.warning("소스 파일을 올리거나 문제 텍스트를 먼저 넣어 주세요.");
       return;
@@ -656,6 +670,75 @@ export default function ProblemStudioPage() {
       feedback.error(error instanceof Error ? error.message : "문항 초안을 만들 수 없습니다.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleTransferOriginal = async () => {
+    const hasDraftContent = draft.questions.some(hasRealQuestion) || pasteText.trim();
+    if (sourceFileBlobs.length === 0 && !hasDraftContent) {
+      feedback.warning("원본으로 옮길 소스 파일을 먼저 올려 주세요.");
+      return;
+    }
+    setTransferring(true);
+    setGenerationWarnings([]);
+    try {
+      const response = await generateProblemStudioDraft(
+        {
+          title: draft.title,
+          class_name: draft.className,
+          subject: draft.subject,
+          template_name: templateName,
+          variant_mode: "copy",
+          variant_count: 1,
+          note_policy: "원본을 한글 검수 파일로 먼저 옮기고, 선생님이 파일에서 직접 수정합니다.",
+          use_ai: false,
+          transfer_only: true,
+          questions: [
+            ...draft.questions.filter(hasRealQuestion).map((q) => ({
+              prompt: q.prompt,
+              choices: q.choices,
+              answer: q.answer,
+              explanation: q.explanation,
+            })),
+            ...(pasteText.trim() ? [{ prompt: pasteText, choices: "", answer: "", explanation: "" }] : []),
+          ],
+        },
+        sourceFileBlobs,
+      );
+      const nextSourceFiles = response.source_files.length > 0
+        ? response.source_files.map((file) => ({
+          id: makeId("src"),
+          name: file.name,
+          kind: file.kind,
+          sizeLabel: file.sizeLabel,
+          extractedChars: file.extractedChars,
+          warning: file.warning,
+        }))
+        : sourceFiles;
+      const generated = response.questions.map(generatedToQuestion);
+      const localVisualQuestions = draft.questions.filter((q) => hasRealQuestion(q) && q.attachments.length > 0);
+      const shouldKeepLocalVisuals = response.source_text_chars === 0 && localVisualQuestions.length > 0;
+      const nextDraft = {
+        ...draft,
+        questions: shouldKeepLocalVisuals ? localVisualQuestions : generated,
+      };
+
+      setDraft(nextDraft);
+      setSourceFiles(nextSourceFiles);
+      setPasteText("");
+      setGenerationWarnings(response.warnings);
+      setGenerationNote(`원본 이관 · 한글 초안 ${nextDraft.questions.length}문항`);
+      downloadHangulDraft(nextDraft, {
+        sourceFiles: nextSourceFiles,
+        templateName,
+        variantLabel: "원본 이관 · 후보 1개",
+        notePolicy: "원본을 한글 검수 파일로 먼저 옮긴 초안입니다. 선생님이 파일에서 직접 정리합니다.",
+      });
+      feedback.success("원본 이관 한글 파일을 저장했습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "원본을 한글 파일로 옮길 수 없습니다.");
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -999,7 +1082,7 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="output-title">한글 출력</h3>
-                <p>정답과 해설은 문항 번호 미주 형태로 묶고, PDF는 보조 출력으로 남깁니다.</p>
+                <p>애매하면 원본만 먼저 한글 파일로 옮깁니다. 정답과 해설은 문항 번호 미주 형태로 묶습니다.</p>
               </div>
             </div>
             <div className={styles.outputButtons}>
@@ -1007,10 +1090,20 @@ export default function ProblemStudioPage() {
                 type="button"
                 intent="primary"
                 size="md"
+                loading={transferring}
+                leftIcon={<FileInput size={ICON_FOR_BUTTON.md} />}
+                onClick={handleTransferOriginal}
+              >
+                원본만 한글로 저장
+              </Button>
+              <Button
+                type="button"
+                intent="secondary"
+                size="md"
                 leftIcon={<FileCheck2 size={ICON_FOR_BUTTON.md} />}
                 onClick={handleHangulDownload}
               >
-                한글 초안 저장(.doc)
+                편집 초안 저장(.doc)
               </Button>
               <Button
                 type="button"

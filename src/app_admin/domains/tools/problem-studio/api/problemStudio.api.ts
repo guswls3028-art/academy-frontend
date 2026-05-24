@@ -37,6 +37,7 @@ export type ProblemStudioGeneratePayload = {
   variant_count: number;
   note_policy: string;
   use_ai: boolean;
+  transfer_only?: boolean;
   questions: Array<{
     prompt: string;
     choices: string;
