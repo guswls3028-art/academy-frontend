@@ -190,7 +190,10 @@ export const BASE_STYLE = `
 
   /* 1명/줄: 기본. 긴 이름과 실제 인쇄 안정성이 가장 좋다. */
   .name-row.single {
-    display: flex; align-items: flex-start; gap: 2.5mm;
+    display: grid;
+    grid-template-columns: 3.8mm minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.45mm;
     padding: 2.6mm 3.2mm;
     font-size: 20px; font-weight: 900;
     color: #000;
@@ -202,7 +205,10 @@ export const BASE_STYLE = `
   .name-cell {
     flex: 1;
     min-width: 0;
-    display: flex; align-items: flex-start; gap: 1.8mm;
+    display: grid;
+    grid-template-columns: 3.8mm minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.25mm;
     padding: 1.8mm 2.4mm;
     font-size: 17px; font-weight: 900;
     color: #000;
@@ -212,6 +218,7 @@ export const BASE_STYLE = `
   }
   .name-text {
     flex: 1 1 auto; min-width: 0;
+    align-self: center;
     text-align: left;
     line-height: inherit;
     white-space: normal;
@@ -223,8 +230,10 @@ export const BASE_STYLE = `
 
   .checkbox {
     flex: 0 0 auto;
-    width: 3.7mm; height: 3.7mm;
-    margin-top: 0.2mm;
+    width: 3.8mm; height: 3.8mm;
+    align-self: center;
+    justify-self: start;
+    margin: 0;
     border: 0.4mm solid #000;
     border-radius: 1px;
     color: transparent;
@@ -233,7 +242,7 @@ export const BASE_STYLE = `
     background: #e8e8e8 !important;
     box-shadow: inset 1.1mm 0 0 #000;
   }
-  .star { flex: 0 0 auto; color: #000; font-size: 12px; font-weight: 900; margin-left: auto; }
+  .star { flex: 0 0 auto; align-self: center; justify-self: end; color: #000; font-size: 12px; font-weight: 900; margin-left: 0; }
   /* 수동 지정 학생 — 텍스트 딱지 없이 옅은 음영만. 학생에게 비노출, 선생님 식별용 */
   .manual-name {
     background: #f2f2f2 !important;
@@ -297,9 +306,9 @@ export const BASE_STYLE = `
   .page--compact .tip-box .text { font-size: 12.5px; }
   .page--compact .section-header { padding: 2.2mm 2.8mm; font-size: 13.5px; }
   .page--compact .name-list { padding: 0.8mm 0; }
-  .page--compact .name-row.single { padding: 1.7mm 2.6mm; font-size: 17.5px; line-height: 1.16; }
-  .page--compact .name-cell { padding: 1.35mm 1.9mm; font-size: 15.8px; line-height: 1.12; }
-  .page--compact .checkbox { width: 3.2mm; height: 3.2mm; border-width: 0.36mm; }
+  .page--compact .name-row.single { grid-template-columns: 3.7mm minmax(0, 1fr) auto; column-gap: 1.45mm; padding: 1.7mm 2.6mm; font-size: 17.5px; line-height: 1.16; }
+  .page--compact .name-cell { grid-template-columns: 3.25mm minmax(0, 1fr) auto; column-gap: 1.1mm; padding: 1.35mm 1.9mm; font-size: 15.8px; line-height: 1.12; }
+  .page--compact .checkbox { width: 3.25mm; height: 3.25mm; border-width: 0.36mm; }
   .page--compact .schedule-box { margin-top: 4mm; min-height: 17mm; }
   .page--compact .schedule-content { padding: 2.5mm 3.5mm; font-size: 13.2px; line-height: 1.3; }
   .page--compact .footer { margin-top: 3mm; padding-top: 2.2mm; }
@@ -322,9 +331,9 @@ export const BASE_STYLE = `
   .page--dense .section-header { padding: 1.7mm 2.2mm; font-size: 11.5px; }
   .page--dense .section-header .cnt { font-size: 10px; }
   .page--dense .name-list { padding: 0.5mm 0; }
-  .page--dense .name-row.single { padding: 1.05mm 1.8mm; font-size: 14.8px; line-height: 1.1; }
-  .page--dense .name-cell { padding: 0.9mm 1.25mm; font-size: 16px; line-height: 1.06; }
-  .page--dense .checkbox { width: 2.8mm; height: 2.8mm; border-width: 0.34mm; }
+  .page--dense .name-row.single { grid-template-columns: 3.05mm minmax(0, 1fr) auto; column-gap: 1.05mm; padding: 1.05mm 1.8mm; font-size: 14.8px; line-height: 1.1; }
+  .page--dense .name-cell { grid-template-columns: 2.9mm minmax(0, 1fr) auto; column-gap: 0.95mm; padding: 0.9mm 1.25mm; font-size: 16px; line-height: 1.06; }
+  .page--dense .checkbox { width: 2.9mm; height: 2.9mm; border-width: 0.34mm; }
   .page--dense .star { font-size: 10px; }
   .page--dense .schedule-box { margin-top: 2.8mm; min-height: 14mm; grid-template-columns: 23mm minmax(0, 1fr); }
   .page--dense .schedule-title { font-size: 9.8px; line-height: 1.05; padding-bottom: 1.6mm; }

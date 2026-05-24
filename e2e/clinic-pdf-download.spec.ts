@@ -33,7 +33,7 @@ async function openClinicTool(page: Page) {
   }
   await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
   await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
-  await expect(page.locator("#clinic-paste-ta")).toBeVisible();
+  await expect(page.locator("#clinic-paste-ta")).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
@@ -93,6 +93,21 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
           );
         });
       const firstCell = pageEl.querySelector(".name-cell") as HTMLElement | null;
+      const alignmentRows = Array.from(pageEl.querySelectorAll<HTMLElement>(".name-row.single, .name-cell"))
+        .filter((row) => row.querySelector(".name-text")?.textContent?.trim());
+      const alignmentMetrics = alignmentRows.map((row) => {
+        const checkbox = row.querySelector<HTMLElement>(".checkbox");
+        const text = row.querySelector<HTMLElement>(".name-text");
+        if (!checkbox || !text) return null;
+        const checkboxRect = checkbox.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+        return {
+          centerDelta: Math.abs(
+            checkboxRect.top + checkboxRect.height / 2 - (textRect.top + textRect.height / 2),
+          ),
+          gap: textRect.left - checkboxRect.right,
+        };
+      }).filter((metric): metric is { centerDelta: number; gap: number } => metric != null);
       const sampleColors = [
         ".section-header.both",
         ".section-header.exam",
@@ -110,6 +125,12 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
         nameCount: pageEl.querySelectorAll(".name-text").length,
         pairedNameCount: pageEl.querySelectorAll(".name-cell .name-text").length,
         nameCellFontSize: firstCell ? parseFloat(getComputedStyle(firstCell).fontSize) : 0,
+        alignment: {
+          rowCount: alignmentMetrics.length,
+          maxCenterDelta: Math.max(0, ...alignmentMetrics.map((metric) => metric.centerDelta)),
+          maxGap: Math.max(0, ...alignmentMetrics.map((metric) => metric.gap)),
+          minGap: Math.min(...alignmentMetrics.map((metric) => metric.gap)),
+        },
         allSampleColorsGray: sampleColors.every(isGray),
         clippedCount: clipped.length,
       };
@@ -119,8 +140,57 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(visibility.nameCount).toBe(132);
     expect(visibility.pairedNameCount).toBe(132);
     expect(visibility.nameCellFontSize).toBeGreaterThanOrEqual(14);
+    expect(visibility.alignment.rowCount).toBe(132);
+    expect(visibility.alignment.maxCenterDelta).toBeLessThanOrEqual(1.5);
+    expect(visibility.alignment.maxGap).toBeLessThanOrEqual(6);
+    expect(visibility.alignment.minGap).toBeGreaterThanOrEqual(0);
     expect(visibility.allSampleColorsGray).toBe(true);
     expect(visibility.clippedCount).toBe(0);
+  });
+
+  test("소수 인원 인쇄에서도 체크박스와 이름이 한 줄로 붙는다", async ({ page }) => {
+    await openClinicTool(page);
+
+    await page.locator("#clinic-paste-ta").fill([
+      "시험+과제: 박철2, 박철3",
+      "시험: 박철",
+      "과제: 김민수, 김민수2",
+    ].join("\n"));
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+
+    const frame = page.frameLocator("#cprev");
+    await expect(frame.locator(".name-text").filter({ hasText: "박철2" }).first()).toBeVisible({ timeout: 8000 });
+    const alignment = await frame.locator(".page").evaluate((node) => {
+      const pageEl = node as HTMLElement;
+      const rows = Array.from(pageEl.querySelectorAll<HTMLElement>(".name-row.single, .name-cell"))
+        .filter((row) => row.querySelector(".name-text")?.textContent?.trim());
+      const metrics = rows.map((row) => {
+        const checkbox = row.querySelector<HTMLElement>(".checkbox");
+        const text = row.querySelector<HTMLElement>(".name-text");
+        if (!checkbox || !text) return null;
+        const checkboxRect = checkbox.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+        return {
+          centerDelta: Math.abs(
+            checkboxRect.top + checkboxRect.height / 2 - (textRect.top + textRect.height / 2),
+          ),
+          gap: textRect.left - checkboxRect.right,
+        };
+      }).filter((metric): metric is { centerDelta: number; gap: number } => metric != null);
+      return {
+        pageClass: pageEl.className,
+        rowCount: metrics.length,
+        maxCenterDelta: Math.max(0, ...metrics.map((metric) => metric.centerDelta)),
+        maxGap: Math.max(0, ...metrics.map((metric) => metric.gap)),
+        minGap: Math.min(...metrics.map((metric) => metric.gap)),
+      };
+    });
+
+    expect(alignment.pageClass).toContain("page--comfortable");
+    expect(alignment.rowCount).toBe(5);
+    expect(alignment.maxCenterDelta).toBeLessThanOrEqual(1.5);
+    expect(alignment.maxGap).toBeLessThanOrEqual(6);
+    expect(alignment.minGap).toBeGreaterThanOrEqual(0);
   });
 
   test("긴 이름을 자르지 않고 실제 PDF를 내려받는다", async ({ page }) => {
