@@ -7,6 +7,7 @@ import styles from "./ImageUploadArea.module.css";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILES = 500;
 
 interface ImageUploadAreaProps {
   onFilesAdd: (files: File[]) => void;
@@ -112,7 +113,7 @@ export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAre
         드래그하거나 클릭하여 이미지를 추가하세요
         <br />
         <span className={styles.hint}>
-          JPG, PNG, GIF, WebP, BMP, TIFF · 최대 20MB/장 · 50장
+          JPG, PNG, GIF, WebP, BMP, TIFF · 최대 20MB/장 · {MAX_FILES}장
         </span>
       </div>
     </div>

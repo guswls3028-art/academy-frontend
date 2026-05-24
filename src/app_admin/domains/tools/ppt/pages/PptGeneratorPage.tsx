@@ -1,10 +1,12 @@
 // PATH: src/app_admin/domains/tools/ppt/pages/PptGeneratorPage.tsx
 // PPT 생성기 메인 페이지 — 이미지/PDF 모드 선택 -> 설정 -> 생성/다운로드 (async worker)
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Download, Settings } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
+import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../api/ppt.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import ImageUploadArea from "../components/ImageUploadArea";
@@ -14,28 +16,69 @@ import SlideSettingsPanel from "../components/SlideSettingsPanel";
 import styles from "./PptGeneratorPage.module.css";
 
 type InputMode = "image" | "pdf";
+type SortMode = "nameAsc" | "nameDesc" | "oldest" | "newest" | "upload" | "manual";
 
 let _idSeq = 0;
-function nextId() {
-  return `img_${Date.now()}_${++_idSeq}`;
+function nextImageIdentity() {
+  const addedSeq = ++_idSeq;
+  return {
+    id: `img_${Date.now()}_${addedSeq}`,
+    addedSeq,
+  };
 }
+
+const MAX_IMAGES = 500;
 
 const DEFAULT_SETTINGS: PptSettings = {
   aspect_ratio: "16:9",
   background: "black",
   fit_mode: "contain",
-  invert: false,
-  grayscale: false,
+  invert: true,
+  grayscale: true,
   auto_enhance: false,
   brightness: 1.0,
   contrast: 1.0,
 };
+
+const sortCollator = new Intl.Collator("ko-KR", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function sortImageItems(items: ImageItem[], mode: SortMode): ImageItem[] {
+  if (mode === "manual") return items;
+  const ordered = [...items];
+  ordered.sort((a, b) => {
+    if (mode === "nameAsc" || mode === "nameDesc") {
+      const result = sortCollator.compare(a.file.name, b.file.name);
+      return mode === "nameAsc" ? result : -result;
+    }
+    if (mode === "oldest" || mode === "newest") {
+      const result = a.file.lastModified - b.file.lastModified;
+      return mode === "oldest" ? result : -result;
+    }
+    return (a.addedSeq ?? 0) - (b.addedSeq ?? 0);
+  });
+  return ordered;
+}
+
+function buildPreviewFilter(item: ImageItem | undefined, settings: PptSettings): string {
+  if (!item) return "";
+  return [
+    item.invert || settings.invert ? "invert(1)" : "",
+    settings.grayscale ? "grayscale(1)" : "",
+    settings.brightness !== 1.0 ? `brightness(${settings.brightness})` : "",
+    settings.contrast !== 1.0 ? `contrast(${settings.contrast})` : "",
+  ].filter(Boolean).join(" ");
+}
 
 export default function PptGeneratorPage() {
   const [mode, setMode] = useState<InputMode>("image");
   const [images, setImages] = useState<ImageItem[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [settings, setSettings] = useState<PptSettings>(DEFAULT_SETTINGS);
+  const [sortMode, setSortMode] = useState<SortMode>("nameAsc");
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [progressPct, setProgressPct] = useState<number | null>(null);
   const [progressLabel, setProgressLabel] = useState<string>("");
 
@@ -46,24 +89,43 @@ export default function PptGeneratorPage() {
 
   // 이미지 추가
   const handleFilesAdd = useCallback((files: File[]) => {
-    const newItems: ImageItem[] = files.map((f) => ({
-      id: nextId(),
-      file: f,
-      previewUrl: URL.createObjectURL(f),
-      invert: false,
-    }));
-    setImages((prev) => {
-      if (prev.length + newItems.length > 50) {
-        feedback.warning("최대 50장까지 업로드할 수 있습니다.");
-        return [...prev, ...newItems.slice(0, 50 - prev.length)];
-      }
-      return [...prev, ...newItems];
+    const newItems: ImageItem[] = files.map((f) => {
+      const identity = nextImageIdentity();
+      return {
+        id: identity.id,
+        addedSeq: identity.addedSeq,
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+        invert: false,
+      };
     });
-  }, []);
+    setImages((prev) => {
+      const available = MAX_IMAGES - prev.length;
+      if (available <= 0) {
+        newItems.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+        feedback.warning(`최대 ${MAX_IMAGES}장까지 업로드할 수 있습니다.`);
+        return prev;
+      }
+      const accepted = newItems.slice(0, available);
+      const rejected = newItems.slice(available);
+      rejected.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      if (rejected.length > 0) {
+        feedback.warning(`최대 ${MAX_IMAGES}장까지 업로드할 수 있어 ${accepted.length}장만 추가했습니다.`);
+      }
+      return sortImageItems([...prev, ...accepted], sortMode);
+    });
+  }, [sortMode]);
 
   // 순서 변경
   const handleReorder = useCallback((newItems: ImageItem[]) => {
+    setSortMode("manual");
     setImages(newItems);
+  }, []);
+
+  const handleSortModeChange = useCallback((newMode: SortMode) => {
+    setSortMode(newMode);
+    setImages((prev) => sortImageItems(prev, newMode));
+    setPreviewIndex(0);
   }, []);
 
   // 이미지 삭제
@@ -86,7 +148,15 @@ export default function PptGeneratorPage() {
   const handleClearAll = useCallback(() => {
     images.forEach((i) => URL.revokeObjectURL(i.previewUrl));
     setImages([]);
+    setPreviewIndex(0);
   }, [images]);
+
+  useEffect(() => {
+    setPreviewIndex((prev) => {
+      if (images.length === 0) return 0;
+      return Math.min(prev, images.length - 1);
+    });
+  }, [images.length]);
 
   // PPT 생성 mutation — 이미지 모드
   const imageGenerateMutation = useMutation({
@@ -115,6 +185,8 @@ export default function PptGeneratorPage() {
         `PPT 생성 (${images.length}장)`,
         jobResp.job_id,
         "ppt_generation",
+        undefined,
+        { suppressAutoDownload: true },
       );
 
       // Phase 2: Poll for completion (page-level progress)
@@ -158,6 +230,8 @@ export default function PptGeneratorPage() {
         `PPT 생성 (PDF)`,
         jobResp.job_id,
         "ppt_generation",
+        undefined,
+        { suppressAutoDownload: true },
       );
 
       // Phase 2: Poll for completion (page-level progress)
@@ -208,6 +282,16 @@ export default function PptGeneratorPage() {
 
   const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending;
   const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null;
+  const previewItem = images[previewIndex];
+  const previewFilter = buildPreviewFilter(previewItem, settings);
+  const previewWindow = useMemo(() => {
+    if (!images.length) return [];
+    const start = Math.max(0, Math.min(previewIndex - 4, images.length - 9));
+    return images.slice(start, start + 9).map((item, offset) => ({
+      item,
+      index: start + offset,
+    }));
+  }, [images, previewIndex]);
 
   const handleGenerate = () => {
     if (mode === "image") {
@@ -264,6 +348,8 @@ export default function PptGeneratorPage() {
               onReorder={handleReorder}
               onRemove={handleRemove}
               onToggleInvert={handleToggleInvert}
+              sortMode={sortMode}
+              onSortModeChange={handleSortModeChange}
               disabled={isGenerating}
             />
 
@@ -293,7 +379,7 @@ export default function PptGeneratorPage() {
             {pdfFile && (
               <div className={styles.pdfInfoCard}>
                 <div className={styles.pdfInfoText}>
-                  PDF의 각 페이지가 자동으로 슬라이드로 변환됩니다.
+                  PDF의 문항을 자동으로 분리해 슬라이드로 변환합니다. 텍스트 추출이 어려운 PDF는 페이지 단위로 전환됩니다.
                 </div>
               </div>
             )}
@@ -305,11 +391,7 @@ export default function PptGeneratorPage() {
       <div className={styles.sidebar}>
         <div className={styles.settingsCard}>
           <div className={styles.settingsTitle}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+            <Settings size={ICON_FOR_BUTTON.md} />
             슬라이드 설정
           </div>
           <SlideSettingsPanel
@@ -319,28 +401,68 @@ export default function PptGeneratorPage() {
           />
         </div>
 
-        {/* 미리보기 카드 — 이미지 모드만 */}
-        {mode === "image" && images.length > 0 && (
-          <div
-            className={styles.previewCard}
-            data-bg={settings.background}
-            data-ratio={settings.aspect_ratio}
-          >
-            <img
-              src={images[0].previewUrl}
-              alt="Preview"
-              className={styles.previewImage}
-              data-fit={settings.fit_mode}
-              // eslint-disable-next-line no-restricted-syntax
-              style={{
-                filter: (images[0].invert || settings.invert ? "invert(1) " : "")
-                  + (settings.grayscale ? "grayscale(1) " : "")
-                  + (settings.brightness !== 1.0 ? `brightness(${settings.brightness}) ` : "")
-                  + (settings.contrast !== 1.0 ? `contrast(${settings.contrast})` : ""),
-              }}
-            />
-            <div className={styles.previewBadge}>
-              미리보기
+        {/* 미리보기 — 이미지 모드 */}
+        {mode === "image" && previewItem && (
+          <div className={styles.previewPanel}>
+            <div className={styles.previewHeader}>
+              <span className={styles.previewTitle}>미리보기</span>
+              <span className={styles.previewCount}>{previewIndex + 1} / {images.length}</span>
+            </div>
+            <div
+              className={styles.previewCard}
+              data-bg={settings.background}
+              data-ratio={settings.aspect_ratio}
+            >
+              <button
+                type="button"
+                className={`${styles.previewNav} ${styles.previewNavLeft}`}
+                onClick={() => setPreviewIndex((idx) => Math.max(0, idx - 1))}
+                disabled={previewIndex === 0}
+                title="이전 슬라이드"
+              >
+                <ChevronLeft size={ICON_FOR_BUTTON.sm} />
+              </button>
+              <img
+                src={previewItem.previewUrl}
+                alt={`슬라이드 ${previewIndex + 1} 미리보기`}
+                className={styles.previewImage}
+                data-fit={settings.fit_mode}
+                // eslint-disable-next-line no-restricted-syntax
+                style={{ filter: previewFilter }}
+              />
+              <button
+                type="button"
+                className={`${styles.previewNav} ${styles.previewNavRight}`}
+                onClick={() => setPreviewIndex((idx) => Math.min(images.length - 1, idx + 1))}
+                disabled={previewIndex >= images.length - 1}
+                title="다음 슬라이드"
+              >
+                <ChevronRight size={ICON_FOR_BUTTON.sm} />
+              </button>
+              <div className={styles.previewBadge}>
+                {previewItem.file.name}
+              </div>
+            </div>
+            <div className={styles.thumbnailStrip}>
+              {previewWindow.map(({ item, index }) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={styles.thumbnailButton}
+                  data-active={index === previewIndex ? "true" : "false"}
+                  onClick={() => setPreviewIndex(index)}
+                  title={`${index + 1}. ${item.file.name}`}
+                >
+                  <img
+                    src={item.previewUrl}
+                    alt=""
+                    className={styles.thumbnailImage}
+                    // eslint-disable-next-line no-restricted-syntax
+                    style={{ filter: buildPreviewFilter(item, settings) }}
+                  />
+                  <span className={styles.thumbnailNumber}>{index + 1}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -369,12 +491,7 @@ export default function PptGeneratorPage() {
             </>
           ) : (
             <div className={styles.generateLabel}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <Download size={ICON_FOR_BUTTON.md} />
               PPT 생성 및 다운로드
             </div>
           )}

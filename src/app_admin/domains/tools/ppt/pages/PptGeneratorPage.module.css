@@ -80,6 +80,31 @@
   font-weight: 700;
 }
 
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewTitle {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.previewCount {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .previewCard {
   position: relative;
   display: flex;
@@ -129,11 +154,85 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
+  left: 8px;
+  overflow: hidden;
   padding: 2px 6px;
   border-radius: 4px;
   background: rgb(0 0 0 / 60%);
   color: #fff;
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewNav {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 54%);
+  color: #fff;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.previewNav:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.previewNavLeft {
+  left: 8px;
+}
+
+.previewNavRight {
+  right: 8px;
+}
+
+.thumbnailStrip {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.thumbnailButton {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 6px;
+  background: #111;
+  cursor: pointer;
+}
+
+.thumbnailButton[data-active="true"] {
+  border: 2px solid var(--color-primary);
+}
+
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnailNumber {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 66%);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .generateButton {
@@ -238,5 +337,15 @@
 @keyframes pptSpin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (width <= 1080px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
   }
 }

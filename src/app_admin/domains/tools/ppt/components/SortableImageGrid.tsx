@@ -4,8 +4,11 @@
 import { useState, useRef } from "react";
 import styles from "./SortableImageGrid.module.css";
 
+type SortMode = "nameAsc" | "nameDesc" | "oldest" | "newest" | "upload" | "manual";
+
 export interface ImageItem {
   id: string;
+  addedSeq?: number;
   file: File;
   previewUrl: string;
   /** 슬라이드별 반전 설정 */
@@ -17,6 +20,8 @@ interface SortableImageGridProps {
   onReorder: (items: ImageItem[]) => void;
   onRemove: (id: string) => void;
   onToggleInvert: (id: string) => void;
+  sortMode: SortMode;
+  onSortModeChange: (mode: SortMode) => void;
   disabled?: boolean;
 }
 
@@ -25,6 +30,8 @@ export default function SortableImageGrid({
   onReorder,
   onRemove,
   onToggleInvert,
+  sortMode,
+  onSortModeChange,
   disabled,
 }: SortableImageGridProps) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -79,9 +86,27 @@ export default function SortableImageGrid({
         <span className={styles.title}>
           슬라이드 ({items.length}장)
         </span>
-        <span className={styles.hint}>
-          드래그하여 순서 변경
-        </span>
+        <div className={styles.headerControls}>
+          <label className={styles.sortLabel}>
+            정렬
+            <select
+              value={sortMode}
+              onChange={(e) => onSortModeChange(e.target.value as SortMode)}
+              disabled={disabled}
+              className={styles.sortSelect}
+            >
+              <option value="nameAsc">파일명 1→9</option>
+              <option value="nameDesc">파일명 9→1</option>
+              <option value="oldest">오래된 순</option>
+              <option value="newest">최신 순</option>
+              <option value="upload">업로드 순</option>
+              <option value="manual">직접 정렬</option>
+            </select>
+          </label>
+          <span className={styles.hint}>
+            드래그하여 순서 변경
+          </span>
+        </div>
       </div>
       <div className={styles.grid}>
         {items.map((item, idx) => (

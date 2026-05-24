@@ -669,6 +669,8 @@ export default function AsyncStatusBar() {
       queryClient.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
     },
     onPptSuccess: (taskId: string, downloadUrl: string, filename: string) => {
+      const task = asyncStatusStore.getState().find((t) => t.id === taskId);
+      if (task?.meta?.suppressAutoDownload) return;
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = filename;
