@@ -159,6 +159,26 @@
   font-weight: 930;
 }
 
+.callBoxButton {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0 15px;
+  color: #06131b;
+  font-size: 14px;
+  font-weight: 930;
+  text-decoration: none;
+  background: #7dd3fc;
+}
+
+.callBoxButton:hover,
+.callBoxButton:focus-visible {
+  outline: none;
+  background: #9ee8df;
+}
+
 .callBox p {
   margin: 10px 0 0;
   color: rgba(248, 250, 252, 0.7);

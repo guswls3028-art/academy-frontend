@@ -1,8 +1,12 @@
 // PATH: src/app_promo/domains/landing/business.ts
 
-export const CONSULT_PHONE_RAW = "01031217466";
-export const CONSULT_PHONE_DISPLAY = "010-3121-7466";
-export const CONSULT_PHONE_TEL = `tel:${CONSULT_PHONE_RAW}`;
+const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
+
+export const CONSULT_PHONE_LABEL = "전화 문의";
+
+export function getConsultPhoneTelHref() {
+  return `tel:${CONSULT_PHONE_PARTS.join("")}`;
+}
 
 export const PRICE_POLICY_NOTES = [
   "월 구독 요금이며 부가세 별도입니다.",
@@ -26,6 +30,7 @@ export interface PromoPlanDef {
   features: string[];
   cta: string;
   ctaLink: string;
+  ctaKind?: "phone";
 }
 
 export const PROMO_PLANS: PromoPlanDef[] = [
@@ -50,7 +55,8 @@ export const PROMO_PLANS: PromoPlanDef[] = [
       "전화 문의 지원",
     ],
     cta: "전화 문의",
-    ctaLink: CONSULT_PHONE_TEL,
+    ctaLink: "/promo/contact",
+    ctaKind: "phone",
   },
   {
     name: "Pro",
@@ -111,7 +117,7 @@ export const PRICE_COMPARISON = [
   { feature: "알림톡 자동발송", standard: "발송비 별도", pro: "발송비 별도", max: "발송비 별도" },
   { feature: "보강/클리닉", standard: "포함", pro: "포함", max: "포함" },
   { feature: "온보딩", standard: "가이드", pro: "가이드 + 우선 지원", max: "전담 온보딩" },
-  { feature: "지원 방식", standard: CONSULT_PHONE_DISPLAY, pro: "우선 지원", max: "전담 매니저" },
+  { feature: "지원 방식", standard: "전화 문의", pro: "우선 지원", max: "전담 매니저" },
 ];
 
 export function formatWon(value: number) {

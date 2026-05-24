@@ -15,7 +15,7 @@ export type MessagingProvider = "solapi" | "ppurio";
 export interface TenantMessagingInfo {
   /** 학원 개별 카카오 프로필 ID (연동 시 저장) */
   kakao_pfid: string | null;
-  /** 테넌트별 SMS/알림톡 발신번호 (예: 01031217466) */
+  /** 테넌트별 SMS/알림톡 발신번호 (예: 01012345678) */
   messaging_sender: string | null;
   /** 문자(SMS) 발송 허용 여부 (OWNER_TENANT_ID 전용 정책). API 응답 기준만 사용 */
   sms_allowed?: boolean;

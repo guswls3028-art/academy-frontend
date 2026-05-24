@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/components/CtaSection.tsx
 import { Link } from "react-router-dom";
-import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import PhoneInquiryLink from "./PhoneInquiryLink";
 import styles from "./CtaSection.module.css";
 
 interface CtaSectionProps {
@@ -19,7 +19,7 @@ export default function CtaSection({
         <h2 id="promo-cta-title">{title}</h2>
         <p>{subtitle}</p>
         <div className={styles.actions}>
-          <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+          <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
           <Link to="/promo/demo">데모 요청</Link>
           <Link to="/promo/contact">문의하기</Link>
         </div>

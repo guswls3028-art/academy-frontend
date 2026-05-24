@@ -10,7 +10,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
-import { CONSULT_PHONE_DISPLAY } from "../business";
 import styles from "./PromoPages.module.css";
 
 const FAQS = [
@@ -73,7 +72,7 @@ export default function FaqPage() {
             <h1 id="faq-title">강사님이 계약 전에 바로 확인해야 할 질문</h1>
             <p>
               홍보 문구가 과해 보이지 않도록 영상, 알림톡, AI 채점, 가격 기준을 명확히 나눴습니다.
-              실제 상담은 {CONSULT_PHONE_DISPLAY}로 바로 연결됩니다.
+              실제 상담은 전화 문의 버튼으로 바로 연결됩니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/features#student-video" className={styles.primaryCta}>
@@ -173,7 +172,7 @@ export default function FaqPage() {
 
       <CtaSection
         title="더 궁금한 점이 있으신가요?"
-        subtitle={`문의 폼 또는 전화 ${CONSULT_PHONE_DISPLAY}로 바로 확인해드립니다.`}
+        subtitle="문의 폼 또는 전화 문의로 바로 확인해드립니다."
       />
     </div>
   );

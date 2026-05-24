@@ -1,9 +1,8 @@
 // PATH: src/app_promo/domains/landing/pages/PricingPage.tsx
 import { Link } from "react-router-dom";
 import CtaSection from "../components/CtaSection";
+import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
-  CONSULT_PHONE_DISPLAY,
-  CONSULT_PHONE_TEL,
   PRICE_COMPARISON,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
@@ -11,11 +10,11 @@ import {
 } from "../business";
 import styles from "./PricingPage.module.css";
 
-function PlanAction({ href, label, popular }: { href: string; label: string; popular?: boolean }) {
+function PlanAction({ href, label, popular, phone }: { href: string; label: string; popular?: boolean; phone?: boolean }) {
   const className = `${styles.planAction} ${popular ? styles.planActionFeatured : ""}`;
 
-  if (href.startsWith("tel:")) {
-    return <a href={href} className={className}>{label}</a>;
+  if (phone) {
+    return <PhoneInquiryLink className={className}>{label}</PhoneInquiryLink>;
   }
   return <Link to={href} className={className}>{label}</Link>;
 }
@@ -33,9 +32,7 @@ export default function PricingPage() {
               저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
             </p>
             <div className={styles.heroActions}>
-              <a href={CONSULT_PHONE_TEL} className={styles.primaryCta}>
-                전화 상담 {CONSULT_PHONE_DISPLAY}
-              </a>
+              <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
               <Link to="/promo/demo" className={styles.secondaryCta}>
                 내 수업 견적 확인
               </Link>
@@ -52,8 +49,8 @@ export default function PricingPage() {
                 <dd>Pro</dd>
               </div>
               <div>
-                <dt>상담 번호</dt>
-                <dd>{CONSULT_PHONE_DISPLAY}</dd>
+                <dt>상담 방식</dt>
+                <dd>전화 문의 / 데모 요청</dd>
               </div>
             </dl>
           </aside>
@@ -117,7 +114,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <PlanAction href={plan.ctaLink} label={plan.cta} popular={plan.popular} />
+                <PlanAction href={plan.ctaLink} label={plan.cta} popular={plan.popular} phone={plan.ctaKind === "phone"} />
               </article>
             ))}
           </div>
@@ -171,7 +168,7 @@ export default function PricingPage() {
 
       <CtaSection
         title="강사님의 수업 규모에 맞는 견적을 받아보세요"
-        subtitle={`전화 ${CONSULT_PHONE_DISPLAY} 또는 데모 요청으로 실제 수업 조건을 확인합니다.`}
+        subtitle="전화 문의 또는 데모 요청으로 실제 수업 조건을 확인합니다."
       />
     </>
   );

@@ -95,6 +95,7 @@
   color: #374151;
   margin: 0 0 12px;
   line-height: 1.75;
+  overflow-wrap: anywhere;
 }
 
 .article ol,
@@ -111,7 +112,10 @@
 }
 
 .article table {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   font-size: 0.875rem;
   margin: 12px 0 20px;

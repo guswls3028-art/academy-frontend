@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
-import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./LeadPage.module.css";
 
 const INQUIRY_TYPES = ["가격 문의", "데모 요청", "수업 맞춤 상담", "기능 문의", "제휴 문의"];
@@ -55,9 +55,9 @@ export default function ContactPage() {
         <div className={styles.resultCard}>
           <span>REQUEST RECEIVED</span>
           <h1>문의가 접수되었습니다</h1>
-          <p>확인 후 빠르게 연락드리겠습니다. 급한 상담은 아래 번호로 바로 전화주세요.</p>
+          <p>확인 후 빠르게 연락드리겠습니다. 급한 상담은 아래 버튼으로 바로 전화주세요.</p>
           <div className={styles.resultActions}>
-            <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+            <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
             <Link to="/promo/pricing">요금제 보기</Link>
             <Link to="/promo">홈으로 돌아가기</Link>
           </div>
@@ -73,7 +73,7 @@ export default function ContactPage() {
           <span>CONTACT</span>
           <h1 id="contact-title">강사님의 수업에 맞는 가격과 범위를 확인하세요</h1>
           <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드립니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
-          <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+          <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
 
@@ -88,7 +88,7 @@ export default function ContactPage() {
               <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
-              <strong>{CONSULT_PHONE_DISPLAY}</strong>
+              <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>
               <p>가격·일정·기능 범위가 급하면 바로 전화 상담 가능합니다.</p>
             </div>
           </aside>

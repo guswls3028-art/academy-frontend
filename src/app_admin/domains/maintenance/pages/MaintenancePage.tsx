@@ -1,13 +1,13 @@
-import { useMemo } from "react";
 import { Phone } from "lucide-react";
 
 const MESSAGE_TITLE = "지금은 업데이트 반영중입니다.";
 const MESSAGE_BODY = "필요시 개발자에게 연락주세요.";
-const PHONE_NUMBER_DISPLAY = "010 - 3121 - 7466";
-const PHONE_NUMBER_RAW = "01031217466";
+const PHONE_NUMBER_PARTS = ["010", "3121", "7466"] as const;
 
 export default function MaintenancePage() {
-  const telHref = useMemo(() => `tel:${PHONE_NUMBER_RAW}`, []);
+  const handlePhoneClick = () => {
+    window.location.href = `tel:${PHONE_NUMBER_PARTS.join("")}`;
+  };
 
   return (
     <div
@@ -47,17 +47,18 @@ export default function MaintenancePage() {
 
             <div className="mt-10 rounded-2xl border border-white/10 bg-black/20 p-5 md:p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <a
-                  href={telHref}
-                  className="group inline-flex items-center gap-3 text-xl font-extrabold tracking-tight md:text-3xl"
+                <button
+                  type="button"
+                  onClick={handlePhoneClick}
+                  className="group inline-flex items-center gap-3 border-0 bg-transparent p-0 text-left text-xl font-extrabold tracking-tight text-inherit md:text-3xl"
                 >
                   <span className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5">
                     <Phone className="h-5 w-5 text-white/90" />
                   </span>
                   <span className="underline decoration-white/20 underline-offset-4 group-hover:decoration-white/45">
-                    {PHONE_NUMBER_DISPLAY}
+                    전화 문의
                   </span>
-                </a>
+                </button>
               </div>
             </div>
           </div>
@@ -66,4 +67,3 @@ export default function MaintenancePage() {
     </div>
   );
 }
-

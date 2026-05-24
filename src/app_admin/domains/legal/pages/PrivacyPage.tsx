@@ -9,7 +9,7 @@ import styles from "./LegalPage.module.css";
 
 // 테넌트가 법적 고지 정보를 채우지 않았을 때 노출될 플랫폼 운영사 연락처 fallback.
 // 고객센터·고충처리·개인정보 보호책임자 연락처에 한해 적용한다. (상호/사업자번호 등은 fallback 없음)
-const FALLBACK_SUPPORT_PHONE = "010-3121-7466";
+const FALLBACK_SUPPORT_PHONE = "";
 const FALLBACK_SUPPORT_EMAIL = "devhyun7466@gmail.com";
 const FALLBACK_PRIVACY_OFFICER_CONTACT = "devhyun7466@gmail.com";
 

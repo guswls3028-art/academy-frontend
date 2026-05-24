@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
-import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./LeadPage.module.css";
 
 const INTEREST_OPTIONS = [
@@ -74,7 +74,7 @@ export default function DemoPage() {
           <h1>데모 요청이 접수되었습니다</h1>
           <p>보통 1영업일 이내에 연락드리며, 급한 일정은 전화로 바로 상담 가능합니다.</p>
           <div className={styles.resultActions}>
-            <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+            <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
             <Link to="/promo/pricing">요금제 보기</Link>
             <Link to="/promo/features">기능 소개 보기</Link>
           </div>
@@ -90,7 +90,7 @@ export default function DemoPage() {
           <span>DEMO REQUEST</span>
           <h1 id="demo-title">강사님의 수업 흐름에 맞춰 데모를 잡습니다</h1>
           <p>현재 수업 방식과 필요한 기능을 남겨주시면, 실제 시작 경로와 요금 기준을 함께 확인합니다.</p>
-          <a href={CONSULT_PHONE_TEL}>전화 상담 {CONSULT_PHONE_DISPLAY}</a>
+          <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
 
@@ -105,7 +105,7 @@ export default function DemoPage() {
               <li>기존 자료 이전과 시작 일정의 현실적인 범위</li>
             </ol>
             <div className={styles.callBox}>
-              <strong>{CONSULT_PHONE_DISPLAY}</strong>
+              <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>
               <p>광고 집행 전 가격표나 기능 범위를 바로 맞춰야 하면 전화가 빠릅니다.</p>
             </div>
           </aside>

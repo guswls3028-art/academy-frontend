@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import LoginModal from "../domains/landing/components/LoginModal";
-import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../domains/landing/business";
+import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
@@ -106,10 +106,10 @@ function Header() {
           </div>
 
           <div className={styles.headerActions}>
-            <a href={CONSULT_PHONE_TEL} className={styles.phoneLink}>
+            <PhoneInquiryLink className={styles.phoneLink}>
               <PhoneCall size={16} />
-              {CONSULT_PHONE_DISPLAY}
-            </a>
+              전화 문의
+            </PhoneInquiryLink>
             <a href="/login" className={styles.loginLink}>
               <LogIn size={16} />
               로그인
@@ -199,10 +199,10 @@ function Header() {
             빠른 수업 상담
           </span>
           <p>현재 수업 방식에 맞는 시작 경로를 제안드립니다. 급하면 바로 전화주세요.</p>
-          <a href={CONSULT_PHONE_TEL}>
-            {CONSULT_PHONE_DISPLAY}
+          <PhoneInquiryLink>
+            전화 문의
             <PhoneCall size={16} />
-          </a>
+          </PhoneInquiryLink>
           <Link to="/promo/demo">
             데모 요청
             <PanelLeftOpen size={16} />
@@ -226,9 +226,7 @@ function Footer() {
             </span>
           </Link>
           <p>수업부터 성적, 안내와 수업 소개 페이지까지 하나의 흐름으로 묶는 강사용 SaaS</p>
-          <a href={CONSULT_PHONE_TEL} className={styles.footerPhone}>
-            전화 상담 {CONSULT_PHONE_DISPLAY}
-          </a>
+          <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
         <nav aria-label="제품">

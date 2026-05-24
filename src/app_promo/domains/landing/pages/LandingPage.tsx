@@ -26,7 +26,7 @@ import {
   UsersRound,
   Zap,
 } from "lucide-react";
-import { CONSULT_PHONE_DISPLAY, CONSULT_PHONE_TEL } from "../business";
+import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./LandingPage.module.css";
 
 const HERO_SLIDES = [
@@ -209,9 +209,9 @@ function Hero() {
           </h1>
           <p className={styles.heroBody}>{current.body}</p>
           <div className={styles.heroActions}>
-            <a href={CONSULT_PHONE_TEL} className={`${styles.button} ${styles.buttonPhone}`}>
-              전화 상담 {CONSULT_PHONE_DISPLAY}
-            </a>
+            <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
+              전화 문의
+            </PhoneInquiryLink>
             <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
               <MousePointer2 size={18} />
               데모 요청
@@ -492,9 +492,9 @@ function FinalCta() {
           <h2 id="final-cta-title">강사님의 수업 흐름에 맞는 구성을 같이 잡아보세요</h2>
           <p>현재 쓰는 강의, 시험, 피드백 방식부터 듣고 가장 작은 시작 경로를 제안드립니다.</p>
           <div className={styles.finalCtaActions}>
-            <a href={CONSULT_PHONE_TEL} className={`${styles.button} ${styles.buttonPhone}`}>
-              전화 상담 {CONSULT_PHONE_DISPLAY}
-            </a>
+            <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
+              전화 문의
+            </PhoneInquiryLink>
             <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
               데모 요청
               <Zap size={18} />
