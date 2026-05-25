@@ -21,6 +21,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import WrongNotePanel from "./WrongNotePanel";
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import {
   deriveAchievement,
   achievementLabel,
@@ -164,7 +165,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] });
     qc.invalidateQueries({ queryKey: ["attempt-history", "exam", examId, enrollmentId] });
-    qc.invalidateQueries({ queryKey: ["session-scores"] });
+    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
   }, [qc, examId, enrollmentId]);
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);

@@ -6,6 +6,7 @@ import { deleteSessionHomework } from "@admin/domains/sessions/api/deleteSession
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { Button } from "@/shared/ui/ds";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 
 type Props = {
   type: "exam" | "homework";
@@ -26,7 +27,7 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
-  const invalidateScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+  const invalidateScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
 
   const handleDelete = async () => {
     setLoading(true);

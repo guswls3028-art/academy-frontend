@@ -2,7 +2,7 @@
 // 카테고리별 삽입 블록 — 실제 services.py 런타임 치환 변수와 1:1 매칭
 
 import React from "react";
-import { SCORE_TEMPLATE_SLOT_LIMIT } from "@admin/domains/scores/constants/scoreTemplateSlots";
+import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 
 /** 현재 테넌트 사이트 URL (미리보기용) */
 function getTenantSiteUrl(): string {

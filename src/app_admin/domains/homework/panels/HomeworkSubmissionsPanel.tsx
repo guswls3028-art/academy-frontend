@@ -14,7 +14,7 @@ import type { HomeworkSubmissionRow } from "@admin/domains/submissions/api/admin
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
+import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import api from "@/shared/api/axios";
 
 function formatDate(iso: string): string {

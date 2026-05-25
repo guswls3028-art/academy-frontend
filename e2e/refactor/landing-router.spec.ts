@@ -83,6 +83,19 @@ async function stubLandingBootstrap(page: Page) {
       body: JSON.stringify({ items: [] }),
     });
   });
+
+  await page.route("**/api/v1/landing-public/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    const body = pathname.endsWith("/reviews/summary/")
+      ? { count: 0, average: 0, distribution: {} }
+      : { count: 0, next: null, previous: null, results: [] };
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+  });
 }
 
 test.describe("landing route island", () => {

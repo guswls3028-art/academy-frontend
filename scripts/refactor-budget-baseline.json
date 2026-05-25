@@ -1,16 +1,16 @@
 {
   "summary": {
-    "same_app_domain_import": 173,
+    "same_app_domain_import": 155,
     "large_frontend_file": 34,
     "e2e_wait_for_timeout": 69
   },
   "metrics": {
     "local_format_defs": 123,
     "status_map_defs": 37,
-    "query_key_literals": 967,
-    "inline_style_objects": 3836,
+    "query_key_literals": 904,
+    "inline_style_objects": 3835,
     "raw_badge_classes": 21,
-    "api_response_type_defs": 105,
+    "api_response_type_defs": 102,
     "direct_axios_calls": 12,
     "fetch_calls": 10,
     "local_storage_refs": 159,

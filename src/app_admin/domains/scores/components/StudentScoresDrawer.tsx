@@ -19,12 +19,13 @@ import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attempt
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreDetail, substituteScoreVars } from "../utils/generateScoreReport";
+import { buildGenericScoreTemplate, buildScoreDetail, substituteScoreVars } from "@/shared/scoring/scoreReport";
 import { getSessionRowFailedItemTitles, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
+import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
@@ -538,7 +539,7 @@ function AttemptTimeline({
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
       qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       setRetakeScore("");
       setRetakePassScore("");
       setShowNewAttempt(false);
@@ -563,7 +564,7 @@ function AttemptTimeline({
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
       qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       setEditingAttempt(null);
       setEditScore("");
       setEditPassScore("");
@@ -600,7 +601,7 @@ function AttemptTimeline({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attempt-history", sourceType, sourceId, enrollmentId] });
       qc.invalidateQueries({ queryKey: ["clinic-targets"] });
-      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       setEditingAttempt(null);
       setEditScore("");
       setEditPassScore("");

@@ -1,5 +1,6 @@
 import type { MessageTemplateCategory } from "../api/messages.api";
 import type { TemplateCategory } from "./templateBlocks";
+import { DEFAULT_GRADES_PRESET_BODY, DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 
 export type ProvidedTemplatePreset = {
   id: string;
@@ -11,8 +12,6 @@ export type ProvidedTemplatePreset = {
   recommended?: boolean;
 };
 
-export const DEFAULT_GRADES_PRESET_ID = "grades.result-basic";
-
 const PRESETS: ProvidedTemplatePreset[] = [
   {
     id: DEFAULT_GRADES_PRESET_ID,
@@ -21,15 +20,7 @@ const PRESETS: ProvidedTemplatePreset[] = [
     description: "1차 시험과 재시험 이력을 자연스럽게 모두 안내합니다.",
     recommended: true,
     tags: ["추천", "재시험 이력"],
-    body: [
-      "안녕하세요 #{학생이름}님.",
-      "#{강의명} · #{차시명} 수업 결과 안내드립니다.",
-      "",
-      "#{시험성적}",
-      "",
-      "1차 시험과 재시험 결과가 함께 기록됩니다.",
-      "확인 후 궁금한 점은 학원으로 문의해 주세요.",
-    ].join("\n"),
+    body: DEFAULT_GRADES_PRESET_BODY,
   },
   {
     id: "grades.retake-focused",

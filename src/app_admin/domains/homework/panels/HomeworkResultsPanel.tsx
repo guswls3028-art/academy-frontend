@@ -10,10 +10,11 @@ import { useMemo, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
 import { EmptyState, Badge } from "@/shared/ui/ds";
-import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@admin/domains/scores/api/sessionScores";
+import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useQuery } from "@tanstack/react-query";
-import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@admin/domains/scores/utils/homeworkStatus";
+import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 
 type HomeworkResultRow = {
@@ -65,7 +66,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const { data: policy } = useHomeworkPolicy(sessionId);
 
   const { data: scoresData, isLoading: scoresLoading } = useQuery({
-    queryKey: ["session-scores", sessionId],
+    queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
@@ -290,6 +291,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                               lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
                               profilePhotoUrl={r.profile_photo_url}
                               avatarSize={24}
+                              density="compact"
+                              maxLectureChips={1}
                               clinicHighlight={r.name_highlight_clinic_target}
                             />
                           </td>

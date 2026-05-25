@@ -442,7 +442,10 @@ async function waitForProblemStudioJob(jobId: string): Promise<ProblemStudioGene
   const startedAt = Date.now();
   while (Date.now() - startedAt < JOB_TIMEOUT_MS) {
     const status = await getProblemStudioJob(jobId);
-    if (status.status === "DONE" && status.result) return status.result;
+    if (status.status === "DONE") {
+      if (status.result) return status.result;
+      throw new Error("한글 이관 결과를 불러오지 못했습니다.");
+    }
     if (["FAILED", "REJECTED_BAD_INPUT"].includes(status.status)) {
       throw new Error(status.error || "한글 이관 작업을 완료하지 못했습니다.");
     }

@@ -22,6 +22,7 @@ import RouteFallback from "@/core/router/RouteFallback";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 
 const EnrollStudentModal = lazy(() => import("@admin/domains/lectures/components/EnrollStudentModal"));
 const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
@@ -94,7 +95,7 @@ export default function SessionDetailPage() {
     qc.invalidateQueries({ queryKey: ["session-enrollments", sId] });
     qc.invalidateQueries({ queryKey: ["attendance", sId] });
     qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
-    qc.invalidateQueries({ queryKey: ["session-scores", sId] });
+    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sId) });
   };
 
   // ---------- Early returns (모든 훅 호출 이후에만) ----------

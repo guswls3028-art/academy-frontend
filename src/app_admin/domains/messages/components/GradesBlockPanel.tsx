@@ -3,7 +3,7 @@
 // 목록형 변수 + 동적 시험/과제 추가 + 요약 변수
 
 import { useState, useCallback } from "react";
-import { SCORE_TEMPLATE_SLOT_LIMIT } from "@admin/domains/scores/constants/scoreTemplateSlots";
+import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 import { type TemplateBlock } from "../constants/templateBlocks";
 
 // ── 동적 삽입 헬퍼 ──

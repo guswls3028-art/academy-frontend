@@ -28,7 +28,7 @@ import PasswordResetModal, { type PwResetTarget } from "../components/PasswordRe
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
+import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";

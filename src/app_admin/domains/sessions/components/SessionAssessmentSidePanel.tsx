@@ -12,6 +12,7 @@ import { updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
 import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import {
   buildAssessmentSearch,
   readAssessmentItemId,
@@ -322,7 +323,7 @@ export default function SessionAssessmentSidePanel({
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
-  const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+  const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
 
   const onSelectExam = (examId: number) => {

@@ -30,10 +30,11 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@admin/domains/scores/utils/generateScoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
-import { fetchSessionScores } from "@admin/domains/scores/api/sessionScores";
-import NotificationPreviewModal from "@admin/domains/messages/components/NotificationPreviewModal";
+import { substituteScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@/shared/scoring/scoreReport";
+import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
+import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -156,7 +157,7 @@ export default function SessionAttendancePage({
       updateAttendance(id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
     },
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
@@ -352,7 +353,7 @@ export default function SessionAttendancePage({
       setSelectedIds([]);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
-      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       qc.invalidateQueries({ queryKey: ["attendance-for-pdf", sessionId] });
       feedback.success(`${count}명이 이 차시에서 제외되었습니다.`);
     } catch (e) {
@@ -538,7 +539,7 @@ export default function SessionAttendancePage({
       const result = await bulkSetPresent(sessionId);
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-      qc.invalidateQueries({ queryKey: ["session-scores"] });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
     } catch {
       feedback.error("일괄 출석 변경에 실패했습니다.");

@@ -61,25 +61,6 @@ export type ProblemStudioGeneratePayload = {
   }>;
 };
 
-export async function generateProblemStudioDraft(
-  payload: ProblemStudioGeneratePayload,
-  sourceFiles: File[],
-): Promise<ProblemStudioGenerateResponse> {
-  const form = new FormData();
-  form.append("payload", JSON.stringify(payload));
-  sourceFiles.forEach((file) => form.append("source_files", file));
-
-  const { data } = await api.post<ProblemStudioGenerateResponse>(
-    "/tools/problem-studio/generate/",
-    form,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-      timeout: 120_000,
-    },
-  );
-  return data;
-}
-
 export async function createProblemStudioJob(
   payload: ProblemStudioGeneratePayload,
   sourceFiles: File[],

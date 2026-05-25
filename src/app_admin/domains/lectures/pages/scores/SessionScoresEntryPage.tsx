@@ -19,15 +19,15 @@ import { postScoreDraftCommit } from "@admin/domains/scores/api/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreRow,
-} from "@admin/domains/scores/api/sessionScores";
-import { scoresQueryKeys } from "@admin/domains/scores/api/queryKeys";
+} from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@admin/domains/scores/utils/generateScoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@admin/domains/messages/constants/templatePresets";
+import { substituteScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@/shared/scoring/scoreReport";
+import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";

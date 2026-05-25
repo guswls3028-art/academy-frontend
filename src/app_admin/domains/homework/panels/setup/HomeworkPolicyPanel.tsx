@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { useHomeworkPolicy } from "../../hooks/useHomeworkPolicy";
 import { patchHomeworkPolicy } from "../../api/homeworkPolicy";
 import HomeworkPolicyCard from "../../components/HomeworkPolicyCard";
@@ -34,7 +35,7 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
     }) => patchHomeworkPolicy(payload.id, payload.data),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
-      await qc.invalidateQueries({ queryKey: ["session-scores", safeSessionId] });
+      await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(safeSessionId) });
       feedback.success("과제 정책이 저장되었습니다.");
     },
     onError: (e: unknown) => {

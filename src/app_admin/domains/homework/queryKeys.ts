@@ -1,8 +1,10 @@
 // PATH: src/app_admin/domains/homework/queryKeys.ts
 
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+
 export const QUERY_KEYS = {
   // ===== Scores (Session 성적 탭 단일 진실) =====
-  SESSION_SCORES: (sessionId: number) => ["session-scores", sessionId] as const,
+  SESSION_SCORES: scoresQueryKeys.sessionScores,
 
   // ===== Homework (단일 진실들) =====
   ADMIN_HOMEWORK: (homeworkId: number) =>
