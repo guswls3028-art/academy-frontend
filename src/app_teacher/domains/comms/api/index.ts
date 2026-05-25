@@ -194,7 +194,8 @@ export async function sendMessage(payload: {
   raw_subject?: string;
   template_id?: number;
   block_category?: string;
-}): Promise<{ detail: string; enqueued: number; enqueue_failed?: number; skipped_no_phone?: number }> {
+  scheduled_send_at?: string | null;
+}): Promise<{ detail: string; enqueued: number; scheduled?: number; enqueue_failed?: number; skipped_no_phone?: number }> {
   const res = await api.post("/messaging/send/", payload);
   return res.data;
 }

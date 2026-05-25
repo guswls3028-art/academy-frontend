@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/students/pages/StudentListPage.tsx
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
 import { useEffect, useState, useDeferredValue } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -30,14 +30,27 @@ type FilterState = {
 
 type BulkAction = "delete" | "message" | "tag" | "password" | null;
 type MessageRecipient = "student" | "parent";
+type SendTiming = "now" | "scheduled";
+type SelectModeIntent = "bulk" | "message" | "scheduled";
+type StudentListLocationState = {
+  startSelectMode?: boolean;
+  preferredMessageTiming?: SendTiming;
+} | null;
 
 const MESSAGE_RECIPIENT_OPTIONS: { value: MessageRecipient; label: string }[] = [
   { value: "student", label: "학생" },
   { value: "parent", label: "학부모" },
 ];
 
+function defaultScheduledLocalValue(): string {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function StudentListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [search, setSearch] = useState("");
@@ -50,10 +63,22 @@ export default function StudentListPage() {
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false);
+  const [selectModeIntent, setSelectModeIntent] = useState<SelectModeIntent>("bulk");
+  const [preferredMessageTiming, setPreferredMessageTiming] = useState<SendTiming>("now");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkAction, setBulkAction] = useState<BulkAction>(null);
 
   const hasFilter = Object.values(filters).some(Boolean);
+
+  useEffect(() => {
+    const state = location.state as StudentListLocationState;
+    if (!state?.startSelectMode) return;
+    const timing = state.preferredMessageTiming === "scheduled" ? "scheduled" : "now";
+    setSelectMode(true);
+    setSelectModeIntent(timing === "scheduled" ? "scheduled" : "message");
+    setPreferredMessageTiming(timing);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["students-mobile", deferredSearch, filters],
@@ -82,7 +107,12 @@ export default function StudentListPage() {
   };
   const selectAll = () => setSelectedIds(new Set(students.map((s) => s.id)));
   const clearSelection = () => setSelectedIds(new Set());
-  const exitSelectMode = () => { setSelectMode(false); clearSelection(); };
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectModeIntent("bulk");
+    setPreferredMessageTiming("now");
+    clearSelection();
+  };
 
   const deleteMut = useMutation({
     mutationFn: (ids: number[]) => bulkDeleteStudents(ids),
@@ -101,7 +131,11 @@ export default function StudentListPage() {
         <div className="flex items-center justify-between gap-2">
           <div className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생 관리</div>
           <div className="flex gap-1.5 items-center shrink-0">
-            <button onClick={() => setSelectMode(true)}
+            <button onClick={() => {
+              setSelectModeIntent("bulk");
+              setPreferredMessageTiming("now");
+              setSelectMode(true);
+            }}
               className="flex items-center gap-1 text-[12px] font-semibold cursor-pointer"
               style={{ padding: "8px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               선택
@@ -127,15 +161,19 @@ export default function StudentListPage() {
             <X size={ICON.sm} />
           </button>
           <div className="flex-1 text-[13px] font-bold" style={{ color: "var(--tc-primary)" }}>
-            {selectedCount}명 선택됨
+            {selectModeIntent === "scheduled"
+              ? `예약할 학생 ${selectedCount}명`
+              : selectModeIntent === "message"
+                ? `알림톡 보낼 학생 ${selectedCount}명`
+                : `${selectedCount}명 선택됨`}
           </div>
           <button onClick={selectAll} className="text-[11px] font-semibold cursor-pointer"
-            style={{ padding: "4px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-surface)", color: "var(--tc-primary)" }}>
+            style={{ minHeight: 36, padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-surface)", color: "var(--tc-primary)" }}>
             전체 선택
           </button>
           {selectedCount > 0 && (
             <button onClick={clearSelection} className="text-[11px] font-semibold cursor-pointer"
-              style={{ padding: "4px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
+              style={{ minHeight: 36, padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>
               해제
             </button>
           )}
@@ -283,7 +321,11 @@ export default function StudentListPage() {
             zIndex: 230,
           }}>
           <div className="flex gap-2">
-            <BulkBtn icon={<MessageSquare size={ICON.xs} />} label="알림톡" onClick={() => setBulkAction("message")} />
+            <BulkBtn
+              icon={<MessageSquare size={ICON.xs} />}
+              label={preferredMessageTiming === "scheduled" ? "예약" : "알림톡"}
+              onClick={() => setBulkAction("message")}
+            />
             <BulkBtn icon={<Tag size={ICON.xs} />} label="태그" onClick={() => setBulkAction("tag")} />
             <BulkBtn icon={<Lock size={ICON.xs} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={ICON.xs} />} label="삭제" tone="danger"
@@ -327,7 +369,7 @@ export default function StudentListPage() {
 
       {/* Bulk action sheets */}
       <BulkMessageSheet open={bulkAction === "message"} onClose={() => setBulkAction(null)}
-        students={selectedStudents} onDone={exitSelectMode} />
+        students={selectedStudents} initialSendTiming={preferredMessageTiming} onDone={exitSelectMode} />
       <BulkTagSheet open={bulkAction === "tag"} onClose={() => setBulkAction(null)}
         students={selectedStudents} onDone={exitSelectMode} />
       <BulkPasswordSheet open={bulkAction === "password"} onClose={() => setBulkAction(null)}
@@ -487,14 +529,36 @@ function BulkBtn({ icon, label, onClick, tone }: { icon: React.ReactNode; label:
 }
 
 /* ─── Bulk Message Sheet ─── */
-function BulkMessageSheet({ open, onClose, students, onDone }: {
-  open: boolean; onClose: () => void; students: ClientStudent[]; onDone: () => void;
+function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }: {
+  open: boolean; onClose: () => void; students: ClientStudent[]; initialSendTiming: SendTiming; onDone: () => void;
 }) {
   const confirm = useConfirm();
   const [body, setBody] = useState("");
   const [sendTo, setSendTo] = useState<MessageRecipient>("parent");
+  const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+  const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
   const tooManyRecipients = students.length > 200;
   const recipientLabel = sendTo === "parent" ? "학부모" : "학생";
+  const scheduledDate = sendTiming === "scheduled" && scheduledAt ? new Date(scheduledAt) : null;
+  const scheduleError = (() => {
+    if (sendTiming !== "scheduled") return null;
+    if (!scheduledAt) return "예약 시각을 선택해 주세요";
+    if (!scheduledDate || Number.isNaN(scheduledDate.getTime())) return "예약 시각을 확인해 주세요";
+    if (scheduledDate.getTime() <= Date.now()) return "현재 이후 시각으로 예약해 주세요";
+    return null;
+  })();
+  const scheduledSendAtIso = sendTiming === "scheduled" && !scheduleError && scheduledDate
+    ? scheduledDate.toISOString()
+    : null;
+  const scheduleLabel = scheduledDate && !Number.isNaN(scheduledDate.getTime())
+    ? scheduledDate.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "예약 시각";
+
+  useEffect(() => {
+    if (!open) return;
+    setSendTiming(initialSendTiming);
+    setScheduledAt(defaultScheduledLocalValue());
+  }, [initialSendTiming, open]);
 
   const sendMut = useMutation({
     mutationFn: () => sendMessage({
@@ -503,9 +567,13 @@ function BulkMessageSheet({ open, onClose, students, onDone }: {
       message_mode: "alimtalk",
       raw_body: body,
       block_category: "student",
+      scheduled_send_at: scheduledSendAtIso,
     }),
     onSuccess: (res) => {
-      teacherToast.success(`${res.enqueued}건 발송 요청되었습니다.`);
+      const accepted = (res.enqueued ?? 0) + (res.scheduled ?? 0);
+      teacherToast.success(sendTiming === "scheduled"
+        ? `${res.scheduled ?? accepted}건 예약되었습니다.`
+        : `${res.enqueued}건 발송 요청되었습니다.`);
       setBody("");
       onDone();
       onClose();
@@ -514,11 +582,13 @@ function BulkMessageSheet({ open, onClose, students, onDone }: {
   });
 
   const requestSend = async () => {
-    if (!body.trim() || sendMut.isPending || tooManyRecipients) return;
+    if (!body.trim() || sendMut.isPending || tooManyRecipients || scheduleError) return;
     const ok = await confirm({
-      title: "알림톡 발송",
-      message: `${recipientLabel} ${students.length}명에게 알림톡을 발송할까요?`,
-      confirmText: "발송",
+      title: sendTiming === "scheduled" ? "알림톡 예약" : "알림톡 발송",
+      message: sendTiming === "scheduled"
+        ? `${recipientLabel} ${students.length}명에게 ${scheduleLabel}에 알림톡을 예약할까요?`
+        : `${recipientLabel} ${students.length}명에게 알림톡을 발송할까요?`,
+      confirmText: sendTiming === "scheduled" ? "예약" : "발송",
     });
     if (ok) sendMut.mutate();
   };
@@ -555,6 +625,50 @@ function BulkMessageSheet({ open, onClose, students, onDone }: {
           </div>
         </div>
         <div>
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>발송 시점</label>
+          <div className="flex gap-1.5">
+            <button type="button" onClick={() => setSendTiming("now")}
+              className="flex-1 text-[12px] font-semibold cursor-pointer"
+              style={{
+                padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
+                border: `1px solid ${sendTiming === "now" ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                background: sendTiming === "now" ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                color: sendTiming === "now" ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+              }}>지금</button>
+            <button type="button" onClick={() => setSendTiming("scheduled")}
+              className="flex-1 text-[12px] font-semibold cursor-pointer"
+              style={{
+                padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
+                border: `1px solid ${sendTiming === "scheduled" ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                background: sendTiming === "scheduled" ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                color: sendTiming === "scheduled" ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+              }}>예약</button>
+          </div>
+          {sendTiming === "scheduled" && (
+            <div className="mt-2">
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="w-full text-sm"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "var(--tc-radius-sm)",
+                  border: "1px solid var(--tc-border-strong)",
+                  background: "var(--tc-surface-soft)",
+                  color: "var(--tc-text)",
+                  outline: "none",
+                }}
+              />
+              {scheduleError && (
+                <div className="text-[11px] font-semibold mt-1" style={{ color: "var(--tc-danger)" }}>
+                  {scheduleError}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>알림톡 본문</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
             placeholder="알림톡 내용을 입력하세요"
@@ -567,10 +681,10 @@ function BulkMessageSheet({ open, onClose, students, onDone }: {
             한 번에 최대 200명까지 발송할 수 있습니다.
           </div>
         )}
-        <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || tooManyRecipients}
+        <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || tooManyRecipients || !!scheduleError}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients ? "#fff" : "var(--tc-text-muted)" }}>
-          {sendMut.isPending ? "발송 중…" : `${students.length}명에게 알림톡 발송`}
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients && !scheduleError ? "#fff" : "var(--tc-text-muted)" }}>
+          {sendMut.isPending ? "처리 중…" : `${students.length}명에게 알림톡 ${sendTiming === "scheduled" ? "예약" : "발송"}`}
         </button>
       </div>
     </BottomSheet>

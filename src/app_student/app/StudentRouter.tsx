@@ -101,7 +101,7 @@ export default function StudentRouter() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />
         <Route path="community" element={<CommunityPage />} />
-        <Route path="qna" element={<CommunityPage />} /> {/* 하위호환: /qna → 커뮤니티 */}
+        <Route path="qna" element={<CommunityPage />} /> {/* /qna → 커뮤니티 QnA 탭 */}
         <Route path="notices" element={<NoticesPage />} />
         <Route path="notices/:id" element={<NoticeDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />

@@ -88,9 +88,9 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
           style={{
             background: "none",
             border: "none",
-            padding: "4px 4px",
+            padding: "8px 4px",
             cursor: "pointer",
-            minHeight: 28,
+            minHeight: "var(--tc-touch-min)",
             display: "inline-flex",
             alignItems: "center",
             gap: 8,

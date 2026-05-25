@@ -413,3 +413,15 @@
   --font-sans: var(--stu-font-sans, "Pretendard Variable", sans-serif);
   --letter-base: 0;
 }
+
+[data-app="student"] .rich-editor__toolbar {
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+[data-app="student"] .rich-editor__toolbar-btn,
+[data-app="student"] .rich-editor__color-wrapper {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}

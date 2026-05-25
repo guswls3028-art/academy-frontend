@@ -295,6 +295,103 @@
   padding-left: 2px;
 }
 
+.quickSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickAction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.66) inset,
+    0 8px 22px rgba(15, 23, 42, 0.04);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.quickActionPrimary {
+  border-color: color-mix(in srgb, var(--stu-primary) 28%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1));
+}
+
+.quickActionIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  color: var(--stu-primary);
+}
+
+.quickActionIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.quickActionBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.quickActionLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.quickActionDetail {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickActionBadge {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.quickActionChevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--stu-text-subtle);
+}
+
 .sessionList {
   display: flex;
   flex-direction: column;

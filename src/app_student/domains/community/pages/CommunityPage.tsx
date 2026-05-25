@@ -37,6 +37,13 @@ import "./CommunityPage.css";
 // ─── Types ───
 type Tab = "notice" | "board" | "materials" | "qna" | "counsel";
 type QnaFilter = "all" | "pending" | "resolved";
+type CommunityLocationState = {
+  openQuestionId?: number;
+  openCounselId?: number;
+  openQnaForm?: boolean;
+  openCounselForm?: boolean;
+  tab?: Tab;
+} | null;
 
 // 상담 분야 표시 사전 — 백엔드 category_label은 free-text. 학생 폼 select 옵션 전용.
 const COUNSEL_CATEGORIES = ["진로 상담", "학습 방법", "성적 상담", "출결·생활", "결제·수강", "기타"] as const;
@@ -57,6 +64,11 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "qna", label: "QnA" },
   { key: "counsel", label: "상담" },
 ];
+
+function tabFromPath(pathname: string): Tab | null {
+  if (pathname.endsWith("/qna")) return "qna";
+  return null;
+}
 
 // ─── Shared tab bar ───
 function SegmentedTabs<T extends string>({
@@ -173,25 +185,34 @@ function MyActivitySummary() {
 export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("notice");
+  const [tab, setTab] = useState<Tab>(() => tabFromPath(location.pathname) ?? "notice");
   const [view, setView] = useState<View>({ kind: "tabs" });
 
   // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
   useEffect(() => {
-    const state = location.state as
-      | { openQuestionId?: number; openCounselId?: number; tab?: Tab }
-      | null;
+    const state = location.state as CommunityLocationState;
     if (state?.openQuestionId != null) {
       setTab("qna");
       setView({ kind: "qna-detail", id: state.openQuestionId });
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (state?.openQnaForm) {
+      setTab("qna");
+      setView({ kind: "qna-form" });
       navigate(location.pathname, { replace: true, state: {} });
     } else if (state?.openCounselId != null) {
       setTab("counsel");
       setView({ kind: "counsel-detail", id: state.openCounselId });
       navigate(location.pathname, { replace: true, state: {} });
+    } else if (state?.openCounselForm) {
+      setTab("counsel");
+      setView({ kind: "counsel-form" });
+      navigate(location.pathname, { replace: true, state: {} });
     } else if (state?.tab) {
       setTab(state.tab);
       navigate(location.pathname, { replace: true, state: {} });
+    } else {
+      const pathTab = tabFromPath(location.pathname);
+      if (pathTab) setTab(pathTab);
     }
   }, [location.pathname, location.state, navigate]);
 

@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 인사 + KPI 4개 + 지금 처리할 일 + 오늘 수업
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -9,17 +9,17 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { ChevronRight } from "@teacher/shared/ui/Icons";
+import { ChevronRight, Clock, MessageSquare, Send } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
 import SessionCard from "../components/SessionCard";
 
-const notificationLinkStyle: CSSProperties = {
-  minHeight: 28,
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
+  const notificationLinkStyle: CSSProperties = {
+    minHeight: 36,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
   borderRadius: 999,
   border: "1px solid var(--tc-border)",
   background: "var(--tc-surface)",
@@ -66,6 +66,7 @@ export default function TodayPage() {
   const userName = user?.name?.trim();
   const greetingName = userName ? `${userName} ${honorific}` : honorific;
   const pendingTotal = pendingCounts?.total ?? 0;
+  const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -127,6 +128,37 @@ export default function TodayPage() {
               ? "var(--tc-success)"
               : "var(--tc-primary)"
           }
+        />
+      </div>
+
+      <SectionTitle>바로 처리</SectionTitle>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: "var(--tc-space-2)",
+        }}
+      >
+        <QuickAction
+          icon={<MessageSquare size={ICON.md} />}
+          label="답변 대기"
+          detail={pendingQnaCount > 0 ? `${pendingQnaCount}건` : "QnA"}
+          tone={pendingQnaCount > 0 ? "danger" : "primary"}
+          onClick={() => navigate("/teacher/comms?tab=qna")}
+        />
+        <QuickAction
+          icon={<Send size={ICON.md} />}
+          label="알림톡"
+          detail="학생 선택"
+          tone="primary"
+          onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}
+        />
+        <QuickAction
+          icon={<Clock size={ICON.md} />}
+          label="예약 발송"
+          detail="시간 설정"
+          tone="neutral"
+          onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "scheduled" } })}
         />
       </div>
 
@@ -262,6 +294,69 @@ export default function TodayPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function QuickAction({
+  icon,
+  label,
+  detail,
+  tone,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  detail: string;
+  tone: "primary" | "danger" | "neutral";
+  onClick: () => void;
+}) {
+  const color = tone === "danger"
+    ? "var(--tc-danger)"
+    : tone === "primary"
+      ? "var(--tc-primary)"
+      : "var(--tc-text-secondary)";
+  const bg = tone === "danger"
+    ? "var(--tc-danger-bg)"
+    : tone === "primary"
+      ? "var(--tc-primary-bg)"
+      : "var(--tc-surface-soft)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="cursor-pointer"
+      style={{
+        minHeight: 86,
+        padding: "12px 10px",
+        borderRadius: "var(--tc-radius)",
+        border: "1px solid var(--tc-border)",
+        background: "var(--tc-surface)",
+        color: "var(--tc-text)",
+        textAlign: "left",
+        boxShadow: "var(--tc-shadow-sm)",
+      }}
+    >
+      <span
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: "var(--tc-radius-sm)",
+          display: "grid",
+          placeItems: "center",
+          background: bg,
+          color,
+          marginBottom: 8,
+        }}
+      >
+        {icon}
+      </span>
+      <span className="block text-[13px] font-bold" style={{ color: "var(--tc-text)" }}>
+        {label}
+      </span>
+      <span className="block text-[11px] font-semibold mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+        {detail}
+      </span>
+    </button>
   );
 }
 

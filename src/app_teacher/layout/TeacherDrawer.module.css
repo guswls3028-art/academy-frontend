@@ -44,8 +44,13 @@
 
 .closeButton {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tc-touch-min);
+  min-height: var(--tc-touch-min);
   padding: 6px;
   border: 0;
+  border-radius: var(--tc-radius);
   background: none;
   color: var(--tc-text-muted);
   cursor: pointer;

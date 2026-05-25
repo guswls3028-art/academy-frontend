@@ -16,13 +16,14 @@
 import { useState, useEffect, useMemo, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { Badge } from "@/shared/ui/ds";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import {
   IconCalendar, IconGrade, IconExam, IconNotice,
-  IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconUser, IconBell,
+  IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconUser, IconBell, IconBoard,
 } from "@student/shared/ui/icons/Icons";
 import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
@@ -164,6 +165,42 @@ function AppIcon({
         {badge != null && badge > 0 && <NotificationBadge count={badge} />}
       </div>
       <span className={styles.shortcutLabel}>{label}</span>
+    </Link>
+  );
+}
+
+function QuickAction({
+  to, state, icon, label, detail, badge, primary = false,
+}: {
+  to: string;
+  state?: unknown;
+  icon: ReactNode;
+  label: string;
+  detail: string;
+  badge?: number;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      state={state}
+      className={`${styles.quickAction} ${primary ? styles.quickActionPrimary : ""}`}
+    >
+      <span className={styles.quickActionIcon}>
+        {icon}
+      </span>
+      <span className={styles.quickActionBody}>
+        <span className={styles.quickActionLabel}>
+          {label}
+          {badge != null && badge > 0 && (
+            <Badge variant="solid" tone="primary" size="xs" className={styles.quickActionBadge}>
+              {badge}
+            </Badge>
+          )}
+        </span>
+        <span className={styles.quickActionDetail}>{detail}</span>
+      </span>
+      <IconChevronRight className={styles.quickActionChevron} />
     </Link>
   );
 }
@@ -399,6 +436,42 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+      </section>
+
+      <section className={styles.quickSection} aria-label="자주 쓰는 일">
+        <div className={styles.sectionLabel}>자주 쓰는 일</div>
+        <div className={styles.quickGrid}>
+          <QuickAction
+            to="/student/qna"
+            state={{ openQnaForm: true }}
+            icon={<IconBoard />}
+            label="질문하기"
+            detail="바로 질문"
+            primary
+          />
+          <QuickAction
+            to="/student/community"
+            state={{ tab: replyCount > 0 && (notificationCounts?.counsel ?? 0) > (notificationCounts?.qna ?? 0) ? "counsel" : "qna" }}
+            icon={<IconBell />}
+            label="답변 보기"
+            detail="답변 확인"
+            badge={!countsLoading ? replyCount : undefined}
+          />
+          <QuickAction
+            to="/student/clinic"
+            icon={<IconClinic />}
+            label="클리닉"
+            detail="예약·일정"
+            badge={!countsLoading ? notificationCounts?.clinic : undefined}
+          />
+          <QuickAction
+            to="/student/grades"
+            icon={<IconGrade />}
+            label="성적"
+            detail="결과 보기"
+            badge={!countsLoading ? notificationCounts?.grade : undefined}
+          />
+        </div>
       </section>
 
       {todaySessions.length > 0 && (
