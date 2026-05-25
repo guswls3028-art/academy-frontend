@@ -16,6 +16,7 @@ build
 !.env.example
 !.env.development
 !.env.production
+!.env.e2e.example
 
 # -----------------------------------------------------------------------------
 # 로그 / 캐시 / 임시

@@ -11,6 +11,7 @@ export type SessionExamRow = {
   close_at: string | null;
   allow_retake: boolean;
   max_attempts: number;
+  display_order?: number;
 };
 
 export async function fetchAdminSessionExams(sessionId: number): Promise<SessionExamRow[]> {

@@ -30,8 +30,6 @@ import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api"
 import { substituteScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@/shared/scoring/scoreReport";
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import CreateRegularExamModal from "@admin/domains/exams/components/create/CreateRegularExamModal";
-import CreateHomeworkModal from "@admin/domains/homework/components/CreateHomeworkModal";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
@@ -44,7 +42,15 @@ import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import SessionOmrUploadAction from "./SessionOmrUploadAction";
 import "./SessionScoresEntryPage.css";
 
-export default function SessionScoresEntryPage() {
+type SessionScoresEntryPageProps = {
+  onOpenCreateExam?: () => void;
+  onOpenCreateHomework?: () => void;
+};
+
+export default function SessionScoresEntryPage({
+  onOpenCreateExam,
+  onOpenCreateHomework,
+}: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);
@@ -76,9 +82,6 @@ export default function SessionScoresEntryPage() {
   const [bulkScoreValue, setBulkScoreValue] = useState("");
   const [bulkScoreTarget, setBulkScoreTarget] = useState<"exam" | "homework">("exam");
 
-  /* ── 시험/과제 추가 모달 + 대상자 등록 ── */
-  const [showCreateExam, setShowCreateExam] = useState(false);
-  const [showCreateHomework, setShowCreateHomework] = useState(false);
   const [enrollingAll, setEnrollingAll] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [showClinicPreview, setShowClinicPreview] = useState(false);
@@ -135,15 +138,8 @@ export default function SessionScoresEntryPage() {
     void qc.invalidateQueries({ queryKey: ["admin-session-exams", numericSessionId] });
     void qc.invalidateQueries({ queryKey: ["session-homeworks", numericSessionId] });
   };
-
-  // 모달이 생성 결과(자동 등록 인원 포함) toast를 띄움 — 호출 측은 invalidate만.
-  const handleExamCreated = (_examId: number) => {
-    invalidateScores();
-  };
-
-  const handleHomeworkCreated = (_homeworkId: number) => {
-    invalidateScores();
-  };
+  const openCreateExam = () => onOpenCreateExam?.();
+  const openCreateHomework = () => onOpenCreateHomework?.();
 
   /** 대상자 전체 등록 — 세션 수강생을 모든 시험/과제에 일괄 등록 */
   const handleEnrollAll = async () => {
@@ -617,7 +613,7 @@ export default function SessionScoresEntryPage() {
         type="button"
         intent="secondary"
         size="sm"
-        onClick={() => { setShowCreateExam(true); }}
+        onClick={openCreateExam}
       >
         + 시험
       </Button>
@@ -625,7 +621,7 @@ export default function SessionScoresEntryPage() {
         type="button"
         intent="secondary"
         size="sm"
-        onClick={() => { setShowCreateHomework(true); }}
+        onClick={openCreateHomework}
       >
         + 과제
       </Button>
@@ -782,7 +778,7 @@ export default function SessionScoresEntryPage() {
               intent="primary"
               size="md"
               leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={() => setShowCreateExam(true)}
+              onClick={openCreateExam}
             >
               시험 추가
             </Button>
@@ -791,7 +787,7 @@ export default function SessionScoresEntryPage() {
               intent="secondary"
               size="md"
               leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={() => setShowCreateHomework(true)}
+              onClick={openCreateHomework}
             >
               과제 추가
             </Button>
@@ -941,23 +937,6 @@ export default function SessionScoresEntryPage() {
           }
         />
       </AdminModal>
-
-      {/* 시험 추가 모달 */}
-      <CreateRegularExamModal
-        open={showCreateExam}
-        onClose={() => setShowCreateExam(false)}
-        sessionId={numericSessionId}
-        lectureId={numericLectureId}
-        onCreated={handleExamCreated}
-      />
-
-      {/* 과제 추가 모달 */}
-      <CreateHomeworkModal
-        open={showCreateHomework}
-        onClose={() => setShowCreateHomework(false)}
-        sessionId={numericSessionId}
-        onCreated={handleHomeworkCreated}
-      />
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (

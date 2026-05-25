@@ -22,14 +22,53 @@ const _SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr"; // 향후 sswe 
 const DNB = process.env.DNB_BASE_URL || "https://dnbacademy.co.kr";
 const LIMGLISH = process.env.LIMGLISH_BASE_URL || "https://limglish.kr";
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function isLocalOrPreviewBase(base: string): boolean {
+  try {
+    const hostname = new URL(base).hostname.trim().toLowerCase();
+    return hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".pages.dev") ||
+      hostname.endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
+function seedBrowserAuth({ access, refresh, code }: { access: string; refresh: string; code: string }): void {
+  localStorage.setItem("access", access);
+  localStorage.setItem("refresh", refresh);
+  localStorage.setItem("tenant_code", code);
+  try { sessionStorage.setItem("tenantCode", code); } catch { /* sessionStorage 차단 환경(비활성 쿠키 등) 무시 */ }
+}
+
 /* ── Credentials ── */
-const CREDS: Record<TenantRole, { base: string; code: string; user: string; pass: string }> = {
-  "admin":          { base: BASE,     code: "hakwonplus", user: process.env.E2E_ADMIN_USER      || "admin97",       pass: process.env.E2E_ADMIN_PASS      || "koreaseoul97" },
-  "student":        { base: BASE,     code: "hakwonplus", user: process.env.E2E_STUDENT_USER    || "3333",          pass: process.env.E2E_STUDENT_PASS    || "test1234" },
-  "tchul-admin":    { base: TCHUL,    code: "tchul",      user: process.env.TCHUL_ADMIN_USER    || "01035023313",   pass: process.env.TCHUL_ADMIN_PASS    || "727258" },
-  "dnb-admin":      { base: DNB,      code: "dnb",        user: process.env.DNB_ADMIN_USER      || "dheksql88",     pass: process.env.DNB_ADMIN_PASS      || "dheksql0513" },
-  "limglish-admin": { base: LIMGLISH, code: "limglish",   user: process.env.LIMGLISH_ADMIN_USER || "ggorno",        pass: process.env.LIMGLISH_ADMIN_PASS || "dlarmsgur12" },
+const CREDS: Record<TenantRole, { base: string; code: string; userEnv: string; passEnv: string }> = {
+  "admin":          { base: BASE,     code: "hakwonplus", userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
+  "student":        { base: BASE,     code: "hakwonplus", userEnv: "E2E_STUDENT_USER",    passEnv: "E2E_STUDENT_PASS" },
+  "tchul-admin":    { base: TCHUL,    code: "tchul",      userEnv: "TCHUL_ADMIN_USER",    passEnv: "TCHUL_ADMIN_PASS" },
+  "dnb-admin":      { base: DNB,      code: "dnb",        userEnv: "DNB_ADMIN_USER",      passEnv: "DNB_ADMIN_PASS" },
+  "limglish-admin": { base: LIMGLISH, code: "limglish",   userEnv: "LIMGLISH_ADMIN_USER", passEnv: "LIMGLISH_ADMIN_PASS" },
 };
+
+function requiredEnv(name: string, role: TenantRole): string {
+  const value = process.env[name];
+  if (typeof value === "string" && value.trim()) return value.trim();
+  throw new Error(`Missing required E2E credential env ${name} for role ${role}. See .env.e2e.example.`);
+}
+
+function resolveCred(role: TenantRole): { base: string; code: string; user: string; pass: string } {
+  const c = CREDS[role];
+  return {
+    base: c.base,
+    code: c.code,
+    user: requiredEnv(c.userEnv, role),
+    pass: requiredEnv(c.passEnv, role),
+  };
+}
 
 /**
  * API 기반 로그인 (모든 테넌트 공통)
@@ -42,7 +81,7 @@ export async function loginViaUI(
   role: TenantRole,
   options?: { landingPath?: string },
 ): Promise<void> {
-  const c = CREDS[role];
+  const c = resolveCred(role);
 
   const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
     data: { username: c.user, password: c.pass, tenant_code: c.code },
@@ -61,16 +100,16 @@ export async function loginViaUI(
   const tokens = await resp.json() as { access: string; refresh: string };
 
   const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/admin");
+  const base = trimTrailingSlash(c.base);
+  const loginPath = isLocalOrPreviewBase(base) ? `/login/${c.code}` : "/login";
 
-  await page.goto(`${c.base}/login`, { waitUntil: "commit" });
+  await page.addInitScript(seedBrowserAuth, { access: tokens.access, refresh: tokens.refresh, code: c.code });
 
-  await page.evaluate(({ access, refresh, code }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    try { sessionStorage.setItem("tenantCode", code); } catch { /* sessionStorage 차단 환경(비활성 쿠키 등) 무시 */ }
-  }, { access: tokens.access, refresh: tokens.refresh, code: c.code });
+  await page.goto(`${base}${loginPath}`, { waitUntil: "commit" });
 
-  await page.goto(`${c.base}${dashPath}`, { waitUntil: "load", timeout: 20000 });
+  await page.evaluate(seedBrowserAuth, { access: tokens.access, refresh: tokens.refresh, code: c.code });
+
+  await page.goto(`${base}${dashPath}`, { waitUntil: "load", timeout: 20000 });
 
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);

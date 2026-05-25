@@ -468,7 +468,7 @@ export default function CreateRegularExamModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">어떻게 만들까요?</div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
@@ -518,69 +518,64 @@ export default function CreateRegularExamModal({
           {/* ── Stage: new (bulk rows) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
-              <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
-                <colgroup>
-                  <col style={{ width: 56 }} />
-                  <col />
-                  <col style={{ width: 90 }} />
-                  <col style={{ width: 90 }} />
-                  <col style={{ width: 40 }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th className="text-center text-xs font-semibold" style={{ padding: "6px 4px" }}>순서</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>
-                      <span className="inline-flex items-center gap-1">
-                        커트라인
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border border-[var(--color-border-divider)] text-[var(--color-text-muted)] bg-[var(--color-bg-surface)]">
-                          점
-                        </span>
+              <div className="grid gap-2">
+                {rows.map((row, idx) => (
+                  <div
+                    key={row.id}
+                    className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-[var(--color-text-muted)]">
+                        {idx + 1}번
                       </span>
-                    </th>
-                    <th style={{ padding: "6px 8px" }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, idx) => (
-                    <tr key={row.id}>
-                      <td style={{ padding: "4px 4px", textAlign: "center" }}>
-                        <div className="inline-flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => moveRow(row.id, "up")}
-                            disabled={idx === 0}
-                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                            aria-label={`${idx + 1}번 행 위로`}
-                            title="위로"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveRow(row.id, "down")}
-                            disabled={idx === rows.length - 1}
-                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                            aria-label={`${idx + 1}번 행 아래로`}
-                            title="아래로"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveRow(row.id, "up")}
+                          disabled={idx === 0}
+                          className="h-8 w-8 rounded border border-[var(--color-border-divider)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                          aria-label={`${idx + 1}번 행 위로`}
+                          title="위로"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveRow(row.id, "down")}
+                          disabled={idx === rows.length - 1}
+                          className="h-8 w-8 rounded border border-[var(--color-border-divider)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                          aria-label={`${idx + 1}번 행 아래로`}
+                          title="아래로"
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          disabled={rows.length <= 1}
+                          className="h-8 w-8 rounded border border-transparent text-lg leading-none text-[var(--color-text-muted)] hover:border-[var(--color-border-divider)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label="행 삭제"
+                          title="삭제"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_108px]">
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        제목
                         <input
                           className="ds-input w-full"
-                          style={{ minHeight: 40, fontSize: 14, padding: "10px 12px" }}
+                          style={{ minHeight: 42, fontSize: 14, padding: "10px 12px" }}
                           value={row.title}
                           onChange={(e) => updateRow(row.id, "title", e.target.value)}
                           placeholder={`시험 ${idx + 1}`}
                           autoFocus={idx === 0}
                           aria-label={`시험 ${idx + 1} 제목`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        만점
                         <input
                           type="number"
                           min={1}
@@ -590,8 +585,9 @@ export default function CreateRegularExamModal({
                           placeholder="100"
                           aria-label={`시험 ${idx + 1} 만점`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        커트라인
                         <input
                           type="number"
                           min={0}
@@ -601,22 +597,11 @@ export default function CreateRegularExamModal({
                           placeholder="0"
                           aria-label={`시험 ${idx + 1} 커트라인`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px", textAlign: "center" }}>
-                        <button
-                          type="button"
-                          onClick={() => removeRow(row.id)}
-                          disabled={rows.length <= 1}
-                          className="text-lg leading-none text-[var(--color-text-muted)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
-                          aria-label="행 삭제"
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               {/* Add row button */}
               <button

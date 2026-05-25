@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Upload, X } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 
 import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
 import type { SessionScoreMeta } from "@/shared/api/contracts/sessionScores";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 
 type ExamOption = SessionScoreMeta["exams"][number];
 
@@ -21,11 +22,18 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
 
   useEffect(() => {
     if (!showPicker) return;
-    const handler = (e: MouseEvent) => {
+    const clickHandler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setShowPicker(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPicker(false);
+    };
+    document.addEventListener("mousedown", clickHandler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", clickHandler);
+      document.removeEventListener("keydown", keyHandler);
+    };
   }, [showPicker]);
 
   if (exams.length === 0) return null;
@@ -59,17 +67,21 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
           title="OMR 스캔 등록"
           leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
           rightIcon={exams.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
+          aria-haspopup={exams.length > 1 ? "listbox" : undefined}
+          aria-expanded={exams.length > 1 ? showPicker : undefined}
         >
           OMR 스캔 등록
         </Button>
         {showPicker && (
-          <div className="scores-omr-picker">
+          <div className="scores-omr-picker" role="listbox" aria-label="OMR 시험 선택">
             <div className="scores-omr-picker__title">시험 선택</div>
             {exams.map((exam) => (
               <button
                 key={exam.exam_id}
                 type="button"
                 className="scores-omr-picker__item"
+                role="option"
+                aria-selected={selectedExam?.examId === exam.exam_id}
                 onClick={() => {
                   setSelectedExam({ examId: exam.exam_id, title: exam.title });
                   setShowPicker(false);
@@ -84,41 +96,26 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
       </div>
 
       {selectedExam && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="omr-upload-modal-title"
-          onClick={(e) => { if (e.target === e.currentTarget) closeUpload(); }}
-        >
-          <div className="scores-omr-modal">
-            <div className="scores-omr-modal__header">
-              <div>
-                <h2 id="omr-upload-modal-title" className="scores-omr-modal__title">
-                  <Upload size={ICON_FOR_BUTTON.md} />
-                  OMR 스캔 등록
-                </h2>
-                <div className="scores-omr-modal__exam">{selectedExam.title}</div>
-              </div>
-              <button
-                type="button"
-                onClick={closeUpload}
-                className="scores-omr-modal__close"
-                aria-label="닫기"
-              >
-                <X size={ICON_FOR_BUTTON.md} />
-              </button>
-            </div>
+        <AdminModal open={selectedExam != null} onClose={closeUpload} type="action" width={640} noMinimize>
+          <ModalHeader
+            type="action"
+            title="OMR 스캔 등록"
+            description={selectedExam.title}
+            noIcon
+          />
+          <ModalBody>
             <div className="scores-omr-modal__body">
               <AdminOmrBatchUploadBox examId={selectedExam.examId} onUploaded={onRefresh} />
             </div>
-            <div className="scores-omr-modal__footer">
+          </ModalBody>
+          <ModalFooter
+            right={
               <Button intent="secondary" size="sm" onClick={closeUpload}>
                 닫기
               </Button>
-            </div>
-          </div>
-        </div>
+            }
+          />
+        </AdminModal>
       )}
     </>
   );

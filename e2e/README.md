@@ -35,6 +35,9 @@ pnpm test:e2e:local    # _local/ 만
 
 ## 환경 변수 (`.env.e2e`)
 
+`.env.e2e.example`를 기준으로 로컬/CI secret을 채운다. 공용 `helpers/auth.ts`를 쓰는 정식 spec은
+자격증명 fallback을 두지 않고 필수 env가 없으면 실패한다.
+
 | 변수 | 기본값 | 용도 |
 |------|--------|------|
 | `E2E_BASE_URL` | hakwonplus.com | 프론트 |
@@ -74,7 +77,7 @@ pnpm test:e2e:local    # _local/ 만
    - 진짜 버그 → 코드 수정
    - 환경 노이즈 (favicon/sentry/analytics) → `attachStrictBrowserGuards` 의 `extraIgnore` 추가
 4. 모든 spec 이 깨끗해지면 `.env.e2e` 의 `E2E_STRICT=strict` 로 플립 + PR 1회 dry-run 으로 확인.
-5. `quality-gate.yml` 의 e2e-roundtrip 잡은 이미 `E2E_STRICT=strict` — 배포 후 회귀 4개는 엄격.
+5. `quality-gate.yml` 의 e2e-roundtrip 잡은 이미 `E2E_STRICT=strict` — 배포 후 회귀 5개는 엄격.
 
 ### 현재 알려진 baseline 후보
 

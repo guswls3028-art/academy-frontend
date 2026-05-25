@@ -25,7 +25,9 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
   const hasTemplate = isRegular && !!exam.template_exam_id;
 
   const saveAsTemplateMut = useMutation({
-    mutationFn: () => saveExamAsTemplate(exam.id),
+    mutationFn: () => saveExamAsTemplate(exam.id, {
+      title: templateName.trim() || undefined,
+    }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
       setTemplateModalOpen(false);

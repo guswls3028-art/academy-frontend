@@ -4,7 +4,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } from "lucide-react";
 
@@ -171,6 +171,7 @@ function SessionGearMenu({
 
 export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const [createForSection, setCreateForSection] = useState<{ id: number | null; label: string | null } | null>(null);
   const { sectionMode, clinicMode } = useSectionMode();
@@ -200,6 +201,14 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     invalidate();
   };
   const showCreate = createForSection !== null;
+
+  const getSessionTargetPath = useCallback((nextSessionId: number) => {
+    const match = location.pathname.match(/\/admin\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);
+    const tab = currentSessionId != null ? match?.[1] : null;
+    return tab
+      ? `/admin/lectures/${lectureId}/sessions/${nextSessionId}/${tab}`
+      : `/admin/lectures/${lectureId}/sessions/${nextSessionId}`;
+  }, [currentSessionId, lectureId, location.pathname]);
 
   // section_mode 분기: 반별 row 데이터
   const sectionRows = useMemo(() => {
@@ -257,6 +266,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   lectureId={lectureId}
                   currentSessionId={currentSessionId}
                   navigate={navigate}
+                  getSessionTargetPath={getSessionTargetPath}
                   invalidate={invalidate}
                   onAdd={() => setCreateForSection({ id: null, label: null })}
                   isUnassigned
@@ -280,6 +290,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     lectureId={lectureId}
                     currentSessionId={currentSessionId}
                     navigate={navigate}
+                    getSessionTargetPath={getSessionTargetPath}
                     invalidate={invalidate}
                     onAdd={() => setCreateForSection({ id: sec.id, label: `${isClinic ? "클리닉" : "수업"} ${sec.label}반` })}
                     sectionType={sec.section_type}
@@ -308,7 +319,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               const supplement = isSupplement(s.title);
               return (
                 <div key={s.id} className="relative group">
-                  <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)} />
+                  <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
                   <SessionGearMenu session={s} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
                 </div>
               );
@@ -349,7 +360,7 @@ function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) 
 
 /** 한 줄: 라벨 + 차시 블록들 + 추가 버튼 */
 function SessionRow({
-  label, sublabel, tone, sessions, sections, lectureId, currentSessionId, navigate, invalidate, onAdd,
+  label, sublabel, tone, sessions, sections, lectureId, currentSessionId, navigate, getSessionTargetPath, invalidate, onAdd,
   sectionType, isUnassigned,
 }: {
   label: string;
@@ -360,6 +371,7 @@ function SessionRow({
   lectureId: number;
   currentSessionId?: number;
   navigate: (path: string) => void;
+  getSessionTargetPath: (sessionId: number) => string;
   invalidate: () => void;
   onAdd: () => void;
   sectionType?: "CLASS" | "CLINIC";
@@ -395,7 +407,7 @@ function SessionRow({
         const supplement = isSupplement(s.title);
         return (
           <div key={s.id} className="relative group">
-            <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)} />
+            <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
             <SessionGearMenu session={s} sections={sections} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
           </div>
         );

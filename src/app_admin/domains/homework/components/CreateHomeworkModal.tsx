@@ -176,12 +176,14 @@ export default function CreateHomeworkModal({
     // 2026-05-12 fix: 사용자가 0 입력 시도 — Math.max 가드만 적용, 명시적 silent default 제거.
     // PERCENT 모드 0~100, COUNT 모드 0~(int 상한). 0 = "모두 합격" 의도 명확. firstCutline NaN/빈값일
     // 때만 안전 default (이전엔 0/음수도 default fallback → 사용자 0 입력 의도 깨졌음).
-    const firstCutlineRaw = Number(rows[0]?.cutline);
+    const firstCutlineText = String(rows[0]?.cutline ?? "").trim();
+    const firstCutlineRaw = firstCutlineText === "" ? NaN : Number(firstCutlineText);
     const firstCutline = Number.isFinite(firstCutlineRaw)
       ? (cutlineMode === "PERCENT"
         ? Math.max(0, Math.min(100, Math.trunc(firstCutlineRaw)))
         : Math.max(0, Math.trunc(firstCutlineRaw)))
       : null;  // 빈값/NaN 만 null → default 적용
+    const appliedCutline = firstCutline !== null ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40);
     let policyPatched = false;
     let policyError: string | null = null;
 
@@ -190,7 +192,7 @@ export default function CreateHomeworkModal({
       if (policy?.id) {
         await patchHomeworkPolicy(policy.id, {
           cutline_mode: cutlineMode,
-          cutline_value: firstCutline !== null ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40),
+          cutline_value: appliedCutline,
         });
         policyPatched = true;
       } else {
@@ -250,7 +252,7 @@ export default function CreateHomeworkModal({
         ? ` · 수강생 ${enrollMaxPerHw}명 제출 대상 등록됨`
         : ` · 제출 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
       const msg = `${createdIds.length}개 과제 생성 완료` +
-        (policyPatched ? ` (커트라인 ${firstCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
+        (policyPatched ? ` (커트라인 ${appliedCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "") +
         enrollMsg;
       feedback.success(msg);
@@ -491,7 +493,7 @@ export default function CreateHomeworkModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">어떻게 만들까요?</div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
@@ -579,62 +581,64 @@ export default function CreateHomeworkModal({
                 </span>
               </div>
 
-              <table className="ds-table w-full" style={{ tableLayout: "fixed" }}>
-                <colgroup>
-                  <col style={{ width: 50 }} />
-                  <col />
-                  <col style={{ width: 80 }} />
-                  <col style={{ width: 140 }} />
-                  <col style={{ width: 32 }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th className="text-center text-xs font-semibold" style={{ padding: "6px 4px" }}>순서</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제목</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>만점</th>
-                    <th className="text-left text-xs font-semibold" style={{ padding: "6px 8px" }}>제출기한</th>
-                    <th style={{ padding: "6px 8px" }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, idx) => (
-                    <tr key={row.key}>
-                      <td style={{ padding: "4px 4px", textAlign: "center" }}>
-                        <div className="inline-flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => moveRow(row.key, "up")}
-                            disabled={idx === 0}
-                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                            aria-label={`${idx + 1}번 행 위로`}
-                            title="위로"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveRow(row.key, "down")}
-                            disabled={idx === rows.length - 1}
-                            className="text-base leading-none px-1 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
-                            aria-label={`${idx + 1}번 행 아래로`}
-                            title="아래로"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </td>
-                      <td style={{ padding: "6px 8px", minWidth: 280 }}>
+              <div className="grid gap-2">
+                {rows.map((row, idx) => (
+                  <div
+                    key={row.key}
+                    className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-[var(--color-text-muted)]">
+                        {idx + 1}번
+                      </span>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveRow(row.key, "up")}
+                          disabled={idx === 0}
+                          className="h-8 w-8 rounded border border-[var(--color-border-divider)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                          aria-label={`${idx + 1}번 행 위로`}
+                          title="위로"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveRow(row.key, "down")}
+                          disabled={idx === rows.length - 1}
+                          className="h-8 w-8 rounded border border-[var(--color-border-divider)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-25 disabled:cursor-not-allowed"
+                          aria-label={`${idx + 1}번 행 아래로`}
+                          title="아래로"
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.key)}
+                          disabled={rows.length <= 1}
+                          className="h-8 w-8 rounded border border-transparent text-lg leading-none text-[var(--color-text-muted)] hover:border-[var(--color-border-divider)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label={`${idx + 1}번 행 삭제`}
+                          title="삭제"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_150px]">
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        제목
                         <input
                           className="ds-input w-full"
-                          style={{ minHeight: 48, fontSize: 15, padding: "12px 14px", fontWeight: 500, letterSpacing: "-0.01em" }}
+                          style={{ minHeight: 42, fontSize: 14, padding: "10px 12px", fontWeight: 500, letterSpacing: 0 }}
                           value={row.title}
                           onChange={(e) => updateRow(row.key, "title", e.target.value)}
-                          placeholder={`${idx + 1}주차 과제 — 제목 입력`}
+                          placeholder={`${idx + 1}주차 과제`}
                           autoFocus={idx === 0}
                           aria-label={`과제 ${idx + 1} 제목`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        만점
                         <input
                           type="number"
                           min={1}
@@ -643,8 +647,9 @@ export default function CreateHomeworkModal({
                           onChange={(e) => updateRow(row.key, "maxScore", e.target.value)}
                           aria-label={`과제 ${idx + 1} 만점`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px" }}>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        제출기한
                         <input
                           type="date"
                           className="ds-input w-full"
@@ -652,22 +657,11 @@ export default function CreateHomeworkModal({
                           onChange={(e) => updateRow(row.key, "dueDate", e.target.value)}
                           aria-label={`과제 ${idx + 1} 제출기한`}
                         />
-                      </td>
-                      <td style={{ padding: "4px 8px", textAlign: "center" }}>
-                        <button
-                          type="button"
-                          onClick={() => removeRow(row.key)}
-                          disabled={rows.length <= 1}
-                          className="text-lg leading-none text-[var(--color-text-muted)] hover:text-[var(--color-error)] disabled:opacity-30 disabled:cursor-not-allowed"
-                          aria-label={`${idx + 1}번 행 삭제`}
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <button
                 type="button"

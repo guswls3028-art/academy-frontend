@@ -14,15 +14,17 @@
 import { lazy, Suspense, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router-dom";
+import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import "./SessionDetailPage.css";
 
 const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
 const SessionEnrollModal = lazy(() => import("@admin/domains/lectures/components/SessionEnrollModal"));
@@ -123,31 +125,44 @@ export default function SessionDetailPage() {
   }
 
   const showAssessmentPanel =
+    activeTab === "scores" ||
+    activeTab === "exams" ||
+    activeTab === "assignments";
+  const moveAssessmentPanelAfterContentOnMobile =
+    activeTab === "scores" ||
+    (activeTab === "exams" && examId != null) ||
+    (activeTab === "assignments" && homeworkId != null);
+  const showSessionStrip =
+    activeTab === "attendance" ||
+    activeTab === "scores" ||
     activeTab === "exams" ||
     activeTab === "assignments";
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      {/* 차시블럭: 출결탭에서만 노출 */}
-      {activeTab === "attendance" && (
-        <SessionBlock lectureId={lecId} currentSessionId={sId} />
+      {showSessionStrip && (
+        <div className="session-detail-session-strip">
+          <SessionBlock lectureId={lecId} currentSessionId={sId} />
+        </div>
       )}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {showAssessmentPanel && (
-          <SessionAssessmentSidePanel
-            lectureId={lecId}
-            sessionId={sId}
-            activeKind={activeTab === "assignments" ? "homework" : "exam"}
-            openCreateExam={openCreateExam}
-            onCloseCreateExam={() => setOpenCreateExam(false)}
-            onOpenCreateExam={() => setOpenCreateExam(true)}
-            openCreateHomework={openCreateHomework}
-            onCloseCreateHomework={() => setOpenCreateHomework(false)}
-            onOpenCreateHomework={() => setOpenCreateHomework(true)}
-          />
+          <div className={moveAssessmentPanelAfterContentOnMobile ? "order-2 w-full lg:order-none lg:w-auto" : "w-full lg:w-auto"}>
+            <SessionAssessmentSidePanel
+              lectureId={lecId}
+              sessionId={sId}
+              activeKind={activeTab === "assignments" ? "homework" : "exam"}
+              openCreateExam={openCreateExam}
+              onCloseCreateExam={() => setOpenCreateExam(false)}
+              onOpenCreateExam={() => setOpenCreateExam(true)}
+              openCreateHomework={openCreateHomework}
+              onCloseCreateHomework={() => setOpenCreateHomework(false)}
+              onOpenCreateHomework={() => setOpenCreateHomework(true)}
+            />
+          </div>
         )}
-        <div className="min-w-0 w-full lg:flex-1">
+        <div className="order-1 min-w-0 w-full lg:order-none lg:flex-1">
           {activeTab === "attendance" && (
             <SessionAttendancePage
               sessionId={sId}
@@ -168,16 +183,18 @@ export default function SessionDetailPage() {
                 />
               </div>
             ) : (
-              <EmptyState
-                scope="panel"
-                tone="empty"
-                title="좌측 패널에서 시험을 선택하세요"
-                description="시험은 좌측 '+ 추가'로 생성할 수 있습니다."
+              <AssessmentEmptyPanel
+                kind="exam"
+                onCreate={() => setOpenCreateExam(true)}
+                onScores={() => navigate(`${basePath}/scores`)}
               />
             ))}
 
           {activeTab === "scores" && (
-            <SessionScoresEntryPage />
+            <SessionScoresEntryPage
+              onOpenCreateExam={() => setOpenCreateExam(true)}
+              onOpenCreateHomework={() => setOpenCreateHomework(true)}
+            />
           )}
 
           {activeTab === "assignments" &&
@@ -192,11 +209,10 @@ export default function SessionDetailPage() {
                 />
               </div>
             ) : (
-              <EmptyState
-                scope="panel"
-                tone="empty"
-                title="좌측 패널에서 과제를 선택하세요"
-                description="과제는 좌측 '+ 추가'로 생성할 수 있습니다."
+              <AssessmentEmptyPanel
+                kind="homework"
+                onCreate={() => setOpenCreateHomework(true)}
+                onScores={() => navigate(`${basePath}/scores`)}
               />
             ))}
 
@@ -220,5 +236,54 @@ export default function SessionDetailPage() {
         />
       )}
     </Suspense>
+  );
+}
+
+function AssessmentEmptyPanel({
+  kind,
+  onCreate,
+  onScores,
+}: {
+  kind: "exam" | "homework";
+  onCreate: () => void;
+  onScores: () => void;
+}) {
+  const isExam = kind === "exam";
+  const Icon = isExam ? ClipboardList : FileText;
+  const label = isExam ? "시험" : "과제";
+
+  return (
+    <section className="session-assessment-empty" aria-label={`${label} 작업 상태`}>
+      <div className="session-assessment-empty__icon" aria-hidden>
+        <Icon size={24} />
+      </div>
+      <div className="session-assessment-empty__body">
+        <p className="session-assessment-empty__eyebrow">차시 평가</p>
+        <h2 className="session-assessment-empty__title">{label} 없음</h2>
+        <p className="session-assessment-empty__copy">
+          이 차시에 연결된 {label}이 없습니다.
+        </p>
+      </div>
+      <div className="session-assessment-empty__actions">
+        <Button
+          type="button"
+          intent="primary"
+          size="md"
+          leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
+          onClick={onCreate}
+        >
+          {label} 추가
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="md"
+          leftIcon={<BarChart3 size={ICON_FOR_BUTTON.md} />}
+          onClick={onScores}
+        >
+          성적
+        </Button>
+      </div>
+    </section>
   );
 }

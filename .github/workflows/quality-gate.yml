@@ -147,7 +147,7 @@ jobs:
       E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
       E2E_STUDENT_USER: ${{ secrets.E2E_STUDENT_USER }}
       E2E_STUDENT_PASS: ${{ secrets.E2E_STUDENT_PASS }}
-      # 회귀 4개 (notice/qna/clinic roundtrip + password-reset) 는 strict 모드 적용 —
+      # 회귀 5개 (notice/qna/clinic roundtrip + password-reset + session assessment real-use) 는 strict 모드 적용 —
       # 배포 후 검증이라 console error 발견 시 즉시 fail 해야 함.
       E2E_STRICT: strict
 
@@ -170,6 +170,9 @@ jobs:
 
       - name: Run 비밀번호 변경 테스트 (전용 계정, 차단 게이트)
         run: pnpm exec playwright test e2e/flows/password-reset-roundtrip.spec.ts --reporter=list
+
+      - name: Run 차시 성적/시험/과제 실사용 테스트 (차단 게이트)
+        run: pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
 
       - name: Upload Playwright report
         if: always()

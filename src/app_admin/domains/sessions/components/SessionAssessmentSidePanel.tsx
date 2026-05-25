@@ -1,17 +1,15 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentSidePanel.tsx
-import { lazy, Suspense, useMemo, useState, useEffect, type CSSProperties } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart3, ClipboardList, FileText, Layers, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
-import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
-import { updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
 import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
 
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import {
   buildAssessmentSearch,
@@ -61,8 +59,104 @@ const S = {
     gap: "var(--space-5)",
   } satisfies CSSProperties,
 
+  asideHeader: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--space-3)",
+    padding: "14px",
+    border: "1px solid var(--color-border-divider)",
+    borderRadius: "var(--radius-md, 8px)",
+    background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface)) 0%, var(--color-bg-surface) 100%)",
+    boxShadow: "0 1px 3px rgba(15,23,42,.05)",
+  } satisfies CSSProperties,
+
+  asideHeaderTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "var(--space-3)",
+  } satisfies CSSProperties,
+
+  asideTitleStack: {
+    display: "flex",
+    minWidth: 0,
+    flexDirection: "column",
+    gap: 3,
+  } satisfies CSSProperties,
+
+  asideKicker: {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--color-text-muted)",
+  } satisfies CSSProperties,
+
+  asideTitle: {
+    fontSize: 15,
+    fontWeight: 850,
+    lineHeight: 1.2,
+    color: "var(--color-text-primary)",
+  } satisfies CSSProperties,
+
+  asideMeta: {
+    fontSize: 12,
+    fontWeight: 650,
+    color: "var(--color-text-muted)",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+
+  quickNav: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 6,
+  } satisfies CSSProperties,
+
+  quickNavButton: (active: boolean): CSSProperties => ({
+    display: "flex",
+    minWidth: 0,
+    minHeight: 54,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    border: `1px solid ${active ? "color-mix(in srgb, var(--color-brand-primary) 52%, var(--color-border-divider))" : "var(--color-border-divider)"}`,
+    borderRadius: "var(--radius-md, 8px)",
+    background: active
+      ? "color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-bg-surface))"
+      : "var(--color-bg-surface)",
+    color: active ? "var(--color-brand-primary)" : "var(--color-text-secondary)",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+    lineHeight: 1,
+  }),
+
+  quickNavCount: {
+    color: "var(--color-text-muted)",
+    fontSize: 11,
+    fontWeight: 750,
+  } satisfies CSSProperties,
+
+  bundleButton: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "var(--space-2)",
+    minHeight: 38,
+    borderRadius: "var(--radius-md, 8px)",
+    border: "1px dashed var(--color-border-divider)",
+    background: "var(--color-bg-surface)",
+    color: "var(--color-text-secondary)",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+    transition: "background 140ms ease, color 140ms ease, border-color 140ms ease",
+  } satisfies CSSProperties,
+
   section: {
-    borderRadius: "var(--radius-lg, 12px)",
+    borderRadius: "var(--radius-md, 8px)",
     border: "1px solid var(--color-border-divider)",
     background: "var(--color-bg-surface)",
     boxShadow: "0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02)",
@@ -115,6 +209,7 @@ const S = {
   card: (active: boolean, status?: "DRAFT" | "OPEN" | "CLOSED"): CSSProperties => ({
     position: "relative",
     display: "flex",
+    width: "100%",
     flexDirection: "column",
     gap: 4,
     padding: "10px 12px 10px 12px",
@@ -129,6 +224,7 @@ const S = {
       : "none",
     border: "1px solid var(--color-border-divider)",
     opacity: status === "CLOSED" ? 0.78 : 1,
+    textAlign: "left",
   }),
 
   cardTopRow: {
@@ -158,12 +254,31 @@ const S = {
   } satisfies CSSProperties,
 
   emptyState: {
-    padding: "20px 14px",
+    padding: "18px 14px",
     textAlign: "center",
     fontSize: "12px",
     fontWeight: 500,
     color: "var(--color-text-muted)",
     lineHeight: 1.5,
+  } satisfies CSSProperties,
+
+  emptyTitle: {
+    color: "var(--color-text-primary)",
+    fontSize: 13,
+    fontWeight: 750,
+  } satisfies CSSProperties,
+
+  emptyDescription: {
+    marginTop: 3,
+    color: "var(--color-text-muted)",
+    fontSize: 12,
+    fontWeight: 550,
+  } satisfies CSSProperties,
+
+  emptyAction: {
+    marginTop: 10,
+    display: "flex",
+    justifyContent: "center",
   } satisfies CSSProperties,
 } as const;
 
@@ -265,6 +380,9 @@ export default function SessionAssessmentSidePanel({
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
   const resolvedActiveKind: AssessmentKind =
     activeKind ?? (location.pathname.includes("/assignments") ? "homework" : "exam");
+  const scoresActive = location.pathname.startsWith(`${base}/scores`);
+  const examsActive = location.pathname.startsWith(`${base}/exams`);
+  const assignmentsActive = location.pathname.startsWith(`${base}/assignments`);
 
   const asideStyle = useMemo<CSSProperties>(() => {
     if (!isMobile) return S.aside;
@@ -294,27 +412,47 @@ export default function SessionAssessmentSidePanel({
     };
   };
 
-  // Auto-select first exam/homework when entering tab with no selection
+  // Auto-select or repair deleted/stale exam/homework query params on assessment tabs.
   useEffect(() => {
     if (!sessionId || !lectureId) return;
     const path = location.pathname;
     const basePath = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
     if (path.startsWith(`${basePath}/exams`)) {
-      if (examId == null && exams.length > 0) {
-        const firstId = Number((exams[0] as SessionExamRow).exam_id);
+      if (examsLoading) return;
+      const examIds = exams
+        .map((exam) => Number((exam as SessionExamRow).exam_id))
+        .filter((id) => Number.isFinite(id));
+      if (examIds.length === 0) {
+        if (examId != null) {
+          navigate({ pathname: `${basePath}/exams`, search: "" }, { replace: true });
+        }
+        return;
+      }
+      if (examId == null || !examIds.includes(examId)) {
+        const firstId = examIds[0];
         if (Number.isFinite(firstId)) {
           navigate({ pathname: `${basePath}/exams`, search: buildAssessmentSearch("exam", firstId) }, { replace: true });
         }
       }
     } else if (path.startsWith(`${basePath}/assignments`)) {
-      if (homeworkId == null && homeworks.length > 0) {
-        const firstId = homeworks[0].id;
+      if (hwLoading) return;
+      const homeworkIds = homeworks
+        .map((homework) => Number(homework.id))
+        .filter((id) => Number.isFinite(id));
+      if (homeworkIds.length === 0) {
+        if (homeworkId != null) {
+          navigate({ pathname: `${basePath}/assignments`, search: "" }, { replace: true });
+        }
+        return;
+      }
+      if (homeworkId == null || !homeworkIds.includes(homeworkId)) {
+        const firstId = homeworkIds[0];
         if (Number.isFinite(firstId)) {
           navigate({ pathname: `${basePath}/assignments`, search: buildAssessmentSearch("homework", firstId) }, { replace: true });
         }
       }
     }
-  }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
+  }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
 
   // 2026-05-13 학원장 결정 시행: 자동 마감 정책 폐기.
   // 이전엔 차시 deadline 지나면 OPEN → CLOSED 자동 변경 (client safety net + backend cron).
@@ -339,15 +477,57 @@ export default function SessionAssessmentSidePanel({
 
   return (
     <aside style={asideStyle}>
+      <div style={S.asideHeader}>
+        <div style={S.asideHeaderTop}>
+          <div style={S.asideTitleStack}>
+            <span style={S.asideKicker}>Assessment</span>
+            <span style={S.asideTitle}>차시 평가</span>
+          </div>
+          <span style={S.asideMeta}>
+            시험 {examsLoading ? "-" : exams.length} · 과제 {hwLoading ? "-" : homeworks.length}
+          </span>
+        </div>
+        <div style={S.quickNav} aria-label="차시 평가 이동">
+          <button
+            type="button"
+            style={S.quickNavButton(scoresActive)}
+            aria-current={scoresActive ? "page" : undefined}
+            onClick={() => navigate(`${base}/scores`)}
+          >
+            <BarChart3 size={16} aria-hidden />
+            <span>성적</span>
+            <span style={S.quickNavCount}>{exams.length + homeworks.length}개</span>
+          </button>
+          <button
+            type="button"
+            style={S.quickNavButton(examsActive)}
+            aria-current={examsActive ? "page" : undefined}
+            onClick={() => navigate(`${base}/exams`)}
+          >
+            <ClipboardList size={16} aria-hidden />
+            <span>시험</span>
+            <span style={S.quickNavCount}>{examsLoading ? "-" : exams.length}</span>
+          </button>
+          <button
+            type="button"
+            style={S.quickNavButton(assignmentsActive)}
+            aria-current={assignmentsActive ? "page" : undefined}
+            onClick={() => navigate(`${base}/assignments`)}
+          >
+            <FileText size={16} aria-hidden />
+            <span>과제</span>
+            <span style={S.quickNavCount}>{hwLoading ? "-" : homeworks.length}</span>
+          </button>
+        </div>
+      </div>
+
       {/* ── Bundle apply button ── */}
       <button
         type="button"
         onClick={() => setOpenApplyBundle(true)}
-        className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border-divider)] py-2 text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)] transition-colors bg-[var(--color-bg-surface)]"
+        style={S.bundleButton}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-70">
-          <path d="M2 3.5A1.5 1.5 0 013.5 2h3.379a1.5 1.5 0 011.06.44l.622.621a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5v7.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5v-9z" fill="currentColor"/>
-        </svg>
+        <Layers size={ICON_FOR_BUTTON.sm} aria-hidden />
         묶음 불러오기
       </button>
 
@@ -355,21 +535,25 @@ export default function SessionAssessmentSidePanel({
       <section style={getSectionStyle("exam")}>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-[0.55]">
-              <path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm1 3v2h8V5H4zm0 4v2h5V9H4z" fill="currentColor"/>
-            </svg>
+            <ClipboardList size={14} aria-hidden className="opacity-[0.55]" />
             <span>시험</span>
             <span style={S.countBadge}>{examsLoading ? "-" : exams.length}</span>
           </div>
-          <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateExam}>
-            + 추가
+          <Button type="button" intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={setOpenCreateExam} aria-label="시험 추가">
+            추가
           </Button>
         </div>
 
         <div style={getItemListStyle("exam")}>
-          {examsLoading && <EmptyState>불러오는 중...</EmptyState>}
-          {!examsLoading && examsError && <EmptyState>시험 목록을 불러오지 못했습니다</EmptyState>}
-          {!examsLoading && !examsError && exams.length === 0 && <EmptyState>등록된 시험이 없습니다</EmptyState>}
+          {examsLoading && <EmptyState title="불러오는 중..." />}
+          {!examsLoading && examsError && <EmptyState title="시험 목록을 불러오지 못했습니다" />}
+          {!examsLoading && !examsError && exams.length === 0 && (
+            <EmptyState
+              title="시험 없음"
+              description="이 차시에 연결된 시험이 없습니다."
+              action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateExam}>시험 추가</Button>}
+            />
+          )}
           {exams.map((exam: SessionExamRow) => {
             const active = examId != null && Number(exam.exam_id) === examId;
             const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
@@ -393,21 +577,25 @@ export default function SessionAssessmentSidePanel({
       <section style={getSectionStyle("homework")}>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-[0.55]">
-              <path d="M4 1a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V5.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 009.586 1H4zm0 1.5h5v2.25c0 .414.336.75.75.75H12v7.5a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5v-10a.5.5 0 01.5-.5z" fill="currentColor"/>
-            </svg>
+            <FileText size={14} aria-hidden className="opacity-[0.55]" />
             <span>과제</span>
             <span style={S.countBadge}>{hwLoading ? "-" : homeworks.length}</span>
           </div>
-          <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateHomework}>
-            + 추가
+          <Button type="button" intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={setOpenCreateHomework} aria-label="과제 추가">
+            추가
           </Button>
         </div>
 
         <div style={getItemListStyle("homework")}>
-          {hwLoading && <EmptyState>불러오는 중...</EmptyState>}
-          {!hwLoading && hwError && <EmptyState>과제 목록을 불러오지 못했습니다</EmptyState>}
-          {!hwLoading && !hwError && homeworks.length === 0 && <EmptyState>등록된 과제가 없습니다</EmptyState>}
+          {hwLoading && <EmptyState title="불러오는 중..." />}
+          {!hwLoading && hwError && <EmptyState title="과제 목록을 불러오지 못했습니다" />}
+          {!hwLoading && !hwError && homeworks.length === 0 && (
+            <EmptyState
+              title="과제 없음"
+              description="이 차시에 연결된 과제가 없습니다."
+              action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateHomework}>과제 추가</Button>}
+            />
+          )}
           {homeworks.map((hw) => {
             const active = homeworkId === hw.id;
             const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
@@ -436,11 +624,9 @@ export default function SessionAssessmentSidePanel({
             sessionId={sessionId}
             lectureId={lectureId}
             onCreated={async (id) => {
-              try { await updateAdminExam(id, { status: "OPEN" }); } catch { /* noop */ }
               invalidateExams();
               invalidateExamsSummary();
               invalidateSessionScores();
-              feedback.success("시험이 생성되어 진행 상태로 전환되었습니다.");
               onSelectExam(id);
             }}
           />
@@ -451,10 +637,8 @@ export default function SessionAssessmentSidePanel({
             onClose={handleCloseCreateHomework}
             sessionId={sessionId}
             onCreated={async (id) => {
-              try { await updateAdminHomework(id, { status: "OPEN" }); } catch { /* noop */ }
               invalidateHomeworks();
               invalidateSessionScores();
-              feedback.success("과제가 생성되어 진행 상태로 전환되었습니다.");
               onSelectHomework(id);
             }}
           />
@@ -503,12 +687,11 @@ function ExamItemCard({
   onSelect: () => void;
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect()}
       style={S.card(active, status)}
+      aria-current={active ? "true" : undefined}
     >
       <div style={S.cardTopRow}>
         <div style={S.cardTitle} title={label}>{label}</div>
@@ -516,7 +699,7 @@ function ExamItemCard({
       <div style={S.cardMeta}>
         만점 {maxScore}점 · 채점 {gradedCount}명
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -546,18 +729,17 @@ function HomeworkItemCard({
       : `기준 ${cutlineValue}점`;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect()}
       style={S.card(active, status)}
+      aria-current={active ? "true" : undefined}
     >
       <div style={S.cardTopRow}>
         <div style={S.cardTitle} title={label}>{label}</div>
       </div>
       <div style={S.cardMeta}>{metaLabel}</div>
-    </div>
+    </button>
   );
 }
 
@@ -565,6 +747,20 @@ function HomeworkItemCard({
 /*  EmptyState                                                         */
 /* ------------------------------------------------------------------ */
 
-function EmptyState({ children }: { children: React.ReactNode }) {
-  return <div style={S.emptyState}>{children}</div>;
+function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div style={S.emptyState}>
+      <div style={S.emptyTitle}>{title}</div>
+      {description != null && <div style={S.emptyDescription}>{description}</div>}
+      {action != null && <div style={S.emptyAction}>{action}</div>}
+    </div>
+  );
 }
