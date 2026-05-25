@@ -156,8 +156,8 @@ export default function StudentListPage() {
       ) : (
         <div className="flex items-center gap-2"
           style={{ padding: "8px 10px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary-bg)", border: "1px solid var(--tc-primary)" }}>
-          <button onClick={exitSelectMode} className="flex p-1 cursor-pointer"
-            style={{ background: "none", border: "none", color: "var(--tc-primary)" }}>
+          <button onClick={exitSelectMode} aria-label="선택 취소" className="flex items-center justify-center cursor-pointer"
+            style={{ width: 44, minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", background: "none", border: "none", color: "var(--tc-primary)" }}>
             <X size={ICON.sm} />
           </button>
           <div className="flex-1 text-[13px] font-bold" style={{ color: "var(--tc-primary)" }}>
@@ -271,7 +271,7 @@ export default function StudentListPage() {
                 {selectMode && (
                   <div className="flex items-center justify-center shrink-0 self-center"
                     style={{
-                      width: 22, height: 22, borderRadius: 4,
+                      width: 32, height: 32, borderRadius: 8,
                       border: `2px solid ${isSelected ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
                       background: isSelected ? "var(--tc-primary)" : "var(--tc-surface)",
                       color: "#fff",
