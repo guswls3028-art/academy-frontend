@@ -758,7 +758,7 @@ export default function ProblemStudioPage() {
         <div className={styles.heroStats}>
           <Stat label="소스" value={sourceSummary} />
           <Stat label="문항" value={`${questionCount}`} />
-          <Stat label="미주" value={`${answeredCount}/${questionCount}`} />
+          <Stat label="정답" value={`${answeredCount}/${questionCount}`} />
         </div>
       </section>
 
@@ -888,109 +888,124 @@ export default function ProblemStudioPage() {
               <Field label="과목">
                 <input value={draft.subject} onChange={(e) => patchDraft({ subject: e.target.value })} />
               </Field>
-              <Field label="날짜">
-                <input type="date" value={draft.date} onChange={(e) => patchDraft({ date: e.target.value })} />
-              </Field>
-              <Field label="담당">
-                <input value={draft.teacher} onChange={(e) => patchDraft({ teacher: e.target.value })} placeholder="선택" />
-              </Field>
-              <Field label="안내문" wide>
-                <textarea value={draft.instructions} onChange={(e) => patchDraft({ instructions: e.target.value })} rows={2} />
-              </Field>
             </div>
-          </section>
-
-          <section className={styles.panel} aria-labelledby="import-title">
-            <div className={styles.panelHeader}>
-              <div>
-                <h3 id="import-title">4. 검수용 텍스트 보정</h3>
-                <p>자동 추출 후 사람이 고칠 수 있는 영역입니다. 현재는 붙여넣은 텍스트를 문항으로 나눕니다.</p>
+            <details className={styles.fieldOptions}>
+              <summary>날짜, 담당, 안내문</summary>
+              <div className={styles.formGrid}>
+                <Field label="날짜">
+                  <input type="date" value={draft.date} onChange={(e) => patchDraft({ date: e.target.value })} />
+                </Field>
+                <Field label="담당">
+                  <input value={draft.teacher} onChange={(e) => patchDraft({ teacher: e.target.value })} placeholder="선택" />
+                </Field>
+                <Field label="안내문" wide>
+                  <textarea value={draft.instructions} onChange={(e) => patchDraft({ instructions: e.target.value })} rows={2} />
+                </Field>
               </div>
-            </div>
-            <div className={styles.pasteBox}>
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                rows={4}
-                placeholder={"1. 문제 내용을 붙여넣으세요.\n2. 번호가 있으면 문항별로 자동 분리합니다."}
-              />
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                leftIcon={<FileInput size={ICON_FOR_BUTTON.sm} />}
-                onClick={handleParseText}
-              >
-                텍스트를 문항으로 나누기
-              </Button>
-            </div>
+            </details>
           </section>
 
-          <section className={styles.panel} aria-labelledby="questions-title">
-            <div className={styles.panelHeader}>
-              <div>
-                <h3 id="questions-title">문항 편집</h3>
-                <p>해설은 해설지에만, 정답은 정답표와 해설지에만 출력됩니다.</p>
-              </div>
-              <Button type="button" intent="secondary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={addQuestion}>
-                문항 추가
-              </Button>
-            </div>
-
-            <div className={styles.questionList}>
-              {draft.questions.map((question, index) => (
-                <article key={question.id} className={styles.questionCard}>
-                  <div className={styles.questionToolbar}>
-                    <div className={styles.questionIndex}>
-                      <span>{index + 1}</span>
-                      <strong>문항 {index + 1}</strong>
-                    </div>
-                    <div className={styles.questionActions}>
-                      <button type="button" title="복제" aria-label="문항 복제" onClick={() => duplicateQuestion(question)}>
-                        <Copy size={ICON.sm} />
-                      </button>
-                      <button type="button" title="삭제" aria-label="문항 삭제" onClick={() => removeQuestion(question.id)}>
-                        <Trash2 size={ICON.sm} />
-                      </button>
-                    </div>
+          <details className={styles.optionalPanel}>
+            <summary className={styles.optionalSummary}>
+              <span>
+                <strong>검수 편집 옵션</strong>
+                <small>텍스트 보정, 문항 직접 수정, 정답/해설 입력</small>
+              </span>
+            </summary>
+            <div className={styles.optionalBody}>
+              <section className={styles.panel} aria-labelledby="import-title">
+                <div className={styles.panelHeader}>
+                  <div>
+                    <h3 id="import-title">검수용 텍스트 보정</h3>
+                    <p>자동 추출 후 사람이 고칠 수 있는 영역입니다. 현재는 붙여넣은 텍스트를 문항으로 나눕니다.</p>
                   </div>
+                </div>
+                <div className={styles.pasteBox}>
+                  <textarea
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    rows={4}
+                    placeholder={"1. 문제 내용을 붙여넣으세요.\n2. 번호가 있으면 문항별로 자동 분리합니다."}
+                  />
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    leftIcon={<FileInput size={ICON_FOR_BUTTON.sm} />}
+                    onClick={handleParseText}
+                  >
+                    텍스트를 문항으로 나누기
+                  </Button>
+                </div>
+              </section>
 
-                  {question.attachments.length > 0 && (
-                    <div className={styles.attachmentGrid}>
-                      {question.attachments.map((att) => (
-                        <figure key={att.id} className={styles.attachmentThumb}>
-                          <img src={att.dataUrl} alt={att.pageLabel || att.name} />
-                          <figcaption>
-                            <span>{att.pageLabel || att.name}</span>
-                            <button type="button" onClick={() => removeAttachment(question.id, att.id)} aria-label="첨부 이미지 삭제">
-                              <Trash2 size={ICON.xs} />
-                            </button>
-                          </figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                  )}
-
-                  <Field label="문제">
-                    <textarea value={question.prompt} onChange={(e) => patchQuestion(question.id, { prompt: e.target.value })} rows={4} />
-                  </Field>
-                  <div className={styles.questionSubGrid}>
-                    <Field label="보기">
-                      <textarea value={question.choices} onChange={(e) => patchQuestion(question.id, { choices: e.target.value })} rows={4} placeholder="한 줄에 보기 하나씩 입력" />
-                    </Field>
-                    <div className={styles.answerStack}>
-                      <Field label="정답">
-                        <input value={question.answer} onChange={(e) => patchQuestion(question.id, { answer: e.target.value })} placeholder="예: ③ / x=2" />
-                      </Field>
-                      <Field label="해설">
-                        <textarea value={question.explanation} onChange={(e) => patchQuestion(question.id, { explanation: e.target.value })} rows={4} />
-                      </Field>
-                    </div>
+              <section className={styles.panel} aria-labelledby="questions-title">
+                <div className={styles.panelHeader}>
+                  <div>
+                    <h3 id="questions-title">문항 편집</h3>
+                    <p>해설은 해설지에만, 정답은 정답표와 해설지에만 출력됩니다.</p>
                   </div>
-                </article>
-              ))}
+                  <Button type="button" intent="secondary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={addQuestion}>
+                    문항 추가
+                  </Button>
+                </div>
+
+                <div className={styles.questionList}>
+                  {draft.questions.map((question, index) => (
+                    <article key={question.id} className={styles.questionCard}>
+                      <div className={styles.questionToolbar}>
+                        <div className={styles.questionIndex}>
+                          <span>{index + 1}</span>
+                          <strong>문항 {index + 1}</strong>
+                        </div>
+                        <div className={styles.questionActions}>
+                          <button type="button" title="복제" aria-label="문항 복제" onClick={() => duplicateQuestion(question)}>
+                            <Copy size={ICON.sm} />
+                          </button>
+                          <button type="button" title="삭제" aria-label="문항 삭제" onClick={() => removeQuestion(question.id)}>
+                            <Trash2 size={ICON.sm} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {question.attachments.length > 0 && (
+                        <div className={styles.attachmentGrid}>
+                          {question.attachments.map((att) => (
+                            <figure key={att.id} className={styles.attachmentThumb}>
+                              <img src={att.dataUrl} alt={att.pageLabel || att.name} />
+                              <figcaption>
+                                <span>{att.pageLabel || att.name}</span>
+                                <button type="button" onClick={() => removeAttachment(question.id, att.id)} aria-label="첨부 이미지 삭제">
+                                  <Trash2 size={ICON.xs} />
+                                </button>
+                              </figcaption>
+                            </figure>
+                          ))}
+                        </div>
+                      )}
+
+                      <Field label="문제">
+                        <textarea value={question.prompt} onChange={(e) => patchQuestion(question.id, { prompt: e.target.value })} rows={4} />
+                      </Field>
+                      <div className={styles.questionSubGrid}>
+                        <Field label="보기">
+                          <textarea value={question.choices} onChange={(e) => patchQuestion(question.id, { choices: e.target.value })} rows={4} placeholder="한 줄에 보기 하나씩 입력" />
+                        </Field>
+                        <div className={styles.answerStack}>
+                          <Field label="정답">
+                            <input value={question.answer} onChange={(e) => patchQuestion(question.id, { answer: e.target.value })} placeholder="예: ③ / x=2" />
+                          </Field>
+                          <Field label="해설">
+                            <textarea value={question.explanation} onChange={(e) => patchQuestion(question.id, { explanation: e.target.value })} rows={4} />
+                          </Field>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
             </div>
-          </section>
+          </details>
         </div>
 
         <aside className={styles.outputColumn}>
@@ -1023,45 +1038,6 @@ export default function ProblemStudioPage() {
               </Button>
               <Button
                 type="button"
-                intent="secondary"
-                size="md"
-                loading={pdfLoading === "questions"}
-                leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
-                onClick={() => handleDownload("questions")}
-              >
-                문제지 PDF 저장
-              </Button>
-              <Button
-                type="button"
-                intent="secondary"
-                size="md"
-                loading={pdfLoading === "answers"}
-                leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
-                onClick={() => handleDownload("answers")}
-              >
-                정답표 PDF 저장
-              </Button>
-              <Button
-                type="button"
-                intent="secondary"
-                size="md"
-                loading={pdfLoading === "explanations"}
-                leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
-                onClick={() => handleDownload("explanations")}
-              >
-                해설지 PDF 저장
-              </Button>
-              <Button
-                type="button"
-                intent="ghost"
-                size="sm"
-                leftIcon={<Printer size={ICON_FOR_BUTTON.sm} />}
-                onClick={() => handlePrint("questions")}
-              >
-                인쇄창으로 열기
-              </Button>
-              <Button
-                type="button"
                 intent="ghost"
                 size="sm"
                 leftIcon={<RotateCcw size={ICON_FOR_BUTTON.sm} />}
@@ -1072,36 +1048,106 @@ export default function ProblemStudioPage() {
             </div>
           </section>
 
-          <section className={styles.previewPanel} aria-labelledby="preview-title">
-            <div className={styles.previewHeader}>
-              <div>
-                <h3 id="preview-title">학생용 미리보기</h3>
-                <p>실제 PDF와 같은 HTML로 렌더링합니다.</p>
+          <details className={styles.optionalPanel}>
+            <summary className={styles.optionalSummary}>
+              <span>
+                <strong>출력 미리보기</strong>
+                <small>문제지, 정답표, 해설지 저장과 인쇄 확인</small>
+              </span>
+            </summary>
+            <div className={styles.optionalBody}>
+              <div className={styles.outputButtons}>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="md"
+                  loading={pdfLoading === "questions"}
+                  leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                  onClick={() => handleDownload("questions")}
+                >
+                  문제지 PDF 저장
+                </Button>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="md"
+                  loading={pdfLoading === "answers"}
+                  leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                  onClick={() => handleDownload("answers")}
+                >
+                  정답표 PDF 저장
+                </Button>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="md"
+                  loading={pdfLoading === "explanations"}
+                  leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                  onClick={() => handleDownload("explanations")}
+                >
+                  해설지 PDF 저장
+                </Button>
+                <Button
+                  type="button"
+                  intent="ghost"
+                  size="sm"
+                  leftIcon={<Printer size={ICON_FOR_BUTTON.sm} />}
+                  onClick={() => handlePrint("questions")}
+                >
+                  인쇄창으로 열기
+                </Button>
               </div>
-              <Eye size={ICON.md} />
+              <section className={styles.previewPanel} aria-labelledby="preview-title">
+                <div className={styles.previewHeader}>
+                  <div>
+                    <h3 id="preview-title">학생용 문서 미리보기</h3>
+                    <p>출력될 문제지 화면을 인쇄 전에 확인합니다.</p>
+                  </div>
+                  <Eye size={ICON.md} />
+                </div>
+                <div className={styles.previewCanvas}>
+                  <div className={styles.previewChrome} aria-hidden>
+                    <span className={styles.previewDots}>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    <span>문제지 미리보기</span>
+                    <strong>A4</strong>
+                  </div>
+                  <iframe className={styles.previewFrame} srcDoc={previewHtml} title="문제지 미리보기" sandbox="allow-same-origin" />
+                </div>
+              </section>
             </div>
-            <iframe className={styles.previewFrame} srcDoc={previewHtml} title="문제지 미리보기" sandbox="allow-same-origin" />
-          </section>
+          </details>
         </aside>
       </section>
 
-      <section className={styles.summaryPanel} aria-labelledby="problem-studio-title">
-        <div className={styles.summaryMain}>
-          <Badge tone="primary" size="md">기획 보드</Badge>
-          <h2 id="problem-studio-title" className={styles.title}>문제&정답지 생성 요구사항</h2>
-          <p className={styles.lead}>
-            지금 핵심은 문제 이미지나 파일을 올리면 선생님이 수정할 수 있는 한글 파일로 옮겨 주는 것입니다.
-          </p>
-        </div>
-        <div className={styles.summaryActions}>
-          <Button intent="secondary" size="sm" leftIcon={<FileSearch size={ICON_FOR_BUTTON.sm} />} onClick={() => navigate("/admin/storage/matchup")}>
-            매치업 자산 보기
-          </Button>
-          <Button intent="secondary" size="sm" leftIcon={<FileText size={ICON_FOR_BUTTON.sm} />} onClick={() => navigate("/admin/tools/omr")}>
-            OMR 도구 보기
-          </Button>
-        </div>
-      </section>
+      <details className={styles.planningDetails}>
+        <summary className={styles.optionalSummary}>
+          <span>
+            <strong>기획 메모</strong>
+            <small>유사유형, 문제은행, 리서치 생성은 후속 단계로 분리</small>
+          </span>
+        </summary>
+        <div className={styles.planningBody}>
+          <section className={styles.summaryPanel} aria-labelledby="problem-studio-title">
+            <div className={styles.summaryMain}>
+              <Badge tone="primary" size="md">기획 메모</Badge>
+              <h2 id="problem-studio-title" className={styles.title}>문제&정답지 생성 요구사항</h2>
+              <p className={styles.lead}>
+                지금 핵심은 문제 이미지나 파일을 올리면 선생님이 수정할 수 있는 한글 파일로 옮겨 주는 것입니다.
+              </p>
+            </div>
+            <div className={styles.summaryActions}>
+              <Button intent="secondary" size="sm" leftIcon={<FileSearch size={ICON_FOR_BUTTON.sm} />} onClick={() => navigate("/admin/storage/matchup")}>
+                매치업 자산 보기
+              </Button>
+              <Button intent="secondary" size="sm" leftIcon={<FileText size={ICON_FOR_BUTTON.sm} />} onClick={() => navigate("/admin/tools/omr")}>
+                OMR 도구 보기
+              </Button>
+            </div>
+          </section>
 
       <section className={styles.pipeline} aria-label="문제 제작 흐름">
         {PIPELINE_STEPS.map((step, index) => (
@@ -1245,6 +1291,8 @@ export default function ProblemStudioPage() {
           </p>
         </div>
       </section>
+        </div>
+      </details>
     </div>
   );
 }
