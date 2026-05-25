@@ -1,14 +1,14 @@
 // PATH: src/app_admin/domains/exams/panels/ExamSubmissionsPanel.tsx
 /**
  * ExamSubmissionsPanel - 제출관리 통합
- * - OMR 업로드 작업대 (기존)
+ * - OMR 스캔 등록
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 시+시험명 + 상태 + 파일 보기
  * - 시험 자동채점 객관식 TODO 버튼
  */
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import AdminOmrUploadSection from "@admin/domains/submissions/components/AdminOmrUploadSection";
+import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
 import { fetchExamSubmissions } from "@admin/domains/submissions/api/adminSubmissions.api";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@admin/domains/submissions/statusMaps";
@@ -61,16 +61,13 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* OMR 업로드 섹션 — 통합 카드 */}
+      {/* OMR 업로드 섹션 — 성적 탭과 동일한 단일 업로드 컴포넌트 */}
       <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
         <div className="border-b border-[var(--color-border-divider)] px-4 py-3">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 시험 운영</div>
-          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            스캔 파일만 업로드하면 학생 식별(8자리)은 OMR 마킹값으로 자동 처리됩니다.
-          </div>
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 스캔 등록</div>
         </div>
         <div className="p-4">
-          <AdminOmrUploadSection
+          <AdminOmrBatchUploadBox
             examId={examId}
             onUploaded={() => setRefreshKey((k) => k + 1)}
           />

@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import type { AxiosError } from "axios";
+import { CheckCircle2, Trash2, UploadCloud } from "lucide-react";
 import api from "@/shared/api/axios";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
+import "./AdminOmrBatchUploadBox.css";
 
 type Props = {
   examId: number;
@@ -33,6 +35,20 @@ function humanizeBytes(bytes: number) {
     i += 1;
   }
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function statusLabel(status: UploadItem["status"]): string {
+  if (status === "ready") return "대기";
+  if (status === "uploading") return "등록 중";
+  if (status === "done") return "완료";
+  return "실패";
+}
+
+function statusTone(status: UploadItem["status"]): "neutral" | "info" | "success" | "danger" {
+  if (status === "uploading") return "info";
+  if (status === "done") return "success";
+  if (status === "fail") return "danger";
+  return "neutral";
 }
 
 /**
@@ -79,11 +95,11 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
   const upload = async () => {
     if (busy) return;
     if (!Number.isFinite(examId) || examId <= 0) {
-      setNotice("유효하지 않은 examId 입니다.");
+      setNotice("시험 정보를 찾을 수 없습니다.");
       return;
     }
     if (items.length === 0) {
-      setNotice("업로드할 파일이 없습니다.");
+      setNotice("파일을 먼저 선택해주세요.");
       return;
     }
 
@@ -121,11 +137,11 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
         if (status === 404) {
           setItems((prev) =>
             prev.map((x, idx) =>
-              idx === i ? { ...x, status: "fail", message: "시험 또는 업로드 경로 확인 필요" } : x
+              idx === i ? { ...x, status: "fail", message: "시험 정보 확인 필요" } : x
             )
           );
           setNotice(
-            "OMR 다건 업로드 경로를 찾지 못했습니다(404). 시험 ID와 배포된 백엔드 라우트를 확인해 주세요."
+            "시험 정보를 찾지 못했습니다. 새로고침 후 다시 시도해 주세요."
           );
           break;
         }
@@ -142,90 +158,98 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
     }
 
     setBusy(false);
-    if (successCount > 0) onUploaded?.();
+    if (successCount > 0) {
+      setNotice("등록을 시작했습니다. 잠시 후 성적표에 반영됩니다.");
+      onUploaded?.();
+    }
   };
 
   return (
-    <>
-      <div className="space-y-3">
+    <div className="admin-omr-upload">
+      <div className="admin-omr-upload__zone">
         <FileUploadZone
-          titleLabel="OMR"
+          titleLabel="스캔 파일 선택"
           multiple
           accept="image/*,application/pdf"
-          hintText="이미지 또는 1페이지 PDF · 최대 100개"
+          hintText="사진 또는 1페이지 PDF · 여러 장 선택 가능"
           disabled={busy}
           onFilesSelect={onPickFiles}
         />
+      </div>
 
-        {notice && (
-          <div className="rounded border border-yellow-600/30 bg-yellow-600/10 p-3 text-sm text-yellow-800">
-            {notice}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            intent="primary"
-            size="md"
-            disabled={busy || items.length === 0}
-            onClick={() => void upload()}
-          >
-            {busy ? "업로드 중..." : "업로드 시작"}
-          </Button>
-          <Button
-            type="button"
-            intent="secondary"
-            size="md"
-            disabled={busy || items.length === 0}
-            onClick={clear}
-          >
-            비우기
-          </Button>
-          <span className="text-xs text-[var(--text-muted)]">
-            준비 {readyCount} · 완료 {doneCount} · 실패 {failCount}
-          </span>
+      {notice && (
+        <div className="admin-omr-upload__notice">
+          {notice}
         </div>
+      )}
 
-        {items.length > 0 ? (
-          <div className="rounded border overflow-hidden">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>파일</th>
-                  <th className="w-[120px]">크기</th>
-                  <th className="w-[140px]">상태</th>
-                  <th className="w-[100px]">삭제</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => (
-                  <tr key={`${it.file.name}-${idx}`}>
-                    <td className="text-sm">{it.file.name}</td>
-                    <td className="text-sm text-[var(--text-muted)]">{humanizeBytes(it.file.size)}</td>
-                    <td className="text-sm">
-                      {it.status === "ready" && "대기"}
-                      {it.status === "uploading" && "업로드 중..."}
-                      {it.status === "done" && <span className="text-emerald-600">완료</span>}
-                      {it.status === "fail" && <span className="text-red-600">실패</span>}
-                      {it.message ? <span className="ml-2 text-xs text-[var(--text-muted)]">({it.message})</span> : null}
-                    </td>
-                    <td>
-                      <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={() => removeOne(idx)}>
-                        삭제
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-
-        <div className="text-xs text-[var(--text-muted)]">
-          ※ PDF는 답안지 1장당 1개 파일만 지원합니다.
+      <div className="admin-omr-upload__actions">
+        <Button
+          type="button"
+          intent={items.length === 0 ? "secondary" : "primary"}
+          size="lg"
+          disabled={busy || items.length === 0}
+          onClick={() => void upload()}
+          leftIcon={<UploadCloud size={ICON_FOR_BUTTON.lg} />}
+        >
+          {busy ? "등록 중..." : "등록 시작"}
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="md"
+          disabled={busy || items.length === 0}
+          onClick={clear}
+          leftIcon={<Trash2 size={ICON_FOR_BUTTON.md} />}
+        >
+          비우기
+        </Button>
+        <div className="admin-omr-upload__summary" aria-live="polite">
+          <Badge variant="soft" tone="neutral">대기 {readyCount}</Badge>
+          <Badge variant="soft" tone="success">완료 {doneCount}</Badge>
+          <Badge variant="soft" tone={failCount > 0 ? "danger" : "neutral"}>실패 {failCount}</Badge>
         </div>
       </div>
-    </>
+
+      {items.length > 0 ? (
+        <ul className="admin-omr-upload__file-list" aria-label="선택한 OMR 파일">
+          {items.map((it, idx) => (
+            <li key={`${it.file.name}-${idx}`} className="admin-omr-upload__file">
+              <div className="admin-omr-upload__file-main">
+                {it.status === "done" ? (
+                  <CheckCircle2 size={ICON.sm} className="admin-omr-upload__file-icon admin-omr-upload__file-icon--done" />
+                ) : (
+                  <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />
+                )}
+                <div className="admin-omr-upload__file-text">
+                  <span className="admin-omr-upload__file-name">{it.file.name}</span>
+                  <span className="admin-omr-upload__file-size">{humanizeBytes(it.file.size)}</span>
+                </div>
+              </div>
+              <div className="admin-omr-upload__file-state">
+                <Badge variant="solid" tone={statusTone(it.status)}>
+                  {statusLabel(it.status)}
+                </Badge>
+                {it.message ? <span className="admin-omr-upload__file-message">{it.message}</span> : null}
+                <Button
+                  type="button"
+                  intent="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => removeOne(idx)}
+                  leftIcon={<Trash2 size={ICON_FOR_BUTTON.sm} />}
+                >
+                  삭제
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="admin-omr-upload__footnote">
+        PDF는 답안지 1장당 1개 파일만 지원합니다.
+      </div>
+    </div>
   );
 }

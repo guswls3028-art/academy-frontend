@@ -1,13 +1,13 @@
 /**
- * 성적 탭 UX 개선 검증 (commit 5b046f53)
+ * 성적 탭 UX 개선 검증
  *
  * 검증 항목:
- * 1. 툴바 3그룹 구분선 (핵심/추가/관리)
- * 2. 시험·과제 없을 때 3단계 워크플로우 가이드
+ * 1. OMR 스캔 등록 주 동선
+ * 2. 시험·과제 없을 때 워크플로우 가이드
  * 3. 대상자 0명일 때 경고 배너
  * 4. 편집 모드 키보드 힌트 (Tab·화살표·Enter)
  * 5. 더보기 메뉴 아이콘 추가
- * 6. "수강생 일괄배정" 용어 변경
+ * 6. "수강생 일괄배정" 보조 기능 이동
  *
  * 대상: 운영 사이트 (hakwonplus.com), Tenant 1 admin
  * 강의 96 / 차시 158 (omr 테스트강의 — exam 1개, homework 2개, 학생 2명)
@@ -54,9 +54,9 @@ test.describe("성적 탭 UX 개선 검증", () => {
   });
 
   /**
-   * 1. 툴바 3그룹 구분선 + "수강생 일괄배정" 용어 + 더보기 메뉴 아이콘
+   * 1. OMR 주 동선 + "수강생 일괄배정" 보조 메뉴 + 더보기 메뉴 아이콘
    */
-  test("1. 툴바 구분선·용어·더보기 메뉴 아이콘 확인", async ({ page }) => {
+  test("1. OMR 등록 버튼·보조 메뉴·더보기 아이콘 확인", async ({ page }) => {
     const ok = await navigateToScoresTab(page);
     await snap(page, "01-toolbar-overview");
 
@@ -66,16 +66,15 @@ test.describe("성적 탭 UX 개선 검증", () => {
       return;
     }
 
-    // (1) 구분선: <span aria-hidden="true"> — 3그룹 사이에 최소 2개
-    const dividers = page.locator('span[aria-hidden="true"]');
-    const dividerCount = await dividers.count();
-    console.log(`[구분선] 수: ${dividerCount}`);
-    expect(dividerCount).toBeGreaterThanOrEqual(2);
+    const omrButton = page.getByRole("button", { name: /OMR 스캔 등록/ });
+    await expect(omrButton).toBeVisible({ timeout: 5000 });
+    expect(await omrButton.locator("svg").count()).toBeGreaterThanOrEqual(1);
+    console.log("[OMR] 상단 주 동선 버튼 확인됨");
 
-    // (6) "수강생 일괄배정" 용어 확인 (이전: "대상자 전원등록")
+    // "수강생 일괄배정"은 초보 사용자 화면을 덜 복잡하게 하기 위해 더보기 안으로 이동.
     const enrollBtn = page.locator("button").filter({ hasText: "수강생 일괄배정" });
-    await expect(enrollBtn.first()).toBeVisible({ timeout: 5000 });
-    console.log("[용어] '수강생 일괄배정' 확인됨");
+    await expect(enrollBtn).toHaveCount(0);
+    console.log("[보조 기능] '수강생 일괄배정' 기본 노출 없음 확인");
 
     // 구 용어 부재 확인
     const oldBtn = page.locator("button").filter({ hasText: "대상자 전원등록" });
@@ -91,6 +90,11 @@ test.describe("성적 탭 UX 개선 검증", () => {
 
     await moreBtn.click();
 
+    const enrollMenuItem = page.locator("button").filter({ hasText: "수강생 일괄배정" }).first();
+    await expect(enrollMenuItem).toBeVisible({ timeout: 3000 });
+    expect(await enrollMenuItem.locator("svg").count()).toBeGreaterThanOrEqual(1);
+    console.log("[더보기] 수강생 일괄배정 메뉴 이동 확인됨");
+
     // 메뉴 아이템 아이콘 확인
     const printItem = page.locator("button").filter({ hasText: "성적표 출력" }).first();
     if (await printItem.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -102,13 +106,6 @@ test.describe("성적 탭 UX 개선 검증", () => {
     if (await clinicItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       expect(await clinicItem.locator("svg").count()).toBeGreaterThanOrEqual(1);
       console.log("[더보기] 클리닉 대상 보기 아이콘 확인됨");
-    }
-
-    // 시험 종료 / 과제 종료 메뉴에도 아이콘
-    const examClose = page.locator("button").filter({ hasText: "전체 시험 종료" }).first();
-    if (await examClose.isVisible({ timeout: 2000 }).catch(() => false)) {
-      expect(await examClose.locator("svg").count()).toBeGreaterThanOrEqual(1);
-      console.log("[더보기] 전체 시험 종료 아이콘 확인됨");
     }
 
     await snap(page, "01-more-menu-open");
@@ -208,12 +205,12 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const ok = await navigateToScoresTab(page);
     if (!ok) { test.skip(); return; }
 
-    await expect(page.locator("button").filter({ hasText: "수강생 일괄배정" }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("button", { name: /OMR 스캔 등록/ })).toBeVisible({ timeout: 5000 });
     const html = await page.content();
 
     // 신규 UX 요소 존재 확인
-    expect(html).toContain("수강생 일괄배정");
-    console.log("[DOM] '수강생 일괄배정' 존재 확인");
+    expect(html).toContain("OMR 스캔 등록");
+    console.log("[DOM] 'OMR 스캔 등록' 존재 확인");
 
     expect(html).toContain("추가 기능"); // 더보기 버튼 title
     console.log("[DOM] '추가 기능' (더보기 title) 존재 확인");
@@ -223,9 +220,6 @@ test.describe("성적 탭 UX 개선 검증", () => {
 
     expect(html).toContain("+ 과제");
     console.log("[DOM] '+ 과제' 존재 확인");
-
-    expect(html).toContain('aria-hidden="true"'); // 구분선
-    console.log("[DOM] 구분선 (aria-hidden) 존재 확인");
 
     // 구 용어 부재 확인
     expect(html).not.toContain("대상자 전원등록");
