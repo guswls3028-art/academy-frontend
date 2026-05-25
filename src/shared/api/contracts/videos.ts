@@ -23,6 +23,12 @@ export interface Video {
   order: number;
   status: VideoStatus;
   error_reason?: string | null;
+  encoding_progress?: number | null;
+  encoding_remaining_seconds?: number | null;
+  encoding_step_index?: number | null;
+  encoding_step_total?: number | null;
+  encoding_step_name?: string | null;
+  encoding_step_percent?: number | null;
   allow_skip: boolean;
   max_speed: number;
   show_watermark: boolean;
@@ -55,8 +61,8 @@ export const VIDEO_STATUS_RETRY_ALLOWED: VideoStatus[] = [
 
 export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
   PENDING: "업로드 대기",
-  UPLOADED: "처리 대기",
-  PROCESSING: "처리 중",
+  UPLOADED: "인코딩 대기",
+  PROCESSING: "인코딩 중",
   READY: "시청 가능",
   FAILED: "처리 실패",
 };

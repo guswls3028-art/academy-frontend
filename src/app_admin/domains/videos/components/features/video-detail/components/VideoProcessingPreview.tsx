@@ -16,11 +16,18 @@ interface Props {
 
 const STATUS_DESC: Record<string, string> = {
   UPLOADING: "파일 업로드 중…",
-  UPLOADED: "업로드 완료 — 영상 처리 대기 중",
-  PENDING: "영상 처리 대기 중",
-  PROCESSING: "영상을 시청 가능한 형태로 변환 중입니다 (보통 5~30분 소요)",
+  PENDING: "파일 업로드가 끝나면 인코딩이 시작됩니다.",
+  UPLOADED: "원본 업로드 완료 — 인코딩 작업 배정 중",
+  PROCESSING: "영상을 시청 가능한 형태로 인코딩 중입니다. 긴 영상은 시간이 걸릴 수 있습니다.",
   FAILED: "영상 처리에 실패했습니다. 아래 버튼으로 다시 시도할 수 있습니다.",
 };
+
+function getDescription(status: string, errorReason?: string | null) {
+  if (status === "FAILED" && errorReason?.includes("source_not_found_or_empty")) {
+    return "원본 업로드 파일을 찾지 못했습니다. 삭제 후 다시 업로드해 주세요.";
+  }
+  return STATUS_DESC[status] ?? "처리 중...";
+}
 
 export default function VideoProcessingPreview({
   percent,
@@ -37,7 +44,7 @@ export default function VideoProcessingPreview({
   const statusLabel =
     VIDEO_STATUS_LABEL[status as VideoStatus] ?? "처리 중";
 
-  const description = STATUS_DESC[status] ?? "처리 중...";
+  const description = getDescription(status, errorReason);
 
   return (
     <div className={styles.root}>

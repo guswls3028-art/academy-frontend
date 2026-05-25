@@ -201,7 +201,7 @@ export default function VideoDetailOverlay({
                     <VideoPreviewSection
                       hlsSrc={video.hls_url ?? null}
                       status={video.status}
-                      progressPercent={null}
+                      progressPercent={video.encoding_progress ?? null}
                       errorReason={video.error_reason ?? null}
                       onRetry={
                         canShowRetryButton(video)
