@@ -237,6 +237,154 @@ function renderSummaryLines(s: SummaryStats): string[] {
   return lines;
 }
 
+function formatCompactScore(
+  score: number | null | undefined,
+  maxScore: number | null | undefined,
+  absentLabel: string,
+): string {
+  if (score == null) return absentLabel;
+  const maxStr = maxScore != null ? `/${maxScore}` : "";
+  const percent = pct(score, maxScore);
+  return `${score}${maxStr}${percent ? ` (${percent})` : ""}`;
+}
+
+function appendScoreCard(lines: string[], title: string, result: string): void {
+  lines.push(`┌ ${title || "항목"}`);
+  lines.push(`└ ${result || "-"}`);
+}
+
+function compactPassSuffix(
+  passed: boolean | null | undefined,
+  passLabel: string,
+  failLabel: string,
+): string {
+  if (passed === true) return ` · ${passLabel}`;
+  if (passed === false) return ` · ${failLabel}`;
+  return "";
+}
+
+function buildExamDetailCardLines(
+  exam: SessionScoreExamEntry,
+  meta: SessionScoreMeta | null,
+  passLabel: string,
+  failLabel: string,
+): string[] {
+  const lines: string[] = [];
+  const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
+  const max = exam.block.max_score ?? metaExam?.max_score ?? null;
+  const finalPass = finalPassForExam(exam);
+  const attempts = [...(exam.attempts ?? [])].sort((a, b) => a.attempt_index - b.attempt_index);
+  const hasRetakeHistory = attempts.length > 1 || attempts.some((a) => a.attempt_index >= 2);
+
+  if (!hasRetakeHistory) {
+    appendScoreCard(
+      lines,
+      exam.title,
+      `${formatCompactScore(exam.block.score, max, "미응시")}${compactPassSuffix(finalPass, passLabel, failLabel)}`,
+    );
+    return lines;
+  }
+
+  const normalized = attempts.some((a) => a.attempt_index === 1) || exam.block.score == null
+    ? attempts
+    : [
+        {
+          attempt_index: 1,
+          score: exam.block.score,
+          max_score: max,
+          pass_score: exam.pass_score,
+          passed: exam.block.passed,
+        },
+        ...attempts,
+      ];
+
+  for (const a of normalized) {
+    const attemptMax = a.max_score ?? max;
+    const attemptPass = a.pass_score ?? exam.pass_score;
+    const cutline = attemptPass != null && attemptPass > 0 ? ` · 컷 ${attemptPass}` : "";
+    appendScoreCard(
+      lines,
+      `${exam.title} ${a.attempt_index}차`,
+      `${formatCompactScore(a.score, attemptMax, "미응시")}${cutline}${compactPassSuffix(a.passed, passLabel, failLabel)}`,
+    );
+  }
+  return lines;
+}
+
+function renderScoreDetailExamLines(
+  row: SessionScoreRow,
+  meta: SessionScoreMeta | null,
+  passLabel: string,
+  failLabel: string,
+): string[] {
+  if (!row.exams || row.exams.length === 0) return [];
+  const lines = ["[시험]"];
+  for (const exam of row.exams) {
+    lines.push(...buildExamDetailCardLines(exam, meta, passLabel, failLabel));
+  }
+  return lines;
+}
+
+function renderScoreDetailHomeworkLines(
+  row: SessionScoreRow,
+  meta: SessionScoreMeta | null,
+  passLabel: string,
+  failLabel: string,
+): string[] {
+  if (!row.homeworks || row.homeworks.length === 0) return [];
+  const lines = ["[과제]"];
+  for (const hw of row.homeworks) {
+    const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    const max = hw.block.max_score ?? metaHw?.max_score ?? null;
+    appendScoreCard(
+      lines,
+      hw.title,
+      `${formatCompactScore(hw.block.score, max, "미제출")}${compactPassSuffix(hw.block.passed, passLabel, failLabel)}`,
+    );
+  }
+  return lines;
+}
+
+function appendSummaryCard(lines: string[], title: string, rows: string[]): void {
+  const values = rows.filter((row) => row.trim());
+  if (values.length === 0) return;
+  lines.push(`┌ ${title}`);
+  values.forEach((row, idx) => {
+    const prefix = idx === values.length - 1 ? "└" : "│";
+    lines.push(`${prefix} ${row}`);
+  });
+}
+
+function renderScoreDetailSummaryLines(s: SummaryStats): string[] {
+  const totalItems = s.examTotal + s.hwTotal;
+  if (totalItems === 0) return [];
+
+  const lines = ["[요약]"];
+  const passLabelSum = s.passLabel || "합격";
+
+  if (s.examTotal > 0) {
+    const avgPct = s.examSumMax > 0 ? Math.round((s.examSumScore / s.examSumMax) * 100) : null;
+    appendSummaryCard(lines, "시험", [
+      `${s.examPassed}/${s.examTotal} ${passLabelSum}`,
+      avgPct != null ? `평균 ${avgPct}점` : "",
+    ]);
+  }
+
+  if (s.hwTotal > 0) {
+    const avgPct = s.hwSumMax > 0 ? Math.round((s.hwSumScore / s.hwSumMax) * 100) : null;
+    appendSummaryCard(lines, "과제", [
+      `${s.hwPassed}/${s.hwTotal} ${passLabelSum}`,
+      avgPct != null ? `평균 ${avgPct}점` : "",
+    ]);
+  }
+
+  appendSummaryCard(lines, "최종", s.failedItems.length === 0
+    ? [passLabelSum]
+    : ["보충 필요", `보충: ${s.failedItems.join(", ")}`]);
+
+  return lines;
+}
+
 // ── public API ──
 
 export function generateScoreReport(
@@ -464,14 +612,14 @@ export function buildScoreDetail(
   meta: SessionScoreMeta | null,
   labels?: { passLabel?: string; failLabel?: string },
 ): string {
-  const lines: string[] = [];
+  const lines: string[] = ["성적 상세표", "━━━━━━━━━━━━"];
   const passLabel = labels?.passLabel || "합격";
   const failLabel = labels?.failLabel || "불합격";
 
-  const examLines = renderExamLines(row, meta, passLabel, failLabel);
+  const examLines = renderScoreDetailExamLines(row, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderHomeworkLines(row, meta, passLabel, failLabel);
+  const hwLines = renderScoreDetailHomeworkLines(row, meta, passLabel, failLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);
@@ -479,7 +627,7 @@ export function buildScoreDetail(
 
   const stats = collectStats(row, meta);
   stats.passLabel = passLabel;
-  const summaryLines = renderSummaryLines(stats);
+  const summaryLines = renderScoreDetailSummaryLines(stats);
   if (summaryLines.length > 0) {
     lines.push("");
     lines.push(...summaryLines);
