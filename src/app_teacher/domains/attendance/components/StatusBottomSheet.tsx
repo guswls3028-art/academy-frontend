@@ -8,6 +8,7 @@ import {
   type AttendanceListItem,
   type AttendanceStatus,
 } from "../api";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import styles from "./StatusBottomSheet.module.css";
 
 interface Props {
@@ -37,7 +38,9 @@ export default function StatusBottomSheet({
   }, [open]);
 
   if (!open || !record) return null;
-  const studentName = record.name ?? record.student_name ?? "학생";
+  const recordName = typeof record.name === "string" ? record.name : null;
+  const studentName = recordName ?? record.student_name ?? "학생";
+  const lectureTitle = record.lecture_title;
 
   return (
     <>
@@ -53,7 +56,18 @@ export default function StatusBottomSheet({
 
         {/* Title */}
         <div className={styles.title}>
-          {studentName} 출석 상태
+          <StudentNameWithLectureChip
+            name={studentName}
+            profilePhotoUrl={record.profile_photo_url}
+            avatarSize={28}
+            chipSize={18}
+            lectures={lectureTitle ? [{
+              lectureName: lectureTitle,
+              color: record.lecture_color,
+              chipLabel: record.lecture_chip_label,
+            }] : undefined}
+          />
+          <span>출석 상태</span>
         </div>
 
         {/* Status grid */}

@@ -8,6 +8,7 @@ import {
   type AttendanceListItem,
   type AttendanceStatus,
 } from "../api";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import styles from "./AttendanceCard.module.css";
 
 interface Props {
@@ -30,7 +31,9 @@ export default function AttendanceCard({
   onTap,
 }: Props) {
   const cfg = STATUS_CONFIG[record.status] ?? STATUS_CONFIG.PRESENT;
-  const studentName = record.name ?? record.student_name ?? "이름 없음";
+  const recordName = typeof record.name === "string" ? record.name : null;
+  const studentName = recordName ?? record.student_name ?? "이름 없음";
+  const lectureTitle = record.lecture_title;
 
   const { state, handlers } = useSwipeGesture({
     threshold: 80,
@@ -84,14 +87,17 @@ export default function AttendanceCard({
       >
         {/* Left: student info */}
         <div className={styles.student}>
-          <div className={styles.avatar}>
-            {studentName[0]}
-          </div>
-          <div className={styles.studentText}>
-            <div className={styles.studentName}>
-              {studentName}
-            </div>
-          </div>
+          <StudentNameWithLectureChip
+            name={studentName}
+            profilePhotoUrl={record.profile_photo_url}
+            avatarSize={36}
+            chipSize={18}
+            lectures={lectureTitle ? [{
+              lectureName: lectureTitle,
+              color: record.lecture_color,
+              chipLabel: record.lecture_chip_label,
+            }] : undefined}
+          />
         </div>
 
         {/* Right: status badge */}

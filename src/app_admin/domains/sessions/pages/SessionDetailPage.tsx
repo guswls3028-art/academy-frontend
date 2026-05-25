@@ -24,7 +24,6 @@ import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 
-const EnrollStudentModal = lazy(() => import("@admin/domains/lectures/components/EnrollStudentModal"));
 const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
 const SessionEnrollModal = lazy(() => import("@admin/domains/lectures/components/SessionEnrollModal"));
 const SessionVideosTab = lazy(() => import("@admin/domains/lectures/components/SessionVideosTab"));
@@ -81,7 +80,6 @@ export default function SessionDetailPage() {
   }, [location.pathname, basePath]);
 
   const [showEnrollModal, setShowEnrollModal] = useState(false);
-  const [showStudentModal, setShowStudentModal] = useState(false);
   const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
@@ -179,10 +177,7 @@ export default function SessionDetailPage() {
             ))}
 
           {activeTab === "scores" && (
-            <SessionScoresEntryPage
-              onOpenEnrollModal={() => setShowEnrollModal(true)}
-              onOpenStudentModal={() => setShowStudentModal(true)}
-            />
+            <SessionScoresEntryPage />
           )}
 
           {activeTab === "assignments" &&
@@ -221,14 +216,6 @@ export default function SessionDetailPage() {
           sessionId={sId}
           isOpen={showEnrollModal}
           onClose={() => setShowEnrollModal(false)}
-          onSuccess={invalidateSession}
-        />
-      )}
-      {showStudentModal && (
-        <EnrollStudentModal
-          sessionId={sId}
-          isOpen={showStudentModal}
-          onClose={() => setShowStudentModal(false)}
           onSuccess={invalidateSession}
         />
       )}

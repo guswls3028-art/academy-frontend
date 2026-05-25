@@ -26,6 +26,7 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import { useConfirm } from "@/shared/ui/confirm";
 import { todayLocalISO as todayISO, addDaysLocal as addDays } from "@/shared/utils/localDate";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -278,7 +279,19 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
               style={{ borderColor: "var(--tc-border)" }}
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm" style={{ color: "var(--tc-text)" }}>{name}</span>
+                <StudentNameWithLectureChip
+                  name={name}
+                  profilePhotoUrl={p.profile_photo_url}
+                  avatarSize={24}
+                  chipSize={16}
+                  density="compact"
+                  lectures={p.lecture_title ? [{
+                    lectureName: p.lecture_title,
+                    color: p.lecture_color,
+                    chipLabel: p.lecture_chip_label,
+                  }] : undefined}
+                  className="text-sm"
+                />
                 <StatusBadge status={st} />
               </div>
               <div className="flex gap-1">

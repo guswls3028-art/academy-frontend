@@ -12,6 +12,7 @@ import { fetchOMRDefaults, downloadOMRPdf, submitOMR, fetchExam } from "../api";
 import { fetchExamResults as fetchExamResultRows } from "@teacher/domains/results/statsApi";
 import { fetchExamEnrollmentRows } from "@/shared/api/contracts/examEnrollments";
 import { normalizeExam } from "../normalizers";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import styles from "./OmrPage.module.css";
 
 type TeacherExamResultRow = {
@@ -27,6 +28,10 @@ type TeacherExamResultRow = {
   max_score?: number | null;
   student_name?: string | null;
   student?: { name?: string | null } | null;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
 };
 
 const MAX_MC_COUNT = 60;
@@ -100,11 +105,24 @@ export default function OmrPage() {
 
     return selectedRows.map((row): TeacherExamResultRow => {
       const fromResult = resultByEnrollment.get(row.enrollment_id);
-      if (fromResult) return fromResult;
+      if (fromResult) {
+        return {
+          ...fromResult,
+          student_name: fromResult.student_name ?? row.student_name,
+          profile_photo_url: fromResult.profile_photo_url ?? row.profile_photo_url ?? null,
+          lecture_title: fromResult.lecture_title ?? row.lecture_title ?? null,
+          lecture_color: fromResult.lecture_color ?? row.lecture_color ?? null,
+          lecture_chip_label: fromResult.lecture_chip_label ?? row.lecture_chip_label ?? null,
+        };
+      }
       return {
         id: `enrollment-${row.enrollment_id}`,
         enrollment_id: row.enrollment_id,
         student_name: row.student_name,
+        profile_photo_url: row.profile_photo_url ?? null,
+        lecture_title: row.lecture_title ?? null,
+        lecture_color: row.lecture_color ?? null,
+        lecture_chip_label: row.lecture_chip_label ?? null,
         max_score: exam?.max_score ?? null,
         exam_max_score: exam?.max_score ?? null,
       };
@@ -218,13 +236,24 @@ export default function OmrPage() {
               const maxScore = getResultMaxScore(r) ?? 100;
               const hasSubmission = !!(r.submitted_at || score != null);
               const isScoring = enrollmentId != null && pendingScoring.has(enrollmentId) && score == null;
+              const studentName = r.student_name ?? r.student?.name ?? "학생";
               return (
                 <div key={r.id ?? enrollmentId} className={`${styles.resultRow} flex items-center justify-between`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className={`${styles.title} text-[13px] font-semibold`}>
-                        {r.student_name ?? r.student?.name ?? "학생"}
-                      </span>
+                      <StudentNameWithLectureChip
+                        name={studentName}
+                        profilePhotoUrl={r.profile_photo_url}
+                        avatarSize={24}
+                        chipSize={16}
+                        density="compact"
+                        lectures={r.lecture_title ? [{
+                          lectureName: r.lecture_title,
+                          color: r.lecture_color,
+                          chipLabel: r.lecture_chip_label,
+                        }] : undefined}
+                        className={`${styles.title} text-[13px] font-semibold`}
+                      />
                       {isScoring ? (
                         <Badge tone="info" size="xs">채점 중…</Badge>
                       ) : hasSubmission ? (

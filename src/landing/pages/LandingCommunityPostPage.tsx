@@ -21,6 +21,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import ImageLightbox from "../components/ImageLightbox";
+import PublicRichContentStyle, { PUBLIC_RICH_CONTENT_CLASS, PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS } from "../components/PublicRichContentStyle";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import {
   canWriteLandingCommunityBoard,
@@ -469,6 +470,7 @@ export default function LandingCommunityPostPage() {
             <>
               <article
                 data-testid="landing-community-post-body"
+                className={`${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
                 onClick={onBodyClick}
                 style={{
                   fontSize: 15.5, lineHeight: 1.8, color: textPrimary,
@@ -476,7 +478,8 @@ export default function LandingCommunityPostPage() {
                 }}
                 dangerouslySetInnerHTML={{ __html: post.content || "<p style='color:#6B7280'>본문이 없습니다.</p>" }}
               />
-              <style>{`[data-testid="landing-community-post-body"] img { cursor: zoom-in; max-width: 100%; border-radius: 8px; }`}</style>
+              <PublicRichContentStyle />
+              <style>{`[data-testid="landing-community-post-body"] img { cursor: zoom-in; }`}</style>
             </>
           )}
         </div>
@@ -874,7 +877,8 @@ function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false
         <span style={{ marginLeft: "auto", fontSize: 11, color: textMuted }}>{formatDateTime(rp.created_at)}</span>
       </div>
       <div
-        style={{ fontSize: 14, lineHeight: 1.65, color: textPrimary, wordBreak: "break-word", whiteSpace: "pre-wrap" }}
+        className={`${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
+        style={{ fontSize: 14, lineHeight: 1.65, color: textPrimary, wordBreak: "break-word" }}
         dangerouslySetInnerHTML={{ __html: rp.content || "" }}
       />
       <div style={{ marginTop: 8, display: "flex", gap: 14, fontSize: 12, color: textMuted }}>

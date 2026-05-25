@@ -14,8 +14,9 @@ import HeroCarousel from "../components/HeroCarousel";
 import HeroImageSlider from "../components/HeroImageSlider";
 import TestimonialsSticky from "../components/TestimonialsSticky";
 import LandingSectionTabs from "../components/LandingSectionTabs";
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { hexToRgb } from "./colorUtils";
+import "./MinimalTutor.css";
 
 export default function MinimalTutor({ config }: TemplateProps) {
   const c = config.primary_color || "#2563EB";
@@ -138,31 +139,66 @@ export default function MinimalTutor({ config }: TemplateProps) {
                         );
                       }
                       return (
-                      <div
-                        aria-hidden
-                        style={{
-                          width: "100%", aspectRatio: "4/3",
-                          borderRadius: 20,
-                          background: `linear-gradient(135deg, ${c} 0%, rgba(${rgb}, 0.75) 100%)`,
-                          boxShadow: `0 18px 48px rgba(${rgb}, 0.32)`,
-                          position: "relative", overflow: "hidden",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff",
-                        }}
-                      >
-                        <span style={{
-                          position: "absolute", inset: 0,
-                          background: "radial-gradient(circle at 20% 18%, rgba(255,255,255,0.28) 0%, transparent 55%), radial-gradient(circle at 82% 88%, rgba(255,255,255,0.18) 0%, transparent 50%)",
-                        }} />
-                        <div style={{ textAlign: "center", padding: 24, position: "relative" }}>
-                          <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em" }}>
-                            {(config.brand_name || "B").trim().charAt(0)}
-                          </div>
-                          <div style={{ marginTop: 16, fontSize: 13, fontWeight: 700, letterSpacing: "0.18em", opacity: 0.9 }}>
-                            ACADEMY · MANAGEMENT · SAAS
+                        <div
+                          aria-hidden
+                          className="minimal-tutor-hero-mock"
+                          style={{
+                            "--minimal-accent": c,
+                            "--minimal-accent-rgb": rgb,
+                          } as CSSProperties}
+                        >
+                          <span className="minimal-tutor-hero-mock__shine" />
+                          <div className="minimal-tutor-hero-mock__window">
+                            <div className="minimal-tutor-hero-mock__chrome">
+                              {[0, 1, 2].map((dot) => (
+                                <span key={dot} className={dot === 0 ? "is-active" : ""} />
+                              ))}
+                              <strong>{config.brand_name}</strong>
+                            </div>
+                            <div className="minimal-tutor-hero-mock__body">
+                              <div className="minimal-tutor-hero-mock__nav">
+                                {["수업", "성적", "상담", "자료"].map((item, idx) => (
+                                  <span key={item} className={idx === 0 ? "is-active" : ""}>{item}</span>
+                                ))}
+                              </div>
+                              <div className="minimal-tutor-hero-mock__main">
+                                <div>
+                                  <div className="minimal-tutor-hero-mock__eyebrow">오늘 운영</div>
+                                  <div className="minimal-tutor-hero-mock__title">한눈에 보는 학원 현황</div>
+                                </div>
+                                <div className="minimal-tutor-hero-mock__stats">
+                                  {[
+                                    ["수업", "8"],
+                                    ["출결", "96%"],
+                                    ["상담", "4"],
+                                  ].map(([label, value]) => (
+                                    <div key={label}>
+                                      <span>{label}</span>
+                                      <strong>{value}</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="minimal-tutor-hero-mock__cards">
+                                  <div className="minimal-tutor-hero-mock__report">
+                                    <strong>성적 리포트</strong>
+                                    <div>
+                                      <span className="bar-1" />
+                                      <span className="bar-2" />
+                                      <span className="bar-3" />
+                                      <span className="bar-4" />
+                                      <span className="bar-5" />
+                                    </div>
+                                  </div>
+                                  <div className="minimal-tutor-hero-mock__message">
+                                    <strong>학부모 소통</strong>
+                                    <span />
+                                    <span />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
                       );
                     })()}
                   </div>

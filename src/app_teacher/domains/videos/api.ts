@@ -22,6 +22,10 @@ export type TeacherVideoStatsStudent = {
   student_id?: number | null;
   name?: string | null;
   student_name?: string | null;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
   progress?: number | null;
   watched?: boolean | null;
 };

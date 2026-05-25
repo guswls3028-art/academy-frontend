@@ -47,27 +47,6 @@
   gap: var(--tc-space-3);
 }
 
-.avatar {
-  display: flex;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--tc-surface-soft);
-  font-size: 16px;
-}
-
-.studentText {
-  min-width: 0;
-}
-
-.studentName {
-  color: var(--tc-text);
-  font-weight: 600;
-}
-
 .statusBadge {
   flex-shrink: 0;
   padding: 4px 12px;

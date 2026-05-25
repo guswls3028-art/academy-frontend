@@ -43,12 +43,7 @@ import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import "./SessionScoresEntryPage.css";
 
-type Props = {
-  onOpenEnrollModal?: () => void;
-  onOpenStudentModal?: () => void;
-};
-
-export default function SessionScoresEntryPage(_props: Props) {
+export default function SessionScoresEntryPage() {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);

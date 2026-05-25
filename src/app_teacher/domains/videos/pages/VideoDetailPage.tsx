@@ -13,6 +13,7 @@ import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 type Tab = "stats" | "comments";
 
@@ -155,9 +156,22 @@ export default function VideoDetailPage() {
             {students.map((s: any) => {
               const pct = Math.round((s.progress ?? 0) * 100);
               const done = pct >= 80;
+              const studentName = s.student_name ?? s.name ?? "이름 없음";
               return (
                 <div key={s.student_id ?? s.id} className="flex justify-between items-center py-2 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
-                  <span className="text-sm" style={{ color: "var(--tc-text)" }}>{s.student_name ?? s.name ?? "이름 없음"}</span>
+                  <StudentNameWithLectureChip
+                    name={studentName}
+                    profilePhotoUrl={s.profile_photo_url}
+                    avatarSize={24}
+                    chipSize={16}
+                    density="compact"
+                    lectures={s.lecture_title ? [{
+                      lectureName: s.lecture_title,
+                      color: s.lecture_color,
+                      chipLabel: s.lecture_chip_label,
+                    }] : undefined}
+                    className="text-sm"
+                  />
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--tc-border)" }}>
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: done ? "var(--tc-success)" : "var(--tc-primary)" }} />

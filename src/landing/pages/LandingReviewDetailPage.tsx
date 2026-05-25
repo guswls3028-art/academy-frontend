@@ -28,6 +28,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import PublicRichContentStyle, { PUBLIC_RICH_CONTENT_CLASS, PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS } from "../components/PublicRichContentStyle";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -290,9 +291,11 @@ export default function LandingReviewDetailPage() {
 
           <div
             data-testid="review-detail-content"
-            style={{ marginTop: 28, fontSize: 16, lineHeight: 1.75, color: textPrimary, whiteSpace: "pre-wrap" }}
+            className={`${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
+            style={{ marginTop: 28, fontSize: 16, lineHeight: 1.75, color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: sanitized }}
           />
+          <PublicRichContentStyle />
 
           <div style={{ marginTop: 36, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingTop: 20, borderTop: `1px solid ${border}` }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

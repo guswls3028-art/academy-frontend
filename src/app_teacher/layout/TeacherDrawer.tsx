@@ -2,7 +2,7 @@
  * PATH: src/app_teacher/layout/TeacherDrawer.tsx
  * 사이드 드로어 — PC 사이드바 구조 1:1 매칭. 4그룹 + Lucide 아이콘
  */
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
@@ -39,6 +39,7 @@ type MenuGroup = {
 export default function TeacherDrawer({ open, onClose }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const panelRef = useRef<HTMLDivElement>(null);
   const { clearAuth, user } = useAuth();
   const { counts } = useTeacherPendingCounts();
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
@@ -118,6 +119,22 @@ export default function TeacherDrawer({ open, onClose }: Props) {
     }
   }, [open]);
 
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    if (open) {
+      panel.inert = false;
+      panel.removeAttribute("inert");
+    } else {
+      if (document.activeElement instanceof HTMLElement && panel.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      panel.inert = true;
+      panel.setAttribute("inert", "");
+    }
+  }, [open]);
+
   const handleNav = (path: string) => {
     onClose();
     navigate(path);
@@ -154,9 +171,11 @@ export default function TeacherDrawer({ open, onClose }: Props) {
 
       {/* Drawer panel — PC 사이드바 스타일 */}
       <div
+        ref={panelRef}
         className={open ? `${styles.panel} ${styles.panelOpen}` : styles.panel}
         role="navigation"
         aria-label="선생님 메뉴"
+        aria-hidden={!open}
       >
         {/* Header — 사이드바 로고 영역 대응 */}
         <div className={styles.header}>
@@ -164,6 +183,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
           <button
             onClick={onClose}
             className={styles.closeButton}
+            aria-label="닫기"
           >
             <X size={ICON.md} />
           </button>

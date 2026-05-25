@@ -30,6 +30,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import PublicRichContentStyle, { PUBLIC_RICH_CONTENT_CLASS, PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS } from "../components/PublicRichContentStyle";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -282,10 +283,11 @@ export default function LandingBoardDetailPage() {
 
           <div
             data-testid="board-detail-content"
-            className="public-board-content"
+            className={`public-board-content ${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
             style={{ marginTop: 28, fontSize: 16, lineHeight: 1.75, color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: sanitized }}
           />
+          <PublicRichContentStyle />
 
           {/* 적중보고서 임베드 (Phase 3 cross-attach) */}
           {(() => {

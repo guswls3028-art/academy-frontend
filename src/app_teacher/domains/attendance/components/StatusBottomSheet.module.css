@@ -31,6 +31,10 @@
 }
 
 .title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tc-space-2);
   padding: 0 var(--tc-space-4) var(--tc-space-3);
   color: var(--tc-text);
   font-weight: 700;

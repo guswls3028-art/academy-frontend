@@ -1,7 +1,7 @@
 /**
  * 좌측 사이드 드로어 - 더보기 메뉴 (모바일 슬라이드)
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 import { Link } from "react-router-dom";
 
@@ -87,6 +87,7 @@ const NAV: NavGroup[] = [
 
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -110,6 +111,22 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
     };
   }, [open]);
 
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    if (open) {
+      panel.inert = false;
+      panel.removeAttribute("inert");
+    } else {
+      if (document.activeElement instanceof HTMLElement && panel.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      panel.inert = true;
+      panel.setAttribute("inert", "");
+    }
+  }, [open]);
+
   const handleLogout = () => {
     setShowLogoutConfirm(false);
     onClose();
@@ -125,9 +142,11 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-label="메뉴"
         aria-modal={open}
+        aria-hidden={!open}
         className={cx(styles.panel, open && styles.panelOpen)}
       >
         <div className={styles.header}>
