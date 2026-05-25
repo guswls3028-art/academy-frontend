@@ -696,11 +696,11 @@ export default function SessionScoresEntryPage() {
           intent="ghost"
           size="sm"
           iconOnly
+          leftIcon={<MoreVertical size={ICON_FOR_BUTTON.sm} />}
           onClick={() => setShowMoreMenu((v) => !v)}
+          aria-label="추가 기능"
           title="추가 기능"
-        >
-          <MoreVertical size={ICON_FOR_BUTTON.sm} />
-        </Button>
+        />
         {showMoreMenu && (
           <div className="scores-more-menu">
             <button type="button" className="scores-more-menu__item" onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }} disabled={enrollingAll || !hasExamsOrHomeworks}>
