@@ -18,7 +18,6 @@ import {
   CalendarSync,
   LayoutGrid,
   MessageCircle,
-  Users,
   CheckCircle,
   BookCheck,
 } from "lucide-react";
@@ -38,8 +37,7 @@ export type AutoSendSectionId =
   | "clinic"
   | "payment"
   // notice: 제거 (카카오 알림톡 정책 위반)
-  | "community"
-  | "staff";
+  | "community";
 
 type SectionDef = {
   id: AutoSendSectionId;
@@ -95,9 +93,10 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     id: "lecture",
     label: TEMPLATE_CATEGORY_LABELS.lecture,
     icon: <BookOpen size={16} aria-hidden />,
-    triggers: ["video_encoding_complete"],
+    triggers: ["video_encoding_complete", "matchup_report_submitted"],
     children: [
       triggerChild("video_encoding_complete", <Bell size={16} aria-hidden />),
+      triggerChild("matchup_report_submitted", <Bell size={16} aria-hidden />),
     ],
   },
   {
@@ -189,25 +188,6 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     children: [
       triggerChild("qna_answered", <Bell size={16} aria-hidden />),
       triggerChild("counsel_answered", <Bell size={16} aria-hidden />),
-    ],
-  },
-  {
-    id: "staff",
-    label: TEMPLATE_CATEGORY_LABELS.staff,
-    icon: <Users size={16} aria-hidden />,
-    triggers: [
-      "staff_attendance_summary",
-      "staff_expense_report",
-      "staff_month_close",
-      "staff_payroll_snapshot",
-      "staff_payroll_report",
-    ],
-    children: [
-      triggerChild("staff_attendance_summary", <Bell size={16} aria-hidden />),
-      triggerChild("staff_expense_report", <Bell size={16} aria-hidden />),
-      triggerChild("staff_month_close", <Bell size={16} aria-hidden />),
-      triggerChild("staff_payroll_snapshot", <Bell size={16} aria-hidden />),
-      triggerChild("staff_payroll_report", <Bell size={16} aria-hidden />),
     ],
   },
 ];

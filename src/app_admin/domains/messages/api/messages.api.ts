@@ -59,10 +59,34 @@ export interface NotificationLogItem {
 export interface NotificationLogParams {
   page?: number;
   page_size?: number;
+  status?: "success" | "failure";
 }
 
 export interface NotificationLogResponse {
   results: NotificationLogItem[];
+  count: number;
+}
+
+export type ScheduledNotificationStatus = "pending" | "sent" | "failed" | "cancelled";
+
+export interface ScheduledNotificationItem {
+  id: number;
+  trigger: string;
+  send_at: string;
+  status: ScheduledNotificationStatus;
+  recipient_summary: string;
+  message_preview: string;
+  target_type: string;
+  target_id: string;
+  target_name: string;
+  message_mode: string;
+  created_at: string;
+  sent_at: string | null;
+  error_message: string;
+}
+
+export interface ScheduledNotificationResponse {
+  results: ScheduledNotificationItem[];
   count: number;
 }
 
@@ -138,6 +162,20 @@ export async function fetchNotificationLog(
   params?: NotificationLogParams
 ): Promise<NotificationLogResponse> {
   const res = await api.get<NotificationLogResponse>(`${PREFIX}/log/`, { params });
+  return res.data;
+}
+
+export async function fetchScheduledNotifications(params?: {
+  page?: number;
+  page_size?: number;
+  status?: ScheduledNotificationStatus;
+}): Promise<ScheduledNotificationResponse> {
+  const res = await api.get<ScheduledNotificationResponse>(`${PREFIX}/scheduled/`, { params });
+  return res.data;
+}
+
+export async function cancelScheduledNotification(id: number): Promise<ScheduledNotificationItem> {
+  const res = await api.post<ScheduledNotificationItem>(`${PREFIX}/scheduled/${id}/cancel/`);
   return res.data;
 }
 
@@ -325,6 +363,8 @@ export interface SendMessagePayload {
   template_id?: number | null;
   raw_body?: string;
   raw_subject?: string;
+  /** 예약 발송 시각. 없으면 즉시 발송 */
+  scheduled_send_at?: string | null;
   /**
    * 발송 진입점의 블록 카테고리 (grades/attendance/clinic 등).
    * backend가 template_id 누락 또는 t.category 매핑 안 될 때 unified 봉투 fallback 매칭에 사용.
@@ -340,6 +380,8 @@ export interface SendMessagePayload {
 export interface SendMessageResponse {
   detail: string;
   enqueued: number;
+  scheduled?: number;
+  enqueue_failed?: number;
   skipped_no_phone: number;
 }
 
@@ -373,7 +415,6 @@ export type AutoSendTrigger =
   | "clinic_reservation_changed"
   | "clinic_cancelled"
   | "clinic_check_in"
-  | "clinic_check_out"
   | "clinic_absent"
   | "clinic_self_study_completed"
   | "clinic_result_notification"
@@ -386,12 +427,7 @@ export type AutoSendTrigger =
   // 커뮤니티 자동발송
   | "qna_answered"
   | "counsel_answered"
-  // 직원 자동발송
-  | "staff_attendance_summary"
-  | "staff_expense_report"
-  | "staff_month_close"
-  | "staff_payroll_snapshot"
-  | "staff_payroll_report";
+  | "matchup_report_submitted";
 
 export type PolicyMode = "SYSTEM_AUTO" | "AUTO_DEFAULT" | "MANUAL_DEFAULT" | "DISABLED";
 
@@ -460,16 +496,11 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   payment_due_days_before: "납부 예정일 N일 전",
   // 영상
   video_encoding_complete: "영상 인코딩 완료",
+  matchup_report_submitted: "매치업 보고서 제출",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answered: "QnA 답변 등록",
   counsel_answered: "상담 답변 등록",
-  // 직원
-  staff_attendance_summary: "근태 요약 발송",
-  staff_expense_report: "비용/경비 리포트 발송",
-  staff_month_close: "월 마감 완료 안내",
-  staff_payroll_snapshot: "급여 스냅샷 발송",
-  staff_payroll_report: "급여 명세서 발송",
 };
 
 export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {

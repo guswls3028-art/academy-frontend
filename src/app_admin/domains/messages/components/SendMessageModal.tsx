@@ -17,7 +17,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "antd";
-import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield } from "lucide-react";
+import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -93,6 +93,7 @@ function extractVars(body: string): string[] {
 }
 
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
+type SendTiming = "now" | "scheduled";
 
 function getVarStatuses(
   templateBody: string,
@@ -108,6 +109,24 @@ function getVarStatuses(
       return { name, status: "provided" as const, value: extraVars[name] };
     }
     return { name, status: "missing" as const };
+  });
+}
+
+function defaultScheduledLocalValue(): string {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatScheduleLabel(iso: string | null): string {
+  if (!iso) return "예약 시각 미정";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "예약 시각 확인 필요";
+  return d.toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -180,6 +199,8 @@ export default function SendMessageModal({
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+  const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
   const sendingRef = useRef(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -212,6 +233,20 @@ export default function SendMessageModal({
         if (sendToStudent) t.push("student");
         return t;
       })();
+  const scheduledSendAtIso = useMemo(() => {
+    if (sendTiming !== "scheduled" || !scheduledAt) return null;
+    const d = new Date(scheduledAt);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }, [sendTiming, scheduledAt]);
+  const scheduleError = useMemo(() => {
+    if (sendTiming !== "scheduled") return null;
+    if (!scheduledAt) return "예약 시각을 선택해 주세요";
+    const d = new Date(scheduledAt);
+    if (Number.isNaN(d.getTime())) return "예약 시각을 확인해 주세요";
+    if (d.getTime() <= Date.now()) return "현재 이후 시각으로 예약해 주세요";
+    return null;
+  }, [sendTiming, scheduledAt]);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const providedPresets = useMemo(() => getTemplatePresetsForCategory(blockCategory), [blockCategory]);
@@ -259,6 +294,7 @@ export default function SendMessageModal({
     if (!body.trim()) return false;
     if (hasMissingVars) return false;
     if (hasQualityBlockers) return false;
+    if (scheduleError) return false;
     return true;
   })();
 
@@ -311,6 +347,8 @@ export default function SendMessageModal({
     setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId && !initialLetterPresetId));
     setTemplateBodySnapshot(initialBody ?? null);
     setShowConfirm(false);
+    setSendTiming("now");
+    setScheduledAt(defaultScheduledLocalValue());
     sendingRef.current = false;
   }, [open, initialBody, initialTemplateId, initialLetterPresetId]);
 
@@ -509,9 +547,10 @@ export default function SendMessageModal({
     setSending(true);
     setShowConfirm(false);
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    asyncStatusStore.addWorkerJob(`알림톡 발송`, taskId, "messaging");
+    asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약" : "알림톡 발송", taskId, "messaging");
     try {
       let totalEnqueued = 0;
+      let totalScheduled = 0;
       let totalSkipped = 0;
       let completedCalls = 0;
       const totalCalls = isStaffMode ? 1 : sendToTargets.length;
@@ -527,6 +566,7 @@ export default function SendMessageModal({
         payload.raw_body = currentBody;
         if (subject.trim()) payload.raw_subject = subject.trim();
         if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
+        if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
         // SSOT (2026-05-14): 학원장이 textarea에서 본문 수정 시 학생별 substituted body 재계산.
         // callback이 있으면 currentBody 기반으로 재호출 → 학생별 _body_subst가 학원장 수정본 반영.
         // 미제공 시 사전 계산된 alimtalkExtraVarsPerStudent 그대로 사용 (legacy + 1명 path 호환).
@@ -543,15 +583,20 @@ export default function SendMessageModal({
       for (const sendTo of targets) {
         const res = await sendMessage(buildPayload(sendTo));
         totalEnqueued += res.enqueued ?? 0;
+        totalScheduled += res.scheduled ?? 0;
         totalSkipped += res.skipped_no_phone ?? 0;
         completedCalls++;
         asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
       }
 
       const sendToLabel = isStaffMode ? "직원" : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
-      if (totalEnqueued > 0) {
+      const accepted = totalEnqueued + totalScheduled;
+      if (accepted > 0) {
         const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
-        feedback.success(`${sendToLabel} 알림톡 ${totalEnqueued}건 발송 예정${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
+        const actionLabel = sendTiming === "scheduled"
+          ? `${formatScheduleLabel(scheduledSendAtIso)} 예약`
+          : "발송 예정";
+        feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
         asyncStatusStore.completeTask(taskId, "success");
       } else {
         const hint = totalSkipped > 0
@@ -588,12 +633,13 @@ export default function SendMessageModal({
 
   const sendButtonText = (() => {
     if (sending) return "발송 중…";
-    if (isStaffMode) return `직원 ${staffIds.length}명에게 알림톡 발송`;
+    const verb = sendTiming === "scheduled" ? "예약" : "발송";
+    if (isStaffMode) return `직원 ${staffIds.length}명에게 알림톡 ${verb}`;
     const parts: string[] = [];
     if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
     if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
     if (parts.length === 0) return "대상 선택 필요";
-    return `${parts.join(" + ")}에게 알림톡 발송`;
+    return `${parts.join(" + ")}에게 알림톡 ${verb}`;
   })();
 
   const disableReason = (() => {
@@ -601,6 +647,7 @@ export default function SendMessageModal({
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
     if (!hasSelectedBodySource) return "양식을 선택하거나 직접 작성해 주세요";
     if (!body.trim()) return "본문을 입력해 주세요";
+    if (scheduleError) return scheduleError;
     if (hasMissingVars) {
       const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
       return `미입력 변수: ${list} — 본문/변수 팔레트에서 채워 주세요`;
@@ -688,6 +735,50 @@ export default function SendMessageModal({
                       ? <>미리보기는 양식 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>
                       : <>미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>}
                   </div>
+                </div>
+              )}
+            </section>
+
+            <section className="send-modal__card">
+              <div className="send-modal__card-label">발송 시점</div>
+              <div className="send-modal__timing-toggle" role="group" aria-label="발송 시점">
+                <button
+                  type="button"
+                  className="send-modal__timing-option"
+                  data-active={sendTiming === "now"}
+                  onClick={() => setSendTiming("now")}
+                  disabled={sending}
+                >
+                  즉시
+                </button>
+                <button
+                  type="button"
+                  className="send-modal__timing-option"
+                  data-active={sendTiming === "scheduled"}
+                  onClick={() => setSendTiming("scheduled")}
+                  disabled={sending}
+                >
+                  예약
+                </button>
+              </div>
+              {sendTiming === "scheduled" && (
+                <div className="send-modal__schedule-box">
+                  <div className="send-modal__schedule-icon">
+                    <CalendarClock size={ICON.sm} />
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    disabled={sending}
+                    className="send-modal__schedule-input"
+                    aria-label="예약 발송 시각"
+                  />
+                  {scheduleError && (
+                    <div className="send-modal__schedule-error">
+                      {scheduleError}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -1003,6 +1094,12 @@ export default function SendMessageModal({
                 <span className="send-modal__confirm-val">카카오 알림톡</span>
               </div>
               <div className="send-modal__confirm-row">
+                <span className="send-modal__confirm-key">발송 시점</span>
+                <span className="send-modal__confirm-val">
+                  {sendTiming === "scheduled" ? formatScheduleLabel(scheduledSendAtIso) : "즉시"}
+                </span>
+              </div>
+              <div className="send-modal__confirm-row">
                 <span className="send-modal__confirm-key">대상</span>
                 <span className="send-modal__confirm-val">
                   {isStaffMode ? `직원 ${staffIds.length}명` : (() => {
@@ -1045,7 +1142,7 @@ export default function SendMessageModal({
                 돌아가기
               </Button>
               <Button intent="primary" onClick={handleSend} disabled={sending} className="send-modal__confirm-send-btn">
-                {sending ? "발송 중…" : "발송하기"}
+                {sending ? "발송 중…" : sendTiming === "scheduled" ? "예약하기" : "발송하기"}
               </Button>
             </div>
           </div>

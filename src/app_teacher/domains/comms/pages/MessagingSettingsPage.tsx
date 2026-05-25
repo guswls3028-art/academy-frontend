@@ -468,7 +468,9 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
 function AutoSendRow({ config }: { config: AutoSendConfig }) {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
-  const enabled = config.enabled ?? false;
+  const implStatus = config.implementation_status;
+  const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
+  const enabled = !isUnimplemented && (config.enabled ?? false);
 
   const toggleMut = useMutation({
     mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
@@ -491,6 +493,11 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`${styles.previewValue} text-[13px] font-semibold`}>{triggerLabel}</span>
             {modeLabel && <Badge tone="neutral" size="xs">{modeLabel}</Badge>}
+            {isUnimplemented && (
+              <Badge tone="neutral" size="xs">
+                {implStatus === "disabled" ? "비활성" : "수동 전용"}
+              </Badge>
+            )}
             {minutesBefore != null && minutesBefore > 0 && (
               <Badge tone="neutral" size="xs">{minutesBefore}분 전</Badge>
             )}
@@ -507,7 +514,12 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
             title="설정 편집">
             <Pencil size={ICON.sm} />
           </button>
-          <button onClick={() => toggleMut.mutate()} type="button" className={`${styles.toggleButton} cursor-pointer`}>
+          <button
+            onClick={() => { if (!isUnimplemented) toggleMut.mutate(); }}
+            type="button"
+            className={`${styles.toggleButton} cursor-pointer`}
+            disabled={isUnimplemented}
+          >
             <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
               <div className={`${styles.toggleKnob} ${enabled ? styles.toggleKnobOn : ""} absolute top-0.5 w-4 h-4 rounded-full bg-white shadow`} />
             </div>

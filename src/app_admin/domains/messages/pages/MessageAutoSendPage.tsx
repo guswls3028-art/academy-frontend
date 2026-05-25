@@ -56,6 +56,12 @@ function getTemplateStatusLabel(status: string | null | undefined): string {
   return status || "";
 }
 
+function canBulkToggleConfig(config: AutoSendConfigItem): boolean {
+  return config.policy_mode !== "SYSTEM_AUTO"
+    && config.implementation_status !== "manual_only"
+    && config.implementation_status !== "disabled";
+}
+
 /** 이벤트 후 발송 시점을 설정할 수 있는 트리거 (즉시/N분후/지정시각) */
 const DELAY_MODE_TRIGGERS = new Set(["video_encoding_complete"]);
 
@@ -88,23 +94,18 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
   // 영상
   video_encoding_complete: "영상 인코딩이 완료되면 업로드한 선생님에게 완료 알림을 발송합니다.",
+  matchup_report_submitted: "강사가 매치업 적중 보고서를 제출하면 대표·관리자에게 알림을 발송합니다.",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
   qna_answered: "QnA 답변이 등록되면 질문을 작성한 학생에게 답변 안내를 발송합니다.",
   counsel_answered: "상담 답변이 등록되면 신청 학생과 학부모에게 답변 안내를 발송합니다.",
-  // 직원
-  staff_attendance_summary: "근태 요약이 생성되면 해당 직원에게 근무 시간/일수 요약을 발송합니다.",
-  staff_expense_report: "비용/경비 리포트가 생성되면 해당 직원에게 경비 내역을 발송합니다.",
-  staff_month_close: "월 마감이 완료되면 해당 직원에게 마감 확인 안내를 발송합니다.",
-  staff_payroll_snapshot: "급여 스냅샷이 생성되면 해당 직원에게 급여 요약을 발송합니다.",
-  staff_payroll_report: "급여 명세서가 발행되면 해당 직원에게 명세서를 발송합니다.",
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
-  default: "사용자가 직접 만든 커스텀 예약 발송용 템플릿입니다. 모든 블록을 자유롭게 사용할 수 있습니다.",
+  default: "사용자가 직접 만든 커스텀 알림톡 템플릿입니다. 모든 블록을 자유롭게 사용할 수 있습니다.",
   signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
   attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
-  lecture: "영상 인코딩 완료 등 강의·차시 관련 알림을 설정합니다.",
+  lecture: "영상 인코딩 완료, 매치업 보고서 제출 등 강의·차시 관련 알림을 설정합니다.",
   exam: "시험 예정 안내, 시작 전 리마인드, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
   assignment: "과제 등록 안내, 마감 전 리마인드, 미제출 알림을 설정합니다.",
   grades: "성적 공개 안내, 월간 성적 리포트 발송을 설정합니다.",
@@ -112,7 +113,6 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
   // notice: 카카오 알림톡 정책 위반으로 제거
   community: "QnA·상담 답변 등록 시 학생·학부모에게 자동 발송합니다.",
-  staff: "근태 요약, 비용/경비, 월 마감, 급여 스냅샷, 급여 명세서 발송을 설정합니다.",
 };
 
 function TriggerCard({
@@ -523,7 +523,7 @@ export default function MessageAutoSendPage() {
           <div>
             <h2 className={panelStyles.headerTitle}>자동발송</h2>
             <p className={panelStyles.headerDesc}>
-              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티·직원 등) 발생 시 알림톡을 자동 발송합니다.
+              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티 등) 발생 시 알림톡을 자동 발송합니다.
               좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
             </p>
           </div>
@@ -532,7 +532,9 @@ export default function MessageAutoSendPage() {
             <Switch
               checked={globalEnabled}
               onChange={(checked) => {
-                const next = localConfigs.map((c) => ({ ...c, enabled: checked }));
+                const next = localConfigs.map((c) => (
+                  canBulkToggleConfig(c) ? { ...c, enabled: checked } : c
+                ));
                 setLocalConfigs(next);
                 updateMut.mutate(next);
               }}

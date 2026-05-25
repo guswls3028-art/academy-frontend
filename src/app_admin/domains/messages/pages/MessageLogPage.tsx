@@ -2,11 +2,18 @@
 // 발송 내역 — 카드형 리스트 + 상세 팝업 (디자인 강화, 모든 데이터 표시)
 
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { useNotificationLog } from "../hooks/useNotificationLog";
-import type { NotificationLogItem } from "../api/messages.api";
+import {
+  cancelScheduledNotification,
+  fetchScheduledNotifications,
+  type NotificationLogItem,
+  type ScheduledNotificationItem,
+} from "../api/messages.api";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import styles from "./MessageLogPage.module.css";
 
 // ── helpers ──
@@ -82,6 +89,27 @@ function ModeBadge({ mode }: { mode?: string }) {
     <span className={styles.modeBadge}>
       {label}
     </span>
+  );
+}
+
+function ScheduledRow({
+  item,
+  onCancel,
+  cancelling,
+}: {
+  item: ScheduledNotificationItem;
+  onCancel: () => void;
+  cancelling: boolean;
+}) {
+  return (
+    <div className={styles.scheduledRow}>
+      <span className={styles.scheduledAtCell}>{formatDate(item.send_at)}</span>
+      <span className={styles.recipientCell}>{item.recipient_summary || "—"}</span>
+      <span className={styles.previewCell}>{item.message_preview || "—"}</span>
+      <Button size="sm" intent="secondary" onClick={onCancel} disabled={cancelling}>
+        취소
+      </Button>
+    </div>
   );
 }
 
@@ -336,19 +364,35 @@ function PaginationBar({
 // ── Main Page ──
 
 export default function MessageLogPage() {
+  const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
-  const { data, isLoading, isError } = useNotificationLog({ page: currentPage, page_size: PAGE_SIZE });
+  const { data, isLoading, isError } = useNotificationLog({
+    page: currentPage,
+    page_size: PAGE_SIZE,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
+  const { data: scheduledData } = useQuery({
+    queryKey: ["messaging", "scheduled", "pending"],
+    queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
+    staleTime: 10 * 1000,
+  });
+  const cancelMut = useMutation({
+    mutationFn: cancelScheduledNotification,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messaging", "scheduled", "pending"] });
+      feedback.success("예약 발송이 취소되었습니다.");
+    },
+    onError: () => {
+      feedback.error("예약 발송 취소에 실패했습니다.");
+    },
+  });
   const results = data?.results ?? [];
+  const pendingScheduled = scheduledData?.results ?? [];
   const count = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
-  // NOTE: Backend API does not support a `status` query param, so filtering
-  // is client-side on the current page only. This means the displayed count
-  // and pagination reflect the full (unfiltered) dataset. If a server-side
-  // `status` filter is added in the future, pass it via useNotificationLog
-  // params (e.g., { page, page_size, status }) for accurate paginated results.
   const filtered =
     statusFilter === "all"
       ? results
@@ -406,6 +450,25 @@ export default function MessageLogPage() {
           </div>
         ) : null}
       </div>
+
+      {pendingScheduled.length > 0 && (
+        <div className={styles.scheduledPanel}>
+          <div className={styles.scheduledHeader}>
+            <span className={styles.scheduledTitle}>예약 발송</span>
+            <span className={styles.scheduledCount}>{pendingScheduled.length.toLocaleString()}건 대기</span>
+          </div>
+          <div className={styles.scheduledList}>
+            {pendingScheduled.map((item) => (
+              <ScheduledRow
+                key={item.id}
+                item={item}
+                cancelling={cancelMut.isPending}
+                onCancel={() => cancelMut.mutate(item.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 콘텐츠 */}
       {isError ? (

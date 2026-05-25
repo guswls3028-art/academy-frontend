@@ -92,16 +92,6 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
     "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
   counsel_answered:
     "상담 답변이 등록되면 신청 학생·학부모에게 답변 안내를 발송합니다.",
-  staff_attendance_summary:
-    "근태 요약이 생성되면 해당 직원에게 근무 시간/일수 요약을 발송합니다.",
-  staff_expense_report:
-    "비용/경비 리포트가 생성되면 해당 직원에게 경비 내역을 발송합니다.",
-  staff_month_close:
-    "월 마감이 완료되면 해당 직원에게 마감 확인 안내를 발송합니다.",
-  staff_payroll_snapshot:
-    "급여 스냅샷이 생성되면 해당 직원에게 급여 요약을 발송합니다.",
-  staff_payroll_report:
-    "급여 명세서가 발행되면 해당 직원에게 명세서를 발송합니다.",
 };
 
 // ---------------------------------------------------------------------------
@@ -422,6 +412,12 @@ function TriggerCard({
 // AutoSendSettingsPanel (main exported component)
 // ---------------------------------------------------------------------------
 
+function canBulkToggleConfig(config: AutoSendConfigItem): boolean {
+  return config.policy_mode !== "SYSTEM_AUTO"
+    && config.implementation_status !== "manual_only"
+    && config.implementation_status !== "disabled";
+}
+
 export default function AutoSendSettingsPanel({
   triggerKeys,
   title = "자동발송 설정",
@@ -560,6 +556,7 @@ export default function AutoSendSettingsPanel({
   const handleSectionToggle = (checked: boolean) => {
     const next = localConfigs.map((c) => {
       if (!triggerKeys.includes(c.trigger)) return c;
+      if (!canBulkToggleConfig(c)) return c;
       if (!channelMode) {
         // unified mode: simple enable/disable
         return { ...c, enabled: checked };
