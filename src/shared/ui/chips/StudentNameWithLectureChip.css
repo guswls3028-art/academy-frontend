@@ -77,7 +77,7 @@
 }
 
 .student-name-chip[data-density="compact"] .student-name-chip__body {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
