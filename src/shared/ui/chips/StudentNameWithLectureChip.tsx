@@ -69,6 +69,7 @@ export default function StudentNameWithLectureChip({
   const displayedLectures = Number.isFinite(maxLectureChips)
     ? list.slice(0, Math.max(0, Number(maxLectureChips)))
     : list;
+  const hiddenLectureCount = list.length - displayedLectures.length;
 
   const rootClass = [
     "student-name-chip",
@@ -107,6 +108,11 @@ export default function StudentNameWithLectureChip({
           chipLabel={lec.chipLabel}
         />
       ))}
+      {hiddenLectureCount > 0 && (
+        <span className="student-name-chip__more" title={`강의 ${hiddenLectureCount}개 더 있음`}>
+          +{hiddenLectureCount}
+        </span>
+      )}
     </span>
   );
 }

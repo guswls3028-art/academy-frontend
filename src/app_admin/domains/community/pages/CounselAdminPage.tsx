@@ -21,11 +21,34 @@ import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
-import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { normalizeStudentName } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
+
+function toLectureChips(enrollments?: Array<{
+  lectureName?: string | null;
+  lectureColor?: string | null;
+  lectureChipLabel?: string | null;
+}>) {
+  return enrollments?.map((en) => ({
+    lectureName: en.lectureName,
+    color: en.lectureColor,
+    chipLabel: en.lectureChipLabel,
+  }));
+}
+
+function summarizeLectureNames(enrollments?: Array<{ lectureName?: string | null }>) {
+  const names = Array.from(new Set(
+    enrollments
+      ?.map((en) => en.lectureName?.trim())
+      .filter((name): name is string => Boolean(name)) ?? [],
+  ));
+  if (names.length === 0) return null;
+  const visible = names.slice(0, 3).join(" · ");
+  return names.length > 3 ? `${visible} 외 ${names.length - 3}개` : visible;
+}
 
 export default function CounselAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -229,7 +252,12 @@ function CounselCard({
             <span className={`qna-inbox__status ${statusClass}`}>{statusLabel}</span>
           </div>
           <div className="qna-inbox__card-meta">
-            <span className="qna-inbox__card-meta-name">{studentName}</span>
+            <StudentNameWithLectureChip
+              name={studentName}
+              avatarSize={20}
+              chipSize={16}
+              density="compact"
+            />
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
             {post.category_label && (
@@ -306,6 +334,8 @@ function CounselThreadView({
   }
 
   const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
+  const studentLectures = toLectureChips(studentDetail?.enrollments);
+  const lectureSummary = summarizeLectureNames(studentDetail?.enrollments);
 
   return (
     <>
@@ -317,7 +347,13 @@ function CounselThreadView({
               <span className="counsel-type-badge">상담</span>
             </div>
             <div className="qna-inbox__thread-meta">
-              <span>{studentName}</span>
+              <StudentNameWithLectureChip
+                name={studentName}
+                avatarSize={20}
+                chipSize={16}
+                maxLectureChips={2}
+                lectures={studentLectures}
+              />
               <span className="qna-inbox__thread-meta-dot" />
               <span>
                 신청 {new Date(post.created_at).toLocaleString("ko-KR", {
@@ -373,13 +409,18 @@ function CounselThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <CommunityAvatar name={studentName} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">
             {post.author_role === "parent" ? "상담 신청 학부모 (자녀: 학생)" : "상담 신청 학생"}
           </div>
           <div className="qna-inbox__student-name">
-            {studentName}
+            <StudentNameWithLectureChip
+              name={studentName}
+              avatarSize={28}
+              chipSize={20}
+              maxLectureChips={4}
+              lectures={studentLectures}
+            />
             {post.author_role === "parent" && (
               <span className="counsel-author-badge">학부모 작성</span>
             )}
@@ -389,6 +430,7 @@ function CounselThreadView({
               </span>
             )}
           </div>
+          {lectureSummary && <div className="qna-inbox__student-course">수강 {lectureSummary}</div>}
           <div className="qna-inbox__student-course">
             신청일 {new Date(post.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
             {post.category_label && ` · ${post.category_label}`}
@@ -407,22 +449,6 @@ function CounselThreadView({
               )}
             </div>
           )}
-          {studentDetail && studentDetail.enrollments.length > 0 && (
-            <div className="counsel-enrollment-chips">
-              {studentDetail.enrollments.slice(0, 6).map((en) => (
-                <LectureChipLabel
-                  key={en.id}
-                  className="counsel-enrollment-chip"
-                  lectureName={en.lectureName}
-                  color={en.lectureColor}
-                  chipLabel={en.lectureChipLabel}
-                />
-              ))}
-              {studentDetail.enrollments.length > 6 && (
-                <span className="counsel-enrollment-more">+{studentDetail.enrollments.length - 6}</span>
-              )}
-            </div>
-          )}
         </div>
         {counselHistory.length > 0 && (
           <div className="qna-inbox__student-history">이전 상담 {counselHistory.length}건</div>
@@ -434,7 +460,12 @@ function CounselThreadView({
           <CommunityAvatar name={studentName} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
-              <span className="qna-inbox__message-author">{studentName}</span>
+              <StudentNameWithLectureChip
+                name={studentName}
+                chipSize={16}
+                maxLectureChips={2}
+                lectures={studentLectures}
+              />
               <span className="qna-inbox__message-badge">학생</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", {

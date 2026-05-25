@@ -37,6 +37,11 @@ type MatchupResultItem = {
 
 type FilterKind = "all" | "pending" | "resolved";
 
+function lectureInfosFromTitle(title?: string | null) {
+  const lectureName = title?.trim();
+  return lectureName && lectureName !== "—" ? [{ lectureName }] : undefined;
+}
+
 export default function QnaInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
@@ -233,6 +238,8 @@ function QuestionCard({
               name={studentName}
               avatarSize={20}
               chipSize={16}
+              density="compact"
+              maxLectureChips={1}
               lectures={question.lecture_title ? [{ lectureName: question.lecture_title }] : undefined}
             />
             <span className="qna-inbox__card-meta-dot" />
@@ -318,7 +325,9 @@ function ThreadView({
     );
   }
 
-  const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
+  const studentName = post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display);
+  const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
+  const studentLectures = lectureInfosFromTitle(lectureLabel);
 
   return (
     <>
@@ -327,9 +336,13 @@ function ThreadView({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
-              <span>{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</span>
-              <span className="qna-inbox__thread-meta-dot" />
-              <span>{lectureLabel}</span>
+              <StudentNameWithLectureChip
+                name={studentName}
+                avatarSize={20}
+                chipSize={16}
+                maxLectureChips={1}
+                lectures={studentLectures}
+              />
               {post.category_label && (
                 <>
                   <span className="qna-inbox__thread-meta-dot" />
@@ -397,11 +410,18 @@ function ThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">학생</div>
-          <div className="qna-inbox__student-name">{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</div>
-          <div className="qna-inbox__student-course">{lectureLabel}</div>
+          <div className="qna-inbox__student-name">
+            <StudentNameWithLectureChip
+              name={studentName}
+              avatarSize={28}
+              chipSize={20}
+              maxLectureChips={1}
+              lectures={studentLectures}
+            />
+          </div>
+          {lectureLabel && <div className="qna-inbox__student-course">{lectureLabel}</div>}
         </div>
         {questionHistory.length > 0 && (
           <div className="qna-inbox__student-history">이전 질문 {questionHistory.length}건</div>
@@ -411,10 +431,15 @@ function ThreadView({
       <div className="qna-inbox__thread-body">
         {/* Student question */}
         <div className="qna-inbox__message-row">
-          <CommunityAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" />
+          <CommunityAvatar name={studentName} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
-              <span className="qna-inbox__message-author">{post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display)}</span>
+              <StudentNameWithLectureChip
+                name={studentName}
+                chipSize={16}
+                maxLectureChips={1}
+                lectures={studentLectures}
+              />
               <span className="qna-inbox__message-badge">학생</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", {

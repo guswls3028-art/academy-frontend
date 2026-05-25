@@ -289,15 +289,21 @@
   overflow: hidden;
 }
 
+.qna-inbox__card-meta .student-name-chip,
+.qna-inbox__thread-meta .student-name-chip,
+.qna-inbox__student-name .student-name-chip,
+.qna-inbox__message-meta .student-name-chip {
+  min-width: 0;
+}
+
+.qna-inbox__card-meta .student-name-chip {
+  flex: 0 1 auto;
+}
+
 .qna-inbox__card-meta--sub {
   margin-top: 2px;
   font-size: 10px;
   opacity: 0.75;
-}
-
-.qna-inbox__card-meta-name {
-  font-weight: 600;
-  color: var(--color-text-secondary);
 }
 
 .qna-inbox__card-meta-dot {
@@ -466,6 +472,10 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .qna-inbox__student-course {
@@ -555,6 +565,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: var(--space-2, 8px);
+  flex-wrap: wrap;
 }
 
 .qna-inbox__message-author {
@@ -1058,25 +1069,4 @@
 .counsel-student-contact-link:hover {
   color: var(--color-primary);
   text-decoration: underline;
-}
-
-.counsel-enrollment-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.counsel-enrollment-chip {
-  padding: 2px 8px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 999px;
-  background: var(--color-bg-surface-soft);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-}
-
-.counsel-enrollment-more {
-  color: var(--color-text-muted);
-  font-size: 11px;
 }
