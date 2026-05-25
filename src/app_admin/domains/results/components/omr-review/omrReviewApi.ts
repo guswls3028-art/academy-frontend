@@ -75,7 +75,9 @@ export type OmrReviewDetail = {
   identifier: unknown;
   answers: OmrReviewDetailAnswer[];
   scan_image_url: string;
-  /** 원본 스캔 이미지 크기 (BBox 좌표 정규화용). 없으면 img.naturalWidth/Height 사용. */
+  original_scan_image_url?: string;
+  scan_image_is_aligned?: boolean;
+  /** 표시 중인 스캔 이미지 크기 (BBox 좌표 정규화용). 없으면 img.naturalWidth/Height 사용. */
   scan_image_size?: { width: number; height: number } | null;
   meta: {
     manual_review?: {

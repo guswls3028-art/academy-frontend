@@ -529,6 +529,16 @@ function ScanPane({
               새 창
             </a>
           )}
+          {detail?.original_scan_image_url && (
+            <a
+              href={detail.original_scan_image_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="orw-scan-pane__zoom-btn"
+            >
+              원본
+            </a>
+          )}
         </div>
       </div>
       <div className={`orw-scan-pane__body ${fitMode ? "orw-scan-pane__body--fit" : ""}`}>

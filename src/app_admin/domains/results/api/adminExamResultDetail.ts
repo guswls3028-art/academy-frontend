@@ -81,8 +81,11 @@ export type ExamResultDetail = {
   /** 정답표: key=ExamQuestion.id(string), value=정답 */
   correct_answers?: Record<string, string>;
 
-  /** OMR 스캔 원본 presigned URL (없으면 "") */
+  /** OMR 스캔 presigned URL. AI 정렬 보정본이 있으면 보정본을 우선한다. */
   scan_image_url?: string;
+  original_scan_image_url?: string;
+  scan_image_is_aligned?: boolean;
+  scan_image_size?: { width: number; height: number } | null;
 
   /** 스캔 제출 기준 submission id (manual-edit API 호출용) */
   submission_id?: number | null;

@@ -478,9 +478,11 @@ function ExamScanPreview({
   });
 
   const scanUrl = data?.scan_image_url || "";
+  const originalScanUrl = data?.original_scan_image_url || "";
   const detailSubmissionId = data?.submission_id ?? null;
   const hasSubmission = existingSubmissionId != null || detailSubmissionId != null;
   const detailNeedsReview = data?.manual_review?.required === true || needsReview;
+  const isAlignedScan = data?.scan_image_is_aligned === true;
   const hasAnswers = (data?.items?.length ?? 0) > 0;
   const detailReviewReasons = data?.manual_review?.reasons ?? [];
   const reviewReasonText = [...reviewReasons, ...detailReviewReasons]
@@ -533,7 +535,9 @@ function ExamScanPreview({
             : detailNeedsReview && reviewReasonText
               ? reviewReasonText
               : scanUrl
-                ? "원본을 보면서 답안·점수를 확인할 수 있습니다."
+                ? isAlignedScan
+                  ? "자동 보정된 스캔을 보면서 답안·점수를 확인할 수 있습니다."
+                  : "스캔을 보면서 답안·점수를 확인할 수 있습니다."
                 : "스캔이 없어도 문항별 답안과 점수를 직접 입력할 수 있습니다."}
         </div>
         <div className="ssd-scan-preview__actions">
@@ -552,6 +556,18 @@ function ExamScanPreview({
           {scanUrl && (
             <a
               href={scanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ssd-scan-preview__open"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={ICON.xs} aria-hidden />
+              스캔
+            </a>
+          )}
+          {originalScanUrl && (
+            <a
+              href={originalScanUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="ssd-scan-preview__open"
