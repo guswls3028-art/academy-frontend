@@ -22,33 +22,15 @@ import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { normalizeStudentName } from "../utils/communityHelpers";
+import {
+  communityAuthorContextQueryKey,
+  normalizeStudentName,
+  summarizeLectureNames,
+  toLectureChips,
+} from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 
 type FilterKind = "all" | "pending" | "resolved";
-
-function toLectureChips(enrollments?: Array<{
-  lectureName?: string | null;
-  lectureColor?: string | null;
-  lectureChipLabel?: string | null;
-}>) {
-  return enrollments?.map((en) => ({
-    lectureName: en.lectureName,
-    color: en.lectureColor,
-    chipLabel: en.lectureChipLabel,
-  }));
-}
-
-function summarizeLectureNames(enrollments?: Array<{ lectureName?: string | null }>) {
-  const names = Array.from(new Set(
-    enrollments
-      ?.map((en) => en.lectureName?.trim())
-      .filter((name): name is string => Boolean(name)) ?? [],
-  ));
-  if (names.length === 0) return null;
-  const visible = names.slice(0, 3).join(" · ");
-  return names.length > 3 ? `${visible} 외 ${names.length - 3}개` : visible;
-}
 
 export default function CounselAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -305,7 +287,7 @@ function CounselThreadView({
   }, [post?.id, post?.created_by, allPosts]);
 
   const { data: studentDetail } = useQuery({
-    queryKey: ["community-author-context", post?.created_by],
+    queryKey: communityAuthorContextQueryKey(post?.created_by),
     queryFn: () => fetchPostAuthorContext(post!.created_by!),
     enabled: post?.created_by != null && !post?.created_by_deleted,
     staleTime: 60_000,

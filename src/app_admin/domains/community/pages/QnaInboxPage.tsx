@@ -14,6 +14,7 @@ import {
   fetchCommunityQuestions,
   fetchPost,
   deletePost,
+  fetchPostAuthorContext,
   type Question,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
@@ -25,7 +26,12 @@ import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import QnaMatchupResults from "../components/QnaMatchupResults";
-import { normalizeStudentName } from "../utils/communityHelpers";
+import {
+  communityAuthorContextQueryKey,
+  normalizeStudentName,
+  summarizeLectureNames,
+  toLectureChips,
+} from "../utils/communityHelpers";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import "@admin/domains/community/qna-inbox.css";
 
@@ -294,6 +300,14 @@ function ThreadView({
     },
   });
 
+  const { data: studentDetail } = useQuery({
+    queryKey: communityAuthorContextQueryKey(post?.created_by),
+    queryFn: () => fetchPostAuthorContext(post!.created_by!),
+    enabled: post?.created_by != null && !post?.created_by_deleted,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+  });
+
   const questionHistory = useMemo(() => {
     if (!post?.created_by) return [];
     return questions
@@ -326,8 +340,10 @@ function ThreadView({
   }
 
   const studentName = post.created_by_deleted ? "삭제된 학생입니다." : normalizeStudentName(post.created_by_display);
-  const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
-  const studentLectures = lectureInfosFromTitle(lectureLabel);
+  const mappedLectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
+  const contextLectures = toLectureChips(studentDetail?.enrollments);
+  const studentLectures = contextLectures?.length ? contextLectures : lectureInfosFromTitle(mappedLectureLabel);
+  const lectureSummary = summarizeLectureNames(studentDetail?.enrollments) ?? mappedLectureLabel;
 
   return (
     <>
@@ -421,7 +437,7 @@ function ThreadView({
               lectures={studentLectures}
             />
           </div>
-          {lectureLabel && <div className="qna-inbox__student-course">{lectureLabel}</div>}
+          {lectureSummary && <div className="qna-inbox__student-course">{lectureSummary}</div>}
         </div>
         {questionHistory.length > 0 && (
           <div className="qna-inbox__student-history">이전 질문 {questionHistory.length}건</div>

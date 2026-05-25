@@ -51,6 +51,33 @@ export function normalizeStudentName(name: string | null | undefined): string {
   return trimmed;
 }
 
+export function communityAuthorContextQueryKey(studentId: number | null | undefined) {
+  return ["community-author-context", studentId] as const;
+}
+
+export function toLectureChips(enrollments?: Array<{
+  lectureName?: string | null;
+  lectureColor?: string | null;
+  lectureChipLabel?: string | null;
+}>) {
+  return enrollments?.map((en) => ({
+    lectureName: en.lectureName,
+    color: en.lectureColor,
+    chipLabel: en.lectureChipLabel,
+  }));
+}
+
+export function summarizeLectureNames(enrollments?: Array<{ lectureName?: string | null }>) {
+  const names = Array.from(new Set(
+    enrollments
+      ?.map((en) => en.lectureName?.trim())
+      .filter((name): name is string => Boolean(name)) ?? [],
+  ));
+  if (names.length === 0) return null;
+  const visible = names.slice(0, 3).join(" · ");
+  return names.length > 3 ? `${visible} 외 ${names.length - 3}개` : visible;
+}
+
 /**
  * Format byte count into human-readable size (B / KB / MB).
  */
