@@ -171,8 +171,6 @@ export default function StudentPickerModal({
                     lectures={lecturesForCandidate(r)}
                     enrollmentId={r.enrollment_id}
                     avatarSize={20}
-                    layout="stacked"
-                    lectureDisplay="meta"
                   />
                 </span>
                 <span className="spm-row__meta">

@@ -26,6 +26,7 @@ import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import QnaMatchupResults from "../components/QnaMatchupResults";
 import { normalizeStudentName } from "../utils/communityHelpers";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import "@admin/domains/community/qna-inbox.css";
 
 type MatchupResultItem = {
@@ -228,19 +229,18 @@ function QuestionCard({
             <span className={`qna-inbox__status ${statusClass}`}>{statusLabel}</span>
           </div>
           <div className="qna-inbox__card-meta">
-            <span className="qna-inbox__card-meta-name">{studentName}</span>
+            <StudentNameWithLectureChip
+              name={studentName}
+              avatarSize={20}
+              chipSize={16}
+              lectures={question.lecture_title ? [{ lectureName: question.lecture_title }] : undefined}
+            />
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
           </div>
-          {question.lecture_title && (
+          {question.category_label && (
             <div className="qna-inbox__card-meta qna-inbox__card-meta--sub">
-              <span>{question.lecture_title}</span>
-              {question.category_label && (
-                <>
-                  <span className="qna-inbox__card-meta-dot" />
-                  <span>{question.category_label}</span>
-                </>
-              )}
+              <span>{question.category_label}</span>
             </div>
           )}
         </div>

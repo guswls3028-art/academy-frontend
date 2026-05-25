@@ -140,9 +140,6 @@
   gap: 10px;
   flex-wrap: wrap;
 }
-.spm-row__lecture {
-  color: var(--color-text-secondary, #4b5563);
-}
 .spm-row__phone {
   font-variant-numeric: tabular-nums;
 }

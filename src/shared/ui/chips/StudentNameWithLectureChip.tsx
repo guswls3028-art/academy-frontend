@@ -4,7 +4,6 @@
 
 import React from "react";
 import LectureChip from "./LectureChip";
-import { normalizeLectureChipText } from "./lectureChipText";
 import { LECTURE_CHIP_SIZE } from "./lectureChipTokens";
 import { useClinicHighlight } from "@/shared/contexts/useClinicHighlight";
 import "./StudentNameWithLectureChip.css";
@@ -32,10 +31,9 @@ type Props = {
   clinicHighlight?: boolean;
   /** enrollment ID — clinicHighlight 미지정 시 전역 컨텍스트에서 자동 조회 */
   enrollmentId?: number | null;
-  /** 성적표처럼 좁고 반복되는 표에서는 강의 정보를 이름 아래 보조 메타로 낮춘다. */
-  layout?: "inline" | "stacked";
-  /** inline 기본은 기존 강의 딱지, stacked 표에서는 meta 표시가 더 읽기 좋다. */
-  lectureDisplay?: "chip" | "meta";
+  /** 좁은 표/피커 행에서는 한 줄 높이를 고정해 행 점프를 막는다. */
+  density?: "default" | "compact";
+  maxLectureChips?: number;
 };
 
 const DEFAULT_COLOR = "#3b82f6";
@@ -58,8 +56,8 @@ export default function StudentNameWithLectureChip({
   highlight,
   clinicHighlight,
   enrollmentId,
-  layout = "inline",
-  lectureDisplay = "chip",
+  density = "default",
+  maxLectureChips,
 }: Props) {
   const contextHighlight = useClinicHighlight(enrollmentId);
   const isClinicHighlight = clinicHighlight ?? contextHighlight;
@@ -68,10 +66,12 @@ export default function StudentNameWithLectureChip({
     : [];
   const chipSizeResolved = chipSize;
   const avatarClass = avatarSizeClass(avatarSize);
+  const displayedLectures = Number.isFinite(maxLectureChips)
+    ? list.slice(0, Math.max(0, Number(maxLectureChips)))
+    : list;
 
   const rootClass = [
     "student-name-chip",
-    layout === "stacked" ? "student-name-chip--stacked" : "student-name-chip--inline",
     className ?? "",
   ].filter(Boolean).join(" ");
   const nameNode = (
@@ -81,7 +81,7 @@ export default function StudentNameWithLectureChip({
   );
 
   return (
-    <span className={rootClass}>
+    <span className={rootClass} data-density={density}>
       {avatarSize != null && avatarSize > 0 && (
         <span
           className={`student-name-chip__avatar ${avatarClass}`}
@@ -97,29 +97,8 @@ export default function StudentNameWithLectureChip({
 
       <span className="student-name-chip__body">
         {nameNode}
-        {layout === "stacked" && lectureDisplay === "meta" && list.length > 0 && (
-          <span className="student-name-chip__lecture-row">
-            {list.map((lec, i) => {
-              const label = lec.lectureName?.trim() || normalizeLectureChipText(lec.chipLabel);
-              if (!label) return null;
-              return (
-                <span
-                  key={`${lec.lectureName ?? ""}-${i}`}
-                  className="student-name-chip__lecture-meta"
-                  title={label}
-                >
-                  <span
-                    className="student-name-chip__lecture-dot"
-                    aria-hidden
-                  />
-                  <span className="student-name-chip__lecture-text">{label}</span>
-                </span>
-              );
-            })}
-          </span>
-        )}
       </span>
-      {!(layout === "stacked" && lectureDisplay === "meta") && list.map((lec, i) => (
+      {displayedLectures.map((lec, i) => (
         <LectureChip
           key={`${lec.lectureName ?? ""}-${i}`}
           lectureName={lec.lectureName}

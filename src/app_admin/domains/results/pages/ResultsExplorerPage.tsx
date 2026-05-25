@@ -14,6 +14,7 @@ import {
   type LandingSubmissionSummary,
 } from "../api/landingStats";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 export default function ResultsExplorerPage() {
   const navigate = useNavigate();
@@ -173,19 +174,11 @@ function SubmissionRow({
   // 시각 검수 M-2: 모두 비어있는 dangling 제출도 ID+힌트로 식별성 회복.
   const titleText = useMemo(() => {
     if (sub.target_title) return sub.target_title;
-    if (sub.lecture_title) return `${sub.lecture_title} · 제목 미입력`;
     if (sub.id) return `원본 없음 · 제출 #${sub.id}`;
     return "(제목 없음)";
   }, [sub]);
 
-  const subtitle = useMemo(() => {
-    const parts: string[] = [];
-    parts.push(sub.student_name || "학생 미식별");
-    if (sub.lecture_title && sub.target_title) parts.push(sub.lecture_title);
-    const t = formatSubmissionTime(sub.created_at);
-    if (t) parts.push(t);
-    return parts.join(" · ");
-  }, [sub]);
+  const submittedAt = useMemo(() => formatSubmissionTime(sub.created_at), [sub.created_at]);
 
   return (
     <button
@@ -221,19 +214,29 @@ function SubmissionRow({
         >
           {titleText}
         </span>
-        {subtitle && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {subtitle}
-          </span>
-        )}
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 0,
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            overflow: "hidden",
+          }}
+        >
+          <StudentNameWithLectureChip
+            name={sub.student_name || "학생 미식별"}
+            avatarSize={20}
+            chipSize={16}
+            lectures={sub.lecture_title ? [{ lectureName: sub.lecture_title }] : undefined}
+          />
+          {submittedAt && (
+            <span style={{ flexShrink: 0, color: "var(--color-text-muted)" }}>
+              {submittedAt}
+            </span>
+          )}
+        </span>
       </span>
       <span
         style={{

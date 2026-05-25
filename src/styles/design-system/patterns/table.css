@@ -374,7 +374,7 @@ table.ds-table {
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-verdict-start] {
   border-left: 1px solid color-mix(in srgb, var(--color-text-primary) 14%, var(--color-border-divider));
 }
-/* 이름 셀 — 학생명 우선, 강의 정보는 보조 메타로 분리 */
+/* 이름 셀 — 아바타 + 학생명 + 강의딱지 순서 유지 */
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table th[data-col-type="name"] {
   padding: 8px 12px;
   text-align: left;
@@ -387,10 +387,6 @@ table.ds-table {
   white-space: normal;
   overflow: hidden;
   text-overflow: clip;
-}
-
-.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table td[data-col-type="name"] .student-name-chip--stacked {
-  min-height: 38px;
 }
 
 .ds-scores-table .scores-table-kind-badge {

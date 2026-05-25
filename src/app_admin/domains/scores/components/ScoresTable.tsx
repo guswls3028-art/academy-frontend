@@ -887,15 +887,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   data-col-type="name"
                   onClick={(e) => { e.stopPropagation(); onSelectRow(row); }}
                 >
-                  {/* 성적표 전용: 학생명 우선, 강의는 아래 보조 메타로 낮춰 표 가독성 확보.
-                      아바타도 SSOT 동일: 사진 없으면 이니셜 표시 (다른 30+ 화면과 정합).
+                  {/* 아바타 + 이름 + 강의딱지 SSOT.
                       lectures: 단일 강의 → [{...}] 배열로 어댑트 (백엔드 row.lecture_* SSOT 그대로). */}
                   <StudentNameWithLectureChip
                     name={row.student_name ?? ""}
                     profilePhotoUrl={row.profile_photo_url ?? undefined}
                     avatarSize={28}
-                    layout="stacked"
-                    lectureDisplay="meta"
                     lectures={
                       row.lecture_title
                         ? [{

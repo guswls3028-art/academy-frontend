@@ -869,8 +869,6 @@ function EditPane({
                     lectures={lecturesForCandidate(pickedStudent)}
                     enrollmentId={pickedStudent.enrollment_id}
                     avatarSize={20}
-                    layout="stacked"
-                    lectureDisplay="meta"
                   />
                   {pickedStudent.already_matched && (
                     <span className="orw-identifier__picked-warn" title="다른 답안지에 이미 매칭된 학생입니다.">

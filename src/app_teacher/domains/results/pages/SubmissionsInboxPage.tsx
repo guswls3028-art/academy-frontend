@@ -22,6 +22,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
   fetchPendingSubmissions,
   retrySubmissionApi,
@@ -348,14 +349,20 @@ export default function SubmissionsInboxPage() {
 
                 <div className="flex-1 min-w-0">
                   <div
-                    className="ds-text-name font-semibold truncate"
+                    className="ds-text-name font-semibold"
                     style={{ color: resolved ? "var(--tc-text)" : "var(--tc-text-muted)" }}
                   >
-                    {titleMain} · {titleSub}
+                    <StudentNameWithLectureChip
+                      name={titleMain}
+                      profilePhotoUrl={r.profile_photo_url}
+                      avatarSize={22}
+                      chipSize={16}
+                      lectures={r.lecture_title ? [{ lectureName: r.lecture_title }] : undefined}
+                    />
                   </div>
                   <div className="flex gap-1.5 items-center text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                     <Badge tone={tone} size="xs">{label}</Badge>
-                    {r.lecture_title && <span className="truncate">{r.lecture_title}</span>}
+                    <span className="truncate">{titleSub}</span>
                     <span className="tabular-nums shrink-0 ml-auto">{formatTime(r.created_at)}</span>
                   </div>
                 </div>

@@ -687,10 +687,6 @@ function SubmissionRow({
         {targetTitleDisplay}
       </span>
 
-      <span className="hidden sm:inline text-xs text-[var(--color-text-muted)] truncate max-w-[120px] flex-shrink-0">
-        {lectureTitleDisplay}
-      </span>
-
       <span className="flex-1" />
 
       <Badge variant="solid" tone={tone} className="flex-shrink-0">

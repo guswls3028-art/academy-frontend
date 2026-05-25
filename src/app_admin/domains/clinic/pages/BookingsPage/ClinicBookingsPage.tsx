@@ -446,7 +446,6 @@ function RemediationWorkspace() {
               <thead>
                 <tr>
                   <th>학생</th>
-                  <th>강의</th>
                   <th>차시</th>
                   <th>항목</th>
                   <th>유형</th>
@@ -623,7 +622,6 @@ function RetakeTableRow({
           avatarSize={20}
         />
       </td>
-      <td className="clinic-hub__cell-lecture">{item.lecture_title || "-"}</td>
       <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
       <td className="clinic-hub__cell-source">
         <span title={item.source_title || "-"}>
@@ -797,9 +795,8 @@ function RemediationItemRow({
             {item.source_title || item.session_title || "알 수 없는 항목"}
           </span>
 
-          {/* Lecture / Session breadcrumb */}
+          {/* Session breadcrumb — lecture is already encoded in the student chip */}
           <span className="clinic-hub__item-breadcrumb">
-            {item.lecture_title ? `${item.lecture_title} · ` : ""}
             {item.session_title || ""}
           </span>
 

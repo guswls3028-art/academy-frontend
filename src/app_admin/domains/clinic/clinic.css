@@ -6843,7 +6843,6 @@ details[open] > .clinic-tree__summary {
    ══════════════════════════════════════════════════════════ */
 
 /* ── Table extra columns ── */
-.clinic-hub__cell-lecture,
 .clinic-hub__cell-source {
   max-width: 120px;
   white-space: nowrap;
