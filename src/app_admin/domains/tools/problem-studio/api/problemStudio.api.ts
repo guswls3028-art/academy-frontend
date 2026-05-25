@@ -38,7 +38,7 @@ export type ProblemStudioJobCreateResponse = {
 
 export type ProblemStudioJobStatusResponse = {
   job_id: string;
-  status: "PENDING" | "RUNNING" | "DONE" | "FAILED" | "REJECTED_BAD_INPUT" | string;
+  status: string;
   error: string;
   result: ProblemStudioGenerateResponse | null;
 };
@@ -100,6 +100,8 @@ export async function createProblemStudioJob(
 }
 
 export async function getProblemStudioJob(jobId: string): Promise<ProblemStudioJobStatusResponse> {
-  const { data } = await api.get<ProblemStudioJobStatusResponse>(`/tools/problem-studio/jobs/${jobId}/`);
+  const { data } = await api.get<ProblemStudioJobStatusResponse>(
+    `/tools/problem-studio/jobs/${encodeURIComponent(jobId)}/`,
+  );
   return data;
 }

@@ -44,7 +44,6 @@ import {
 } from "../utils/worksheetDocument";
 import {
   createProblemStudioJob,
-  generateProblemStudioDraft,
   getProblemStudioJob,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
@@ -81,15 +80,6 @@ type BacklogItem = {
   dependency: string;
 };
 
-type GenerationVariant = "copy" | "same-type" | "trap" | "concept";
-
-type GenerationVariantItem = {
-  key: GenerationVariant;
-  title: string;
-  detail: string;
-  badge: string;
-};
-
 type SourceFileEntry = HangulSourceFile & {
   id: string;
   extractedChars?: number;
@@ -119,46 +109,19 @@ const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
 const SOURCE_KEY = "problem-studio:source-files:v1";
 const MAX_PDF_PAGES = 24;
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.png,.jpg,.jpeg,.webp";
-const DEFAULT_PROMPT = "문제 내용을 입력하거나, 스캔/PDF 파일을 올려 문항 이미지를 추가하세요.";
+const DEFAULT_PROMPT = "문제 이미지나 파일을 올리면 한글 초안에 그대로 옮겨집니다.";
 const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5";
 const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 const JOB_POLL_INTERVAL_MS = 1500;
 const JOB_TIMEOUT_MS = 900_000;
 
-const GENERATION_VARIANTS: GenerationVariantItem[] = [
-  {
-    key: "copy",
-    title: "원본 이관/정리",
-    detail: "애매하면 원본을 먼저 한글 파일로 옮기고, 답과 해설은 미주 검수 영역에 둡니다.",
-    badge: "현재 단위",
-  },
-  {
-    key: "same-type",
-    title: "유사 유형",
-    detail: "같은 개념과 풀이 구조를 유지한 후보를 여러 개 만들고 선생님이 선택합니다.",
-    badge: "선택형",
-  },
-  {
-    key: "trap",
-    title: "함정/오답 유도",
-    detail: "아미노산 20종 같은 혼동 지점을 짚어 오답 이유를 짧게 설명합니다.",
-    badge: "해설 강화",
-  },
-  {
-    key: "concept",
-    title: "교과 개념형",
-    detail: "교과서 개념 정의와 풀이 원리를 기준으로 짧고 자세한 해설을 만듭니다.",
-    badge: "기본 해설",
-  },
-];
-
 const REQUIREMENT_FACTS = [
-  "소스: EBS 교재, 사설 참고서, PDF/HWP/HWPX가 주력이고 스캔본은 보조입니다.",
-  "산출물: 문제와 정답/해설을 한글 문서로 만들고, 정답/해설은 문항 미주 형태로 둡니다.",
+  "소스: 선생님이 올린 문제 이미지, PDF, HWPX, DOCX를 한글 초안으로 옮깁니다.",
+  "산출물: 문제 원본을 편집 가능한 한글 호환 문서로 만들고, 정답/해설은 있으면 미주 형태로 둡니다.",
   "양식 기준: 매치업 기존 양식을 우선 활용하고, 기준 샘플 파일을 추가 업로드할 수 있어야 합니다.",
-  "생성 기준: 지금 단위는 원본을 한글 파일로 먼저 옮기는 것이고, 변주는 선생님이 직접 고릅니다.",
-  "해설 기준: 교과서 개념 중심, 짧지만 충분히 자세하게, 오답 유도 포인트는 이유까지 표시합니다.",
+  "생성 기준: 지금 단위는 변주 없이 원본을 한글 파일로 먼저 옮기는 것입니다.",
+  "검수 기준: 선생님이 한글 파일을 열어 문제, 보기, 정답, 해설을 직접 수정합니다.",
 ];
 
 const STUDIO_MODES: StudioModeItem[] = [
@@ -169,9 +132,9 @@ const STUDIO_MODES: StudioModeItem[] = [
     status: "바로 착수",
     icon: FileText,
     tone: "primary",
-    promise: "PDF/HWP/HWPX 교재 자료를 문항 단위로 읽고 학원 양식의 한글 검수 문서로 정리한다.",
-    output: ["PDF/HWP/HWPX 소스 등록", "문항 번호와 보기 구조 정렬", "학원 양식 헤더/반명 반영", "정답·해설 미주형 배치"],
-    guardrails: ["폰 촬영본은 후순위", "수식/표/그림은 선생님 확인 후 확정", "한컴에서 열리는 산출물 검증"],
+    promise: "문제 이미지와 PDF/HWPX/DOCX 자료를 한글 호환 검수 문서로 그대로 옮긴다.",
+    output: ["이미지/PDF/HWPX/DOCX 소스 등록", "원본 페이지·문항 이미지 보존", "학원 양식 헤더/반명 반영", "정답·해설 미주형 배치"],
+    guardrails: ["OCR/LLM 변주는 2차", "수식/표/그림은 원본 보존 우선", "한컴에서 열리는 산출물 검증"],
   },
   {
     key: "rewrite",
@@ -209,7 +172,7 @@ const STUDIO_MODES: StudioModeItem[] = [
 ];
 
 const PHASES: PhaseItem[] = [
-  { title: "1차: 한글 초안", goal: "PDF/HWP/HWPX 소스 등록 후 문제와 미주형 정답/해설 문서 출력", verify: "한글에서 열리는 검수 문서가 생성되고 미주 섹션이 문항 번호와 맞는다.", tone: "primary" },
+  { title: "1차: 한글 이관", goal: "문제 이미지/PDF/HWPX/DOCX 업로드 후 편집 가능한 한글 호환 문서 출력", verify: "한글에서 열리는 검수 문서가 생성되고 원본 문제가 보존된다.", tone: "primary" },
   { title: "2차: 매치업 연결", goal: "기존 매치업 문항 분리와 유사문제 추천 결과를 소스로 재사용", verify: "업로드 문서의 문항 후보와 매치업 양식 기준이 생성 요청에 들어간다.", tone: "success" },
   { title: "3차: 생성 워커", goal: "원본 문제를 정리하고 정답/짧은 교과 개념 해설을 자동 생성", verify: "정답 검산과 해설 길이 제한, 오답 유도 설명 규칙을 통과한다.", tone: "warning" },
   { title: "4차: HWPX 정식 출력", goal: "서버에서 HWPX/HWP 네이티브 미주 객체로 내보내기", verify: "한컴에서 미주 객체로 열리고 선생님이 바로 수정할 수 있다.", tone: "info" },
@@ -236,8 +199,8 @@ const BACKLOG_LATER: BacklogItem[] = [
 const PIPELINE_STEPS = [
   { label: "소스", detail: "PDF/HWP/HWPX/스캔 접수" },
   { label: "분리", detail: "문항·보기·답지 영역 추출" },
-  { label: "생성", detail: "문제 정리와 해설 생성" },
-  { label: "선택", detail: "유사 후보 채택/버림" },
+  { label: "이관", detail: "원본 문제를 한글 초안으로 이동" },
+  { label: "수정", detail: "선생님이 한글 파일에서 직접 편집" },
   { label: "검수", detail: "정답·해설·오답 유도 확인" },
   { label: "한글", detail: "미주형 HWP/HWPX 출력" },
 ];
@@ -481,11 +444,19 @@ async function waitForProblemStudioJob(jobId: string): Promise<ProblemStudioGene
     const status = await getProblemStudioJob(jobId);
     if (status.status === "DONE" && status.result) return status.result;
     if (["FAILED", "REJECTED_BAD_INPUT"].includes(status.status)) {
-      throw new Error(status.error || "워커가 문항 초안 생성을 완료하지 못했습니다.");
+      throw new Error(status.error || "한글 이관 작업을 완료하지 못했습니다.");
     }
     await sleep(JOB_POLL_INTERVAL_MS);
   }
-  throw new Error("문항 생성 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
+  throw new Error("한글 이관 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
+}
+
+function shouldUseGeneratedTransferQuestions(response: ProblemStudioGenerateResponse): boolean {
+  if (response.source_text_chars > 0) return true;
+  return response.questions.some((question) => (
+    question.prompt.trim()
+    && !question.prompt.includes("소스에서 본문 텍스트를 추출하지 못했습니다")
+  ));
 }
 
 export default function ProblemStudioPage() {
@@ -493,18 +464,15 @@ export default function ProblemStudioPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const templateInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedMode, setSelectedMode] = useState<StudioMode>("scan");
-  const [variantMode, setVariantMode] = useState<GenerationVariant>("copy");
-  const [variantCount, setVariantCount] = useState(3);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>(() => loadSourceFiles());
   const [sourceFileBlobs, setSourceFileBlobs] = useState<File[]>([]);
   const [templateName, setTemplateName] = useState("매치업 기존 양식");
-  const [notePolicy, setNotePolicy] = useState("교과서 개념 중심으로 짧게 설명하고, 함정/오답 유도 문항은 왜 헷갈리는지 한 문장으로 덧붙입니다.");
+  const [notePolicy, setNotePolicy] = useState("원본을 한글 검수 파일로 그대로 옮긴 초안입니다. 선생님이 파일에서 직접 수정합니다.");
   const [draft, setDraft] = useState<WorksheetDraft>(() => loadDraft());
   const [pasteText, setPasteText] = useState("");
   const [importing, setImporting] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [transferring, setTransferring] = useState(false);
-  const [generationNote, setGenerationNote] = useState("아직 생성 전입니다.");
+  const [generationNote, setGenerationNote] = useState("파일이나 이미지를 올리면 한글 이관 초안을 만들 수 있습니다.");
   const [generationWarnings, setGenerationWarnings] = useState<string[]>([]);
   const [pdfLoading, setPdfLoading] = useState<WorksheetPdfKind | null>(null);
 
@@ -527,10 +495,6 @@ export default function ProblemStudioPage() {
   const selected = useMemo(
     () => STUDIO_MODES.find((item) => item.key === selectedMode) ?? STUDIO_MODES[0],
     [selectedMode],
-  );
-  const selectedVariant = useMemo(
-    () => GENERATION_VARIANTS.find((item) => item.key === variantMode) ?? GENERATION_VARIANTS[0],
-    [variantMode],
   );
   const SelectedIcon = selected.icon;
   const questionCount = draft.questions.length;
@@ -647,13 +611,13 @@ export default function ProblemStudioPage() {
     feedback.success(`${parsed.length}개 문항을 추가했습니다.`);
   };
 
-  const handleGenerateDraft = async () => {
-    const hasText = draft.questions.some(hasRealQuestion) || pasteText.trim();
-    if (sourceFileBlobs.length === 0 && !hasText) {
-      feedback.warning("소스 파일을 올리거나 문제 텍스트를 먼저 넣어 주세요.");
+  const handleTransferOriginal = async () => {
+    const hasDraftContent = draft.questions.some(hasRealQuestion) || pasteText.trim();
+    if (sourceFileBlobs.length === 0 && !hasDraftContent) {
+      feedback.warning("원본으로 옮길 소스 파일을 먼저 올려 주세요.");
       return;
     }
-    setGenerating(true);
+    setTransferring(true);
     setGenerationWarnings([]);
     try {
       const payload: ProblemStudioGeneratePayload = {
@@ -661,10 +625,11 @@ export default function ProblemStudioPage() {
         class_name: draft.className,
         subject: draft.subject,
         template_name: templateName,
-        variant_mode: variantMode,
-        variant_count: variantMode === "copy" ? 1 : variantCount,
+        variant_mode: "copy",
+        variant_count: 1,
         note_policy: notePolicy,
-        use_ai: true,
+        use_ai: false,
+        transfer_only: true,
         questions: [
           ...draft.questions.filter(hasRealQuestion).map((q) => ({
             prompt: q.prompt,
@@ -676,75 +641,26 @@ export default function ProblemStudioPage() {
         ],
       };
       const job = await createProblemStudioJob(payload, sourceFileBlobs);
-      if (job.source_files.length > 0) {
-        setSourceFiles(toSourceEntries(job.source_files));
-      }
+      const pendingSourceFiles = job.source_files.length > 0
+        ? toSourceEntries(job.source_files)
+        : sourceFiles;
+      setSourceFiles(pendingSourceFiles);
       setGenerationWarnings(job.warnings);
-      setGenerationNote(`워커 처리 중 · ${job.job_id.slice(0, 8)}`);
-      const response = await waitForProblemStudioJob(job.job_id);
-      const generated = response.questions.map(generatedToQuestion);
-      if (generated.length > 0) {
-        setDraft((prev) => ({ ...prev, questions: generated }));
-        setPasteText("");
-      }
-      if (response.source_files.length > 0) {
-        setSourceFiles(toSourceEntries(response.source_files));
-      }
-      setGenerationWarnings(response.warnings);
-      setGenerationNote(
-        response.generation_engine === "ai"
-          ? `${response.mode_label} · AI 워커 초안 ${response.questions.length}문항`
-          : `${response.mode_label} · 워커 초안 ${response.questions.length}문항`,
-      );
-      feedback.success(`${response.questions.length}개 문항 초안을 만들었습니다.`);
-    } catch (error) {
-      feedback.error(error instanceof Error ? error.message : "문항 초안을 만들 수 없습니다.");
-    } finally {
-      setGenerating(false);
-    }
-  };
+      setGenerationNote(`한글 이관 처리 중 · ${job.job_id.slice(0, 8)}`);
 
-  const handleTransferOriginal = async () => {
-    const hasDraftContent = draft.questions.some(hasRealQuestion) || pasteText.trim();
-    if (sourceFileBlobs.length === 0 && !hasDraftContent) {
-      feedback.warning("원본으로 옮길 소스 파일을 먼저 올려 주세요.");
-      return;
-    }
-    setTransferring(true);
-    setGenerationWarnings([]);
-    try {
-      const response = await generateProblemStudioDraft(
-        {
-          title: draft.title,
-          class_name: draft.className,
-          subject: draft.subject,
-          template_name: templateName,
-          variant_mode: "copy",
-          variant_count: 1,
-          note_policy: "원본을 한글 검수 파일로 먼저 옮기고, 선생님이 파일에서 직접 수정합니다.",
-          use_ai: false,
-          transfer_only: true,
-          questions: [
-            ...draft.questions.filter(hasRealQuestion).map((q) => ({
-              prompt: q.prompt,
-              choices: q.choices,
-              answer: q.answer,
-              explanation: q.explanation,
-            })),
-            ...(pasteText.trim() ? [{ prompt: pasteText, choices: "", answer: "", explanation: "" }] : []),
-          ],
-        },
-        sourceFileBlobs,
-      );
+      const response = await waitForProblemStudioJob(job.job_id);
       const nextSourceFiles = response.source_files.length > 0
         ? toSourceEntries(response.source_files)
-        : sourceFiles;
+        : pendingSourceFiles;
       const generated = response.questions.map(generatedToQuestion);
       const localVisualQuestions = draft.questions.filter((q) => hasRealQuestion(q) && q.attachments.length > 0);
-      const shouldKeepLocalVisuals = response.source_text_chars === 0 && localVisualQuestions.length > 0;
+      const shouldMergeLocalVisuals = localVisualQuestions.length > 0;
+      const shouldUseGenerated = shouldUseGeneratedTransferQuestions(response);
       const nextDraft = {
         ...draft,
-        questions: shouldKeepLocalVisuals ? localVisualQuestions : generated,
+        questions: shouldMergeLocalVisuals
+          ? (shouldUseGenerated ? [...localVisualQuestions, ...generated] : localVisualQuestions)
+          : generated,
       };
 
       setDraft(nextDraft);
@@ -755,8 +671,8 @@ export default function ProblemStudioPage() {
       downloadHangulDraft(nextDraft, {
         sourceFiles: nextSourceFiles,
         templateName,
-        variantLabel: "원본 이관 · 후보 1개",
-        notePolicy: "원본을 한글 검수 파일로 먼저 옮긴 초안입니다. 선생님이 파일에서 직접 정리합니다.",
+        variantLabel: "원본 이관 · 한글 초안",
+        notePolicy,
       });
       feedback.success("원본 이관 한글 파일을 저장했습니다.");
     } catch (error) {
@@ -800,7 +716,7 @@ export default function ProblemStudioPage() {
       downloadHangulDraft(draft, {
         sourceFiles,
         templateName,
-        variantLabel: `${selectedVariant.title} · 후보 ${variantMode === "copy" ? 1 : variantCount}개`,
+        variantLabel: "원본 이관 · 편집 초안",
         notePolicy,
       });
       feedback.success("한글 호환 검수 초안을 저장했습니다.");
@@ -830,10 +746,10 @@ export default function ProblemStudioPage() {
     <div className={styles.page}>
       <section className={styles.builderHero} aria-labelledby="worksheet-builder-title">
         <div className={styles.builderHeroText}>
-          <Badge tone="primary" size="md">요구 재정의</Badge>
-          <h2 id="worksheet-builder-title" className={styles.title}>문제&정답지 생성기</h2>
+          <Badge tone="primary" size="md">원본 이관</Badge>
+          <h2 id="worksheet-builder-title" className={styles.title}>문제 원본 한글 이관 도구</h2>
           <p className={styles.lead}>
-            EBS·사설 참고서 PDF/HWP/HWPX를 소스로 올리고, 매치업 양식 또는 업로드 샘플 기준으로 문제와 정답·해설을 한글 검수 문서로 만듭니다.
+            선생님이 올린 문제 이미지나 PDF/HWPX/DOCX 파일을 학원 양식의 한글 호환 검수 문서로 그대로 옮깁니다.
           </p>
         </div>
         <div className={styles.heroStats}>
@@ -849,7 +765,7 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="source-title">1. 소스와 양식</h3>
-                <p>PDF/HWP/HWPX는 생성 소스로 등록하고, PDF·스캔 이미지는 즉시 검수 초안에 붙입니다.</p>
+                <p>문제 이미지와 PDF는 즉시 초안에 붙이고, HWPX/DOCX는 본문을 추출해 한글 문서로 옮깁니다.</p>
               </div>
               <Button
                 type="button"
@@ -896,7 +812,7 @@ export default function ProblemStudioPage() {
               <div className={styles.sourceList}>
                 <strong>등록된 소스</strong>
                 {sourceFiles.length === 0 ? (
-                  <p>아직 등록된 소스가 없습니다. EBS/참고서 PDF, HWP, HWPX를 올리면 여기에 쌓입니다.</p>
+                  <p>아직 등록된 소스가 없습니다. 문제 이미지, PDF, HWPX, DOCX를 올리면 여기에 쌓입니다.</p>
                 ) : (
                   <div className={styles.filePills}>
                     {sourceFiles.map((file) => (
@@ -919,49 +835,22 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="generation-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="generation-title">2. 생성 방식</h3>
-                <p>지금 단위는 단순 복사/정리이고, 유사 유형은 후보를 골라 쓰는 옵션으로 둡니다.</p>
+                <h3 id="generation-title">2. 한글 이관</h3>
+                <p>지금은 변주 없이 원본을 먼저 한글 검수 파일로 옮깁니다.</p>
               </div>
               <Button
                 type="button"
                 intent="primary"
                 size="sm"
-                loading={generating}
-                leftIcon={<Sparkles size={ICON_FOR_BUTTON.sm} />}
-                onClick={handleGenerateDraft}
+                loading={transferring}
+                leftIcon={<FileInput size={ICON_FOR_BUTTON.sm} />}
+                onClick={handleTransferOriginal}
               >
-                자동 초안 생성
+                한글 파일로 옮기기
               </Button>
             </div>
-            <div className={styles.variantGrid}>
-              {GENERATION_VARIANTS.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={cx(styles.variantCard, item.key === variantMode && styles.variantCardActive)}
-                  aria-pressed={item.key === variantMode}
-                  onClick={() => setVariantMode(item.key)}
-                >
-                  <span>{item.badge}</span>
-                  <strong>{item.title}</strong>
-                  <em>{item.detail}</em>
-                </button>
-              ))}
-            </div>
             <div className={styles.generationControls}>
-              <Field label="유사 유형 후보 수">
-                <select
-                  value={variantCount}
-                  onChange={(e) => setVariantCount(Number(e.target.value))}
-                  disabled={variantMode === "copy"}
-                >
-                  <option value={1}>1개</option>
-                  <option value={3}>3개</option>
-                  <option value={5}>5개</option>
-                  <option value={10}>10개</option>
-                </select>
-              </Field>
-              <Field label="해설 기준" wide>
+              <Field label="미주 기본 문구" wide>
                 <textarea value={notePolicy} onChange={(e) => setNotePolicy(e.target.value)} rows={2} />
               </Field>
             </div>
@@ -972,7 +861,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>소스 업로드 후 자동 초안을 만들면 문항 편집기에 바로 반영됩니다.</span>
+                  <span>소스 업로드 후 한글 파일로 옮기면 문항 편집기와 다운로드 문서에 바로 반영됩니다.</span>
                 )}
               </div>
             </div>
@@ -1106,7 +995,7 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="output-title">한글 출력</h3>
-                <p>애매하면 원본만 먼저 한글 파일로 옮깁니다. 정답과 해설은 문항 번호 미주 형태로 묶습니다.</p>
+                <p>원본 문제를 먼저 한글 파일로 옮깁니다. 정답과 해설은 있으면 문항 번호 미주 형태로 묶습니다.</p>
               </div>
             </div>
             <div className={styles.outputButtons}>
@@ -1118,7 +1007,7 @@ export default function ProblemStudioPage() {
                 leftIcon={<FileInput size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >
-                원본만 한글로 저장
+                원본 한글로 저장
               </Button>
               <Button
                 type="button"
@@ -1198,7 +1087,7 @@ export default function ProblemStudioPage() {
           <Badge tone="primary" size="md">기획 보드</Badge>
           <h2 id="problem-studio-title" className={styles.title}>문제&정답지 생성 요구사항</h2>
           <p className={styles.lead}>
-            선생님 인터뷰 기준으로 제품 문장을 다시 잡았습니다. 핵심은 소스 업로드, 학원 양식, 한글 파일, 미주형 정답/해설입니다.
+            지금 핵심은 문제 이미지나 파일을 올리면 선생님이 수정할 수 있는 한글 파일로 옮겨 주는 것입니다.
           </p>
         </div>
         <div className={styles.summaryActions}>
