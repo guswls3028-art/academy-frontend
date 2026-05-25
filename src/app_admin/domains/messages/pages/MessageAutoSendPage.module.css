@@ -93,6 +93,14 @@
   line-height: 1.45;
 }
 
+.unimplementedHint {
+  margin-top: 4px;
+  color: var(--color-status-warning, #d97706);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .cardActions {
   display: inline-flex;
   flex-shrink: 0;

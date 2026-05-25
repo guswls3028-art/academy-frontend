@@ -131,8 +131,15 @@ function TriggerCard({
   const policy = getPolicyKey(config.policy_mode);
   const isSystem = policy === "SYSTEM_AUTO";
   const isDisabled = policy === "DISABLED";
-  const isActive = isSystem || config.enabled;
-  const cardState = isDisabled ? "disabled" : config.enabled ? "active" : "inactive";
+  const implStatus = config.implementation_status;
+  const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
+  const unimplementedHint = implStatus === "disabled"
+    ? "정책상 비활성 — 발송되지 않습니다"
+    : implStatus === "manual_only"
+      ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
+      : "";
+  const isActive = isSystem || (config.enabled && !isUnimplemented);
+  const cardState = isDisabled ? "disabled" : isActive ? "active" : "inactive";
 
   return (
     <div
@@ -157,22 +164,27 @@ function TriggerCard({
             <div className={styles.triggerDescription}>
               {TRIGGER_DESCRIPTIONS[config.trigger] ?? "해당 이벤트 발생 시 자동 발송합니다."}
             </div>
+            {isUnimplemented && (
+              <div className={styles.unimplementedHint}>
+                {unimplementedHint}
+              </div>
+            )}
           </div>
         </div>
 
         {/* 활성화 토글 — SYSTEM_AUTO는 항상 켜짐, 토글 비활성화 */}
         <div className={styles.cardActions}>
           <Switch
-            checked={isSystem ? true : config.enabled}
+            checked={isSystem ? true : isUnimplemented ? false : config.enabled}
             onChange={(checked) => onUpdate({ ...config, enabled: checked })}
-            disabled={saving || isSystem || isDisabled}
+            disabled={saving || isSystem || isDisabled || isUnimplemented}
             size="small"
           />
           <span
             className={styles.triggerState}
             data-active={isActive && !isDisabled}
           >
-            {isDisabled ? "정책상 비활성" : isSystem ? "항상 활성" : config.enabled ? "활성화" : "비활성화"}
+            {isDisabled ? "정책상 비활성" : isSystem ? "항상 활성" : isUnimplemented ? "수동 발송 전용" : config.enabled ? "활성화" : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -249,7 +261,7 @@ function TriggerCard({
                         delay_value: mode === "immediate" ? null : (config.delay_value ?? (mode === "scheduled_hour" ? 7 : 60)),
                       });
                     }}
-                    disabled={saving}
+                    disabled={saving || isUnimplemented}
                   >
                     <option value="immediate">즉시 발송</option>
                     <option value="delay_minutes">N분 후 발송</option>
@@ -268,7 +280,7 @@ function TriggerCard({
                           const v = e.target.value;
                           onUpdate({ ...config, delay_value: v === "" ? null : Math.max(1, parseInt(v, 10) || 1) }, true);
                         }}
-                        disabled={saving}
+                        disabled={saving || isUnimplemented}
                       />
                       <span className={styles.unitSmall}>분 후</span>
                     </div>
@@ -279,7 +291,7 @@ function TriggerCard({
                         className={`ds-select ${styles.scheduledHourSelect}`}
                         value={config.delay_value ?? 7}
                         onChange={(e) => onUpdate({ ...config, delay_value: parseInt(e.target.value, 10) })}
-                        disabled={saving}
+                        disabled={saving || isUnimplemented}
                       >
                         {Array.from({ length: 24 }, (_, h) => (
                           <option key={h} value={h}>{`${String(h).padStart(2, "0")}:00`}</option>
@@ -309,7 +321,7 @@ function TriggerCard({
                         true,
                       );
                     }}
-                    disabled={saving}
+                    disabled={saving || isUnimplemented}
                     aria-label="발송 시점 (분 전)"
                   />
                   <span className={styles.unit}>분 전</span>
@@ -326,7 +338,7 @@ function TriggerCard({
                 className={`ds-select ${styles.channelSelect}`}
                 value="alimtalk"
                 onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
-                disabled={saving}
+                disabled={saving || isUnimplemented}
               >
                 <option value="alimtalk">알림톡</option>
               </select>
