@@ -29,7 +29,6 @@ import QnaMatchupResults from "../components/QnaMatchupResults";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
-  summarizeLectureNames,
   toLectureChips,
 } from "../utils/communityHelpers";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -343,7 +342,6 @@ function ThreadView({
   const mappedLectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
   const contextLectures = toLectureChips(studentDetail?.enrollments);
   const studentLectures = contextLectures?.length ? contextLectures : lectureInfosFromTitle(mappedLectureLabel);
-  const lectureSummary = summarizeLectureNames(studentDetail?.enrollments) ?? mappedLectureLabel;
 
   return (
     <>
@@ -437,7 +435,6 @@ function ThreadView({
               lectures={studentLectures}
             />
           </div>
-          {lectureSummary && <div className="qna-inbox__student-course">{lectureSummary}</div>}
         </div>
         {questionHistory.length > 0 && (
           <div className="qna-inbox__student-history">이전 질문 {questionHistory.length}건</div>

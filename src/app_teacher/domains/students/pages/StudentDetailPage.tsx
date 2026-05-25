@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
@@ -108,16 +109,19 @@ export default function StudentDetailPage() {
       {/* Profile */}
       <Card>
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0" style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            {name[0]}
-          </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-lg font-bold" style={{ color: "var(--tc-text)" }}>{name}</span>
-              {enrollments.map((e) => (
-                <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? ""} color={e.lectureColor ?? undefined} chipLabel={e.lectureChipLabel ?? undefined} size={ICON.lg} />
-              ))}
-            </div>
+            <StudentNameWithLectureChip
+              name={name}
+              profilePhotoUrl={student.profilePhotoUrl}
+              avatarSize={56}
+              chipSize={ICON.lg}
+              className="text-lg"
+              lectures={enrollments.map((e) => ({
+                lectureName: e.lectureName,
+                color: e.lectureColor,
+                chipLabel: e.lectureChipLabel,
+              }))}
+            />
             {student.psNumber && (
               <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
                 ID: {student.psNumber}{student.omrCode ? ` · OMR: ${student.omrCode}` : ""}

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Search, Filter, ChevronRight, Plus, Download, Upload, Check, X, Trash2, Tag, MessageSquare, Lock } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -241,14 +241,19 @@ export default function StudentListPage() {
                     {isSelected && <Check size={ICON.xs} />}
                   </div>
                 )}
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-base font-bold shrink-0" style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>{name[0]}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="ds-text-name font-semibold" style={{ color: "var(--tc-text)" }}>{name}</span>
-                    {enrollments.map((e) => (
-                      <LectureChip key={e.id ?? e.lectureId} lectureName={e.lectureName ?? ""} color={e.lectureColor ?? undefined} chipLabel={e.lectureChipLabel ?? undefined} size={20} />
-                    ))}
-                  </div>
+                  <StudentNameWithLectureChip
+                    name={name}
+                    profilePhotoUrl={s.profilePhotoUrl}
+                    avatarSize={40}
+                    chipSize={20}
+                    className="text-sm"
+                    lectures={enrollments.map((e) => ({
+                      lectureName: e.lectureName,
+                      color: e.lectureColor,
+                      chipLabel: e.lectureChipLabel,
+                    }))}
+                  />
                   {sub && <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{sub}</div>}
                   {!selectMode && (
                     <div className="flex gap-3 mt-1 text-[12px]" style={{ color: "var(--tc-text-secondary)" }}>

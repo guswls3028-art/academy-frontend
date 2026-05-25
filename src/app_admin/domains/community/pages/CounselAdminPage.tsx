@@ -25,7 +25,6 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
-  summarizeLectureNames,
   toLectureChips,
 } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
@@ -317,7 +316,6 @@ function CounselThreadView({
 
   const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
   const studentLectures = toLectureChips(studentDetail?.enrollments);
-  const lectureSummary = summarizeLectureNames(studentDetail?.enrollments);
 
   return (
     <>
@@ -412,8 +410,7 @@ function CounselThreadView({
               </span>
             )}
           </div>
-          {lectureSummary && <div className="qna-inbox__student-course">수강 {lectureSummary}</div>}
-          <div className="qna-inbox__student-course">
+          <div className="qna-inbox__student-detail">
             신청일 {new Date(post.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
             {post.category_label && ` · ${post.category_label}`}
           </div>

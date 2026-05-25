@@ -66,6 +66,9 @@ export default function StudentNameWithLectureChip({
     : [];
   const chipSizeResolved = chipSize;
   const avatarClass = avatarSizeClass(avatarSize);
+  const avatarStyle = avatarSize != null && avatarSize > 0
+    ? { width: avatarSize, height: avatarSize }
+    : undefined;
   const displayedLectures = Number.isFinite(maxLectureChips)
     ? list.slice(0, Math.max(0, Number(maxLectureChips)))
     : list;
@@ -86,6 +89,7 @@ export default function StudentNameWithLectureChip({
       {avatarSize != null && avatarSize > 0 && (
         <span
           className={`student-name-chip__avatar ${avatarClass}`}
+          style={avatarStyle}
           aria-hidden
         >
           {profilePhotoUrl ? (

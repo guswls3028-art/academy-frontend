@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
 import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, downloadAttendanceExcel } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -248,6 +249,13 @@ export default function LectureDetailPage() {
                 const name = e.student_name ?? e.name ?? "이름 없음";
                 const parentPhone = e.parent_phone ?? e.parentPhone;
                 const studentPhone = e.student_phone ?? e.studentPhone ?? e.phone;
+                const lectureInfo = lecture
+                  ? [{
+                      lectureName: lecture.title,
+                      color: lecture.color,
+                      chipLabel,
+                    }]
+                  : undefined;
                 return (
                   <button
                     key={e.id}
@@ -259,14 +267,14 @@ export default function LectureDetailPage() {
                       border: "1px solid var(--tc-border)",
                     }}
                   >
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}
-                    >
-                      {name[0]}
-                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{name}</div>
+                      <StudentNameWithLectureChip
+                        name={name}
+                        avatarSize={36}
+                        chipSize={20}
+                        className="text-sm"
+                        lectures={lectureInfo}
+                      />
                       <div className="flex gap-3 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                         {parentPhone && <span>부 {formatPhone(parentPhone)}</span>}
                         {studentPhone && <span>학 {formatPhone(studentPhone)}</span>}
