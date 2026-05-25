@@ -27,8 +27,10 @@ import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import CloseButton from "@/shared/ui/ds/CloseButton";
+import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
+import { AlertTriangle, CheckCircle2, ExternalLink, Image as ScanImageIcon, PencilLine } from "lucide-react";
 import "./StudentScoresDrawer.css";
 
 type Props = {
@@ -40,6 +42,25 @@ type Props = {
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
 };
+
+const OMR_REVIEW_REASON_LABELS: Record<string, string> = {
+  answer_blank_or_multi: "빈칸·중복마킹",
+  answer_low_confidence: "낮은 인식 신뢰도",
+  answer_status_not_ok: "인식 불완전",
+  identifier_no_match: "학생 매칭 실패",
+  identifier_no_enrollment_match: "학생 매칭 실패",
+  identifier_missing: "식별번호 미인식",
+  identifier_invalid: "식별번호 형식 확인",
+  alignment_failed: "스캔 정렬 실패",
+  ANSWER_STATUS_NOT_OK: "인식 불완전",
+  NO_MATCH: "학생 매칭 실패",
+};
+
+function omrReviewReasonLabel(reason: string): string {
+  const key = String(reason || "").trim();
+  if (!key) return "";
+  return OMR_REVIEW_REASON_LABELS[key] ?? OMR_REVIEW_REASON_LABELS[key.toLowerCase()] ?? key;
+}
 
 function pctNum(score: number | null | undefined, max: number | null | undefined): number | null {
   if (score == null || max == null || max === 0) return null;
@@ -414,15 +435,135 @@ function ExamResultCard({
       </div>
 
       {expanded && (
-        <AttemptTimeline
-          enrollmentId={enrollmentId}
-          sourceType="exam"
-          sourceId={exam.exam_id}
-          sessionId={sessionId}
-          onOpenDetail={onOpenDetail}
-        />
+        <>
+          <ExamScanPreview
+            exam={exam}
+            enrollmentId={enrollmentId}
+            expanded={expanded}
+            onOpenDetail={onOpenDetail}
+          />
+          <AttemptTimeline
+            enrollmentId={enrollmentId}
+            sourceType="exam"
+            sourceId={exam.exam_id}
+            sessionId={sessionId}
+            onOpenDetail={onOpenDetail}
+          />
+        </>
       )}
     </li>
+  );
+}
+
+function ExamScanPreview({
+  exam,
+  enrollmentId,
+  expanded,
+  onOpenDetail,
+}: {
+  exam: SessionScoreExamEntry;
+  enrollmentId: number;
+  expanded: boolean;
+  onOpenDetail?: () => void;
+}) {
+  const existingSubmissionId = exam.block.meta?.submission_id ?? null;
+  const needsReview = exam.block.meta?.manual_review_required === true;
+  const reviewReasons = exam.block.meta?.manual_review_reasons ?? [];
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin-exam-detail", exam.exam_id, enrollmentId],
+    queryFn: () => fetchAdminExamResultDetail(exam.exam_id, enrollmentId),
+    enabled: expanded && Number.isFinite(exam.exam_id) && Number.isFinite(enrollmentId),
+    staleTime: 30_000,
+  });
+
+  const scanUrl = data?.scan_image_url || "";
+  const detailSubmissionId = data?.submission_id ?? null;
+  const hasSubmission = existingSubmissionId != null || detailSubmissionId != null;
+  const detailNeedsReview = data?.manual_review?.required === true || needsReview;
+  const hasAnswers = (data?.items?.length ?? 0) > 0;
+  const detailReviewReasons = data?.manual_review?.reasons ?? [];
+  const reviewReasonText = [...reviewReasons, ...detailReviewReasons]
+    .map(omrReviewReasonLabel)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(", ");
+  const statusLabel = detailNeedsReview
+    ? "검토 필요"
+    : hasSubmission
+      ? "스캔 확인 가능"
+      : hasAnswers
+        ? "답안 입력 가능"
+        : "스캔 없음";
+
+  return (
+    <div className="ssd-scan-preview" data-review={detailNeedsReview ? "true" : undefined}>
+      <div className="ssd-scan-preview__media">
+        {isLoading ? (
+          <div className="ssd-scan-preview__thumb ssd-scan-preview__thumb--loading" />
+        ) : scanUrl ? (
+          <img
+            src={scanUrl}
+            alt={`${exam.title} OMR 스캔`}
+            className="ssd-scan-preview__thumb"
+          />
+        ) : (
+          <div className="ssd-scan-preview__thumb ssd-scan-preview__thumb--empty">
+            <ScanImageIcon size={ICON.md} aria-hidden />
+          </div>
+        )}
+      </div>
+      <div className="ssd-scan-preview__body">
+        <div className="ssd-scan-preview__topline">
+          <span className="ssd-scan-preview__label">OMR 답안</span>
+          <span className="ssd-scan-preview__status" data-tone={detailNeedsReview ? "warning" : hasSubmission ? "success" : "neutral"}>
+            {detailNeedsReview ? (
+              <AlertTriangle size={ICON.xs} aria-hidden />
+            ) : hasSubmission ? (
+              <CheckCircle2 size={ICON.xs} aria-hidden />
+            ) : (
+              <ScanImageIcon size={ICON.xs} aria-hidden />
+            )}
+            {statusLabel}
+          </span>
+        </div>
+        <div className="ssd-scan-preview__desc">
+          {isError
+            ? "답안 정보를 불러오지 못했습니다."
+            : detailNeedsReview && reviewReasonText
+              ? reviewReasonText
+              : scanUrl
+                ? "원본을 보면서 답안·점수를 확인할 수 있습니다."
+                : "스캔이 없어도 문항별 답안과 점수를 직접 입력할 수 있습니다."}
+        </div>
+        <div className="ssd-scan-preview__actions">
+          <Button
+            size="sm"
+            intent={detailNeedsReview ? "primary" : "secondary"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDetail?.();
+            }}
+            disabled={!onOpenDetail}
+            leftIcon={<PencilLine size={ICON_FOR_BUTTON.sm} />}
+          >
+            답안 보정
+          </Button>
+          {scanUrl && (
+            <a
+              href={scanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ssd-scan-preview__open"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={ICON.xs} aria-hidden />
+              원본
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -680,7 +821,7 @@ function AttemptTimeline({
     });
   }
 
-  const nextAttemptIndex = (data?.attempts.length ?? 0) + 1;
+  const nextAttemptIndex = (data?.attempts?.length ?? 0) + 1;
   const canAddRetake = data?.clinic_link_id && !data?.resolved;
   const newAttemptPassScoreLabel = isExam
     ? (retakePassScore.trim() || (data?.pass_score != null ? String(data.pass_score) : ""))

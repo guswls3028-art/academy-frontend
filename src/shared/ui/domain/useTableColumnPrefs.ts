@@ -44,6 +44,27 @@ function savePrefs(tableId: string, visible: string[], widths: Record<string, nu
   }
 }
 
+function clampWidth(width: unknown, column: TableColumnDef): number {
+  const min = column.minWidth ?? 40;
+  const max = column.maxWidth ?? 800;
+  const fallback = Math.min(max, Math.max(min, column.defaultWidth));
+  if (typeof width !== "number" || !Number.isFinite(width)) return fallback;
+  return Math.min(max, Math.max(min, width));
+}
+
+function sanitizeWidths(
+  widths: Record<string, number>,
+  columns: TableColumnDef[],
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  columns.forEach((column) => {
+    if (Object.prototype.hasOwnProperty.call(widths, column.key)) {
+      next[column.key] = clampWidth(widths[column.key], column);
+    }
+  });
+  return next;
+}
+
 export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) {
   const columnKeys = useMemo(() => columns.map((c) => c.key), [columns]);
 
@@ -54,7 +75,9 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
     const loaded = loadPrefs(tableId);
     if (loaded) {
       const visible = loaded.visible.filter((k) => columnKeys.includes(k));
-      if (visible.length > 0) return { visible, widths: loaded.widths };
+      if (visible.length > 0) {
+        return { visible, widths: sanitizeWidths(loaded.widths, columns) };
+      }
     }
     return {
       visible: columnKeys,
@@ -70,7 +93,7 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
   const columnWidths = useMemo(() => {
     const w: Record<string, number> = {};
     columns.forEach((c) => {
-      w[c.key] = prefs.widths[c.key] ?? c.defaultWidth;
+      w[c.key] = clampWidth(prefs.widths[c.key], c);
     });
     return w;
   }, [columns, prefs.widths]);
