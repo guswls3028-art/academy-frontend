@@ -90,7 +90,7 @@ function pendingKeyForChange(p: PendingChange): string {
 
 // PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
 // OmrUploadButton 컴포넌트 제거(2026-05-13 P0-2): 헤더 위 absolute 미니버튼 제거.
-// OMR 업로드는 SessionScoresEntryPage 툴바의 OMR 버튼(시험 1개 직진 / 2+개 드롭다운) 단일 경로.
+// OMR 업로드는 SessionScoresEntryPage 툴바 첫 CTA(시험 1개 직진 / 2+개 선택) 단일 경로.
 
 /** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제)
  *  row.clinic_required (서버 판정)이 SSOT. 사유만 로컬에서 표시용으로 추론. */
@@ -290,7 +290,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     qc.invalidateQueries({ queryKey: ["admin-exam-results"] });
     const successCount = list.length - failed.length;
     if (failed.length > 0) {
-      feedback.error(`${failed.length}건의 점수 저장에 실패했습니다. 다시 저장해 주세요.`);
+      throw new Error(`${failed.length}건의 점수 저장에 실패했습니다. 편집 모드를 유지합니다. 다시 저장해 주세요.`);
     } else if (successCount > 0) {
       feedback.success(`${successCount}건의 점수가 저장되었습니다.`);
     }
@@ -568,7 +568,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       )}
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
-          OMR 업로드는 툴바 우측 OMR 버튼 (시험 1개면 직진, 2+개면 드롭다운) 단일 경로. */}
+          OMR 업로드는 툴바 첫 CTA (시험 1개면 직진, 2+개면 선택) 단일 경로. */}
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth, ...stickyColumnVars }}

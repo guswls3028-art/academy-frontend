@@ -11,7 +11,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, HeartPulse, MoreVertical, Printer, Upload, Users, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, MoreVertical, Plus, Printer, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -22,7 +22,7 @@ import {
   type SessionScoreRow,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
-import { Button, EmptyState, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
@@ -36,12 +36,12 @@ import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollmen
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
 import api from "@/shared/api/axios";
-import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
 import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintPreviewModal";
 import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import SessionOmrUploadAction from "./SessionOmrUploadAction";
 import "./SessionScoresEntryPage.css";
 
 export default function SessionScoresEntryPage() {
@@ -84,9 +84,6 @@ export default function SessionScoresEntryPage() {
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const [omrExam, setOmrExam] = useState<{ examId: number; title: string } | null>(null);
-  const [showOmrPicker, setShowOmrPicker] = useState(false);
-  const omrPickerRef = useRef<HTMLDivElement>(null);
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
@@ -132,16 +129,6 @@ export default function SessionScoresEntryPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showMoreMenu]);
-
-  // OMR picker 외부 클릭 닫기
-  useEffect(() => {
-    if (!showOmrPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (omrPickerRef.current && !omrPickerRef.current.contains(e.target as Node)) setShowOmrPicker(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showOmrPicker]);
 
   const invalidateScores = () => {
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
@@ -324,18 +311,6 @@ export default function SessionScoresEntryPage() {
      selectionBar 보다 위로 이동. */
   const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
   const examOptions = data?.meta?.exams ?? [];
-  const hasOmrExams = examOptions.length > 0;
-  const openOmrUpload = () => {
-    if (examOptions.length === 0) {
-      feedback.info("시험을 먼저 추가해주세요.");
-      return;
-    }
-    if (examOptions.length === 1) {
-      setOmrExam({ examId: examOptions[0].exam_id, title: examOptions[0].title });
-      return;
-    }
-    setShowOmrPicker((v) => !v);
-  };
   // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
   // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
@@ -603,42 +578,8 @@ export default function SessionScoresEntryPage() {
     <div className="scores-primary-actions">
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
-          시험 상세/제출관리의 업로드 UI도 같은 업로드 컴포넌트를 사용한다. */}
-      {hasOmrExams && (
-        <div ref={omrPickerRef} className="scores-omr-action">
-          <Button
-            type="button"
-            intent={isEditMode ? "secondary" : "primary"}
-            size="md"
-            className="scores-omr-primary"
-            onClick={openOmrUpload}
-            title="OMR 스캔 등록"
-            leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
-            rightIcon={examOptions.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
-          >
-            OMR 스캔 등록
-          </Button>
-          {showOmrPicker && (
-            <div className="scores-omr-picker">
-              <div className="scores-omr-picker__title">시험 선택</div>
-              {examOptions.map((ex) => (
-                <button
-                  key={ex.exam_id}
-                  type="button"
-                  className="scores-omr-picker__item"
-                  onClick={() => {
-                    setOmrExam({ examId: ex.exam_id, title: ex.title });
-                    setShowOmrPicker(false);
-                  }}
-                >
-                  <Badge variant="solid" tone="primary" oneChar ariaLabel="시험">시</Badge>
-                  <span>{ex.title}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+          시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
+      <SessionOmrUploadAction exams={examOptions} isEditMode={isEditMode} onRefresh={invalidateScores} />
 
       {/* ── 그룹 2: 핵심 액션 ──
           P1-3 (2026-05-13): 편집 모드 ON 일 때만 primary 강조. 비편집 상태에선 secondary
@@ -827,55 +768,44 @@ export default function SessionScoresEntryPage() {
           P2 (2026-05-13): 자동 등록 사실을 1단계에 흡수, 가이드와 모달 동작 정합.
           기존 2단계 "수강생 일괄배정"은 자동 등록 실패 시 보조 경로로 강등. */}
       {!isLoading && !isError && !hasExamsOrHomeworks && (
-        <div
-          className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
-          style={{ boxShadow: "var(--elevation-1)" }}
-        >
-          <div className="px-5 py-4">
-            <h3 className="text-[14px] font-semibold text-[var(--color-text-primary)]">성적 관리 시작하기</h3>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {[
-                {
-                  step: "1",
-                  title: "시험 또는 과제 추가",
-                  desc: "'+ 시험' / '+ 과제' 버튼으로 만들면 차시 수강생이 자동으로 응시·제출 대상으로 등록됩니다.",
-                  active: true,
-                },
-                {
-                  step: "2",
-                  title: "성적 입력",
-                  desc: "편집 모드에서 점수를 직접 입력하거나, OMR 스캔본을 업로드해 객관식을 자동 채점하세요.",
-                  active: false,
-                },
-              ].map((item) => (
-                <div
-                  key={item.step}
-                  className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5"
-                  style={{
-                    borderColor: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
-                    background: item.active
-                      ? "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface))"
-                      : "var(--color-bg-surface-soft)",
-                  }}
-                >
-                  <span
-                    className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold mt-px"
-                    style={{
-                      background: item.active ? "var(--color-brand-primary)" : "var(--color-border-divider)",
-                      color: item.active ? "#fff" : "var(--color-text-muted)",
-                    }}
-                  >
-                    {item.step}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-snug">{item.title}</div>
-                    <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)] leading-normal">{item.desc}</div>
-                  </div>
-                </div>
-              ))}
+        <div className="scores-start-panel">
+          <div className="scores-start-panel__head">
+            <span className="scores-start-panel__kicker">Assessment</span>
+            <h3 className="scores-start-panel__title">평가 항목 없음</h3>
+            <p className="scores-start-panel__copy">
+              이 차시에 연결된 시험이나 과제가 없습니다.
+            </p>
+          </div>
+          <div className="scores-start-panel__actions">
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
+              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
+              onClick={() => setShowCreateExam(true)}
+            >
+              시험 추가
+            </Button>
+            <Button
+              type="button"
+              intent="secondary"
+              size="md"
+              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
+              onClick={() => setShowCreateHomework(true)}
+            >
+              과제 추가
+            </Button>
+          </div>
+          <div className="scores-start-panel__cards" aria-label="성적 항목 상태">
+            <div className="scores-start-panel__card">
+              <ClipboardList size={18} aria-hidden />
+              <span>시험</span>
+              <strong>0</strong>
             </div>
-            <div className="mt-3 text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-              자동 등록이 안 됐다면 상단 더보기에서 <strong>'수강생 일괄배정'</strong>으로 보강할 수 있어요.
+            <div className="scores-start-panel__card">
+              <FileText size={18} aria-hidden />
+              <span>과제</span>
+              <strong>0</strong>
             </div>
           </div>
         </div>
@@ -883,26 +813,14 @@ export default function SessionScoresEntryPage() {
 
       {/* ── 안내 배너: 시험/과제는 있지만 대상자가 없을 때 ── */}
       {!isLoading && !isError && hasExamsOrHomeworks && displayCount === 0 && (
-        <div
-          className="flex items-start gap-3 rounded-lg border px-4 py-3"
-          style={{
-            borderColor: "color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider))",
-            background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+        <div className="scores-roster-warning">
+          <AlertCircle size={18} aria-hidden />
           <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+            <div className="scores-roster-warning__title">
               응시·제출 대상으로 등록된 수강생이 없습니다
             </div>
-            <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)] leading-relaxed">
-              차시에 수강생이 없거나 시험·과제 생성 시 자동 등록이 실패했을 때 보입니다.
-              먼저 차시에 수강생을 등록한 뒤, 상단 더보기에서 <strong>'수강생 일괄배정'</strong>으로 전원을 응시 대상으로 추가하세요.
-              (개별 관리는 시험·과제 상세에서 가능합니다.)
+            <div className="scores-roster-warning__copy">
+              차시 수강생 등록 상태를 확인한 뒤 더보기의 수강생 일괄배정으로 보강하세요.
             </div>
           </div>
         </div>
@@ -1065,49 +983,6 @@ export default function SessionScoresEntryPage() {
           lectureTitle={lectureTitle}
           attendanceMap={attendanceMapForPdf}
         />
-      )}
-
-      {/* OMR 업로드 모달 */}
-      {omrExam && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="omr-upload-modal-title"
-          onClick={(e) => { if (e.target === e.currentTarget) { setOmrExam(null); invalidateScores(); } }}
-        >
-          <div className="scores-omr-modal">
-            <div className="scores-omr-modal__header">
-              <div>
-                <h2 id="omr-upload-modal-title" className="scores-omr-modal__title">
-                  <Upload size={ICON_FOR_BUTTON.md} />
-                  OMR 스캔 등록
-                </h2>
-                <div className="scores-omr-modal__exam">{omrExam.title}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setOmrExam(null); invalidateScores(); }}
-                className="scores-omr-modal__close"
-                aria-label="닫기"
-              >
-                <X size={ICON_FOR_BUTTON.md} />
-              </button>
-            </div>
-            <div className="scores-omr-modal__body">
-              <AdminOmrBatchUploadBox examId={omrExam.examId} onUploaded={invalidateScores} />
-            </div>
-            <div className="scores-omr-modal__footer">
-              <Button
-                intent="secondary"
-                size="sm"
-                onClick={() => { setOmrExam(null); invalidateScores(); }}
-              >
-                닫기
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

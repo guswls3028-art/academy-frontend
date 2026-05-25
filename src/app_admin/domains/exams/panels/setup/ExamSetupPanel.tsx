@@ -20,7 +20,7 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
       <ExamPolicyPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />
       {hasSession && <ExamEnrollmentPanel examId={examId} />}
 
-      <ExamBulkActionsPanel examId={examId} />
+      <ExamBulkActionsPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />
     </div>
   );
 }

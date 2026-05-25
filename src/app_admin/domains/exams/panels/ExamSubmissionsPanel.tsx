@@ -1,14 +1,13 @@
 // PATH: src/app_admin/domains/exams/panels/ExamSubmissionsPanel.tsx
 /**
  * ExamSubmissionsPanel - 제출관리 통합
- * - OMR 스캔 등록
+ * - OMR 제출 목록 확인
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 시+시험명 + 상태 + 파일 보기
  * - 시험 자동채점 객관식 TODO 버튼
  */
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
+import { useNavigate } from "react-router-dom";
 import { fetchExamSubmissions } from "@admin/domains/submissions/api/adminSubmissions.api";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@admin/domains/submissions/statusMaps";
@@ -16,6 +15,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import styles from "./ExamSubmissionsPanel.module.css";
 
 function formatDate(iso: string): string {
@@ -33,16 +33,20 @@ function formatFileSize(bytes?: number | null): string {
 
 type Props = {
   examId: number;
+  sessionId?: number | null;
 };
 
-export default function ExamSubmissionsPanel({ examId }: Props) {
-  const [refreshKey, setRefreshKey] = useState(0);
-
+export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp }: Props) {
+  const navigate = useNavigate();
+  const { lectureId, sessionId: sessionIdFromPath } = useLectureSessionParams();
   const examQ = useAdminExam(examId);
   const examTitle = examQ.data?.title ?? "";
+  const sessionId = sessionIdProp ?? sessionIdFromPath ?? null;
+  const canOpenScores = Number.isFinite(lectureId) && Number(lectureId) > 0
+    && Number.isFinite(sessionId) && Number(sessionId) > 0;
 
   const q = useQuery({
-    queryKey: ["exam-submissions", examId, refreshKey],
+    queryKey: ["exam-submissions", examId],
     queryFn: () => fetchExamSubmissions(examId),
     refetchInterval: 5000,
   });
@@ -58,19 +62,27 @@ export default function ExamSubmissionsPanel({ examId }: Props) {
   };
 
   const rows = q.data ?? [];
+  const openScores = () => {
+    if (!canOpenScores) {
+      feedback.info("차시 성적 화면에서 OMR을 등록할 수 있습니다.");
+      return;
+    }
+    navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/scores`);
+  };
 
   return (
     <div className="space-y-6">
-      {/* OMR 업로드 섹션 — 성적 탭과 동일한 단일 업로드 컴포넌트 */}
-      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
-        <div className="border-b border-[var(--color-border-divider)] px-4 py-3">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 스캔 등록</div>
-        </div>
-        <div className="p-4">
-          <AdminOmrBatchUploadBox
-            examId={examId}
-            onUploaded={() => setRefreshKey((k) => k + 1)}
-          />
+      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 제출 확인</div>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              스캔 등록은 차시 성적 화면의 상단 버튼에서 진행합니다.
+            </p>
+          </div>
+          <Button type="button" intent="secondary" size="sm" onClick={openScores}>
+            성적 탭 열기
+          </Button>
         </div>
       </section>
 

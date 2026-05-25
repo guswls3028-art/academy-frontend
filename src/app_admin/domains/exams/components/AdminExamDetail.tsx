@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAdminExam } from "../hooks/useAdminExam";
 
 import ExamTabs from "./common/ExamTabs";
@@ -24,6 +24,10 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
     "setup"
   );
 
+  useEffect(() => {
+    setTab("setup");
+  }, [examId]);
+
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="시험 정보 불러오는 중…" />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." />;
 
@@ -47,7 +51,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         </div>
       )}
       {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
-      {tab === "submissions" && <ExamSubmissionsPanel examId={examId} />}
+      {tab === "submissions" && <ExamSubmissionsPanel examId={examId} sessionId={sessionId} />}
       {tab === "results" && <ExamResultsViewerPanel examId={examId} />}
     </div>
   );
