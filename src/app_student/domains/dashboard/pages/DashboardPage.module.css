@@ -20,6 +20,22 @@
     0 8px 22px rgba(15, 23, 42, 0.045);
 }
 
+.parentHero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 68%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 10px 26px rgba(15, 23, 42, 0.055);
+}
+
 .hero::after {
   content: "";
   position: absolute;
@@ -30,7 +46,26 @@
   opacity: 0.72;
 }
 
+.parentHero::after {
+  content: "";
+  position: absolute;
+  inset: auto 14px 0;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--stu-gradient, var(--stu-primary));
+  opacity: 0.64;
+}
+
 .heroTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.parentHeroTop {
   position: relative;
   z-index: 1;
   display: flex;
@@ -62,6 +97,15 @@
   word-break: keep-all;
 }
 
+.parentHeroTitle {
+  margin: 4px 0 0;
+  color: var(--stu-text);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.22;
+  word-break: keep-all;
+}
+
 .heroDescription {
   margin: 6px 0 0;
   color: var(--stu-text-muted);
@@ -83,6 +127,66 @@
   font-weight: 900;
   line-height: 1;
   text-align: center;
+}
+
+.parentSummaryGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.parentMetric {
+  min-width: 0;
+  padding: 11px 8px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 78%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-surface) 88%, white);
+  text-align: center;
+}
+
+.parentMetric[data-tone="primary"] {
+  border-color: color-mix(in srgb, var(--stu-primary) 26%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1));
+}
+
+.parentMetric[data-tone="warn"] {
+  border-color: color-mix(in srgb, var(--stu-warn-text) 26%, var(--stu-border));
+  background: var(--stu-warn-bg);
+}
+
+.parentMetricValue {
+  color: var(--stu-text);
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.parentMetric[data-tone="primary"] .parentMetricValue {
+  color: var(--stu-primary);
+}
+
+.parentMetric[data-tone="warn"] .parentMetricValue {
+  color: var(--stu-warn-text);
+}
+
+.parentMetricValue span {
+  margin-left: 1px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.parentMetricLabel {
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .heroDone {
@@ -227,6 +331,18 @@
   padding: 0;
 }
 
+.parentWatchPanel {
+  padding: 0;
+}
+
+.parentAllClear {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px;
+}
+
 .todoRow {
   display: flex;
   align-items: flex-start;
@@ -355,10 +471,18 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
   color: var(--stu-text);
   font-size: 14px;
   font-weight: 900;
   line-height: 1.25;
+}
+
+.quickActionLabelText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quickActionDetail {
@@ -374,6 +498,7 @@
 }
 
 .quickActionBadge {
+  flex-shrink: 0;
   min-width: 18px;
   padding: 1px 5px;
   border-radius: 999px;

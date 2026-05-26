@@ -16,17 +16,23 @@
 import { useState, useEffect, useMemo, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { useAuthContext } from "@/auth/context/AuthContext";
 import { Badge } from "@/shared/ui/ds";
+import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
+import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import type { MyExamGradeSummary, MyGradesSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import {
   IconCalendar, IconGrade, IconExam, IconNotice,
   IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconUser, IconBell, IconBoard,
 } from "@student/shared/ui/icons/Icons";
 import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
+import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import styles from "./DashboardPage.module.css";
@@ -191,7 +197,7 @@ function QuickAction({
       </span>
       <span className={styles.quickActionBody}>
         <span className={styles.quickActionLabel}>
-          {label}
+          <span className={styles.quickActionLabelText}>{label}</span>
           {badge != null && badge > 0 && (
             <Badge variant="solid" tone="primary" size="xs" className={styles.quickActionBadge}>
               {badge}
@@ -210,11 +216,14 @@ function QuickAction({
  * ========================================================================== */
 
 export default function DashboardPage() {
+  const { user } = useAuthContext();
+  const feesEnabled = useFeesEnabled();
   const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
   const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
   const { data: grades } = useMyGradesSummary();
   const { data: examsResp } = useStudentExams({ include_upcoming: true });
   const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
+  const isParent = user?.tenantRole === "parent";
 
   const today = ymdToday();
   const todaySessions = useMemo<StudentSession[]>(() => {
@@ -313,6 +322,37 @@ export default function DashboardPage() {
 
   const hasUrgentNotice = (dashboard?.notices ?? []).some((n) => n.is_urgent === true);
   const hasNotices = (dashboard?.notices?.length ?? 0) > 0;
+
+  if (isParent) {
+    const selectedStudentId = getParentStudentId();
+    const childName =
+      user?.linkedStudents?.find((s) => s.id === selectedStudentId)?.name
+      ?? user?.linkedStudentName
+      ?? user?.linkedStudents?.[0]?.name
+      ?? "자녀";
+
+    return (
+      <ParentDashboardView
+        childName={childName}
+        todaySessions={todaySessions}
+        nextSession={nextSession}
+        failedExams={failedExams}
+        failedHomeworks={failedHomeworks}
+        upcomingExams={upcomingExams}
+        clinicUpcoming={clinicUpcoming}
+        replyCount={replyCount}
+        notificationCounts={notificationCounts}
+        countsLoading={countsLoading}
+        grades={grades ?? null}
+        sessions={sessions ?? null}
+        notices={dashboard?.notices ?? []}
+        hasUrgentNotice={hasUrgentNotice}
+        hasNotices={hasNotices}
+        tenantInfo={dashboard?.tenant_info ?? null}
+        feesEnabled={feesEnabled}
+      />
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -542,6 +582,258 @@ export default function DashboardPage() {
 }
 
 /* ============================================================================
+ * 학부모 홈 — 자녀 상태 요약
+ * ========================================================================== */
+
+type ParentUpcomingExam = {
+  exam: { title: string };
+  d: number | null;
+};
+
+type ParentDashboardViewProps = {
+  childName: string;
+  todaySessions: StudentSession[];
+  nextSession: { session: StudentSession; dt: Date } | null;
+  failedExams: MyExamGradeSummary[];
+  failedHomeworks: MyHomeworkGradeSummary[];
+  upcomingExams: ParentUpcomingExam[];
+  clinicUpcoming: boolean;
+  replyCount: number;
+  notificationCounts: NotificationCounts | undefined;
+  countsLoading: boolean;
+  grades: MyGradesSummary | null;
+  sessions: StudentSession[] | null;
+  notices: Array<{ id: number; title: string; created_at: string | null; is_urgent?: boolean }>;
+  hasUrgentNotice: boolean;
+  hasNotices: boolean;
+  tenantInfo: StudentDashboardResponse["tenant_info"] | null;
+  feesEnabled: boolean;
+};
+
+function ParentDashboardView({
+  childName,
+  todaySessions,
+  nextSession,
+  failedExams,
+  failedHomeworks,
+  upcomingExams,
+  clinicUpcoming,
+  replyCount,
+  notificationCounts,
+  countsLoading,
+  grades,
+  sessions,
+  notices,
+  hasUrgentNotice,
+  hasNotices,
+  tenantInfo,
+  feesEnabled,
+}: ParentDashboardViewProps) {
+  const supportCount = failedExams.length + failedHomeworks.length;
+  const attentionCount =
+    (replyCount > 0 ? 1 : 0) +
+    (todaySessions.length > 0 ? 1 : 0) +
+    (upcomingExams.length > 0 ? 1 : 0) +
+    (clinicUpcoming ? 1 : 0) +
+    (supportCount > 0 ? 1 : 0);
+  const qnaC = notificationCounts?.qna ?? 0;
+  const counselC = notificationCounts?.counsel ?? 0;
+  const answerTab = qnaC >= counselC ? "qna" : "counsel";
+
+  return (
+    <div className={styles.page}>
+      {hasUrgentNotice && (
+        <UrgentNotice notices={notices.filter((n) => n.is_urgent)} />
+      )}
+
+      <section className={styles.parentHero} aria-label="우리 아이 요약">
+        <div className={styles.parentHeroTop}>
+          <div>
+            <div className={styles.heroEyebrow}>우리 아이 요약</div>
+            <h2 className={styles.parentHeroTitle}>
+              {childName} 상태를 한눈에 볼게요
+            </h2>
+            <p className={styles.heroDescription}>
+              일정, 답변, 성적, 출결처럼 학부모님이 바로 확인할 항목만 모았습니다.
+            </p>
+          </div>
+          <div className={styles.heroPill}>
+            {attentionCount > 0 ? `${attentionCount}건` : "안정"}
+          </div>
+        </div>
+
+        <div className={styles.parentSummaryGrid}>
+          <ParentMetric
+            label="선생님 답변"
+            value={replyCount}
+            unit="건"
+            tone={replyCount > 0 ? "primary" : "neutral"}
+          />
+          <ParentMetric
+            label="오늘 일정"
+            value={todaySessions.length}
+            unit="개"
+            tone={todaySessions.length > 0 ? "primary" : "neutral"}
+          />
+          <ParentMetric
+            label="보충 필요"
+            value={supportCount}
+            unit="건"
+            tone={supportCount > 0 ? "warn" : "neutral"}
+          />
+        </div>
+      </section>
+
+      <section className={styles.quickSection} aria-label="학부모 주요 확인">
+        <div className={styles.sectionLabel}>바로 확인</div>
+        <div className={styles.quickGrid}>
+          <QuickAction
+            to="/student/community"
+            state={{ tab: answerTab }}
+            icon={<IconBell />}
+            label="답변"
+            detail="질문·상담 확인"
+            badge={!countsLoading ? replyCount : undefined}
+            primary={replyCount > 0}
+          />
+          <QuickAction
+            to="/student/grades"
+            icon={<IconGrade />}
+            label="성적"
+            detail="시험·과제"
+            badge={!countsLoading ? notificationCounts?.grade : undefined}
+          />
+          <QuickAction
+            to="/student/attendance"
+            icon={<IconCheck />}
+            label="출결"
+            detail="최근 출결"
+          />
+          <QuickAction
+            to="/student/sessions"
+            icon={<IconCalendar />}
+            label="일정"
+            detail="수업 일정"
+          />
+          <QuickAction
+            to="/student/clinic"
+            icon={<IconClinic />}
+            label="클리닉"
+            detail="예약·보충"
+            badge={!countsLoading ? notificationCounts?.clinic : undefined}
+          />
+          <QuickAction
+            to={feesEnabled ? "/student/fees" : "/student/notices"}
+            icon={feesEnabled ? <IconClipboard /> : <IconNotice />}
+            label={feesEnabled ? "수납/결제" : "공지"}
+            detail={feesEnabled ? "청구·납부" : "학원 소식"}
+          />
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <SectionLabel>지금 볼 것</SectionLabel>
+        <div className={`stu-panel ${styles.parentWatchPanel}`}>
+          {replyCount > 0 && (
+            <TodoRow
+              to="/student/community"
+              state={{ tab: answerTab }}
+              icon={<IconBell />}
+              iconBg="color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))"
+              label={`선생님 답변 ${replyCount}건`}
+              labelColor="var(--stu-primary)"
+              detail="새 답변을 확인해 주세요"
+            />
+          )}
+          {upcomingExams.length > 0 && (() => {
+            const nearest = upcomingExams[0];
+            const dLabel = nearest?.d === 0 ? "오늘" : nearest?.d === 1 ? "내일" : nearest?.d != null ? `D-${nearest.d}` : "";
+            return (
+              <TodoRow
+                to="/student/exams"
+                icon={<IconExam />}
+                iconBg="color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1))"
+                label={`다가오는 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
+                labelColor="var(--stu-primary)"
+                detail={nearest?.exam.title ?? "시험 일정을 확인해 주세요"}
+              />
+            );
+          })()}
+          {supportCount > 0 && (
+            <TodoRow
+              to="/student/grades"
+              icon={<IconGrade />}
+              iconBg="var(--stu-warn-bg)"
+              label={`보충 확인 ${supportCount}건`}
+              labelColor="var(--stu-warn-text)"
+              detail="미통과 시험·과제를 확인해 주세요"
+            />
+          )}
+          {clinicUpcoming && (
+            <TodoRow
+              to="/student/clinic"
+              icon={<IconClinic />}
+              iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
+              label="클리닉 예약이 있어요"
+              labelColor="var(--stu-success)"
+              detail="보충 일정과 상태를 확인해 주세요"
+            />
+          )}
+          {attentionCount === 0 && (
+            <div className={styles.parentAllClear}>
+              <div className={styles.heroDoneIcon}>
+                <IconCheck />
+              </div>
+              <div>
+                <div className={styles.heroDoneTitle}>큰 변동은 없어요</div>
+                <div className={styles.heroDoneText}>일정과 공지만 가볍게 확인하면 됩니다.</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {nextSession && (
+        <section className={styles.section}>
+          <SectionLabel>다음 일정</SectionLabel>
+          <CountdownCard session={nextSession.session} dt={nextSession.dt} />
+        </section>
+      )}
+
+      <LearningStatusCard grades={grades} sessions={sessions} />
+
+      {!hasUrgentNotice && (
+        <NoticeStrip notices={notices} hasNotices={hasNotices} />
+      )}
+
+      {tenantInfo && <AcademyContact tenantInfo={tenantInfo} />}
+    </div>
+  );
+}
+
+function ParentMetric({
+  label,
+  value,
+  unit,
+  tone,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  tone: "primary" | "warn" | "neutral";
+}) {
+  return (
+    <div className={styles.parentMetric} data-tone={tone}>
+      <div className={styles.parentMetricValue}>
+        {value}
+        <span>{unit}</span>
+      </div>
+      <div className={styles.parentMetricLabel}>{label}</div>
+    </div>
+  );
+}
+
+/* ============================================================================
  * 학습 현황 — 활동성 + 시험 평균 (완화 컬러)
  * ========================================================================== */
 
@@ -549,7 +841,7 @@ function LearningStatusCard({
   grades,
   sessions,
 }: {
-  grades: import("@student/domains/grades/api/grades.api").MyGradesSummary | null;
+  grades: MyGradesSummary | null;
   sessions: StudentSession[] | null;
 }) {
   /* 최근 4주 수업 활동 */
