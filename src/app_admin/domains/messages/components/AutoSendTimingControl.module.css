@@ -1,0 +1,48 @@
+.delayStack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.delaySelect {
+  width: 100%;
+  min-width: 118px;
+  font-size: 12px;
+}
+
+.timeInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delayMinutesInput {
+  width: 72px;
+  padding-right: 8px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.scheduledHourSelect {
+  width: 86px;
+  font-size: 12px;
+}
+
+.reminderInput {
+  width: 72px;
+  padding-right: 8px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.unit {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.unitSmall {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}

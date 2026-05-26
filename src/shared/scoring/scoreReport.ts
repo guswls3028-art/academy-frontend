@@ -573,6 +573,7 @@ export function substituteScoreVars(
 
   // 알림톡 전용 변수 — SMS 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
   vars["선생님메모"] = buildScoreDetail(row, meta, { passLabel, failLabel });
+  vars["선생님메모1"] = vars["선생님메모"];
   // 기타 알림톡 전용 변수 — SMS에서 빈 문자열로 치환하여 원문 노출 방지
   vars["내용"] = vars["내용"] ?? "";
   vars["사이트링크"] = vars["사이트링크"] ?? "";

@@ -28,6 +28,11 @@ import AutoSendSectionTree, {
 } from "../components/AutoSendSectionTree";
 import TemplateEditModal from "../components/TemplateEditModal";
 import AutoSendPreviewPopup from "../components/AutoSendPreviewPopup";
+import AutoSendTimingControl from "../components/AutoSendTimingControl";
+import {
+  canUseDelayTiming,
+  isReminderTrigger,
+} from "../utils/autoSendTiming";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MessageAutoSendPage.module.css";
 import "../styles/templateEditor.css";
@@ -61,9 +66,6 @@ function canBulkToggleConfig(config: AutoSendConfigItem): boolean {
     && config.implementation_status !== "manual_only"
     && config.implementation_status !== "disabled";
 }
-
-/** 이벤트 후 발송 시점을 설정할 수 있는 트리거 (즉시/N분후/지정시각) */
-const DELAY_MODE_TRIGGERS = new Set(["video_encoding_complete"]);
 
 const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   registration_approved_student: "학생 등록·가입 승인 시 학생에게 아이디/비밀번호 및 접속 안내를 알림톡으로 발송합니다.",
@@ -140,6 +142,7 @@ function TriggerCard({
       : "";
   const isActive = isSystem || (config.enabled && !isUnimplemented);
   const cardState = isDisabled ? "disabled" : isActive ? "active" : "inactive";
+  const hasTimingControl = isReminderTrigger(config.trigger) || canUseDelayTiming(config);
 
   return (
     <div
@@ -212,7 +215,7 @@ function TriggerCard({
         };
 
         return (
-          <div className={styles.controls}>
+          <div className={styles.controls} data-has-timing={hasTimingControl ? "true" : "false"}>
             {/* 템플릿 — 읽기 전용 */}
             <div>
               <div className={styles.fieldLabel}>
@@ -242,92 +245,18 @@ function TriggerCard({
               </div>
             </div>
 
-            {/* 발송 시점 */}
-            <div>
-              <div className={styles.fieldLabel}>
-                발송 시점
+            {hasTimingControl && (
+              <div>
+                <div className={styles.fieldLabel}>
+                  발송 시점
+                </div>
+                <AutoSendTimingControl
+                  config={config}
+                  onUpdate={onUpdate}
+                  disabled={saving || isUnimplemented}
+                />
               </div>
-              {DELAY_MODE_TRIGGERS.has(config.trigger) ? (
-                /* 이벤트 후 발송 트리거 — delay_mode 선택 */
-                <div className={styles.delayStack}>
-                  <select
-                    className={`ds-select ${styles.delaySelect}`}
-                    value={config.delay_mode || "immediate"}
-                    onChange={(e) => {
-                      const mode = e.target.value as "immediate" | "delay_minutes" | "scheduled_hour";
-                      onUpdate({
-                        ...config,
-                        delay_mode: mode,
-                        delay_value: mode === "immediate" ? null : (config.delay_value ?? (mode === "scheduled_hour" ? 7 : 60)),
-                      });
-                    }}
-                    disabled={saving || isUnimplemented}
-                  >
-                    <option value="immediate">즉시 발송</option>
-                    <option value="delay_minutes">N분 후 발송</option>
-                    <option value="scheduled_hour">지정 시각 발송</option>
-                  </select>
-                  {config.delay_mode === "delay_minutes" && (
-                    <div className={styles.timeInputGroup}>
-                      <input
-                        type="number"
-                        min={1}
-                        step={10}
-                        placeholder="60"
-                        className={`ds-input ${styles.delayMinutesInput}`}
-                        value={config.delay_value ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          onUpdate({ ...config, delay_value: v === "" ? null : Math.max(1, parseInt(v, 10) || 1) }, true);
-                        }}
-                        disabled={saving || isUnimplemented}
-                      />
-                      <span className={styles.unitSmall}>분 후</span>
-                    </div>
-                  )}
-                  {config.delay_mode === "scheduled_hour" && (
-                    <div className={styles.timeInputGroup}>
-                      <select
-                        className={`ds-select ${styles.scheduledHourSelect}`}
-                        value={config.delay_value ?? 7}
-                        onChange={(e) => onUpdate({ ...config, delay_value: parseInt(e.target.value, 10) })}
-                        disabled={saving || isUnimplemented}
-                      >
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <option key={h} value={h}>{`${String(h).padStart(2, "0")}:00`}</option>
-                        ))}
-                      </select>
-                      <span className={styles.unitSmall}>발송</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* 이벤트 전 발송 트리거 — minutes_before */
-                <div className={styles.timeInputGroup}>
-                  <input
-                    type="number"
-                    min={0}
-                    step={5}
-                    placeholder="0"
-                    className={`ds-input ${styles.minutesInput}`}
-                    value={config.minutes_before ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      onUpdate(
-                        {
-                          ...config,
-                          minutes_before: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
-                        },
-                        true,
-                      );
-                    }}
-                    disabled={saving || isUnimplemented}
-                    aria-label="발송 시점 (분 전)"
-                  />
-                  <span className={styles.unit}>분 전</span>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* 발송 방식 */}
             <div>

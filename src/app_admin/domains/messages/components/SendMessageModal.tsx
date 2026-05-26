@@ -606,6 +606,8 @@ export default function SendMessageModal({
         asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
       }
       queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
+      queryClient.invalidateQueries({ queryKey: ["messaging", "log"] });
+      queryClient.invalidateQueries({ queryKey: ["messaging", "scheduled"] });
       onClose();
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "response" in e

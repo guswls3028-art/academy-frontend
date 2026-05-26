@@ -509,16 +509,19 @@ export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
 }
 
 export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[]): Promise<AutoSendConfigItem[]> {
-  const payload = configs.map((c) => ({
-    trigger: c.trigger,
-    template_id: c.template,
-    enabled: c.enabled,
-    message_mode: c.message_mode,
-    minutes_before: c.minutes_before ?? undefined,
-    delay_mode: c.delay_mode ?? undefined,
-    delay_value: c.delay_value ?? undefined,
-    show_actual_time: c.show_actual_time ?? undefined,
-  }));
+  const payload = configs.map((c) => {
+    const item: Record<string, unknown> = {
+      trigger: c.trigger,
+      template_id: c.template,
+      enabled: c.enabled,
+      message_mode: c.message_mode,
+    };
+    if ("minutes_before" in c) item.minutes_before = c.minutes_before ?? null;
+    if ("delay_mode" in c) item.delay_mode = c.delay_mode ?? undefined;
+    if ("delay_value" in c) item.delay_value = c.delay_value ?? null;
+    if ("show_actual_time" in c) item.show_actual_time = c.show_actual_time ?? undefined;
+    return item;
+  });
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,
   });

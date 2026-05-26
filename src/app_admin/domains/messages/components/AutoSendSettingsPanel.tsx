@@ -24,6 +24,11 @@ import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
 import TemplateEditModal from "./TemplateEditModal";
 import AutoSendPreviewPopup from "./AutoSendPreviewPopup";
+import AutoSendTimingControl from "./AutoSendTimingControl";
+import {
+  canUseDelayTiming,
+  isReminderTrigger,
+} from "../utils/autoSendTiming";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -97,27 +102,6 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
-
-/** 리마인더 트리거 — "N분/시간/일 전" 발송 시점 설정이 의미 있는 트리거만 */
-const REMINDER_TRIGGERS = new Set([
-  "clinic_reminder",
-  "lecture_session_reminder",
-  "exam_start_minutes_before",
-  "exam_scheduled_days_before",
-  "assignment_due_hours_before",
-  "payment_due_days_before",
-]);
-
-/** 트리거별 시간 단위 라벨 */
-const REMINDER_UNIT_LABEL: Record<string, string> = {
-  exam_scheduled_days_before: "일 전",
-  assignment_due_hours_before: "시간 전",
-  payment_due_days_before: "일 전",
-};
-
-function getReminderUnit(trigger: string): string {
-  return REMINDER_UNIT_LABEL[trigger] ?? "분 전";
-}
 
 export type AutoSendSettingsPanelProps = {
   /** Which triggers to show (filter from all auto-send configs) */
@@ -210,7 +194,7 @@ function TriggerCard({
     onUpdate({ ...config, message_mode, enabled });
   };
 
-  const isReminder = REMINDER_TRIGGERS.has(config.trigger);
+  const isReminder = isReminderTrigger(config.trigger);
   const implStatus = config.implementation_status;
   const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
   const unimplementedHint = implStatus === "disabled"
@@ -218,9 +202,10 @@ function TriggerCard({
     : implStatus === "manual_only"
       ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
       : "";
+  const hasTimingControl = isReminder || canUseDelayTiming(config);
   const controlsLayout = channelMode
-    ? isReminder ? "channel-reminder" : "channel"
-    : isReminder ? "unified-reminder" : "unified";
+    ? hasTimingControl ? "channel-reminder" : "channel"
+    : hasTimingControl ? "unified-reminder" : "unified";
 
   return (
     <div
@@ -317,40 +302,16 @@ function TriggerCard({
           </button>
         </div>
 
-        {/* Send timing (minutes before) — only for reminder triggers */}
-        {isReminder && (
+        {hasTimingControl && (
           <div>
             <div className={styles.fieldLabel}>
               발송 시점
             </div>
-            <div className={styles.reminderInputGroup}>
-              <input
-                type="number"
-                min={0}
-                step={5}
-                placeholder="0"
-                className={`ds-input ${styles.reminderInput}`}
-                value={config.minutes_before ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  onUpdate(
-                    {
-                      ...config,
-                      minutes_before:
-                        v === ""
-                          ? null
-                          : Math.max(0, parseInt(v, 10) || 0),
-                    },
-                    true,
-                  );
-                }}
-                disabled={saving}
-                aria-label={`발송 시점 (${getReminderUnit(config.trigger)})`}
-              />
-              <span className={styles.reminderUnit}>
-                {getReminderUnit(config.trigger)}
-              </span>
-            </div>
+            <AutoSendTimingControl
+              config={config}
+              onUpdate={onUpdate}
+              disabled={saving || isUnimplemented}
+            />
           </div>
         )}
 
@@ -369,7 +330,7 @@ function TriggerCard({
                   message_mode: "alimtalk",
                 })
               }
-              disabled={saving}
+              disabled={saving || isUnimplemented}
             >
               <option value="alimtalk">알림톡</option>
             </select>
