@@ -29,7 +29,9 @@ export function isAutoTriggerImplemented(config: AutoSendConfigItem): boolean {
 }
 
 export function canUseDelayTiming(config: AutoSendConfigItem): boolean {
-  return isAutoTriggerImplemented(config) && !isReminderTrigger(config.trigger);
+  return config.policy_mode !== "SYSTEM_AUTO"
+    && isAutoTriggerImplemented(config)
+    && !isReminderTrigger(config.trigger);
 }
 
 export function defaultDelayValue(mode: DelayMode): number | null {
