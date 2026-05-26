@@ -10,7 +10,9 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import {
   cancelScheduledNotification,
+  fetchMessagingOperationsStatus,
   fetchScheduledNotifications,
+  type MessagingOperationsStatus,
   type NotificationLogItem,
   type ScheduledNotificationItem,
 } from "../api/messages.api";
@@ -110,6 +112,73 @@ function ScheduledRow({
       <Button size="sm" intent="secondary" onClick={onCancel} disabled={cancelling}>
         취소
       </Button>
+    </div>
+  );
+}
+
+function formatAge(seconds: number | null) {
+  if (seconds == null) return "기록 없음";
+  if (seconds < 60) return `${seconds}초 전`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
+  return `${Math.floor(seconds / 3600)}시간 전`;
+}
+
+function OperationsPanel({
+  status,
+  loading,
+}: {
+  status?: MessagingOperationsStatus;
+  loading: boolean;
+}) {
+  const hasRisk = Boolean(status?.risks?.length);
+  const workerStatus = status?.worker.status ?? "unknown";
+  return (
+    <div className={styles.operationsPanel} data-risk={hasRisk ? "true" : "false"}>
+      <div className={styles.operationsHeader}>
+        <div>
+          <span className={styles.operationsTitle}>운영 상태</span>
+          <span className={styles.operationsHint}>워커·예약 큐·최근 실패를 함께 확인합니다.</span>
+        </div>
+        <span className={styles.operationsBadge} data-status={workerStatus}>
+          {loading ? "확인 중" : workerStatus === "ok" ? "정상" : workerStatus === "stale" ? "워커 확인" : "기록 없음"}
+        </span>
+      </div>
+      {loading && !status ? (
+        <div className={styles.operationsLoading}>운영 상태를 확인하고 있습니다.</div>
+      ) : status ? (
+        <>
+          <div className={styles.operationsGrid}>
+            <div className={styles.operationsMetric}>
+              <span>워커</span>
+              <strong>{formatAge(status.worker.age_seconds)}</strong>
+            </div>
+            <div className={styles.operationsMetric} data-warning={status.scheduled.overdue > 0 ? "true" : "false"}>
+              <span>예약 대기</span>
+              <strong>{status.scheduled.pending.toLocaleString()}건</strong>
+              {status.scheduled.overdue > 0 && <em>{status.scheduled.overdue.toLocaleString()}건 지연</em>}
+            </div>
+            <div className={styles.operationsMetric} data-warning={status.log_24h.failed > 0 ? "true" : "false"}>
+              <span>최근 24시간</span>
+              <strong>{status.log_24h.sent.toLocaleString()}성공 / {status.log_24h.failed.toLocaleString()}실패</strong>
+            </div>
+            <div className={styles.operationsMetric} data-warning={status.auto_send.enabled_without_template + status.auto_send.enabled_unapproved_template > 0 ? "true" : "false"}>
+              <span>자동발송</span>
+              <strong>{status.auto_send.enabled.toLocaleString()}개 ON</strong>
+            </div>
+          </div>
+          {status.risks.length > 0 ? (
+            <div className={styles.operationsRisks}>
+              {status.risks.slice(0, 3).map((risk) => (
+                <span key={risk.code}>{risk.title}: {risk.detail}</span>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.operationsOk}>현재 감지된 운영 리스크가 없습니다.</div>
+          )}
+        </>
+      ) : (
+        <div className={styles.operationsLoading}>운영 상태를 불러오지 못했습니다.</div>
+      )}
     </div>
   );
 }
@@ -380,10 +449,17 @@ export default function MessageLogPage() {
     queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
     staleTime: 10 * 1000,
   });
+  const { data: operationsStatus, isLoading: operationsLoading } = useQuery({
+    queryKey: ["messaging", "operations-status"],
+    queryFn: fetchMessagingOperationsStatus,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
+  });
   const cancelMut = useMutation({
     mutationFn: cancelScheduledNotification,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messaging", "scheduled", "pending"] });
+      qc.invalidateQueries({ queryKey: ["messaging", "operations-status"] });
       feedback.success("예약 발송이 취소되었습니다.");
     },
     onError: () => {
@@ -464,6 +540,8 @@ export default function MessageLogPage() {
           </div>
         ) : null}
       </div>
+
+      <OperationsPanel status={operationsStatus} loading={operationsLoading} />
 
       <div className={styles.scheduledPanel} data-empty={pendingScheduled.length === 0 ? "true" : "false"}>
         <div className={styles.scheduledHeader}>

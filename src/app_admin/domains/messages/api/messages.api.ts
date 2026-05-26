@@ -42,6 +42,10 @@ export interface NotificationLogItem {
   sent_at: string;
   /** 성공 여부 */
   success: boolean;
+  /** worker lifecycle status: processing/sent/failed */
+  status?: "processing" | "sent" | "failed" | string;
+  /** worker가 큐 메시지를 선점한 시각 */
+  claimed_at?: string | null;
   /** 차감 금액 */
   amount_deducted: string;
   /** 수신자 수 또는 요약 */
@@ -176,6 +180,86 @@ export async function fetchScheduledNotifications(params?: {
 
 export async function cancelScheduledNotification(id: number): Promise<ScheduledNotificationItem> {
   const res = await api.post<ScheduledNotificationItem>(`${PREFIX}/scheduled/${id}/cancel/`);
+  return res.data;
+}
+
+export interface SendPreflightIssue {
+  code: string;
+  title: string;
+  detail: string;
+}
+
+export interface SendPreflightResponse {
+  ok: boolean;
+  can_send: boolean;
+  mode: "now" | "scheduled";
+  send_to: SendToType;
+  recipient: {
+    selected: number;
+    resolved: number;
+    valid_phone: number;
+    skipped_no_phone: number;
+    duplicate_phone: number;
+    unique_phone: number;
+    invalid_or_deleted: number;
+    limit: number;
+  };
+  template: {
+    ok: boolean;
+    source: string;
+    name: string;
+    solapi_template_id: string;
+    solapi_status: string;
+    detail: string;
+    uses_unified_template: boolean;
+  };
+  limits: {
+    hourly_limit: number;
+    sent_last_hour: number;
+    remaining_this_hour: number;
+  };
+  blockers: SendPreflightIssue[];
+  warnings: SendPreflightIssue[];
+}
+
+export interface MessagingOperationsStatus {
+  checked_at: string;
+  worker: {
+    status: "ok" | "stale" | "unknown";
+    last_seen_at: string | null;
+    age_seconds: number | null;
+    instance: string;
+    version: string;
+  };
+  scheduled: {
+    pending: number;
+    due_now: number;
+    overdue: number;
+    failed_24h: number;
+  };
+  log_24h: {
+    sent: number;
+    failed: number;
+    processing: number;
+    total: number;
+  };
+  templates: {
+    approved: number;
+    owner_approved: number;
+    freeform_available: boolean;
+    freeform_template_name: string;
+  };
+  auto_send: {
+    enabled: number;
+    enabled_without_template: number;
+    enabled_unapproved_template: number;
+    enabled_manual_only: number;
+  };
+  risks: SendPreflightIssue[];
+}
+
+export async function fetchMessagingOperationsStatus(): Promise<MessagingOperationsStatus> {
+  const res = await api.get<MessagingOperationsStatus>(`${PREFIX}/operations/status/`);
   return res.data;
 }
 
@@ -387,6 +471,11 @@ export interface SendMessageResponse {
 
 export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {
   const res = await api.post<SendMessageResponse>(`${PREFIX}/send/`, payload);
+  return res.data;
+}
+
+export async function preflightSendMessage(payload: SendMessagePayload): Promise<SendPreflightResponse> {
+  const res = await api.post<SendPreflightResponse>(`${PREFIX}/send/preflight/`, payload);
   return res.data;
 }
 

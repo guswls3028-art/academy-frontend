@@ -25,6 +25,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
   fetchMessageTemplates,
+  preflightSendMessage,
   sendMessage,
   createMessageTemplate,
   updateMessageTemplate,
@@ -32,6 +33,8 @@ import {
   setTemplateDefault,
   duplicateMessageTemplate,
   type MessageTemplateItem,
+  type SendPreflightIssue,
+  type SendPreflightResponse,
   type SendToType,
 } from "../api/messages.api";
 import {
@@ -94,6 +97,7 @@ function extractVars(body: string): string[] {
 
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
 type SendTiming = "now" | "scheduled";
+const EMPTY_ID_LIST: number[] = [];
 
 function getVarStatuses(
   templateBody: string,
@@ -135,6 +139,12 @@ function formatScheduleLabel(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatSendTargetLabel(target: SendToType): string {
+  if (target === "parent") return "학부모";
+  if (target === "student") return "학생";
+  return "직원";
 }
 
 /**
@@ -183,8 +193,8 @@ function pickAutoSelectTemplate(
 export default function SendMessageModal({
   open,
   onClose,
-  initialStudentIds = [],
-  initialStaffIds = [],
+  initialStudentIds = EMPTY_ID_LIST,
+  initialStaffIds = EMPTY_ID_LIST,
   recipientLabel,
   blockCategory = "default",
   initialBody,
@@ -220,6 +230,10 @@ export default function SendMessageModal({
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
   // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
   const [showVarPalette, setShowVarPalette] = useState(false);
+  const [preflightResults, setPreflightResults] = useState<SendPreflightResponse[]>([]);
+  const [preflightResultKey, setPreflightResultKey] = useState("");
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const prevOpenRef = useRef(false);
   const getNativeTextarea = useCallback(
@@ -229,7 +243,7 @@ export default function SendMessageModal({
   // ─── Derived ───
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
-  const staffIds = initialStaffIds ?? [];
+  const staffIds = initialStaffIds;
   const hasRecipients = isStaffMode ? staffIds.length > 0 : studentIds.length > 0;
   const recipientCount = isStaffMode ? staffIds.length : studentIds.length;
   const sendToTargets: SendToType[] = isStaffMode
@@ -295,7 +309,7 @@ export default function SendMessageModal({
   const qualityBlockers = qualityIssues.filter((issue) => issue.severity === "blocker");
   const hasQualityBlockers = qualityBlockers.length > 0;
 
-  const canSend = (() => {
+  const frontendReady = (() => {
     if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
     if (!hasSelectedBodySource) return false;
     if (!body.trim()) return false;
@@ -304,8 +318,145 @@ export default function SendMessageModal({
     if (scheduleError) return false;
     return true;
   })();
+  const sendTargetKey = sendToTargets.join("|");
+  const preflightKey = useMemo(() => JSON.stringify({
+    alimtalkExtraVars,
+    body,
+    blockCategory,
+    scheduledSendAtIso,
+    selectedTemplateId,
+    sendTargetKey,
+    staffIds,
+    studentIds,
+    subject,
+  }), [
+    alimtalkExtraVars,
+    blockCategory,
+    body,
+    scheduledSendAtIso,
+    selectedTemplateId,
+    sendTargetKey,
+    staffIds,
+    studentIds,
+    subject,
+  ]);
+  const expectedPreflightCount = sendToTargets.length;
+  const apiPreflightBlockers = preflightResults.flatMap((result) => result.blockers);
+  const preflightWarnings = preflightResults.flatMap((result) => result.warnings);
+  const preflightRecipientStats = preflightResults.reduce(
+    (acc, result) => {
+      acc.validPhone += result.recipient.valid_phone;
+      acc.skippedNoPhone += result.recipient.skipped_no_phone;
+      acc.duplicates += result.recipient.duplicate_phone;
+      acc.invalidOrDeleted += result.recipient.invalid_or_deleted;
+      return acc;
+    },
+    { validPhone: 0, skippedNoPhone: 0, duplicates: 0, invalidOrDeleted: 0 },
+  );
+  const remainingThisHour = preflightResults[0]?.limits.remaining_this_hour ?? null;
+  const aggregatePreflightBlockers: SendPreflightIssue[] =
+    preflightResults.length === expectedPreflightCount
+    && remainingThisHour != null
+    && preflightRecipientStats.validPhone > remainingThisHour
+      ? [{
+          code: "hourly_limit_total",
+          title: "시간당 발송 한도 초과",
+          detail: `이번 발송은 총 ${preflightRecipientStats.validPhone.toLocaleString()}건입니다. 최근 1시간 기준 ${remainingThisHour.toLocaleString()}건만 추가 발송할 수 있습니다.`,
+        }]
+      : [];
+  const preflightBlockers = [...apiPreflightBlockers, ...aggregatePreflightBlockers];
+  const preflightReady = !frontendReady
+    || (
+      !preflightLoading
+      && !preflightError
+      && preflightResultKey === preflightKey
+      && preflightResults.length === expectedPreflightCount
+    );
+  const preflightChecking = frontendReady
+    && !preflightError
+    && (
+      preflightLoading
+      || preflightResultKey !== preflightKey
+      || preflightResults.length !== expectedPreflightCount
+    );
+  const canSend = frontendReady
+    && preflightReady
+    && preflightBlockers.length === 0;
+
+  const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
+    const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
+    if (isStaffMode) payload.staff_ids = staffIds;
+    else payload.student_ids = studentIds;
+    if (selectedTemplateId) payload.template_id = selectedTemplateId;
+    if (blockCategory) payload.block_category = blockCategory;
+    const currentBody = body.trim();
+    payload.raw_body = currentBody;
+    if (subject.trim()) payload.raw_subject = subject.trim();
+    if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
+    if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
+    const perStudentVars = recomputePerStudentVarsRef?.current
+      ? recomputePerStudentVarsRef.current(currentBody)
+      : alimtalkExtraVarsPerStudent;
+    if (perStudentVars && Object.keys(perStudentVars).length > 0) {
+      payload.alimtalk_extra_vars_per_student = perStudentVars;
+    }
+    return payload;
+  }, [
+    alimtalkExtraVars,
+    alimtalkExtraVarsPerStudent,
+    blockCategory,
+    body,
+    isStaffMode,
+    recomputePerStudentVarsRef,
+    scheduledSendAtIso,
+    selectedTemplateId,
+    staffIds,
+    studentIds,
+    subject,
+  ]);
 
   const blocks = useMemo(() => getBlocksForCategory(blockCategory), [blockCategory]);
+
+  useEffect(() => {
+    if (!open || !frontendReady || sendToTargets.length === 0) {
+      setPreflightResults([]);
+      setPreflightResultKey("");
+      setPreflightLoading(false);
+      setPreflightError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const targets = [...sendToTargets];
+    setPreflightLoading(true);
+    setPreflightError(null);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const results = await Promise.all(
+          targets.map((target) => preflightSendMessage(buildSendPayload(target))),
+        );
+        if (cancelled) return;
+        setPreflightResults(results);
+        setPreflightResultKey(preflightKey);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const detail = error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+        setPreflightResults([]);
+        setPreflightResultKey("");
+        setPreflightError(detail || "발송 전 검수에 실패했습니다.");
+      } finally {
+        if (!cancelled) setPreflightLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [buildSendPayload, frontendReady, open, preflightKey, sendTargetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Preview ───
   // SSOT (2026-05-14): preview는 학원장이 textarea에 친 body 기준 (selectedTemplate.body 무시).
@@ -356,6 +507,10 @@ export default function SendMessageModal({
     setShowConfirm(false);
     setSendTiming("now");
     setScheduledAt(defaultScheduledLocalValue());
+    setPreflightResults([]);
+    setPreflightResultKey("");
+    setPreflightLoading(false);
+    setPreflightError(null);
     sendingRef.current = false;
   }, [open, initialBody, initialTemplateId, initialLetterPresetId]);
 
@@ -562,33 +717,9 @@ export default function SendMessageModal({
       let completedCalls = 0;
       const totalCalls = isStaffMode ? 1 : sendToTargets.length;
 
-      const buildPayload = (sendTo: SendToType) => {
-        const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
-        if (isStaffMode) payload.staff_ids = staffIds; else payload.student_ids = studentIds;
-        if (selectedTemplateId) payload.template_id = selectedTemplateId;
-        // SSOT (2026-05-14 domain-policy §5): 학원장 본문 어떻게 수정해도 봉투(검수 양식) 유지.
-        // template_id race / 양식 변경으로 누락돼도 block_category 로 backend 가 unified 매칭.
-        if (blockCategory) payload.block_category = blockCategory;
-        const currentBody = body.trim();
-        payload.raw_body = currentBody;
-        if (subject.trim()) payload.raw_subject = subject.trim();
-        if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
-        if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
-        // SSOT (2026-05-14): 학원장이 textarea에서 본문 수정 시 학생별 substituted body 재계산.
-        // callback이 있으면 currentBody 기반으로 재호출 → 학생별 _body_subst가 학원장 수정본 반영.
-        // 미제공 시 사전 계산된 alimtalkExtraVarsPerStudent 그대로 사용 (legacy + 1명 path 호환).
-        const perStudentVars = recomputePerStudentVarsRef?.current
-          ? recomputePerStudentVarsRef.current(currentBody)
-          : alimtalkExtraVarsPerStudent;
-        if (perStudentVars && Object.keys(perStudentVars).length > 0) {
-          payload.alimtalk_extra_vars_per_student = perStudentVars;
-        }
-        return payload;
-      };
-
       const targets = isStaffMode ? ["staff" as SendToType] : sendToTargets;
       for (const sendTo of targets) {
-        const res = await sendMessage(buildPayload(sendTo));
+        const res = await sendMessage(buildSendPayload(sendTo));
         totalEnqueued += res.enqueued ?? 0;
         totalScheduled += res.scheduled ?? 0;
         totalSkipped += res.skipped_no_phone ?? 0;
@@ -615,6 +746,7 @@ export default function SendMessageModal({
       queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
       queryClient.invalidateQueries({ queryKey: ["messaging", "log"] });
       queryClient.invalidateQueries({ queryKey: ["messaging", "scheduled"] });
+      queryClient.invalidateQueries({ queryKey: ["messaging", "operations-status"] });
       onClose();
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "response" in e
@@ -662,6 +794,9 @@ export default function SendMessageModal({
       return `미입력 변수: ${list} — 본문/변수 팔레트에서 채워 주세요`;
     }
     if (hasQualityBlockers) return qualityBlockers[0]?.title ?? "양식 품질 확인 필요";
+    if (preflightChecking) return "발송 전 검수 중입니다";
+    if (preflightError) return preflightError;
+    if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 전 검수 필요";
     return null;
   })();
 
@@ -796,6 +931,65 @@ export default function SendMessageModal({
                     </div>
                   )}
                 </div>
+              )}
+            </section>
+
+            <section
+              className="send-modal__card send-modal__card--preflight"
+              data-status={
+                !frontendReady
+                  ? "idle"
+                  : preflightChecking
+                    ? "checking"
+                    : preflightError || preflightBlockers.length > 0
+                      ? "blocked"
+                      : "ok"
+              }
+            >
+              <div className="send-modal__card-label">발송 전 검수</div>
+              {!frontendReady ? (
+                <div className="send-modal__preflight-muted">
+                  수신자·본문·예약 시각이 준비되면 자동으로 검수합니다.
+                </div>
+              ) : preflightChecking ? (
+                <div className="send-modal__preflight-state">
+                  <span className="send-modal__preflight-spinner" />
+                  검수 중…
+                </div>
+              ) : preflightError ? (
+                <div className="send-modal__preflight-issue" data-tone="error">
+                  <AlertCircle size={ICON.xs} />
+                  <span>{preflightError}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="send-modal__preflight-state">
+                    <Check size={ICON.xs} className="send-modal__icon-success" />
+                    <span>
+                      {preflightBlockers.length === 0
+                        ? `${preflightRecipientStats.validPhone.toLocaleString()}건 ${sendTiming === "scheduled" ? "예약 가능" : "발송 가능"}`
+                        : "확인 필요"}
+                    </span>
+                  </div>
+                  <div className="send-modal__preflight-grid">
+                    <span>대상</span>
+                    <strong>{isStaffMode ? "직원" : sendToTargets.map(formatSendTargetLabel).join(" + ")}</strong>
+                    <span>템플릿</span>
+                    <strong>{preflightResults[0]?.template.name || selectedTemplate?.name || selectedPreset?.name || "직접 작성"}</strong>
+                  </div>
+                  {preflightBlockers.map((issue, index) => (
+                    <div key={`${issue.code}-${index}`} className="send-modal__preflight-issue" data-tone="error">
+                      <AlertCircle size={ICON.xs} />
+                      <span>{issue.detail || issue.title}</span>
+                    </div>
+                  ))}
+                  {preflightWarnings.slice(0, 3).map((issue, index) => (
+                    <div key={`${issue.code}-${index}`} className="send-modal__preflight-issue" data-tone="warning">
+                      <AlertTriangle size={ICON.xs} />
+                      <span>{issue.detail || issue.title}</span>
+                    </div>
+                  ))}
+                </>
               )}
             </section>
 
@@ -1136,6 +1330,14 @@ export default function SendMessageModal({
                   <span className="send-modal__confirm-key">템플릿</span>
                   <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
                     {selectedTemplate?.name ?? selectedPreset?.name ?? "직접 작성"}
+                  </span>
+                </div>
+              )}
+              {preflightResults.length > 0 && (
+                <div className="send-modal__confirm-row">
+                  <span className="send-modal__confirm-key">검수</span>
+                  <span className="send-modal__confirm-val">
+                    {preflightRecipientStats.validPhone.toLocaleString()}건 가능
                   </span>
                 </div>
               )}

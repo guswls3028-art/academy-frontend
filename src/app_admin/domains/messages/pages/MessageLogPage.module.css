@@ -65,6 +65,131 @@
   font-weight: 600;
 }
 
+.operationsPanel {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-success, #22c55e) 18%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-success, #22c55e) 4%, var(--color-bg-surface));
+}
+
+.operationsPanel[data-risk="true"] {
+  border-color: color-mix(in srgb, var(--color-status-warning, #d97706) 26%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 5%, var(--color-bg-surface));
+}
+
+.operationsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.operationsTitle {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.operationsHint {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.operationsBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent);
+  color: var(--color-success, #16a34a);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.operationsBadge[data-status="stale"],
+.operationsBadge[data-status="unknown"] {
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent);
+  color: var(--color-status-warning, #d97706);
+}
+
+.operationsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.operationsMetric {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-right: 1px solid var(--color-border-divider);
+}
+
+.operationsMetric:last-child {
+  border-right: 0;
+}
+
+.operationsMetric span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.operationsMetric strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operationsMetric em {
+  color: var(--color-status-warning, #d97706);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.operationsMetric[data-warning="true"] strong {
+  color: var(--color-status-warning, #d97706);
+}
+
+.operationsRisks,
+.operationsOk,
+.operationsLoading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border-divider);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.operationsRisks span {
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--color-bg-surface);
+  color: var(--color-status-warning, #d97706);
+  font-weight: 700;
+}
+
+.operationsOk {
+  color: var(--color-success, #16a34a);
+  font-weight: 700;
+}
+
 .scheduledPanel {
   margin-bottom: 16px;
   overflow: hidden;
@@ -508,5 +633,18 @@
 
   .filterGroup {
     flex-wrap: wrap;
+  }
+
+  .operationsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operationsMetric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .operationsHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
