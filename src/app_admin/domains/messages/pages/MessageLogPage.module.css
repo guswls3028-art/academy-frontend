@@ -73,6 +73,11 @@
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
 }
 
+.scheduledPanel[data-empty="true"] {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
 .scheduledHeader {
   display: flex;
   align-items: center;
@@ -83,15 +88,25 @@
 }
 
 .scheduledTitle {
+  display: block;
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 700;
+}
+
+.scheduledHint {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .scheduledCount {
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .scheduledList {
@@ -109,6 +124,12 @@
 
 .scheduledRow:last-child {
   border-bottom: 0;
+}
+
+.scheduledEmpty {
+  padding: 14px;
+  color: var(--color-text-muted);
+  font-size: 13px;
 }
 
 .scheduledAtCell {

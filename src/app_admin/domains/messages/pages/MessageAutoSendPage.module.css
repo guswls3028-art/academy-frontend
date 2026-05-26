@@ -307,6 +307,56 @@
   color: var(--color-status-success, #16a34a);
 }
 
+.summaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+}
+
+.summaryItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border-divider) 70%, transparent);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.summaryItem strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.summaryItem[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--color-status-warning, #d97706) 24%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 7%, var(--color-bg-surface));
+  color: var(--color-status-warning, #d97706);
+}
+
+.summaryLabel {
+  color: inherit;
+  font-weight: 700;
+}
+
+.savingBadge {
+  margin-left: auto;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .customTemplateCard {
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
   cursor: pointer;
@@ -420,5 +470,10 @@
 
   .cardActions {
     flex-wrap: wrap;
+  }
+
+  .savingBadge {
+    width: 100%;
+    margin-left: 0;
   }
 }

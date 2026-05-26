@@ -112,10 +112,17 @@ function getVarStatuses(
   });
 }
 
-function defaultScheduledLocalValue(): string {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
+function toLocalDateTimeInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function defaultScheduledLocalValue(): string {
+  return toLocalDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000));
+}
+
+function minScheduledLocalValue(): string {
+  return toLocalDateTimeInputValue(new Date(Date.now() + 60 * 1000));
 }
 
 function formatScheduleLabel(iso: string | null): string {
@@ -771,6 +778,7 @@ export default function SendMessageModal({
                   <input
                     type="datetime-local"
                     value={scheduledAt}
+                    min={minScheduledLocalValue()}
                     onChange={(e) => setScheduledAt(e.target.value)}
                     disabled={sending}
                     className="send-modal__schedule-input"
@@ -779,6 +787,12 @@ export default function SendMessageModal({
                   {scheduleError && (
                     <div className="send-modal__schedule-error">
                       {scheduleError}
+                    </div>
+                  )}
+                  {!scheduleError && scheduledSendAtIso && (
+                    <div className="send-modal__schedule-note">
+                      <strong>{formatScheduleLabel(scheduledSendAtIso)} 예약</strong>
+                      <span>발송 전에는 발송 내역의 예약 발송에서 취소할 수 있습니다.</span>
                     </div>
                   )}
                 </div>
@@ -1101,6 +1115,11 @@ export default function SendMessageModal({
                   {sendTiming === "scheduled" ? formatScheduleLabel(scheduledSendAtIso) : "즉시"}
                 </span>
               </div>
+              {sendTiming === "scheduled" && (
+                <div className="send-modal__confirm-note">
+                  발송 전까지 발송 내역의 예약 발송에서 취소할 수 있습니다.
+                </div>
+              )}
               <div className="send-modal__confirm-row">
                 <span className="send-modal__confirm-key">대상</span>
                 <span className="send-modal__confirm-val">

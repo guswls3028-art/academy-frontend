@@ -33,6 +33,12 @@ import {
   canUseDelayTiming,
   isReminderTrigger,
 } from "../utils/autoSendTiming";
+import {
+  canBulkToggleAutoSendConfig,
+  getAutoSendSummary,
+  isAllToggleableEnabled,
+  type AutoSendSummary,
+} from "../utils/autoSendConfigState";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MessageAutoSendPage.module.css";
 import "../styles/templateEditor.css";
@@ -61,10 +67,60 @@ function getTemplateStatusLabel(status: string | null | undefined): string {
   return status || "";
 }
 
-function canBulkToggleConfig(config: AutoSendConfigItem): boolean {
-  return config.policy_mode !== "SYSTEM_AUTO"
-    && config.implementation_status !== "manual_only"
-    && config.implementation_status !== "disabled";
+function getMasterToggleLabel(summary: AutoSendSummary): string {
+  if (summary.toggleable === 0) return "변경 가능 항목 없음";
+  if (isAllToggleableEnabled(summary)) return "설정 가능 항목 모두 활성";
+  if (summary.enabledToggleable === 0) return "설정 가능 항목 모두 비활성";
+  return `${summary.enabledToggleable}/${summary.toggleable} 활성`;
+}
+
+function AutoSendSummaryStrip({
+  summary,
+  saving,
+}: {
+  summary: AutoSendSummary;
+  saving: boolean;
+}) {
+  return (
+    <div className={styles.summaryStrip}>
+      <span className={styles.summaryItem}>
+        <span className={styles.summaryLabel}>활성</span>
+        <strong>{summary.enabledToggleable}</strong>
+        <span>/ {summary.toggleable}</span>
+      </span>
+      {summary.systemAuto > 0 && (
+        <span className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>항상 활성</span>
+          <strong>{summary.systemAuto}</strong>
+        </span>
+      )}
+      {summary.reviewWaiting > 0 && (
+        <span className={styles.summaryItem} data-tone="warning">
+          <span className={styles.summaryLabel}>검수 확인</span>
+          <strong>{summary.reviewWaiting}</strong>
+        </span>
+      )}
+      {summary.templateMissing > 0 && (
+        <span className={styles.summaryItem} data-tone="warning">
+          <span className={styles.summaryLabel}>템플릿 없음</span>
+          <strong>{summary.templateMissing}</strong>
+        </span>
+      )}
+      {summary.manualOnly > 0 && (
+        <span className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>수동 전용</span>
+          <strong>{summary.manualOnly}</strong>
+        </span>
+      )}
+      {summary.disabled > 0 && (
+        <span className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>비활성 정책</span>
+          <strong>{summary.disabled}</strong>
+        </span>
+      )}
+      {saving && <span className={styles.savingBadge}>저장 중</span>}
+    </div>
+  );
 }
 
 const TRIGGER_DESCRIPTIONS: Record<string, string> = {
@@ -312,7 +368,8 @@ export default function MessageAutoSendPage() {
   });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
-  const globalEnabled = localConfigs.length > 0 && localConfigs.some((c) => c.enabled);
+  const globalSummary = getAutoSendSummary(localConfigs);
+  const globalEnabled = isAllToggleableEnabled(globalSummary);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
   const autoProvisionedRef = useRef(false);
@@ -462,16 +519,16 @@ export default function MessageAutoSendPage() {
               checked={globalEnabled}
               onChange={(checked) => {
                 const next = localConfigs.map((c) => (
-                  canBulkToggleConfig(c) ? { ...c, enabled: checked } : c
+                  canBulkToggleAutoSendConfig(c) ? { ...c, enabled: checked } : c
                 ));
                 setLocalConfigs(next);
                 updateMut.mutate(next);
               }}
-              disabled={updateMut.isPending || localConfigs.length === 0}
+              disabled={updateMut.isPending || globalSummary.toggleable === 0}
               size="small"
             />
             <span className={styles.masterToggleText} data-enabled={globalEnabled}>
-              {globalEnabled ? "전체 활성화" : "전체 비활성화"}
+              {getMasterToggleLabel(globalSummary)}
             </span>
           </div>
         </div>
@@ -548,6 +605,10 @@ export default function MessageAutoSendPage() {
                 <p className={panelStyles.sectionTitle}>
                   {section.label} — {SECTION_DESCRIPTIONS[section.id]}
                 </p>
+                <AutoSendSummaryStrip
+                  summary={getAutoSendSummary(configsInSection)}
+                  saving={updateMut.isPending}
+                />
                 {configsInSection.map((config) => (
                   <TriggerCard
                     key={config.trigger}

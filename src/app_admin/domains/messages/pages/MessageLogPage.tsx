@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import {
   cancelScheduledNotification,
@@ -365,6 +366,7 @@ function PaginationBar({
 
 export default function MessageLogPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
@@ -410,6 +412,18 @@ export default function MessageLogPage() {
     setCurrentPage(1);
   };
 
+  const handleCancelScheduled = async (item: ScheduledNotificationItem) => {
+    const ok = await confirm({
+      title: "예약 발송 취소",
+      message: `${formatDate(item.send_at)}에 예약된 ${item.recipient_summary || "알림톡"} 발송을 취소할까요?`,
+      confirmText: "예약 취소",
+      cancelText: "유지",
+      danger: true,
+    });
+    if (!ok) return;
+    cancelMut.mutate(item.id);
+  };
+
   return (
     <div className={styles.root}>
       {/* 헤더 */}
@@ -451,24 +465,31 @@ export default function MessageLogPage() {
         ) : null}
       </div>
 
-      {pendingScheduled.length > 0 && (
-        <div className={styles.scheduledPanel}>
-          <div className={styles.scheduledHeader}>
+      <div className={styles.scheduledPanel} data-empty={pendingScheduled.length === 0 ? "true" : "false"}>
+        <div className={styles.scheduledHeader}>
+          <div>
             <span className={styles.scheduledTitle}>예약 발송</span>
-            <span className={styles.scheduledCount}>{pendingScheduled.length.toLocaleString()}건 대기</span>
+            <span className={styles.scheduledHint}>발송 전 예약은 여기서 확인·취소합니다.</span>
           </div>
+          <span className={styles.scheduledCount}>{pendingScheduled.length.toLocaleString()}건 대기</span>
+        </div>
+        {pendingScheduled.length > 0 ? (
           <div className={styles.scheduledList}>
             {pendingScheduled.map((item) => (
               <ScheduledRow
                 key={item.id}
                 item={item}
                 cancelling={cancelMut.isPending}
-                onCancel={() => cancelMut.mutate(item.id)}
+                onCancel={() => handleCancelScheduled(item)}
               />
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className={styles.scheduledEmpty}>
+            현재 예약 대기 중인 알림톡이 없습니다.
+          </div>
+        )}
+      </div>
 
       {/* 콘텐츠 */}
       {isError ? (
