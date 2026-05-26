@@ -11,6 +11,14 @@ export type ClinicRetakeInfo = {
   resolved_at: string | null;
 };
 
+export type ExamResultAnalysis = {
+  total_questions: number;
+  correct_count: number;
+  wrong_count: number;
+  accuracy_rate: number | null;
+  wrong_question_numbers: number[];
+};
+
 export type MyExamResult = {
   exam_id: number;
   attempt_id: number;
@@ -32,6 +40,7 @@ export type MyExamResult = {
   percentile?: number | null;
   cohort_size?: number | null;
   cohort_avg?: number | null;
+  analysis?: ExamResultAnalysis;
 };
 
 export type MyExamResultItem = {

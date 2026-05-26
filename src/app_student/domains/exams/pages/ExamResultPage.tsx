@@ -9,6 +9,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@student/domains/exams/hooks/useMyExamResultItems";
+import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
 import styles from "./ExamResultPage.module.css";
 
@@ -53,8 +54,6 @@ export default function ExamResultPage() {
   const r = resultQ.data;
   const items = itemsQ.data ?? [];
   const pct = r.max_score > 0 ? clampPercent(Math.round((r.total_score / r.max_score) * 100)) : 0;
-  const correctCount = items.filter((it) => it.is_correct).length;
-  const wrongCount = items.length - correctCount;
   // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)
   const finalPass = r.final_pass ?? r.is_pass;
   const achievement = r.meta_status === "NOT_SUBMITTED"
@@ -62,6 +61,10 @@ export default function ExamResultPage() {
     : r.remediated
       ? "REMEDIATED"
       : undefined;
+  const analysis = r.analysis ?? buildAnalysisFromItems(items);
+  const correctCount = analysis.correct_count;
+  const wrongCount = analysis.wrong_count;
+  const hasQuestionAnalysis = analysis.total_questions > 0 && achievement !== "NOT_SUBMITTED";
 
   return (
     <StudentPageShell
@@ -122,6 +125,15 @@ export default function ExamResultPage() {
           )}
         </div>
 
+        {hasQuestionAnalysis && (
+          <AnalysisOverviewCard
+            analysis={analysis}
+            cohortAvg={r.cohort_avg ?? null}
+            myScore={r.total_score}
+            maxScore={r.max_score}
+          />
+        )}
+
         {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
         {r.clinic_required && finalPass === false && r.meta_status !== "NOT_SUBMITTED" && (
           <ClinicRequiredCard />
@@ -139,7 +151,7 @@ export default function ExamResultPage() {
         )}
 
         {/* ── Correct/Wrong Bar ── */}
-        {items.length > 0 && (
+        {hasQuestionAnalysis && (
           <CorrectBar correct={correctCount} wrong={wrongCount} />
         )}
 
@@ -163,7 +175,7 @@ export default function ExamResultPage() {
 
             {!r.answers_visible && items.length > 0 && (
               <div className={`stu-muted ${styles.answersNote}`}>
-                정답은 비공개입니다.
+                정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.
                 {r.answer_visibility === "after_closed" && " 시험 마감 후 공개됩니다."}
               </div>
             )}
@@ -208,6 +220,73 @@ function ClinicRequiredCard() {
         예약하기 →
       </div>
     </Link>
+  );
+}
+
+/* ── Analysis overview ── */
+
+function AnalysisOverviewCard({
+  analysis,
+  cohortAvg,
+  myScore,
+  maxScore,
+}: {
+  analysis: ExamResultAnalysis;
+  cohortAvg: number | null;
+  myScore: number;
+  maxScore: number;
+}) {
+  const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
+  const scoreRate = maxScore > 0 ? clampPercent(Math.round((myScore / maxScore) * 100)) : null;
+
+  return (
+    <div className={`${styles.cardPanel} ${styles.analysisPanel}`} data-testid="score-analysis-card">
+      <div className={styles.analysisHeader}>
+        <div className={styles.sectionTitle}>
+          핵심 분석
+        </div>
+        {scoreRate != null && (
+          <span className={styles.analysisRate}>
+            득점률 {scoreRate}%
+          </span>
+        )}
+      </div>
+
+      <div className={styles.analysisGrid}>
+        <div className={styles.analysisCell}>
+          <span className={styles.analysisLabel}>정답률</span>
+          <strong>{analysis.accuracy_rate ?? 0}%</strong>
+          <span className="stu-muted">
+            {analysis.correct_count}/{analysis.total_questions}문항
+          </span>
+        </div>
+        <div className={styles.analysisCell} data-danger={analysis.wrong_count > 0}>
+          <span className={styles.analysisLabel}>오답</span>
+          <strong>{analysis.wrong_count}문항</strong>
+          <span className="stu-muted">
+            {analysis.wrong_count > 0 ? "다시 볼 번호" : "틀린 번호 없음"}
+          </span>
+        </div>
+        <div className={styles.analysisCell} data-positive={diff != null && diff >= 0}>
+          <span className={styles.analysisLabel}>평균 대비</span>
+          <strong>{diff == null ? "-" : diff >= 0 ? `+${diff}` : diff}</strong>
+          <span className="stu-muted">{cohortAvg != null ? `평균 ${cohortAvg}점` : "비교 인원 부족"}</span>
+        </div>
+      </div>
+
+      <div className={styles.wrongNumberBlock}>
+        <span className={styles.wrongNumberLabel}>틀린 번호</span>
+        <div className={styles.wrongNumberList}>
+          {analysis.wrong_question_numbers.length > 0 ? (
+            analysis.wrong_question_numbers.map((num) => (
+              <span key={num} className={styles.wrongNumberChip} data-testid="wrong-number-chip">{num}</span>
+            ))
+          ) : (
+            <span className={styles.noWrongChip}>없음</span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -417,7 +496,7 @@ function QuestionGrid({
                 setSelected(isSelected ? null : it.question_number)
               }
               aria-pressed={isSelected}
-              aria-label={`${it.question_number}번 ${answersVisible ? (it.is_correct ? "정답" : "오답") : ""}`}
+              aria-label={`${it.question_number}번 ${it.is_correct ? "정답" : "오답"}`}
               className={styles.questionButton}
               data-answers-visible={answersVisible}
               data-correct={it.is_correct}
@@ -457,6 +536,24 @@ function QuestionGrid({
       )}
     </div>
   );
+}
+
+function buildAnalysisFromItems(items: MyExamResultItem[]): ExamResultAnalysis {
+  const total = items.length;
+  const correct = items.filter((it) => it.is_correct).length;
+  const wrongQuestionNumbers = items
+    .filter((it) => !it.is_correct)
+    .map((it) => Number(it.question_number))
+    .filter((num) => Number.isFinite(num))
+    .sort((a, b) => a - b);
+
+  return {
+    total_questions: total,
+    correct_count: correct,
+    wrong_count: Math.max(total - correct, 0),
+    accuracy_rate: total > 0 ? Math.round((correct / total) * 1000) / 10 : null,
+    wrong_question_numbers: wrongQuestionNumbers,
+  };
 }
 
 function clampPercent(value: number) {

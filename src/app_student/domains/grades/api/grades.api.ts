@@ -23,6 +23,11 @@ export type MyExamGradeSummary = {
   percentile?: number | null;
   cohort_size?: number | null;
   cohort_avg?: number | null;
+  total_questions?: number;
+  correct_count?: number;
+  wrong_count?: number;
+  accuracy_rate?: number | null;
+  wrong_question_numbers?: number[];
 };
 
 export type MyHomeworkGradeSummary = {

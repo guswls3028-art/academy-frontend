@@ -148,6 +148,122 @@
   border-radius: var(--stu-radius);
 }
 
+.analysisPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.analysisHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+}
+
+.analysisHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.analysisRate {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  color: var(--stu-primary);
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--stu-tint-primary);
+  border-radius: 999px;
+}
+
+.analysisGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--stu-border);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.analysisCell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--stu-space-3);
+  background: var(--stu-surface);
+}
+
+.analysisCell strong {
+  color: var(--stu-text);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.analysisCell[data-danger="true"] strong {
+  color: var(--stu-danger-text);
+}
+
+.analysisCell[data-positive="true"] strong {
+  color: var(--stu-success-text);
+}
+
+.analysisLabel {
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wrongNumberBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--stu-space-3);
+  padding-top: var(--stu-space-3);
+  border-top: 1px solid var(--stu-border);
+}
+
+.wrongNumberLabel {
+  flex-shrink: 0;
+  padding-top: 3px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.wrongNumberList {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wrongNumberChip,
+.noWrongChip {
+  display: inline-flex;
+  min-width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 900;
+  border-radius: 999px;
+}
+
+.wrongNumberChip {
+  color: var(--stu-danger-text);
+  background: var(--stu-danger-bg);
+  border: 1px solid var(--stu-danger);
+}
+
+.noWrongChip {
+  color: var(--stu-success-text);
+  background: var(--stu-success-bg);
+  border: 1px solid var(--stu-success);
+}
+
 .rankRow {
   display: flex;
   align-items: baseline;
@@ -261,13 +377,14 @@
     transform 0.15s ease;
 }
 
-.questionButton[data-answers-visible="true"][data-correct="true"] {
+.questionButton[data-correct="true"] {
   background: var(--stu-success-bg);
   border-color: var(--stu-success);
 }
 
-.questionButton[data-answers-visible="true"][data-correct="false"] {
-  background: var(--stu-surface-soft);
+.questionButton[data-correct="false"] {
+  color: var(--stu-danger-text);
+  background: var(--stu-danger-bg);
   border-color: var(--stu-danger);
 }
 
@@ -319,5 +436,16 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 430px) {
+  .analysisGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .wrongNumberBlock {
+    flex-direction: column;
+    gap: var(--stu-space-2);
   }
 }

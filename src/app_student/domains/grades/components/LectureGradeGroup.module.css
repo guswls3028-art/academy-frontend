@@ -47,6 +47,36 @@
   font-size: 13px;
 }
 
+.analysisLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysisLabel {
+  color: var(--stu-success-text);
+}
+
+.analysisLine[data-has-wrong="true"] .analysisLabel {
+  color: var(--stu-danger-text);
+}
+
+.analysisNumbers {
+  max-width: 100%;
+  padding: 2px 7px;
+  overflow: hidden;
+  color: var(--stu-danger-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--stu-danger-bg);
+  border: 1px solid var(--stu-danger);
+  border-radius: 999px;
+}
+
 .statusBlock {
   display: flex;
   flex-shrink: 0;
