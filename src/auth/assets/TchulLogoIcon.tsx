@@ -1,6 +1,6 @@
 /**
  * tchul.com(박철과학) 전용 로고 — SVG, 브랜드 그라데이션(블루→청록→그린)
- * TchulLogoTransparent.png / TchulLogoIcon.png 대체용.
+ * 옛 PNG 로고 에셋을 대체하는 인라인 SVG.
  */
 import styles from "./LogoIcon.module.css";
 

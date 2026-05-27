@@ -10,11 +10,6 @@
     }
   },
   "scripts": {
-    "trace:tchul-logo": "node scripts/assets/trace-tchul-logo.mjs",
-    "svg:fill-only": "node scripts/assets/svg-to-fill-only.mjs",
-    "logo:remove-bg": "node scripts/assets/remove-white-background.mjs",
-    "logo:crop-icon": "node scripts/assets/crop-tchul-icon.mjs",
-    "logo:remove-padding": "node scripts/assets/crop-icon-padding.mjs",
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/ensure-spa-mode.js",
@@ -88,9 +83,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
-    "imagetracerjs": "^1.2.6",
     "postcss": "8",
-    "sharp": "^0.34.5",
     "tailwindcss": "4.1.18",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.22.0",
