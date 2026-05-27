@@ -1,5 +1,9 @@
 import api from "@/shared/api/axios";
 import { isApiRecord } from "@/shared/api/response";
+import {
+  normalizeAssessmentPhaseStatus,
+  type AssessmentPhaseStatus,
+} from "@/shared/api/contracts/assessmentStatus";
 
 export type AssessmentExamListItem = {
   id: number;
@@ -11,7 +15,7 @@ export type AssessmentExamListItem = {
 export type AssessmentHomeworkListItem = {
   id: number;
   title: string;
-  status: "DRAFT" | "OPEN" | "CLOSED";
+  status: AssessmentPhaseStatus;
   session_id?: number;
 };
 
@@ -31,10 +35,6 @@ function asRecord(value: unknown): Record<string, unknown> {
 function asPositiveNumber(value: unknown): number | null {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
-}
-
-function normalizeHomeworkStatus(value: unknown): AssessmentHomeworkListItem["status"] {
-  return value === "DRAFT" || value === "OPEN" || value === "CLOSED" ? value : "OPEN";
 }
 
 export async function fetchAssessmentExams(params?: {
@@ -64,7 +64,7 @@ export async function fetchAssessmentHomeworks(params?: {
     return {
       id: Number(record.id),
       title: String(record.title ?? ""),
-      status: normalizeHomeworkStatus(record.status),
+      status: normalizeAssessmentPhaseStatus(record.status),
       session_id: asPositiveNumber(sid) ?? undefined,
     };
   });

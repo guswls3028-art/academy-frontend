@@ -2,15 +2,17 @@
  * 시험 상태 판단 (클라이언트)
  * - open_at, close_at 기준. 채점 완료 여부는 백엔드 확장 시 반영
  */
+import {
+  ASSESSMENT_PHASE_LABEL,
+  type AssessmentPhaseStatus,
+} from "@/shared/api/contracts/assessmentStatus";
+
 export type ExamStatus = "draft" | "open" | "grading" | "completed";
 
 /** 운영 보드 상태. DRAFT는 레거시 — 모두 OPEN으로 취급. */
-export type ExamPhaseStatus = "DRAFT" | "OPEN" | "CLOSED";
+export type ExamPhaseStatus = AssessmentPhaseStatus;
 
-export const EXAM_PHASE_LABEL: Record<string, string> = {
-  OPEN: "진행 중",
-  CLOSED: "마감",
-};
+export const EXAM_PHASE_LABEL: Record<ExamPhaseStatus, string> = ASSESSMENT_PHASE_LABEL;
 
 export function getExamStatus(
   openAt: string | null,

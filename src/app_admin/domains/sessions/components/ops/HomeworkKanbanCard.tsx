@@ -1,12 +1,16 @@
 /**
  * 과제 Kanban 카드 — ExamKanbanCard와 레이아웃 일치
  */
+import {
+  isAssessmentOpen,
+  type AssessmentPhaseStatus,
+} from "@/shared/api/contracts/assessmentStatus";
 import { HomeworkStatusBadge } from "./StatusBadge";
 
 export type HomeworkCardData = {
   id: number;
   title: string;
-  status: string;
+  status: AssessmentPhaseStatus;
   closeAt?: string | null;
 };
 
@@ -33,7 +37,7 @@ function isWithin24Hours(dateStr: string | null | undefined): boolean {
 }
 
 export default function HomeworkKanbanCard({ homework, onClick }: Props) {
-  const closeUrgent = homework.status === "OPEN" && isWithin24Hours(homework.closeAt);
+  const closeUrgent = isAssessmentOpen(homework.status) && isWithin24Hours(homework.closeAt);
 
   return (
     <div

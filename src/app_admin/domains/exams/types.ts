@@ -1,7 +1,9 @@
+import type { AssessmentPhaseStatus } from "@/shared/api/contracts/assessmentStatus";
+
 export type ExamType = "template" | "regular";
 
 /** 과제와 동일. 사용자에는 설정 중/진행 중/마감으로만 노출 */
-export type ExamStatus = "DRAFT" | "OPEN" | "CLOSED";
+export type ExamStatus = AssessmentPhaseStatus;
 
 export type AnswerVisibility = "hidden" | "after_closed" | "always";
 

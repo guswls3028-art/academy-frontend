@@ -13,6 +13,7 @@ import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { useHomeworkPolicy } from "../../hooks/useHomeworkPolicy";
 import { patchHomeworkPolicy } from "../../api/homeworkPolicy";
 import HomeworkPolicyCard from "../../components/HomeworkPolicyCard";
+import { QUERY_KEYS } from "../../queryKeys";
 import type { HomeworkPolicy } from "../../types";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
@@ -34,7 +35,7 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
       >;
     }) => patchHomeworkPolicy(payload.id, payload.data),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
+      await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_POLICY(safeSessionId) });
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(safeSessionId) });
       feedback.success("과제 정책이 저장되었습니다.");
     },

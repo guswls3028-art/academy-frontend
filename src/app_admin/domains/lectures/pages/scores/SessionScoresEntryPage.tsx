@@ -40,6 +40,7 @@ import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionOrderLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import SessionOmrUploadAction from "./SessionOmrUploadAction";
+import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
@@ -135,8 +136,8 @@ export default function SessionScoresEntryPage({
 
   const invalidateScores = () => {
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
-    void qc.invalidateQueries({ queryKey: ["admin-session-exams", numericSessionId] });
-    void qc.invalidateQueries({ queryKey: ["session-homeworks", numericSessionId] });
+    void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(numericSessionId) });
+    void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.homeworks(numericSessionId) });
   };
   const openCreateExam = () => onOpenCreateExam?.();
   const openCreateHomework = () => onOpenCreateHomework?.();

@@ -1,4 +1,5 @@
 import { isApiRecord } from "@/shared/api/response";
+import { normalizeAssessmentPhaseStatus } from "@/shared/api/contracts/assessmentStatus";
 import type { AnswerVisibility, Exam, ExamStatus, ExamType } from "../types";
 
 function text(value: unknown): string {
@@ -25,7 +26,7 @@ function normalizeExamType(value: unknown): ExamType {
 }
 
 function normalizeStatus(value: unknown): ExamStatus {
-  return value === "DRAFT" || value === "OPEN" || value === "CLOSED" ? value : "OPEN";
+  return normalizeAssessmentPhaseStatus(value);
 }
 
 function normalizeAnswerVisibility(value: unknown): AnswerVisibility {

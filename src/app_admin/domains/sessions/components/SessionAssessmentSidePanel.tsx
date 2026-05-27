@@ -4,11 +4,21 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, ClipboardList, FileText, Layers, Plus } from "lucide-react";
 
-import api from "@/shared/api/axios";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
 import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
+import type { HomeworkListItem } from "@admin/domains/homework/api/homeworks";
+import {
+  fetchSessionExamsSummary,
+  fetchSessionHomeworks,
+  sessionAssessmentQueryKeys,
+} from "@admin/domains/sessions/api/sessionAssessmentQueries";
+import {
+  DEFAULT_ASSESSMENT_PHASE_STATUS,
+  isAssessmentClosed,
+  type AssessmentPhaseStatus,
+} from "@/shared/api/contracts/assessmentStatus";
 
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import {
@@ -36,10 +46,16 @@ type Props = {
 type HomeworkItem = {
   id: number;
   title: string;
-  status?: "DRAFT" | "OPEN" | "CLOSED";
+  status: AssessmentPhaseStatus;
 };
 
 type AssessmentKind = "exam" | "homework";
+
+function shouldSkipAssessmentAutoSelect(state: unknown): boolean {
+  return state != null &&
+    typeof state === "object" &&
+    (state as { skipAssessmentAutoSelect?: unknown }).skipAssessmentAutoSelect === true;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Inline styles (CSS-in-JS) — uses design tokens only               */
@@ -206,7 +222,7 @@ const S = {
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
-  card: (active: boolean, status?: "DRAFT" | "OPEN" | "CLOSED"): CSSProperties => ({
+  card: (active: boolean, status?: AssessmentPhaseStatus): CSSProperties => ({
     position: "relative",
     display: "flex",
     width: "100%",
@@ -223,7 +239,7 @@ const S = {
       ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
       : "none",
     border: "1px solid var(--color-border-divider)",
-    opacity: status === "CLOSED" ? 0.78 : 1,
+    opacity: isAssessmentClosed(status) ? 0.78 : 1,
     textAlign: "left",
   }),
 
@@ -323,17 +339,14 @@ export default function SessionAssessmentSidePanel({
   }, [searchParams]);
 
   const { data: exams = [], isLoading: examsLoading, isError: examsError } = useQuery({
-    queryKey: ["admin-session-exams", sessionId],
+    queryKey: sessionAssessmentQueryKeys.exams(sessionId),
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
   });
 
   const { data: examsSummary } = useQuery({
-    queryKey: ["session-exams-summary", sessionId],
-    queryFn: async () => {
-      const res = await api.get(`/results/admin/sessions/${sessionId}/exams/summary/`);
-      return res.data as { exams?: { exam_id: number; max_score: number }[] };
-    },
+    queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId),
+    queryFn: () => fetchSessionExamsSummary(sessionId),
     enabled: !!sessionId,
   });
 
@@ -357,27 +370,26 @@ export default function SessionAssessmentSidePanel({
   }, [examsSummary]);
 
   const { data: homeworkPolicy } = useQuery({
-    queryKey: ["homework-policy", sessionId],
+    queryKey: sessionAssessmentQueryKeys.homeworkPolicy(sessionId),
     queryFn: () => fetchHomeworkPolicyBySession(sessionId),
     enabled: !!sessionId,
   });
 
   const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
-    queryKey: ["session-homeworks", sessionId],
+    queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
-      const res = await api.get("/homeworks/", { params: { session_id: sessionId } });
-      const arr = res.data?.results ?? res.data?.items ?? res.data ?? [];
-      const list = Array.isArray(arr) ? arr : [];
-      return list.map((x: { id?: unknown; title?: unknown; status?: unknown }) => ({
-        id: Number(x.id),
-        title: String(x.title ?? ""),
-        status: (x.status ?? "OPEN") as HomeworkItem["status"],
+      const rows: HomeworkListItem[] = await fetchSessionHomeworks(sessionId);
+      return rows.map((homework) => ({
+        id: Number(homework.id),
+        title: homework.title,
+        status: homework.status,
       }));
     },
     enabled: !!sessionId,
   });
 
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+  const skipAutoSelect = shouldSkipAssessmentAutoSelect(location.state);
   const resolvedActiveKind: AssessmentKind =
     activeKind ?? (location.pathname.includes("/assignments") ? "homework" : "exam");
   const scoresActive = location.pathname.startsWith(`${base}/scores`);
@@ -424,15 +436,26 @@ export default function SessionAssessmentSidePanel({
         .filter((id) => Number.isFinite(id));
       if (examIds.length === 0) {
         if (examId != null) {
-          navigate({ pathname: `${basePath}/exams`, search: "" }, { replace: true });
+          navigate(
+            { pathname: `${basePath}/exams`, search: "" },
+            { replace: true, state: { skipAssessmentAutoSelect: true } },
+          );
         }
         return;
       }
-      if (examId == null || !examIds.includes(examId)) {
+      if (examId == null) {
+        if (skipAutoSelect) return;
         const firstId = examIds[0];
         if (Number.isFinite(firstId)) {
           navigate({ pathname: `${basePath}/exams`, search: buildAssessmentSearch("exam", firstId) }, { replace: true });
         }
+        return;
+      }
+      if (!examIds.includes(examId)) {
+        navigate(
+          { pathname: `${basePath}/exams`, search: "" },
+          { replace: true, state: { skipAssessmentAutoSelect: true } },
+        );
       }
     } else if (path.startsWith(`${basePath}/assignments`)) {
       if (hwLoading) return;
@@ -441,28 +464,39 @@ export default function SessionAssessmentSidePanel({
         .filter((id) => Number.isFinite(id));
       if (homeworkIds.length === 0) {
         if (homeworkId != null) {
-          navigate({ pathname: `${basePath}/assignments`, search: "" }, { replace: true });
+          navigate(
+            { pathname: `${basePath}/assignments`, search: "" },
+            { replace: true, state: { skipAssessmentAutoSelect: true } },
+          );
         }
         return;
       }
-      if (homeworkId == null || !homeworkIds.includes(homeworkId)) {
+      if (homeworkId == null) {
+        if (skipAutoSelect) return;
         const firstId = homeworkIds[0];
         if (Number.isFinite(firstId)) {
           navigate({ pathname: `${basePath}/assignments`, search: buildAssessmentSearch("homework", firstId) }, { replace: true });
         }
+        return;
+      }
+      if (!homeworkIds.includes(homeworkId)) {
+        navigate(
+          { pathname: `${basePath}/assignments`, search: "" },
+          { replace: true, state: { skipAssessmentAutoSelect: true } },
+        );
       }
     }
-  }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
+  }, [location.pathname, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
 
   // 2026-05-13 학원장 결정 시행: 자동 마감 정책 폐기.
   // 이전엔 차시 deadline 지나면 OPEN → CLOSED 자동 변경 (client safety net + backend cron).
   // 학원장 결정 "시험 단위 status 폐기 → 학생별 상태 통합" 과 정면 충돌이라 useEffect 제거.
   // 백엔드 cron `close_overdue_assessments` 도 같이 비활성화 (infra/terraform/purge_schedule.tf).
 
-  const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
-  const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
+  const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
+  const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-  const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
+  const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.homeworks(sessionId) });
 
   const onSelectExam = (examId: number) => {
     navigate({ pathname: `${base}/exams`, search: buildAssessmentSearch("exam", examId) });
@@ -605,7 +639,7 @@ export default function SessionAssessmentSidePanel({
                 key={hw.id}
                 active={active}
                 label={hw.title}
-                status={hw.status ?? "OPEN"}
+                status={hw.status ?? DEFAULT_ASSESSMENT_PHASE_STATUS}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
                 onSelect={() => onSelectHomework(hw.id)}
@@ -718,7 +752,7 @@ function HomeworkItemCard({
 }: {
   active: boolean;
   label: string;
-  status: "DRAFT" | "OPEN" | "CLOSED";
+  status: AssessmentPhaseStatus;
   cutlineMode: "PERCENT" | "COUNT";
   cutlineValue: number;
   onSelect: () => void;

@@ -8,11 +8,15 @@
  */
 
 import api from "@/shared/api/axios";
+import {
+  normalizeAssessmentPhaseStatus,
+  type AssessmentPhaseStatus,
+} from "@/shared/api/contracts/assessmentStatus";
 
 export type HomeworkListItem = {
   id: number;
   title: string;
-  status: "DRAFT" | "OPEN" | "CLOSED";
+  status: AssessmentPhaseStatus;
   session_id?: number;
 };
 
@@ -25,10 +29,6 @@ function asRecord(value: unknown): Record<string, unknown> {
 function asPositiveNumber(value: unknown): number | null {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
-}
-
-function normalizeStatus(value: unknown): HomeworkListItem["status"] {
-  return value === "DRAFT" || value === "OPEN" || value === "CLOSED" ? value : "OPEN";
 }
 
 function unwrapList(data: unknown): unknown[] {
@@ -46,7 +46,7 @@ function normalizeListItem(raw: unknown): HomeworkListItem {
   return {
     id: Number(record.id),
     title: String(record.title ?? ""),
-    status: normalizeStatus(record.status),
+    status: normalizeAssessmentPhaseStatus(record.status),
     session_id: asPositiveNumber(sid) ?? undefined,
   };
 }

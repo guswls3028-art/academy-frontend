@@ -16,6 +16,7 @@ import {
   fetchHomeworkPolicyBySession,
   patchHomeworkPolicy,
 } from "../api/homeworkPolicy";
+import { QUERY_KEYS } from "../queryKeys";
 import type { HomeworkPolicy } from "../types";
 
 type PatchData = Partial<
@@ -29,7 +30,7 @@ export function useHomeworkPolicy(sessionId: number) {
     Number.isFinite(sessionId) && sessionId > 0 ? sessionId : 0;
 
   const q = useQuery({
-    queryKey: ["homework-policy", safeSessionId],
+    queryKey: QUERY_KEYS.HOMEWORK_POLICY(safeSessionId),
     queryFn: () => fetchHomeworkPolicyBySession(safeSessionId),
     enabled: safeSessionId > 0,
   });
@@ -38,7 +39,7 @@ export function useHomeworkPolicy(sessionId: number) {
     mutationFn: async (payload: { id: number; data: PatchData }) =>
       patchHomeworkPolicy(payload.id, payload.data),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
+      await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_POLICY(safeSessionId) });
     },
   });
 

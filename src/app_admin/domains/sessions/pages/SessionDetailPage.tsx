@@ -179,7 +179,9 @@ export default function SessionDetailPage() {
                   type="exam"
                   id={examId}
                   sessionId={sId}
-                  onDeleted={() => navigate(`${basePath}/exams`)}
+                  onDeleted={() => navigate(`${basePath}/exams`, {
+                    state: { skipAssessmentAutoSelect: true },
+                  })}
                 />
               </div>
             ) : (

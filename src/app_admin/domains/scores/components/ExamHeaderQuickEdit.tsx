@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
+import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import ShowcasePublishModal from "./ShowcasePublishModal";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -60,7 +61,7 @@ export default function ExamHeaderQuickEdit({
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      await qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+      await qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
       feedback.success(`${title || examTitle} 저장됨`);
       setOpen(false);
     },
