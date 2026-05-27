@@ -9,7 +9,7 @@ import { type Page } from "@playwright/test";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
-type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type ApiCallArgs = {
   access: string;
   host: string;
