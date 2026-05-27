@@ -119,7 +119,6 @@ export const asyncStatusStore = {
         id: jobId,
         label,
         status: "pending" as const,
-        progress: 0, // 즉시 "진행 중" 표시 ("대기 중" 대신)
         createdAt: Date.now(),
         meta: { jobId, jobType, sourceId, suppressAutoDownload: options?.suppressAutoDownload },
         tenantScope: scope,
