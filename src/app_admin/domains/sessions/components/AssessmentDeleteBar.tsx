@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { deleteSessionExam } from "@admin/domains/sessions/api/deleteSessionExam";
 import { deleteSessionHomework } from "@admin/domains/sessions/api/deleteSessionHomework";
+import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { Button } from "@/shared/ui/ds";
@@ -22,25 +23,46 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
 
   const label = type === "exam" ? "시험 삭제하기" : "과제 삭제하기";
   const confirmMessage = type === "exam"
-    ? "이 차시에서 시험을 제거합니다. 다른 차시에 연결된 같은 시험은 유지됩니다."
+    ? "이 시험을 현재 차시에서 완전히 삭제합니다. 시험 목록, 성적 입력, 응시 대상에서 사라지며 이미 입력된 성적·제출 기록은 보존됩니다."
     : "이 과제를 삭제합니다. 대상 학생과 제출 상태도 함께 정리되며, 이미 제출된 기록은 정책에 따라 보존됩니다.";
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+  const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
   const invalidateScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+  const removeExamFromSessionCaches = () => {
+    qc.setQueryData<SessionExamRow[]>(["admin-session-exams", sessionId], (prev) =>
+      Array.isArray(prev) ? prev.filter((exam) => Number(exam.exam_id) !== id) : prev
+    );
+    qc.setQueryData<{ exams?: Array<{ exam_id?: number }> }>(["session-exams-summary", sessionId], (prev) => {
+      if (!prev || !Array.isArray(prev.exams)) return prev;
+      return {
+        ...prev,
+        exams: prev.exams.filter((exam) => Number(exam.exam_id) !== id),
+      };
+    });
+  };
 
   const handleDelete = async () => {
     setLoading(true);
     try {
       if (type === "exam") {
         await deleteSessionExam(id, sessionId);
-        invalidateExams();
+        removeExamFromSessionCaches();
+        await Promise.all([
+          invalidateExams(),
+          invalidateExamsSummary(),
+          invalidateScores(),
+          qc.invalidateQueries({ queryKey: ["admin-exam", id] }),
+        ]);
       } else {
         await deleteSessionHomework(id);
-        invalidateHomeworks();
+        await Promise.all([
+          invalidateHomeworks(),
+          invalidateScores(),
+        ]);
       }
-      invalidateScores();
-      feedback.success(type === "exam" ? "시험이 이 차시에서 제거되었습니다." : "과제가 삭제되었습니다.");
+      feedback.success(type === "exam" ? "시험이 현재 차시에서 완전히 삭제되었습니다." : "과제가 삭제되었습니다.");
       setConfirmOpen(false);
       onDeleted();
     } catch (e: unknown) {

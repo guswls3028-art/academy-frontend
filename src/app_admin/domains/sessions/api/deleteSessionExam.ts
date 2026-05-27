@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/sessions/api/deleteSessionExam.ts
 /**
- * ✅ Session Exam Delete (TEST MODE)
- * - 즉시 삭제 (안전장치 없음)
- * - exams list 단일진실은 results 도메인(admin-session-exams) 기준
+ * Session-scoped exam delete.
+ * - With session_id, backend removes the exam from that session.
+ * - If historical records exist, backend preserves them while hiding the exam from session workflows.
+ * - Session exam list SSOT is results/admin/sessions/{sessionId}/exams/.
  */
 
 import api from "@/shared/api/axios";
