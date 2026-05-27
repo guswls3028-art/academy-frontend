@@ -8,15 +8,10 @@
  */
 
 import api from "@/shared/api/axios";
-import {
-  normalizeAssessmentPhaseStatus,
-  type AssessmentPhaseStatus,
-} from "@/shared/api/contracts/assessmentStatus";
 
 export type HomeworkListItem = {
   id: number;
   title: string;
-  status: AssessmentPhaseStatus;
   session_id?: number;
 };
 
@@ -46,7 +41,6 @@ function normalizeListItem(raw: unknown): HomeworkListItem {
   return {
     id: Number(record.id),
     title: String(record.title ?? ""),
-    status: normalizeAssessmentPhaseStatus(record.status),
     session_id: asPositiveNumber(sid) ?? undefined,
   };
 }
@@ -58,7 +52,6 @@ export async function fetchHomeworks(params?: { session_id?: number }): Promise<
 
 /**
  * ✅ POST /homeworks/
- * - 상태는 서버 기본값(DRAFT) 사용.
  * - template_homework_id 있으면 해당 템플릿을 불러와 이 차시에 적용.
  */
 export async function createHomework(payload: {

@@ -223,9 +223,6 @@ export default function ExamExplorerPage() {
                 )}
               </div>
               <div className={styles.list}>
-                {/* 2026-05-13 학원장 결정: 시험 단위 status(OPEN/CLOSED) UI 폐기.
-                    아이콘 톤 통일(파일아이콘 + neutral) + status 뱃지 제거.
-                    학생별 진행 상태는 성적탭에서 Achievement SSOT 로 확인. */}
                 {exams.map((e) => {
                   return (
                     <div

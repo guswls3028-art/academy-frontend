@@ -1,6 +1,5 @@
 import { isApiRecord } from "@/shared/api/response";
-import { normalizeAssessmentPhaseStatus } from "@/shared/api/contracts/assessmentStatus";
-import type { AnswerVisibility, Exam, ExamStatus, ExamType } from "../types";
+import type { AnswerVisibility, Exam, ExamType } from "../types";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
@@ -25,10 +24,6 @@ function normalizeExamType(value: unknown): ExamType {
   return value === "template" || value === "regular" ? value : "regular";
 }
 
-function normalizeStatus(value: unknown): ExamStatus {
-  return normalizeAssessmentPhaseStatus(value);
-}
-
 function normalizeAnswerVisibility(value: unknown): AnswerVisibility {
   return value === "after_closed" || value === "always" || value === "hidden"
     ? value
@@ -48,7 +43,6 @@ export function normalizeExam(raw: unknown): Exam {
     exam_type: normalizeExamType(data.exam_type),
 
     is_active: data.is_active === true,
-    status: normalizeStatus(data.status),
 
     allow_retake: data.allow_retake === true,
     max_attempts: numberOr(data.max_attempts, 0),

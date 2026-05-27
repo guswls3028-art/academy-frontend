@@ -1,9 +1,5 @@
 import api from "@/shared/api/axios";
 import { isApiRecord } from "@/shared/api/response";
-import {
-  normalizeAssessmentPhaseStatus,
-  type AssessmentPhaseStatus,
-} from "@/shared/api/contracts/assessmentStatus";
 
 export type AssessmentExamListItem = {
   id: number;
@@ -15,7 +11,6 @@ export type AssessmentExamListItem = {
 export type AssessmentHomeworkListItem = {
   id: number;
   title: string;
-  status: AssessmentPhaseStatus;
   session_id?: number;
 };
 
@@ -64,7 +59,6 @@ export async function fetchAssessmentHomeworks(params?: {
     return {
       id: Number(record.id),
       title: String(record.title ?? ""),
-      status: normalizeAssessmentPhaseStatus(record.status),
       session_id: asPositiveNumber(sid) ?? undefined,
     };
   });

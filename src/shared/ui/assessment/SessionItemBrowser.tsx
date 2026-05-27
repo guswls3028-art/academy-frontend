@@ -337,8 +337,6 @@ export default function SessionItemBrowser({
                         </div>
                       )}
                     </div>
-                    {/* 2026-05-13 학원장 결정: 시험·과제 단위 status(OPEN/CLOSED/DRAFT) 뱃지 폐기.
-                        학생별 Achievement SSOT 통합 — project_exam_status_deprecated_2026_05_13 */}
                   </label>
                 );
               })}

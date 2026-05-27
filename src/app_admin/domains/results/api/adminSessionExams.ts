@@ -1,16 +1,10 @@
 // PATH: src/app_admin/domains/results/api/adminSessionExams.ts
 
 import api from "@/shared/api/axios";
-import {
-  normalizeAssessmentPhaseStatus,
-  type AssessmentPhaseStatus,
-} from "@/shared/api/contracts/assessmentStatus";
 
 export type SessionExamRow = {
   exam_id: number;
   title: string;
-  /** 과제와 동일: DRAFT=설정 중, OPEN=진행 중, CLOSED=마감 */
-  status: AssessmentPhaseStatus;
   open_at: string | null;
   close_at: string | null;
   allow_retake: boolean;
@@ -25,7 +19,6 @@ function normalizeRow(raw: unknown): SessionExamRow {
   return {
     exam_id: Number(record.exam_id),
     title: String(record.title ?? ""),
-    status: normalizeAssessmentPhaseStatus(record.status),
     open_at: typeof record.open_at === "string" ? record.open_at : null,
     close_at: typeof record.close_at === "string" ? record.close_at : null,
     allow_retake: Boolean(record.allow_retake),

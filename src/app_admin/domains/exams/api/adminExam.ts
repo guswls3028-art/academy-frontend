@@ -24,7 +24,6 @@ export async function updateAdminExam(
     | "description"
     | "subject"
     | "is_active"
-    | "status"
     | "allow_retake"
     | "max_attempts"
     | "pass_score"

@@ -15,11 +15,13 @@ type ExamRow = {
   id?: number;
   exam_id?: number;
   title?: string;
+  status?: unknown;
 };
 
 type SessionExamRow = {
   exam_id?: number;
   title?: string;
+  status?: unknown;
 };
 
 type SessionExamsSummary = {
@@ -55,6 +57,7 @@ async function assertExamLinkedToSession(page: Page, examId: number, title: stri
   );
   expect(examsBySession.status, "regular exam list by session").toBe(200);
   expect(rows(examsBySession.body).some((exam) => numericId(exam.id ?? exam.exam_id) === examId)).toBe(true);
+  expect(rows(examsBySession.body).some((exam) => "status" in exam), "exam list should not expose lifecycle status").toBe(false);
 
   const sessionExams = await apiCall<ListEnvelope<SessionExamRow>>(
     page,
@@ -63,6 +66,7 @@ async function assertExamLinkedToSession(page: Page, examId: number, title: stri
   );
   expect(sessionExams.status, "session exam sidebar list").toBe(200);
   expect(rows(sessionExams.body).some((exam) => numericId(exam.exam_id) === examId)).toBe(true);
+  expect(rows(sessionExams.body).some((exam) => "status" in exam), "session exam list should not expose lifecycle status").toBe(false);
 
   const summary = await apiCall<SessionExamsSummary>(
     page,

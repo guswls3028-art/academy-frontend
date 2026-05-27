@@ -10,8 +10,6 @@ import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 /**
  * 시험 헤더: 제목 + 템플릿 저장(regular만).
- * 2026-05-13 학원장 결정: 시험 단위 status(OPEN/CLOSED) UI 폐기. 학생별 Achievement SSOT 통합.
- * → 진행 중/마감 뱃지 + 종료하기 버튼 + statusMut mutation 제거.
  */
 export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
@@ -122,9 +120,6 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
               )}
             </div>
           )}
-
-          {/* 2026-05-13 학원장 결정: 시험 단위 종료하기 버튼 폐기.
-              학생별 진행 상태는 성적탭 점수 셀 Achievement 가 SSOT. */}
         </div>
       </div>
 

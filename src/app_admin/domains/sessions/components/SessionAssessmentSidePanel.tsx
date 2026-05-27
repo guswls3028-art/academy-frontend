@@ -480,11 +480,6 @@ export default function SessionAssessmentSidePanel({
     }
   }, [location.pathname, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
 
-  // 2026-05-13 학원장 결정 시행: 자동 마감 정책 폐기.
-  // 이전엔 차시 deadline 지나면 OPEN → CLOSED 자동 변경 (client safety net + backend cron).
-  // 학원장 결정 "시험 단위 status 폐기 → 학생별 상태 통합" 과 정면 충돌이라 useEffect 제거.
-  // 백엔드 cron `close_overdue_assessments` 도 같이 비활성화 (infra/terraform/purge_schedule.tf).
-
   const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
@@ -497,9 +492,6 @@ export default function SessionAssessmentSidePanel({
   const onSelectHomework = (homeworkId: number) => {
     navigate({ pathname: `${base}/assignments`, search: buildAssessmentSearch("homework", homeworkId) });
   };
-
-  // 2026-05-13 학원장 결정 시행: 시험·과제 단위 start/close 핸들러 폐기.
-  // 학생별 진행 상태(Achievement)가 SSOT — 학원장이 시험 전체를 닫을 일이 없음.
 
   return (
     <aside style={asideStyle}>
@@ -691,8 +683,6 @@ export default function SessionAssessmentSidePanel({
 /*  ExamItemCard                                                       */
 /* ------------------------------------------------------------------ */
 
-/* 2026-05-13 학원장 결정 시행: 시험 전체 status 단위 UI 폐기.
- * 시험은 만들면 영구 응시 가능. 학생별 상태(Achievement)는 성적탭 점수 셀 SSOT 로 통합. */
 function ExamItemCard({
   active,
   label,
@@ -727,7 +717,6 @@ function ExamItemCard({
 /*  HomeworkItemCard                                                    */
 /* ------------------------------------------------------------------ */
 
-/* 2026-05-13 학원장 결정 시행: 과제 status 단위 UI 폐기. ExamItemCard 와 동일 정책. */
 function HomeworkItemCard({
   active,
   label,

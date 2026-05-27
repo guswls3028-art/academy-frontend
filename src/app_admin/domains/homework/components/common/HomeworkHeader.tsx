@@ -1,11 +1,6 @@
 // PATH: src/app_admin/domains/homework/components/common/HomeworkHeader.tsx
 /**
  * HomeworkHeader — 시험 ExamHeader와 동일: 제목, 템플릿 저장(regular만).
- *
- * 2026-05-13 학원장 결정: 시험·과제 단위 status(OPEN/CLOSED) UI 폐기.
- *   학생별 Achievement SSOT 통합 — 학원장이 과제 전체를 닫을 일이 없음.
- *   → 진행 중/마감 뱃지 + 종료하기 버튼 + statusMut mutation 제거.
- *   (ExamHeader 와 동일 정책. project_exam_status_deprecated_2026_05_13)
  */
 
 import { useState, useRef, useEffect } from "react";

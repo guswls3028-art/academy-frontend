@@ -1,9 +1,5 @@
 // PATH: src/app_admin/domains/homework/api/adminHomework.ts
 import api from "@/shared/api/axios";
-import {
-  normalizeAssessmentPhaseStatus,
-  type AssessmentPhaseStatus,
-} from "@/shared/api/contracts/assessmentStatus";
 
 export type AdminHomeworkDetail = {
   id: number;
@@ -13,8 +9,6 @@ export type AdminHomeworkDetail = {
 
   title: string;
   description?: string;
-
-  status: AssessmentPhaseStatus;
 
   /** Homework.meta JSON. default_max_score 등 추가 설정 보관. */
   meta?: Record<string, unknown> | null;
@@ -57,8 +51,6 @@ function normalize(raw: unknown): AdminHomeworkDetail {
 
     title: String(record.title ?? ""),
     description: typeof record.description === "string" ? record.description : undefined,
-
-    status: normalizeAssessmentPhaseStatus(record.status),
 
     meta,
     default_max_score: defaultMaxScore,

@@ -1,6 +1,4 @@
 // PATH: src/app_admin/domains/homework/types.ts
-import type { AssessmentPhaseStatus } from "@/shared/api/contracts/assessmentStatus";
-
 /**
  * HomeworkPolicy (Session 단위 정책)
  *
@@ -22,7 +20,6 @@ export type HomeworkTabKey = "setup" | "assets" | "submissions" | "results";
 export type HomeworkSummary = {
   id: number;
   title: string;
-  status: AssessmentPhaseStatus;
   session_id?: number;
   homework_type?: "template" | "regular";
   template_homework_id?: number | null;

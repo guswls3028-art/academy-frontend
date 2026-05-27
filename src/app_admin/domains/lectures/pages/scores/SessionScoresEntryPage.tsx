@@ -186,10 +186,6 @@ export default function SessionScoresEntryPage({
     }
   };
 
-  // 2026-05-13 학원장 결정 시행: 시험·과제 일괄 종료 폐기.
-  // status 단위 UI 가 폐기됐으므로 일괄 종료 핸들러도 제거.
-  // project_exam_status_deprecated_2026_05_13 SSOT.
-
   const sessionIdForDraft = Number.isFinite(numericSessionId) ? numericSessionId : 0;
   const draft = useScoreEditDraft({
     sessionId: sessionIdForDraft,
