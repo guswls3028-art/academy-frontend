@@ -14,11 +14,6 @@ import {
   fetchSessionHomeworks,
   sessionAssessmentQueryKeys,
 } from "@admin/domains/sessions/api/sessionAssessmentQueries";
-import {
-  DEFAULT_ASSESSMENT_PHASE_STATUS,
-  isAssessmentClosed,
-  type AssessmentPhaseStatus,
-} from "@/shared/api/contracts/assessmentStatus";
 
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import {
@@ -46,7 +41,6 @@ type Props = {
 type HomeworkItem = {
   id: number;
   title: string;
-  status: AssessmentPhaseStatus;
 };
 
 type AssessmentKind = "exam" | "homework";
@@ -222,7 +216,7 @@ const S = {
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
-  card: (active: boolean, status?: AssessmentPhaseStatus): CSSProperties => ({
+  card: (active: boolean): CSSProperties => ({
     position: "relative",
     display: "flex",
     width: "100%",
@@ -239,7 +233,6 @@ const S = {
       ? "inset 0 0 0 1.5px color-mix(in srgb, var(--color-brand-primary) 35%, transparent)"
       : "none",
     border: "1px solid var(--color-border-divider)",
-    opacity: isAssessmentClosed(status) ? 0.78 : 1,
     textAlign: "left",
   }),
 
@@ -382,7 +375,6 @@ export default function SessionAssessmentSidePanel({
       return rows.map((homework) => ({
         id: Number(homework.id),
         title: homework.title,
-        status: homework.status,
       }));
     },
     enabled: !!sessionId,
@@ -597,7 +589,6 @@ export default function SessionAssessmentSidePanel({
                 key={exam.exam_id}
                 active={active}
                 label={exam.title}
-                status={exam.status}
                 maxScore={maxScore}
                 gradedCount={gradedCount}
                 onSelect={() => onSelectExam(Number(exam.exam_id))}
@@ -639,7 +630,6 @@ export default function SessionAssessmentSidePanel({
                 key={hw.id}
                 active={active}
                 label={hw.title}
-                status={hw.status ?? DEFAULT_ASSESSMENT_PHASE_STATUS}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
                 onSelect={() => onSelectHomework(hw.id)}
@@ -702,20 +692,16 @@ export default function SessionAssessmentSidePanel({
 /* ------------------------------------------------------------------ */
 
 /* 2026-05-13 학원장 결정 시행: 시험 전체 status 단위 UI 폐기.
- * 시험은 만들면 영구 응시 가능. 학생별 상태(Achievement)는 성적탭 점수 셀 SSOT 로 통합.
- * → "마감/진행" 뱃지 + "시험 시작/종료" 버튼 제거.
- * status props 는 카드 외곽선(active 시각)에만 유지 — 시각 회귀 방지. */
+ * 시험은 만들면 영구 응시 가능. 학생별 상태(Achievement)는 성적탭 점수 셀 SSOT 로 통합. */
 function ExamItemCard({
   active,
   label,
-  status,
   maxScore,
   gradedCount,
   onSelect,
 }: {
   active: boolean;
   label: string;
-  status: SessionExamRow["status"];
   maxScore: number;
   gradedCount: number;
   onSelect: () => void;
@@ -724,7 +710,7 @@ function ExamItemCard({
     <button
       type="button"
       onClick={onSelect}
-      style={S.card(active, status)}
+      style={S.card(active)}
       aria-current={active ? "true" : undefined}
     >
       <div style={S.cardTopRow}>
@@ -745,14 +731,12 @@ function ExamItemCard({
 function HomeworkItemCard({
   active,
   label,
-  status,
   cutlineMode,
   cutlineValue,
   onSelect,
 }: {
   active: boolean;
   label: string;
-  status: AssessmentPhaseStatus;
   cutlineMode: "PERCENT" | "COUNT";
   cutlineValue: number;
   onSelect: () => void;
@@ -766,7 +750,7 @@ function HomeworkItemCard({
     <button
       type="button"
       onClick={onSelect}
-      style={S.card(active, status)}
+      style={S.card(active)}
       aria-current={active ? "true" : undefined}
     >
       <div style={S.cardTopRow}>

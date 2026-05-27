@@ -460,7 +460,7 @@ export default function CreateHomeworkModal({
             : stage === "copy"
             ? "다른 차시의 양식만 가져옵니다. 원본과 별개로 관리돼요."
             : stage === "import"
-            ? "이전에 만든 과제와 연결됩니다."
+            ? "과제 양식을 불러옵니다. 대상자와 채점 기준은 이 차시에서 따로 관리합니다."
             : undefined
         }
       />
@@ -511,7 +511,7 @@ export default function CreateHomeworkModal({
                   showCheck
                   className="session-block--card-sm"
                   title="이전 과제 가져오기"
-                  desc="원본과 연결 · 원본을 고치면 함께 바뀜"
+                  desc="과제 양식 불러오기"
                   onClick={() => { setError(null); setKeyword(""); setSelectedTemplateIds(new Set()); setStage("import"); }}
                 />
                 <SessionBlockView
@@ -763,7 +763,7 @@ export default function CreateHomeworkModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                원본을 고치면 이 차시에도 함께 반영됩니다.
+                선택한 과제 양식을 이 차시에 연결합니다. 대상자와 채점 기준은 차시별로 따로 관리됩니다.
               </p>
             </div>
           )}

@@ -1,19 +1,16 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamListPage.tsx
-// 시험/과제 목록 — 상태(진행/마감/설정중) 뱃지 + 활성 우선 정렬 + 카드 톤 통일.
+// 시험/과제 목록 — 차시에 살아있는 운영 시험/과제만 조회한다.
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, ICON } from "@/shared/ui/ds";
-import { Plus } from "@teacher/shared/ui/Icons";
-import { Badge, type BadgeTone } from "@teacher/shared/ui/Badge";
+import { EmptyState } from "@/shared/ui/ds";
+import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchExams, fetchHomeworks } from "../api";
-import ExamFormSheet from "../components/ExamFormSheet";
 
 import styles from "./ExamListPage.module.css";
 
 type Tab = "exam" | "homework";
-type ItemStatus = "DRAFT" | "OPEN" | "CLOSED";
-type SortableItem = { status?: ItemStatus; created_at?: string };
+type SortableItem = { created_at?: string };
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -21,21 +18,13 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 
 export default function ExamListPage() {
   const [tab, setTab] = useState<Tab>("exam");
-  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <h2 className={styles.title}>
-          시험
+          시험 / 과제
         </h2>
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className={styles.createButton}
-        >
-          <Plus size={ICON.xs} /> {tab === "exam" ? "시험" : "과제"} 추가
-        </button>
       </div>
 
       {/* Tabs */}
@@ -55,32 +44,12 @@ export default function ExamListPage() {
       </div>
 
       {tab === "exam" ? <ExamTab /> : <HomeworkTab />}
-
-      <ExamFormSheet open={createOpen} onClose={() => setCreateOpen(false)} mode={tab} />
     </div>
   );
 }
 
-/* ───────────────────────── Status helpers ─────────────────────────
- * 시험과 과제 모두 status: DRAFT | OPEN | CLOSED 동일 enum.
- * 진행 중 > 설정 중 > 마감 순으로 정렬해 액션이 필요한 항목을 위로.
- */
-function statusBadge(status?: ItemStatus): { label: string; tone: BadgeTone } {
-  if (status === "OPEN") return { label: "진행", tone: "success" };
-  if (status === "DRAFT") return { label: "설정 중", tone: "warning" };
-  return { label: "마감", tone: "neutral" };
-}
-
-function statusOrder(status?: ItemStatus): number {
-  if (status === "OPEN") return 0;
-  if (status === "DRAFT") return 1;
-  return 2;
-}
-
-function sortByStatusAndCreated<T extends SortableItem>(items: readonly T[] | undefined): T[] {
+function sortByCreated<T extends SortableItem>(items: readonly T[] | undefined): T[] {
   return [...(items ?? [])].sort((a, b) => {
-    const so = statusOrder(a.status) - statusOrder(b.status);
-    if (so !== 0) return so;
     return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
   });
 }
@@ -89,15 +58,14 @@ function ExamTab() {
   const navigate = useNavigate();
   const { data: exams, isLoading } = useQuery({
     queryKey: ["teacher-exams"],
-    queryFn: () => fetchExams(),
+    queryFn: () => fetchExams({ exam_type: "regular" }),
     staleTime: 60_000,
   });
 
   const sorted = useMemo(() => {
-    return sortByStatusAndCreated((exams ?? []) as Array<{
+    return sortByCreated((exams ?? []) as Array<{
       id: number;
       title: string;
-      status?: ItemStatus;
       exam_type?: string;
       max_score?: number;
       subject?: string;
@@ -112,18 +80,15 @@ function ExamTab() {
   return (
     <div className={styles.list}>
       {sorted.map((e) => {
-        const sb = statusBadge(e.status);
-        const isClosed = e.status === "CLOSED";
         return (
           <button
             key={e.id}
             type="button"
             onClick={() => navigate(`/teacher/exams/${e.id}`)}
-            className={cx(styles.itemCard, isClosed && styles.itemCardClosed)}
+            className={styles.itemCard}
           >
             <div className={styles.examCardHeader}>
               <div className={styles.itemTitleRow}>
-                <Badge tone={sb.tone} size="sm">{sb.label}</Badge>
                 <span className={styles.itemTitle}>
                   {e.title}
                 </span>
@@ -145,15 +110,14 @@ function HomeworkTab() {
   const navigate = useNavigate();
   const { data: hws, isLoading } = useQuery({
     queryKey: ["teacher-homeworks"],
-    queryFn: () => fetchHomeworks(),
+    queryFn: () => fetchHomeworks({ homework_type: "regular" }),
     staleTime: 60_000,
   });
 
   const sorted = useMemo(() => {
-    return sortByStatusAndCreated((hws ?? []) as Array<{
+    return sortByCreated((hws ?? []) as Array<{
       id: number;
       title: string;
-      status?: ItemStatus;
       due_date?: string;
       created_at?: string;
     }>);
@@ -166,17 +130,14 @@ function HomeworkTab() {
   return (
     <div className={styles.list}>
       {sorted.map((h) => {
-        const sb = statusBadge(h.status);
-        const isClosed = h.status === "CLOSED";
         return (
           <button
             key={h.id}
             type="button"
             onClick={() => navigate(`/teacher/homeworks/${h.id}`)}
-            className={cx(styles.itemCard, isClosed && styles.itemCardClosed)}
+            className={styles.itemCard}
           >
             <div className={styles.itemTitleRow}>
-              <Badge tone={sb.tone} size="sm">{sb.label}</Badge>
               <span className={styles.itemTitle}>
                 {h.title}
               </span>

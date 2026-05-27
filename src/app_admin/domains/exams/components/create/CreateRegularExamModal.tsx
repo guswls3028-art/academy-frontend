@@ -435,7 +435,7 @@ export default function CreateRegularExamModal({
             : stage === "copy"
             ? "다른 차시의 만점·커트라인만 가져옵니다. 원본과 별개로 관리돼요."
             : stage === "import"
-            ? "이전에 만든 시험과 연결됩니다."
+            ? "시험지 양식을 불러옵니다. 점수 기준은 이 차시에서 따로 관리합니다."
             : undefined
         }
       />
@@ -490,7 +490,7 @@ export default function CreateRegularExamModal({
                   showCheck
                   className="session-block--card-sm"
                   title="이전 시험 가져오기"
-                  desc="원본과 연결 · 원본을 고치면 함께 바뀜"
+                  desc="시험지 양식 불러오기"
                   onClick={() => {
                     setError(null);
                     setSelectedTemplateIds(new Set());
@@ -727,7 +727,7 @@ export default function CreateRegularExamModal({
                 )}
               </div>
               <p className="modal-hint modal-hint--block mt-2">
-                원본을 고치면 이 차시에도 함께 반영됩니다.
+                선택한 시험지 양식을 이 차시에 연결합니다. 만점·커트라인·응시 대상은 차시별로 따로 관리됩니다.
               </p>
             </div>
           )}

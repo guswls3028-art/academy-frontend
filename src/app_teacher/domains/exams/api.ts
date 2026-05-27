@@ -4,8 +4,8 @@ import api from "@/shared/api/axios";
 import axios from "axios";
 import { listFromApiResponse } from "@/shared/api/response";
 
-/** 선생님이 담당하는 시험 목록 (최근순) */
-export async function fetchExams(params?: { session_id?: number; lecture_id?: number }) {
+/** 선생님이 담당하는 운영 시험 목록 (최근순) */
+export async function fetchExams(params?: { session_id?: number; lecture_id?: number; exam_type?: "regular" | "template" }) {
   const res = await api.get("/exams/", {
     params: { ...params, page_size: 100, ordering: "-created_at" },
   });
@@ -31,7 +31,7 @@ export async function fetchExamResults(examId: number) {
 }
 
 /** 숙제 목록 (세션 기반) */
-export async function fetchHomeworks(params?: { session_id?: number }) {
+export async function fetchHomeworks(params?: { session_id?: number; homework_type?: "regular" | "template" }) {
   const res = await api.get("/homeworks/", {
     params: { ...params, page_size: 100, ordering: "-created_at" },
   });
@@ -54,12 +54,12 @@ export async function fetchHomeworkSubmissions(homeworkId: number) {
 
 /* ─── Exam CRUD ─── */
 export async function createTemplateExam(payload: { title: string; subject?: string; description?: string }) {
-  const res = await api.post("/exams/", { ...payload, exam_type: "TEMPLATE" });
+  const res = await api.post("/exams/", { ...payload, exam_type: "template" });
   return res.data;
 }
 
 export async function createRegularExam(payload: { title: string; template_exam_id?: number; session_id?: number; description?: string }) {
-  const res = await api.post("/exams/", { ...payload, exam_type: "REGULAR" });
+  const res = await api.post("/exams/", { ...payload, exam_type: "regular" });
   return res.data;
 }
 
@@ -74,7 +74,7 @@ export async function deleteExam(examId: number) {
 
 /* ─── Templates ─── */
 export async function fetchTemplates() {
-  const res = await api.get("/exams/", { params: { exam_type: "TEMPLATE", page_size: 200 } });
+  const res = await api.get("/exams/", { params: { exam_type: "template", page_size: 200 } });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
@@ -166,7 +166,7 @@ export async function updateResult(resultId: number, payload: { score?: number; 
 
 /* ─── Homework CRUD ─── */
 export async function createHomework(payload: { title: string; session?: number; max_score?: number; description?: string }) {
-  const res = await api.post("/homeworks/", payload);
+  const res = await api.post("/homeworks/", { ...payload, session_id: payload.session });
   return res.data;
 }
 

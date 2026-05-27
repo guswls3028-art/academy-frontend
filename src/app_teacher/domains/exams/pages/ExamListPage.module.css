@@ -19,21 +19,6 @@
   line-height: 1.4;
 }
 
-.createButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--tc-space-1);
-  padding: 6px 12px;
-  border: 0;
-  border-radius: var(--tc-radius);
-  background: var(--tc-primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.3;
-  cursor: pointer;
-}
-
 .tabs {
   display: flex;
   overflow: hidden;
@@ -84,10 +69,6 @@
     opacity var(--tc-motion-fast),
     background var(--tc-motion-fast);
   cursor: pointer;
-}
-
-.itemCardClosed {
-  opacity: 0.78;
 }
 
 .examCardHeader {
