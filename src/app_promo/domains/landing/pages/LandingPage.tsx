@@ -23,7 +23,6 @@ import {
   ShieldCheck,
   Sparkles,
   Smartphone,
-  UsersRound,
   Zap,
 } from "lucide-react";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
@@ -31,14 +30,14 @@ import styles from "./LandingPage.module.css";
 
 const HERO_SLIDES = [
   {
-    id: "control",
-    eyebrow: "TEACHER WORKFLOW OS",
-    title: "강사님의 수업·성적·안내를 한 화면에서 정리합니다",
-    body: "수업 준비, 시험, 보강, 학부모 안내를 따로 관리하지 않고 하나의 흐름으로 연결합니다.",
-    image: "/promo/admin-home.png",
-    tone: "수업 허브",
-    stat: "수업 이후 업무를 한 흐름으로",
-    cta: "/promo/features",
+    id: "trust",
+    eyebrow: "PARENT TRUST OS",
+    title: "수업 운영 데이터를 학부모 신뢰 리포트로 바꿉니다",
+    body: "출결, 성적, 영상 시청, 보강 이력을 한 주 리포트와 알림톡으로 묶어 상담 전에 이미 설명이 끝나는 흐름을 만듭니다.",
+    image: "/promo/admin-scores.png",
+    tone: "신뢰 리포트",
+    stat: "출결·성적·영상·보강 근거 자동 요약",
+    cta: "/promo/parent-trust",
   },
   {
     id: "exam",
@@ -107,30 +106,44 @@ const OPERATING_TABS = [
     id: "landing",
     label: "수업 홍보",
     icon: Megaphone,
-    title: "강사님의 수업 소개 페이지까지 바로 정리",
-    body: "수업 소개, 후기, 공개 게시판, 적중 보고서를 같은 흐름 안에서 게시합니다.",
-    points: ["수업 소개", "후기/게시판", "공개 보고서"],
-    image: "/promo/screenshot-dashboard.png",
+    title: "대치동식 수업 소개, 성과 근거까지 한 페이지로",
+    body: "학교별 내신 대비반, 수강 후기, 적중 리포트까지 학부모가 바로 신뢰할 수 있는 공개 페이지로 정리합니다.",
+    points: ["학교별 내신 대비", "수강 후기", "적중 리포트"],
+    image: "/promo/landing-daechi-preview-20260527.png",
     accent: "blue",
   },
 ];
 
 const VALUE_CARDS = [
   {
-    icon: Layers3,
-    title: "흐름 중심",
-    body: "메뉴를 많이 늘리는 대신 수업 이후의 업무가 자연스럽게 다음 단계로 이어지게 설계했습니다.",
-  },
-  {
     icon: ShieldCheck,
-    title: "팀 수업 확장",
-    body: "개인 강사부터 여러 반을 맡는 팀까지 같은 기준으로 수업 자료와 권한을 정리합니다.",
+    title: "학부모 설명 비용 절감",
+    body: "상담 때마다 반복하던 출결, 시험, 영상, 보강 설명을 주간 리포트와 알림톡 근거로 먼저 정리합니다.",
   },
   {
-    icon: UsersRound,
-    title: "현장형 UX",
-    body: "강사님이 매일 반복해서 쓰는 화면을 기준으로 클릭 수와 판단 비용을 줄입니다.",
+    icon: BarChart3,
+    title: "성과 근거 자동 축적",
+    body: "시험 결과와 수업 이력이 공개 홍보에 쓸 수 있는 적중 리포트, 후기, 상담 자료로 남습니다.",
   },
+  {
+    icon: Layers3,
+    title: "홍보까지 이어지는 운영",
+    body: "운영 화면에서 만든 근거가 랜딩 페이지와 상담 흐름까지 연결되어 대치형 신뢰감을 만듭니다.",
+  },
+];
+
+const TRUST_METRICS = [
+  { label: "이번 주 출결", value: "97%", detail: "결석 2명 자동 알림" },
+  { label: "시험 평균", value: "86점", detail: "취약 문항 3개 표시" },
+  { label: "영상 완료", value: "92%", detail: "미시청 5명 재안내" },
+  { label: "보강 대기", value: "8명", detail: "클리닉 후보 정리" },
+];
+
+const TRUST_STEPS = [
+  { icon: ClipboardCheck, title: "수업 데이터", body: "출결·시험·영상·보강 이력이 수업 흐름에서 쌓입니다." },
+  { icon: BarChart3, title: "신뢰 요약", body: "학부모가 궁금해하는 변화와 다음 조치를 먼저 보여줍니다." },
+  { icon: BellRing, title: "알림톡 발송", body: "수업결과, 영상 확인, 보강 안내를 같은 근거로 보냅니다." },
+  { icon: Megaphone, title: "홍보 전환", body: "적중 리포트와 학교별 내신반 소개로 상담 전 설득을 만듭니다." },
 ];
 
 const WORKFLOW = [
@@ -222,9 +235,9 @@ function Hero() {
             </Link>
           </div>
           <ul className={styles.heroTags} aria-label="핵심 가치">
-            <li>시험 이후 피드백</li>
-            <li>수강생앱·학부모 안내</li>
-            <li>수업 소개 페이지</li>
+            <li>학부모 신뢰 리포트</li>
+            <li>적중 리포트 홍보</li>
+            <li>수업·영상·보강 근거</li>
           </ul>
         </div>
 
@@ -287,6 +300,71 @@ function ValueStrip() {
               </article>
             );
           })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ParentTrustSystem() {
+  return (
+    <section className={styles.trustSection} aria-labelledby="parent-trust-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.trustLayout}>
+          <div className={styles.trustCopy}>
+            <span>
+              <ShieldCheck size={16} />
+              DAECHI TRUST PACKAGE
+            </span>
+            <h2 id="parent-trust-title">학부모가 듣고 싶은 말은 “관리하고 있습니다”의 증거입니다</h2>
+            <p>
+              대치동 학부모 감성은 화려한 기능보다 관리 근거, 빠른 피드백, 다음 조치가 보이는 화면에서 나옵니다.
+              학원플러스는 이미 쌓이는 운영 데이터를 리포트, 알림톡, 공개 홍보물로 재사용하게 만듭니다.
+            </p>
+            <div className={styles.trustActions}>
+              <Link to="/promo/parent-trust" className={`${styles.button} ${styles.buttonDark}`}>
+                신뢰 리포트 상세 보기
+                <ArrowRight size={18} />
+              </Link>
+              <Link to="/promo/pricing" className={styles.trustTextLink}>
+                패키지 요금 보기
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          <div className={styles.trustBoard} aria-label="학부모 신뢰 리포트 예시">
+            <div className={styles.trustBoardHead}>
+              <div>
+                <span>WEEKLY REPORT</span>
+                <strong>대치중2 내신반 신뢰 리포트</strong>
+              </div>
+              <small>알림톡 발송 준비</small>
+            </div>
+            <div className={styles.trustMetricGrid}>
+              {TRUST_METRICS.map((metric) => (
+                <article key={metric.label}>
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                  <p>{metric.detail}</p>
+                </article>
+              ))}
+            </div>
+            <ol className={styles.trustTimeline}>
+              {TRUST_STEPS.map((step) => {
+                const Icon = step.icon;
+                return (
+                  <li key={step.title}>
+                    <Icon size={18} />
+                    <div>
+                      <strong>{step.title}</strong>
+                      <p>{step.body}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         </div>
       </div>
     </section>
@@ -515,6 +593,7 @@ export default function LandingPage() {
     <>
       <Hero />
       <ValueStrip />
+      <ParentTrustSystem />
       <OperatingHub />
       <StudentAppProof />
       <WorkflowSection />

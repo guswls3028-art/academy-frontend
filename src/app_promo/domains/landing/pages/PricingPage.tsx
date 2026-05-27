@@ -26,10 +26,10 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>PRICE DECK</span>
-            <h1 id="pricing-title">요금은 단순하게, 수업 범위는 정확하게</h1>
+            <h1 id="pricing-title">수업 운영은 월 구독으로, 학부모 신뢰 리포트는 바로 시작합니다</h1>
             <p>
-              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 함께 쓰는 계정,
-              저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
+              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 학부모 리포트 운영 범위,
+              함께 쓰는 계정, 저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -62,7 +62,7 @@ export default function PricingPage() {
           <div className={styles.sectionHead}>
             <span>SELECT THE FIT</span>
             <h2 id="plan-title">강사님의 수업 규모별로 고르는 세 가지 패키지</h2>
-            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 수강생 한도와 지원 수준에서 납니다.</p>
+            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 리포트 운영 범위, 수강생 한도, 지원 수준에서 납니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -138,7 +138,7 @@ export default function PricingPage() {
           <div className={styles.comparisonHead}>
             <span>COMPARE</span>
             <h2 id="comparison-title">플랜별 비교</h2>
-            <p>기능 포함 여부보다 수강생 한도와 지원 방식 차이를 먼저 보세요.</p>
+            <p>기능 포함 여부보다 학부모 리포트 운영 범위와 수강생 한도, 지원 방식 차이를 먼저 보세요.</p>
           </div>
 
           <div className={styles.tableShell}>
@@ -167,8 +167,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="강사님의 수업 규모에 맞는 견적을 받아보세요"
-        subtitle="전화 문의 또는 데모 요청으로 실제 수업 조건을 확인합니다."
+        title="강사님의 수업 규모에 맞는 신뢰 리포트 구성을 받아보세요"
+        subtitle="전화 문의 또는 데모 요청으로 현재 수업 조건과 학부모 안내 흐름을 확인합니다."
       />
     </>
   );

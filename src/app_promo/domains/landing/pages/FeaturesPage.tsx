@@ -7,7 +7,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   MessageSquareText,
-  PlayCircle,
+  ShieldCheck,
   Smartphone,
   Sparkles,
 } from "lucide-react";
@@ -43,6 +43,19 @@ type FeatureGroup = {
 
 const PROOF_CARDS: ProofCard[] = [
   {
+    id: "parent-trust",
+    badge: "학부모 신뢰 리포트",
+    title: "출결·성적·영상·보강 근거가 상담 전 리포트로 정리됩니다",
+    body: "강사님이 매번 설명하던 수업 근거를 주간 리포트와 알림톡 안내로 묶어 학부모가 먼저 이해하게 합니다.",
+    image: "/promo/admin-scores.png",
+    alt: "학부모 신뢰 리포트 근거 화면",
+    points: ["이번 주 출결·응시·영상 시청 요약", "보강 대상과 다음 조치 자동 정리", "알림톡·랜딩 홍보 흐름으로 연결"],
+    ctaPath: "/promo/parent-trust",
+    ctaLabel: "신뢰 리포트 보기",
+    tone: "admin",
+    featured: true,
+  },
+  {
     id: "student-video",
     badge: "학생전용앱 실제 화면",
     title: "수강생은 앱에서 영상을 이어 보고, 강사님은 시청 이력으로 챙깁니다",
@@ -54,7 +67,6 @@ const PROOF_CARDS: ProofCard[] = [
     ctaLabel: "영상 기능 상세 보기",
     tone: "video",
     phone: true,
-    featured: true,
   },
   {
     id: "alimtalk",
@@ -83,6 +95,20 @@ const PROOF_CARDS: ProofCard[] = [
 ];
 
 const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    id: "parent-report",
+    title: "학부모 신뢰 리포트",
+    kicker: "PARENT TRUST",
+    body: "대치형 구매 포인트는 관리 근거입니다. 출결, 성적, 영상, 보강 이력을 학부모가 이해하는 리포트 흐름으로 묶습니다.",
+    icon: ShieldCheck,
+    accentBg: "#c8f4ec",
+    items: [
+      { title: "주간 리포트 요약", desc: "수업 참여, 시험 결과, 영상 시청, 보강 필요 여부를 한 주 단위로 정리합니다." },
+      { title: "다음 조치 제안", desc: "취약 문항, 미시청 영상, 보강 후보를 학부모에게 설명 가능한 문장으로 묶습니다." },
+      { title: "알림톡 연결", desc: "리포트 내용을 수업결과·영상 확인·보강 안내 알림톡으로 이어 보냅니다." },
+      { title: "홍보 재사용", desc: "적중 리포트와 학교별 내신반 소개 페이지에 쓸 근거로 재가공합니다." },
+    ],
+  },
   {
     id: "class-management",
     title: "수업·수강생 관리",
@@ -156,6 +182,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
 ];
 
 const NAV_LINKS = [
+  { label: "학부모 리포트", href: "#parent-trust" },
   { label: "학생앱 영상", href: "#student-video" },
   { label: "알림톡 자동발송", href: "#alimtalk" },
   { label: "시험·성적", href: "#exam-score" },
@@ -170,16 +197,16 @@ export default function FeaturesPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>FEATURES THAT TEACHERS CAN TRUST</span>
-            <h1 id="features-title">기능 목록이 아니라, 강사님의 수업 흐름으로 보여드립니다</h1>
+            <h1 id="features-title">기능 목록이 아니라, 학부모가 믿는 근거로 보여드립니다</h1>
             <p>
-              강사님이 실제 홍보 전에 확인해야 할 핵심은 “학생이 무엇을 보고, 선생님은 무엇을 근거로 관리하는가”입니다.
-              학생전용앱 영상과 알림톡 자동발송을 증거 화면 중심으로 먼저 배치했습니다.
+              강사님이 실제 홍보 전에 확인해야 할 핵심은 “학생이 무엇을 했고, 선생님은 무엇을 근거로 관리하는가”입니다.
+              학부모 신뢰 리포트, 학생전용앱 영상, 알림톡 자동발송을 증거 화면 중심으로 먼저 배치했습니다.
             </p>
             <div className={styles.heroActions}>
-              <a href="#student-video" className={styles.primaryCta}>
-                학생앱 영상 화면 보기
-                <PlayCircle size={18} />
-              </a>
+              <Link to="/promo/parent-trust" className={styles.primaryCta}>
+                신뢰 리포트 보기
+                <ShieldCheck size={18} />
+              </Link>
               <a href="#alimtalk" className={styles.secondaryCta}>
                 알림톡 자동발송 보기
                 <MessageSquareText size={18} />
@@ -201,8 +228,8 @@ export default function FeaturesPage() {
                 <p>가입, 출결, 시험, 영상 안내를 이벤트 기준으로 발송합니다.</p>
               </article>
               <article>
-                <strong>강사 검수형 채점</strong>
-                <p>자동 판정과 AI 보조 평가를 강사 확정 구조로 설명합니다.</p>
+                <strong>학부모 신뢰 리포트</strong>
+                <p>출결, 성적, 영상, 보강 근거를 한 주 단위로 요약합니다.</p>
               </article>
             </div>
           </aside>
@@ -218,7 +245,7 @@ export default function FeaturesPage() {
             </span>
             <h2 id="proof-title">선생님이 “이건 학부모에게 설명된다”고 느낄 화면</h2>
             <p>
-              기능명만 나열하면 설득력이 약합니다. 실제 학생앱과 관리자 화면을 크게 보여주고,
+              기능명만 나열하면 설득력이 약합니다. 실제 리포트 근거, 학생앱, 관리자 화면을 크게 보여주고
               강사님이 수업 운영에서 체감할 이유를 바로 붙였습니다.
             </p>
           </header>
@@ -261,8 +288,8 @@ export default function FeaturesPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>FEATURE CATALOG</span>
-            <h2 id="feature-catalog-title">전체 기능도 같은 톤으로 정리했습니다</h2>
-            <p>강사님이 읽는 페이지라서 “있습니다”보다 “어떤 운영 부담이 줄어드는지”를 기준으로 문구를 다시 묶었습니다.</p>
+            <h2 id="feature-catalog-title">전체 기능도 학부모 신뢰 흐름으로 정리했습니다</h2>
+            <p>강사님이 읽는 페이지라서 “있습니다”보다 “어떤 근거를 남기고 어떤 설명이 줄어드는지”를 기준으로 묶었습니다.</p>
           </header>
 
           <div className={styles.catalogLayout}>

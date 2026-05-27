@@ -2,7 +2,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
-  CircleHelp,
   ClipboardList,
   CreditCard,
   Home,
@@ -13,6 +12,7 @@ import {
   PanelLeftOpen,
   PhoneCall,
   PlayCircle,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
@@ -22,10 +22,10 @@ import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/promo", icon: Home, note: "수업 OS 개요" },
+  { label: "신뢰 리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "학부모 리포트 자동화" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "핵심 기능·증거 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 영상 학습" },
   { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
-  { label: "FAQ", path: "/promo/faq", icon: CircleHelp, note: "자주 묻는 질문" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "수업 맞춤 상담" },
 ];
 
@@ -225,15 +225,16 @@ function Footer() {
               <small>Academy OS</small>
             </span>
           </Link>
-          <p>수업부터 성적, 안내와 수업 소개 페이지까지 하나의 흐름으로 묶는 강사용 SaaS</p>
+          <p>수업 운영 데이터를 학부모 리포트와 공개 홍보물로 바꾸는 강사용 SaaS</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
         <nav aria-label="제품">
           <h2>제품</h2>
+          <Link to="/promo/parent-trust">신뢰 리포트</Link>
           <Link to="/promo/features">기능 소개</Link>
-          <Link to="/promo/ai-grading">AI 채점</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
+          <Link to="/promo/ai-grading">AI 채점</Link>
         </nav>
 
         <nav aria-label="상담">

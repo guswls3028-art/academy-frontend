@@ -180,75 +180,6 @@
   background: #08202a;
 }
 
-.navPopover {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 50%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 10px;
-  width: min(740px, calc(100vw - 40px));
-  padding: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 26px 90px rgba(15, 23, 42, 0.18);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -8px);
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.desktopNavWrap:hover .navPopover,
-.desktopNavWrap:focus-within .navPopover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-}
-
-.navPopover section {
-  border-radius: 7px;
-  padding: 12px;
-  background: #f7fafb;
-}
-
-.navPopover h2 {
-  margin: 0 0 10px;
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.navPopover section > div {
-  display: grid;
-  gap: 6px;
-}
-
-.navPopover a {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border-radius: 6px;
-  padding: 0 9px;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.navPopover a:hover,
-.navPopover a:focus-visible {
-  color: #075985;
-  background: #e0f7ff;
-  outline: none;
-}
-
-.navPopover a svg {
-  transform: rotate(-90deg);
-}
-
 .headerActions {
   display: flex;
   align-items: center;
@@ -614,7 +545,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .header,
-  .navPopover,
   .sidebarBackdrop,
   .mobileSidebar,
   .desktopNav a,

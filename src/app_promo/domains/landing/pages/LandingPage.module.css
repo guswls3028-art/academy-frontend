@@ -66,6 +66,7 @@
 .heroEyebrow,
 .sectionHead span,
 .hubKicker,
+.trustCopy > span,
 .studentProofCopy > span,
 .samplesCopy span,
 .finalCtaInner > span {
@@ -335,6 +336,168 @@
   line-height: 1.7;
 }
 
+.trustSection {
+  padding: 92px 0;
+  background: #fff;
+}
+
+.trustLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.74fr) minmax(470px, 1fr);
+  gap: 42px;
+  align-items: center;
+}
+
+.trustCopy {
+  max-width: 560px;
+}
+
+.trustCopy > span {
+  color: #0ea5a8;
+}
+
+.trustActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-top: 30px;
+}
+
+.trustTextLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #0f766e;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.trustBoard {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 22px;
+  background:
+    linear-gradient(180deg, rgba(240, 253, 250, 0.68), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.1);
+}
+
+.trustBoardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding-bottom: 18px;
+}
+
+.trustBoardHead span,
+.trustMetricGrid span {
+  display: block;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.trustBoardHead strong {
+  display: block;
+  margin-top: 7px;
+  color: #101923;
+  font-size: 22px;
+  font-weight: 940;
+  line-height: 1.18;
+  word-break: keep-all;
+}
+
+.trustBoardHead small {
+  flex: 0 0 auto;
+  border: 1px solid rgba(14, 165, 168, 0.2);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 900;
+  background: #e4fbf7;
+}
+
+.trustMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.trustMetricGrid article {
+  min-height: 132px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 8px;
+  padding: 15px;
+  background: #fff;
+}
+
+.trustMetricGrid strong {
+  display: block;
+  margin-top: 20px;
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.trustMetricGrid p {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.trustTimeline {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trustTimeline li {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.trustTimeline svg {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  padding: 11px;
+  color: #06313b;
+  background: #c8f4ec;
+}
+
+.trustTimeline strong {
+  display: block;
+  color: #101923;
+  font-size: 14px;
+  font-weight: 930;
+}
+
+.trustTimeline p {
+  margin: 5px 0 0;
+  color: #5b6876;
+  font-size: 13px;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
 .operatingHub,
 .workflowSection,
 .samplesSection {
@@ -348,6 +511,7 @@
 }
 
 .sectionHead h2,
+.trustCopy h2,
 .studentProofCopy h2,
 .samplesCopy h2,
 .finalCtaInner h2 {
@@ -361,6 +525,7 @@
 }
 
 .sectionHead p,
+.trustCopy > p,
 .studentProofCopy > p,
 .samplesCopy p,
 .finalCtaInner p {
@@ -843,6 +1008,7 @@
   }
 
   .sectionHead h2,
+  .trustCopy h2,
   .studentProofCopy h2,
   .samplesCopy h2,
   .finalCtaInner h2 {
@@ -865,6 +1031,7 @@
 
   .hubShell,
   .hubPanel,
+  .trustLayout,
   .studentProofGrid,
   .samplesLayout {
     grid-template-columns: 1fr;
@@ -891,6 +1058,10 @@
 
   .phoneWall {
     max-width: 720px;
+  }
+
+  .trustMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .workflow li::after {
@@ -950,6 +1121,7 @@
   }
 
   .operatingHub,
+  .trustSection,
   .studentProof,
   .workflowSection,
   .samplesSection,
@@ -958,6 +1130,7 @@
   }
 
   .sectionHead h2,
+  .trustCopy h2,
   .studentProofCopy h2,
   .samplesCopy h2,
   .finalCtaInner h2 {
@@ -966,6 +1139,27 @@
 
   .studentProofActions {
     flex-direction: column;
+  }
+
+  .trustActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trustTextLink {
+    justify-content: center;
+  }
+
+  .trustBoard {
+    padding: 16px;
+  }
+
+  .trustBoardHead {
+    flex-direction: column;
+  }
+
+  .trustMetricGrid {
+    grid-template-columns: 1fr;
   }
 
   .phoneWall {

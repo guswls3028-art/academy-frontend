@@ -13,6 +13,8 @@ import ContactPage from "../domains/landing/pages/ContactPage";
 import DemoPage from "../domains/landing/pages/DemoPage";
 
 const LandingSamplesPage = lazy(() => import("@/landing/pages/LandingSamplesPage"));
+const ParentTrustPage = lazy(() => import("../domains/landing/pages/ParentTrustPage"));
+const routeFallback = <div className="flex min-h-[200px] items-center justify-center text-sm text-gray-500">불러오는 중…</div>;
 
 export default function PromoRouter() {
   return (
@@ -21,7 +23,7 @@ export default function PromoRouter() {
       <Route
         path="landing-samples"
         element={
-          <Suspense fallback={<div className="flex min-h-[200px] items-center justify-center text-sm text-gray-500">불러오는 중…</div>}>
+          <Suspense fallback={routeFallback}>
             <LandingSamplesPage />
           </Suspense>
         }
@@ -29,6 +31,14 @@ export default function PromoRouter() {
       <Route element={<PromoLayout />}>
         <Route index element={<LandingPage />} />
         <Route path="features" element={<FeaturesPage />} />
+        <Route
+          path="parent-trust"
+          element={
+            <Suspense fallback={routeFallback}>
+              <ParentTrustPage />
+            </Suspense>
+          }
+        />
         <Route path="ai-grading" element={<AiGradingPage />} />
         <Route path="video-platform" element={<VideoPlatformPage />} />
         <Route path="pricing" element={<PricingPage />} />
