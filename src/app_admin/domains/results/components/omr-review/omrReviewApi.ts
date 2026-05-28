@@ -66,6 +66,21 @@ export type OmrReviewDetailAnswer = {
   omr: OmrAnswerMeta | null;
 };
 
+/**
+ * 같은 (시험, 학생) 다른 진행/완료 OMR. 학원장이 한 장만 채택하도록 표시한다.
+ * - status: 'done' = 이미 채점 완료된 형제, 'needs_identification'/'answers_ready' 등 = 검토 중 형제.
+ * - 빈 배열이면 cluster 표시 X.
+ */
+export type DuplicateSibling = {
+  submission_id: number;
+  status: string;
+  identifier_status: string | null;
+  manual_review_required: boolean;
+  created_at: string | null;
+  scan_image_url: string;
+  scan_image_is_aligned: boolean;
+};
+
 export type OmrReviewDetail = {
   submission_id: number;
   submission_status: string;
@@ -89,7 +104,33 @@ export type OmrReviewDetail = {
     ai_result?: unknown;
     identifier_status?: string | null;
   };
+  /** 같은 학생·시험의 다른 OMR 후보. 있으면 cluster UI 표시. */
+  duplicate_siblings?: DuplicateSibling[];
 };
+
+export type AcceptFromDuplicatesResult = {
+  submission_id: number;
+  status: string;
+  discarded_count: number;
+  superseded_count: number;
+  skipped: Array<{ id: number; reason: string }>;
+  score: number | null;
+  max_score: number | null;
+};
+
+/**
+ * 본 submission을 같은 (시험, 학생) 후보 중 채택.
+ * 백엔드가 단일 트랜잭션으로 본 sub은 DONE까지 진행 + 다른 active 형제는
+ * DONE이면 SUPERSEDED, 그 외는 'discarded:duplicate'로 폐기한다.
+ */
+export async function acceptFromDuplicatesApi(
+  submissionId: number,
+): Promise<AcceptFromDuplicatesResult> {
+  const res = await api.post(
+    `/submissions/submissions/${submissionId}/accept-from-duplicates/`,
+  );
+  return res.data as AcceptFromDuplicatesResult;
+}
 
 export async function listOmrReviewRows(examId: number): Promise<OmrReviewRow[]> {
   const res = await api.get(`/submissions/submissions/exams/${examId}/`);

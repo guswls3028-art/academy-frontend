@@ -29,8 +29,10 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
+  acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
   listOmrReviewRows,
+  type DuplicateSibling,
   type OmrReviewDetail,
   type OmrReviewDetailAnswer,
   type OmrReviewRow,
@@ -399,6 +401,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             focusedQid={focusedQid}
             onFocusedQidChange={setFocusedQid}
             onDirtyChange={setEditDirty}
+            onSelectSubmission={(subId) => setSelectedId(subId)}
             onSaved={(result) => {
               setEditDirty(false);
               const savedScore = scoreFromManualEditResult(result);
@@ -623,6 +626,7 @@ function EditPane({
   onSaved,
   onNavigate,
   onDirtyChange,
+  onSelectSubmission,
 }: {
   examId: number;
   detail: OmrReviewDetail | undefined;
@@ -633,6 +637,7 @@ function EditPane({
   onSaved: (result?: SubmissionManualEditResult) => void;
   onNavigate: (dir: 1 | -1) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onSelectSubmission?: (submissionId: number) => void;
 }) {
   // 초기 답안 (저장된 원본) — dirty 비교용
   const initialAnswers = useMemo(() => {
@@ -723,6 +728,27 @@ function EditPane({
         return;
       }
       feedback.error(err?.response?.data?.detail || err?.message || "저장 실패");
+    },
+  });
+
+  // 같은 (시험, 학생) 다른 OMR 후보들. 채택 한 번으로 다른 후보 자동 처리.
+  const siblings: DuplicateSibling[] = useMemo(
+    () => detail?.duplicate_siblings ?? [],
+    [detail],
+  );
+
+  const acceptMut = useMutation({
+    mutationFn: async () => {
+      if (!detail) throw new Error("no detail");
+      return await acceptFromDuplicatesApi(detail.submission_id);
+    },
+    onSuccess: () => {
+      feedback.success("이 답안을 채택했습니다. 다른 답안지는 자동 정리됐어요.");
+      onSaved();
+    },
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "채택 실패");
     },
   });
 
@@ -864,6 +890,40 @@ function EditPane({
       </div>
 
       <div className="orw-edit-pane__body">
+        {siblings.length > 0 && (
+          <div className="orw-duplicate-cluster">
+            <div className="orw-duplicate-cluster__title">
+              이 학생의 다른 답안지 {siblings.length}장
+            </div>
+            <div className="orw-duplicate-cluster__desc">
+              같은 시험에 같은 학생의 OMR이 여러 장 들어왔어요. 스캔 이미지를 비교한 뒤
+              <b> "이 답안 채택"</b>을 누르면 본 답안만 채점되고 나머지는 자동 정리됩니다.
+            </div>
+            <div className="orw-duplicate-cluster__list">
+              {siblings.map((sib) => (
+                <button
+                  key={sib.submission_id}
+                  type="button"
+                  className="orw-duplicate-card"
+                  onClick={() => onSelectSubmission?.(sib.submission_id)}
+                  title={`답안지 #${sib.submission_id} 열어보기`}
+                >
+                  <div className="orw-duplicate-card__thumb">
+                    {sib.scan_image_url ? (
+                      <img src={sib.scan_image_url} alt={`답안지 #${sib.submission_id}`} loading="lazy" />
+                    ) : (
+                      <span className="orw-duplicate-card__no-img">이미지 없음</span>
+                    )}
+                  </div>
+                  <div className="orw-duplicate-card__meta">
+                    <span className="orw-duplicate-card__status">{statusLabel(sib.status)}</span>
+                    <span className="orw-duplicate-card__time">{formatTime(sib.created_at)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {identifierNeeded && (
           <div className="orw-identifier">
             <div className="orw-identifier__title">학생 식별 필요</div>
@@ -952,11 +1012,32 @@ function EditPane({
       </div>
 
       <div className="orw-edit-pane__footer">
+        {siblings.length > 0 && detail.enrollment_id != null && (
+          <button
+            className="orw-accept-btn"
+            type="button"
+            onClick={() => {
+              confirm({
+                title: "이 답안 채택",
+                message:
+                  `이 답안지를 이 학생의 답안으로 채택합니다. 같은 학생의 다른 답안지 ${siblings.length}장은 자동 정리됩니다(완료된 답안지는 대체, 그 외는 폐기).`,
+                confirmText: "채택",
+                cancelText: "취소",
+              }).then((ok) => {
+                if (ok) acceptMut.mutate();
+              });
+            }}
+            disabled={acceptMut.isPending || mut.isPending || discardMut.isPending}
+            title="이 답안만 학생의 답안으로 채택 + 다른 답안 자동 정리"
+          >
+            {acceptMut.isPending ? "처리 중…" : "이 답안 채택"}
+          </button>
+        )}
         <button
           className="orw-save-btn"
           type="button"
           onClick={() => mut.mutate({})}
-          disabled={mut.isPending || !dirty || discardMut.isPending}
+          disabled={mut.isPending || !dirty || discardMut.isPending || acceptMut.isPending}
         >
           {mut.isPending
             ? "저장 중…"
@@ -981,7 +1062,7 @@ function EditPane({
               if (ok) discardMut.mutate();
             });
           }}
-          disabled={discardMut.isPending || mut.isPending}
+          disabled={discardMut.isPending || mut.isPending || acceptMut.isPending}
           title="스캔 불량·중복 등으로 채점 제외"
         >
           {discardMut.isPending ? "처리 중…" : "답안지 폐기"}

@@ -414,6 +414,97 @@
 .orw-discard-btn:hover { background: color-mix(in srgb, var(--color-danger, #dc2626) 6%, #fff); }
 .orw-discard-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* 채택 버튼 (같은 학생 중복 답안 중 선택) */
+.orw-accept-btn {
+  height: 40px; padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #2563eb) 32%, #fff);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 8%, #fff);
+  color: var(--color-primary, #1d4ed8);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.orw-accept-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 14%, #fff);
+}
+.orw-accept-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 중복 답안 cluster — 같은 학생/시험의 다른 OMR 후보 */
+.orw-duplicate-cluster {
+  padding: 12px;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 5%, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #2563eb) 24%, #fff);
+  border-radius: 8px;
+}
+.orw-duplicate-cluster__title {
+  font-size: 13px; font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  margin-bottom: 4px;
+}
+.orw-duplicate-cluster__desc {
+  font-size: 12px; line-height: 1.5;
+  color: var(--color-text-secondary, #4b5563);
+  margin-bottom: 10px;
+  word-break: keep-all;
+}
+.orw-duplicate-cluster__desc b {
+  color: var(--color-primary, #1d4ed8);
+}
+.orw-duplicate-cluster__list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.orw-duplicate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  width: 124px;
+  text-align: left;
+  transition: border-color 120ms, transform 120ms;
+}
+.orw-duplicate-card:hover {
+  border-color: var(--color-primary, #2563eb);
+  transform: translateY(-1px);
+}
+.orw-duplicate-card__thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #f3f4f6;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.orw-duplicate-card__thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.orw-duplicate-card__no-img {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+.orw-duplicate-card__meta {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.orw-duplicate-card__status {
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+}
+.orw-duplicate-card__time {
+  color: var(--color-text-secondary, #6b7280);
+}
+
 /* 식별자 블록 */
 .orw-identifier {
   padding: 10px 12px;
