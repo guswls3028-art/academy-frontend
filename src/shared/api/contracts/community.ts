@@ -40,6 +40,8 @@ export interface PostAttachment {
   size_bytes: number;
   content_type: string;
   created_at: string;
+  /** R2 presigned URL (1h TTL). 이미지/문서 inline 표시용. */
+  download_url?: string | null;
 }
 
 export type PostType = "notice" | "board" | "materials" | "qna" | "counsel";

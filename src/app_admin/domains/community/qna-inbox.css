@@ -602,6 +602,36 @@
   white-space: pre-wrap;
 }
 
+/* 학생 첨부 이미지 — 본문 아래, 매치업 분석 결과 위에 즉시 노출. */
+.qna-inbox__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.qna-inbox__attachment-link {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  background: #fff;
+  cursor: zoom-in;
+  transition: border-color 120ms, transform 120ms;
+}
+.qna-inbox__attachment-link:hover {
+  border-color: var(--color-primary, #2563eb);
+  transform: translateY(-1px);
+}
+.qna-inbox__attachment-image {
+  display: block;
+  max-width: 360px;
+  max-height: 360px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #f9fafb;
+}
+
 .post-read-view {
   color: var(--color-text-primary);
   font-size: 14px;

@@ -465,6 +465,36 @@ function ThreadView({
             </div>
             <div className="qna-inbox__message-body"><PostReadView html={post.content} /></div>
 
+            {/* 첨부 이미지 즉시 노출 — AI 매치업 분석 PENDING 과 무관하게 학원장이
+                바로 답변할 수 있게 한다. 2026-05-30 박철과학 학원장 신고 반영. */}
+            {(() => {
+              const images = (post.attachments ?? []).filter(
+                (a) => (a.content_type || "").startsWith("image/") && a.download_url,
+              );
+              if (images.length === 0) return null;
+              return (
+                <div className="qna-inbox__attachments">
+                  {images.map((att) => (
+                    <a
+                      key={att.id}
+                      href={att.download_url ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="qna-inbox__attachment-link"
+                      title={att.original_name}
+                    >
+                      <img
+                        src={att.download_url ?? ""}
+                        alt={att.original_name}
+                        className="qna-inbox__attachment-image"
+                        loading="lazy"
+                      />
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* AI 매치업 결과 (선생님 전용) */}
             {(() => {
               const mr = post.meta?.matchup_results;
