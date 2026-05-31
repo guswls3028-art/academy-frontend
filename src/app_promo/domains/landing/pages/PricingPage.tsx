@@ -25,10 +25,10 @@ export default function PricingPage() {
       <section className={styles.hero} aria-labelledby="pricing-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>PRICE DECK</span>
-            <h1 id="pricing-title">수업 운영은 월 구독으로, 학부모 신뢰 리포트는 바로 시작합니다</h1>
+            <span className={styles.eyebrow}>요금 안내</span>
+            <h1 id="pricing-title">월 99,000원부터 수업 운영을 시작합니다</h1>
             <p>
-              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 학부모 리포트 운영 범위,
+              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 학부모 리포트 범위,
               함께 쓰는 계정, 저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
             </p>
             <div className={styles.heroActions}>
@@ -60,9 +60,9 @@ export default function PricingPage() {
       <section className={styles.planSection} aria-labelledby="plan-title">
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
-            <span>SELECT THE FIT</span>
-            <h2 id="plan-title">강사님의 수업 규모별로 고르는 세 가지 패키지</h2>
-            <p>핵심 기능은 넓게 제공하고, 실제 비용 차이는 리포트 운영 범위, 수강생 한도, 지원 수준에서 납니다.</p>
+            <span>플랜 선택</span>
+            <h2 id="plan-title">수업 규모별로 고르는 세 가지 패키지</h2>
+            <p>기본 기능은 넓게 제공하고, 실제 비용 차이는 수강생 한도, 저장공간, 지원 수준에서 납니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -121,7 +121,7 @@ export default function PricingPage() {
 
           <div className={styles.policyBox}>
             <div>
-              <span>PRICE RULE</span>
+              <span>비용 기준</span>
               <h2>비용이 달라지는 기준</h2>
             </div>
             <ul>
@@ -136,9 +136,9 @@ export default function PricingPage() {
       <section className={styles.comparisonSection} aria-labelledby="comparison-title">
         <div className={styles.sectionWrap}>
           <div className={styles.comparisonHead}>
-            <span>COMPARE</span>
+            <span>비교표</span>
             <h2 id="comparison-title">플랜별 비교</h2>
-            <p>기능 포함 여부보다 학부모 리포트 운영 범위와 수강생 한도, 지원 방식 차이를 먼저 보세요.</p>
+            <p>기능 포함 여부보다 수강생 한도, 저장공간, 지원 방식 차이를 먼저 보세요.</p>
           </div>
 
           <div className={styles.tableShell}>
@@ -167,8 +167,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="강사님의 수업 규모에 맞는 신뢰 리포트 구성을 받아보세요"
-        subtitle="전화 문의 또는 데모 요청으로 현재 수업 조건과 학부모 안내 흐름을 확인합니다."
+        title="수업 규모에 맞는 시작 범위를 확인해보세요"
+        subtitle="전화 문의 또는 데모 요청으로 현재 수업 조건과 필요한 기능을 함께 확인합니다."
       />
     </>
   );

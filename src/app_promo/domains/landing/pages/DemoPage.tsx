@@ -10,7 +10,7 @@ const INTEREST_OPTIONS = [
   "시험/과제",
   "AI 자동채점",
   "학생앱 영상",
-  "알림톡 자동발송",
+  "알림톡 발송",
   "보강/클리닉",
 ];
 
@@ -70,7 +70,7 @@ export default function DemoPage() {
     return (
       <section className={styles.resultSection}>
         <div className={styles.resultCard}>
-          <span>DEMO REQUESTED</span>
+          <span>데모 접수</span>
           <h1>데모 요청이 접수되었습니다</h1>
           <p>보통 1영업일 이내에 연락드리며, 급한 일정은 전화로 바로 상담 가능합니다.</p>
           <div className={styles.resultActions}>
@@ -87,8 +87,8 @@ export default function DemoPage() {
     <>
       <section className={styles.hero} aria-labelledby="demo-title">
         <div className={styles.heroInner}>
-          <span>DEMO REQUEST</span>
-          <h1 id="demo-title">강사님의 수업 흐름에 맞춰 데모를 잡습니다</h1>
+          <span>데모 요청</span>
+          <h1 id="demo-title">선생님의 수업 흐름에 맞춰 데모를 잡습니다</h1>
           <p>현재 수업 방식과 필요한 기능을 남겨주시면, 실제 시작 경로와 요금 기준을 함께 확인합니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
@@ -97,7 +97,7 @@ export default function DemoPage() {
       <section className={styles.body}>
         <div className={styles.leadGrid}>
           <aside className={styles.sidePanel}>
-            <span>DEMO FLOW</span>
+            <span>데모에서 볼 내용</span>
             <h2>데모에서 확인할 내용</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면 흐름</li>

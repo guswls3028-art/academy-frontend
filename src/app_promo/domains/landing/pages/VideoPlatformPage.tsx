@@ -38,7 +38,7 @@ export default function VideoPlatformPage() {
       <section className={styles.hero} aria-labelledby="video-platform-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span>STUDENT VIDEO EXPERIENCE</span>
+            <span>학생앱 영상</span>
             <h1 id="video-platform-title">수강생이 학생전용앱에서 바로 보는 영상 학습</h1>
             <p>
               외부 링크를 던져주는 방식이 아니라, 강의 목록, 이어보기, 댓글, 시청 이력까지
@@ -69,11 +69,11 @@ export default function VideoPlatformPage() {
       <section className={styles.screenEvidence} aria-labelledby="video-screens-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
-            <span>ACTUAL STUDENT APP</span>
-            <h2 id="video-screens-title">학생이 보는 화면을 크게 보여줘야 기능이 팔립니다</h2>
+            <span>실제 학생 화면</span>
+            <h2 id="video-screens-title">학생이 보는 장면을 그대로 보여줍니다</h2>
             <p>
-              영상은 설명보다 화면 증거가 먼저입니다. 학생전용앱의 플레이어와 재생 목록을 크게 배치해
-              강사님이 학부모에게 설명할 장면을 바로 떠올릴 수 있게 했습니다.
+              영상은 설명보다 화면이 먼저입니다. 학생전용앱의 플레이어와 재생 목록을 크게 배치해
+              선생님이 학부모에게 보여줄 장면을 바로 떠올릴 수 있게 했습니다.
             </p>
           </header>
 
@@ -97,11 +97,11 @@ export default function VideoPlatformPage() {
       <section className={styles.proofSection} aria-labelledby="student-proof-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
-            <span>WHAT TEACHERS CAN SELL</span>
-            <h2 id="student-proof-title">강사님이 학부모에게 설명하기 쉬운 기능이어야 합니다</h2>
+            <span>복습 확인</span>
+            <h2 id="student-proof-title">복습했는지 확인할 수 있어야 합니다</h2>
             <p>
               “학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인한다”는 구조는
-              수업 관리의 성실함을 보여주는 가장 직관적인 증거가 됩니다.
+              수업 후 관리를 설명하기 쉬운 근거가 됩니다.
             </p>
           </header>
 
@@ -125,7 +125,7 @@ export default function VideoPlatformPage() {
               <div className={styles.panelIcon}>
                 <Eye size={22} />
               </div>
-              <h3>강사님이 확인하는 것</h3>
+              <h3>선생님이 확인하는 것</h3>
               <ul>
                 {TEACHER_VISIBLE.map((item) => (
                   <li key={item}>
@@ -143,7 +143,7 @@ export default function VideoPlatformPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.workflowLayout}>
             <div className={styles.workflowCopy}>
-              <span>CLASS TO FOLLOW-UP</span>
+              <span>수업 후 안내</span>
               <h2 id="video-workflow-title">영상 시청이 끝이 아니라, 다음 안내까지 이어집니다</h2>
               <p>
                 영상은 강의 자료 보관함이 아니라 후속 지도를 만드는 데이터입니다.
@@ -164,7 +164,7 @@ export default function VideoPlatformPage() {
               <li>
                 <Eye size={22} />
                 <strong>시청 이력</strong>
-                <p>강사님은 미시청·완료 상태를 확인합니다.</p>
+                <p>선생님은 미시청·완료 상태를 확인합니다.</p>
               </li>
               <li>
                 <BellRing size={22} />
@@ -182,9 +182,9 @@ export default function VideoPlatformPage() {
             <div className={styles.alimtalkCopy}>
               <span>
                 <MessageSquareText size={17} />
-                ALIMTALK AUTOMATION
+                알림톡 발송
               </span>
-              <h2 id="video-alimtalk-title">알림톡 자동발송은 운영 부담을 줄이는 핵심 기능입니다</h2>
+              <h2 id="video-alimtalk-title">알림톡 자동 발송은 반복 안내를 줄입니다</h2>
               <p>
                 수업 후 결과 안내, 출결 확인, 영상 시청 독려를 매번 손으로 반복하지 않도록
                 승인 템플릿과 이벤트 기준으로 자동 발송 흐름을 잡습니다.
@@ -200,8 +200,8 @@ export default function VideoPlatformPage() {
               ))}
             </div>
             <figure className={styles.alimtalkVisual}>
-              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 자동발송 설정 화면" loading="lazy" />
-              <figcaption>관리자 자동발송 설정 화면</figcaption>
+              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 자동 발송 설정 화면" loading="lazy" />
+              <figcaption>관리자 자동 발송 설정 화면</figcaption>
             </figure>
           </div>
         </div>

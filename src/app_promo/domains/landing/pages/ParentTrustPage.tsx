@@ -43,7 +43,7 @@ const REPORT_FLOW = [
   {
     icon: Megaphone,
     title: "상담·홍보 전환",
-    body: "적중 리포트와 학교별 내신반 소개 페이지로 상담 전에 신뢰를 먼저 만듭니다.",
+    body: "적중 리포트와 학교별 내신반 소개 페이지로 상담 전에 보여줄 근거를 만듭니다.",
   },
 ];
 
@@ -53,7 +53,7 @@ const USE_CASES = [
     title: "학교별 내신반",
     body: "학교·학년·시험 범위 기준으로 출결, 응시, 취약 문항을 묶어 학부모가 관리 강도를 바로 느끼게 합니다.",
     image: "/promo/landing-daechi-preview-20260527.png",
-    alt: "대치동식 수업 소개 랜딩 예시",
+    alt: "학교별 수업 소개 페이지 예시",
   },
   {
     icon: Smartphone,
@@ -75,7 +75,7 @@ const PACKAGES = [
   {
     name: "Standard",
     target: "개인 강사",
-    body: "주간 신뢰 리포트 기본 구성과 수업결과 알림톡 흐름을 먼저 세팅합니다.",
+    body: "주간 학부모 리포트 기본 구성과 수업결과 알림톡 흐름을 먼저 세팅합니다.",
   },
   {
     name: "Pro",
@@ -91,10 +91,10 @@ const PACKAGES = [
 
 function HeroReportPreview() {
   return (
-    <aside className={styles.reportPreview} aria-label="학부모 신뢰 리포트 예시">
+    <aside className={styles.reportPreview} aria-label="학부모 리포트 예시">
       <div className={styles.reportTop}>
         <div>
-          <span>WEEKLY TRUST REPORT</span>
+          <span>주간 관리 리포트</span>
           <strong>대치중2 내신반</strong>
         </div>
         <small>발송 준비</small>
@@ -126,11 +126,11 @@ export default function ParentTrustPage() {
       <section className={styles.hero} aria-labelledby="parent-trust-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>PARENT TRUST OS</span>
-            <h1 id="parent-trust-title">학부모 상담 전에 이미 설명이 끝나는 리포트</h1>
+            <span className={styles.eyebrow}>상담 전 설명 자료</span>
+            <h1 id="parent-trust-title">상담 전에 보낼 수 있는 주간 관리 리포트</h1>
             <p>
-              대치동 학부모가 원하는 것은 “잘 가르친다”는 주장보다 관리 근거입니다.
-              학원플러스는 출결, 성적, 영상, 보강 이력을 한 주 리포트와 알림톡으로 묶어 신뢰를 먼저 만듭니다.
+              학부모가 알고 싶은 것은 막연한 관리 약속보다 이번 주에 무엇을 챙겼는지입니다.
+              학원플러스는 출결, 성적, 영상, 보강 이력을 한 주 리포트와 알림톡으로 묶어 보여줍니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -154,10 +154,10 @@ export default function ParentTrustPage() {
           <header className={styles.sectionHead}>
             <span>
               <BarChart3 size={16} />
-              OPERATING DATA TO TRUST
+              운영 기록에서 안내까지
             </span>
-            <h2 id="trust-flow-title">운영 데이터가 학부모 신뢰로 바뀌는 네 단계</h2>
-            <p>새 기능을 억지로 붙이는 방식이 아니라, 이미 필요한 운영 기록을 구매자가 이해하는 언어로 바꿉니다.</p>
+            <h2 id="trust-flow-title">이미 남긴 기록으로 이번 주 안내를 만듭니다</h2>
+            <p>새 일을 억지로 늘리지 않고, 수업 운영에 필요한 기록을 학부모가 이해하는 문장으로 바꿉니다.</p>
           </header>
 
           <ol className={styles.flowGrid}>
@@ -181,10 +181,10 @@ export default function ParentTrustPage() {
           <header className={styles.sectionHead}>
             <span>
               <Megaphone size={16} aria-hidden="true" />
-              DAECHI-STYLE USE CASES
+              활용 예시
             </span>
-            <h2 id="use-case-title">상품성은 “관리받고 있다”는 느낌에서 나옵니다</h2>
-            <p>홍보 문구만 바꾸는 게 아니라, 학부모가 실제로 볼 증거 화면을 앞에 놓는 구성이 핵심입니다.</p>
+            <h2 id="use-case-title">보여줄 근거가 있어야 상담이 짧아집니다</h2>
+            <p>홍보 문구만 바꾸는 것이 아니라, 학부모가 실제로 볼 기록과 화면을 앞에 놓습니다.</p>
           </header>
 
           <div className={styles.useCaseGrid}>
@@ -221,11 +221,11 @@ export default function ParentTrustPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.packageLayout}>
             <div className={styles.packageCopy}>
-              <span>PACKAGE POSITIONING</span>
-              <h2 id="package-title">요금제는 기능 묶음이 아니라 학부모 신뢰 운영 수준으로 설명합니다</h2>
+              <span>요금 기준</span>
+              <h2 id="package-title">요금제는 수강생 규모와 운영 범위로 나눕니다</h2>
               <p>
-                같은 기능이라도 “출결 관리”, “영상 관리”로 말하면 약합니다. “이번 주 학부모에게 어떤 근거를 보낼 수 있는가”로
-                바꾸면 판매 포인트가 분명해집니다.
+                같은 기능이라도 혼자 쓰는 수업과 여러 반이 함께 쓰는 수업은 필요한 계정, 저장공간, 지원 범위가 다릅니다.
+                현재 운영 방식에 맞춰 시작 범위를 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
                 요금제에서 비교하기
@@ -247,8 +247,8 @@ export default function ParentTrustPage() {
       </section>
 
       <CtaSection
-        title="지금 수업 데이터를 학부모 신뢰 리포트로 바꿔보세요"
-        subtitle="현재 운영 중인 출결, 성적, 영상, 보강 흐름을 기준으로 가장 작은 시작 구성을 제안드립니다."
+        title="지금 남기고 있는 수업 기록부터 리포트로 묶어보세요"
+        subtitle="출결, 성적, 영상, 보강 흐름을 듣고 가장 작은 시작 구성을 제안드립니다."
       />
     </div>
   );

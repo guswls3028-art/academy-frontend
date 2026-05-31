@@ -53,7 +53,7 @@ export default function ContactPage() {
     return (
       <section className={styles.resultSection}>
         <div className={styles.resultCard}>
-          <span>REQUEST RECEIVED</span>
+          <span>문의 접수</span>
           <h1>문의가 접수되었습니다</h1>
           <p>확인 후 빠르게 연락드리겠습니다. 급한 상담은 아래 버튼으로 바로 전화주세요.</p>
           <div className={styles.resultActions}>
@@ -70,8 +70,8 @@ export default function ContactPage() {
     <>
       <section className={styles.hero} aria-labelledby="contact-title">
         <div className={styles.heroInner}>
-          <span>CONTACT</span>
-          <h1 id="contact-title">강사님의 수업에 맞는 가격과 범위를 확인하세요</h1>
+          <span>도입 문의</span>
+          <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
           <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드립니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
@@ -80,11 +80,11 @@ export default function ContactPage() {
       <section className={styles.body}>
         <div className={styles.leadGrid}>
           <aside className={styles.sidePanel}>
-            <span>CONSULT NOTE</span>
+            <span>상담 전에 확인할 것</span>
             <h2>상담 전에 이 세 가지만 알려주세요</h2>
             <ol>
               <li>담당 수강생 수와 함께 쓰는 계정 수</li>
-              <li>시험·과제·학생앱 영상·알림톡 자동발송 중 필요한 범위</li>
+              <li>시험·과제·학생앱 영상·알림톡 발송 중 필요한 범위</li>
               <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>

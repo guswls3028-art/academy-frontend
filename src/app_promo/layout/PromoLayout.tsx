@@ -21,12 +21,12 @@ import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "홈", path: "/promo", icon: Home, note: "수업 OS 개요" },
-  { label: "신뢰 리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "학부모 리포트 자동화" },
-  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "핵심 기능·증거 화면" },
-  { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 영상 학습" },
+  { label: "홈", path: "/promo", icon: Home, note: "수업 운영 개요" },
+  { label: "리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "상담 전 설명 자료" },
+  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "기능과 실제 화면" },
+  { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
-  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "수업 맞춤 상담" },
+  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
@@ -82,8 +82,8 @@ function Header() {
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">H</span>
             <span className={styles.brandText}>
-              <strong>HakwonPlus</strong>
-              <small>Academy OS</small>
+              <strong>학원플러스</strong>
+              <small>수업 운영</small>
             </span>
           </Link>
 
@@ -165,8 +165,8 @@ function Header() {
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">H</span>
             <span className={styles.brandText}>
-              <strong>HakwonPlus</strong>
-              <small>Academy OS</small>
+              <strong>학원플러스</strong>
+              <small>수업 운영</small>
             </span>
           </Link>
           <button type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
@@ -196,9 +196,9 @@ function Header() {
         <div className={styles.sidebarCta}>
           <span>
             <Sparkles size={16} />
-            빠른 수업 상담
+            빠른 도입 상담
           </span>
-          <p>현재 수업 방식에 맞는 시작 경로를 제안드립니다. 급하면 바로 전화주세요.</p>
+          <p>현재 쓰는 출결·채점·안내 방식을 듣고 시작 범위를 같이 잡아드립니다. 급하면 바로 전화주세요.</p>
           <PhoneInquiryLink>
             전화 문의
             <PhoneCall size={16} />
@@ -221,20 +221,20 @@ function Footer() {
           <Link to="/promo" className={styles.brand}>
             <span className={styles.brandMark} aria-hidden="true">H</span>
             <span className={styles.brandText}>
-              <strong>HakwonPlus</strong>
-              <small>Academy OS</small>
+              <strong>학원플러스</strong>
+              <small>수업 운영</small>
             </span>
           </Link>
-          <p>수업 운영 데이터를 학부모 리포트와 공개 홍보물로 바꾸는 강사용 SaaS</p>
+          <p>출결, 시험, 영상, 알림톡을 한 흐름으로 묶는 학원 운영 도구</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
         <nav aria-label="제품">
           <h2>제품</h2>
-          <Link to="/promo/parent-trust">신뢰 리포트</Link>
+          <Link to="/promo/parent-trust">학부모 리포트</Link>
           <Link to="/promo/features">기능 소개</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
-          <Link to="/promo/ai-grading">AI 채점</Link>
+          <Link to="/promo/ai-grading">채점 보조</Link>
         </nav>
 
         <nav aria-label="상담">
