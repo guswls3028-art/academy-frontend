@@ -30,6 +30,10 @@ import {
   Pencil,
   Trash2,
   MessageCircle,
+  Bell,
+  BellOff,
+  BellRing,
+  Send,
 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
@@ -51,7 +55,7 @@ import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { Bell, BellOff, Send } from "lucide-react";
+import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
@@ -81,6 +85,13 @@ const StudentsDetailOverlay = lazy(
 function formatTime(s: string | undefined) {
   if (!s) return "—";
   return s.slice(0, 5) || "—";
+}
+
+function formatClinicChangeSummary(session: ClinicSessionTreeNode, fallbackDate: string): string {
+  const date = session.date || fallbackDate;
+  const time = formatTime(session.start_time);
+  const location = session.location?.trim();
+  return [date, time, location].filter(Boolean).join(" ");
 }
 
 function formatReasonLabel(reason: string | undefined): string {
@@ -207,6 +218,7 @@ export default function ClinicConsoleWorkspace({
 
   // 알림 설정 미리보기 팝업
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
+  const [changeNoticeOpen, setChangeNoticeOpen] = useState(false);
 
   // 발송 완료 팝업
   const [sendResult, setSendResult] = useState<{
@@ -234,6 +246,7 @@ export default function ClinicConsoleWorkspace({
     setSendResult(null);
     setSendResultPreviewOpen(false);
     setPreviewTrigger(null);
+    setChangeNoticeOpen(false);
     setStatusFilter("all");
   }, [sessionId]);
 
@@ -295,6 +308,34 @@ export default function ClinicConsoleWorkspace({
 
   const timeLabel = session ? formatTime(session.start_time) : "—";
   const dateLabel = dayjs(selectedDate).format("M월 D일 (dd)");
+  const changeNoticeStudentIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const participant of participants) {
+      if (participant.status === "cancelled" || participant.status === "rejected") continue;
+      if (participant.student) ids.add(participant.student);
+    }
+    return [...ids];
+  }, [participants]);
+  const changeNoticeContext = useMemo<Record<string, string>>(() => {
+    if (!session) return {} as Record<string, string>;
+    const rawDate = session.date || selectedDate;
+    const time = formatTime(session.start_time);
+    const location = session.location || "";
+    const summary = formatClinicChangeSummary(session, selectedDate);
+    const context: Record<string, string> = {
+      클리닉기존일정: "이전 안내된 클리닉 일정",
+      클리닉변동사항: summary,
+      클리닉수정자: "관리자",
+      클리닉날짜: rawDate,
+      클리닉시간: time,
+      클리닉장소: location,
+      날짜: rawDate,
+      시간: time,
+      장소: location,
+      클리닉명: session.title || "클리닉",
+    };
+    return context;
+  }, [selectedDate, session]);
 
   /* ── progress ── */
   const progress = useMemo(() => {
@@ -716,6 +757,17 @@ export default function ClinicConsoleWorkspace({
               <UserPlus size={14} aria-hidden />
               학생 추가
             </button>
+            {changeNoticeStudentIds.length > 0 && !msgSelectionMode && (
+              <button
+                type="button"
+                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                onClick={() => setChangeNoticeOpen(true)}
+                title="수정된 클리닉 정보를 보호자에게 발송"
+              >
+                <BellRing size={14} aria-hidden />
+                변경 알림
+              </button>
+            )}
             {participants.length > 0 && !msgSelectionMode && (
               <button
                 type="button"
@@ -1904,6 +1956,17 @@ export default function ClinicConsoleWorkspace({
         </div>,
         document.body
       )}
+
+      <NotificationPreviewModal
+        open={changeNoticeOpen}
+        onClose={() => setChangeNoticeOpen(false)}
+        mode="manual"
+        trigger="clinic_reservation_changed"
+        studentIds={changeNoticeStudentIds}
+        context={changeNoticeContext}
+        label="클리닉 변경 알림"
+        sendTo="parent"
+      />
 
       {/* ═══ 메시지 발송 플로팅 셀렉션 바 ═══ */}
       {msgSelectionMode && (() => {
