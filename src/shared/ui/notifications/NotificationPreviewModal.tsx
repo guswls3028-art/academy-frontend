@@ -32,12 +32,13 @@ type Props = {
       sessionId: number;
       notificationType: "check_in" | "absent";
     }
-  | {
+    | {
       /** 범용 모드 — student_ids 기반 */
       mode: "manual";
       trigger: string;
-      studentIds: number[];
+      studentIds?: number[];
       context?: Record<string, string>;
+      contextSource?: Record<string, unknown>;
       /** 학생별 개별 변수 (성적 등) — key: student_id */
       contextPerStudent?: Record<number, Record<string, string>>;
     }
@@ -72,6 +73,7 @@ export default function NotificationPreviewModal(props: Props) {
         send_to: sendTo,
         context: props.context,
         context_per_student: props.contextPerStudent,
+        context_source: props.contextSource,
       });
     },
     onSuccess: (data) => {

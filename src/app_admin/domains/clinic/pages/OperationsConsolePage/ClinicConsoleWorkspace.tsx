@@ -87,13 +87,6 @@ function formatTime(s: string | undefined) {
   return s.slice(0, 5) || "—";
 }
 
-function formatClinicChangeSummary(session: ClinicSessionTreeNode, fallbackDate: string): string {
-  const date = session.date || fallbackDate;
-  const time = formatTime(session.start_time);
-  const location = session.location?.trim();
-  return [date, time, location].filter(Boolean).join(" ");
-}
-
 function formatReasonLabel(reason: string | undefined): string {
   if (reason === "exam") return "시험 미통과";
   if (reason === "homework") return "과제 미통과";
@@ -316,26 +309,10 @@ export default function ClinicConsoleWorkspace({
     }
     return [...ids];
   }, [participants]);
-  const changeNoticeContext = useMemo<Record<string, string>>(() => {
-    if (!session) return {} as Record<string, string>;
-    const rawDate = session.date || selectedDate;
-    const time = formatTime(session.start_time);
-    const location = session.location || "";
-    const summary = formatClinicChangeSummary(session, selectedDate);
-    const context: Record<string, string> = {
-      클리닉기존일정: "이전 안내된 클리닉 일정",
-      클리닉변동사항: summary,
-      클리닉수정자: "관리자",
-      클리닉날짜: rawDate,
-      클리닉시간: time,
-      클리닉장소: location,
-      날짜: rawDate,
-      시간: time,
-      장소: location,
-      클리닉명: session.title || "클리닉",
-    };
-    return context;
-  }, [selectedDate, session]);
+  const changeNoticeContextSource = useMemo(
+    () => session ? { type: "clinic_session_change", session_id: session.id } : undefined,
+    [session]
+  );
 
   /* ── progress ── */
   const progress = useMemo(() => {
@@ -1962,8 +1939,7 @@ export default function ClinicConsoleWorkspace({
         onClose={() => setChangeNoticeOpen(false)}
         mode="manual"
         trigger="clinic_reservation_changed"
-        studentIds={changeNoticeStudentIds}
-        context={changeNoticeContext}
+        contextSource={changeNoticeContextSource}
         label="클리닉 변경 알림"
         sendTo="parent"
       />

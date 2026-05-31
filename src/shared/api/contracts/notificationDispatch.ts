@@ -50,10 +50,11 @@ export async function confirmAttendanceNotification(
 // 범용 수동 알림 발송 (시험/과제/퇴원 등)
 export async function previewManualNotification(params: {
   trigger: string;
-  student_ids: number[];
+  student_ids?: number[];
   send_to?: "parent" | "student";
   context?: Record<string, string>;
   context_per_student?: Record<number, Record<string, string>>;
+  context_source?: Record<string, unknown>;
 }): Promise<NotificationPreviewPayload> {
   const { data } = await api.post("/messaging/manual-notification/preview/", params);
   return data;
