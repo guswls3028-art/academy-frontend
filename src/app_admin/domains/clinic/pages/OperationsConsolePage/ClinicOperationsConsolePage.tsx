@@ -17,7 +17,7 @@ import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import ClinicConsoleSidebar from "./ClinicConsoleSidebar";
 import ClinicConsoleWorkspace from "./ClinicConsoleWorkspace";
-import ClinicCreatePanel from "../../components/ClinicCreatePanel";
+import ClinicCreatePanel, { type ClinicSessionUpdateNotice } from "../../components/ClinicCreatePanel";
 import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { Button } from "@/shared/ui/ds";
@@ -53,6 +53,7 @@ export default function ClinicOperationsConsolePage() {
   const [editSession, setEditSession] = useState<ClinicSessionDetail | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; label: string } | null>(null);
+  const [changeNoticeDraft, setChangeNoticeDraft] = useState<ClinicSessionUpdateNotice | null>(null);
 
   // 삭제 뮤테이션
   const deleteSessionM = useMutation({
@@ -244,6 +245,8 @@ export default function ClinicOperationsConsolePage() {
                   isLoading={participants.listQ.isLoading}
                   onEditSession={handleEditSession}
                   onDeleteSession={handleDeleteSession}
+                  changeNoticeDraft={changeNoticeDraft}
+                  onChangeNoticeConsumed={() => setChangeNoticeDraft(null)}
                 />
               )}
             </div>
@@ -284,8 +287,11 @@ export default function ClinicOperationsConsolePage() {
           <ClinicCreatePanel
             asModal
             editSession={editSession}
-            onUpdated={() => {
+            onUpdated={(notice) => {
               setEditModalOpen(false);
+              setChangeNoticeDraft(notice.changed ? notice : null);
+              setSelectedDate(notice.date);
+              setSelectedSessionId(notice.sessionId);
               setEditSession(null);
               qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
               qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });

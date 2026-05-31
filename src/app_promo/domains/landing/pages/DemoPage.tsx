@@ -88,8 +88,8 @@ export default function DemoPage() {
       <section className={styles.hero} aria-labelledby="demo-title">
         <div className={styles.heroInner}>
           <span>데모 요청</span>
-          <h1 id="demo-title">선생님의 수업 흐름에 맞춰 데모를 잡습니다</h1>
-          <p>현재 수업 방식과 필요한 기능을 남겨주시면, 실제 시작 경로와 요금 기준을 함께 확인합니다.</p>
+          <h1 id="demo-title">선생님의 수업 방식에 맞춰 데모를 준비합니다</h1>
+          <p>지금 쓰는 수업 방식과 필요한 기능을 남겨주시면, 시작 범위와 요금 기준을 함께 확인합니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
@@ -100,9 +100,9 @@ export default function DemoPage() {
             <span>데모에서 볼 내용</span>
             <h2>데모에서 확인할 내용</h2>
             <ol>
-              <li>수업·시험·성적·메시지의 실제 화면 흐름</li>
+              <li>수업·시험·성적·메시지의 실제 화면</li>
               <li>수강생 수와 계정 수에 맞는 Standard/Pro/Max 기준</li>
-              <li>기존 자료 이전과 시작 일정의 현실적인 범위</li>
+              <li>기존 자료 이전과 시작 일정</li>
             </ol>
             <div className={styles.callBox}>
               <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>
@@ -219,7 +219,7 @@ export default function DemoPage() {
                 disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
-                placeholder="데모에서 꼭 보고 싶은 수업 흐름이나 채점/피드백 고민을 적어주세요."
+                placeholder="데모에서 꼭 보고 싶은 화면이나 채점/피드백 고민을 적어주세요."
               />
             </label>
 

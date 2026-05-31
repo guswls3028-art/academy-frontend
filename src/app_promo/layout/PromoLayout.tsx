@@ -198,7 +198,7 @@ function Header() {
             <Sparkles size={16} />
             빠른 도입 상담
           </span>
-          <p>현재 쓰는 출결·채점·안내 방식을 듣고 시작 범위를 같이 잡아드립니다. 급하면 바로 전화주세요.</p>
+          <p>지금 쓰는 출결·채점·안내 방식을 듣고 필요한 기능부터 골라드립니다. 급하면 바로 전화주세요.</p>
           <PhoneInquiryLink>
             전화 문의
             <PhoneCall size={16} />
@@ -225,7 +225,7 @@ function Footer() {
               <small>수업 운영</small>
             </span>
           </Link>
-          <p>출결, 시험, 영상, 알림톡을 한 흐름으로 묶는 학원 운영 도구</p>
+          <p>출결, 시험, 영상, 알림톡을 한 화면에서 관리하는 학원 운영 도구</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 

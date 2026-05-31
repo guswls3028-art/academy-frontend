@@ -173,6 +173,12 @@ type Props = {
   isLoading: boolean;
   onEditSession?: (sessionId: number) => void;
   onDeleteSession?: (sessionId: number, label: string) => void;
+  changeNoticeDraft?: {
+    sessionId: number;
+    oldSchedule: string;
+    newSchedule: string;
+  } | null;
+  onChangeNoticeConsumed?: () => void;
 };
 
 export default function ClinicConsoleWorkspace({
@@ -182,6 +188,8 @@ export default function ClinicConsoleWorkspace({
   isLoading,
   onEditSession,
   onDeleteSession,
+  changeNoticeDraft,
+  onChangeNoticeConsumed,
 }: Props) {
   const qc = useQueryClient();
   // Drawer stores participant ID only — derive live data from participants prop
@@ -243,18 +251,16 @@ export default function ClinicConsoleWorkspace({
     setStatusFilter("all");
   }, [sessionId]);
 
-  // ESC 통합 핸들러: 우선순위 — 트리거 미리보기 > 선택 모드
+  // ESC 통합 핸들러: 트리거 미리보기 > 선택 모드 순서로 닫기.
   // (발송 완료 팝업은 capture phase로 별도 등록되어 가장 먼저 처리됨)
   useEffect(() => {
     if (!msgSelectionMode && !previewTrigger) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      // 트리거 미리보기가 열려있으면 그것만 닫고 끝
       if (previewTrigger) {
         setPreviewTrigger(null);
         return;
       }
-      // 선택 모드 해제
       if (msgSelectionMode) {
         setMsgSelectionMode(false);
         setSelectedForMsg(new Set());
@@ -310,9 +316,20 @@ export default function ClinicConsoleWorkspace({
     return [...ids];
   }, [participants]);
   const changeNoticeContextSource = useMemo(
-    () => session ? { type: "clinic_session_change", session_id: session.id } : undefined,
-    [session]
+    () => {
+      if (!session) return undefined;
+      const source: Record<string, unknown> = {
+        type: "clinic_session_change",
+        session_id: session.id,
+      };
+      if (changeNoticeDraft?.sessionId === session.id && changeNoticeDraft.oldSchedule) {
+        source.old_schedule = changeNoticeDraft.oldSchedule;
+      }
+      return source;
+    },
+    [changeNoticeDraft, session]
   );
+  const hasFreshChangeNotice = !!session && changeNoticeDraft?.sessionId === session.id;
 
   /* ── progress ── */
   const progress = useMemo(() => {
@@ -737,12 +754,14 @@ export default function ClinicConsoleWorkspace({
             {changeNoticeStudentIds.length > 0 && !msgSelectionMode && (
               <button
                 type="button"
-                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
+                className={`clinic-ops__action-btn clinic-ops__action-btn--notice ${
+                  hasFreshChangeNotice ? "clinic-ops__action-btn--notice-hot" : ""
+                }`}
                 onClick={() => setChangeNoticeOpen(true)}
                 title="수정된 클리닉 정보를 보호자에게 발송"
               >
                 <BellRing size={14} aria-hidden />
-                변경 알림
+                {hasFreshChangeNotice ? "수정 알림 보내기" : "변경 알림"}
               </button>
             )}
             {participants.length > 0 && !msgSelectionMode && (
@@ -776,6 +795,28 @@ export default function ClinicConsoleWorkspace({
             )}
           </div>
         </div>
+
+        {hasFreshChangeNotice && (
+          <div className="clinic-ops__change-alert">
+            <div className="clinic-ops__change-alert-copy">
+              <span className="clinic-ops__change-alert-kicker">수정 내용 저장됨</span>
+              <strong className="clinic-ops__change-alert-title">
+                보호자에게 보낼 변경 알림을 확인하세요.
+              </strong>
+              <span className="clinic-ops__change-alert-route">
+                {changeNoticeDraft?.oldSchedule} → {changeNoticeDraft?.newSchedule}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="clinic-ops__change-alert-cta"
+              onClick={() => setChangeNoticeOpen(true)}
+            >
+              <BellRing size={16} aria-hidden />
+              미리보기 열기
+            </button>
+          </div>
+        )}
 
         {/* KPI 밴드 — 운영 현황 한 줄 요약 */}
         {!isLoading && participants.length > 0 && (
@@ -1942,9 +1983,10 @@ export default function ClinicConsoleWorkspace({
         contextSource={changeNoticeContextSource}
         label="클리닉 변경 알림"
         sendTo="parent"
+        onConfirmed={onChangeNoticeConsumed}
       />
 
-      {/* ═══ 메시지 발송 플로팅 셀렉션 바 ═══ */}
+      {/* 메시지 발송 플로팅 셀렉션 바 */}
       {msgSelectionMode && (() => {
         const allStudentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
         const selectedCount = allStudentIds.filter((id) => selectedForMsg.has(id)).length;
@@ -1997,7 +2039,6 @@ export default function ClinicConsoleWorkspace({
                       클리닉시간: formatTime(session?.start_time),
                     };
                     // SSOT (2026-05-14): 학원장 textarea 본문 수정 시 학생별 substituted body 재계산.
-                    // 미적용 시 학원장 수정본 silent discard (참고: commit 18bac004 동일 패턴 fix).
                     const recomputePerStudentVars = (currentBody: string) => {
                       const result: Record<number, Record<string, string>> = {};
                       for (const sid of targetIds) {

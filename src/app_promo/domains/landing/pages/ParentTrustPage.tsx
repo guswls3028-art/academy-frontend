@@ -19,7 +19,7 @@ import styles from "./ParentTrustPage.module.css";
 
 const REPORT_METRICS = [
   { label: "이번 주 출결", value: "97%", note: "결석 2명 알림톡 발송" },
-  { label: "시험 평균", value: "86점", note: "취약 문항 3개 정리" },
+  { label: "시험 평균", value: "86점", note: "취약 문항 3개 확인" },
   { label: "영상 완료", value: "92%", note: "미시청 5명 재안내" },
   { label: "보강 후보", value: "8명", note: "클리닉 예약 후보" },
 ];
@@ -27,23 +27,23 @@ const REPORT_METRICS = [
 const REPORT_FLOW = [
   {
     icon: ClipboardCheck,
-    title: "수업 근거 수집",
-    body: "출결, 시험, 과제, 영상 시청, 보강 기록이 운영 화면에서 자연스럽게 쌓입니다.",
+    title: "수업 기록 남기기",
+    body: "출결, 시험, 과제, 영상 시청, 보강 기록이 수업 화면에 쌓입니다.",
   },
   {
     icon: FileText,
     title: "학부모 리포트 요약",
-    body: "이번 주 변화, 취약 단원, 다음 조치를 학부모가 이해하기 쉬운 문장으로 정리합니다.",
+    body: "이번 주 변화, 취약 단원, 다음에 챙길 일을 짧은 문장으로 보여줍니다.",
   },
   {
     icon: BellRing,
     title: "알림톡 안내",
-    body: "수업결과, 영상 확인, 보강 안내를 같은 근거로 보내 반복 설명을 줄입니다.",
+    body: "수업 결과, 영상 확인, 보강 안내를 학부모에게 바로 보냅니다.",
   },
   {
     icon: Megaphone,
-    title: "상담·홍보 전환",
-    body: "적중 리포트와 학교별 내신반 소개 페이지로 상담 전에 보여줄 근거를 만듭니다.",
+    title: "상담·홍보 자료",
+    body: "적중 리포트와 학교별 내신반 소개 페이지에 같은 자료를 활용합니다.",
   },
 ];
 
@@ -51,21 +51,21 @@ const USE_CASES = [
   {
     icon: GraduationCap,
     title: "학교별 내신반",
-    body: "학교·학년·시험 범위 기준으로 출결, 응시, 취약 문항을 묶어 학부모가 관리 강도를 바로 느끼게 합니다.",
+    body: "학교, 학년, 시험 범위에 맞춰 출결, 응시, 취약 문항을 보여주면 관리가 어떻게 되는지 바로 보입니다.",
     image: "/promo/landing-daechi-preview-20260527.png",
     alt: "학교별 수업 소개 페이지 예시",
   },
   {
     icon: Smartphone,
     title: "영상 복습 관리",
-    body: "미시청 학생과 마지막 재생 위치를 리포트에 반영해 “복습을 봤는지” 질문을 자동으로 답하게 합니다.",
+    body: "누가 영상을 안 봤는지, 어디까지 봤는지를 리포트에 담아 복습 확인 질문에 바로 답할 수 있습니다.",
     image: "/promo/student-video-player.png",
     alt: "학생전용앱 영상 플레이어 화면",
   },
   {
     icon: MessageSquareText,
     title: "보강 상담 회수",
-    body: "시험 결과와 영상 이력을 근거로 보강 후보를 잡고, 안내 알림톡까지 이어 보강 매출 누수를 줄입니다.",
+    body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 안내 알림톡까지 보냅니다.",
     image: "/promo/admin-messages.png",
     alt: "관리자 알림톡 운영 화면",
   },
@@ -75,17 +75,17 @@ const PACKAGES = [
   {
     name: "Standard",
     target: "개인 강사",
-    body: "주간 학부모 리포트 기본 구성과 수업결과 알림톡 흐름을 먼저 세팅합니다.",
+    body: "주간 학부모 리포트와 수업 결과 알림톡부터 세팅합니다.",
   },
   {
     name: "Pro",
     target: "전임 강사·팀 수업",
-    body: "학교별 내신반, 영상 미시청 관리, 보강 후보 리포트까지 운영 패키지로 묶습니다.",
+    body: "학교별 내신반, 영상 미시청 관리, 보강 후보 리포트까지 함께 씁니다.",
   },
   {
     name: "Max",
     target: "여러 반·강사팀",
-    body: "학원 브랜드 기준의 리포트 템플릿, 적중 리포트 홍보, 전담 온보딩을 함께 잡습니다.",
+    body: "학원 브랜드에 맞춘 리포트 템플릿, 적중 리포트, 전담 온보딩을 제공합니다.",
   },
 ];
 
@@ -129,8 +129,8 @@ export default function ParentTrustPage() {
             <span className={styles.eyebrow}>상담 전 설명 자료</span>
             <h1 id="parent-trust-title">상담 전에 보낼 수 있는 주간 관리 리포트</h1>
             <p>
-              학부모가 알고 싶은 것은 막연한 관리 약속보다 이번 주에 무엇을 챙겼는지입니다.
-              학원플러스는 출결, 성적, 영상, 보강 이력을 한 주 리포트와 알림톡으로 묶어 보여줍니다.
+              학부모는 “이번 주에 뭘 챙겨줬는지”를 알고 싶어 합니다.
+              출결, 성적, 영상, 보강 내역을 한 주 리포트와 알림톡으로 보여주세요.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -154,10 +154,10 @@ export default function ParentTrustPage() {
           <header className={styles.sectionHead}>
             <span>
               <BarChart3 size={16} />
-              운영 기록에서 안내까지
+              수업 기록에서 안내까지
             </span>
             <h2 id="trust-flow-title">이미 남긴 기록으로 이번 주 안내를 만듭니다</h2>
-            <p>새 일을 억지로 늘리지 않고, 수업 운영에 필요한 기록을 학부모가 이해하는 문장으로 바꿉니다.</p>
+            <p>새 일을 억지로 늘리지 않고, 수업 중에 남긴 기록을 학부모가 이해할 말로 바꿉니다.</p>
           </header>
 
           <ol className={styles.flowGrid}>
@@ -183,8 +183,8 @@ export default function ParentTrustPage() {
               <Megaphone size={16} aria-hidden="true" />
               활용 예시
             </span>
-            <h2 id="use-case-title">보여줄 근거가 있어야 상담이 짧아집니다</h2>
-            <p>홍보 문구만 바꾸는 것이 아니라, 학부모가 실제로 볼 기록과 화면을 앞에 놓습니다.</p>
+            <h2 id="use-case-title">보여줄 자료가 있어야 상담이 짧아집니다</h2>
+            <p>홍보 문구만 바꾸지 않고, 학부모가 실제로 볼 기록과 화면을 앞에 둡니다.</p>
           </header>
 
           <div className={styles.useCaseGrid}>
@@ -202,11 +202,11 @@ export default function ParentTrustPage() {
                     <ul>
                       <li>
                         <CheckCircle2 size={15} />
-                        학부모가 이해하는 근거로 재정리
+                        학부모가 이해할 말로 다시 쓰기
                       </li>
                       <li>
                         <CheckCircle2 size={15} />
-                        상담·홍보 페이지까지 같은 메시지 유지
+                        상담·홍보 페이지에도 같은 내용 활용
                       </li>
                     </ul>
                   </div>
@@ -222,10 +222,10 @@ export default function ParentTrustPage() {
           <div className={styles.packageLayout}>
             <div className={styles.packageCopy}>
               <span>요금 기준</span>
-              <h2 id="package-title">요금제는 수강생 규모와 운영 범위로 나눕니다</h2>
+              <h2 id="package-title">수강생 규모와 필요한 범위에 맞춰 고릅니다</h2>
               <p>
-                같은 기능이라도 혼자 쓰는 수업과 여러 반이 함께 쓰는 수업은 필요한 계정, 저장공간, 지원 범위가 다릅니다.
-                현재 운영 방식에 맞춰 시작 범위를 정합니다.
+                혼자 쓰는 수업과 여러 반이 함께 쓰는 수업은 필요한 계정, 저장공간, 지원 범위가 다릅니다.
+                지금 쓰는 방식에 맞춰 시작 범위를 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
                 요금제에서 비교하기
@@ -247,8 +247,8 @@ export default function ParentTrustPage() {
       </section>
 
       <CtaSection
-        title="지금 남기고 있는 수업 기록부터 리포트로 묶어보세요"
-        subtitle="출결, 성적, 영상, 보강 흐름을 듣고 가장 작은 시작 구성을 제안드립니다."
+        title="지금 남기고 있는 수업 기록부터 리포트로 만들어보세요"
+        subtitle="출결, 성적, 영상, 보강을 어떻게 관리하는지 듣고 시작 범위를 정해드립니다."
       />
     </div>
   );

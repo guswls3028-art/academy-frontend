@@ -26,10 +26,10 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>요금 안내</span>
-            <h1 id="pricing-title">월 99,000원부터 수업 운영을 시작합니다</h1>
+            <h1 id="pricing-title">수강생 규모에 맞춰 월 99,000원부터 시작합니다</h1>
             <p>
-              월 구독료는 숨기지 않고 공개합니다. 담당 수강생 수, 학부모 리포트 범위,
-              함께 쓰는 계정, 저장공간, 메시지 발송비처럼 실제 비용이 갈리는 기준도 함께 확인하세요.
+              월 구독료를 먼저 공개합니다. 수강생 수, 함께 쓰는 계정, 저장공간,
+              메시지 발송비처럼 실제 비용이 달라지는 기준도 함께 확인하세요.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -61,8 +61,8 @@ export default function PricingPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
             <span>플랜 선택</span>
-            <h2 id="plan-title">수업 규모별로 고르는 세 가지 패키지</h2>
-            <p>기본 기능은 넓게 제공하고, 실제 비용 차이는 수강생 한도, 저장공간, 지원 수준에서 납니다.</p>
+            <h2 id="plan-title">수업 규모별 세 가지 패키지</h2>
+            <p>기본 기능은 비슷하고, 비용 차이는 수강생 한도, 저장공간, 지원 방식에서 납니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -138,7 +138,7 @@ export default function PricingPage() {
           <div className={styles.comparisonHead}>
             <span>비교표</span>
             <h2 id="comparison-title">플랜별 비교</h2>
-            <p>기능 포함 여부보다 수강생 한도, 저장공간, 지원 방식 차이를 먼저 보세요.</p>
+            <p>기능 포함 여부보다 수강생 한도, 저장공간, 지원 방식 차이를 먼저 확인하세요.</p>
           </div>
 
           <div className={styles.tableShell}>
@@ -167,8 +167,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="수업 규모에 맞는 시작 범위를 확인해보세요"
-        subtitle="전화 문의 또는 데모 요청으로 현재 수업 조건과 필요한 기능을 함께 확인합니다."
+        title="지금 수업 규모에 맞는 플랜을 확인해보세요"
+        subtitle="전화 문의 또는 데모 요청으로 필요한 기능과 예상 비용을 함께 확인합니다."
       />
     </>
   );

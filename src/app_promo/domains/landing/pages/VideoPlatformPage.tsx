@@ -16,20 +16,20 @@ const STUDENT_VISIBLE = [
   "학생전용앱에서 강의 목록 확인",
   "마지막으로 보던 지점부터 이어보기",
   "모바일/태블릿 플레이어, 배속, 전체화면",
-  "영상별 댓글로 질문과 보충 설명 연결",
+  "영상별 댓글로 질문과 보충 설명 확인",
 ];
 
 const TEACHER_VISIBLE = [
   "수강생별 미시청·시청중·완료 상태",
   "영상별 시청 시간과 마지막 재생 위치",
-  "차시, 과제, 시험으로 이어지는 학습 흐름",
+  "차시, 과제, 시험과 함께 확인",
   "필요한 학생에게 영상 시청 안내 발송",
 ];
 
 const AUTO_MESSAGES = [
   { title: "입실·결석 알림", desc: "출결 처리와 동시에 학부모에게 상황을 안내합니다." },
-  { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 기준으로 결과 안내를 보냅니다." },
-  { title: "영상 시청 안내", desc: "미시청 학생에게 복습 영상 확인을 자연스럽게 독려합니다." },
+  { title: "수업결과 알림톡", desc: "저장된 성적과 피드백으로 결과 안내를 보냅니다." },
+  { title: "영상 시청 안내", desc: "영상을 안 본 학생에게 복습 안내를 보냅니다." },
 ];
 
 export default function VideoPlatformPage() {
@@ -41,8 +41,8 @@ export default function VideoPlatformPage() {
             <span>학생앱 영상</span>
             <h1 id="video-platform-title">수강생이 학생전용앱에서 바로 보는 영상 학습</h1>
             <p>
-              외부 링크를 던져주는 방식이 아니라, 강의 목록, 이어보기, 댓글, 시청 이력까지
-              학생앱 안에서 이어지는 영상 학습 흐름입니다.
+              외부 링크만 보내는 방식이 아닙니다. 강의 목록, 이어보기, 댓글, 시청 이력을
+              학생앱 안에서 함께 확인합니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryButton}>
@@ -72,8 +72,8 @@ export default function VideoPlatformPage() {
             <span>실제 학생 화면</span>
             <h2 id="video-screens-title">학생이 보는 장면을 그대로 보여줍니다</h2>
             <p>
-              영상은 설명보다 화면이 먼저입니다. 학생전용앱의 플레이어와 재생 목록을 크게 배치해
-              선생님이 학부모에게 보여줄 장면을 바로 떠올릴 수 있게 했습니다.
+              영상 기능은 화면을 보면 바로 이해됩니다. 학생전용앱의 플레이어와 재생 목록을
+              학부모에게도 쉽게 보여줄 수 있습니다.
             </p>
           </header>
 
@@ -100,8 +100,8 @@ export default function VideoPlatformPage() {
             <span>복습 확인</span>
             <h2 id="student-proof-title">복습했는지 확인할 수 있어야 합니다</h2>
             <p>
-              “학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인한다”는 구조는
-              수업 후 관리를 설명하기 쉬운 근거가 됩니다.
+              학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인하면
+              수업 뒤에 누굴 더 챙겨야 하는지 바로 보입니다.
             </p>
           </header>
 
@@ -144,17 +144,17 @@ export default function VideoPlatformPage() {
           <div className={styles.workflowLayout}>
             <div className={styles.workflowCopy}>
               <span>수업 후 안내</span>
-              <h2 id="video-workflow-title">영상 시청이 끝이 아니라, 다음 안내까지 이어집니다</h2>
+              <h2 id="video-workflow-title">영상만 올려두고 끝내지 않습니다</h2>
               <p>
-                영상은 강의 자료 보관함이 아니라 후속 지도를 만드는 데이터입니다.
-                시청 상태가 남아야 미시청 학생을 챙기고, 알림톡으로 같은 안내를 반복하지 않을 수 있습니다.
+                시청 상태가 남으면 아직 보지 않은 학생을 챙길 수 있습니다.
+                필요한 경우 알림톡으로 복습 안내를 다시 보냅니다.
               </p>
             </div>
             <ol className={styles.routeList}>
               <li>
                 <PlayCircle size={22} />
                 <strong>영상 등록</strong>
-                <p>차시별 복습 영상과 공개 범위를 정리합니다.</p>
+                <p>차시별 복습 영상과 공개 대상을 정합니다.</p>
               </li>
               <li>
                 <Clock3 size={22} />
@@ -186,8 +186,8 @@ export default function VideoPlatformPage() {
               </span>
               <h2 id="video-alimtalk-title">알림톡 자동 발송은 반복 안내를 줄입니다</h2>
               <p>
-                수업 후 결과 안내, 출결 확인, 영상 시청 독려를 매번 손으로 반복하지 않도록
-                승인 템플릿과 이벤트 기준으로 자동 발송 흐름을 잡습니다.
+                수업 후 결과 안내, 출결 확인, 영상 시청 안내를 매번 손으로 쓰지 않도록
+                승인 템플릿과 발송 조건을 미리 잡아둡니다.
               </p>
             </div>
             <div className={styles.messageGrid}>

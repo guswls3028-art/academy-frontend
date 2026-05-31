@@ -15,28 +15,28 @@ const TIERS = [
   {
     level: "1단계",
     title: "즉시 자동 판정",
-    body: "정답이 명확한 문항은 제출 후 바로 판정해 선생님의 반복 채점 시간을 줄입니다.",
+    body: "정답이 분명한 문항은 제출 후 바로 채점해 반복 채점 시간을 줄입니다.",
     items: ["객관식 자동채점", "OX형 자동채점", "단답형 키워드 일치", "문항별 배점·총점 계산"],
   },
   {
     level: "2단계",
     title: "수업 정책 반영",
-    body: "선생님 수업에서 허용하는 유사 정답, 부분 점수, 복수 정답을 정책으로 관리합니다.",
+    body: "수업에서 허용할 유사 정답, 부분 점수, 복수 정답을 미리 정해둡니다.",
     items: ["유사 정답 허용", "오탈자 허용 규칙", "복수 정답", "부분 점수 기준"],
   },
   {
     level: "3단계",
     title: "AI 보조 평가",
-    body: "서술형은 완전 자동 확정이 아니라, AI가 초안을 제안하고 선생님이 검수합니다.",
+    body: "서술형은 AI가 초안을 제안하고, 선생님이 확인한 뒤 점수를 확정합니다.",
     items: ["서술형 초안 점수 제안", "핵심 키워드 포함 분석", "루브릭 기반 추천", "강사용 검수 화면"],
   },
 ];
 
 const WORKFLOW = [
-  { title: "문항별 채점 방식 설정", desc: "시험 생성 시 자동 판정, 키워드, 검수 필요 여부를 문항별로 정합니다." },
-  { title: "제출 후 자동채점 실행", desc: "명확한 문항은 자동으로 처리하고 애매한 문항은 검수 대상으로 남깁니다." },
+  { title: "문항별 채점 방식 설정", desc: "시험을 만들 때 자동 채점, 키워드, 검수 필요 여부를 문항별로 정합니다." },
+  { title: "제출 후 자동채점 실행", desc: "분명한 문항은 자동으로 처리하고 애매한 문항은 검수 대상으로 남깁니다." },
   { title: "이의 가능 문항 검토", desc: "유사 정답, 미응답, 부분 점수 후보를 선생님이 확인합니다." },
-  { title: "선생님 확정 후 성적 반영", desc: "최종 점수는 성적표와 수업결과 안내 흐름에 반영됩니다." },
+  { title: "선생님 확정 후 성적 반영", desc: "최종 점수는 성적표와 수업 결과 안내에 반영됩니다." },
 ];
 
 export default function AiGradingPage() {
@@ -48,12 +48,12 @@ export default function AiGradingPage() {
             <span className={styles.eyebrow}>채점 보조 원칙</span>
             <h1 id="ai-grading-title">자동채점은 빠르게, 최종 판단은 선생님이 합니다</h1>
             <p>
-              선생님에게 중요한 건 “AI가 다 해준다”는 과장이 아니라, 어떤 문항은 자동 판정되고
-              어떤 문항은 검수해야 하는지 명확히 보이는 구조입니다.
+              중요한 건 “AI가 다 해준다”는 말이 아닙니다. 어떤 문항은 바로 채점되고
+              어떤 문항은 선생님 확인이 필요한지 분명히 보여야 합니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryCta}>
-                채점 흐름 데모 요청
+                채점 화면 데모 요청
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features#exam-score" className={styles.secondaryCta}>
@@ -93,8 +93,8 @@ export default function AiGradingPage() {
             </span>
             <h2 id="ai-definition-title">홍보 문구에서 가장 조심해야 할 지점부터 분리했습니다</h2>
             <p>
-              AI 자동채점은 모든 답안을 무조건 확정한다는 뜻이 아닙니다. 정답 기준이 분명한 문항은 자동화하고,
-              해석이 필요한 답안은 AI 보조 평가와 강사 검수로 처리합니다.
+              AI 자동채점은 모든 답안을 무조건 확정한다는 뜻이 아닙니다. 정답 기준이 분명한 문항은 자동으로 채점하고,
+              해석이 필요한 답안은 AI 제안 뒤에 선생님이 확인합니다.
             </p>
           </header>
 
@@ -124,16 +124,16 @@ export default function AiGradingPage() {
             <div className={styles.workflowCopy}>
               <span className={styles.compactLabel}>
                 <ClipboardCheck size={16} />
-                검수 흐름
+                검수 과정
               </span>
               <h2 id="grading-workflow-title">선생님 검수가 남아 있어야 현장에서 안심합니다</h2>
               <p>
-                성적은 민감합니다. 그래서 자동채점 결과를 바로 학부모에게 내보내기보다,
-                선생님이 확인하고 확정한 결과만 성적표와 안내에 반영하는 구조가 안전합니다.
+                성적은 민감합니다. 자동채점 결과를 바로 학부모에게 보내지 않고,
+                선생님이 확인해 확정한 결과만 성적표와 안내에 반영합니다.
               </p>
               <div className={styles.principleBox}>
                 <strong>채점 원칙</strong>
-                <p>최종 점수 확정 권한은 선생님에게 있고, 자동채점 결과는 검토 가능한 근거로 남깁니다.</p>
+                <p>최종 점수는 선생님이 확정하고, 자동채점 결과는 확인할 수 있게 남깁니다.</p>
               </div>
             </div>
 
@@ -162,8 +162,8 @@ export default function AiGradingPage() {
               </span>
               <h3 id="grading-proof-title">채점 결과는 성적 분석과 수업결과 안내로 이어집니다</h3>
               <p>
-                선생님이 검수한 결과만 성적표, 문항 분석, 보강 판단, 학부모 안내의 근거가 됩니다.
-                이 흐름이 있어야 AI 기능이 현장에서 불안하지 않습니다.
+                선생님이 확인한 결과만 성적표, 문항 분석, 보강 판단, 학부모 안내에 반영됩니다.
+                그래야 AI 기능을 현장에서 부담 없이 쓸 수 있습니다.
               </p>
               <ul>
                 <li>
@@ -180,7 +180,7 @@ export default function AiGradingPage() {
                 </li>
               </ul>
               <Link to="/promo/features#alimtalk" className={styles.textButton}>
-                결과 안내 흐름 보기
+                결과 안내 보기
                 <ArrowRight size={16} />
               </Link>
             </div>

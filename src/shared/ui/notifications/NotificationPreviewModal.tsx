@@ -16,8 +16,10 @@ import {
   previewManualNotification,
   confirmManualNotification,
   type NotificationPreviewPayload,
+  type NotificationConfirmResult,
 } from "@/shared/api/contracts/notificationDispatch";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
+import "./NotificationPreviewModal.css";
 
 type Props = {
   open: boolean;
@@ -25,6 +27,7 @@ type Props = {
   /** 발송 라벨 (표시용) */
   label?: string;
   sendTo?: "parent" | "student";
+  onConfirmed?: (result: NotificationConfirmResult) => void;
 } & (
   | {
       /** 출결 모드 — session 기반 */
@@ -49,7 +52,7 @@ export default function NotificationPreviewModal(props: Props) {
   const [preview, setPreview] = useState<NotificationPreviewPayload | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [confirmResult, setConfirmResult] = useState<{ sent_count: number; batch_id: string } | null>(null);
+  const [confirmResult, setConfirmResult] = useState<NotificationConfirmResult | null>(null);
 
   const label =
     props.label ||
@@ -96,6 +99,7 @@ export default function NotificationPreviewModal(props: Props) {
     onSuccess: (data) => {
       setConfirmed(true);
       setConfirmResult(data);
+      props.onConfirmed?.(data);
       feedback.success(`${data.sent_count}건 발송 완료`);
     },
     onError: (err: unknown) => {
@@ -127,19 +131,19 @@ export default function NotificationPreviewModal(props: Props) {
     <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
       <ModalHeader
         title={`${label} 발송`}
-        description="발송 대상과 내용을 확인한 후 발송하세요."
+        description="대상, 수신 번호, 알림톡 내용을 확인한 뒤 발송합니다."
         type="action"
       />
       <ModalBody>
         {previewMutation.isPending && (
-          <div className="py-8 text-center text-sm text-gray-500">미리보기 로딩 중...</div>
+          <div className="notification-preview__loading">미리보기를 준비하고 있습니다.</div>
         )}
 
         {preview && (
-          <div className="space-y-4">
+          <div className="notification-preview">
             {/* 세션 정보 (출결 모드) */}
             {props.mode === "attendance" && preview.lecture_title && (
-              <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-3 text-sm">
+              <div className="notification-preview__session">
                 <span className="font-medium">{preview.lecture_title}</span>
                 <span className="mx-1">&middot;</span>
                 <span>{preview.session_title}</span>
@@ -147,37 +151,47 @@ export default function NotificationPreviewModal(props: Props) {
             )}
 
             {/* 발송 건수 */}
-            <div className="flex items-center gap-4 text-sm">
-              <span>
-                발송 가능: <strong className="text-blue-600">{sendableCount}명</strong>
+            <div className="notification-preview__summary">
+              <span className="notification-preview__metric">
+                <span className="notification-preview__metric-label">발송 가능</span>
+                <strong>{sendableCount}명</strong>
               </span>
               {preview.excluded_count > 0 && (
-                <span className="text-gray-500">제외: {preview.excluded_count}명</span>
+                <span className="notification-preview__metric notification-preview__metric--muted">
+                  <span className="notification-preview__metric-label">제외</span>
+                  <strong>{preview.excluded_count}명</strong>
+                </span>
               )}
             </div>
 
             {/* 본문 미리보기 */}
             {sendable.length > 0 && (
-              <div className="rounded-md border p-3 text-sm whitespace-pre-wrap bg-white dark:bg-gray-900 max-h-32 overflow-y-auto">
-                {sendable[0].message_body}
+              <div className="notification-preview__message">
+                <div className="notification-preview__message-bar">
+                  <span>알림톡 미리보기</span>
+                  <span>{sendable[0].student_name}</span>
+                </div>
+                <div className="notification-preview__message-body">
+                  {sendable[0].message_body}
+                </div>
               </div>
             )}
 
             {/* 대상자 목록 */}
             {sendable.length > 0 && (
-              <div className="max-h-48 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+              <div className="notification-preview__table-wrap">
+                <table className="notification-preview__table">
+                  <thead>
                     <tr>
-                      <th className="text-left px-2 py-1.5">학생</th>
-                      <th className="text-left px-2 py-1.5">수신 번호</th>
+                      <th>학생</th>
+                      <th>수신 번호</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sendable.map((r) => (
-                      <tr key={r.student_id} className="border-t">
-                        <td className="px-2 py-1.5">{r.student_name}</td>
-                        <td className="px-2 py-1.5 text-gray-500">{r.phone}</td>
+                      <tr key={r.student_id}>
+                        <td>{r.student_name}</td>
+                        <td>{r.phone}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -187,11 +201,11 @@ export default function NotificationPreviewModal(props: Props) {
 
             {/* 제외 대상 */}
             {excluded.length > 0 && (
-              <details className="text-sm text-gray-500">
-                <summary className="cursor-pointer">제외 대상 {excluded.length}명</summary>
-                <ul className="mt-1 pl-4 list-disc">
+              <details className="notification-preview__excluded">
+                <summary>제외 대상 {excluded.length}명</summary>
+                <ul>
                   {excluded.map((r) => (
-                    <li key={r.student_id}>{r.student_name} — {r.exclude_reason}</li>
+                    <li key={r.student_id}>{r.student_name} - {r.exclude_reason}</li>
                   ))}
                 </ul>
               </details>
@@ -199,19 +213,18 @@ export default function NotificationPreviewModal(props: Props) {
 
             {/* 대상 없음 */}
             {sendableCount === 0 && (
-              <div className="py-4 text-center text-sm text-gray-500">
+              <div className="notification-preview__empty">
                 발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.
               </div>
             )}
 
             {/* 동의 체크 */}
             {sendableCount > 0 && !confirmed && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <label className="notification-preview__confirm-check">
                 <input
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                  className="rounded"
                 />
                 위 {sendableCount}명에게 {label}을 발송합니다.
               </label>
@@ -219,8 +232,14 @@ export default function NotificationPreviewModal(props: Props) {
 
             {/* 발송 완료 */}
             {confirmed && confirmResult && (
-              <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-700 dark:text-green-300">
-                {confirmResult.sent_count}건 발송 완료 (배치: {confirmResult.batch_id.slice(0, 8)}...)
+              <div className="notification-preview__done">
+                <strong>{confirmResult.sent_count}건 발송 완료</strong>
+                <span>배치 {confirmResult.batch_id.slice(0, 8)}</span>
+                {(confirmResult.failed_count > 0 || confirmResult.blocked_count > 0) && (
+                  <span>
+                    실패 {confirmResult.failed_count}건 · 차단 {confirmResult.blocked_count}건
+                  </span>
+                )}
               </div>
             )}
           </div>

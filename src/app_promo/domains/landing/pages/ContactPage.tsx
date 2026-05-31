@@ -72,7 +72,7 @@ export default function ContactPage() {
         <div className={styles.heroInner}>
           <span>도입 문의</span>
           <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
-          <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드립니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
+          <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드리겠습니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
@@ -85,7 +85,7 @@ export default function ContactPage() {
             <ol>
               <li>담당 수강생 수와 함께 쓰는 계정 수</li>
               <li>시험·과제·학생앱 영상·알림톡 발송 중 필요한 범위</li>
-              <li>현재 수업 자료와 피드백을 관리하는 방식</li>
+              <li>지금 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
               <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>

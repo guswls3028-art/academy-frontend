@@ -93,6 +93,34 @@ function toHHmmss(s: string): string {
   return `${h.padStart(2, "0")}:${m}:00`;
 }
 
+function formatClinicScheduleSnapshot(input: {
+  date: string;
+  start_time: string;
+  duration_minutes?: number | null;
+  location?: string | null;
+}): string {
+  const start = input.start_time.slice(0, 5);
+  const base = [input.date, start, input.location?.trim()].filter(Boolean).join(" ");
+  if (!input.duration_minutes || !start) return base;
+
+  const [hour, minute] = start.split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return base;
+  const end = dayjs(input.date)
+    .hour(hour)
+    .minute(minute)
+    .add(input.duration_minutes, "minute")
+    .format("HH:mm");
+  return [input.date, `${start}-${end}`, input.location?.trim()].filter(Boolean).join(" ");
+}
+
+export type ClinicSessionUpdateNotice = {
+  sessionId: number;
+  date: string;
+  oldSchedule: string;
+  newSchedule: string;
+  changed: boolean;
+};
+
 const filterChipClass = (active: boolean) =>
   active
     ? "clinic-create__filter-chip clinic-create__filter-chip--active"
@@ -154,7 +182,7 @@ type Props = {
     target_lecture_ids?: number[];
     section?: number | null;
   };
-  onUpdated?: () => void;
+  onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
 };
 
 export default function ClinicCreatePanel({
@@ -316,11 +344,21 @@ export default function ClinicCreatePanel({
     if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
 
     if (isEdit && editSession) {
+      const nextDate = selectedDate.format("YYYY-MM-DD");
+      const nextStartTime = toHHmmss(start);
+      const oldSchedule = formatClinicScheduleSnapshot(editSession);
+      const newSchedule = formatClinicScheduleSnapshot({
+        date: nextDate,
+        start_time: nextStartTime,
+        duration_minutes: duration,
+        location: room.trim(),
+      });
+      const titleChanged = (editSession.title ?? "").trim() !== title.trim();
       try {
         await updateClinicSession(editSession.id, {
           title: title.trim() || undefined,
-          date: selectedDate.format("YYYY-MM-DD"),
-          start_time: toHHmmss(start),
+          date: nextDate,
+          start_time: nextStartTime,
           duration_minutes: duration,
           location: room.trim(),
           max_participants: maxParticipants,
@@ -332,7 +370,13 @@ export default function ClinicCreatePanel({
         message.success("클리닉이 수정되었습니다.");
         qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
         qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-        onUpdated?.();
+        onUpdated?.({
+          sessionId: editSession.id,
+          date: nextDate,
+          oldSchedule,
+          newSchedule,
+          changed: oldSchedule !== newSchedule || titleChanged,
+        });
       } catch (e: unknown) {
         message.error(apiErrorMessage(e, "클리닉을 수정하지 못했습니다."));
       }

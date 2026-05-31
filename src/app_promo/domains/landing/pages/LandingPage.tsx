@@ -32,8 +32,8 @@ const HERO_SLIDES = [
   {
     id: "trust",
     eyebrow: "학부모 설명 줄이기",
-    title: "수업 근거를 주간 리포트로 정리합니다",
-    body: "출결, 시험, 영상, 보강 기록을 한 주 단위로 묶어 알림톡과 상담 자료로 바로 쓸 수 있게 합니다.",
+    title: "수업이 끝나면 학부모 리포트까지 이어집니다",
+    body: "출결, 시험, 복습 영상, 보강 기록을 모아 상담 때 바로 보여줄 자료로 남깁니다.",
     image: "/promo/admin-scores.png",
     tone: "학부모 리포트",
     stat: "출결·성적·영상·보강 요약",
@@ -42,8 +42,8 @@ const HERO_SLIDES = [
   {
     id: "exam",
     eyebrow: "시험 후 처리",
-    title: "채점 뒤에 보강 대상까지 바로 봅니다",
-    body: "응시 현황, 채점, 문항별 약점, 보강 후보를 한 화면에서 확인해 시험 뒤 후속 조치를 놓치지 않습니다.",
+    title: "시험이 끝난 뒤 할 일을 바로 봅니다",
+    body: "채점 결과, 약한 문항, 보강이 필요한 학생을 한 화면에서 확인합니다.",
     image: "/promo/admin-exams.png",
     tone: "채점·피드백",
     stat: "문항 분석부터 보강 안내",
@@ -52,8 +52,8 @@ const HERO_SLIDES = [
   {
     id: "message",
     eyebrow: "반복 연락 줄이기",
-    title: "출결과 수업 결과 알림을 따로 쓰지 않습니다",
-    body: "입실·결석, 수업 결과, 영상 확인 안내를 승인 템플릿에 연결해 반복 연락을 줄입니다.",
+    title: "출결·수업 결과 알림을 따로 쓰지 않아도 됩니다",
+    body: "입실·결석, 수업 결과, 복습 영상 안내를 알림톡으로 보낼 수 있습니다.",
     image: "/promo/admin-messages.png",
     tone: "알림톡",
     stat: "출결·성적·영상 안내",
@@ -62,8 +62,8 @@ const HERO_SLIDES = [
   {
     id: "video",
     eyebrow: "학생앱 복습",
-    title: "학생은 앱에서 영상을 보고, 선생님은 이력을 확인합니다",
-    body: "누가 어디까지 봤는지 남기고, 미시청 학생에게 필요한 안내를 이어갈 수 있습니다.",
+    title: "학생은 앱에서 복습하고, 선생님은 시청 여부를 봅니다",
+    body: "누가 어디까지 봤는지 남기고, 아직 보지 않은 학생에게 안내를 보냅니다.",
     image: "/promo/admin-lectures.png",
     tone: "학생앱 영상",
     stat: "이어보기·시청 이력·댓글",
@@ -76,8 +76,8 @@ const OPERATING_TABS = [
     id: "classes",
     label: "수업 준비",
     icon: BookOpen,
-    title: "오늘 수업, 제출, 미처리를 한 번에 봅니다",
-    body: "강의와 차시, 담당 수강생 상태를 같은 화면에서 확인해 수업 전후 확인 시간을 줄입니다.",
+    title: "오늘 수업에서 볼 일을 한 화면에 모았습니다",
+    body: "강의, 차시, 수강생 상태, 미처리 항목을 수업 전후에 바로 확인합니다.",
     points: ["강의/차시 구조", "수강생별 상태", "미처리 확인"],
     image: "/promo/admin-lectures.png",
     accent: "mint",
@@ -86,9 +86,9 @@ const OPERATING_TABS = [
     id: "scores",
     label: "시험·성적",
     icon: ClipboardCheck,
-    title: "시험 결과가 보강 판단으로 이어집니다",
-    body: "시험 생성, 채점, 성적표, 보강 후보 확인을 하나의 흐름으로 이어 실무 시간을 줄입니다.",
-    points: ["시험 운영", "성적 분석", "보강 연결"],
+    title: "시험 결과를 보고 보강 대상을 바로 찾습니다",
+    body: "시험 생성부터 채점, 성적표, 보강 후보 확인까지 이어서 처리합니다.",
+    points: ["시험 운영", "성적 분석", "보강 대상 확인"],
     image: "/promo/admin-scores.png",
     accent: "amber",
   },
@@ -97,7 +97,7 @@ const OPERATING_TABS = [
     label: "안내·메시지",
     icon: MessageSquareText,
     title: "출결, 수업 결과, 영상 안내를 알림톡으로 보냅니다",
-    body: "입실·결석, 성적 피드백, 영상 시청 안내를 승인 템플릿과 연결해 선생님의 반복 연락을 줄입니다.",
+    body: "입실·결석과 수업 피드백을 저장된 템플릿으로 보내 반복 연락을 줄입니다.",
     points: ["입실·결석 알림", "수업결과 알림톡", "영상 시청 안내"],
     image: "/promo/admin-messages.png",
     accent: "rose",
@@ -106,8 +106,8 @@ const OPERATING_TABS = [
     id: "landing",
     label: "수업 홍보",
     icon: Megaphone,
-    title: "수업 소개와 성과 근거를 한 페이지에 둡니다",
-    body: "학교별 내신 대비반, 수강 후기, 적중 리포트를 공개 페이지로 정리해 상담 전에 보여줄 자료를 만듭니다.",
+    title: "수업 소개와 성과 자료를 한 페이지에 모읍니다",
+    body: "학교별 내신반, 후기, 적중 리포트를 상담 전에 보여줄 페이지로 관리합니다.",
     points: ["학교별 내신 대비", "수강 후기", "적중 리포트"],
     image: "/promo/landing-daechi-preview-20260527.png",
     accent: "blue",
@@ -117,18 +117,18 @@ const OPERATING_TABS = [
 const VALUE_CARDS = [
   {
     icon: ShieldCheck,
-    title: "같은 설명을 덜 반복합니다",
-    body: "상담 때마다 다시 말하던 출결, 시험, 영상, 보강 내용을 주간 리포트와 알림톡으로 먼저 정리합니다.",
+    title: "상담 때 같은 말을 덜 하게 됩니다",
+    body: "출결, 시험, 복습, 보강 내역을 미리 보내두면 상담이 짧아집니다.",
   },
   {
     icon: BarChart3,
-    title: "쌓인 기록이 자료가 됩니다",
-    body: "시험 결과와 수업 이력이 적중 리포트, 후기, 상담 자료로 남아 다음 모집에도 다시 쓸 수 있습니다.",
+    title: "수업 기록이 다음 모집 자료가 됩니다",
+    body: "시험 결과와 수업 이력을 후기, 적중 리포트, 상담 자료로 다시 활용합니다.",
   },
   {
     icon: Layers3,
-    title: "수업 소개가 방치되지 않습니다",
-    body: "운영 화면에서 남긴 근거를 공개 페이지와 상담 자료로 연결해 오래된 안내문처럼 보이지 않게 합니다.",
+    title: "수업 소개 페이지를 계속 최신으로 둡니다",
+    body: "수업 중에 쌓인 자료를 소개 페이지와 상담 자료에 반영합니다.",
   },
 ];
 
@@ -136,14 +136,14 @@ const TRUST_METRICS = [
   { label: "이번 주 출결", value: "97%", detail: "결석 2명 자동 알림" },
   { label: "시험 평균", value: "86점", detail: "취약 문항 3개 표시" },
   { label: "영상 완료", value: "92%", detail: "미시청 5명 재안내" },
-  { label: "보강 대기", value: "8명", detail: "클리닉 후보 정리" },
+  { label: "보강 대기", value: "8명", detail: "클리닉 후보 확인" },
 ];
 
 const TRUST_STEPS = [
-  { icon: ClipboardCheck, title: "수업 데이터", body: "출결·시험·영상·보강 이력이 수업 흐름에서 쌓입니다." },
-  { icon: BarChart3, title: "주간 요약", body: "학부모가 궁금해하는 변화와 다음 조치를 짧게 정리합니다." },
-  { icon: BellRing, title: "알림톡 발송", body: "수업결과, 영상 확인, 보강 안내를 같은 근거로 보냅니다." },
-  { icon: Megaphone, title: "상담 자료", body: "적중 리포트와 학교별 내신반 소개에 같은 근거를 다시 씁니다." },
+  { icon: ClipboardCheck, title: "수업 기록", body: "출결·시험·복습·보강 내역이 수업을 진행하면서 쌓입니다." },
+  { icon: BarChart3, title: "주간 요약", body: "이번 주 변화와 다음에 챙길 일을 짧게 보여줍니다." },
+  { icon: BellRing, title: "알림톡 안내", body: "수업 결과, 복습 확인, 보강 안내를 학부모에게 보냅니다." },
+  { icon: Megaphone, title: "상담 자료", body: "적중 리포트와 학교별 내신반 소개에도 같은 자료를 씁니다." },
 ];
 
 const WORKFLOW = [
@@ -158,17 +158,17 @@ const STUDENT_APP_POINTS = [
   {
     icon: Smartphone,
     title: "학생앱 영상 복습",
-    body: "수강생은 모바일 앱에서 강의 목록, 재생 목록, 이어보기까지 한 흐름으로 봅니다.",
+    body: "수강생은 모바일 앱에서 강의 목록을 보고, 보던 지점부터 이어서 봅니다.",
   },
   {
     icon: Eye,
     title: "시청 이력으로 후속 지도",
-    body: "선생님은 미시청·시청중·완료 상태와 마지막 재생 위치를 기준으로 피드백 대상을 찾습니다.",
+    body: "선생님은 미시청·시청중·완료 상태를 보고 챙겨야 할 학생을 찾습니다.",
   },
   {
     icon: BellRing,
     title: "알림톡 발송",
-    body: "입실·결석, 수업결과, 영상 시청 안내를 승인 템플릿 기반 알림톡으로 보냅니다.",
+    body: "입실·결석, 수업 결과, 영상 시청 안내를 알림톡으로 보냅니다.",
   },
 ];
 
@@ -316,10 +316,10 @@ function ParentTrustSystem() {
               <ShieldCheck size={16} />
               학부모 설명 자료
             </span>
-            <h2 id="parent-trust-title">학부모가 궁금한 건 수업 후 조치입니다</h2>
+            <h2 id="parent-trust-title">학부모가 궁금한 건 “수업 후에 뭘 챙겼나”입니다</h2>
             <p>
-              화려한 문구보다 출결, 시험, 영상, 보강 기록이 정리되어 있을 때 상담이 짧아집니다.
-              학원플러스는 이미 남기는 운영 기록을 리포트, 알림톡, 공개 소개 자료로 다시 쓰게 합니다.
+              출결, 시험, 복습 영상, 보강 기록이 한곳에 모여 있으면 상담에서 같은 설명을 반복하지 않아도 됩니다.
+              학원플러스는 수업 중에 남긴 기록을 리포트와 알림톡으로 바로 보낼 수 있게 합니다.
             </p>
             <div className={styles.trustActions}>
               <Link to="/promo/parent-trust" className={`${styles.button} ${styles.buttonDark}`}>
@@ -383,9 +383,9 @@ function OperatingHub() {
     <section className={styles.operatingHub} id="product-flow" aria-labelledby="product-flow-title">
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
-          <span>실제 업무 흐름</span>
-          <h2 id="product-flow-title">수업 전후 업무를 같은 화면에서 이어갑니다</h2>
-          <p>수업 준비부터 채점, 피드백, 안내까지 선생님이 실제로 처리하는 순서대로 묶었습니다.</p>
+          <span>실제 업무 순서</span>
+          <h2 id="product-flow-title">수업 전후에 확인할 일을 한 화면에 모았습니다</h2>
+          <p>수업 준비, 채점, 피드백, 안내까지 선생님이 처리하는 순서대로 볼 수 있습니다.</p>
         </header>
 
         <div className={styles.hubShell}>
@@ -446,8 +446,8 @@ function StudentAppProof() {
             <span>학생앱과 알림톡</span>
             <h2 id="student-proof-title">학생은 앱에서 보고, 선생님은 이력과 알림톡으로 챙깁니다</h2>
             <p>
-              영상 기능은 바로 체감되는 영역입니다. 수강생이 학생전용앱에서 바로 보고,
-              선생님은 시청 상태를 확인해 수업결과·출결·영상 안내 알림톡까지 이어갈 수 있습니다.
+              복습 영상은 학생이 실제로 봐야 의미가 있습니다. 학생은 앱에서 바로 보고,
+              선생님은 시청 상태를 확인한 뒤 필요한 안내를 보낼 수 있습니다.
             </p>
             <ul className={styles.studentProofList}>
               {STUDENT_APP_POINTS.map((item) => {
@@ -501,7 +501,7 @@ function WorkflowSection() {
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
           <span>업무 순서</span>
-          <h2 id="workflow-title">시험 하나가 끝난 뒤에도 선생님의 일은 계속 이어집니다</h2>
+          <h2 id="workflow-title">시험이 끝나도 선생님이 챙길 일은 남습니다</h2>
         </header>
         <ol className={styles.workflow}>
           {WORKFLOW.map((step, index) => {
@@ -528,10 +528,10 @@ function LandingSamples() {
         <div className={styles.samplesLayout}>
           <div className={styles.samplesCopy}>
             <span>수업 소개 페이지</span>
-            <h2 id="samples-title">수업 소개 페이지를 오래된 안내문으로 두지 않습니다</h2>
+            <h2 id="samples-title">수업 소개 페이지도 계속 업데이트하세요</h2>
             <p>
-              선생님의 수업 소개, 후기, 게시판, 적중 보고서를 수업 관리 흐름과 연결해
-              홍보 페이지가 오래된 안내문처럼 방치되지 않게 합니다.
+              수업 소개, 후기, 게시판, 적중 리포트를 운영 화면에서 만든 자료와 함께 관리합니다.
+              상담 전에 보여줄 페이지가 오래된 안내문처럼 보이지 않게 합니다.
             </p>
             <Link to="/promo/landing-samples" className={`${styles.button} ${styles.buttonDark}`}>
               페이지 샘플 보기
@@ -567,8 +567,8 @@ function FinalCta() {
             <Sparkles size={18} />
             수업 상담
           </span>
-          <h2 id="final-cta-title">선생님의 수업 흐름에 맞는 구성을 같이 잡아보세요</h2>
-          <p>현재 쓰는 강의, 시험, 피드백 방식부터 듣고 가장 작은 시작 경로를 제안드립니다.</p>
+          <h2 id="final-cta-title">지금 수업 방식에 맞춰 필요한 기능부터 골라보세요</h2>
+          <p>강의, 시험, 피드백 방식을 듣고 무리 없이 시작할 범위를 정해드립니다.</p>
           <div className={styles.finalCtaActions}>
             <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
               전화 문의
