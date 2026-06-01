@@ -205,9 +205,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const getSessionTargetPath = useCallback((nextSessionId: number) => {
     const match = location.pathname.match(/\/admin\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);
     const tab = currentSessionId != null ? match?.[1] : null;
-    return tab
-      ? `/admin/lectures/${lectureId}/sessions/${nextSessionId}/${tab}`
-      : `/admin/lectures/${lectureId}/sessions/${nextSessionId}`;
+    const targetTab = tab ?? "attendance";
+    return `/admin/lectures/${lectureId}/sessions/${nextSessionId}/${targetTab}`;
   }, [currentSessionId, lectureId, location.pathname]);
 
   // section_mode 분기: 반별 row 데이터
