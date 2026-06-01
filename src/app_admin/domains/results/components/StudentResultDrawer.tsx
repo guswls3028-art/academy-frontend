@@ -27,42 +27,19 @@ import {
   achievementLabel,
   achievementTone,
 } from "@/shared/scoring/achievement";
+import {
+  CHOICE_LABELS,
+  choiceAnswerMatches,
+  choiceTokens,
+  formatChoiceAnswer,
+  isChoiceAnswer,
+  requiredChoiceTokens,
+} from "../utils/choiceAnswerMatching";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
   return t === "warn" ? "warning" : t;
 }
 import "./StudentResultDrawer.css";
-
-const CHOICES = ["1", "2", "3", "4", "5"];
-const CIRCLED_CHOICE_MAP: Record<string, string> = {
-  "①": "1",
-  "②": "2",
-  "③": "3",
-  "④": "4",
-  "⑤": "5",
-};
-
-function normalizeChoiceToken(value: string): string {
-  const token = String(value ?? "").trim();
-  return CIRCLED_CHOICE_MAP[token] ?? token;
-}
-
-function getChoiceCandidates(a: string): string[] {
-  return String(a ?? "")
-    .split(/\s*(?:[,;|]|또는|혹은|\bor\b)\s*/i)
-    .map(normalizeChoiceToken)
-    .filter((v) => CHOICES.includes(v));
-}
-
-function isChoiceAnswer(a: string): boolean {
-  return getChoiceCandidates(a).length > 0;
-}
-
-function doesChoiceAnswerMatch(answer: string, correct: string): boolean {
-  const answerChoices = getChoiceCandidates(answer);
-  if (answerChoices.length !== 1) return false;
-  return getChoiceCandidates(correct).includes(answerChoices[0]);
-}
 
 function getScanImageUrl(items: ExamResultItem[]): string {
   for (const it of items) {
@@ -185,7 +162,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {
     const ca = correctAnswersMap[String(it.question_id)] ?? "";
-    if (ca && isChoiceAnswer(it.answer) && isChoiceAnswer(ca)) return doesChoiceAnswerMatch(it.answer, ca);
+    if (ca && isChoiceAnswer(it.answer) && isChoiceAnswer(ca)) return choiceAnswerMatches(it.answer, ca);
     return it.is_correct;
   }, [correctAnswersMap]);
 
@@ -614,7 +591,10 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
 
   const handleBubbleClick = useCallback((qid: number, choice: string) => {
     const currentAnswer = answers[qid] ?? "";
-    const newAnswer = currentAnswer === choice ? "" : choice;
+    const nextChoices = new Set(requiredChoiceTokens(currentAnswer));
+    if (nextChoices.has(choice)) nextChoices.delete(choice);
+    else nextChoices.add(choice);
+    const newAnswer = formatChoiceAnswer([...nextChoices]);
     setAnswers((prev) => ({ ...prev, [qid]: newAnswer }));
 
     const correct = correctAnswers[String(qid)] ?? "";
@@ -623,7 +603,7 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
     let newScore: number;
     if (newAnswer === "") newScore = 0;
     else if (!correct) newScore = scores[qid] ?? 0;
-    else if (doesChoiceAnswerMatch(newAnswer, correct)) newScore = maxScore;
+    else if (choiceAnswerMatches(newAnswer, correct)) newScore = maxScore;
     else newScore = 0;
     setScores((prev) => ({ ...prev, [qid]: newScore }));
     saveMutation.mutate({ questionId: qid, score: newScore, answer: newAnswer });
@@ -666,10 +646,10 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
                   <div key={qid} className={`srd-edit__choice-row ${isDivider ? "srd-edit__choice-row--divider" : ""}`}>
                     <span className="srd-edit__q-num">{qNumMap.get(qid) ?? (idx + 1)}</span>
                     <div className="srd-edit__bubbles">
-                      {CHOICES.map((c) => {
-                        const sel = answer === c;
-                        const isCorrectChoice = doesChoiceAnswerMatch(answer, correct);
-                        const correctChoices = getChoiceCandidates(correct);
+                      {CHOICE_LABELS.map((c) => {
+                        const sel = requiredChoiceTokens(answer).includes(c);
+                        const isCorrectChoice = choiceAnswerMatches(answer, correct);
+                        const correctChoices = choiceTokens(correct);
                         const isWrong = answer !== "" && correct !== "" && !isCorrectChoice;
                         let cls = "";
                         if (!correct && sel) cls = "srd-edit__bubble--neutral";
@@ -682,7 +662,7 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
                       })}
                     </div>
                     <span className="srd-edit__choice-result">
-                      {answer ? (correct ? (doesChoiceAnswerMatch(answer, correct) ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
+                      {answer ? (correct ? (choiceAnswerMatches(answer, correct) ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
                     </span>
                   </div>
                 );
