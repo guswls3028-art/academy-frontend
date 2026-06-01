@@ -207,7 +207,7 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
     <label>강의명</label><input type="text" id="cfLec" class="sp2" placeholder="자동 또는 직접 입력">
     <label>차시명</label><input type="text" id="cfSes" class="sp2" placeholder="자동 또는 직접 입력">
     <label>객관식</label><input type="number" id="cfMc" min="0" max="45" value="30">
-    <label>서술형</label><input type="number" id="cfEs" min="0" max="10" value="5">
+    <label>서술형</label><input type="number" id="cfEs" min="0" max="10" value="0">
     <label>보기 수</label>
     <select id="cfCh"><option value="4">4지선다</option><option value="5" selected>5지선다</option></select><span></span>
     <label>로고</label>
@@ -215,7 +215,7 @@ body{background:#ccc;font-family:'Malgun Gothic','맑은 고딕',sans-serif;colo
       <input type="file" id="cfLogoFile" accept="image/*" style="font-size:10px;width:140px">
       <button type="button" onclick="document.getElementById('cfLogoFile').value='';window._customLogo=null;gen()" style="font-size:10px;padding:2px 6px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer">기본</button>
     </div>
-    <div class="ht">URL: ?exam=...&lecture=...&session=...&mc=30&essay=5&choices=5&logo=URL</div>
+    <div class="ht">URL: ?exam=...&lecture=...&session=...&mc=30&essay=0&choices=5&logo=URL</div>
   </div>
   <div class="cfg-b">
     <button class="cg" onclick="gen()">답안지 생성</button>
@@ -262,6 +262,8 @@ function gen(){
   const mc=clamp(+$('cfMc').value||0,0,45);
   const nC=+$('cfCh').value||5;
   const ess=clamp(+$('cfEs').value||0,0,10);
+  const renderEss=ess>0?ess:(mc>0?5:0);
+  const renderEssLabel=ess>0?`서술형 ${ess}문항`:'서술형 공간';
   const lb=['1','2','3','4','5'].slice(0,nC);
   const logo=window._customLogo||window._urlLogo||'/omr-default-logo.svg';
   const lecName=$('cfLec').value.trim();
@@ -350,7 +352,7 @@ function gen(){
         rows+=`<div class="ar${g10}"><div class="ar-n">${q}</div><div class="ar-bs">${bubs}</div></div>`;
       }
       const label=`객관식 ${s}번 ~ ${e}번`;
-      const hasEssay=ess>0;
+      const hasEssay=renderEss>0;
       const isLast=(c===numCols-1)&&!hasEssay;
       const extraClass=isLast?' style="border-right:0.8px solid #333"':'';
       mcCols+=`<div class="ac"${extraClass}><div class="ac-h"><div class="ac-h-n">번호</div><div class="ac-h-a">${label}</div></div><div class="ac-b">${rows}</div></div>`;
@@ -359,14 +361,13 @@ function gen(){
 
   // 서술형
   let essCol='';
-  if(ess>0){
+  if(renderEss>0){
     let rows='';
-    for(let i=1;i<=ess;i++){
-      const g5=(i>1&&i%5===0&&i!==ess)?' dr-g5':'';
+    for(let i=1;i<=renderEss;i++){
+      const g5=(i>1&&i%5===0&&i!==renderEss)?' dr-g5':'';
       rows+=`<div class="dr${g5}"><div class="dr-n">${i}</div><div class="dr-bx"></div></div>`;
     }
-    const essLabel=`서술형 ${ess}문항`;
-    essCol=`<div class="dc"><div class="dc-h"><div class="dc-h-n">번호</div><div class="dc-h-a">${essLabel}</div></div><div class="dc-b">${rows}</div></div>`;
+    essCol=`<div class="dc"><div class="dc-h"><div class="dc-h-n">번호</div><div class="dc-h-a">${renderEssLabel}</div></div><div class="dc-b">${rows}</div></div>`;
   }
 
   $('out').innerHTML=`<div class="omr">${cm}<div class="omr-c">${leftPanel}<div class="ans">${mcCols}${essCol}</div></div></div>`;
