@@ -1,6 +1,4 @@
 # Static files — serve directly, do NOT SPA fallback
-/omr-sheet         /omr-sheet.html    200
-/omr-sheet.html    /omr-sheet.html    200
 /tenants/*         /tenants/:splat    200
 /omr-default-logo.svg  /omr-default-logo.svg  200
 /version.json      /version.json      200

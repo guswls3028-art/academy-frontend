@@ -133,7 +133,7 @@ jobs:
       - name: Verify OMR static sheet (post-deploy)
         run: |
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
-            OMR=$(curl -fsS "https://hakwonplus.com${PATHNAME}?mc=20&essay=0&choices=5&mode=embed")
+            OMR=$(curl -fsSL "https://hakwonplus.com${PATHNAME}?mc=20&essay=0&choices=5&mode=embed")
             if ! echo "$OMR" | grep -q 'id="cfEs"'; then
               echo "::error::OMR static sheet missing essay input marker at ${PATHNAME}"
               exit 1
