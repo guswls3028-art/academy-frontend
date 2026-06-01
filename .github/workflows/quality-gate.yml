@@ -132,19 +132,21 @@ jobs:
 
       - name: Verify OMR static sheet (post-deploy)
         run: |
-          OMR=$(curl -fsS "https://hakwonplus.com/omr-sheet.html?mc=20&essay=0&choices=5&mode=embed")
-          if ! echo "$OMR" | grep -q 'id="cfEs"'; then
-            echo "::error::OMR static sheet missing essay input marker"
-            exit 1
-          fi
-          if ! echo "$OMR" | grep -q "renderEss"; then
-            echo "::error::OMR static sheet missing decorative essay rendering logic"
-            exit 1
-          fi
-          if echo "$OMR" | grep -q 'id="root"'; then
-            echo "::error::OMR static sheet resolved to SPA index.html"
-            exit 1
-          fi
+          for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
+            OMR=$(curl -fsS "https://hakwonplus.com${PATHNAME}?mc=20&essay=0&choices=5&mode=embed")
+            if ! echo "$OMR" | grep -q 'id="cfEs"'; then
+              echo "::error::OMR static sheet missing essay input marker at ${PATHNAME}"
+              exit 1
+            fi
+            if ! echo "$OMR" | grep -q "renderEss"; then
+              echo "::error::OMR static sheet missing decorative essay rendering logic at ${PATHNAME}"
+              exit 1
+            fi
+            if echo "$OMR" | grep -q 'id="root"'; then
+              echo "::error::OMR static sheet resolved to SPA index.html at ${PATHNAME}"
+              exit 1
+            fi
+          done
           echo "✅ OMR static sheet verified"
 
   # ── 3. E2E 왕복 플로우 (배포 후, Tenant 1 검증용 테넌트) ──

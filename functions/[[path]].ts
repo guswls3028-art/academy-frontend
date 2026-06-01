@@ -10,10 +10,10 @@ interface Env {
 }
 
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
-const STATIC_HTML_PATHS = new Set(["/omr-sheet.html"]);
+const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
 function isExpectedStaticHtml(pathname: string, html: string): boolean {
-  if (pathname === "/omr-sheet.html") {
+  if (STATIC_HTML_PATHS.has(pathname)) {
     return html.includes("OMR 답안지") && html.includes('id="cfEs"');
   }
   return false;

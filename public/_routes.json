@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/omr-sheet.html"]
+  "exclude": ["/omr-sheet", "/omr-sheet.html"]
 }
