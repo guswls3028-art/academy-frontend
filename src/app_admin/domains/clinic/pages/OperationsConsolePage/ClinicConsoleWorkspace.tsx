@@ -54,7 +54,6 @@ import {
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
-import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
@@ -211,11 +210,6 @@ export default function ClinicConsoleWorkspace({
 
   const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
   const { data: clinicTargets } = useClinicTargets();
-  const { openSendMessageModal } = useSendMessageModal();
-
-  // 메시지 발송 선택 모드
-  const [msgSelectionMode, setMsgSelectionMode] = useState(false);
-  const [selectedForMsg, setSelectedForMsg] = useState<Set<number>>(new Set());
 
   // 알림 설정 미리보기 팝업
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
@@ -241,8 +235,6 @@ export default function ClinicConsoleWorkspace({
     setRetakingIds(new Set());
     setRetakeScores(new Map());
     setRemediatingLinkIds(new Set());
-    setMsgSelectionMode(false);
-    setSelectedForMsg(new Set());
     setDrawerParticipantId(null);
     setSendResult(null);
     setSendResultPreviewOpen(false);
@@ -251,24 +243,19 @@ export default function ClinicConsoleWorkspace({
     setStatusFilter("all");
   }, [sessionId]);
 
-  // ESC 통합 핸들러: 트리거 미리보기 > 선택 모드 순서로 닫기.
+  // ESC 통합 핸들러: 트리거 미리보기 닫기.
   // (발송 완료 팝업은 capture phase로 별도 등록되어 가장 먼저 처리됨)
   useEffect(() => {
-    if (!msgSelectionMode && !previewTrigger) return;
+    if (!previewTrigger) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (previewTrigger) {
         setPreviewTrigger(null);
-        return;
-      }
-      if (msgSelectionMode) {
-        setMsgSelectionMode(false);
-        setSelectedForMsg(new Set());
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [msgSelectionMode, previewTrigger]);
+  }, [previewTrigger]);
 
   // 발송 완료 팝업: Enter/ESC로 닫기 (capture phase로 등록하여 drawer ESC보다 먼저 처리)
   useEffect(() => {
@@ -751,7 +738,7 @@ export default function ClinicConsoleWorkspace({
               <UserPlus size={14} aria-hidden />
               학생 추가
             </button>
-            {changeNoticeStudentIds.length > 0 && !msgSelectionMode && (
+            {changeNoticeStudentIds.length > 0 && (
               <button
                 type="button"
                 className={`clinic-ops__action-btn clinic-ops__action-btn--notice ${
@@ -762,19 +749,6 @@ export default function ClinicConsoleWorkspace({
               >
                 <BellRing size={14} aria-hidden />
                 {hasFreshChangeNotice ? "수정 알림 보내기" : "변경 알림"}
-              </button>
-            )}
-            {participants.length > 0 && !msgSelectionMode && (
-              <button
-                type="button"
-                className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
-                onClick={() => {
-                  setSelectedForMsg(new Set());
-                  setMsgSelectionMode(true);
-                }}
-              >
-                <MessageCircle size={14} aria-hidden />
-                메시지 발송
               </button>
             )}
             {!isLoading && pendingIds.length > 0 && (
@@ -1156,33 +1130,12 @@ export default function ClinicConsoleWorkspace({
                     : isApprovalRequest
                     ? "clinic-ops__card--approval"
                     : "clinic-ops__card--pending"
-                }${msgSelectionMode && selectedForMsg.has(p.student) ? " clinic-ops__card--msg-selected" : ""}`}
+                }`}
                 onClick={() => setDrawerParticipantId(p.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") setDrawerParticipantId(p.id); }}
               >
-                {/* 메시지 수신자 선택 체크박스 — 선택 모드에서만 표시 */}
-                {msgSelectionMode && (
-                  <label
-                    className="clinic-ops__card-check clinic-ops__card-check--visible"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedForMsg.has(p.student)}
-                      onChange={(e) => {
-                        setSelectedForMsg((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) next.add(p.student);
-                          else next.delete(p.student);
-                          return next;
-                        });
-                      }}
-                    />
-                  </label>
-                )}
-
                 {/* Status indicator bar (left) */}
                 <div
                   className={`clinic-ops__card-indicator ${
@@ -1985,107 +1938,6 @@ export default function ClinicConsoleWorkspace({
         sendTo="parent"
         onConfirmed={onChangeNoticeConsumed}
       />
-
-      {/* 메시지 발송 플로팅 셀렉션 바 */}
-      {msgSelectionMode && (() => {
-        const allStudentIds = [...new Set(participants.map((p) => p.student))].filter(Boolean);
-        const selectedCount = allStudentIds.filter((id) => selectedForMsg.has(id)).length;
-        const allSelected = allStudentIds.length > 0 && selectedCount === allStudentIds.length;
-        const targetIds = selectedCount > 0
-          ? allStudentIds.filter((id) => selectedForMsg.has(id))
-          : allStudentIds;
-        const label = selectedCount > 0
-          ? `선택 ${selectedCount}명에게 발송`
-          : `전체 ${allStudentIds.length}명에게 발송`;
-        const exitSelectionMode = () => {
-          setMsgSelectionMode(false);
-          setSelectedForMsg(new Set());
-        };
-        return createPortal(
-          <div className={`clinic-ops__msg-floating-bar${drawerParticipantId != null ? " clinic-ops__msg-floating-bar--drawer-open" : ""}`}>
-            <div className="clinic-ops__msg-floating-inner">
-              <div className="clinic-ops__msg-floating-info">
-                <MessageCircle size={15} aria-hidden />
-                <span className="clinic-ops__msg-floating-label">
-                  {selectedCount > 0
-                    ? <><strong>{selectedCount}</strong>명 선택됨</>
-                    : "발송 대상을 선택하세요"}
-                </span>
-              </div>
-              <div className="clinic-ops__msg-floating-divider" />
-              <div className="clinic-ops__msg-floating-actions">
-                <button
-                  type="button"
-                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--ghost"
-                  onClick={() => {
-                    if (allSelected) {
-                      setSelectedForMsg(new Set());
-                    } else {
-                      setSelectedForMsg(new Set(allStudentIds));
-                    }
-                  }}
-                >
-                  <CheckCheck size={14} aria-hidden />
-                  {allSelected ? "선택 해제" : "전체 선택"}
-                </button>
-                <button
-                  type="button"
-                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--primary"
-                  onClick={() => {
-                    if (targetIds.length === 0) return;
-                    const clinicVars = {
-                      클리닉장소: session?.location || "",
-                      클리닉날짜: session?.date || selectedDate,
-                      클리닉시간: formatTime(session?.start_time),
-                    };
-                    // SSOT (2026-05-14): 학원장 textarea 본문 수정 시 학생별 substituted body 재계산.
-                    const recomputePerStudentVars = (currentBody: string) => {
-                      const result: Record<number, Record<string, string>> = {};
-                      for (const sid of targetIds) {
-                        const p = participants.find((pp) => pp.student === sid);
-                        if (!p || !sid) continue;
-                        const studentName = p.student_name || "";
-                        let subst = currentBody;
-                        subst = subst.replace(/#\{학생이름3\}/g, studentName.length > 3 ? studentName.slice(0, 3) : studentName);
-                        subst = subst.replace(/#\{학생이름2\}/g, studentName.length >= 2 ? studentName.slice(-2) : studentName);
-                        subst = subst.replace(/#\{학생이름\}/g, studentName);
-                        subst = subst.replace(/#\{클리닉장소\}/g, clinicVars.클리닉장소);
-                        subst = subst.replace(/#\{클리닉날짜\}/g, clinicVars.클리닉날짜);
-                        subst = subst.replace(/#\{클리닉시간\}/g, clinicVars.클리닉시간);
-                        result[sid] = {
-                          학생이름: studentName,
-                          _body_subst: subst,
-                        };
-                      }
-                      return result;
-                    };
-                    openSendMessageModal({
-                      studentIds: targetIds,
-                      recipientLabel: label,
-                      blockCategory: "clinic",
-                      alimtalkExtraVars: clinicVars,
-                      recomputePerStudentVars,
-                      onModalClose: exitSelectionMode,
-                    });
-                  }}
-                >
-                  <Send size={14} aria-hidden />
-                  {selectedCount > 0 ? `${selectedCount}명에게 발송` : `전체 ${allStudentIds.length}명에게 발송`}
-                </button>
-                <button
-                  type="button"
-                  className="clinic-ops__msg-floating-btn clinic-ops__msg-floating-btn--cancel"
-                  onClick={exitSelectionMode}
-                  aria-label="선택 모드 닫기"
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        );
-      })()}
 
       {/* Student detail overlay — portal to body for proper z-index layering */}
       {studentOverlayId != null &&
