@@ -10,6 +10,7 @@ import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExam
 export type SessionExamSummaryRow = {
   exam_id: number;
   max_score?: number | null;
+  highest_score?: number | null;
   pass_score?: number | null;
   participant_count?: number | null;
 };

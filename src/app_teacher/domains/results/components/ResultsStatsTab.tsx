@@ -111,7 +111,7 @@ export default function ResultsStatsTab() {
   const resultRows = (results ?? []) as TeacherExamResultRow[];
   const selectedExamObj = examList.find((e) => e.id === selectedExam);
   const selectedLectureObj = lectureList.find((lecture) => lecture.id === selectedLecture);
-  // 시험 만점 = exam 객체의 max_score (summary.max_score는 "최고 득점"이므로 사용 금지)
+  // 시험 만점 = exam 객체의 max_score (summary.highest_score는 최고 득점)
   const rawExamMaxScore = selectedExamObj?.max_score;
   const examMaxScore = typeof rawExamMaxScore === "number" && rawExamMaxScore > 0 ? rawExamMaxScore : 100;
   const participantCount = summary?.participant_count ?? 0;

@@ -37,6 +37,7 @@ export async function fetchSessionExamsSummary(sessionId: number) {
       avg_score: number;
       min_score: number;
       max_score: number;
+      highest_score: number;
       pass_count: number;
       fail_count: number;
       pass_rate: number;
