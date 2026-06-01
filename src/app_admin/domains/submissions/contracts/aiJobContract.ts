@@ -1,21 +1,12 @@
-/**
- * AI Job 상태 계약 (백엔드와 동일 enum)
- * @see docs/FRONTEND_AI_CONTRACT_REFACTOR_REQUEST.md
- * Contract Versioning 적용. 변경 시 문서·버전 공지 필요.
- */
-export const AI_JOB_STATUS = [
-  "PENDING",
-  "VALIDATING",
-  "RUNNING",
-  "DONE",
-  "FAILED",
-  "REJECTED_BAD_INPUT",
-  "FALLBACK_TO_GPU",
-  "RETRYING",
-  "REVIEW_REQUIRED",
-] as const;
+export {
+  AI_JOB_STATUS,
+  AI_JOB_TERMINAL_STATUSES,
+  isFailedAIJobStatus,
+  isTerminalAIJobStatus,
+  type AIJobStatus,
+} from "@/shared/api/contracts/aiJob";
 
-export type AIJobStatus = (typeof AI_JOB_STATUS)[number];
+import type { AIJobStatus } from "@/shared/api/contracts/aiJob";
 
 /** Lite/Basic에서는 FAILED, REVIEW_REQUIRED 미사용 */
 export const AI_JOB_STATUS_LABEL: Record<AIJobStatus, string> = {

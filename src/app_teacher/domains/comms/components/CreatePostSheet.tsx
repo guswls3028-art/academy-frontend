@@ -21,6 +21,15 @@ interface Props {
 
 type Scope = "all" | "lecture" | "session";
 
+function htmlToVisibleText(html: string): string {
+  if (!html) return "";
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return (doc.body.textContent || "").replace(/\u00a0/g, " ").trim();
+  }
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+}
+
 export default function CreatePostSheet({ open, onClose, postType, postTypeLabel }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -73,9 +82,10 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     return [];
   }, [scopeNodes, scope, lectureId, sessionId]);
   const scopeReady = scope === "all" || resolvedNodeIds.length > 0;
+  const contentText = useMemo(() => htmlToVisibleText(content), [content]);
   const hasDraft =
     title.trim().length > 0 ||
-    content.trim().length > 0 ||
+    contentText.length > 0 ||
     files.length > 0 ||
     isUrgent ||
     scope !== "all" ||
@@ -86,6 +96,9 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     mutationFn: async () => {
       if (!scopeReady) {
         throw new Error("공개 범위를 선택하세요.");
+      }
+      if (contentText.length === 0) {
+        throw new Error("내용을 입력하세요.");
       }
       const post = await createPost({
         post_type: postType,
@@ -142,7 +155,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
     resetAndClose();
   };
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && scopeReady && !mutation.isPending;
+  const canSubmit = title.trim().length > 0 && contentText.length > 0 && scopeReady && !mutation.isPending;
 
   return (
     <BottomSheet open={open} onClose={() => void requestClose()} title={`${postTypeLabel} 작성`}>

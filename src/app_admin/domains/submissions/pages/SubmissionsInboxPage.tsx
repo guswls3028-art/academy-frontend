@@ -12,6 +12,7 @@
  *   submitted/dispatched/extracting/grading       → 처리 중 (액션 없음)
  *   answers_ready / done + target_resolved         → 결과 보기 (세션 페이지 이동)
  *   answers_ready / done + !target_resolved        → 결과 진입 불가 표시
+ *   superseded                                     → 대체됨 (terminal, action 없음)
  *
  * 일괄 처리:
  *   row 별 체크박스 + 상단 일괄 폐기 (사유 picker 모달).
@@ -93,7 +94,7 @@ function clientFilter(
   failedSub: FailedSubFilter,
 ): PendingSubmissionRow[] {
   if (filter === "all") return rows;
-  if (filter === "done") return rows.filter((r) => r.status === "done");
+  if (filter === "done") return rows.filter((r) => r.status === "done" || r.status === "superseded");
   if (filter === "failed") {
     const fails = rows.filter((r) => r.status === "failed");
     if (failedSub === "real_failed") return fails.filter((r) => !r.is_discarded);
@@ -630,6 +631,7 @@ function SubmissionRow({
   const isProcessing = PROCESSING_STATUSES.has(row.status);
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
+  const isSuperseded = row.status === "superseded";
 
   // exam/homework 양쪽 picker 지원 — target_id 만 있으면 inline 매칭 가능
   const canIdentifyInline = !!row.target_id;
@@ -726,6 +728,11 @@ function SubmissionRow({
         )}
         {isProcessing && (
           <span className="text-xs text-[var(--color-text-muted)] px-2">처리 중…</span>
+        )}
+        {isSuperseded && (
+          <span className="text-xs text-[var(--color-text-muted)] px-2" title="다른 제출이 최종 답안으로 채택되었습니다.">
+            대체됨
+          </span>
         )}
         {(isDone || isAnswersReady) && resolved && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate}>

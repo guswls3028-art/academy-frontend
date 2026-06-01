@@ -43,6 +43,7 @@ export default function SwipeAttendancePage() {
       updateAttendance(id, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sid] });
+      qc.invalidateQueries({ queryKey: ["session-attendance", sid] });
     },
     onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
   });
@@ -51,6 +52,7 @@ export default function SwipeAttendancePage() {
     mutationFn: () => bulkSetPresent(sid),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["attendance", sid] });
+      qc.invalidateQueries({ queryKey: ["session-attendance", sid] });
       feedback.success(`${data.updated}명 출석 처리`);
     },
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),

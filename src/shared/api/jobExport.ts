@@ -2,6 +2,7 @@
 // 엑셀 내보내기 등 비동기 job: 폴링 후 download_url 반환
 
 import api from "@/shared/api/axios";
+import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
 
 export type JobStatusResponse = {
   job_id: string;
@@ -16,7 +17,7 @@ const POLL_INTERVAL_MS = 1500;
 const POLL_MAX_ATTEMPTS = 120; // 3분
 
 /**
- * job_id 상태 폴링. DONE 시 result, FAILED 시 throw.
+ * job_id 상태 폴링. DONE 시 result, terminal failure 시 throw.
  */
 export async function pollJobUntilDone(jobId: string): Promise<JobStatusResponse> {
   for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
@@ -26,7 +27,7 @@ export async function pollJobUntilDone(jobId: string): Promise<JobStatusResponse
     if (data.status === "DONE") {
       return data;
     }
-    if (data.status === "FAILED") {
+    if (isFailedAIJobStatus(data.status)) {
       const msg = data.error_message || "Export failed.";
       throw new Error(msg);
     }

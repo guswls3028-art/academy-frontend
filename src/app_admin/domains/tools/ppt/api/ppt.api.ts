@@ -2,6 +2,7 @@
 // PPT 생성 API — async worker pattern (job dispatch + polling)
 
 import api from "@/shared/api/axios";
+import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
 
 export interface PptSettings {
   aspect_ratio: "16:9" | "4:3";
@@ -137,7 +138,7 @@ export async function pollPptJob(
     if (data.status === "DONE" && !data.result && data.error_message) {
       throw new Error(data.error_message);
     }
-    if (data.status === "FAILED") {
+    if (isFailedAIJobStatus(data.status)) {
       throw new Error(data.error_message || "PPT 생성에 실패했습니다.");
     }
     if (onStatus) onStatus(data.status);

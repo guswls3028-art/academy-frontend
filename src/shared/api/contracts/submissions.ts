@@ -11,7 +11,8 @@ export type SubmissionStatus =
   | "answers_ready"
   | "grading"
   | "done"
-  | "failed";
+  | "failed"
+  | "superseded";
 
 export type SubmissionSource =
   | "omr_scan"
@@ -121,6 +122,7 @@ const SUBMISSION_STATUSES = new Set<ExamSubmissionStatus>([
   "grading",
   "done",
   "failed",
+  "superseded",
   "graded",
   "pending",
   "processing",

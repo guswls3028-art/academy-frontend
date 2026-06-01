@@ -36,6 +36,7 @@ const HOMEWORK_SUBMISSION_STATUSES = new Set<HomeworkSubmissionStatus>([
   "grading",
   "done",
   "failed",
+  "superseded",
   "graded",
   "pending",
   "processing",

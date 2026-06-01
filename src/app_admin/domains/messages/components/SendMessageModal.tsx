@@ -709,7 +709,7 @@ export default function SendMessageModal({
     setSending(true);
     setShowConfirm(false);
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약" : "알림톡 발송", taskId, "messaging");
+    asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약 접수" : "알림톡 발송 접수", taskId, "messaging");
     try {
       let totalEnqueued = 0;
       let totalScheduled = 0;
@@ -732,9 +732,10 @@ export default function SendMessageModal({
       if (accepted > 0) {
         const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
         const actionLabel = sendTiming === "scheduled"
-          ? `${formatScheduleLabel(scheduledSendAtIso)} 예약`
-          : "발송 예정";
-        feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 발송 내역에서 결과를 확인하세요.`);
+          ? `${formatScheduleLabel(scheduledSendAtIso)} 예약 접수`
+          : "발송 접수";
+        feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 실제 성공·실패는 발송 내역에서 확인하세요.`);
+        asyncStatusStore.setTaskLabel(taskId, sendTiming === "scheduled" ? "알림톡 예약 접수 완료" : "알림톡 발송 접수 완료");
         asyncStatusStore.completeTask(taskId, "success");
       } else {
         const hint = totalSkipped > 0

@@ -57,7 +57,7 @@ export default function SessionDetailPage() {
   // 차시 학생 탭은 enrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
   const lectureIdForEnrollments = session?.lecture_id ?? session?.lecture ?? null;
   const { data: enrollments } = useQuery({
-    queryKey: ["session-enrollments", lectureIdForEnrollments],
+    queryKey: ["lecture-enrollments", lectureIdForEnrollments],
     queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
     enabled: Number.isFinite(lectureIdForEnrollments),
   });

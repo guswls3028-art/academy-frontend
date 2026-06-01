@@ -200,6 +200,7 @@ function ScoreEntryList({
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const pendingSubmitKeys = useRef<Set<string>>(new Set());
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
   // 저장 직후 행에 1.2초 색상 펄스 — 토스트 외 즉시 시각 표식
   const [justSaved, setJustSaved] = useState<Set<number>>(new Set());
@@ -279,6 +280,10 @@ function ScoreEntryList({
       qc.setQueryData(["exam-results", examId], ctx?.previous);
       feedback.error(extractApiError(e, "저장 실패"));
     },
+    onSettled: (_data, _error, variables) => {
+      if (!variables) return;
+      pendingSubmitKeys.current.delete(`${variables.enrollmentId}:${variables.score}`);
+    },
   });
 
   const handleSubmit = useCallback(
@@ -298,6 +303,9 @@ function ScoreEntryList({
         feedback.error(`0~${maxScore} 사이의 점수를 입력하세요.`);
         return;
       }
+      const submitKey = `${enrollmentId}:${num}`;
+      if (pendingSubmitKeys.current.has(submitKey)) return;
+      pendingSubmitKeys.current.add(submitKey);
       updateMut.mutate({ enrollmentId, score: num, maxScore });
     },
     [allowedEnrollmentIds, localScores, updateMut],
