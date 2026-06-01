@@ -38,7 +38,13 @@ export type SessionScoreExamEntry = {
   title: string;
   pass_score: number;
   block: ScoreBlock;
-  items?: { question_id: number; score: number; max_score: number }[];
+  items?: {
+    question_id: number;
+    question_number?: number | null;
+    question_kind?: "choice" | "essay" | null;
+    score: number;
+    max_score: number;
+  }[];
   attempt_count?: number;
   clinic_link_id?: number | null;
   attempts?: ScoreAttemptEntry[];
@@ -78,8 +84,18 @@ export type SessionScoreMeta = {
     title: string;
     pass_score: number;
     max_score: number;
+    choice_count?: number;
+    essay_count?: number;
+    objective_max_score?: number;
+    subjective_max_score?: number;
+    score_shape_source?: string;
     display_order: number;
-    questions?: { question_id: number; number: number; max_score: number }[];
+    questions?: {
+      question_id: number;
+      number: number;
+      max_score: number;
+      kind?: "choice" | "essay";
+    }[];
   }[];
   homeworks: {
     homework_id: number;

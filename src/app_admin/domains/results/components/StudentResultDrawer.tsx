@@ -65,6 +65,30 @@ type Props = {
   onClose: () => void;
 };
 
+type ExamQuestionForDrawer = {
+  id: number;
+  number: number;
+  score: number;
+  kind?: "choice" | "essay" | null;
+};
+
+type ScoreShape = {
+  choice_count?: number;
+  essay_count?: number;
+};
+
+function questionKindFromNumber(
+  number: number | null | undefined,
+  shape: ScoreShape | null | undefined,
+): "choice" | "essay" | null {
+  if (number == null || !shape) return null;
+  const choiceCount = Number(shape.choice_count ?? 0);
+  const essayCount = Number(shape.essay_count ?? 0);
+  if (choiceCount > 0 && number <= choiceCount) return "choice";
+  if (essayCount > 0 && number > choiceCount && number <= choiceCount + essayCount) return "essay";
+  return null;
+}
+
 export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
@@ -89,7 +113,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     queryKey: ["exam-questions", examId],
     queryFn: async () => {
       const res = await (await import("@/shared/api/axios")).default.get(`/exams/${examId}/questions/`);
-      return (res.data as { id: number; number: number; score: number }[]).sort((a, b) => a.number - b.number);
+      return (res.data as ExamQuestionForDrawer[]).sort((a, b) => a.number - b.number);
     },
     enabled: Number.isFinite(examId),
   });
@@ -105,8 +129,25 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const mergedItems: ExamResultItem[] = useMemo(() => {
     const itemMap = new Map(items1st.map((it) => [it.question_id, it]));
     if (examQuestions.length > 0) {
-      return examQuestions.map((q) => itemMap.get(q.id) ?? {
-        question_id: q.id, answer: "", is_correct: false, score: 0, max_score: q.score, is_editable: true,
+      return examQuestions.map((q) => {
+        const existing = itemMap.get(q.id);
+        if (existing) {
+          return {
+            ...existing,
+            question_number: existing.question_number ?? q.number,
+            question_kind: existing.question_kind ?? q.kind ?? questionKindFromNumber(q.number, detail?.score_shape),
+          };
+        }
+        return {
+          question_id: q.id,
+          question_number: q.number,
+          question_kind: q.kind ?? questionKindFromNumber(q.number, detail?.score_shape),
+          answer: "",
+          is_correct: false,
+          score: 0,
+          max_score: q.score,
+          is_editable: true,
+        };
       });
     }
     const ca = detail?.correct_answers ?? {};
@@ -126,9 +167,13 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const qNumMap = useMemo(() => {
     const map = new Map<number, number>();
-    if (examQuestions.length > 0) {
-      for (const q of examQuestions) map.set(q.id, q.number);
-    } else {
+    for (const it of mergedItems) {
+      if (typeof it.question_number === "number") map.set(it.question_id, it.question_number);
+    }
+    for (const q of examQuestions) {
+      map.set(q.id, q.number);
+    }
+    if (map.size === 0) {
       mergedItems.forEach((it, idx) => map.set(it.question_id, idx + 1));
     }
     return map;
@@ -171,12 +216,23 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     const choice: ExamResultItem[] = [];
     const essay: ExamResultItem[] = [];
     for (const it of mergedItems) {
+      const kind =
+        it.question_kind ??
+        questionKindFromNumber(it.question_number ?? qNumMap.get(it.question_id), detail?.score_shape);
+      if (kind === "choice") {
+        choice.push(it);
+        continue;
+      }
+      if (kind === "essay") {
+        essay.push(it);
+        continue;
+      }
       const ca = correctAnswersMap[String(it.question_id)] ?? "";
       if (ca === "" || isChoiceAnswer(ca)) choice.push(it);
       else essay.push(it);
     }
     return { choiceItems: choice, essayItems: essay };
-  }, [mergedItems, correctAnswersMap]);
+  }, [mergedItems, qNumMap, detail?.score_shape, correctAnswersMap]);
 
   const totalScore = detail?.total_score ?? 0;
   const maxScore = detail?.max_score ?? 0;

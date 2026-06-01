@@ -199,6 +199,17 @@ export default function SessionScoresEntryPage({
     return () => clearInterval(id);
   }, [isEditMode, draft.draftStatus]);
 
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: scoresQueryKeys.sessionScores(numericSessionId),
+    queryFn: () => fetchSessionScores(numericSessionId),
+    enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
+  });
+
+  const hasSubjectiveExam = useMemo(
+    () => (data?.meta?.exams ?? []).some((exam) => Number(exam.subjective_max_score ?? 0) > 0),
+    [data?.meta?.exams],
+  );
+
   // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
 
   const handleSelectTotal = async () => {
@@ -212,8 +223,13 @@ export default function SessionScoresEntryPage({
       setExamEditSubjective(false);
     }
     setExamEditTotal(true);
+    setScoreDisplayMode("total");
   };
   const handleSelectSubjective = async () => {
+    if (!hasSubjectiveExam) {
+      feedback.info("이 차시의 시험에는 채점 대상 서술형 문항이 없습니다. OMR 서술형 공간은 점수 입력 대상이 아닙니다.");
+      return;
+    }
     if (examEditSubjective) {
       setExamEditSubjective(false);
       return;
@@ -224,14 +240,9 @@ export default function SessionScoresEntryPage({
       setExamEditTotal(false);
     }
     setExamEditSubjective(true);
+    setScoreDisplayMode("breakdown");
   };
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
-
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(numericSessionId),
-    queryFn: () => fetchSessionScores(numericSessionId),
-    enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
-  });
 
   /** 시험 또는 과제 둘 중 하나라도 등록된 수강생만 테이블에 표시 → 툴바 인원도 동일 기준 */
   const displayCount = useMemo(() => {
@@ -513,7 +524,16 @@ export default function SessionScoresEntryPage({
               <span className="scores-view-filter-label">시험</span>
               <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
                 <button type="button" onClick={handleSelectTotal} className="scores-display-segment__btn" aria-pressed={examEditTotal} title="시험 합산 점수만 한 칸으로 입력">합산</button>
-                <button type="button" onClick={handleSelectSubjective} className="scores-display-segment__btn" aria-pressed={examEditSubjective} title="주관식 점수만 입력 (객관식은 OMR 자동 채점)">주관식</button>
+                <button
+                  type="button"
+                  onClick={handleSelectSubjective}
+                  className="scores-display-segment__btn"
+                  aria-pressed={examEditSubjective}
+                  disabled={!hasSubjectiveExam}
+                  title={hasSubjectiveExam ? "서술형 점수만 입력 (객관식은 OMR 자동 채점)" : "채점 대상 서술형 문항 없음"}
+                >
+                  주관식
+                </button>
               </div>
             </div>
             <div className="scores-view-filter-section">

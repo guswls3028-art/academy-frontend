@@ -37,6 +37,8 @@ export type ManualReviewMeta = {
 
 export type ExamResultItem = {
   question_id: number;
+  question_number?: number | null;
+  question_kind?: "choice" | "essay" | null;
   answer: string;
   is_correct: boolean;
   score: number;
@@ -80,6 +82,16 @@ export type ExamResultDetail = {
 
   /** 정답표: key=ExamQuestion.id(string), value=정답 */
   correct_answers?: Record<string, string>;
+
+  score_shape?: {
+    total_questions: number;
+    choice_count: number;
+    essay_count: number;
+    objective_max_score: number;
+    subjective_max_score: number;
+    total_max_score: number;
+    source?: string;
+  };
 
   /** OMR 스캔 presigned URL. AI 정렬 보정본이 있으면 보정본을 우선한다. */
   scan_image_url?: string;

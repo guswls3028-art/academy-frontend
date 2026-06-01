@@ -65,6 +65,21 @@ function validateScore(value: number, maxScore?: number | null): boolean {
   return true;
 }
 
+type ExamMeta = SessionScoreMeta["exams"][number];
+
+function safePositiveNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function examObjectiveMax(ex: ExamMeta): number {
+  return safePositiveNumber(ex.objective_max_score, safePositiveNumber(ex.max_score, 100));
+}
+
+function examSubjectiveMax(ex: ExamMeta): number {
+  return safePositiveNumber(ex.subjective_max_score, 0);
+}
+
 function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
@@ -467,7 +482,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: isEditMode && examEditTotal });
       } else {
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: isEditMode && examEditObjective });
-        list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode && examEditSubjective });
+        if (examSubjectiveMax(e) > 0) {
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode && examEditSubjective });
+        }
       }
     });
     if (examOptions.length > 1) {
@@ -1084,6 +1101,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "objective") {
                           const objScore = block?.objective_score ?? block?.score ?? null;
+                          const objectiveMax = examObjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
                           const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : `${Math.round(objScore)}`;
                           const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus;
@@ -1116,9 +1134,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
-                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
-                                    const parsed = parseScoreInput(raw, metaMax);
-                                    if (parsed != null && validateScore(parsed, metaMax)) {
+                                    const parsed = parseScoreInput(raw, objectiveMax);
+                                    if (parsed != null && validateScore(parsed, objectiveMax)) {
                                       const key = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
                                       pendingRef.current.set(key, { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                       dirtyKeysRef.current.add(key);
@@ -1153,9 +1170,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
                         if (col.sub === "subjective") {
                           const subScore = block?.subjective_score ?? null;
+                          const subjectiveMax = examSubjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
                           const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? String(Math.round(subScore)) : "-";
-                          const canEdit = col.editable && !block?.is_locked && !omrReviewStatus;
+                          const canEdit = col.editable && subjectiveMax > 0 && !block?.is_locked && !omrReviewStatus;
                           return (
                             <td
                               key={col.key}
@@ -1164,6 +1182,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              title={subjectiveMax > 0 ? `서술형 수기 점수 (0 ~ ${subjectiveMax})` : "채점 대상 서술형 문항 없음"}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {canEdit ? (
@@ -1185,9 +1204,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
-                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
-                                    const parsed = parseScoreInput(raw, metaMax);
-                                    if (parsed != null && validateScore(parsed, metaMax)) {
+                                    const parsed = parseScoreInput(raw, subjectiveMax);
+                                    if (parsed != null && validateScore(parsed, subjectiveMax)) {
                                       const key = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
                                       pendingRef.current.set(key, { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                       dirtyKeysRef.current.add(key);
