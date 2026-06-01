@@ -10,6 +10,14 @@ interface Env {
 }
 
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
+const STATIC_HTML_PATHS = new Set(["/omr-sheet.html"]);
+
+function isExpectedStaticHtml(pathname: string, html: string): boolean {
+  if (pathname === "/omr-sheet.html") {
+    return html.includes("OMR 답안지") && html.includes('id="cfEs"');
+  }
+  return false;
+}
 
 /** 정적 요청 404 시 HTML 대신 적절한 Content-Type으로 응답 (MIME type 오류 방지) */
 function contentTypeForPath(pathname: string): string {
@@ -281,6 +289,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(generateRobots(host), {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+  }
+
+  if (STATIC_HTML_PATHS.has(pathname)) {
+    const res = await context.env.ASSETS.fetch(context.request);
+    const ct = res.headers.get("Content-Type") ?? "";
+    if (res.status === 200 && ct.includes("text/html")) {
+      const html = await res.clone().text();
+      if (isExpectedStaticHtml(pathname, html)) {
+        return res;
+      }
+    }
+    return new Response("Not Found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
 
