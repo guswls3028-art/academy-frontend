@@ -44,6 +44,7 @@ export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
 export type StudentVideoListItem = {
   id: number;
   session_id: number | null;
+  enrollment_id?: number | null;
   title: string;
   status: string;
   thumbnail_url?: string | null;
@@ -235,7 +236,8 @@ export async function updateVideoProgress(
     progress?: number; // 0-100 또는 0-1
     completed?: boolean;
     last_position?: number; // seconds
-  }
+  },
+  enrollmentId?: number | null
 ): Promise<{
   id: number;
   video_id: number;
@@ -248,7 +250,8 @@ export async function updateVideoProgress(
   if (Number.isNaN(Number(videoId)) || videoId < 1) {
     throw new Error("유효한 영상이 아닙니다.");
   }
-  const res = await api.post(`/student/video/videos/${videoId}/progress/`, data);
+  const payload = enrollmentId ? { ...data, enrollment_id: enrollmentId } : data;
+  const res = await api.post(`/student/video/videos/${videoId}/progress/`, payload);
   const out = res?.data;
   if (out == null || typeof out !== "object") {
     throw new Error("진행률 저장 응답이 없습니다.");

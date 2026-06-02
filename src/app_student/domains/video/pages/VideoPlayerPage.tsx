@@ -152,7 +152,7 @@ export default function VideoPlayerPage() {
     }
 
     const sessionIdValue = vd.session_id == null ? null : Number(vd.session_id);
-    const v: VideoMetaLite & { session_id?: number | null; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
+    const v: VideoMetaLite & { session_id?: number | null; enrollment_id?: number | null; last_position?: number; view_count?: number; like_count?: number; comment_count?: number; is_liked?: boolean; created_at?: string | null } = {
       id: Number(vd.id),
       title: String(vd.title ?? "영상"),
       duration: vd.duration == null ? null : Number(vd.duration),
@@ -160,6 +160,7 @@ export default function VideoPlayerPage() {
       thumbnail_url: vd.thumbnail_url ?? null,
       hls_url: playbackData.hls_url ?? null,
       session_id: Number.isFinite(sessionIdValue) ? sessionIdValue : null,
+      enrollment_id: vd.enrollment_id ?? null,
       last_position: vd.last_position ?? 0,
       view_count: vd.view_count ?? 0,
       like_count: vd.like_count ?? 0,
@@ -201,11 +202,12 @@ export default function VideoPlayerPage() {
   const loading = playbackQuery.isLoading;
   const urlSessionId = safeParseInt(q.get("session"));
   const sessionId = video?.session_id ?? urlSessionId ?? null;
+  const effectiveEnrollmentId = video?.enrollment_id ?? enrollmentId;
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
-    queryKey: ["student-session-videos", sessionId, enrollmentId ?? null],
-    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId ?? undefined),
+    queryKey: ["student-session-videos", sessionId, effectiveEnrollmentId ?? null],
+    queryFn: () => fetchStudentSessionVideos(sessionId!, effectiveEnrollmentId ?? undefined),
     enabled: !!sessionId && !!videoId,
     staleTime: 60_000,
     retry: 1,
@@ -223,11 +225,11 @@ export default function VideoPlayerPage() {
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
       if (!videoId) throw new Error("videoId가 필요합니다.");
-      return updateVideoProgress(videoId, data);
+      return updateVideoProgress(videoId, data, effectiveEnrollmentId);
     },
     onSuccess: () => {
       if (sessionId == null) return;
-      const key = ["student-session-videos", sessionId, enrollmentId ?? null] as const;
+      const key = ["student-session-videos", sessionId, effectiveEnrollmentId ?? null] as const;
       setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });
@@ -319,9 +321,9 @@ export default function VideoPlayerPage() {
 
   useEffect(() => {
     if (autoPlayCountdown !== null && autoPlayCountdown <= 0 && nextVideo) {
-      nav(`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`);
+      nav(`/student/video/play?video=${nextVideo.id}${effectiveEnrollmentId ? `&enrollment=${effectiveEnrollmentId}` : ""}`);
     }
-  }, [autoPlayCountdown, nextVideo, enrollmentId, nav]);
+  }, [autoPlayCountdown, nextVideo, effectiveEnrollmentId, nav]);
 
   useEffect(() => {
     return () => {
@@ -361,7 +363,7 @@ export default function VideoPlayerPage() {
             <StudentVideoPlayer
               video={video}
               bootstrap={boot}
-              enrollmentId={enrollmentId != null ? Number(enrollmentId) : null}
+              enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}
               initialPosition={initialPosition}
               onFatal={onFatal}
               onLeaveProgress={onLeaveProgress}
@@ -423,7 +425,7 @@ export default function VideoPlayerPage() {
                 )}
                 {nextVideo && (autoPlayCountdown === null || autoPlayCountdown <= 0) && (
                   <Link
-                    to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
+                    to={`/student/video/play?video=${nextVideo.id}${effectiveEnrollmentId ? `&enrollment=${effectiveEnrollmentId}` : ""}`}
                     className="vpp-next-link"
                     aria-label="다음 항목"
                   >
@@ -457,7 +459,7 @@ export default function VideoPlayerPage() {
                   return (
                     <Link
                       key={v.id}
-                      to={`/student/video/play?video=${v.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
+                      to={`/student/video/play?video=${v.id}${effectiveEnrollmentId ? `&enrollment=${effectiveEnrollmentId}` : ""}`}
                       className={`vpp-pl-item${isActive ? " vpp-pl-item--active" : ""}${v.completed ? " vpp-pl-item--done" : ""}`}
                     >
                       <span className="vpp-pl-num">
