@@ -60,6 +60,13 @@ export type ExamResultItem = {
   };
 };
 
+export type ExamResultQuestion = {
+  question_id: number;
+  number: number;
+  max_score: number;
+  kind?: "choice" | "essay" | null;
+};
+
 export type ExamResultDetail = {
   target_type: "exam";
   target_id: number;
@@ -82,6 +89,9 @@ export type ExamResultDetail = {
 
   /** 정답표: key=ExamQuestion.id(string), value=정답 */
   correct_answers?: Record<string, string>;
+
+  /** 채점/수기입력용 문항 목록. max_score는 backend score_shape 기준이다. */
+  questions?: ExamResultQuestion[];
 
   score_shape?: {
     total_questions: number;

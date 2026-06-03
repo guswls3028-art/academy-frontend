@@ -126,10 +126,22 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     [detail?.scan_image_url, items1st],
   );
 
+  const detailQuestions = useMemo<ExamQuestionForDrawer[]>(() => {
+    return (detail?.questions ?? [])
+      .map((q) => ({
+        id: q.question_id,
+        number: q.number,
+        score: q.max_score,
+        kind: q.kind ?? null,
+      }))
+      .sort((a, b) => a.number - b.number);
+  }, [detail?.questions]);
+  const questionSource = detailQuestions.length > 0 ? detailQuestions : examQuestions;
+
   const mergedItems: ExamResultItem[] = useMemo(() => {
     const itemMap = new Map(items1st.map((it) => [it.question_id, it]));
-    if (examQuestions.length > 0) {
-      return examQuestions.map((q) => {
+    if (questionSource.length > 0) {
+      return questionSource.map((q) => {
         const existing = itemMap.get(q.id);
         if (existing) {
           return {
@@ -160,7 +172,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
       });
     }
     return items1st;
-  }, [items1st, examQuestions, detail]);
+  }, [items1st, questionSource, detail]);
 
   const hasData = items1st.length > 0 && items1st.some((it) => (it.answer && it.answer.trim() !== "") || it.score > 0);
   const hasQuestions = mergedItems.length > 0;
@@ -170,14 +182,14 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     for (const it of mergedItems) {
       if (typeof it.question_number === "number") map.set(it.question_id, it.question_number);
     }
-    for (const q of examQuestions) {
+    for (const q of questionSource) {
       map.set(q.id, q.number);
     }
     if (map.size === 0) {
       mergedItems.forEach((it, idx) => map.set(it.question_id, idx + 1));
     }
     return map;
-  }, [examQuestions, mergedItems]);
+  }, [questionSource, mergedItems]);
 
   const correctAnswersMap = useMemo<Record<string, string>>(
     () => detail?.correct_answers ?? {},
