@@ -55,6 +55,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     },
     onError: (e) => teacherToast.error(extractApiError(e, isAnswerPost ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
   });
+  const canSubmitReply = replyText.trim().length > 0 && !replyMutation.isPending;
 
   const updateMutation = useMutation({
     mutationFn: () => updatePost(post.id, { title: editTitle, content: editContent }),
@@ -313,21 +314,27 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       </div>
 
       {/* Reply BottomSheet */}
-      <BottomSheet open={canReply && replyOpen} onClose={() => setReplyOpen(false)} title={isAnswerPost ? "답변 작성" : "댓글 작성"}>
+      <BottomSheet
+        open={canReply && replyOpen}
+        onClose={() => setReplyOpen(false)}
+        title={isAnswerPost ? "답변 작성" : "댓글 작성"}
+        footer={(
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setReplyOpen(false)} className="flex-1 text-sm font-semibold cursor-pointer"
+              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>취소</button>
+            <button type="button" onClick={() => replyMutation.mutate()} disabled={!canSubmitReply}
+              className="flex-1 text-sm font-bold cursor-pointer"
+              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmitReply ? "var(--tc-primary)" : "var(--tc-border)", color: "#fff", opacity: replyMutation.isPending ? 0.6 : 1 }}>
+              {replyMutation.isPending ? "등록 중…" : "등록"}
+            </button>
+          </div>
+        )}
+      >
         <div className="flex flex-col gap-3">
           <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)}
             placeholder={isAnswerPost ? "답변을 입력하세요…" : "댓글을 입력하세요…"} rows={5}
             className="w-full text-sm"
             style={{ padding: "var(--tc-space-3)", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", resize: "vertical", outline: "none" }} />
-          <div className="flex gap-2">
-            <button onClick={() => setReplyOpen(false)} className="flex-1 text-sm font-semibold cursor-pointer"
-              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>취소</button>
-            <button onClick={() => replyMutation.mutate()} disabled={!replyText.trim() || replyMutation.isPending}
-              className="flex-1 text-sm font-bold cursor-pointer"
-              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: replyText.trim() ? "var(--tc-primary)" : "var(--tc-border)", color: "#fff", opacity: replyMutation.isPending ? 0.6 : 1 }}>
-              {replyMutation.isPending ? "등록 중…" : "등록"}
-            </button>
-          </div>
         </div>
       </BottomSheet>
     </div>
