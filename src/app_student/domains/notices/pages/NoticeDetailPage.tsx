@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import DOMPurify from "dompurify";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
+import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { fetchNoticeDetail, getAttachmentDownloadUrl, type PostAttachment } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -82,14 +82,12 @@ export default function NoticeDetailPage() {
           </div>
 
           {/* 내용 */}
-          {notice.content ? (
-            <div
-              className={`stu-html-content ${styles.content}`}
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notice.content) }}
-            />
-          ) : (
-            <p className={styles.emptyContent}>내용이 없습니다.</p>
-          )}
+          <RichHtmlContent
+            html={notice.content}
+            className={styles.content}
+            htmlClassName="stu-html-content"
+            emptyClassName={styles.emptyContent}
+          />
 
           {/* 첨부파일 */}
           {notice.attachments && notice.attachments.length > 0 && (

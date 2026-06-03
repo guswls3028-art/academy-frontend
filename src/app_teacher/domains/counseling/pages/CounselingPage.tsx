@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import {
   fetchCounselingPosts,
   createCounselingPost,
@@ -15,6 +16,7 @@ import {
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
 
 interface CounselingPost {
   id: number;
@@ -112,7 +114,7 @@ export default function CounselingPage() {
                   className="text-sm line-clamp-2 m-0"
                   style={{ color: "var(--tc-text-secondary)" }}
                 >
-                  {p.content.replace(/<[^>]*>/g, "").slice(0, 100)}
+                  {richHtmlToPreviewText(p.content, 100)}
                 </p>
               )}
               {displayName(p) && (
@@ -259,9 +261,12 @@ function DetailSheet({
     <BottomSheet open onClose={onClose} title={post.title}>
       <div className="flex flex-col gap-3 p-4" style={{ maxHeight: "60vh", overflowY: "auto" }}>
         {/* Content */}
-        <div className="text-sm" style={{ color: "var(--tc-text)", whiteSpace: "pre-wrap" }}>
-          {post.content?.replace(/<[^>]*>/g, "") || "(내용 없음)"}
-        </div>
+        <RichHtmlContent
+          html={post.content}
+          className="text-sm"
+          emptyText="(내용 없음)"
+          style={{ color: "var(--tc-text)" }}
+        />
         <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
           {displayName(post)} · {post.created_at ? new Date(post.created_at).toLocaleString("ko-KR") : ""}
         </div>
@@ -271,9 +276,7 @@ function DetailSheet({
           <div className="flex flex-col gap-2 mt-2 pt-2" style={{ borderTop: "1px solid var(--tc-border)" }}>
             {(replies as CounselingReply[]).map((r) => (
               <div key={r.id} className="flex flex-col gap-0.5 rounded-lg" style={{ padding: "8px 12px", background: "var(--tc-surface-soft)" }}>
-                <div className="text-sm" style={{ color: "var(--tc-text)", whiteSpace: "pre-wrap" }}>
-                  {r.content}
-                </div>
+                <RichHtmlContent html={r.content} className="text-sm" style={{ color: "var(--tc-text)" }} />
                 <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                   {displayName(r)} · {r.created_at ? new Date(r.created_at).toLocaleString("ko-KR") : ""}
                 </span>

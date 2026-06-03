@@ -7,6 +7,7 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin, fetchPostAttachmentDownload } from "../api";
 import type { Post, Reply, PostAttachment } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, Paperclip, Download } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -222,9 +223,11 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
             <div className="text-xs mb-3" style={{ color: "var(--tc-text-muted)" }}>
               {authorName} · {new Date(post.created_at).toLocaleDateString("ko-KR")}
             </div>
-            <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--tc-text-secondary)" }}>
-              {editContent || post.content}
-            </div>
+            <RichHtmlContent
+              html={post.content}
+              className="text-sm"
+              style={{ color: "var(--tc-text-secondary)" }}
+            />
           </>
         )}
       </div>
@@ -346,7 +349,7 @@ function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void })
 
   return (
     <div className="rounded-lg" style={{ padding: "var(--tc-space-3)", background: "var(--tc-surface)", border: "1px solid var(--tc-border-subtle)" }}>
-      <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--tc-text)" }}>{reply.content}</div>
+      <RichHtmlContent html={reply.content} className="text-sm" style={{ color: "var(--tc-text)" }} />
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs" style={{ color: "var(--tc-text-muted)" }}>
           {authorName} · {new Date(reply.created_at).toLocaleDateString("ko-KR")}

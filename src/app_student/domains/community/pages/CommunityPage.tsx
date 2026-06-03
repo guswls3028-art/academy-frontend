@@ -10,7 +10,8 @@ import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { IconPlus, IconChevronRight, IconBoard } from "@student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
-import DOMPurify from "dompurify";
+import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
+import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
@@ -558,7 +559,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       })(mutation.error)
     : null;
 
-  const contentText = content.replace(/<[^>]*>/g, "").trim();
+  const contentText = richHtmlToPlainText(content);
   const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
 
   if (profile?.isParentReadOnly) {
@@ -896,7 +897,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       })(mutation.error)
     : null;
 
-  const counselContentText = content.replace(/<[^>]*>/g, "").trim();
+  const counselContentText = richHtmlToPlainText(content);
   const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
 
   if (profile?.isParentReadOnly) {
@@ -1285,17 +1286,12 @@ function FilePickerSection({
 // HtmlContent — renders HTML content (from RichTextEditor) safely
 // ═══════════════════════════════════════════
 function HtmlContent({ html }: { html: string }) {
-  if (!html) return <div className="stu-muted community-empty-content">내용이 없습니다.</div>;
-
-  const isPlainText = !/<[a-z][\s\S]*>/i.test(html);
-  if (isPlainText) {
-    return <div className="community-plain-content">{html}</div>;
-  }
-
   return (
-    <div
-      className="stu-html-content community-html-content"
-      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+    <RichHtmlContent
+      html={html}
+      htmlClassName="stu-html-content community-html-content"
+      plainClassName="community-plain-content"
+      emptyClassName="stu-muted community-empty-content"
     />
   );
 }
@@ -1331,9 +1327,7 @@ function PostRow({
 }) {
   // 본문 미리보기 (HTML 태그 제거, 80자 제한)
   const preview = useMemo(() => {
-    if (!post.content) return "";
-    const text = post.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-    return text.length > 80 ? text.slice(0, 80) + "…" : text;
+    return richHtmlToPreviewText(post.content, 80);
   }, [post.content]);
   const rowClass = [
     "stu-panel",

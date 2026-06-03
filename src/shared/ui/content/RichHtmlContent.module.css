@@ -1,0 +1,114 @@
+.root {
+  color: inherit;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.plain {
+  white-space: pre-wrap;
+}
+
+.empty {
+  color: var(--tc-text-muted, var(--stu-text-muted, var(--color-text-muted, #64748b)));
+}
+
+.root > :first-child {
+  margin-top: 0;
+}
+
+.root > :last-child {
+  margin-bottom: 0;
+}
+
+.root :where(p) {
+  margin: 0 0 0.75em;
+}
+
+.root :where(h1, h2, h3, h4, h5, h6) {
+  margin: 1em 0 0.45em;
+  color: inherit;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.root :where(h1) {
+  font-size: 1.25em;
+}
+
+.root :where(h2) {
+  font-size: 1.15em;
+}
+
+.root :where(h3, h4, h5, h6) {
+  font-size: 1.05em;
+}
+
+.root :where(ul, ol) {
+  margin: 0.45em 0 0.8em;
+  padding-left: 1.35em;
+}
+
+.root :where(li + li) {
+  margin-top: 0.25em;
+}
+
+.root :where(a) {
+  color: var(--tc-primary, var(--stu-primary, var(--color-primary, #2563eb)));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.root :where(blockquote) {
+  margin: 0.85em 0;
+  padding: 0.55em 0.85em;
+  border-left: 3px solid var(--tc-border, var(--stu-border-strong, #cbd5e1));
+  color: var(--tc-text-secondary, var(--stu-text-muted, #475569));
+  background: var(--tc-surface-soft, var(--stu-surface-soft, #f8fafc));
+}
+
+.root :where(code) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--tc-surface-soft, var(--stu-surface-soft, #f1f5f9));
+  font-size: 0.92em;
+}
+
+.root :where(pre) {
+  margin: 0.85em 0;
+  padding: 0.85em;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--tc-surface-soft, var(--stu-surface-soft, #f1f5f9));
+}
+
+.root :where(pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.root :where(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75em 0;
+  border-radius: 6px;
+}
+
+.root :where(table) {
+  width: 100%;
+  margin: 0.85em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.root :where(th, td) {
+  padding: 0.45em 0.55em;
+  border: 1px solid var(--tc-border, var(--stu-border, #e2e8f0));
+  vertical-align: top;
+}
+
+.root :where(th) {
+  background: var(--tc-surface-soft, var(--stu-surface-soft, #f8fafc));
+  font-weight: 700;
+}

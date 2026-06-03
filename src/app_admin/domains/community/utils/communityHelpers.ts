@@ -1,13 +1,12 @@
 // PATH: src/app_admin/domains/community/utils/communityHelpers.ts
 // Shared helper functions for community pages (Board, Materials, Notice, QnA)
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /**
  * Strip HTML tags and return plain text content.
  */
 export function stripHtml(html: string): string {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
+  return richHtmlToPlainText(html);
 }
 
 /**

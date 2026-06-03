@@ -8,11 +8,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchNotices, type PostEntity } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-
-/** HTML 태그를 제거하고 순수 텍스트만 추출 */
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-}
+import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
 
 type NoticeTab = "all" | "lecture" | "session";
 
@@ -138,7 +134,7 @@ export default function NoticesPage() {
                       <span className="student-notice-card__title">{notice.title}</span>
                     </div>
                     {notice.content && (() => {
-                      const preview = stripHtml(notice.content);
+                      const preview = richHtmlToPreviewText(notice.content, 80);
                       return preview ? (
                         <div
                           className="stu-muted student-notice-card__preview"

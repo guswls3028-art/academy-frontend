@@ -12,6 +12,7 @@ import { AlertCircle, ChevronDown, Paperclip, X } from "@teacher/shared/ui/Icons
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -22,12 +23,7 @@ interface Props {
 type Scope = "all" | "lecture" | "session";
 
 function htmlToVisibleText(html: string): string {
-  if (!html) return "";
-  if (typeof DOMParser !== "undefined") {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return (doc.body.textContent || "").replace(/\u00a0/g, " ").trim();
-  }
-  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+  return richHtmlToPlainText(html);
 }
 
 export default function CreatePostSheet({ open, onClose, postType, postTypeLabel }: Props) {

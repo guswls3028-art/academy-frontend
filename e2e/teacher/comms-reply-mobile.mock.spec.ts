@@ -16,7 +16,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       id: POST_ID,
       post_type: "qna",
       title: "[E2E] 모바일 답변 버튼 회귀",
-      content: "모바일에서 답변 작성 후 등록 버튼이 보여야 합니다.",
+      content: "<p>감수 1분열 중기는 다양성과 상관이 있는데</p><p>왜 감수 2분열 중기는 다양성과 상관이 없나요</p>",
       author_display_name: "어찬희",
       author_role: "student",
       replies_count: 0,
@@ -91,7 +91,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
         const reply = {
           id: 880001,
           post: POST_ID,
-          content: String(payload.content ?? ""),
+          content: `<p>${String(payload.content ?? "")}</p>`,
           author_display_name: "선생님",
           author_role: "staff",
           created_at: new Date().toISOString(),
@@ -115,6 +115,9 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
 
     await expect(page.getByText(post.title)).toBeVisible({ timeout: 10_000 });
     await page.getByText(post.title).click();
+    await expect(page.getByText("감수 1분열 중기는 다양성과 상관이 있는데")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("왜 감수 2분열 중기는 다양성과 상관이 없나요")).toBeVisible();
+    await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
     await expect(page.getByText("아직 답변이 없습니다")).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "답변 작성" }).click();
@@ -144,5 +147,6 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
 
     await expect(sheet).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(answer)).toBeVisible({ timeout: 10_000 });
+    await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
   });
 });
