@@ -346,6 +346,11 @@
   opacity: 0.72;
 }
 
+.video-card--blocked {
+  border-color: color-mix(in srgb, var(--stu-danger) 34%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-danger) 5%, var(--stu-surface));
+}
+
 .video-thumb {
   position: relative;
   min-width: 0;
@@ -529,6 +534,10 @@
 
 .video-status-label--failed {
   background: rgba(239, 68, 68, 0.9);
+}
+
+.video-status-label--blocked {
+  background: rgba(185, 28, 28, 0.9);
 }
 
 /* Visual polish: video domain should feel like a crafted learning surface, not plain cards. */

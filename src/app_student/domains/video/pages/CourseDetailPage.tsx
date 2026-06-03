@@ -14,6 +14,11 @@ import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
+import {
+  canPlayStudentVideo,
+  isStudentVideoBlocked,
+  isStudentVideoComplete,
+} from "../utils/videoAccess";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -43,19 +48,22 @@ function SessionBox({
     if (!videosData?.items || videosData.items.length === 0) return null;
 
     const videos = videosData.items;
-    const firstVideo = videos[0];
-    const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
+    const playableVideos = videos.filter(canPlayStudentVideo);
+    const firstVideo = playableVideos[0] ?? videos[0];
+    const totalDuration = playableVideos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
+    const blockedCount = videos.filter(isStudentVideoBlocked).length;
 
     // 진행률 계산: 백엔드에서 받은 progress 사용
-    // 완료된 영상 수 / 전체 영상 수로 세션 전체 진행률 계산
-    const completedVideos = videos.filter((v) => (v.progress ?? 0) >= 100 || v.completed).length;
-    const progress = videos.length > 0 ? Math.round((completedVideos / videos.length) * 100) : 0;
+    // 완료된 영상 수 / 시청 가능한 영상 수로 세션 전체 진행률 계산
+    const completedVideos = playableVideos.filter(isStudentVideoComplete).length;
+    const progress = playableVideos.length > 0 ? Math.round((completedVideos / playableVideos.length) * 100) : 0;
 
     return {
       thumbnailUrl: firstVideo.thumbnail_url,
       videoCount: videos.length,
+      playableCount: playableVideos.length,
+      blockedCount,
       totalDuration,
-      firstVideoId: firstVideo.id,
       progress, // 0-100
     };
   }, [videosData]);
@@ -64,9 +72,9 @@ function SessionBox({
     return <div className="stu-skel video-card-skeleton" aria-label={`${sessionTitle} 불러오는 중`} />;
   }
 
-  if (!sessionData) {
+  if (!sessionData || sessionData.playableCount === 0) {
     return (
-      <div className="video-card video-card--disabled">
+      <div className={`video-card video-card--disabled${sessionData?.blockedCount ? " video-card--blocked" : ""}`}>
         <div className="video-thumb video-thumb--placeholder">
           <span className="video-play-orb" aria-hidden="true">
             <IconPlay className="video-play-orb__icon" />
@@ -76,7 +84,10 @@ function SessionBox({
           <div className="video-card__kicker">{isPublic ? "공개 강의" : `${order}차시`}</div>
           <div className="video-card__title">{sessionTitle}</div>
           <div className="video-card__meta">
-            <span className="video-card__meta-item">아직 재생 가능한 항목이 없습니다</span>
+            <span className="video-card__meta-item">시청 가능한 항목이 없습니다</span>
+            {sessionData?.videoCount ? (
+              <span className="video-card__meta-item">영상 {sessionData.videoCount}개</span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -127,11 +138,16 @@ function SessionBox({
         <div className="video-card__kicker">{isPublic ? "공개 강의" : `${order}차시`}</div>
         <div className="video-card__title">{sessionTitle}</div>
         <div className="video-card__meta">
-          <span className="video-card__meta-item">영상 {sessionData.videoCount}개</span>
+          <span className="video-card__meta-item">
+            시청 가능 {sessionData.playableCount}/{sessionData.videoCount}개
+          </span>
           {sessionData.totalDuration > 0 && (
             <span className="video-card__meta-item">{formatDuration(sessionData.totalDuration)}</span>
           )}
           <span className="video-card__meta-item">{progressLabel}</span>
+          {sessionData.blockedCount > 0 && (
+            <span className="video-card__meta-item">제한 {sessionData.blockedCount}개</span>
+          )}
         </div>
         <div className="video-card__cta">
           <span>차시 보기</span>

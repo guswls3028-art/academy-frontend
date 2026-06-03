@@ -27,7 +27,10 @@ export type TeacherVideoStatsStudent = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   progress?: number | null;
+  completed?: boolean | null;
   watched?: boolean | null;
+  access_mode?: string | null;
+  effective_rule?: string | null;
 };
 
 export type TeacherVideoStats = {

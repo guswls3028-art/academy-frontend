@@ -17,6 +17,13 @@ import { safeParseInt, formatClock } from "../playback/player/design/utils";
 import { timeAgo, formatViewCount } from "../utils/timeAgo";
 import VideoCommentSection from "../components/VideoCommentSection";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
+import {
+  canPlayStudentVideo,
+  isStudentVideoBlocked,
+  isStudentVideoComplete,
+  studentVideoProgressPercent,
+  studentVideoUnavailableLabel,
+} from "../utils/videoAccess";
 
 /* ─── localStorage 기반 이어보기 ─── */
 function getStoredPosition(videoId: number | null): number {
@@ -242,10 +249,8 @@ export default function VideoPlayerPage() {
     if (!sessionVideosData?.items?.length || !videoId) return null;
     const videos = sessionVideosData.items;
     const currentIndex = videos.findIndex((v) => v.id === videoId);
-    if (currentIndex >= 0 && currentIndex < videos.length - 1) {
-      return videos[currentIndex + 1];
-    }
-    return null;
+    if (currentIndex < 0) return null;
+    return videos.slice(currentIndex + 1).find(canPlayStudentVideo) ?? null;
   }, [sessionVideosData, videoId]);
 
   const currentIndex = useMemo(() => {
@@ -454,14 +459,14 @@ export default function VideoPlayerPage() {
               <div className="vpp-playlist-list">
                 {items.map((v, i) => {
                   const isActive = v.id === videoId;
-                  const progress = v.progress ?? 0;
+                  const progress = studentVideoProgressPercent(v);
                   const dur = v.duration ?? 0;
-                  return (
-                    <Link
-                      key={v.id}
-                      to={`/student/video/play?video=${v.id}${effectiveEnrollmentId ? `&enrollment=${effectiveEnrollmentId}` : ""}`}
-                      className={`vpp-pl-item${isActive ? " vpp-pl-item--active" : ""}${v.completed ? " vpp-pl-item--done" : ""}`}
-                    >
+                  const isPlayable = canPlayStudentVideo(v);
+                  const isBlocked = isStudentVideoBlocked(v);
+                  const isComplete = isStudentVideoComplete(v);
+                  const itemClass = `vpp-pl-item${isActive ? " vpp-pl-item--active" : ""}${isComplete ? " vpp-pl-item--done" : ""}${!isPlayable ? " vpp-pl-item--disabled" : ""}${isBlocked ? " vpp-pl-item--blocked" : ""}`;
+                  const content = (
+                    <>
                       <span className="vpp-pl-num">
                         {isActive ? <IconPlay className="vpp-icon-play" aria-hidden="true" /> : i + 1}
                       </span>
@@ -485,8 +490,36 @@ export default function VideoPlayerPage() {
                       </div>
                       <div className="vpp-pl-info">
                         <div className="vpp-pl-item-title">{v.title}</div>
-                        {v.completed && <span className="vpp-pl-badge-done">완료</span>}
+                        {isComplete ? (
+                          <span className="vpp-pl-badge-done">완료</span>
+                        ) : !isPlayable ? (
+                          <span className="vpp-pl-badge-blocked">
+                            {studentVideoUnavailableLabel(v.status, v.access_mode)}
+                          </span>
+                        ) : null}
                       </div>
+                    </>
+                  );
+
+                  if (!isPlayable) {
+                    return (
+                      <div
+                        key={v.id}
+                        className={itemClass}
+                        aria-disabled="true"
+                      >
+                        {content}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={v.id}
+                      to={`/student/video/play?video=${v.id}${effectiveEnrollmentId ? `&enrollment=${effectiveEnrollmentId}` : ""}`}
+                      className={itemClass}
+                    >
+                      {content}
                     </Link>
                   );
                 })}

@@ -922,6 +922,19 @@
   background: var(--stu-tint-hover);
 }
 
+.vpp-pl-item--disabled {
+  cursor: default;
+  opacity: 0.66;
+}
+
+.vpp-pl-item--disabled:hover {
+  background: transparent;
+}
+
+.vpp-pl-item--blocked {
+  border-left-color: color-mix(in srgb, var(--stu-danger, #ef4444) 46%, transparent);
+}
+
 .vpp-pl-num {
   flex-shrink: 0;
   width: 28px;
@@ -1039,6 +1052,17 @@
   font-weight: 700;
   background: rgba(74, 222, 128, 0.15);
   color: rgba(74, 222, 128, 0.9);
+}
+
+.vpp-pl-badge-blocked {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.14);
+  color: rgba(248, 113, 113, 0.96);
 }
 
 /* ── 모바일 대응 ── */

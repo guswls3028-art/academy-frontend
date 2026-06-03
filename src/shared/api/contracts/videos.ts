@@ -12,6 +12,9 @@ export type AccessMode = "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
 export type VideoRule = "free" | "once" | "blocked";
 export type VideoSourceType = "s3" | "unknown";
 
+export const VIDEO_COMPLETION_THRESHOLD = 0.9;
+export const VIDEO_COMPLETION_PERCENT = VIDEO_COMPLETION_THRESHOLD * 100;
+
 export interface Video {
   id: number;
   session_id: number;
@@ -91,6 +94,24 @@ export function mapAccessModeToRule(accessMode: AccessMode): VideoRule {
     BLOCKED: "blocked",
   };
   return mapping[accessMode] || "free";
+}
+
+export function normalizeVideoProgressRatio(progress: number | null | undefined): number {
+  const value = Number(progress ?? 0);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const ratio = value > 1 ? value / 100 : value;
+  return Math.min(1, Math.max(0, ratio));
+}
+
+export function videoProgressPercent(progress: number | null | undefined): number {
+  return Math.round(normalizeVideoProgressRatio(progress) * 100);
+}
+
+export function isVideoProgressComplete(
+  progress: number | null | undefined,
+  completed?: boolean | null,
+): boolean {
+  return completed === true || normalizeVideoProgressRatio(progress) >= VIDEO_COMPLETION_THRESHOLD;
 }
 
 type VideoPayload = Partial<Video> & {

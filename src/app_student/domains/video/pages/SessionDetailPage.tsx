@@ -11,13 +11,29 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import {
+  canPlayStudentVideo,
+  isStudentVideoBlocked,
+  isStudentVideoComplete,
+  studentVideoAccessLabel,
+  studentVideoProgressPercent,
+  studentVideoUnavailableLabel,
+} from "../utils/videoAccess";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
 }
 
 // 재생 목록 아이템 컴포넌트
-function VideoStatusBadge({ status }: { status: string }) {
+function VideoStatusBadge({ status, accessMode }: { status: string; accessMode?: StudentVideoListItem["access_mode"] }) {
+  if (accessMode === "BLOCKED") {
+    return (
+      <div className="video-status-overlay">
+        <div className="video-status-label video-status-label--blocked">시청 제한</div>
+      </div>
+    );
+  }
+
   // UPLOADED: 업로드 완료 + 인코딩 대기 — 재생 불가
   // PENDING: 업로드 진행 / PROCESSING: 인코딩 중
   const isEncoding =
@@ -57,9 +73,11 @@ function VideoListItem({
   onPrefetch?: (videoId: number) => void;
 }) {
   const videoStatus = video.status ?? "READY";
-  const isPlayable = videoStatus === "READY";
-  const progress = Math.min(100, Math.max(0, Math.round(video.progress ?? 0)));
+  const isPlayable = canPlayStudentVideo(video);
+  const isBlocked = isStudentVideoBlocked(video);
+  const progress = studentVideoProgressPercent(video);
   const duration = video.duration ?? 0;
+  const isComplete = isStudentVideoComplete(video);
 
   const href = isPlayable
     ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}${sessionId ? `&session=${sessionId}` : ""}`
@@ -67,8 +85,11 @@ function VideoListItem({
 
   const metaItems = [
     duration > 0 ? formatDurationDetailed(duration) : null,
-    video.completed || progress >= 100 ? "완료" : progress > 0 ? `${progress}% 진행` : "새로 시작",
+    isComplete ? "완료" : progress > 0 ? `${progress}% 진행` : "새로 시작",
   ].filter(Boolean);
+  const kicker = isPlayable
+    ? (isCurrent ? "이어보던 항목" : studentVideoAccessLabel(video.access_mode))
+    : studentVideoUnavailableLabel(videoStatus, video.access_mode);
 
   const content = (
     <>
@@ -81,7 +102,7 @@ function VideoListItem({
           </span>
         )}
 
-        {!isPlayable && <VideoStatusBadge status={videoStatus} />}
+        {!isPlayable && <VideoStatusBadge status={videoStatus} accessMode={video.access_mode} />}
 
         {duration > 0 && (
           <span className="video-thumb-badge">{formatDurationDetailed(duration)}</span>
@@ -96,7 +117,7 @@ function VideoListItem({
 
       <div className="video-card__body">
         <div className="video-card__kicker">
-          {isCurrent ? "이어보던 항목" : isPlayable ? "재생 가능" : "준비 중"}
+          {kicker}
         </div>
         <div className="video-card__title">{video.title}</div>
         <div className="video-card__meta">
@@ -116,7 +137,7 @@ function VideoListItem({
 
   if (!isPlayable) {
     return (
-      <div className="video-card video-card--disabled">
+      <div className={`video-card video-card--disabled${isBlocked ? " video-card--blocked" : ""}`}>
         {content}
       </div>
     );
@@ -208,9 +229,10 @@ export default function SessionDetailPage() {
         ? String(res.data.detail[0] ?? "")
         : null;
 
-  const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
-  const completedCount = videos.filter((v) => v.completed || (v.progress ?? 0) >= 100).length;
-  const progressLabel = videos.length > 0 ? `${completedCount}/${videos.length} 완료` : "준비 중";
+  const playableVideos = videos.filter(canPlayStudentVideo);
+  const totalDuration = playableVideos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
+  const completedCount = playableVideos.filter(isStudentVideoComplete).length;
+  const progressLabel = playableVideos.length > 0 ? `${completedCount}/${playableVideos.length} 완료` : "시청 가능한 항목 없음";
   const sessionTitle = routeState.sessionTitle || "재생 목록";
   const courseTitle = routeState.courseTitle || "영상 학습";
 
@@ -286,6 +308,9 @@ export default function SessionDetailPage() {
           </div>
           <div className="video-hero__stats">
             <span className="video-stat-pill">영상 {videos.length}개</span>
+            {playableVideos.length !== videos.length && (
+              <span className="video-stat-pill">시청 가능 {playableVideos.length}개</span>
+            )}
             {totalDuration > 0 && <span className="video-stat-pill">{formatDuration(totalDuration)}</span>}
             <span className="video-stat-pill">{progressLabel}</span>
           </div>
