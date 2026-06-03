@@ -12,6 +12,11 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import {
+  VIDEO_COMPLETION_PERCENT,
+  isVideoProgressComplete,
+  normalizeVideoProgressRatio,
+} from "@/shared/api/contracts/videos";
 
 import { styles } from "./VideoDetail.styles";
 
@@ -158,10 +163,10 @@ export default function VideoDetailPage() {
   const video = data.video;
   const students = data.students ?? [];
   const total = students.length;
-  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
-  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
+  const completed100 = students.filter((s) => normalizeVideoProgressRatio(s.progress) >= 1).length;
+  const progressSum = students.reduce((a, s) => a + normalizeVideoProgressRatio(s.progress), 0);
   const avgProgress = total > 0 ? progressSum / total : 0;
-  const completed90 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 0.9).length;
+  const completed90 = students.filter((s) => isVideoProgressComplete(s.progress, s.completed)).length;
 
   const openModal = (tab: TabKey) => {
     setPermissionTab(tab);
@@ -346,7 +351,7 @@ export default function VideoDetailPage() {
               </span>
               <span className="video-detail-stats-dot">·</span>
               <span>
-                90% 이상{" "}
+                {VIDEO_COMPLETION_PERCENT}% 이상{" "}
                 <strong className="video-detail-stats-value">
                   {completed90}명
                 </strong>
