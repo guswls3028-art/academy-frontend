@@ -2,6 +2,11 @@
 
 import { FiSettings, FiBarChart2, FiClock } from "react-icons/fi";
 import { KPI, Button } from "@/shared/ui/ds";
+import {
+  VIDEO_COMPLETION_PERCENT,
+  isVideoProgressComplete,
+  normalizeVideoProgressRatio,
+} from "@/shared/api/contracts/videos";
 import StudentWatchPanel from "./StudentWatchPanel";
 import type { StudentWatchRow } from "./StudentWatchPanel";
 
@@ -27,8 +32,8 @@ export default function VideoStudentsSection({
   onSelectPreviewStudent,
 }: Props) {
   const total = students.length;
-  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
-  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
+  const completed = students.filter((s) => isVideoProgressComplete(s.progress, s.completed)).length;
+  const progressSum = students.reduce((a, s) => a + normalizeVideoProgressRatio(s.progress), 0);
   const avgProgress = total > 0 ? progressSum / total : 0;
 
   return (
@@ -37,7 +42,7 @@ export default function VideoStudentsSection({
       <div className="grid grid-cols-3 gap-3">
         <KPI label="총 학생" value={total > 0 ? `${total}명` : "—"} />
         <KPI label="평균 진도율" value={percent(avgProgress)} />
-        <KPI label="100% 완료" value={total > 0 ? `${completed100}명` : "—"} />
+        <KPI label={`${VIDEO_COMPLETION_PERCENT}% 완료`} value={total > 0 ? `${completed}명` : "—"} />
       </div>
 
       <StudentWatchPanel

@@ -6,6 +6,7 @@ import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge"
 import { Badge, Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { isVideoProgressComplete } from "@/shared/api/contracts/videos";
 import type { AccessMode } from "@admin/domains/videos/types/access-mode";
 import { ACCESS_MODE_LABELS, RULE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
 import type { PermissionStudent } from "../permission.types";
@@ -123,14 +124,17 @@ export default function PermissionSidePanel({
                 </span>
               </div>
             ) : (
-              selectedStudents.map((s, idx) => (
-                <div
-                  key={s.enrollment}
-                  className={[
-                    "permission-right-row",
-                    idx % 2 === 1 && "permission-right-row-alt",
-                  ].filter(Boolean).join(" ")}
-                >
+              selectedStudents.map((s, idx) => {
+                const completed = isVideoProgressComplete(s.progress, s.completed);
+
+                return (
+                  <div
+                    key={s.enrollment}
+                    className={[
+                      "permission-right-row",
+                      idx % 2 === 1 && "permission-right-row-alt",
+                    ].filter(Boolean).join(" ")}
+                  >
                   {/* 출석 */}
                   <div className="col-span-2 flex justify-center">
                     <AttendanceStatusBadge
@@ -153,9 +157,9 @@ export default function PermissionSidePanel({
                   <div className="col-span-1 flex justify-center">
                     <Badge
                       variant="solid"
-                      tone={s.completed ? "success" : "neutral"}
+                      tone={completed ? "success" : "neutral"}
                     >
-                      {s.completed ? "완료" : "미완"}
+                      {completed ? "완료" : "미완"}
                     </Badge>
                   </div>
 
@@ -197,7 +201,8 @@ export default function PermissionSidePanel({
                     </button>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

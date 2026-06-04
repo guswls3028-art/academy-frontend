@@ -8,6 +8,10 @@ import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { VideoStatsStudent } from "@admin/domains/videos/api/videos.api";
 import {
+  isVideoProgressComplete,
+  videoProgressPercent,
+} from "@/shared/api/contracts/videos";
+import {
   getAccessShortLabel,
   getAccessTone,
 } from "@admin/domains/videos/components/features/video-permission/permission.constants";
@@ -68,7 +72,8 @@ export default function StudentWatchPanel({
       {/* LIST */}
       <div className="flex flex-col gap-2">
         {paged.map((s) => {
-          const progress = Math.round((Number(s.progress ?? 0) || 0) * 100);
+          const progress = videoProgressPercent(s.progress);
+          const completed = isVideoProgressComplete(s.progress, s.completed);
           const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
           const clickable = selectable && s.enrollment;
           const selected = selectedEnrollmentId === s.enrollment;
@@ -135,7 +140,7 @@ export default function StudentWatchPanel({
                     // eslint-disable-next-line no-restricted-syntax -- progress width/color is data-driven per student row.
                     style={{
                       width: `${barWidth}%`,
-                      background: progress >= 100
+                      background: completed
                         ? "var(--color-success)"
                         : "var(--color-brand-primary)",
                     }}

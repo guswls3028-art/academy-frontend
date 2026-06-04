@@ -4,6 +4,7 @@ import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge } from "@/shared/ui/ds";
+import { isVideoProgressComplete } from "@/shared/api/contracts/videos";
 import { getAccessLabel, getAccessTone } from "../permission.constants";
 import type { PermissionStudent } from "../permission.types";
 
@@ -18,6 +19,8 @@ export default function PermissionRow({
   onToggle: () => void;
   isAlt?: boolean;
 }) {
+  const completed = isVideoProgressComplete(student.progress, student.completed);
+
   return (
     <div
       className={[
@@ -77,9 +80,9 @@ export default function PermissionRow({
       <div className="w-[80px] flex justify-center">
         <Badge
           variant="solid"
-          tone={student.completed ? "success" : "neutral"}
+          tone={completed ? "success" : "neutral"}
         >
-          {student.completed ? "완료" : "미완"}
+          {completed ? "완료" : "미완"}
         </Badge>
       </div>
 
