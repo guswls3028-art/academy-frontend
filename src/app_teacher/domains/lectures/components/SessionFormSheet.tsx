@@ -42,7 +42,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
       if (isEdit) {
         return updateSession(editData.id, { title, date: date || undefined, order: order ? Number(order) : undefined });
       }
-      return createSession(lectureId, title, date || null, order ? Number(order) : null);
+      return createSession(lectureId, title, date || undefined, order ? Number(order) : undefined);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lecture-sessions"] });

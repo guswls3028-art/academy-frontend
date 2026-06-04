@@ -129,7 +129,13 @@ export async function deleteLecture(lectureId: number) {
 
 /* ─── Session CRUD ─── */
 export async function createSession(lectureId: number, title: string, date?: string | null, order?: number | null) {
-  const res = await api.post("/lectures/sessions/", { lecture: lectureId, title, date, order });
+  const payload: { lecture: number; title: string; date?: string | null; order?: number } = {
+    lecture: lectureId,
+    title,
+  };
+  if (date !== undefined) payload.date = date;
+  if (order != null) payload.order = order;
+  const res = await api.post("/lectures/sessions/", payload);
   return res.data;
 }
 

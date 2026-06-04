@@ -87,7 +87,7 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
     if (sectionId == null) return sortedSessions;
     return sortedSessions.filter((s) => (s as { section?: number | null }).section === sectionId);
   }, [sortedSessions, sectionId]);
-  const nextOrder = sectionSessions.length + 1;
+  const nextOrder = Math.max(0, ...sectionSessions.map((s) => s.order ?? 0)) + 1;
   // 정규 차시 기본 날짜: 강의 생성 모달 start_date 연결
   // — 기존 정규 차시 없음 → 강의 시작일(lecture.start_date) / 있음 → 마지막 정규 차시 날짜 + 7일
   const lastRegularSessionWithDate = useMemo(() => {
@@ -141,7 +141,7 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
 
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
-    if (sortedSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
+    if (sectionSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";
@@ -163,7 +163,7 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
 
     setBusy(true);
     try {
-      await createSession(lectureId, title, effectiveDate || undefined, nextOrder, sectionId);
+      await createSession(lectureId, title, effectiveDate || undefined, undefined, sectionId);
       feedback.success("차시가 추가되었습니다.");
       onClose();
     } catch (e: unknown) {
