@@ -24,7 +24,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 
 const PAGE_SIZE = 100;
 
@@ -307,7 +308,7 @@ export default function SessionEnrollModal({
   });
 
   const sortedSessions = useMemo(
-    () => [...sessions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    () => sortSessionsByDisplayOrder(sessions),
     [sessions]
   );
   const prevSession = useMemo(() => {
@@ -315,7 +316,7 @@ export default function SessionEnrollModal({
     if (idx <= 0) return null;
     // 보강 세션은 건너뛰고 가장 가까운 정규 차시를 찾음
     for (let i = idx - 1; i >= 0; i--) {
-      if (!(sortedSessions[i] as { title?: string }).title?.includes?.("보강")) return sortedSessions[i];
+      if (!isSupplementSession(sortedSessions[i])) return sortedSessions[i];
     }
     return sortedSessions[idx - 1]; // 전부 보강이면 직전 세션 사용
   }, [sortedSessions, sessionId]);
@@ -789,7 +790,7 @@ export default function SessionEnrollModal({
                             </div>
                             <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)] leading-snug">
                               {prevSession ? (
-                                <>직전 차시(<strong>{formatSessionOrderLabel(prevSession.order, prevSession.title)}</strong>) 수강생을 선택 목록에 추가합니다. 합류·퇴원자는 아래에서 편집 후 '추가'로 등록.</>
+                                <>직전 차시(<strong>{formatSessionBlockLabel(prevSession)}</strong>) 수강생을 선택 목록에 추가합니다. 합류·퇴원자는 아래에서 편집 후 '추가'로 등록.</>
                               ) : (
                                 <>이 강의의 활성 수강생 전원을 선택 목록에 추가합니다. 1차시·새 강의 시작에 추천. 아래에서 편집 후 '추가'로 등록.</>
                               )}

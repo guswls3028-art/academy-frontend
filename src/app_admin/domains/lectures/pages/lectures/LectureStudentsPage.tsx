@@ -21,7 +21,7 @@ import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTab
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 
 const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
@@ -333,9 +333,9 @@ export default function LectureStudentsPage() {
                           onWidthChange={setColumnWidth}
                           className="text-center"
                           style={{ paddingLeft: 0, paddingRight: 0 }}
-                          title={`${formatSessionOrderLabel(s.order, s.title)}${s.date ? ` (${s.date})` : ""}`}
+                          title={`${formatSessionBlockLabel(s)}${s.date ? ` (${s.date})` : ""}`}
                         >
-                          {s.order ?? "-"}차
+                          {formatSessionBlockLabel(s).replace("차시", "차")}
                         </ResizableTh>
                       ))}
                     </tr>

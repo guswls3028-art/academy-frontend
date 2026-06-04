@@ -3,7 +3,7 @@
 import { FolderOpen } from "lucide-react";
 import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import type { VideoFolder } from "../api/videos.api";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import styles from "./VideoExplorerTree.module.css";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
@@ -22,7 +22,7 @@ type Props = {
 };
 
 function formatSessionTitle(s: Session): string {
-  const label = formatSessionOrderLabel(s.order, s.title);
+  const label = formatSessionBlockLabel(s);
   const date = s.date ? new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "";
   return date ? `${label} ${date}` : label;
 }

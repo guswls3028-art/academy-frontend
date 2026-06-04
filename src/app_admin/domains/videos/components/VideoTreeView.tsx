@@ -34,10 +34,11 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import {
   fetchAllSessions,
   fetchLectures,
-  sortSessionsByDateDesc,
+  sortSessionsByDisplayOrder,
   type Lecture,
   type Session,
 } from "@/shared/api/contracts/sessions";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";
@@ -135,7 +136,7 @@ export default function VideoTreeView() {
     const filteredLectures = lectures.filter((lec) => !lec.is_system);
     return filteredLectures.map((lec) => {
       const sessions = sessionsByLecture.get(lec.id) ?? [];
-      return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
+      return { ...lec, sessions: sortSessionsByDisplayOrder(sessions) };
     });
   }, [lectures, allSessions]);
 
@@ -237,7 +238,7 @@ export default function VideoTreeView() {
         id: String(selectedSession.lecture.id),
         name: selectedSession.lecture.title || selectedSession.lecture.name || "강의",
       });
-      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
+      path.push({ id: String(selectedSession.session.id), name: formatSessionBlockLabel(selectedSession.session) });
     }
     return path;
   }, [publicFolders, selectedFolderId, selectedPublicFolderId, selectedSession]);
@@ -699,7 +700,7 @@ export default function VideoTreeView() {
           isPublicSelection
             ? "전체공개영상"
             : selectedSession
-              ? `${selectedSession.session.order}차시`
+              ? formatSessionBlockLabel(selectedSession.session)
               : undefined
         }
         onSaved={() => {

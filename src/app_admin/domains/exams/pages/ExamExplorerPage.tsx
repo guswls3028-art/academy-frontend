@@ -11,7 +11,8 @@ import { FilePlus, ClipboardList, FileCheck } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
-import { fetchAllSessions, fetchLectures, sortSessionsByDateDesc, type Lecture, type Session } from "@/shared/api/contracts/sessions";
+import { fetchAllSessions, fetchLectures, sortSessionsByDisplayOrder, type Lecture, type Session } from "@/shared/api/contracts/sessions";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { fetchExams } from "../api/exams.api";
 import { buildAssessmentSearch } from "@/shared/lib/assessmentQueryParams";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -52,7 +53,7 @@ export default function ExamExplorerPage() {
     }
     return lectures.map((lec) => {
       const sessions = sessionsByLecture.get(lec.id) ?? [];
-      return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
+      return { ...lec, sessions: sortSessionsByDisplayOrder(sessions) };
     });
   }, [lectures, allSessions]);
 
@@ -90,7 +91,7 @@ export default function ExamExplorerPage() {
         id: String(selectedSession.lecture.id),
         name: selectedSession.lecture.title || selectedSession.lecture.name || "강의",
       });
-      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
+      path.push({ id: String(selectedSession.session.id), name: formatSessionBlockLabel(selectedSession.session) });
     }
     return path;
   }, [selectedSession]);

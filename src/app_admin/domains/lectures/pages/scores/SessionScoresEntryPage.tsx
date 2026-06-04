@@ -37,7 +37,7 @@ import api from "@/shared/api/axios";
 import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintPreviewModal";
 import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import SessionOmrUploadAction from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
@@ -120,7 +120,7 @@ export default function SessionScoresEntryPage({
   }, [attendanceForPdf]);
 
   const sessionTitle = sessionData
-    ? formatSessionOrderLabel(sessionData.order, sessionData.title)
+    ? formatSessionBlockLabel(sessionData)
     : `차시 #${numericSessionId}`;
   const lectureTitle = lectureData?.title || "강의";
 

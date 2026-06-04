@@ -17,10 +17,19 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { createSession } from "../api/sessions";
 import { SessionBlockView } from "@/shared/ui/session-block";
+import {
+  formatSessionLabel,
+  getNextRegularOrder,
+  getRegularOrder,
+  isSupplementSession,
+  sortSessionsByDisplayOrder,
+  type SessionOrderLike,
+} from "@/shared/product/sessions/sessionOrdering";
 
-type SessionType = "n+1" | "supplement";
+type SessionCreateKind = "regular" | "supplement";
 type DateMode = "default" | "custom";
 type TimeMode = "default" | "custom";
+type RegularMode = "auto" | "manual";
 
 interface Props {
   lectureId: number;
@@ -53,7 +62,10 @@ function nextWeekDate(lastDateStr: string | null | undefined): string {
 
 export default function SessionCreateModal({ lectureId, sectionId, sectionLabel, onClose }: Props) {
   const [busy, setBusy] = useState(false);
-  const [sessionType, setSessionType] = useState<SessionType | null>(null);
+  const [sessionType, setSessionType] = useState<SessionCreateKind | null>(null);
+  const [regularMode, setRegularMode] = useState<RegularMode>("auto");
+  const [regularOrderInput, setRegularOrderInput] = useState("");
+  const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
   const [date, setDate] = useState("");
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
@@ -79,7 +91,7 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   }, [sessionsData]);
 
   const sortedSessions = useMemo(
-    () => (sessionsList as { order?: number; date?: string | null; section?: number | null }[]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    () => sortSessionsByDisplayOrder(sessionsList as SessionOrderLike[]),
     [sessionsList]
   );
   // section_mode: 해당 반 내 차시만 카운트
@@ -87,15 +99,22 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
     if (sectionId == null) return sortedSessions;
     return sortedSessions.filter((s) => (s as { section?: number | null }).section === sectionId);
   }, [sortedSessions, sectionId]);
-  const nextOrder = Math.max(0, ...sectionSessions.map((s) => s.order ?? 0)) + 1;
+  const regularSessions = useMemo(
+    () => sectionSessions.filter((s) => !isSupplementSession(s)),
+    [sectionSessions]
+  );
+  const nextRegularOrder = getNextRegularOrder(sectionSessions);
+  const manualRegularOrder = Number(regularOrderInput);
+  const effectiveRegularOrder =
+    regularMode === "manual" && Number.isFinite(manualRegularOrder) && manualRegularOrder > 0
+      ? manualRegularOrder
+      : nextRegularOrder;
   // 정규 차시 기본 날짜: 강의 생성 모달 start_date 연결
   // — 기존 정규 차시 없음 → 강의 시작일(lecture.start_date) / 있음 → 마지막 정규 차시 날짜 + 7일
   const lastRegularSessionWithDate = useMemo(() => {
-    const regular = (sortedSessions as { title?: string; date?: string | null }[]).filter(
-      (s) => s.date && !s.title?.includes?.("보강")
-    );
+    const regular = regularSessions.filter((s) => s.date);
     return regular.slice(-1)[0];
-  }, [sortedSessions]);
+  }, [regularSessions]);
   const defaultDateFromLecture = useMemo(() => {
     const lectureStart = (lecture as { start_date?: string | null })?.start_date ?? null;
     if (lastRegularSessionWithDate?.date) return nextWeekDate(lastRegularSessionWithDate.date);
@@ -107,19 +126,25 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   const lectureTimeExtract = useMemo(() => extractTimeFromLectureTime(lecture?.lecture_time), [lecture?.lecture_time]);
 
   const defaultTitle =
-    sessionType === "n+1" ? `${nextOrder}차시` : sessionType === "supplement" ? "보강" : "";
+    sessionType === "regular" ? `${effectiveRegularOrder}차시` : sessionType === "supplement" ? "보강" : "";
 
   // 보강 선택 시 날짜·시간 모두 직접선택만 가능
   useEffect(() => {
     if (sessionType === "supplement") {
       setDateMode("custom");
       setTimeMode("custom");
-    } else if (sessionType === "n+1") {
+    } else if (sessionType === "regular") {
       // N차시 선택 시 항상 기본 선택값으로 초기화 (보강→2차시 전환 시 복원)
       setDateMode("default");
       setTimeMode("default");
     }
   }, [sessionType]);
+
+  useEffect(() => {
+    if (sessionType === "regular" && regularMode === "auto") {
+      setRegularOrderInput(String(nextRegularOrder));
+    }
+  }, [sessionType, regularMode, nextRegularOrder]);
 
   // 직접선택으로 전환 시 시간이 비어 있으면 강의 기본 시간을 초기값으로 설정 (버튼 활성화용)
   useEffect(() => {
@@ -128,9 +153,9 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
     }
   }, [timeMode, sessionType, lectureTimeExtract]);
 
-  // N+1 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
+  // 정규 차시 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
   useEffect(() => {
-    if (sessionType === "n+1" && dateMode === "default" && defaultDateFromLecture) {
+    if (sessionType === "regular" && dateMode === "default" && defaultDateFromLecture) {
       setDate(defaultDateFromLecture);
     }
   }, [sessionType, dateMode, defaultDateFromLecture]);
@@ -142,6 +167,14 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
     if (sectionSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
+    if (sessionType === "regular" && regularMode === "manual") {
+      if (!Number.isFinite(manualRegularOrder) || manualRegularOrder <= 0) {
+        return "차시 번호를 입력하세요.";
+      }
+      if (regularSessions.some((s) => getRegularOrder(s) === manualRegularOrder)) {
+        return `이미 ${manualRegularOrder}차시가 있습니다.`;
+      }
+    }
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";
@@ -163,7 +196,22 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
 
     setBusy(true);
     try {
-      await createSession(lectureId, title, effectiveDate || undefined, undefined, sectionId);
+      await createSession(
+        lectureId,
+        title,
+        effectiveDate || undefined,
+        undefined,
+        sectionId,
+        sessionType === "regular"
+          ? {
+              sessionType: "REGULAR",
+              regularOrder: regularMode === "manual" ? effectiveRegularOrder : undefined,
+            }
+          : {
+              sessionType: "SUPPLEMENT",
+              insertAfterOrder: supplementAfterOrder,
+            },
+      );
       feedback.success("차시가 추가되었습니다.");
       onClose();
     } catch (e: unknown) {
@@ -174,8 +222,8 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   }
 
   const isSupplement = sessionType === "supplement";
-  const showDefaultDateOption = sessionType === "n+1";
-  const showDefaultTimeOption = sessionType === "n+1";
+  const showDefaultDateOption = sessionType === "regular";
+  const showDefaultTimeOption = sessionType === "regular";
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!busy ? handleSubmit : undefined}>
@@ -193,12 +241,12 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
               <SessionBlockView
                 variant="n1"
                 compact={false}
-                selected={sessionType === "n+1"}
+                selected={sessionType === "regular"}
                 showCheck
-                title={`${nextOrder}차시`}
+                title={`${nextRegularOrder}차시`}
                 desc="정규 차시 추가 · 기본 날짜/시간 사용"
-                onClick={() => setSessionType("n+1")}
-                ariaPressed={sessionType === "n+1"}
+                onClick={() => setSessionType("regular")}
+                ariaPressed={sessionType === "regular"}
               />
               <SessionBlockView
                 variant="supplement"
@@ -212,6 +260,58 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
               />
             </div>
           </div>
+
+          {sessionType === "regular" && (
+            <div>
+              <div className="modal-section-label mb-3">차시 번호</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  intent={regularMode === "auto" ? "primary" : "secondary"}
+                  onClick={() => setRegularMode("auto")}
+                  disabled={busy}
+                >
+                  자동 {nextRegularOrder}차시
+                </Button>
+                <Button
+                  intent={regularMode === "manual" ? "primary" : "secondary"}
+                  onClick={() => setRegularMode("manual")}
+                  disabled={busy}
+                >
+                  직접 지정
+                </Button>
+              </div>
+              {regularMode === "manual" && (
+                <input
+                  type="number"
+                  min={1}
+                  value={regularOrderInput}
+                  onChange={(e) => setRegularOrderInput(e.target.value)}
+                  className="ds-input mt-3"
+                  placeholder={`${nextRegularOrder}차시`}
+                  disabled={busy}
+                />
+              )}
+            </div>
+          )}
+
+          {sessionType === "supplement" && regularSessions.length > 0 && (
+            <div>
+              <div className="modal-section-label mb-3">보강 위치</div>
+              <select
+                className="ds-input"
+                value={supplementAfterOrder ?? ""}
+                onChange={(e) => setSupplementAfterOrder(e.target.value ? Number(e.target.value) : null)}
+                disabled={busy}
+              >
+                <option value="">마지막에 추가</option>
+                {regularSessions.map((s) => (
+                  <option key={s.id ?? s.order} value={s.order ?? ""}>
+                    {formatSessionLabel(s)} 뒤
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {sessionType && (
             <>

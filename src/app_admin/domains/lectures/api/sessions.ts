@@ -1,5 +1,13 @@
 // PATH: src/app_admin/domains/lectures/api/sessions.ts
 import api from "@/shared/api/axios";
+import {
+  sortSessionsByDateDesc,
+  sortSessionsByDisplayOrder,
+  type SessionType,
+} from "@/shared/product/sessions/sessionOrdering";
+
+export { sortSessionsByDateDesc, sortSessionsByDisplayOrder };
+export type { SessionType };
 
 // ----------------------------------------
 // TYPES
@@ -29,6 +37,9 @@ export interface Session {
   section_label?: string | null;
   section_type?: string | null;
   order: number;
+  session_type?: SessionType | null;
+  regular_order?: number | null;
+  display_label?: string | null;
   title: string;
   date?: string | null;
   created_at: string;
@@ -110,20 +121,6 @@ export async function fetchSession(sessionId: number): Promise<Session> {
 }
 
 // ----------------------------------------
-// SESSION 목록 정렬 — 블록/테이블 표시용 SSOT
-// ----------------------------------------
-/** 차시 블록 배치: 블록 내부 날짜 기준 내림차순(최신→과거). 정규·보강 섞어서. 날짜 없으면 맨 뒤 */
-export function sortSessionsByDateDesc<T extends { date?: string | null }>(sessions: T[]): T[] {
-  return [...sessions].sort((a, b) => {
-    const da = a.date || "";
-    const db = b.date || "";
-    if (!da) return 1;
-    if (!db) return -1;
-    return db.localeCompare(da);
-  });
-}
-
-// ----------------------------------------
 // SESSION 목록 가져오기 (lecture 기준)
 // ----------------------------------------
 function unpackList<T>(data: unknown): T[] {
@@ -149,17 +146,27 @@ export async function fetchSessions(lectureId: number): Promise<Session[]> {
 // ----------------------------------------
 // SESSION 생성
 // ----------------------------------------
+export interface CreateSessionOptions {
+  sessionType?: SessionType;
+  regularOrder?: number | null;
+  insertAfterOrder?: number | null;
+}
+
 export async function createSession(
   lectureId: number,
   title: string,
   date?: string | null,
   order?: number | null,
   sectionId?: number | null,
+  options: CreateSessionOptions = {},
 ): Promise<Session> {
   const payload: Record<string, unknown> = { lecture: lectureId, title };
   if (date !== undefined) payload.date = date;
-  if (order !== undefined) payload.order = order;
+  if (order != null) payload.order = order;
   if (sectionId != null) payload.section = sectionId;
+  if (options.sessionType) payload.session_type = options.sessionType;
+  if (options.regularOrder != null) payload.regular_order = options.regularOrder;
+  if (options.insertAfterOrder != null) payload.insert_after_order = options.insertAfterOrder;
 
   const res = await api.post(`/lectures/sessions/`, payload);
   return res.data;
@@ -170,7 +177,7 @@ export async function createSession(
 // ----------------------------------------
 export async function updateSession(
   sessionId: number,
-  payload: Partial<Pick<Session, "title" | "date" | "order" | "section">>
+  payload: Partial<Pick<Session, "title" | "date" | "order" | "section" | "session_type" | "regular_order">>
 ): Promise<Session> {
   const res = await api.patch(`/lectures/sessions/${sessionId}/`, payload);
   return res.data;

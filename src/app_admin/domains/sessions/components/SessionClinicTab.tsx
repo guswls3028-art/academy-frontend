@@ -117,17 +117,18 @@ export default function SessionClinicTab({
     [allSections],
   );
 
-  const currentOrder = currentSession?.order ?? 0;
+  const currentRegularOrder = currentSession?.regular_order ?? currentSession?.order ?? 0;
 
   const clinicSessionMap = useMemo(() => {
     const map = new Map<number, LectureSession>();
-    if (!currentOrder) return map;
+    if (!currentRegularOrder) return map;
     const ids = new Set(clinicSections.map((s) => s.id));
     for (const s of allSessions) {
-      if (s.section && ids.has(s.section) && s.order === currentOrder) map.set(s.section, s);
+      const regularOrder = s.regular_order ?? s.order;
+      if (s.section && ids.has(s.section) && regularOrder === currentRegularOrder) map.set(s.section, s);
     }
     return map;
-  }, [allSessions, clinicSections, currentOrder]);
+  }, [allSessions, clinicSections, currentRegularOrder]);
 
   const enrollClinicMap = useMemo(() => {
     const map = new Map<number, number | null>();

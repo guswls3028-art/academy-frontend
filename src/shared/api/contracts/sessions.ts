@@ -1,4 +1,12 @@
 import api from "@/shared/api/axios";
+import {
+  sortSessionsByDateDesc,
+  sortSessionsByDisplayOrder,
+  type SessionType,
+} from "@/shared/product/sessions/sessionOrdering";
+
+export { sortSessionsByDateDesc, sortSessionsByDisplayOrder };
+export type { SessionType };
 
 export interface Lecture {
   id: number;
@@ -25,6 +33,9 @@ export interface Session {
   section_label?: string | null;
   section_type?: string | null;
   order: number;
+  session_type?: SessionType | null;
+  regular_order?: number | null;
+  display_label?: string | null;
   title: string;
   date?: string | null;
   created_at: string;
@@ -63,14 +74,4 @@ export async function fetchSessions(lectureId: number): Promise<Session[]> {
   }
   const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
   return unpackList<Session>(res.data);
-}
-
-export function sortSessionsByDateDesc<T extends { date?: string | null }>(sessions: T[]): T[] {
-  return [...sessions].sort((a, b) => {
-    const da = a.date || "";
-    const db = b.date || "";
-    if (!da) return 1;
-    if (!db) return -1;
-    return db.localeCompare(da);
-  });
 }

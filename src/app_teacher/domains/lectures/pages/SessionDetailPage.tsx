@@ -19,6 +19,7 @@ import {
 import { fetchVideos } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
 import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
+import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
@@ -90,7 +91,7 @@ export default function SessionDetailPage() {
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
 
-  const title = session?.title || `${session?.order ?? ""}차시`;
+  const title = session ? formatSessionLabel(session) : "";
   const sessionLectureInfo: LectureInfo | undefined = session
     ? {
         lectureName: session.lecture_title,

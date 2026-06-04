@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/lectures/api.ts
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
+import { sortSessionsByDisplayOrder, type SessionType } from "@/shared/product/sessions/sessionOrdering";
 
 export {
   downloadAttendanceExcel,
@@ -47,6 +48,19 @@ export type TeacherLectureEnrollment = {
   } | null;
 };
 
+export type TeacherSession = {
+  id: number;
+  lecture: number;
+  order: number;
+  session_type?: SessionType | string | null;
+  regular_order?: number | null;
+  display_label?: string | null;
+  title?: string | null;
+  date?: string | null;
+  section?: number | null;
+  section_label?: string | null;
+};
+
 function extractList<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (!raw || typeof raw !== "object") return [];
@@ -70,12 +84,13 @@ export async function fetchLecture(lectureId: number) {
 }
 
 /** 강의의 세션 목록 */
-export async function fetchLectureSessions(lectureId: number) {
+export async function fetchLectureSessions(lectureId: number): Promise<TeacherSession[]> {
   const res = await api.get("/lectures/sessions/", {
     params: { lecture: lectureId, page_size: 100, ordering: "-date" },
   });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  const list = Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return sortSessionsByDisplayOrder(list as TeacherSession[]);
 }
 
 /** 세션 단건 */
@@ -128,18 +143,25 @@ export async function deleteLecture(lectureId: number) {
 }
 
 /* ─── Session CRUD ─── */
-export async function createSession(lectureId: number, title: string, date?: string | null, order?: number | null) {
-  const payload: { lecture: number; title: string; date?: string | null; order?: number } = {
+export async function createSession(lectureId: number, title: string, date?: string | null, regularOrder?: number | null) {
+  const payload: {
+    lecture: number;
+    title: string;
+    date?: string | null;
+    session_type?: SessionType;
+    regular_order?: number;
+  } = {
     lecture: lectureId,
     title,
+    session_type: "REGULAR",
   };
   if (date !== undefined) payload.date = date;
-  if (order != null) payload.order = order;
+  if (regularOrder != null) payload.regular_order = regularOrder;
   const res = await api.post("/lectures/sessions/", payload);
   return res.data;
 }
 
-export async function updateSession(sessionId: number, payload: { title?: string; date?: string; order?: number }) {
+export async function updateSession(sessionId: number, payload: { title?: string; date?: string; regular_order?: number }) {
   const res = await api.patch(`/lectures/sessions/${sessionId}/`, payload);
   return res.data;
 }

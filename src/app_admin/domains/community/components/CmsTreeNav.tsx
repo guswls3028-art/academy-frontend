@@ -1,11 +1,12 @@
 // PATH: src/app_admin/domains/community/components/CmsTreeNav.tsx
 // Reusable tree navigation for community CMS pages (notices, board, materials)
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { ChevronRight, ClipboardList, Folder, FolderOpen } from "lucide-react";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ICON } from "@/shared/ui/ds";
-import { isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block/session-block.constants";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 
 interface CmsTreeNavProps {
   title: string;
@@ -22,7 +23,13 @@ interface CmsTreeNavProps {
   effectiveLectureId: number | null;
   lectures: Array<{ id: number; title?: string; name?: string; color?: string | null; chip_label?: string | null }>;
   scopeNodes: Array<{ id: number; lecture: number; session: number | null; session_title?: string | null }>;
-  sessionsOfLecture: Array<{ id: number; title: string; order: number }>;
+  sessionsOfLecture: Array<{
+    id: number;
+    title: string;
+    order: number;
+    regular_order?: number | null;
+    session_type?: string | null;
+  }>;
   sessionsLoading: boolean;
   expandedLectureId: number | null;
   onExpandLecture: (lecId: number | null) => void;
@@ -63,6 +70,11 @@ export default function CmsTreeNav({
       onExpandLecture(expandedLectureId === lecId ? null : lecId);
     },
     [expandedLectureId, onExpandLecture]
+  );
+
+  const sortedSessionsOfLecture = useMemo(
+    () => sortSessionsByDisplayOrder(sessionsOfLecture),
+    [sessionsOfLecture]
   );
 
   return (
@@ -162,7 +174,7 @@ export default function CmsTreeNav({
                         불러오는 중…
                       </div>
                     ) : (
-                      sessionsOfLecture.map((s) => {
+                      sortedSessionsOfLecture.map((s) => {
                         const sessionNodeId = scopeNodes.find(
                           (n) => n.lecture === lec.id && n.session === s.id
                         )?.id;
@@ -170,7 +182,7 @@ export default function CmsTreeNav({
                           sessionNodeId != null
                             ? (counts.countByNodeId[sessionNodeId] ?? 0)
                             : 0;
-                        const supplement = isSupplement(s.title);
+                        const supplement = isSupplementSession(s);
                         const isSessionSelected =
                           scope === "session" &&
                           lectureId === lec.id &&
@@ -187,7 +199,7 @@ export default function CmsTreeNav({
                               ·
                             </span>
                             <span className="notice-tree__sub-label">
-                              {formatSessionOrderLabel(s.order, s.title)}
+                              {formatSessionBlockLabel(s)}
                             </span>
                             {sessionCount > 0 && (
                               <span

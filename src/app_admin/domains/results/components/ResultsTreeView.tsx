@@ -13,10 +13,11 @@ import LectureSessionTree from "@admin/domains/exams/components/LectureSessionTr
 import {
   fetchAllSessions,
   fetchLectures,
-  sortSessionsByDateDesc,
+  sortSessionsByDisplayOrder,
   type Lecture,
   type Session,
 } from "@/shared/api/contracts/sessions";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./ResultsExplorer.module.css";
 
@@ -46,7 +47,7 @@ export default function ResultsTreeView() {
     }
     return lectures.map((lec) => {
       const sessions = sessionsByLecture.get(lec.id) ?? [];
-      return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
+      return { ...lec, sessions: sortSessionsByDisplayOrder(sessions) };
     });
   }, [lectures, allSessions]);
 
@@ -79,7 +80,7 @@ export default function ResultsTreeView() {
       });
       path.push({
         id: String(selectedSession.session.id),
-        name: `${selectedSession.session.order}차시`,
+        name: formatSessionBlockLabel(selectedSession.session),
       });
     }
     return path;
@@ -160,7 +161,7 @@ export default function ResultsTreeView() {
                 <span className={styles.itemLabel}>성적 보기</span>
                 <span className={styles.itemMeta}>
                   {selectedSession.lecture.title || selectedSession.lecture.name} ·{" "}
-                  {selectedSession.session.order}차시
+                  {formatSessionBlockLabel(selectedSession.session)}
                 </span>
               </div>
             </div>

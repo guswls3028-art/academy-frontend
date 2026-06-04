@@ -5,7 +5,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
@@ -80,7 +80,7 @@ export default function SessionLayout() {
   const sectionSuffix = sectionLabel
     ? ` (${sectionType ? sectionType + " " : ""}${sectionLabel})`
     : "";
-  const sessionHeading = formatSessionOrderLabel(session.order, session.title) + sectionSuffix;
+  const sessionHeading = formatSessionBlockLabel(session) + sectionSuffix;
   const breadcrumbs = [
     { label: "강의", to: "/admin/lectures" },
     { label: lectureTitle, to: `/admin/lectures/${lectureId}` },

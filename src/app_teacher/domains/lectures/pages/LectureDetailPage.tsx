@@ -17,6 +17,7 @@ import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
 import SectionManageSheet from "../components/SectionManageSheet";
+import { formatSessionLabel, getRegularOrder, isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
 
 type Tab = "sessions" | "students";
 
@@ -188,45 +189,49 @@ export default function LectureDetailPage() {
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : sessions && sessions.length > 0 ? (
           <div className="flex flex-col gap-1.5">
-            {sessions.map((s: any) => (
-              <button
-                key={s.id}
-                onClick={() => navigate(`/teacher/classes/${lectureId}/sessions/${s.id}`)}
-                className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
-                style={{
-                  padding: "var(--tc-space-3) var(--tc-space-4)",
-                  background: "var(--tc-surface)",
-                  border: "1px solid var(--tc-border)",
-                }}
-              >
-                <span
-                  className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+            {sessions.map((s: any) => {
+              const regularOrder = getRegularOrder(s);
+              const badge = isSupplementSession(s) ? "보" : regularOrder ?? s.order;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => navigate(`/teacher/classes/${lectureId}/sessions/${s.id}`)}
+                  className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
                   style={{
-                    background: "var(--tc-primary-bg)",
-                    color: "var(--tc-primary)",
+                    padding: "var(--tc-space-3) var(--tc-space-4)",
+                    background: "var(--tc-surface)",
+                    border: "1px solid var(--tc-border)",
                   }}
                 >
-                  {s.order}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                    {s.title || `${s.order}차시`}
-                  </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                    {s.date || "날짜 미정"}
-                    {s.section_label ? ` · ${s.section_label}` : ""}
-                  </div>
-                </div>
-                {/* 편집 1개만 inline 노출. 삭제는 편집 시트 내부에서 처리 (손가락 미스 → 데이터 손실 방지) */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
-                    className="flex p-2 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
-                    <Pencil size={ICON.md} />
+                  <span
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+                    style={{
+                      background: "var(--tc-primary-bg)",
+                      color: "var(--tc-primary)",
+                    }}
+                  >
+                    {badge}
                   </span>
-                  <ChevronRight />
-                </div>
-              </button>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                      {formatSessionLabel(s)}
+                    </div>
+                    <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                      {s.date || "날짜 미정"}
+                      {s.section_label ? ` · ${s.section_label}` : ""}
+                    </div>
+                  </div>
+                  {/* 편집 1개만 inline 노출. 삭제는 편집 시트 내부에서 처리 (손가락 미스 → 데이터 손실 방지) */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
+                      className="flex p-2 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
+                      <Pencil size={ICON.md} />
+                    </span>
+                    <ChevronRight />
+                  </div>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <EmptyState scope="panel" tone="empty" title="차시가 없습니다" />

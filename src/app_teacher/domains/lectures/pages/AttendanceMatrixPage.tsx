@@ -11,6 +11,7 @@ import type {
   AttendanceMatrixSession,
   AttendanceMatrixStudent,
 } from "@/shared/api/contracts/attendance";
+import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
 import styles from "./AttendanceMatrixPage.module.css";
 
 export default function AttendanceMatrixPage() {
@@ -73,7 +74,7 @@ export default function AttendanceMatrixPage() {
             <div className={`${styles.mutedText} w-20 shrink-0 text-[10px] font-bold`}>학생</div>
             {sessions.map((s, i) => (
               <div key={s.id ?? i} className={`${styles.mutedText} w-10 shrink-0 text-center text-[9px] font-semibold`}>
-                {s.order ?? i + 1}차
+                {formatSessionLabel(s).replace("차시", "차")}
               </div>
             ))}
           </div>

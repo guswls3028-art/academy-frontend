@@ -18,6 +18,7 @@ import {
   type StudentEnrollmentMatrix,
   type MatrixToggleTarget,
 } from "../api/enrollmentMatrix.api";
+import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
 
 type Lecture = { id: number; title: string };
 
@@ -137,7 +138,7 @@ export default function StudentEnrollmentMatrixDrawer({ studentId, studentName, 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Badge variant={s.session_enrolled ? "solid" : "soft"} size="sm" tone={s.session_enrolled ? "success" : "neutral"}>
-                      {s.order}주차
+                      {formatSessionLabel(s)}
                     </Badge>
                     <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--color-text-primary)" }}>
                       {s.title}

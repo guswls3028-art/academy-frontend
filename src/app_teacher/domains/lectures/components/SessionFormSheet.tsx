@@ -25,24 +25,24 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [order, setOrder] = useState("");
+  const [regularOrder, setRegularOrder] = useState("");
 
   useEffect(() => {
     if (editData) {
       setTitle(editData.title || "");
       setDate(editData.date || "");
-      setOrder(editData.order != null ? String(editData.order) : "");
+      setRegularOrder(editData.regular_order != null ? String(editData.regular_order) : editData.order != null ? String(editData.order) : "");
     } else {
-      setTitle(""); setDate(""); setOrder("");
+      setTitle(""); setDate(""); setRegularOrder("");
     }
   }, [editData, open]);
 
   const mutation = useMutation({
     mutationFn: () => {
       if (isEdit) {
-        return updateSession(editData.id, { title, date: date || undefined, order: order ? Number(order) : undefined });
+        return updateSession(editData.id, { title, date: date || undefined, regular_order: regularOrder ? Number(regularOrder) : undefined });
       }
-      return createSession(lectureId, title, date || undefined, order ? Number(order) : undefined);
+      return createSession(lectureId, title, date || undefined, regularOrder ? Number(regularOrder) : undefined);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
@@ -92,8 +92,8 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           </div>
           <div style={{ width: 80 }}>
-            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>순서</label>
-            <input type="number" value={order} onChange={(e) => setOrder(e.target.value)} placeholder="#"
+            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>차시 번호</label>
+            <input type="number" value={regularOrder} onChange={(e) => setRegularOrder(e.target.value)} placeholder="#"
               className="w-full text-sm"
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           </div>

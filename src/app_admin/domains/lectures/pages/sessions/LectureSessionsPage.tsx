@@ -3,12 +3,12 @@ import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchSessions, sortSessionsByDateDesc, type Session } from "../../api/sessions";
+import { fetchSessions, sortSessionsByDisplayOrder, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
-import { formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import styles from "./LectureSessionsPage.module.css";
 
 const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
@@ -35,7 +35,7 @@ export default function LectureSessionsPage() {
     enabled: Number.isFinite(lecId),
   });
   const sessions = useMemo(() => {
-    const sorted = sortSessionsByDateDesc(rawSessions);
+    const sorted = sortSessionsByDisplayOrder(rawSessions);
     if (!sort) return sorted;
     const key = sort.startsWith("-") ? sort.slice(1) : sort;
     const asc = !sort.startsWith("-");
@@ -248,7 +248,7 @@ export default function LectureSessionsPage() {
                         checked={selectedSet.has(s.id)}
                         onChange={() => toggleSelect(s.id)}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label={`${formatSessionOrderLabel(s.order, s.title)} 선택`}
+                        aria-label={`${formatSessionBlockLabel(s)} 선택`}
                         className="cursor-pointer"
                       />
                     </td>
@@ -258,7 +258,7 @@ export default function LectureSessionsPage() {
                         className={styles.sessionLink}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {formatSessionOrderLabel(s.order, s.title)}
+                        {formatSessionBlockLabel(s)}
                       </Link>
                     </td>
                     <td className="text-[14px] text-[var(--color-text-secondary)] truncate">

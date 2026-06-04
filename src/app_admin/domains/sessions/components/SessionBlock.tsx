@@ -8,11 +8,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } from "lucide-react";
 
-import { fetchSessions, sortSessionsByDateDesc, type Session } from "@/shared/api/contracts/sessions";
+import { fetchSessions, type Session } from "@/shared/api/contracts/sessions";
 import { fetchSections, type Section as SectionType } from "@/shared/api/contracts/lectureSections";
 import { updateSession, deleteSession } from "@admin/domains/lectures/api/sessions";
 import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
-import { SessionBlockView, isSupplement, formatSessionOrderLabel } from "@/shared/ui/session-block";
+import { SessionBlockView, formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
@@ -24,7 +25,15 @@ interface Props {
   currentSessionId?: number;
 }
 
-type SessionItem = { id: number; order?: number; date?: string | null; title?: string | null; section?: number | null };
+type SessionItem = {
+  id: number;
+  order?: number;
+  regular_order?: number | null;
+  session_type?: string | null;
+  date?: string | null;
+  title?: string | null;
+  section?: number | null;
+};
 type SessionRowTone = "primary" | "warning" | "muted";
 
 /** 차시 블록 우상단 톱니바퀴 → 수정/삭제/반변경 팝오버 */
@@ -188,7 +197,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     enabled: Number.isFinite(lectureId) && sectionMode,
   });
 
-  const sessions = sortSessionsByDateDesc(rawSessions);
+  const sessions = sortSessionsByDisplayOrder(rawSessions);
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["lecture-sessions", lectureId] });
@@ -222,16 +231,16 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
       });
 
     // 공통 차시 (section=null)
-    const commonSessions = (rawSessions as Session[])
+    const commonSessions = sortSessionsByDisplayOrder((rawSessions as Session[])
       .filter((s) => !s.section)
-      .sort((a, b) => a.order - b.order);
+    );
 
     // 반별 차시
     const rows = activeSections.map((sec) => ({
       section: sec,
-      sessions: (rawSessions as Session[])
+      sessions: sortSessionsByDisplayOrder((rawSessions as Session[])
         .filter((s) => s.section === sec.id)
-        .sort((a, b) => a.order - b.order),
+      ),
     }));
 
     return { commonSessions, rows };
@@ -315,10 +324,10 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           <>
             {(sessions as SessionItem[]).map((s) => {
               const isActive = currentSessionId != null && Number(s.id) === Number(currentSessionId);
-              const supplement = isSupplement(s.title);
+              const supplement = isSupplementSession(s);
               return (
                 <div key={s.id} className="relative group">
-                  <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
+                  <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
                   <SessionGearMenu session={s} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
                 </div>
               );
@@ -403,10 +412,10 @@ function SessionRow({
       {/* Session blocks */}
       {sessions.map((s) => {
         const isActive = currentSessionId != null && Number(s.id) === Number(currentSessionId);
-        const supplement = isSupplement(s.title);
+        const supplement = isSupplementSession(s);
         return (
           <div key={s.id} className="relative group">
-            <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionOrderLabel(s.order, s.title)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
+            <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
             <SessionGearMenu session={s} sections={sections} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
           </div>
         );

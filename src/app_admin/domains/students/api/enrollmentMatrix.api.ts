@@ -9,6 +9,9 @@ export interface MatrixSession {
   id: number;
   title: string;
   order: number;
+  session_type?: string | null;
+  regular_order?: number | null;
+  display_label?: string | null;
   session_enrolled: boolean;
   exams: MatrixExam[];
   homeworks: MatrixHomework[];

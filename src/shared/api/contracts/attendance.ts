@@ -169,6 +169,9 @@ export async function bulkCreateAttendance(
 export type AttendanceMatrixSession = {
   id: number;
   order: number | null;
+  session_type?: string | null;
+  regular_order?: number | null;
+  display_label?: string | null;
   date: string | null;
   /** 있으면 표시용 (숫자-only 레거시 제목 등) */
   title?: string | null;
@@ -222,6 +225,9 @@ function normalizeMatrixSession(value: unknown): AttendanceMatrixSession | null 
   return {
     id,
     order: toNumber(value.order),
+    session_type: toStringOrNull(value.session_type),
+    regular_order: toNumber(value.regular_order),
+    display_label: toStringOrNull(value.display_label),
     date: toStringOrNull(value.date),
     title: toStringOrNull(value.title),
   };
