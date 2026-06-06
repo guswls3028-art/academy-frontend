@@ -10,6 +10,7 @@
 // backend POST /community/posts/ (학부모 차단, post_type 검증). 성공 시 글 상세로 navigate.
 /* eslint-disable no-restricted-syntax */
 
+import DOMPurify from "dompurify";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { LockKeyhole } from "lucide-react";
@@ -42,6 +43,12 @@ const NAV_TOKENS: NavBarTokens = {
   ctaTextColor: "#0A0E1A",
   panelBg: "#0F1525",
 };
+
+const EMPTY_PREVIEW_HTML = "<p style='color:#6B7280'>미리보기할 내용이 없습니다.</p>";
+
+function sanitizePreviewHtml(html: string): string {
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+}
 
 function BrandMark({ name }: { name: string }) {
   const initial = (name || "").trim().charAt(0) || "•";
@@ -138,6 +145,11 @@ export default function LandingCommunityWritePage() {
     const firstAllowed = allowedBoards[0];
     if (firstAllowed && !allowedBoards.includes(selectedBoard)) setSelectedBoard(firstAllowed);
   }, [allowedBoards, selectedBoard]);
+
+  const previewHtml = useMemo(
+    () => showPreview ? sanitizePreviewHtml(simpleMarkdownToHtml(content)) || EMPTY_PREVIEW_HTML : EMPTY_PREVIEW_HTML,
+    [content, showPreview],
+  );
 
   if (boardType && !isValid) return <Navigate to="/landing/community/board/write" replace />;
   if (!landing) {
@@ -319,7 +331,7 @@ export default function LandingCommunityWritePage() {
                       color: textPrimary, fontSize: 14.5, fontFamily: "inherit",
                       lineHeight: 1.7, overflow: "auto",
                     }}
-                    dangerouslySetInnerHTML={{ __html: simpleMarkdownToHtml(content) || "<p style='color:#6B7280'>미리보기할 내용이 없습니다.</p>" }}
+                    dangerouslySetInnerHTML={{ __html: previewHtml }}
                   />
                 ) : (
                   <textarea

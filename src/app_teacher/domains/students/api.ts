@@ -35,9 +35,22 @@ export type TeacherStudentExamResult = {
   type?: string | null;
 };
 
+export type StudentAccountNotificationLog = {
+  id: number;
+  sent_at: string | null;
+  success?: boolean;
+  status: string;
+  notification_type: string;
+  recipient_summary: string;
+  failure_reason: string;
+  target_id: string;
+  target_name: string;
+};
+
 export type SendPasswordResetParams = {
   target: "student" | "parent";
   student_name: string;
+  student_phone?: string;
   student_ps_number?: string;
   parent_phone?: string;
   temp_password?: string;
@@ -83,6 +96,14 @@ export async function fetchStudentExamResults(studentId: number): Promise<Teache
   });
   const raw = res.data;
   return Array.isArray(raw?.exams) ? raw.exams : [];
+}
+
+/** 학생 계정 알림톡 최근 이력 */
+export async function fetchStudentAccountNotifications(studentId: number): Promise<StudentAccountNotificationLog[]> {
+  const res = await api.get(`/students/${studentId}/account-notifications/`, {
+    params: { limit: 5 },
+  });
+  return Array.isArray(res.data?.results) ? res.data.results : [];
 }
 
 /** 학생 출석 이력 */
@@ -134,7 +155,7 @@ export async function exportStudentsExcel() {
     if (chunk.data.length < pageSize || allData.length >= chunk.count) break;
     page += 1;
   }
-  mod.downloadStudentsExcel(
+  await mod.downloadStudentsExcel(
     expectedCount != null ? allData.slice(0, expectedCount) : allData,
     `students-${new Date().toISOString().slice(0, 10)}.xlsx`,
   );
@@ -227,6 +248,9 @@ export async function sendPasswordReset(params: SendPasswordResetParams): Promis
   };
   if (params.target === "student" && params.student_ps_number) {
     body.student_ps_number = params.student_ps_number.trim();
+  }
+  if (params.target === "student" && params.student_phone) {
+    body.student_phone = normalizePhone(params.student_phone);
   }
   if (params.target === "parent" && params.parent_phone) {
     body.parent_phone = normalizePhone(params.parent_phone);

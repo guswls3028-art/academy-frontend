@@ -119,6 +119,18 @@ export default function StudentsHomePage() {
     studentsColumnsDef
   );
 
+  function handleSortChange(nextSort: string) {
+    setSort(nextSort);
+    setPage(1);
+    setSelectedIds([]);
+  }
+
+  function handlePageChange(nextPage: number) {
+    if (nextPage === page) return;
+    setPage(nextPage);
+    setSelectedIds([]);
+  }
+
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, nextActive }: { id: number; nextActive: boolean }) =>
       toggleStudentActive(id, nextActive),
@@ -132,17 +144,6 @@ export default function StudentsHomePage() {
     toggleActiveMutation.isPending && toggleActiveMutation.variables
       ? toggleActiveMutation.variables.id
       : null;
-
-  function handleSortChange(nextSort: string) {
-    setSort(nextSort);
-    setPage(1);
-    setSelectedIds([]);
-  }
-
-  function handlePageChange(nextPage: number) {
-    setPage(nextPage);
-    setSelectedIds([]);
-  }
 
   const selectionBar = (
     <div className={styles.selectionBar}>
@@ -191,8 +192,9 @@ export default function StudentsHomePage() {
                   registeredAt: s.registeredAt ?? null,
                   tags: (s.tags ?? []).map((t) => ({ name: t.name })),
                 }));
-                downloadStudentsExcel(rows, `학생목록_${visibleSelectedStudents.length}명.xlsx`);
-                feedback.success(`엑셀 다운로드됨 (${visibleSelectedStudents.length}명)`);
+                void downloadStudentsExcel(rows, `학생목록_${visibleSelectedStudents.length}명.xlsx`)
+                  .then(() => feedback.success(`엑셀 다운로드됨 (${visibleSelectedStudents.length}명)`))
+                  .catch(() => feedback.error("엑셀 다운로드에 실패했습니다."));
               }}
             >
               엑셀 다운로드
@@ -210,14 +212,14 @@ export default function StudentsHomePage() {
               size="sm"
               disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedCount === 0) return;
+                if (visibleSelectedIds.length === 0) return;
                 const parts = visibleSelectedStudents.map(
                   (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
                 );
                 const msg =
                   parts.length > 0
-                    ? `${parts.join(", ")}\n\n위 ${selectedCount}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
-                    : `선택한 ${selectedCount}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+                    ? `${parts.join(", ")}\n\n위 ${visibleSelectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
+                    : `선택한 ${visibleSelectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
                 if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
                 setDeleting(true);
                 try {
@@ -245,8 +247,8 @@ export default function StudentsHomePage() {
               size="sm"
               disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedCount === 0) return;
-                if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedCount}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
+                if (visibleSelectedIds.length === 0) return;
+                if (!(await confirm({ title: "학생 복원", message: `선택한 ${visibleSelectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
                 setDeleting(true);
                 try {
                   const { restored, skipped = [] } = await bulkRestoreStudents(visibleSelectedIds);
@@ -272,8 +274,8 @@ export default function StudentsHomePage() {
               size="sm"
               disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedCount === 0) return;
-                if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedCount}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
+                if (visibleSelectedIds.length === 0) return;
+                if (!(await confirm({ title: "영구 삭제", message: `선택한 ${visibleSelectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
                 setDeleting(true);
                 try {
                   const { deleted } = await bulkPermanentDeleteStudents(visibleSelectedIds);

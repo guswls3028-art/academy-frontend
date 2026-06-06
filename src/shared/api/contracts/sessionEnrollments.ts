@@ -1,5 +1,4 @@
 // PATH: src/shared/api/contracts/sessionEnrollments.ts
-import axios from "axios";
 import api from "@/shared/api/axios";
 
 export type SessionEnrollmentRow = {
@@ -64,20 +63,10 @@ function normalizeSessionEnrollment(raw: unknown): SessionEnrollmentRow {
 export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollmentRow[]> {
-  try {
-    const res = await api.get("/enrollments/session-enrollments/", {
-      params: { session: sessionId },
-    });
-    return unwrapList(res.data).map(normalizeSessionEnrollment);
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status;
-      if (status === 404 || status === 501) {
-        return [];
-      }
-    }
-    throw err;
-  }
+  const res = await api.get("/enrollments/session-enrollments/", {
+    params: { session: sessionId },
+  });
+  return unwrapList(res.data).map(normalizeSessionEnrollment);
 }
 
 export async function bulkCreateSessionEnrollments(

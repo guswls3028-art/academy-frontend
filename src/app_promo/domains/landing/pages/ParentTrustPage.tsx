@@ -38,7 +38,7 @@ const REPORT_FLOW = [
   {
     icon: BellRing,
     title: "알림톡 안내",
-    body: "수업 결과, 영상 확인, 보강 안내를 학부모에게 바로 보냅니다.",
+    body: "수업 결과, 영상 확인, 보강 안내를 학부모에게 정리해 보냅니다.",
   },
   {
     icon: Megaphone,
@@ -51,14 +51,14 @@ const USE_CASES = [
   {
     icon: GraduationCap,
     title: "학교별 내신반",
-    body: "학교, 학년, 시험 범위에 맞춰 출결, 응시, 취약 문항을 보여주면 관리가 어떻게 되는지 바로 보입니다.",
+    body: "학교, 학년, 시험 범위에 맞춰 출결, 응시, 취약 문항을 보여주면 관리 흐름이 분명해집니다.",
     image: "/promo/landing-daechi-preview-20260527.png",
     alt: "학교별 수업 소개 페이지 예시",
   },
   {
     icon: Smartphone,
     title: "영상 복습 관리",
-    body: "누가 영상을 안 봤는지, 어디까지 봤는지를 리포트에 담아 복습 확인 질문에 바로 답할 수 있습니다.",
+    body: "누가 영상을 안 봤는지, 어디까지 봤는지를 리포트에 담아 복습 확인 질문에 답할 수 있습니다.",
     image: "/promo/student-video-player.png",
     alt: "학생전용앱 영상 플레이어 화면",
   },
@@ -225,7 +225,7 @@ export default function ParentTrustPage() {
               <h2 id="package-title">수강생 규모와 필요한 범위에 맞춰 고릅니다</h2>
               <p>
                 혼자 쓰는 수업과 여러 반이 함께 쓰는 수업은 필요한 계정, 저장공간, 지원 범위가 다릅니다.
-                지금 쓰는 방식에 맞춰 시작 범위를 정합니다.
+                현재 쓰는 방식에 맞춰 시작 범위를 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
                 요금제에서 비교하기
@@ -247,7 +247,7 @@ export default function ParentTrustPage() {
       </section>
 
       <CtaSection
-        title="지금 남기고 있는 수업 기록부터 리포트로 만들어보세요"
+        title="현재 남기고 있는 수업 기록부터 리포트로 만들어보세요"
         subtitle="출결, 성적, 영상, 보강을 어떻게 관리하는지 듣고 시작 범위를 정해드립니다."
       />
     </div>

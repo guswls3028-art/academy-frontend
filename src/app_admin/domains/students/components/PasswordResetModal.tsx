@@ -111,15 +111,17 @@ export default function PasswordResetModal({
         for (const t of targets) {
           try {
             if (t === "student") {
-              if (!s.psNumber?.trim()) {
+              const studentPhone = normalizePhone(s.studentPhone);
+              if (!s.psNumber?.trim() && studentPhone.length !== 11) {
                 fail++;
-                failNames.push(`${s.name}(아이디 없음)`);
+                failNames.push(`${s.name}(학생 연락처 없음)`);
                 continue;
               }
               await sendPasswordReset({
                 target: "student",
                 student_name: s.name,
-                student_ps_number: s.psNumber.trim(),
+                ...(s.psNumber?.trim() ? { student_ps_number: s.psNumber.trim() } : {}),
+                ...(studentPhone.length === 11 ? { student_phone: studentPhone } : {}),
                 ...(password ? { temp_password: password } : {}),
                 ...(!sendNotify ? { skip_notify: true } : {}),
               });

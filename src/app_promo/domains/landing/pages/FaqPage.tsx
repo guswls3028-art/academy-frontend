@@ -69,10 +69,10 @@ export default function FaqPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>자주 묻는 질문</span>
-            <h1 id="faq-title">선생님이 계약 전에 바로 확인해야 할 질문</h1>
+            <h1 id="faq-title">도입 전에 확인할 질문을 모았습니다</h1>
             <p>
-              영상, 알림톡, AI 채점, 가격 기준을 계약 전에 확인할 수 있게 나눴습니다.
-              실제 상담은 전화 문의 버튼으로 바로 신청할 수 있습니다.
+              영상, 알림톡, AI 채점, 가격 기준을 도입 전에 확인할 수 있게 나눴습니다.
+              필요한 범위가 정해져 있으면 전화 문의로도 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/features#student-video" className={styles.primaryCta}>
@@ -116,7 +116,7 @@ export default function FaqPage() {
                 확인 기준
               </span>
               <h2 id="faq-list-title">상담 전에 꼭 짚을 기준</h2>
-              <p>과장된 표현보다 상담 전에 바로 확인할 기준을 앞에 두었습니다.</p>
+              <p>기능 설명보다 상담 전에 확인할 기준을 앞에 두었습니다.</p>
               <ul className={styles.faqQuickList}>
                 {QUICK_CHECKS.map((item) => {
                   const Icon = item.icon;
@@ -159,7 +159,7 @@ export default function FaqPage() {
               <h3 id="faq-proof-title">영상 기능은 질문 페이지에서도 화면으로 보여줍니다</h3>
               <p>
                 설명보다 화면이 먼저입니다. 학생이 실제로 보는 앱 화면을
-                다시 보여주어 “학생도 바로 쓸 수 있겠다”는 느낌을 줍니다.
+                다시 보여주어 학생이 실제로 사용할 흐름을 확인합니다.
               </p>
               <Link to="/promo/video-platform" className={styles.textButton}>
                 영상 플랫폼 상세 보기
@@ -172,7 +172,7 @@ export default function FaqPage() {
 
       <CtaSection
         title="더 궁금한 점이 있으신가요?"
-        subtitle="문의 폼 또는 전화 문의로 바로 확인해드립니다."
+        subtitle="문의 폼 또는 전화 문의로 필요한 범위를 확인합니다."
       />
     </div>
   );

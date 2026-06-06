@@ -1,21 +1,40 @@
 // PATH: src/app_admin/domains/profile/excel/excelUtils.ts
-import * as XLSX from "xlsx";
+import { downloadArrayWorksheet, type ExcelRow } from "@/shared/utils/excelWorkbook";
 
-export function downloadWorkbook(workbook: XLSX.WorkBook, filename: string) {
-  XLSX.writeFile(workbook, filename);
-}
-
-export function createSheet<T extends object>(
+export function createRows<T extends object>(
   rows: T[] | unknown,
   headers: { key: keyof T; label: string }[]
-) {
-  /** ✅ rows 방어 */
+): ExcelRow[] {
   const safeRows = Array.isArray(rows) ? rows as T[] : [];
 
-  const data = [
+  return [
     headers.map((h) => h.label),
-    ...safeRows.map((r) => headers.map((h) => r[h.key] ?? "")),
+    ...safeRows.map((r) => headers.map((h) => toExcelCell(r[h.key]))),
   ];
+}
 
-  return XLSX.utils.aoa_to_sheet(data);
+export async function downloadRowsWorkbook<T extends object>({
+  filename,
+  sheetName,
+  rows,
+  headers,
+}: {
+  filename: string;
+  sheetName: string;
+  rows: T[] | unknown;
+  headers: { key: keyof T; label: string }[];
+}): Promise<void> {
+  await downloadArrayWorksheet({
+    filename,
+    sheetName,
+    rows: createRows(rows, headers),
+  });
+}
+
+function toExcelCell(value: unknown) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value instanceof Date) {
+    return value;
+  }
+  return String(value);
 }

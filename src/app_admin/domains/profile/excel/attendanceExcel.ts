@@ -1,7 +1,5 @@
-// PATH: src/app_admin/domains/profile/excel/attendanceExcel.ts
-import * as XLSX from "xlsx";
 import { Attendance } from "../api/profile.api";
-import { createSheet, downloadWorkbook } from "./excelUtils";
+import { downloadRowsWorkbook } from "./excelUtils";
 
 export function downloadAttendanceExcel({
   month,
@@ -9,10 +7,12 @@ export function downloadAttendanceExcel({
 }: {
   month: string;
   rows: Attendance[];
-}) {
-  const wb = XLSX.utils.book_new();
-
-  const sheet = createSheet(rows, [
+}): Promise<void> {
+  return downloadRowsWorkbook({
+    filename: `attendance_${month}.xlsx`,
+    sheetName: "근태",
+    rows,
+    headers: [
     { key: "date", label: "날짜" },
     { key: "work_type", label: "근무유형" },
     { key: "start_time", label: "시작" },
@@ -20,8 +20,6 @@ export function downloadAttendanceExcel({
     { key: "duration_hours", label: "근무시간" },
     { key: "amount", label: "금액" },
     { key: "memo", label: "메모" },
-  ]);
-
-  XLSX.utils.book_append_sheet(wb, sheet, "근태");
-  downloadWorkbook(wb, `attendance_${month}.xlsx`);
+    ],
+  });
 }

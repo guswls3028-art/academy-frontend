@@ -59,6 +59,26 @@ export interface ClientStudent {
   nameHighlightClinicTarget?: boolean;
 }
 
+export type AccountNotificationType =
+  | "registration_approved_student"
+  | "registration_approved_parent"
+  | "password_find_otp"
+  | "password_reset_student"
+  | "password_reset_parent"
+  | string;
+
+export interface ClientAccountNotificationLog {
+  id: number;
+  sentAt: string | null;
+  success: boolean;
+  status: string;
+  notificationType: AccountNotificationType;
+  recipientSummary: string;
+  failureReason: string;
+  targetId: string;
+  targetName: string;
+}
+
 export interface StudentTag {
   id: number;
   name: string;
@@ -329,6 +349,31 @@ export async function getStudentDetail(id: number) {
   return mapStudent(res.data);
 }
 
+function mapAccountNotificationLog(raw: unknown): ClientAccountNotificationLog {
+  const item = asRecord(raw);
+  return {
+    id: numberOrZero(item.id),
+    sentAt: nullableStr(item.sent_at),
+    success: item.success === true,
+    status: safeStr(item.status),
+    notificationType: safeStr(item.notification_type),
+    recipientSummary: safeStr(item.recipient_summary),
+    failureReason: safeStr(item.failure_reason),
+    targetId: safeStr(item.target_id),
+    targetName: safeStr(item.target_name),
+  };
+}
+
+export async function fetchStudentAccountNotifications(
+  studentId: number,
+  limit = 5,
+): Promise<ClientAccountNotificationLog[]> {
+  const res = await api.get(`/students/${studentId}/account-notifications/`, {
+    params: { limit },
+  });
+  return asList(res.data).map(mapAccountNotificationLog);
+}
+
 /* ===============================
  * CREATE
  * =============================== */
@@ -456,14 +501,13 @@ export async function updateStudent(id: number, form: StudentFormInput) {
     payload.parent_phone = normalizePhone(String(form.parentPhone));
   }
   if (form?.studentPhone !== undefined || form?.noPhone === true) {
-    const p =
-      form?.noPhone === true
-        ? (form?.omrCode ? `010${normalizePhone(String(form.omrCode)).slice(-8)}` : null)
-        : form?.studentPhone
-          ? normalizePhone(String(form.studentPhone))
-          : null;
+    const p = form?.noPhone === true
+      ? null
+      : form?.studentPhone
+        ? normalizePhone(String(form.studentPhone))
+        : null;
     payload.phone = p || null;
-    if (p) payload.omr_code = p.slice(-8);
+    payload.uses_identifier = !p;
   }
 
   if (form?.psNumber !== undefined) {
@@ -770,47 +814,6 @@ export async function sendExistingCredentials(params: {
   }
   const res = await api.post<{ message: string }>("/students/send_existing_credentials/", body, SKIP_AUTH_CONFIG);
   return res.data;
-}
-
-/* ===============================
- * 비밀번호 찾기 (이름+전화번호 → SMS 인증 → 새 비밀번호)
- * =============================== */
-
-/** 인증번호 요청 (이름 + 전화번호) — 로그인 전 호출 */
-export async function requestPasswordFindCode(name: string, phone: string): Promise<void> {
-  const p = normalizePhone(phone);
-  if (p.length !== 11 || !p.startsWith("010")) {
-    throw new Error("전화번호는 010XXXXXXXX 11자리여야 합니다.");
-  }
-  await api.post(
-    "/students/password_find/request/",
-    {
-      name: String(name ?? "").trim(),
-      phone: p,
-    },
-    SKIP_AUTH_CONFIG,
-  );
-}
-
-/** 인증번호 확인 + 새 비밀번호 설정 — 로그인 전 호출 */
-export async function verifyPasswordFindCode(
-  phone: string,
-  code: string,
-  newPassword: string
-): Promise<void> {
-  const p = normalizePhone(phone);
-  if (p.length !== 11 || code.length !== 6 || newPassword.length < 4) {
-    throw new Error("전화번호, 6자리 인증번호, 새 비밀번호(4자 이상)를 입력해 주세요.");
-  }
-  await api.post(
-    "/students/password_find/verify/",
-    {
-      phone: p,
-      code: code.trim(),
-      new_password: newPassword,
-    },
-    SKIP_AUTH_CONFIG,
-  );
 }
 
 /** 비밀번호 재설정 발송 (학생: 이름+전화번호, 학부모: 이름+학부모번호 → 임시 비밀번호 알림톡 발송) */

@@ -206,7 +206,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       if (!secOk) return;
     }
     try {
-      await updateAttendance(attendanceRecordId, { status: newStatus });
+      await updateAttendance(
+        attendanceRecordId,
+        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined },
+      );
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       if (newStatus === "SECESSION") {

@@ -4,8 +4,8 @@
 import { feedback } from "@/shared/ui/feedback/feedback";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 
-const DEFAULT_ACCEPT = ".xlsx,.xls";
-const INVALID_FILE_MSG = "엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.";
+const DEFAULT_ACCEPT = ".xlsx";
+const INVALID_FILE_MSG = "엑셀 파일(.xlsx)만 업로드 가능합니다.";
 
 export interface ExcelUploadZoneProps {
   onFileSelect: (file: File) => void;
@@ -22,7 +22,7 @@ export default function ExcelUploadZone({
   selectedFile = null,
   onClearFile,
   accept = DEFAULT_ACCEPT,
-  hintText = ".xlsx, .xls",
+  hintText = ".xlsx",
   disabled = false,
   onInvalidFile = (msg) => feedback.error(msg),
 }: ExcelUploadZoneProps) {
@@ -35,7 +35,7 @@ export default function ExcelUploadZone({
       selectedFile={selectedFile}
       onClearFile={onClearFile}
       onFilesSelect={(files) => files[0] && onFileSelect(files[0])}
-      validateFile={(file) => /\.(xlsx|xls)$/i.test(file.name)}
+      validateFile={(file) => /\.xlsx$/i.test(file.name)}
       onInvalidFile={() => onInvalidFile(INVALID_FILE_MSG)}
     />
   );

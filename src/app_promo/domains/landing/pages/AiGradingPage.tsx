@@ -15,7 +15,7 @@ const TIERS = [
   {
     level: "1단계",
     title: "즉시 자동 판정",
-    body: "정답이 분명한 문항은 제출 후 바로 채점해 반복 채점 시간을 줄입니다.",
+    body: "정답이 분명한 문항은 제출 후 자동 판정해 반복 채점 시간을 줄입니다.",
     items: ["객관식 자동채점", "OX형 자동채점", "단답형 키워드 일치", "문항별 배점·총점 계산"],
   },
   {
@@ -46,9 +46,9 @@ export default function AiGradingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>채점 보조 원칙</span>
-            <h1 id="ai-grading-title">자동채점은 빠르게, 최종 판단은 선생님이 합니다</h1>
+            <h1 id="ai-grading-title">자동채점은 명확하게, 최종 판단은 선생님이 합니다</h1>
             <p>
-              중요한 건 “AI가 다 해준다”는 말이 아닙니다. 어떤 문항은 바로 채점되고
+              중요한 건 “AI가 다 해준다”는 말이 아닙니다. 어떤 문항은 자동 판정되고
               어떤 문항은 선생님 확인이 필요한지 분명히 보여야 합니다.
             </p>
             <div className={styles.heroActions}>
@@ -128,7 +128,7 @@ export default function AiGradingPage() {
               </span>
               <h2 id="grading-workflow-title">선생님 검수가 남아 있어야 현장에서 안심합니다</h2>
               <p>
-                성적은 민감합니다. 자동채점 결과를 바로 학부모에게 보내지 않고,
+                성적은 민감합니다. 자동채점 결과를 그대로 학부모에게 보내지 않고,
                 선생님이 확인해 확정한 결과만 성적표와 안내에 반영합니다.
               </p>
               <div className={styles.principleBox}>

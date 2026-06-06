@@ -41,7 +41,7 @@ export const STATUS_CONFIG: Record<
     bg: "rgba(148,163,184,0.12)",
   },
   SECESSION: {
-    label: "탈퇴",
+    label: "퇴원",
     color: "#6b7280",
     bg: "rgba(107,114,128,0.12)",
   },

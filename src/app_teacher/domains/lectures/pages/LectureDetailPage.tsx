@@ -251,9 +251,10 @@ export default function LectureDetailPage() {
           enrollments.length > 0 ? (
             <div className="flex flex-col gap-1.5">
               {enrollments.map((e: any) => {
-                const name = e.student_name ?? e.name ?? "이름 없음";
-                const parentPhone = e.parent_phone ?? e.parentPhone;
-                const studentPhone = e.student_phone ?? e.studentPhone ?? e.phone;
+                const studentId = e.student_id ?? e.student?.id;
+                const name = e.student_name ?? e.name ?? e.student?.name ?? "이름 없음";
+                const parentPhone = e.parent_phone ?? e.parentPhone ?? e.student?.parent_phone;
+                const studentPhone = e.student_phone ?? e.studentPhone ?? e.phone ?? e.student?.phone;
                 const lectureInfo = lecture
                   ? [{
                       lectureName: lecture.title,
@@ -264,7 +265,7 @@ export default function LectureDetailPage() {
                 return (
                   <button
                     key={e.id}
-                    onClick={() => e.student_id && navigate(`/teacher/students/${e.student_id}`)}
+                    onClick={() => studentId && navigate(`/teacher/students/${studentId}`)}
                     className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
                     style={{
                       padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -311,7 +312,7 @@ export default function LectureDetailPage() {
       {lecture && <LectureFormSheet open={editOpen} onClose={() => setEditOpen(false)} editData={lecture} />}
       <SessionFormSheet open={sessionFormOpen} onClose={() => setSessionFormOpen(false)} lectureId={lid} editData={editSession} />
       <EnrollStudentSheet open={enrollOpen} onClose={() => setEnrollOpen(false)} lectureId={lid}
-        enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id).filter(Boolean)} />
+        enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />
       <SectionManageSheet open={sectionOpen} onClose={() => setSectionOpen(false)} lectureId={lid} />
     </div>
   );

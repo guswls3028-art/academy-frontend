@@ -9,8 +9,8 @@ interface CtaSectionProps {
 }
 
 export default function CtaSection({
-  title = "지금 쓰는 수업 방식에 맞춰 필요한 기능부터 골라보세요.",
-  subtitle = "출결, 채점, 영상, 알림톡을 어떻게 쓰고 있는지 듣고 시작 범위를 정해드립니다.",
+  title = "현재 수업 방식에 맞는 시작 범위를 확인하세요.",
+  subtitle = "출결, 채점, 영상, 알림톡 중 먼저 정리할 업무를 함께 좁혀봅니다.",
 }: CtaSectionProps) {
   return (
     <section className={styles.cta} aria-labelledby="promo-cta-title">

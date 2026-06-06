@@ -119,7 +119,13 @@ export default function LectureEnrollExcelModal({
             <>
               <div className={`modal-form-row modal-form-row--1-auto ${styles.downloadRow}`}>
                 <div />
-                <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
+                <Button
+                  intent="secondary"
+                  onClick={() => {
+                    void downloadStudentExcelTemplate(slm.mode).catch(() => feedback.error("엑셀 양식 다운로드에 실패했습니다."));
+                  }}
+                  disabled={busy}
+                >
                   엑셀 양식 다운로드
                 </Button>
               </div>

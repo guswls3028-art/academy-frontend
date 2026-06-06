@@ -28,6 +28,11 @@ const rules = [
     pattern: /\.(?:post)\s*\(\s*["'`][^"'`]*\/(?:api\/v1\/)?enrollments\/["'`]/,
     message: "Enrollment creation must use /enrollments/bulk_create/ or the canonical enrollment API client.",
   },
+  {
+    id: "legacy-password-find-otp",
+    pattern: /\/students\/password_find\/(?:request|verify)\//,
+    message: "Legacy OTP password-find endpoints are sealed; use /auth/account-recovery/dispatch/.",
+  },
 ];
 
 const violations = [];

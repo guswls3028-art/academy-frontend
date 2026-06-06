@@ -31,9 +31,9 @@ import styles from "./LandingPage.module.css";
 const HERO_SLIDES = [
   {
     id: "trust",
-    eyebrow: "학부모 설명 줄이기",
-    title: "수업이 끝나면 학부모 리포트까지 이어집니다",
-    body: "출결, 시험, 복습 영상, 보강 기록을 모아 상담 때 바로 보여줄 자료로 남깁니다.",
+    eyebrow: "학부모 설명 자료",
+    title: "수업 기록이 학부모 리포트로 이어집니다",
+    body: "출결, 시험, 복습 영상, 보강 기록을 상담 때 확인할 자료로 정리합니다.",
     image: "/promo/admin-scores.png",
     tone: "학부모 리포트",
     stat: "출결·성적·영상·보강 요약",
@@ -41,8 +41,8 @@ const HERO_SLIDES = [
   },
   {
     id: "exam",
-    eyebrow: "시험 후 처리",
-    title: "시험이 끝난 뒤 할 일을 바로 봅니다",
+    eyebrow: "시험 후 정리",
+    title: "시험 이후 챙길 일을 한 화면에서 봅니다",
     body: "채점 결과, 약한 문항, 보강이 필요한 학생을 한 화면에서 확인합니다.",
     image: "/promo/admin-exams.png",
     tone: "채점·피드백",
@@ -51,8 +51,8 @@ const HERO_SLIDES = [
   },
   {
     id: "message",
-    eyebrow: "반복 연락 줄이기",
-    title: "출결·수업 결과 알림을 따로 쓰지 않아도 됩니다",
+    eyebrow: "반복 안내 정리",
+    title: "출결·수업 결과 안내를 운영 흐름에 포함합니다",
     body: "입실·결석, 수업 결과, 복습 영상 안내를 알림톡으로 보낼 수 있습니다.",
     image: "/promo/admin-messages.png",
     tone: "알림톡",
@@ -76,8 +76,8 @@ const OPERATING_TABS = [
     id: "classes",
     label: "수업 준비",
     icon: BookOpen,
-    title: "오늘 수업에서 볼 일을 한 화면에 모았습니다",
-    body: "강의, 차시, 수강생 상태, 미처리 항목을 수업 전후에 바로 확인합니다.",
+    title: "수업 전후 확인할 일을 한 화면에 모았습니다",
+    body: "강의, 차시, 수강생 상태, 미처리 항목을 수업 전후에 확인합니다.",
     points: ["강의/차시 구조", "수강생별 상태", "미처리 확인"],
     image: "/promo/admin-lectures.png",
     accent: "mint",
@@ -86,7 +86,7 @@ const OPERATING_TABS = [
     id: "scores",
     label: "시험·성적",
     icon: ClipboardCheck,
-    title: "시험 결과를 보고 보강 대상을 바로 찾습니다",
+    title: "시험 결과를 보고 보강 대상을 정리합니다",
     body: "시험 생성부터 채점, 성적표, 보강 후보 확인까지 이어서 처리합니다.",
     points: ["시험 운영", "성적 분석", "보강 대상 확인"],
     image: "/promo/admin-scores.png",
@@ -97,7 +97,7 @@ const OPERATING_TABS = [
     label: "안내·메시지",
     icon: MessageSquareText,
     title: "출결, 수업 결과, 영상 안내를 알림톡으로 보냅니다",
-    body: "입실·결석과 수업 피드백을 저장된 템플릿으로 보내 반복 연락을 줄입니다.",
+    body: "입실·결석과 수업 피드백을 저장된 템플릿으로 안내합니다.",
     points: ["입실·결석 알림", "수업결과 알림톡", "영상 시청 안내"],
     image: "/promo/admin-messages.png",
     accent: "rose",
@@ -117,17 +117,17 @@ const OPERATING_TABS = [
 const VALUE_CARDS = [
   {
     icon: ShieldCheck,
-    title: "상담 때 같은 말을 덜 하게 됩니다",
-    body: "출결, 시험, 복습, 보강 내역을 미리 보내두면 상담이 짧아집니다.",
+    title: "상담 때 반복 설명을 줄입니다",
+    body: "출결, 시험, 복습, 보강 내역을 미리 정리해 상담 내용을 분명하게 만듭니다.",
   },
   {
     icon: BarChart3,
-    title: "수업 기록이 다음 모집 자료가 됩니다",
-    body: "시험 결과와 수업 이력을 후기, 적중 리포트, 상담 자료로 다시 활용합니다.",
+    title: "수업 기록을 다음 상담 자료로 씁니다",
+    body: "시험 결과와 수업 이력을 후기, 적중 리포트, 상담 자료에 연결합니다.",
   },
   {
     icon: Layers3,
-    title: "수업 소개 페이지를 계속 최신으로 둡니다",
+    title: "수업 소개 페이지를 최신 상태로 둡니다",
     body: "수업 중에 쌓인 자료를 소개 페이지와 상담 자료에 반영합니다.",
   },
 ];
@@ -319,7 +319,7 @@ function ParentTrustSystem() {
             <h2 id="parent-trust-title">학부모가 궁금한 건 “수업 후에 뭘 챙겼나”입니다</h2>
             <p>
               출결, 시험, 복습 영상, 보강 기록이 한곳에 모여 있으면 상담에서 같은 설명을 반복하지 않아도 됩니다.
-              학원플러스는 수업 중에 남긴 기록을 리포트와 알림톡으로 바로 보낼 수 있게 합니다.
+              학원플러스는 수업 중에 남긴 기록을 리포트와 알림톡으로 정리해 보낼 수 있게 합니다.
             </p>
             <div className={styles.trustActions}>
               <Link to="/promo/parent-trust" className={`${styles.button} ${styles.buttonDark}`}>
@@ -446,7 +446,7 @@ function StudentAppProof() {
             <span>학생앱과 알림톡</span>
             <h2 id="student-proof-title">학생은 앱에서 보고, 선생님은 이력과 알림톡으로 챙깁니다</h2>
             <p>
-              복습 영상은 학생이 실제로 봐야 의미가 있습니다. 학생은 앱에서 바로 보고,
+              복습 영상은 학생이 실제로 봐야 의미가 있습니다. 학생은 앱에서 확인하고,
               선생님은 시청 상태를 확인한 뒤 필요한 안내를 보낼 수 있습니다.
             </p>
             <ul className={styles.studentProofList}>
@@ -567,8 +567,8 @@ function FinalCta() {
             <Sparkles size={18} />
             수업 상담
           </span>
-          <h2 id="final-cta-title">지금 수업 방식에 맞춰 필요한 기능부터 골라보세요</h2>
-          <p>강의, 시험, 피드백 방식을 듣고 무리 없이 시작할 범위를 정해드립니다.</p>
+          <h2 id="final-cta-title">현재 수업 방식에 맞춰 시작 범위를 정해보세요</h2>
+          <p>강의, 시험, 피드백 방식을 듣고 먼저 정리할 업무를 함께 정합니다.</p>
           <div className={styles.finalCtaActions}>
             <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
               전화 문의

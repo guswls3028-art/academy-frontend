@@ -270,7 +270,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                     }
                   }}
                 >
-                  {pending ? "발송 중..." : "카카오톡으로 ID/비밀번호 발송"}
+                  {pending ? "발송 중..." : "카카오 알림톡으로 아이디/임시 비밀번호 발송"}
                 </button>
               </>
             )}
@@ -438,6 +438,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   <div>
                     <label htmlFor="signup-grade-elem" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
+                      id="signup-grade-elem"
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
@@ -463,6 +464,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   <div>
                     <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
+                      id="signup-grade-middle"
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
@@ -488,6 +490,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   <div>
                     <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
+                      id="signup-grade"
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}

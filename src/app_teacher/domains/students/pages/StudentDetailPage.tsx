@@ -12,8 +12,8 @@ import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquar
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
-import type { TeacherStudentExamResult } from "../api";
+import { fetchStudent, fetchStudentAccountNotifications, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
+import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -61,6 +61,12 @@ export default function StudentDetailPage() {
   const { data: examResults } = useQuery({
     queryKey: ["student-exams", sid],
     queryFn: () => fetchStudentExamResults(sid),
+    enabled: Number.isFinite(sid),
+  });
+
+  const { data: accountNotifications } = useQuery({
+    queryKey: ["student-account-notifications", sid],
+    queryFn: () => fetchStudentAccountNotifications(sid),
     enabled: Number.isFinite(sid),
   });
 
@@ -167,6 +173,8 @@ export default function StudentDetailPage() {
         {student.major && <InfoRow label="계열" value={student.major} />}
         {student.address && <InfoRow label="주소" value={student.address} />}
       </Card>
+
+      <AccountNotificationCard items={accountNotifications ?? []} />
 
       {/* Memo — editable */}
       <MemoSection studentId={sid} initialMemo={student.memo ?? ""} />
@@ -352,6 +360,70 @@ function InfoRow({ label, value, href }: { label: string; value: string; href?: 
         <span className="text-sm text-right truncate ml-3" style={{ color: "var(--tc-text)" }}>{value}</span>
       )}
     </div>
+  );
+}
+
+function accountNotificationLabel(type: string): string {
+  const labels: Record<string, string> = {
+    registration_approved_student: "학생 아이디 안내",
+    registration_approved_parent: "학부모 아이디 안내",
+    password_reset_student: "학생 임시 비밀번호",
+    password_reset_parent: "학부모 임시 비밀번호",
+    "account.username_recovery": "아이디 안내",
+    "account.password_recovery": "임시 비밀번호",
+    "account.password_reset": "임시 비밀번호",
+  };
+  return labels[type] ?? (type || "계정 알림");
+}
+
+function isAccountNotificationSent(item: StudentAccountNotificationLog): boolean {
+  const status = String(item.status || "").toLowerCase();
+  return item.success === true || ["sent", "success", "delivered", "completed"].includes(status);
+}
+
+function AccountNotificationCard({ items }: { items: StudentAccountNotificationLog[] }) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--tc-text)" }}>
+          <MessageSquare size={ICON.sm} /> 계정 알림톡
+        </h3>
+        <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>최근 5건</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>
+          최근 아이디/비밀번호 알림톡 이력이 없습니다.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map((item) => {
+            const sentAt = item.sent_at ? new Date(item.sent_at).toLocaleString("ko-KR", {
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }) : "";
+            const ok = isAccountNotificationSent(item);
+            return (
+              <div key={item.id} className="flex items-start justify-between gap-2" style={{ borderTop: "1px solid var(--tc-border-subtle)", paddingTop: 8 }}>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                    {accountNotificationLabel(item.notification_type)}
+                  </div>
+                  <div className="text-[11px] truncate" style={{ color: "var(--tc-text-muted)" }}>
+                    {sentAt}{item.recipient_summary ? ` · ${item.recipient_summary}` : ""}
+                  </div>
+                  {!ok && item.failure_reason && (
+                    <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-danger)" }}>{item.failure_reason}</div>
+                  )}
+                </div>
+                <Badge tone={ok ? "success" : "danger"}>{ok ? "발송완료" : "실패"}</Badge>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -625,6 +697,7 @@ type PwTarget = "student" | "parent" | "both";
 function PasswordResetSheet({ open, onClose, student }: {
   open: boolean; onClose: () => void; student: ClientStudent;
 }) {
+  const qc = useQueryClient();
   const [target, setTarget] = useState<PwTarget>("student");
   const [tempPassword, setTempPassword] = useState("");
   const [notify, setNotify] = useState(true);
@@ -637,8 +710,9 @@ function PasswordResetSheet({ open, onClose, student }: {
 
   const name = student?.name ?? student?.displayName ?? "";
   const psNumber = student?.psNumber ?? "";
+  const studentPhone = student?.studentPhone ?? "";
   const parentPhone = student?.parentPhone ?? "";
-  const hasStudentAccount = !!psNumber;
+  const hasStudentAccount = !!psNumber || !!studentPhone;
   const hasParent = !!parentPhone;
 
   const handleSubmit = async () => {
@@ -647,7 +721,7 @@ function PasswordResetSheet({ open, onClose, student }: {
       return;
     }
     if (target === "student" && !hasStudentAccount) {
-      teacherToast.error("학생 계정(아이디)이 없어 변경할 수 없습니다.");
+      teacherToast.error("학생 계정 정보가 없어 변경할 수 없습니다.");
       return;
     }
     if (target === "parent" && !hasParent) {
@@ -662,11 +736,12 @@ function PasswordResetSheet({ open, onClose, student }: {
       for (const t of targets) {
         try {
           if (t === "student") {
-            if (!hasStudentAccount) { fail++; failReasons.push("학생 아이디 없음"); continue; }
+            if (!hasStudentAccount) { fail++; failReasons.push("학생 계정 정보 없음"); continue; }
             await sendPasswordReset({
               target: "student",
               student_name: name,
-              student_ps_number: psNumber,
+              ...(psNumber ? { student_ps_number: psNumber } : {}),
+              ...(studentPhone ? { student_phone: studentPhone } : {}),
               ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
               ...(!notify ? { skip_notify: true } : {}),
             });
@@ -688,6 +763,7 @@ function PasswordResetSheet({ open, onClose, student }: {
       if (ok > 0) {
         const notifyMsg = notify ? " 알림톡이 발송됩니다." : "";
         teacherToast.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}).${notifyMsg}`);
+        qc.invalidateQueries({ queryKey: ["student-account-notifications", student.id] });
         onClose();
       } else {
         teacherToast.error(`변경 실패${failReasons.length ? `: ${failReasons.join(", ")}` : ""}.`);

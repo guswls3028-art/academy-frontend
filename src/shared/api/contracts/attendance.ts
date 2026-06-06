@@ -113,12 +113,10 @@ export async function updateAttendance(
   id: number,
   payload: { status?: string; memo?: string; confirm_secession?: boolean }
 ) {
-  // SECESSION 전환은 백엔드가 confirm_secession 플래그를 요구함.
-  const body =
-    payload.status === "SECESSION" && payload.confirm_secession === undefined
-      ? { ...payload, confirm_secession: true }
-      : payload;
-  const res = await api.patch(`/lectures/attendance/${id}/`, body);
+  if (payload.status === "SECESSION" && payload.confirm_secession !== true) {
+    throw new Error("퇴원 처리는 명시 확인 후에만 실행할 수 있습니다.");
+  }
+  const res = await api.patch(`/lectures/attendance/${id}/`, payload);
   return res.data;
 }
 

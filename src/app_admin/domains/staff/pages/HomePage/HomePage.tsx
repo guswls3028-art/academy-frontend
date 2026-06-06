@@ -122,7 +122,7 @@ export default function HomePage() {
             try {
               if (selectedStaffIds.length > 0) {
                 const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
-                downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
+                await downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
                 feedback.success("엑셀 다운로드가 완료되었습니다.");
               } else {
                 const now = new Date();

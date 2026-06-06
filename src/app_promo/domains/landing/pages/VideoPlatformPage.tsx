@@ -39,7 +39,7 @@ export default function VideoPlatformPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span>학생앱 영상</span>
-            <h1 id="video-platform-title">수강생이 학생전용앱에서 바로 보는 영상 학습</h1>
+            <h1 id="video-platform-title">수강생이 학생전용앱에서 이어서 보는 영상 학습</h1>
             <p>
               외부 링크만 보내는 방식이 아닙니다. 강의 목록, 이어보기, 댓글, 시청 이력을
               학생앱 안에서 함께 확인합니다.
@@ -72,7 +72,7 @@ export default function VideoPlatformPage() {
             <span>실제 학생 화면</span>
             <h2 id="video-screens-title">학생이 보는 장면을 그대로 보여줍니다</h2>
             <p>
-              영상 기능은 화면을 보면 바로 이해됩니다. 학생전용앱의 플레이어와 재생 목록을
+              영상 기능은 화면에서 흐름을 확인할 수 있습니다. 학생전용앱의 플레이어와 재생 목록을
               학부모에게도 쉽게 보여줄 수 있습니다.
             </p>
           </header>
@@ -101,7 +101,7 @@ export default function VideoPlatformPage() {
             <h2 id="student-proof-title">복습했는지 확인할 수 있어야 합니다</h2>
             <p>
               학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인하면
-              수업 뒤에 누굴 더 챙겨야 하는지 바로 보입니다.
+              수업 뒤에 누굴 더 챙겨야 하는지 확인할 수 있습니다.
             </p>
           </header>
 

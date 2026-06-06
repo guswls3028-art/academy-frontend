@@ -485,11 +485,16 @@ test.describe.serial("Exam domain data flow", () => {
       .catch(() => false);
     expect(hasExamResultNav).toBe(true);
 
-    // Verify "과제 이력" section exists (always rendered)
-    const hasHomeworkSection = await studentPage
-      .locator("text=과제 이력")
-      .isVisible({ timeout: 3000 })
-      .catch(() => false);
+    // Verify homework tab/section exists (current student UI label is "과제 현황").
+    const hasHomeworkSection =
+      await studentPage
+        .locator("text=과제 현황")
+        .isVisible({ timeout: 3000 })
+        .catch(() => false) ||
+      await studentPage
+        .locator("text=과제 이력")
+        .isVisible({ timeout: 1000 })
+        .catch(() => false);
     expect(hasHomeworkSection).toBe(true);
 
     // Check via API for real data
@@ -543,28 +548,22 @@ test.describe.serial("Exam domain data flow", () => {
     const API_BASE =
       process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
-    // Call with explicit full URL but wrong tenant header
-    const resp = await studentPage.evaluate(
-      async ({ apiBase }) => {
-        const token = localStorage.getItem("access") || "";
-        const res = await fetch(`${apiBase}/api/v1/student/exams/`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            "X-Tenant-Code": "tchul", // T2 tenant code
-          },
-        });
-        let body: any;
-        try {
-          body = await res.json();
-        } catch {
-          body = null;
-        }
-        return { status: res.status, body };
+    const token = await studentPage.evaluate(() => localStorage.getItem("access") || "");
+    const res = await studentPage.request.fetch(`${API_BASE}/api/v1/student/exams/`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Tenant-Code": "tchul", // T2 tenant code
       },
-      { apiBase: API_BASE },
-    );
+    });
+    let body: any = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+    const resp = { status: res.status(), body };
 
     // The backend should reject: 401 (token invalid for tenant), 403 (forbidden),
     // or return empty results (student not enrolled in T2).

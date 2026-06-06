@@ -195,7 +195,7 @@ export default function StudentListPage() {
           <label className="flex items-center gap-2 text-sm cursor-pointer"
             style={{ padding: "10px 12px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", border: "none", background: "none", color: "var(--tc-text)" }}>
             <Upload size={ICON.xs} /> 엑셀 가져오기
-            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+            <input type="file" accept=".xlsx" style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 setMoreOpen(false);
@@ -779,11 +779,12 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
               ...(!notify ? { skip_notify: true } : {}),
             };
             if (t === "student") {
-              if (!s.psNumber) { fail++; continue; }
+              if (!s.psNumber && !s.studentPhone) { fail++; continue; }
               await sendPasswordReset({
                 ...baseParams,
                 target: "student",
-                student_ps_number: s.psNumber,
+                ...(s.psNumber ? { student_ps_number: s.psNumber } : {}),
+                ...(s.studentPhone ? { student_phone: s.studentPhone } : {}),
               });
             } else {
               const pp = s.parentPhone;

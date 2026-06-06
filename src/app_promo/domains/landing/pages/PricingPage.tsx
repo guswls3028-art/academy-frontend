@@ -26,7 +26,7 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>요금 안내</span>
-            <h1 id="pricing-title">수강생 규모에 맞춰 월 99,000원부터 시작합니다</h1>
+            <h1 id="pricing-title">월 99,000원부터, 비용 기준을 먼저 확인합니다</h1>
             <p>
               월 구독료를 먼저 공개합니다. 수강생 수, 함께 쓰는 계정, 저장공간,
               메시지 발송비처럼 실제 비용이 달라지는 기준도 함께 확인하세요.
@@ -34,7 +34,7 @@ export default function PricingPage() {
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
               <Link to="/promo/demo" className={styles.secondaryCta}>
-                내 수업 견적 확인
+                도입 범위 확인
               </Link>
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function PricingPage() {
                 data-plan={plan.key}
                 data-popular={plan.popular ? "true" : undefined}
               >
-                {plan.popular && <span className={styles.popularBadge}>가장 현실적인 선택</span>}
+                {plan.popular && <span className={styles.popularBadge}>많이 쓰는 구성</span>}
 
                 <div className={styles.planTop}>
                   <span>{plan.positioning}</span>
@@ -167,8 +167,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="지금 수업 규모에 맞는 플랜을 확인해보세요"
-        subtitle="전화 문의 또는 데모 요청으로 필요한 기능과 예상 비용을 함께 확인합니다."
+        title="수업 규모에 맞는 플랜을 확인하세요"
+        subtitle="필요한 기능, 수강생 수, 저장공간 기준을 함께 보고 예상 비용을 정리합니다."
       />
     </>
   );

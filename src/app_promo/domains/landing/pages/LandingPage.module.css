@@ -1,6 +1,6 @@
 .hero {
   position: relative;
-  min-height: clamp(700px, 88vh, 900px);
+  min-height: clamp(680px, 84vh, 860px);
   overflow: hidden;
   color: #f8fafc;
   background: #081018;
@@ -37,7 +37,7 @@
 }
 
 .heroGrid {
-  opacity: 0.28;
+  opacity: 0.12;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
@@ -55,7 +55,7 @@
   width: min(1180px, calc(100% - 40px));
   min-height: inherit;
   margin: 0 auto;
-  padding: 116px 0 62px;
+  padding: 108px 0 56px;
 }
 
 .heroCopy {
@@ -83,7 +83,7 @@
   max-width: 720px;
   margin: 18px 0 22px;
   color: #fff;
-  font-size: 76px;
+  font-size: 64px;
   font-weight: 920;
   line-height: 0.97;
   letter-spacing: 0;
@@ -95,8 +95,8 @@
   max-width: 640px;
   margin: 0;
   color: rgba(248, 250, 252, 0.82);
-  font-size: 22px;
-  line-height: 1.68;
+  font-size: 20px;
+  line-height: 1.72;
   word-break: keep-all;
 }
 
@@ -182,8 +182,8 @@
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   padding: 18px;
-  background: rgba(5, 12, 18, 0.64);
-  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.38);
+  background: rgba(5, 12, 18, 0.52);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(18px);
 }
 
@@ -266,13 +266,13 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 8px;
   padding: 8px 10px;
   color: rgba(248, 250, 252, 0.68);
   text-align: left;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .heroTabs button span {
@@ -288,7 +288,7 @@
 .heroTabs button.isActive {
   border-color: rgba(125, 211, 252, 0.52);
   color: #fff;
-  background: rgba(125, 211, 252, 0.15);
+  background: rgba(125, 211, 252, 0.11);
 }
 
 .sectionWrap {
@@ -315,7 +315,7 @@
   border-radius: 8px;
   padding: 24px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
 .valueCard svg {
@@ -337,7 +337,7 @@
 }
 
 .trustSection {
-  padding: 92px 0;
+  padding: 80px 0;
   background: #fff;
 }
 
@@ -380,7 +380,7 @@
   padding: 22px;
   background:
     linear-gradient(180deg, rgba(240, 253, 250, 0.68), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 18px 52px rgba(15, 23, 42, 0.08);
 }
 
 .trustBoardHead {
@@ -501,7 +501,7 @@
 .operatingHub,
 .workflowSection,
 .samplesSection {
-  padding: 92px 0;
+  padding: 80px 0;
   background: #f7fafb;
 }
 
@@ -517,7 +517,7 @@
 .finalCtaInner h2 {
   margin: 10px 0 0;
   color: #101923;
-  font-size: 54px;
+  font-size: 46px;
   font-weight: 920;
   line-height: 1.04;
   letter-spacing: 0;
@@ -587,7 +587,7 @@
   border-radius: 8px;
   padding: 26px;
   background: #fff;
-  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 42px rgba(15, 23, 42, 0.06);
 }
 
 .hubPanel[data-accent="mint"] {
@@ -628,7 +628,7 @@
 .hubCopy h3 {
   margin: 22px 0 12px;
   color: #101923;
-  font-size: 42px;
+  font-size: 36px;
   font-weight: 920;
   line-height: 1.08;
   word-break: keep-all;
@@ -691,10 +691,10 @@
 
 .studentProof {
   overflow: hidden;
-  padding: 96px 0;
+  padding: 82px 0;
   color: #f8fafc;
   background:
-    linear-gradient(135deg, rgba(7, 18, 28, 0.98), rgba(18, 42, 46, 0.96)),
+    linear-gradient(135deg, rgba(7, 18, 28, 0.94), rgba(18, 42, 46, 0.9)),
     url("/promo/admin-lectures.png") center / cover;
 }
 
@@ -788,7 +788,7 @@
   margin: 0;
   aspect-ratio: 390 / 844;
   background: #eaf0f7;
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
 }
 
 .phoneFrameLead {
@@ -918,20 +918,20 @@
 }
 
 .sampleCard {
-  min-height: 190px;
+  min-height: 170px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 8px;
   padding: 18px;
   color: #0f172a;
   text-decoration: none;
   background: #fff;
-  box-shadow: 0 16px 46px rgba(15, 23, 42, 0.07);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .sampleCard:hover {
   transform: translateY(-4px);
-  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.08);
 }
 
 .sampleCard span {
@@ -974,10 +974,10 @@
 }
 
 .finalCta {
-  padding: 92px 0;
+  padding: 82px 0;
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(9, 19, 28, 0.96), rgba(16, 34, 39, 0.95)),
+    linear-gradient(135deg, rgba(9, 19, 28, 0.92), rgba(16, 34, 39, 0.88)),
     url("/promo/admin-home.png") center / cover;
 }
 

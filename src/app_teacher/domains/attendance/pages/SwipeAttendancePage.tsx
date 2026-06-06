@@ -39,8 +39,12 @@ export default function SwipeAttendancePage() {
   const records = result?.data ?? EMPTY_RECORDS;
 
   const updateMut = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
-      updateAttendance(id, { status }),
+    mutationFn: ({ id, status, confirm_secession }: {
+      id: number;
+      status: string;
+      confirm_secession?: boolean;
+    }) =>
+      updateAttendance(id, { status, confirm_secession }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sid] });
       qc.invalidateQueries({ queryKey: ["session-attendance", sid] });
@@ -71,14 +75,22 @@ export default function SwipeAttendancePage() {
         setUndoItem({ id: attendanceId, prev: prev.status });
         setTimeout(() => setUndoItem(null), 3000);
       }
-      updateMut.mutate({ id: attendanceId, status });
+      updateMut.mutate({
+        id: attendanceId,
+        status,
+        confirm_secession: status === "SECESSION" ? true : undefined,
+      });
     },
     [records, updateMut],
   );
 
   const handleUndo = useCallback(() => {
     if (undoItem) {
-      updateMut.mutate({ id: undoItem.id, status: undoItem.prev });
+      updateMut.mutate({
+        id: undoItem.id,
+        status: undoItem.prev,
+        confirm_secession: undoItem.prev === "SECESSION" ? true : undefined,
+      });
       setUndoItem(null);
     }
   }, [undoItem, updateMut]);

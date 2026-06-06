@@ -4,11 +4,12 @@
 // 학원장 요청(2026-05-11): 별도 페이지 이동 없이 한 페이지에서 본문 → 액션 → 댓글까지 자연 스크롤.
 //
 // backend:
-//   GET /community/posts/<id>/             — 단건 조회 (sanitized content 포함)
+//   GET /community/posts/<id>/             — 단건 조회 (sanitized content 포함, client도 render 직전 재정화)
 //   GET /community/posts/<id>/replies/     — 댓글 목록 (flat array)
 //   POST /community/posts/<id>/replies/    — 댓글 작성 (자료실/qna 권한 분기는 backend)
 /* eslint-disable no-restricted-syntax */
 
+import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CornerDownRight, Flag, Heart, LockKeyhole, MessageCircle, Share2 } from "lucide-react";
@@ -54,11 +55,17 @@ const REPORT_REASON_OPTIONS: { value: ReportReason; label: string }[] = [
   { value: "other", label: "기타" },
 ];
 
+const EMPTY_POST_HTML = "<p style='color:#6B7280'>본문이 없습니다.</p>";
+
+function sanitizePublicHtml(html: string): string {
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+}
+
 interface PostDetail {
   id: number;
   post_type: string;
   title: string;
-  content: string; // HTML, backend sanitized
+  content: string; // HTML, backend sanitized; client sanitizes again before render
   category_label?: string | null;
   created_by_display?: string | null;
   created_by_deleted?: boolean;
@@ -228,6 +235,7 @@ export default function LandingCommunityPostPage() {
   const downloadOnly = DOWNLOAD_ONLY_LANDING_BOARDS.has(board);
   // QnA: 학생/학부모 답변 차단(backend 정책). board/notice는 학생 댓글 가능. 학부모는 항상 read-only.
   const canReply = isAuthenticated && !downloadOnly && !isParent && !(board === "qna" && isStudent);
+  const safePostContent = post?.content ? sanitizePublicHtml(post.content) : EMPTY_POST_HTML;
 
   const onShare = async () => {
     try {
@@ -476,7 +484,7 @@ export default function LandingCommunityPostPage() {
                   fontSize: 15.5, lineHeight: 1.8, color: textPrimary,
                   wordBreak: "break-word", overflowWrap: "anywhere",
                 }}
-                dangerouslySetInnerHTML={{ __html: post.content || "<p style='color:#6B7280'>본문이 없습니다.</p>" }}
+                dangerouslySetInnerHTML={{ __html: safePostContent }}
               />
               <PublicRichContentStyle />
               <style>{`[data-testid="landing-community-post-body"] img { cursor: zoom-in; }`}</style>
@@ -879,7 +887,7 @@ function ReplyCard({ rp, textPrimary, textMuted, gold, canReply, isChild = false
       <div
         className={`${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
         style={{ fontSize: 14, lineHeight: 1.65, color: textPrimary, wordBreak: "break-word" }}
-        dangerouslySetInnerHTML={{ __html: rp.content || "" }}
+        dangerouslySetInnerHTML={{ __html: sanitizePublicHtml(rp.content || "") }}
       />
       <div style={{ marginTop: 8, display: "flex", gap: 14, fontSize: 12, color: textMuted }}>
         <button

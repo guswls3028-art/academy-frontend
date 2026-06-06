@@ -369,13 +369,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     onClose();
   };
 
-  const enterConfirm = !busy
-    ? mode === "single"
-      ? handleSubmit
-      : mode === "excel" && selectedExcelFile
-        ? handleExcelRegister
-        : undefined
-    : undefined;
+  const enterConfirm =
+    busy || deletedStudentConflict
+      ? undefined
+      : mode === "single"
+        ? handleSubmit
+        : mode === "excel" && selectedExcelFile
+          ? handleExcelRegister
+          : undefined;
 
   return (
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={enterConfirm}>
@@ -672,7 +673,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 disabled={busy}
               />
             </div>
-            <Button intent="secondary" onClick={() => downloadStudentExcelTemplate(slm.mode)} disabled={busy}>
+            <Button
+              intent="secondary"
+              onClick={() => {
+                void downloadStudentExcelTemplate(slm.mode).catch(() => feedback.error("엑셀 양식 다운로드에 실패했습니다."));
+              }}
+              disabled={busy}
+            >
               엑셀 양식 다운로드
             </Button>
           </div>

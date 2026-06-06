@@ -6,7 +6,8 @@
   "packageManager": "pnpm@9.15.0",
   "pnpm": {
     "overrides": {
-      "@jridgewell/gen-mapping": "0.3.7"
+      "@jridgewell/gen-mapping": "0.3.7",
+      "uuid": "11.1.1"
     }
   },
   "scripts": {
@@ -50,9 +51,10 @@
     "@tiptap/starter-kit": "^2.12.0",
     "@types/dompurify": "^3.2.0",
     "antd": "^6.2.2",
-    "axios": "^1.13.2",
+    "axios": "^1.16.0",
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.2",
+    "exceljs": "^4.4.0",
     "heic2any": "^0.0.4",
     "hls.js": "^1.6.15",
     "lightningcss-linux-x64-gnu": "^1.32.0",
@@ -64,8 +66,7 @@
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.30.2",
-    "recharts": "^3.7.0",
-    "xlsx": "^0.18.5"
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

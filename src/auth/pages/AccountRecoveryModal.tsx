@@ -16,8 +16,8 @@ interface AccountRecoveryModalProps {
 }
 
 const SUCCESS_FALLBACK: Record<AccountRecoveryMode, string> = {
-  username: "입력한 정보가 등록되어 있다면 해당 번호로 아이디 안내가 발송됩니다.",
-  password: "입력한 정보가 등록되어 있다면 해당 번호로 임시 비밀번호가 발송됩니다.",
+  username: "입력한 정보가 등록되어 있다면 해당 번호로 아이디 안내 알림톡이 발송됩니다.",
+  password: "입력한 정보가 등록되어 있다면 해당 번호로 임시 비밀번호 알림톡이 발송됩니다.",
 };
 
 const FOCUSABLE_SELECTOR = [
@@ -238,7 +238,7 @@ export default function AccountRecoveryModal({ open, initialMode, onClose }: Acc
         ) : (
           <>
             <p id="account-recovery-description" className={styles.resetDescription}>
-              등록된 정보가 확인되면 입력하신 휴대폰 번호로 안내를 보내드립니다.
+              이메일은 사용하지 않습니다. 등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.
             </p>
             <div className={`${styles.signupSegmentWrap} ${styles.resetTargetWrap}`} role="group" aria-label="복구 유형 선택">
               <button

@@ -67,6 +67,13 @@ coverage
 !e2e/**/*.spec.ts
 *prompt.ts
 docs/
+!docs/
+docs/*
+!docs/README.md
+!docs/USER-GUIDE-ADMIN.md
+!docs/USER-GUIDE-STUDENT.md
+!docs/REAL-USE-REVIEW-MANUAL.md
+!docs/REAL-USE-E2E-INVENTORY.md
 prompts/
 specs/
 temp/

@@ -3,6 +3,7 @@ import { Button, Panel } from "@/shared/ui/ds";
 import { Attendance } from "../../api/profile.api";
 import { downloadAttendanceExcel } from "../../excel/attendanceExcel";
 import { FiPlus, FiDownload } from "react-icons/fi";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function AttendanceHeader({
   range,
@@ -47,9 +48,10 @@ export default function AttendanceHeader({
             type="button"
             intent="secondary"
             size="sm"
-            onClick={() =>
-              downloadAttendanceExcel({ month: monthValue, rows: rowsForExcel })
-            }
+            onClick={() => {
+              void downloadAttendanceExcel({ month: monthValue, rows: rowsForExcel })
+                .catch(() => feedback.error("엑셀 다운로드에 실패했습니다."));
+            }}
             leftIcon={<FiDownload size={14} />}
           >
             Excel

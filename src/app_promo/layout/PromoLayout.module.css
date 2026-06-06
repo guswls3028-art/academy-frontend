@@ -85,12 +85,11 @@
 .desktopNav {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .headerScrolled .desktopNav {
@@ -116,8 +115,8 @@
 }
 
 .desktopNav a {
-  height: 36px;
-  padding: 0 12px;
+  height: 34px;
+  padding: 0 10px;
 }
 
 .desktopNav a:hover,
@@ -134,7 +133,7 @@
   color: #06131b;
   border-color: rgba(125, 211, 252, 0.88);
   background: #7dd3fc;
-  box-shadow: 0 10px 26px rgba(125, 211, 252, 0.24);
+  box-shadow: none;
 }
 
 .headerScrolled .desktopNav a:hover,
@@ -148,7 +147,7 @@
   color: #fff;
   border-color: #08202a;
   background: #08202a;
-  box-shadow: 0 10px 24px rgba(8, 32, 42, 0.18);
+  box-shadow: none;
 }
 
 .mobileTabs a:hover,
@@ -272,9 +271,9 @@
 .mobileTabs {
   display: none;
   width: 100%;
-  gap: 6px;
+  gap: 5px;
   overflow-x: auto;
-  padding: 0 16px 10px;
+  padding: 0 16px 8px;
   scrollbar-width: none;
 }
 
@@ -284,10 +283,10 @@
 
 .mobileTabs a {
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 11px;
+  min-height: 32px;
+  padding: 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .headerScrolled .mobileTabs a {

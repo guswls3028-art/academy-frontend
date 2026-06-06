@@ -390,16 +390,24 @@ export default function SessionEnrollModal({
         qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] }),
       ]);
       if (statusByStudentId && created.length) {
+        let skippedSecession = 0;
         for (let i = 0; i < created.length; i++) {
           const studentId = studentIds[i];
           const status = statusByStudentId[studentId];
           if (status && created[i]?.id) {
+            if (status === "SECESSION") {
+              skippedSecession += 1;
+              continue;
+            }
             try {
               await updateAttendance(created[i].id, { status });
             } catch {
               // 개별 PATCH 실패 시 무시
             }
           }
+        }
+        if (skippedSecession > 0) {
+          feedback.warning(`퇴원 상태 ${skippedSecession}건은 자동 적용하지 않았습니다. 출결 화면에서 직접 확인 후 처리해 주세요.`);
         }
       }
       setExcelStatusByStudentId({});
@@ -1118,7 +1126,9 @@ export default function SessionEnrollModal({
                   </label>
                   <button
                     type="button"
-                    onClick={() => downloadStudentExcelTemplate(slm.mode)}
+                    onClick={() => {
+                      void downloadStudentExcelTemplate(slm.mode).catch(() => feedback.error("엑셀 양식 다운로드에 실패했습니다."));
+                    }}
                     className="text-[11px] text-[var(--color-brand-primary)] hover:underline inline-flex items-center gap-1"
                     title="엑셀 양식 샘플 다운로드"
                   >

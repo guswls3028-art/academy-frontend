@@ -55,7 +55,7 @@ export default function ContactPage() {
         <div className={styles.resultCard}>
           <span>문의 접수</span>
           <h1>문의가 접수되었습니다</h1>
-          <p>확인 후 빠르게 연락드리겠습니다. 급한 상담은 아래 버튼으로 바로 전화주세요.</p>
+          <p>확인 후 연락드리겠습니다. 일정이 정해져 있으면 아래 버튼으로 전화 문의도 가능합니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
             <Link to="/promo/pricing">요금제 보기</Link>
@@ -72,7 +72,7 @@ export default function ContactPage() {
         <div className={styles.heroInner}>
           <span>도입 문의</span>
           <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
-          <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드리겠습니다. 급한 일정이나 견적 확인은 전화가 가장 빠릅니다.</p>
+          <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드리겠습니다. 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
@@ -85,11 +85,11 @@ export default function ContactPage() {
             <ol>
               <li>담당 수강생 수와 함께 쓰는 계정 수</li>
               <li>시험·과제·학생앱 영상·알림톡 발송 중 필요한 범위</li>
-              <li>지금 수업 자료와 피드백을 관리하는 방식</li>
+              <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
               <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>
-              <p>가격·일정·기능 범위가 급하면 바로 전화 상담 가능합니다.</p>
+              <p>가격·일정·기능 범위를 먼저 맞춰야 할 때 전화로 확인할 수 있습니다.</p>
             </div>
           </aside>
 

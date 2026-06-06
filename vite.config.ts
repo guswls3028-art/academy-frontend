@@ -76,7 +76,7 @@ export default defineConfig({
             ) return "vendor-antd";
             if (normalized.includes("lucide-react") || normalized.includes("react-icons")) return "vendor-icons";
             if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
-            if (normalized.includes("/xlsx/")) return "vendor-xlsx";
+            if (normalized.includes("/exceljs/")) return "vendor-excel";
             if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
             if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
             if (normalized.includes("hls.js")) return "vendor-hls";

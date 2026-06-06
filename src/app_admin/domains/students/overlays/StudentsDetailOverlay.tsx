@@ -9,11 +9,13 @@ import api from "@/shared/api/axios";
 
 import {
   getStudentDetail,
+  fetchStudentAccountNotifications,
   getTags,
   attachStudentTag,
   detachStudentTag,
   createMemo,
   toggleStudentActive,
+  type ClientAccountNotificationLog,
   type ClientEnrollmentLite,
   type ClientStudentTag,
 } from "../api/students.api";
@@ -190,6 +192,11 @@ export default function StudentsDetailOverlay({
       const res = await api.get<CommunityPost[] | ListEnvelope<CommunityPost>>("/community/posts/", { params: { author_student: id, page_size: 50 } });
       return listFromResponse(res.data);
     },
+    enabled: id > 0,
+  });
+  const { data: accountNotifications, isLoading: accountNotificationsLoading } = useQuery({
+    queryKey: ["student", id, "account-notifications"],
+    queryFn: () => fetchStudentAccountNotifications(id, 5),
     enabled: id > 0,
   });
 
@@ -378,6 +385,14 @@ export default function StudentsDetailOverlay({
                       <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
                       {student.address && <InfoRow label="주소" value={student.address} />}
                     </div>
+                  </div>
+
+                  <div className="ds-overlay-sidebar-section">
+                    <div className="ds-overlay-sidebar-section__title">계정 알림톡</div>
+                    <AccountNotificationHistory
+                      logs={accountNotifications ?? []}
+                      loading={accountNotificationsLoading}
+                    />
                   </div>
 
                   {/* 학교 정보 */}
@@ -592,6 +607,65 @@ export default function StudentsDetailOverlay({
         </Suspense>
       )}
     </>
+  );
+}
+
+const ACCOUNT_NOTIFICATION_LABEL: Record<string, string> = {
+  registration_approved_student: "학생 계정 안내",
+  registration_approved_parent: "학부모 계정 안내",
+  password_find_otp: "이전 비번찾기",
+  password_reset_student: "학생 임시 비번",
+  password_reset_parent: "학부모 임시 비번",
+};
+
+function formatAccountNotificationTime(value: string | null): string {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${y}.${m}.${d} ${hh}:${mm}`;
+}
+
+function AccountNotificationHistory({
+  logs,
+  loading,
+}: {
+  logs: ClientAccountNotificationLog[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return <div className={styles.accountNotificationEmpty}>불러오는 중...</div>;
+  }
+  if (!logs.length) {
+    return <div className={styles.accountNotificationEmpty}>최근 발송 없음</div>;
+  }
+
+  return (
+    <div className={styles.accountNotificationList}>
+      {logs.map((log) => {
+        const failed = !log.success || log.status === "failed";
+        const label = ACCOUNT_NOTIFICATION_LABEL[log.notificationType] ?? log.notificationType ?? "계정 알림톡";
+        return (
+          <div key={log.id} className={styles.accountNotificationItem}>
+            <div className={styles.accountNotificationMain}>
+              <span className={styles.accountNotificationType}>{label}</span>
+              <span className={styles.accountNotificationTime}>{formatAccountNotificationTime(log.sentAt)}</span>
+            </div>
+            <span
+              className={styles.accountNotificationStatus}
+              data-status={failed ? "failed" : "sent"}
+              title={failed ? log.failureReason || "발송 실패" : "발송 성공"}
+            >
+              {failed ? "실패" : "성공"}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

@@ -88,14 +88,15 @@ export default function StudentsTable({
 
   function toggleSelect(id: number) {
     if (!onSelectionChange) return;
-    const visibleSelectedIds = selectedIds.filter((studentId) => allIdSet.has(studentId));
+    const currentPageSelectedIds = selectedIds.filter((studentId) => allIdSet.has(studentId));
     if (selectedSet.has(id)) {
-      onSelectionChange(visibleSelectedIds.filter((x) => x !== id));
+      onSelectionChange(currentPageSelectedIds.filter((studentId) => studentId !== id));
     } else {
-      onSelectionChange([...visibleSelectedIds, id]);
+      onSelectionChange([...currentPageSelectedIds, id]);
     }
   }
 
+  /** 현재 페이지 전체 선택/해제 */
   function toggleSelectAll() {
     if (!onSelectionChange) return;
     if (allSelected) {

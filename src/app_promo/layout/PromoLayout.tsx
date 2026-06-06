@@ -45,6 +45,15 @@ function isActive(pathname: string, path: string) {
   return direct || Boolean(aliased);
 }
 
+function decodeHashId(hash: string) {
+  const raw = hash.slice(1);
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -77,7 +86,7 @@ function Header() {
 
   return (
     <>
-      <header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
+      <header data-promo-header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
         <div className={styles.headerInner}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">H</span>
@@ -196,9 +205,9 @@ function Header() {
         <div className={styles.sidebarCta}>
           <span>
             <Sparkles size={16} />
-            빠른 도입 상담
+            도입 범위 상담
           </span>
-          <p>지금 쓰는 출결·채점·안내 방식을 듣고 필요한 기능부터 골라드립니다. 급하면 바로 전화주세요.</p>
+          <p>현재 쓰는 수업 관리 방식을 기준으로 먼저 정리할 업무를 함께 고릅니다.</p>
           <PhoneInquiryLink>
             전화 문의
             <PhoneCall size={16} />
@@ -211,6 +220,46 @@ function Header() {
       </aside>
     </>
   );
+}
+
+function PromoScrollManager() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
+      return undefined;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const id = decodeHashId(location.hash);
+
+    const scrollToHashTarget = () => {
+      if (cancelled) return;
+      const target = document.getElementById(id);
+      if (!target) {
+        attempts += 1;
+        if (attempts < 12) window.setTimeout(scrollToHashTarget, 80);
+        return;
+      }
+
+      const header = document.querySelector<HTMLElement>("[data-promo-header]");
+      const headerOffset = header?.getBoundingClientRect().height ?? 0;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerOffset - 16;
+      window.scrollTo({ top: Math.max(0, top), left: 0, behavior: "auto" });
+    };
+
+    window.requestAnimationFrame(scrollToHashTarget);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.hash]);
+
+  return null;
 }
 
 function Footer() {
@@ -272,6 +321,7 @@ export default function PromoLayout() {
 
   return (
     <div className={styles.layout}>
+      <PromoScrollManager />
       <Header />
       <main className={styles.main}>
         <Outlet />

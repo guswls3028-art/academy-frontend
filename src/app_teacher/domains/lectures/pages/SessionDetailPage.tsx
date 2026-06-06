@@ -10,7 +10,11 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
-import { fetchSession, fetchSessionAttendance, fetchLectureEnrollments } from "../api";
+import { fetchSession, fetchSessionAttendance } from "../api";
+import {
+  fetchSessionEnrollments,
+  type SessionEnrollmentRow,
+} from "@/shared/api/contracts/sessionEnrollments";
 import { fetchSessionExams, fetchExamResults } from "@teacher/domains/scores/api";
 import {
   getExamResultMaxScore,
@@ -55,12 +59,11 @@ export default function SessionDetailPage() {
     enabled: Number.isFinite(sid),
   });
 
-  // 차시 학생 탭은 enrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
-  const lectureIdForEnrollments = session?.lecture_id ?? session?.lecture ?? null;
-  const { data: enrollments } = useQuery({
-    queryKey: ["lecture-enrollments", lectureIdForEnrollments],
-    queryFn: () => fetchLectureEnrollments(lectureIdForEnrollments!),
-    enabled: Number.isFinite(lectureIdForEnrollments),
+  // 차시 학생 탭은 SessionEnrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
+  const { data: sessionEnrollments } = useQuery({
+    queryKey: ["session-enrollments", sid],
+    queryFn: () => fetchSessionEnrollments(sid),
+    enabled: Number.isFinite(sid),
   });
 
   const { data: exams } = useQuery({
@@ -156,8 +159,8 @@ export default function SessionDetailPage() {
         style={{ borderBottom: "1px solid var(--tc-border)", WebkitOverflowScrolling: "touch" }}
       >
         {([
-          // 학생 카운트는 enrollment(차시 수강생 전체) 기준. attendance는 출석 상태가 매겨진 row만이라 학생 수와 다름.
-          { key: "students" as Tab, label: `학생${enrollments?.length != null ? ` ${enrollments.length}` : ""}` },
+          // 학생 카운트는 SessionEnrollment(차시 수강생 전체) 기준. attendance는 출석 상태가 매겨진 row만이라 학생 수와 다름.
+          { key: "students" as Tab, label: `학생${sessionEnrollments?.length != null ? ` ${sessionEnrollments.length}` : ""}` },
           { key: "attendance" as Tab, label: "출석" },
           { key: "scores" as Tab, label: "성적" },
           { key: "exams" as Tab, label: "시험" },
@@ -188,7 +191,7 @@ export default function SessionDetailPage() {
       {/* Tab content */}
       {tab === "students" && (
         <StudentsTab
-          enrollments={enrollments ?? []}
+          enrollments={sessionEnrollments ?? []}
           attendances={attendances ?? []}
           lectureInfo={sessionLectureInfo}
           navigate={navigate}
@@ -416,7 +419,7 @@ function StudentsTab({
   attendances,
   lectureInfo,
   navigate,
-}: { enrollments: any[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any }) {
+}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any }) {
   if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />;
 
   // enrollment_id → attendance row 매핑
@@ -431,9 +434,10 @@ function StudentsTab({
       {enrollments.map((e: any) => {
         const name = e.student_name ?? e.student?.name ?? e.name ?? "이름 없음";
         const studentId = e.student_id ?? e.student?.id;
-        const parentPhone = e.parent_phone ?? e.student?.parent_phone ?? e.parentPhone;
-        const studentPhone = e.student_phone ?? e.student?.phone ?? e.studentPhone ?? e.phone;
-        const att = attendanceByEnrollment.get(e.id);
+        const enrollmentId = e.enrollment ?? e.id;
+        const att = attendanceByEnrollment.get(enrollmentId);
+        const parentPhone = att?.parent_phone ?? e.parent_phone ?? e.student?.parent_phone ?? e.parentPhone;
+        const studentPhone = att?.phone ?? e.student_phone ?? e.student?.phone ?? e.studentPhone ?? e.phone;
         const st = att
           ? (STATUS_LABELS[att.status] ?? { label: att.status, color: "var(--tc-text-muted)" })
           : { label: "미체크", color: "var(--tc-text-muted)" };

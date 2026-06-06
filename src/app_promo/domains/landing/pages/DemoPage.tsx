@@ -72,7 +72,7 @@ export default function DemoPage() {
         <div className={styles.resultCard}>
           <span>데모 접수</span>
           <h1>데모 요청이 접수되었습니다</h1>
-          <p>보통 1영업일 이내에 연락드리며, 급한 일정은 전화로 바로 상담 가능합니다.</p>
+          <p>보통 1영업일 이내에 연락드리며, 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
             <Link to="/promo/pricing">요금제 보기</Link>
@@ -89,7 +89,7 @@ export default function DemoPage() {
         <div className={styles.heroInner}>
           <span>데모 요청</span>
           <h1 id="demo-title">선생님의 수업 방식에 맞춰 데모를 준비합니다</h1>
-          <p>지금 쓰는 수업 방식과 필요한 기능을 남겨주시면, 시작 범위와 요금 기준을 함께 확인합니다.</p>
+          <p>현재 수업 방식과 필요한 기능을 남겨주시면, 시작 범위와 요금 기준을 함께 확인합니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
         </div>
       </section>
@@ -106,7 +106,7 @@ export default function DemoPage() {
             </ol>
             <div className={styles.callBox}>
               <PhoneInquiryLink className={styles.callBoxButton}>전화 문의</PhoneInquiryLink>
-              <p>광고 집행 전 가격표나 기능 범위를 바로 맞춰야 하면 전화가 빠릅니다.</p>
+              <p>외부 안내 전에 가격표나 기능 범위를 맞춰야 하면 전화로 확인할 수 있습니다.</p>
             </div>
           </aside>
 

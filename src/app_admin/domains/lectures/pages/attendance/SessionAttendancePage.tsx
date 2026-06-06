@@ -153,10 +153,17 @@ export default function SessionAttendancePage({
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: AttendanceStatus }) =>
-      updateAttendance(id, { status }),
+    mutationFn: ({ id, status, confirm_secession }: {
+      id: number;
+      status: AttendanceStatus;
+      confirm_secession?: boolean;
+    }) =>
+      updateAttendance(id, { status, confirm_secession }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      if (Number.isFinite(lectureId)) {
+        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+      }
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
     },
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
@@ -698,7 +705,7 @@ export default function SessionAttendancePage({
                       if (!secOk) return;
                     }
                     updateStatus.mutate(
-                      { id: att.id, status: code },
+                      { id: att.id, status: code, confirm_secession: code === "SECESSION" ? true : undefined },
                       code === "SECESSION"
                         ? {
                             onSuccess: () => {

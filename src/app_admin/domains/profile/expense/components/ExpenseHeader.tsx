@@ -3,6 +3,7 @@ import { Button, Panel } from "@/shared/ui/ds";
 import { Expense } from "../../api/profile.api";
 import { downloadExpenseExcel } from "../../excel/expenseExcel";
 import { FiPlus, FiDownload } from "react-icons/fi";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function ExpenseHeader({
   range,
@@ -47,9 +48,10 @@ export default function ExpenseHeader({
             type="button"
             intent="secondary"
             size="sm"
-            onClick={() =>
-              downloadExpenseExcel({ month: monthValue, rows: rowsForExcel })
-            }
+            onClick={() => {
+              void downloadExpenseExcel({ month: monthValue, rows: rowsForExcel })
+                .catch(() => feedback.error("엑셀 다운로드에 실패했습니다."));
+            }}
             leftIcon={<FiDownload size={14} />}
           >
             Excel
