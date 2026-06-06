@@ -5,6 +5,29 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function isLocalOrPreviewBase(base: string): boolean {
+  try {
+    const hostname = new URL(base).hostname.trim().toLowerCase();
+    return hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".pages.dev") ||
+      hostname.endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
+function getLoginUrl(tenantCode: string): string {
+  if (tenantCode === "limglish" && !isLocalOrPreviewBase(BASE)) {
+    return `${trimTrailingSlash(getBaseUrl("limglish-admin"))}/login`;
+  }
+  return `${trimTrailingSlash(BASE)}/login/${tenantCode}`;
+}
+
 async function stubLoginBootstrap(page: Page, tenantCode = "hakwonplus") {
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
@@ -40,7 +63,7 @@ async function stubAccountRecovery(page: Page, message = "입력한 번호로 �
 }
 
 async function openRecovery(page: Page, mode: "username" | "password", tenantCode = "hakwonplus") {
-  await gotoAndSettle(page, `${BASE}/login/${tenantCode}`, { timeout: 20_000 });
+  await gotoAndSettle(page, getLoginUrl(tenantCode), { timeout: 20_000 });
   await page.getByRole("button", { name: mode === "username" ? "아이디 찾기" : "비밀번호 찾기" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
