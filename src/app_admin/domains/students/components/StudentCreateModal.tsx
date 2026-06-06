@@ -369,8 +369,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     onClose();
   };
 
+  const enterConfirm = !busy
+    ? mode === "single"
+      ? handleSubmit
+      : mode === "excel" && selectedExcelFile
+        ? handleExcelRegister
+        : undefined
+    : undefined;
+
   return (
-    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={enterConfirm}>
       <ModalHeader
         type="action"
         title="학생 등록"
@@ -655,6 +663,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
                 value={excelBulkPassword ?? ""}
                 onChange={(e) => setExcelBulkPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || busy || !selectedExcelFile) return;
+                  e.preventDefault();
+                  void handleExcelRegister();
+                }}
                 className={`ds-input ${styles.fullWidth}`}
                 disabled={busy}
               />

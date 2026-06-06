@@ -83,25 +83,25 @@ export default function StudentsTable({
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => data.map((s) => s.id), [data]);
+  const allIdSet = useMemo(() => new Set(allIds), [allIds]);
   const allSelected = data.length > 0 && allIds.every((studentId) => selectedSet.has(studentId));
 
   function toggleSelect(id: number) {
     if (!onSelectionChange) return;
+    const visibleSelectedIds = selectedIds.filter((studentId) => allIdSet.has(studentId));
     if (selectedSet.has(id)) {
-      onSelectionChange(selectedIds.filter((x) => x !== id));
+      onSelectionChange(visibleSelectedIds.filter((x) => x !== id));
     } else {
-      onSelectionChange([...selectedIds, id]);
+      onSelectionChange([...visibleSelectedIds, id]);
     }
   }
 
-  /** 현재 페이지 전체 선택/해제 — 기존 선택 유지, 페이지 전환 시에도 선택 유지 */
   function toggleSelectAll() {
     if (!onSelectionChange) return;
     if (allSelected) {
-      onSelectionChange(selectedIds.filter((studentId) => !allIds.includes(studentId)));
+      onSelectionChange([]);
     } else {
-      const merged = new Set([...selectedIds, ...allIds]);
-      onSelectionChange([...merged]);
+      onSelectionChange(allIds);
     }
   }
 

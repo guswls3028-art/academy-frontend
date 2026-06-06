@@ -1,12 +1,8 @@
 // PATH: src/app_admin/domains/students/pages/StudentsHomePage.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
-
-import { resolveTenantCodeString } from "@/shared/tenant";
-
-const STORAGE_KEY = "students-selected-ids";
 
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
 import {
@@ -16,6 +12,7 @@ import {
   checkDeletedStudentDuplicates,
   fixDeletedStudentDuplicates,
   toggleStudentActive,
+  type ClientStudent,
   type StudentFilters,
 } from "../api/students.api";
 import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentExcel";
@@ -34,16 +31,7 @@ import { useSendMessageModal } from "@admin/domains/messages/context/SendMessage
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import styles from "./StudentsHomePage.module.css";
 
-function readSelectedStudentIds(storageKey: string): number[] {
-  try {
-    const value = sessionStorage.getItem(storageKey);
-    if (!value) return [];
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "number") : [];
-  } catch {
-    return [];
-  }
-}
+const EMPTY_STUDENTS: ClientStudent[] = [];
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
@@ -62,11 +50,7 @@ export default function StudentsHomePage() {
   const [showFilter, setShowFilter] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
   const [page, setPage] = useState(1);
-  const tenantCode = resolveTenantCodeString();
-  const selectedStorageKey = `${STORAGE_KEY}-${tenantCode}-${isDeletedTab ? "deleted" : "home"}`;
-  const [selectedIds, setSelectedIds] = useState<number[]>(() =>
-    readSelectedStudentIds(selectedStorageKey)
-  );
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [withdrawalNotif, setWithdrawalNotif] = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] });
   const [duplicateFixing, setDuplicateFixing] = useState(false);
@@ -80,18 +64,6 @@ export default function StudentsHomePage() {
   useEffect(() => {
     setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
   }, [isDeletedTab]);
-
-  const prevTabRef = useRef(isDeletedTab);
-  useEffect(() => {
-    if (prevTabRef.current !== isDeletedTab) {
-      prevTabRef.current = isDeletedTab;
-      setSelectedIds([]);
-    }
-  }, [isDeletedTab]);
-
-  useEffect(() => {
-    sessionStorage.setItem(selectedStorageKey, JSON.stringify(selectedIds));
-  }, [selectedIds, selectedStorageKey]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -110,10 +82,28 @@ export default function StudentsHomePage() {
     page,
     isDeletedTab
   );
-  const data = queryResult?.data ?? [];
+  const data = queryResult?.data ?? EMPTY_STUDENTS;
   const totalCount = queryResult?.count ?? 0;
   const pageSize = queryResult?.pageSize ?? 50;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const visibleSelectedStudents = useMemo(
+    () => data.filter((student) => selectedIdSet.has(student.id)),
+    [data, selectedIdSet]
+  );
+  const visibleSelectedIds = useMemo(
+    () => visibleSelectedStudents.map((student) => student.id),
+    [visibleSelectedStudents]
+  );
+  const selectedCount = visibleSelectedIds.length;
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visibleIds = new Set(data.map((student) => student.id));
+      const next = prev.filter((studentId) => visibleIds.has(studentId));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [data]);
 
   const activeFilterCount = useMemo(
     () => Object.keys(filters).length,
@@ -143,45 +133,52 @@ export default function StudentsHomePage() {
       ? toggleActiveMutation.variables.id
       : null;
 
+  function handleSortChange(nextSort: string) {
+    setSort(nextSort);
+    setPage(1);
+    setSelectedIds([]);
+  }
+
+  function handlePageChange(nextPage: number) {
+    setPage(nextPage);
+    setSelectedIds([]);
+  }
+
   const selectionBar = (
     <div className={styles.selectionBar}>
       <div className={`flex items-center gap-2 pl-1 ${styles.selectionActions}`}>
         <span
           className={`text-[13px] font-semibold ${styles.selectedCount}`}
-          data-selected={selectedIds.length > 0 ? "true" : "false"}
+          data-selected={selectedCount > 0 ? "true" : "false"}
         >
-          {selectedIds.length}명 선택됨
+          {selectedCount}명 선택됨
         </span>
         <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`}>|</span>
-        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedCount === 0}>
           선택 해제
         </Button>
         <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`}>|</span>
         {!isDeletedTab && (
           <>
-            <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={() => {
-              // 현재 테이블에 표시된 학생만 발송 대상에 포함 (이전 검색의 잔여 선택 제외)
-              const visibleIds = new Set((data ?? []).map((s) => s.id));
-              const validIds = selectedIds.filter((studentId) => visibleIds.has(studentId));
-              if (validIds.length === 0) {
+            <Button intent="secondary" size="sm" disabled={selectedCount === 0} onClick={() => {
+              if (visibleSelectedIds.length === 0) {
                 feedback.info("현재 목록에 선택된 학생이 없습니다.");
                 return;
               }
-              openSendMessageModal({ studentIds: validIds, recipientLabel: `선택한 학생 ${validIds.length}명`, blockCategory: "student" });
+              openSendMessageModal({ studentIds: visibleSelectedIds, recipientLabel: `선택한 학생 ${visibleSelectedIds.length}명`, blockCategory: "student" });
             }}>
               메시지 발송
             </Button>
             <Button
               intent="secondary"
               size="sm"
-              disabled={selectedIds.length === 0}
+              disabled={selectedCount === 0}
               onClick={() => {
-                const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
-                if (selected.length === 0) {
+                if (visibleSelectedStudents.length === 0) {
                   feedback.info("선택한 학생이 없습니다.");
                   return;
                 }
-                const rows: StudentExportRow[] = selected.map((s) => ({
+                const rows: StudentExportRow[] = visibleSelectedStudents.map((s) => ({
                   name: s.name,
                   parentPhone: s.parentPhone ?? null,
                   studentPhone: s.studentPhone ?? null,
@@ -194,16 +191,16 @@ export default function StudentsHomePage() {
                   registeredAt: s.registeredAt ?? null,
                   tags: (s.tags ?? []).map((t) => ({ name: t.name })),
                 }));
-                downloadStudentsExcel(rows, `학생목록_${selected.length}명.xlsx`);
-                feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
+                downloadStudentsExcel(rows, `학생목록_${visibleSelectedStudents.length}명.xlsx`);
+                feedback.success(`엑셀 다운로드됨 (${visibleSelectedStudents.length}명)`);
               }}
             >
               엑셀 다운로드
             </Button>
-            <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedIds.length === 0}>
+            <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedCount === 0}>
               태그 추가
             </Button>
-            <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedIds.length === 0}>
+            <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedCount === 0}>
               비밀번호 변경
             </Button>
             {/* destructive 액션은 시각적으로 분리 — 위험 액션 오클릭 방지 */}
@@ -211,22 +208,21 @@ export default function StudentsHomePage() {
             <Button
               intent="danger"
               size="sm"
-              disabled={selectedIds.length === 0 || deleting}
+              disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedIds.length === 0) return;
-                const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
-                const parts = selected.map(
+                if (selectedCount === 0) return;
+                const parts = visibleSelectedStudents.map(
                   (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
                 );
                 const msg =
                   parts.length > 0
-                    ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
-                    : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+                    ? `${parts.join(", ")}\n\n위 ${selectedCount}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
+                    : `선택한 ${selectedCount}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
                 if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
                 setDeleting(true);
                 try {
-                  const deletedIds = [...selectedIds];
-                  const { deleted } = await bulkDeleteStudents(selectedIds);
+                  const deletedIds = [...visibleSelectedIds];
+                  const { deleted } = await bulkDeleteStudents(visibleSelectedIds);
                   setSelectedIds([]);
                   qc.invalidateQueries({ queryKey: ["students"] });
                   feedback.success(`${deleted}명 삭제되었습니다.`);
@@ -247,13 +243,13 @@ export default function StudentsHomePage() {
             <Button
               intent="primary"
               size="sm"
-              disabled={selectedIds.length === 0 || deleting}
+              disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedIds.length === 0) return;
-                if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
+                if (selectedCount === 0) return;
+                if (!(await confirm({ title: "학생 복원", message: `선택한 ${selectedCount}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
                 setDeleting(true);
                 try {
-                  const { restored, skipped = [] } = await bulkRestoreStudents(selectedIds);
+                  const { restored, skipped = [] } = await bulkRestoreStudents(visibleSelectedIds);
                   setSelectedIds([]);
                   qc.invalidateQueries({ queryKey: ["students"] });
                   if (skipped.length > 0) {
@@ -274,13 +270,13 @@ export default function StudentsHomePage() {
             <Button
               intent="danger"
               size="sm"
-              disabled={selectedIds.length === 0 || deleting}
+              disabled={selectedCount === 0 || deleting}
               onClick={async () => {
-                if (selectedIds.length === 0) return;
-                if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
+                if (selectedCount === 0) return;
+                if (!(await confirm({ title: "영구 삭제", message: `선택한 ${selectedCount}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`, confirmText: "영구 삭제", danger: true }))) return;
                 setDeleting(true);
                 try {
-                  const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
+                  const { deleted } = await bulkPermanentDeleteStudents(visibleSelectedIds);
                   setSelectedIds([]);
                   qc.invalidateQueries({ queryKey: ["students"] });
                   feedback.success(`${deleted}명 영구 삭제되었습니다.`);
@@ -311,7 +307,7 @@ export default function StudentsHomePage() {
             <>
               {start > 1 && (
                 <>
-                  <button type="button" onClick={() => setPage(1)} className={styles.paginationButton}>1</button>
+                  <button type="button" onClick={() => handlePageChange(1)} className={styles.paginationButton}>1</button>
                   {start > 2 && <span className={styles.paginationEllipsis}>…</span>}
                 </>
               )}
@@ -319,7 +315,7 @@ export default function StudentsHomePage() {
                 <button
                   key={p}
                   type="button"
-                  onClick={() => setPage(p)}
+                  onClick={() => handlePageChange(p)}
                   className={styles.paginationButton}
                   data-active={page === p ? "true" : "false"}
                 >
@@ -329,7 +325,7 @@ export default function StudentsHomePage() {
               {end < totalPages && (
                 <>
                   {end < totalPages - 1 && <span className={styles.paginationEllipsis}>…</span>}
-                  <button type="button" onClick={() => setPage(totalPages)} className={styles.paginationButton}>{totalPages}</button>
+                  <button type="button" onClick={() => handlePageChange(totalPages)} className={styles.paginationButton}>{totalPages}</button>
                 </>
               )}
             </>
@@ -459,7 +455,7 @@ export default function StudentsHomePage() {
               data={data}
               search={search}
               sort={sort}
-              onSortChange={setSort}
+              onSortChange={handleSortChange}
               onRowClick={(id) => !isDeletedTab && navigate(`/admin/students/${id}`)}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
@@ -525,7 +521,7 @@ export default function StudentsHomePage() {
       <TagAddModal
         open={showTagModal}
         onClose={() => setShowTagModal(false)}
-        studentIds={selectedIds}
+        studentIds={visibleSelectedIds}
         onSuccess={() => {
           setShowTagModal(false);
           setSelectedIds([]);
@@ -540,7 +536,7 @@ export default function StudentsHomePage() {
       <PasswordResetModal
         open={showPasswordResetModal}
         onClose={() => setShowPasswordResetModal(false)}
-        selectedStudents={(data ?? []).filter((s) => selectedIds.includes(s.id))}
+        selectedStudents={visibleSelectedStudents}
         target={passwordResetTarget}
         onTargetChange={setPasswordResetTarget}
         onSuccess={() => {

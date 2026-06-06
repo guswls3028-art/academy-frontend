@@ -109,6 +109,26 @@ function cellStrOptional(map: Record<string, number>, row: unknown[], key: strin
   return String(v ?? "").trim();
 }
 
+function isKnownTemplateExampleRow(map: Record<string, number>, row: unknown[]): boolean {
+  const name = cellStr(map, row, "name");
+  const parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+  const studentPhone = toRawPhone(cellStr(map, row, "studentPhone"));
+
+  return (
+    name === "홍길동" &&
+    parentPhone === "01087654321" &&
+    studentPhone === "01012345678"
+  ) || (
+    name === "김영희" &&
+    parentPhone === "01011112222" &&
+    studentPhone === ""
+  );
+}
+
+function isTemplateExampleRow(map: Record<string, number>, row: unknown[]): boolean {
+  return /예시/.test(cellStrOptional(map, row, "remark")) || isKnownTemplateExampleRow(map, row);
+}
+
 /**
  * "학교(학년)" 형식 파싱 — 예: 숙명여고(０), 휘문중(3)
  * 전각 숫자 ０→0 변환, 학교명과 학년 분리
@@ -148,14 +168,14 @@ export function downloadStudentExcelTemplate(mode?: "middle_high" | "elementary_
 
   // ── 헤더 & 데이터 구성 ──
   const headers = isElemMode
-    ? ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "메모"]
-    : ["이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
+    ? ["구분", "이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "메모"]
+    : ["구분", "이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
   const exampleRow1 = isElemMode
-    ? ["홍길동", "01087654321", "01012345678", "M", "한빛초등학교", "3", "2", ""]
-    : ["홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
+    ? ["예시", "홍길동", "01087654321", "01012345678", "M", "한빛초등학교", "3", "2", ""]
+    : ["예시", "홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
   const exampleRow2 = isElemMode
-    ? ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", ""]
-    : ["김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
+    ? ["예시", "김영희", "01011112222", "", "F", "서울중학교", "2", "1", ""]
+    : ["예시", "김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
 
   const schoolHint = isElemMode ? "학교 입력 시 초/중 자동 판별" : "학교 입력 시 고/중 자동 판별";
   const guide = [
@@ -166,7 +186,7 @@ export function downloadStudentExcelTemplate(mode?: "middle_high" | "elementary_
     ["  학생전화번호가 있으면 학생 아이디로 사용됩니다. 없으면 자동 부여."],
     ["  학부모 아이디 = 학부모전화번호 (신규 계정 비밀번호: 전화번호 뒤 4자리)"],
     [`  성별: M(남) 또는 F(여)  |  ${schoolHint}`],
-    ["  아래 예시 행은 삭제하고 학생 정보를 입력해 주세요."],
+    ["  구분이 '예시'인 행은 등록되지 않습니다. 실제 학생 행은 구분을 비워두세요."],
     [""],
   ];
 
@@ -174,17 +194,30 @@ export function downloadStudentExcelTemplate(mode?: "middle_high" | "elementary_
   const sheet = XLSX.utils.aoa_to_sheet(data);
 
   // ── 컬럼 너비 ──
-  sheet["!cols"] = [
-    { wch: 10 }, // 이름
-    { wch: 16 }, // 학부모전화
-    { wch: 16 }, // 학생전화
-    { wch: 6 },  // 성별
-    { wch: 14 }, // 학교
-    { wch: 6 },  // 학년
-    { wch: 6 },  // 반
-    { wch: 8 },  // 계열
-    { wch: 16 }, // 메모
-  ];
+  sheet["!cols"] = isElemMode
+    ? [
+      { wch: 8 },  // 구분
+      { wch: 10 }, // 이름
+      { wch: 16 }, // 학부모전화
+      { wch: 16 }, // 학생전화
+      { wch: 6 },  // 성별
+      { wch: 14 }, // 학교
+      { wch: 6 },  // 학년
+      { wch: 6 },  // 반
+      { wch: 16 }, // 메모
+    ]
+    : [
+      { wch: 8 },  // 구분
+      { wch: 10 }, // 이름
+      { wch: 16 }, // 학부모전화
+      { wch: 16 }, // 학생전화
+      { wch: 6 },  // 성별
+      { wch: 14 }, // 학교
+      { wch: 6 },  // 학년
+      { wch: 6 },  // 반
+      { wch: 8 },  // 계열
+      { wch: 16 }, // 메모
+    ];
 
   // ── 셀 스타일 (xlsx 기본 지원 범위) ──
   // 제목 행 병합
@@ -274,14 +307,9 @@ export function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> 
         }
 
         const result: ParsedStudentRow[] = [];
-        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
-          const i = m["remark"];
-          if (i == null || typeof i !== "number") return "";
-          return String((row as unknown[])[i] ?? "").trim();
-        };
         for (let r = headerRowIndex + 1; r < rows.length; r++) {
           const row = rows[r] as unknown[];
-          if (/예시/.test(remarkVal(map, row))) continue; // 예시 행 스킵
+          if (isTemplateExampleRow(map, row)) continue;
           if (!lectureNameFromExcel && map["lectureName"] != null) {
             const v = cellStrOptional(map, row, "lectureName");
             if (v) lectureNameFromExcel = v;
@@ -430,14 +458,9 @@ export function parseSessionEnrollExcel(file: File): Promise<SessionEnrollParsed
         const map = buildHeaderMap(headerRow);
         const sessionColMap = buildSessionColumnMap(headerRow);
         const result: SessionEnrollParsedRow[] = [];
-        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
-          const i = m["remark"];
-          if (i == null || typeof i !== "number") return "";
-          return String((row as unknown[])[i] ?? "").trim();
-        };
         for (let r = headerRowIndex + 1; r < rows.length; r++) {
           const row = rows[r] as unknown[];
-          if (/예시/.test(remarkVal(map, row))) continue;
+          if (isTemplateExampleRow(map, row)) continue;
           const name = cellStr(map, row, "name");
           const parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
           if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
