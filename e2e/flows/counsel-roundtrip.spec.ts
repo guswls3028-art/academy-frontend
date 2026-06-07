@@ -12,16 +12,59 @@ import { apiCall } from "../helpers/api";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
+const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 const TIMESTAMP = Date.now();
 const C_TITLE = `[E2E] 상담 신청 ${TIMESTAMP}`;
 const C_CONTENT = `E2E 상담 본문 (${TIMESTAMP})`;
 const A_CONTENT = `E2E 상담 답변 (${TIMESTAMP})`;
+
+type CounselPost = { id?: number; title?: string; post_type?: string };
+
+function e2eAdminCredentials(): { username: string; password: string; tenant: string } {
+  const username = process.env.E2E_ADMIN_USER;
+  const password = process.env.E2E_ADMIN_PASS;
+  if (!username || !password) throw new Error("Missing E2E admin credentials for counsel cleanup");
+  return { username, password, tenant: "hakwonplus" };
+}
+
+async function cleanupCounselPosts(page: Page, explicitIds: number[]): Promise<void> {
+  const { username, password, tenant } = e2eAdminCredentials();
+  const tokenResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
+    data: { username, password, tenant_code: tenant },
+    headers: { "Content-Type": "application/json", "X-Tenant-Code": tenant },
+    timeout: 60_000,
+  });
+  if (!tokenResp.ok()) return;
+
+  const { access } = await tokenResp.json() as { access: string };
+  const headers = { Authorization: `Bearer ${access}`, "X-Tenant-Code": tenant };
+  const ids = new Set(explicitIds);
+
+  const listResp = await page.request.get(
+    `${API_BASE}/api/v1/community/posts/?post_type=counsel&page_size=500&q=${encodeURIComponent(C_TITLE)}`,
+    { headers },
+  );
+  if (listResp.ok()) {
+    const body = await listResp.json() as CounselPost[] | { results?: CounselPost[]; items?: CounselPost[] };
+    const rows = Array.isArray(body) ? body : (body.results || body.items || []);
+    for (const post of rows) {
+      if (typeof post.id === "number" && post.title === C_TITLE && post.post_type === "counsel") {
+        ids.add(post.id);
+      }
+    }
+  }
+
+  for (const id of ids) {
+    await page.request.delete(`${API_BASE}/api/v1/community/posts/${id}/`, { headers }).catch(() => undefined);
+  }
+}
 
 test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
   let browser: Browser;
   let studentPage: Page;
   let adminPage: Page;
   let postId: number | null = null;
+  const createdPostIds: number[] = [];
 
   test.beforeAll(async ({ browser: b }) => { browser = b; });
 
@@ -39,6 +82,7 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
     });
     expect(resp.status).toBe(201);
     postId = resp.body.id;
+    createdPostIds.push(postId);
   });
 
   test("2. 관리자 상담 인박스에 학생 신청이 보인다", async () => {
@@ -95,9 +139,16 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
   });
 
   test.afterAll(async () => {
-    if (postId && adminPage) {
-      try { await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`); } catch { /* cleanup */ }
+    let cleanupContext: Awaited<ReturnType<Browser["newContext"]>> | null = null;
+    const cleanupPage = adminPage || studentPage || await (async () => {
+      cleanupContext = await browser.newContext();
+      return cleanupContext.newPage();
+    })();
+
+    if (cleanupPage) {
+      try { await cleanupCounselPosts(cleanupPage, createdPostIds); } catch { /* cleanup */ }
     }
+    await cleanupContext?.close();
     await studentPage?.context()?.close();
     await adminPage?.context()?.close();
   });
