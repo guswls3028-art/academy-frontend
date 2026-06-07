@@ -126,4 +126,22 @@ production guard가 실행을 차단하는 것이 정상이다.
 35 passed로 통과했다. 이 gate는 signup approval spec을 포함하지 않으므로, 공개 가입
 승인 실발송 증거는 위 통제번호 blocker가 해소된 뒤 별도 실행한다.
 
+2026-06-07 KST Phase 2 hardening follow-up에서 운영 API + local bundle 기준으로
+아래를 추가 검증했다.
+
+- `pnpm test:e2e:gate`: 35 passed.
+- `e2e/student/score-report-realuse.spec.ts` +
+  `e2e/admin/session-assessment-realuse.spec.ts`: 2 passed.
+- `e2e/flows/counsel-roundtrip.spec.ts`,
+  `e2e/flows/exam-data-flow.spec.ts`,
+  `e2e/flows/homework-scores-inventory-data-flow.spec.ts`,
+  `e2e/flows/video-session-data-flow.spec.ts`: 37 passed, 2 skipped.
+  - skipped 2건은 현재 운영 fixture에서 학생에게 접근 가능한 시험 문항/결과가 없어
+    제출·결과 확인을 조건부 skip한 것이다.
+  - `exam-data-flow`는 비수강/비배정 시험 상세 직접 URL 접근이 빠르게 fail-closed
+    되는지 확인한다.
+  - `exam-data-flow`는 생성한 `E2E Test Exam` template을 test cleanup과
+    `afterAll`에서 정리한다.
+- 운영 cleanup 재확인: `E2E Test Exam` 0건, `[E2E] 상담 신청` 0건.
+
 L2 상품성 리뷰는 자동 spec만으로 닫지 않는다. `REAL-USE-REVIEW-MANUAL.md`의 시각/상품성 판정표와 `_artifacts/realuse-review/{timestamp}/summary.md`를 함께 작성한다.

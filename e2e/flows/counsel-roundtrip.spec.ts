@@ -60,9 +60,11 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
     // 답변하기 CTA (replies_count = 0이므로 노출)
     await expect(adminPage.getByRole("button", { name: /답변하기/ })).toBeVisible();
 
-    // 학생 패널 라벨 + 카테고리 표시
-    await expect(adminPage.locator(".qna-inbox__student-panel-label")).toBeVisible();
-    await expect(adminPage.locator(".qna-inbox__student-course")).toContainText("진로 상담");
+    // 학생 컨텍스트 패널 + 카테고리/연락처 표시
+    const studentPanel = adminPage.locator(".qna-inbox__student-panel").first();
+    await expect(studentPanel.locator(".qna-inbox__student-panel-label")).toBeVisible();
+    await expect(studentPanel.locator(".qna-inbox__student-detail")).toContainText("진로 상담");
+    await expect(studentPanel.locator(".counsel-student-contact-link").first()).toBeVisible();
   });
 
   test("4. 관리자가 답변을 등록한다 (API)", async () => {

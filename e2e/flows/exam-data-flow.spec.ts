@@ -26,11 +26,25 @@ test.describe.serial("Exam domain data flow", () => {
   /** Shared state across tests */
   let createdExamId: number | null = null;
   let createdExamBody: any = null;
+  const createdExamIds: number[] = [];
   let existingExamId: number | null = null;
   let existingExamTitle: string | null = null;
+  let studentExamId: number | null = null;
 
   test.beforeAll(async ({ browser: b }) => {
     browser = b;
+  });
+
+  test.afterAll(async () => {
+    if (!adminPage || createdExamIds.length === 0) return;
+    for (const id of [...new Set(createdExamIds)]) {
+      try {
+        const resp = await apiCall(adminPage, "DELETE", `/exams/${id}/`);
+        console.log(`  afterAll cleanup exam ${id}: ${resp.status}`);
+      } catch (error) {
+        console.log(`  afterAll cleanup exam ${id} failed: ${String(error)}`);
+      }
+    }
   });
 
   // ══════════════════════════════════════════════════════
@@ -99,6 +113,7 @@ test.describe.serial("Exam domain data flow", () => {
     if (resp.status === 201) {
       createdExamId = Number(resp.body.id ?? resp.body.exam_id);
       createdExamBody = resp.body;
+      createdExamIds.push(createdExamId);
       console.log(`  Created template exam: id=${createdExamId}`);
       expect(createdExamId).toBeGreaterThan(0);
     } else {
@@ -149,6 +164,8 @@ test.describe.serial("Exam domain data flow", () => {
 
     // Verify URL
     expect(studentPage.url()).toContain("/student/exams");
+    await expect(studentPage.getByText("시험 데스크").first()).toBeVisible({ timeout: 15_000 });
+    await expect(studentPage.locator(".stu-skel").first()).toBeHidden({ timeout: 15_000 });
 
     // Verify the page rendered (not stuck on loading)
     // The page shows either exam cards or an empty state
@@ -167,14 +184,6 @@ test.describe.serial("Exam domain data flow", () => {
       .locator("text=불러오지 못했습니다")
       .isVisible({ timeout: 1000 })
       .catch(() => false);
-
-    // Loading skeletons should be gone
-    const hasSkeletons = await studentPage
-      .locator(".stu-skel")
-      .first()
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-    expect(hasSkeletons).toBe(false);
 
     // Page must show either exams or empty state (not error, not loading)
     expect(hasExamCards || hasEmptyState).toBe(true);
@@ -219,11 +228,7 @@ test.describe.serial("Exam domain data flow", () => {
       expect(typeof exam.title).toBe("string");
       expect(exam.title.length).toBeGreaterThan(0);
 
-      // Store for detail test
-      if (!existingExamId) {
-        existingExamId = exam.id;
-        existingExamTitle = exam.title;
-      }
+      studentExamId = Number(exam.id);
     }
   });
 
@@ -231,19 +236,22 @@ test.describe.serial("Exam domain data flow", () => {
   // 7. Student: Exam detail page
   // ══════════════════════════════════════════════════════
   test("7. Student: exam detail page shows title and actions", async () => {
-    // Need an exam to view
-    const examId = existingExamId;
-    test.skip(!examId, "No exam available for detail view");
+    const examId = studentExamId;
+    if (!examId && existingExamId) {
+      await gotoAndSettle(studentPage, `${BASE}/student/exams/${existingExamId}`, { timeout: 15_000 });
+      await expect(studentPage.locator(".stu-skel").first()).toBeHidden({ timeout: 10_000 });
+      await expect(studentPage.getByText("시험 정보를 불러오지 못했어요.")).toBeVisible({ timeout: 10_000 });
+      console.log(
+        `  Direct access to non-enrolled exam ${existingExamId} failed closed as expected`,
+      );
+      return;
+    }
+    test.skip(!examId, "No student-accessible exam available for detail view");
 
     await gotoAndSettle(studentPage, `${BASE}/student/exams/${examId}`, { timeout: 15_000 });
 
     // Should not be loading
-    const hasSkeletons = await studentPage
-      .locator(".stu-skel")
-      .first()
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-    expect(hasSkeletons).toBe(false);
+    await expect(studentPage.locator(".stu-skel").first()).toBeHidden({ timeout: 10_000 });
 
     // Should not be error state
     const hasError = await studentPage
@@ -266,7 +274,7 @@ test.describe.serial("Exam domain data flow", () => {
 
     // Verify action section exists — "응시 / 결과" section header
     const hasActionSection = await studentPage
-      .locator("text=응시 / 결과")
+      .locator("text=시험 응시 및 결과")
       .isVisible({ timeout: 5000 })
       .catch(() => false);
 
@@ -308,7 +316,7 @@ test.describe.serial("Exam domain data flow", () => {
   // 8. Student: Submit exam answers via API
   // ══════════════════════════════════════════════════════
   test("8. Student: submit exam answers via API (if submittable)", async () => {
-    const examId = existingExamId;
+    const examId = studentExamId;
     test.skip(!examId, "No exam available for submission");
 
     // First check if questions exist for this exam
@@ -370,7 +378,7 @@ test.describe.serial("Exam domain data flow", () => {
   // 9. Student: Exam result page
   // ══════════════════════════════════════════════════════
   test("9. Student: exam result page shows score data", async () => {
-    const examId = existingExamId;
+    const examId = studentExamId;
     test.skip(!examId, "No exam available for result view");
 
     // Check result via API first
@@ -412,12 +420,7 @@ test.describe.serial("Exam domain data flow", () => {
     await gotoAndSettle(studentPage, `${BASE}/student/exams/${examId}/result`, { timeout: 15_000 });
 
     // Should not be loading
-    const hasSkeletons = await studentPage
-      .locator(".stu-skel")
-      .first()
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-    expect(hasSkeletons).toBe(false);
+    await expect(studentPage.locator(".stu-skel").first()).toBeHidden({ timeout: 10_000 });
 
     // Verify score display: "total_score / max_score" pattern
     const scoreText = `${result.total_score} / ${result.max_score}`;
