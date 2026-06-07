@@ -33,6 +33,25 @@ pnpm test:e2e:ui       # UI 모드 (대화형)
 pnpm test:e2e:local    # _local/ 만
 ```
 
+### 전 메뉴/버튼 사람형 클릭 감사
+
+`stability/all-menu-button-click-audit.spec.ts` 가 운영/로컬 프론트에서 관리자+개발자 데스크톱, 학생 모바일,
+선생님 모바일의 메뉴와 visible 클릭 후보를 순회하는 SSOT다. `strictTest` 를 사용해 console error, pageerror,
+5xx 응답, 로그인 튕김, 빈 화면, fatal text 를 defect 로 수집한다.
+
+```sh
+pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
+
+# 특정 라우트만 재검증
+E2E_CLICK_AUDIT_ROUTE_FILTER=/student/guide pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
+
+# 로컬 프론트가 운영 API를 proxy 하는 경우
+E2E_BASE_URL=http://127.0.0.1:5174 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
+```
+
+실사용 데이터 보호를 위해 저장/삭제/발송/결제/업로드/승인/로그아웃 등 mutation 또는 외부 부작용 버튼은
+감사 리포트에 skip reason 으로 기록하고 클릭하지 않는다. 안전한 조회/필터/탭/메뉴/상세/닫기/취소 계열은 실제 클릭한다.
+
 ## 환경 변수 (`.env.e2e`)
 
 `.env.e2e.example`를 기준으로 로컬/CI secret을 채운다. 공용 `helpers/auth.ts`를 쓰는 정식 spec은

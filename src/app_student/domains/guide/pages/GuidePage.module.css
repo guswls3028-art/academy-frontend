@@ -94,11 +94,15 @@
 .disclosure {
   display: grid;
   grid-template-rows: 0fr;
+  visibility: hidden;
+  pointer-events: none;
   transition: grid-template-rows 300ms ease;
 }
 
 .disclosure[data-open="true"] {
   grid-template-rows: 1fr;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .bodyClip {

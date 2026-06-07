@@ -153,12 +153,13 @@ export default function VideoDetailPage() {
       {tab === "stats" && (
         students.length > 0 ? (
           <div className="flex flex-col gap-1">
-            {students.map((s: any) => {
+            {students.map((s: any, index: number) => {
               const pct = videoProgressPercent(s.progress);
               const done = isVideoProgressComplete(s.progress, s.completed);
               const studentName = s.student_name ?? s.name ?? "이름 없음";
+              const studentKey = s.student_id ?? s.id ?? studentName;
               return (
-                <div key={s.student_id ?? s.id} className="flex justify-between items-center py-2 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
+                <div key={`student-${studentKey}-${index}`} className="flex justify-between items-center py-2 px-1 border-b last:border-b-0" style={{ borderColor: "var(--tc-border)" }}>
                   <StudentNameWithLectureChip
                     name={studentName}
                     profilePhotoUrl={s.profile_photo_url}
@@ -235,8 +236,8 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
       {/* Comment list */}
       {comments.length > 0 ? (
         <div className="flex flex-col gap-2">
-          {comments.map((c: any) => (
-            <Card key={c.id} style={{ padding: "var(--tc-space-3)" }}>
+          {comments.map((c: any, index: number) => (
+            <Card key={`comment-${c.id ?? c.created_at ?? index}-${index}`} style={{ padding: "var(--tc-space-3)" }}>
               <div className="flex justify-between items-start">
                 <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
                   {c.author_display_name ?? c.author_name ?? c.created_by_name ?? "작성자"}

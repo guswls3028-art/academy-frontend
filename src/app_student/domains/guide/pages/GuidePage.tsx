@@ -1,7 +1,7 @@
 /**
  * 학생앱 사용 가이드 — 업무 흐름 중심 워크플로우 + 아코디언 + 투어
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGuideTour } from "@/shared/ui/guide";
 import type { GuideWorkflow } from "@/shared/ui/guide";
@@ -22,6 +22,27 @@ function WorkflowCard({
 }) {
   const navigate = useNavigate();
   const { startTour } = useGuideTour();
+  const disclosureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = disclosureRef.current;
+    if (!node) return;
+
+    if (open) {
+      node.inert = false;
+      node.removeAttribute("inert");
+      return;
+    }
+
+    if (
+      document.activeElement instanceof HTMLElement &&
+      node.contains(document.activeElement)
+    ) {
+      document.activeElement.blur();
+    }
+    node.inert = true;
+    node.setAttribute("inert", "");
+  }, [open]);
 
   const handleTour = useCallback(() => {
     if (!wf.tourPath || !wf.tourSteps?.length) return;
@@ -65,7 +86,12 @@ function WorkflowCard({
       </button>
 
       {/* 아코디언 본문 */}
-      <div className={styles.disclosure} data-open={open}>
+      <div
+        ref={disclosureRef}
+        className={styles.disclosure}
+        data-open={open}
+        aria-hidden={!open}
+      >
         <div className={styles.bodyClip}>
           <div className={styles.body}>
             {/* 단계 목록 */}

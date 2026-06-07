@@ -181,6 +181,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         <div className={styles.header}>
           <span className={styles.title}>메뉴</span>
           <button
+            type="button"
             onClick={onClose}
             className={styles.closeButton}
             aria-label="닫기"
@@ -203,6 +204,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
                 const active = isActive(item.path);
                 return (
                   <button
+                    type="button"
                     key={item.path}
                     onClick={() => handleNav(item.path)}
                     className={active ? `${styles.menuItem} ${styles.menuItemActive}` : styles.menuItem}
@@ -232,6 +234,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         <div className={styles.actions}>
           {/* Desktop switch */}
           <button
+            type="button"
             onClick={handleDesktopSwitch}
             className={`${styles.actionButton} ${styles.primaryAction}`}
           >
@@ -241,6 +244,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
 
           {/* Bug report */}
           <button
+            type="button"
             onClick={handleBugReport}
             className={`${styles.actionButton} ${styles.secondaryAction}`}
           >
@@ -250,6 +254,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
 
           {/* Logout */}
           <button
+            type="button"
             onClick={handleLogout}
             className={`${styles.actionButton} ${styles.logoutAction}`}
           >
