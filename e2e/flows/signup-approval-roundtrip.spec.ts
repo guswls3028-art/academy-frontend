@@ -204,10 +204,10 @@ async function loginAsApprovedStudent(page: Page): Promise<void> {
 async function waitForApprovalLogs(page: Page): Promise<void> {
   if (!created.studentId || process.env.E2E_SIGNUP_EXPECT_ALIMTALK !== "1") return;
 
-  const expectedTargets = new Set([
-    `student:${created.studentId}`,
-    `parent:${created.studentId}:${phoneForRun("parent")}`,
-  ]);
+  const studentTarget = `student:${created.studentId}`;
+  const parentTarget = `parent:${created.studentId}:${phoneForRun("parent")}`;
+  const sameRecipient = phoneForRun("student") === phoneForRun("parent");
+  const expectedTargets = new Set(sameRecipient ? [parentTarget] : [studentTarget, parentTarget]);
 
   await waitForCondition(
     async () => {
@@ -226,7 +226,8 @@ async function waitForApprovalLogs(page: Page): Promise<void> {
           .filter((row) => row.success === true && row.status === "sent")
           .map((row) => row.target_id || ""),
       );
-      return Array.from(expectedTargets).every((target) => targets.has(target));
+      if (!Array.from(expectedTargets).every((target) => targets.has(target))) return false;
+      return !(sameRecipient && targets.has(studentTarget));
     },
     {
       timeoutMs: 120_000,
@@ -240,8 +241,10 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (!created.studentId && !created.requestId) return;
   const access = created.adminAccess || (await loginToken(request)).access;
   if (created.studentId) {
-    const deleted = await apiFetch(request, "DELETE", `/students/${created.studentId}/`, access);
-    expect([200, 202, 204, 404], `cleanup student -> ${deleted.status} ${JSON.stringify(deleted.body)}`).toContain(deleted.status);
+    const softDeleted = await apiFetch(request, "POST", "/students/bulk_delete/", access, { ids: [created.studentId] });
+    expect([200, 204], `cleanup bulk_delete -> ${softDeleted.status} ${JSON.stringify(softDeleted.body)}`).toContain(softDeleted.status);
+    const permanent = await apiFetch(request, "POST", "/students/bulk_permanent_delete/", access, { ids: [created.studentId] });
+    expect(permanent.status, `cleanup bulk_permanent_delete -> ${permanent.status} ${JSON.stringify(permanent.body)}`).toBe(200);
   } else if (created.requestId) {
     const rejected = await apiFetch(request, "POST", `/students/registration_requests/${created.requestId}/reject/`, access);
     expect([200, 400, 404], `cleanup registration request -> ${rejected.status} ${JSON.stringify(rejected.body)}`).toContain(rejected.status);
