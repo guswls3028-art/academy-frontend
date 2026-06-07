@@ -47,7 +47,7 @@
 | 클리닉 UI 생성 | `e2e/flows/clinic-ui-create.spec.ts` | API로 세션을 만들고 관리자/학생 화면 확인 | 파일 자체에 API-assisted 한계 명시 |
 | 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
 | 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
-| 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts` | 학생 grades/submit/inventory 렌더와 API shape 확인 | 과제 생성->학생 제출->채점 chain 없음 |
+| 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts`, `e2e/student/homework-submission-realuse.spec.ts` | 렌더/API shape와 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 체인 확인 | 관리자 UI 생성은 아직 API-assisted |
 | 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
 | 운영 시나리오 | `e2e/flows/real-scenario.spec.ts` | 의도한 큰 흐름을 담고 있음 | API setup 중심, cleanup 없음, 실사용 gate로는 위험 |
 
@@ -62,7 +62,7 @@
 | 차시 성적 탭->시험/과제 생성 모달 | `session-assessment-realuse` read-only | Partial |
 | 시험 생성->학생 응시->자동 채점->성적 보드 | `score-report-realuse` 강함 | Partial, UI 생성 gap |
 | OMR 업로드->수동 보정->결과 반영 | 여러 OMR/Matchup/score spec 존재 | Partial, 운영 chain 선별 필요 |
-| 과제 생성->학생 제출->관리자 채점->학생 성적 | 렌더/API shape 중심 | Gap |
+| 과제 생성->학생 제출->관리자 채점->학생 성적 | `e2e/student/homework-submission-realuse.spec.ts` 운영 통과 | Covered for current gate; 관리자 생성/채점은 API-assisted |
 | 클리닉 대상 판별->예약->승인/출석->해소 | 개별 backend/frontend 조각 존재 | Gap |
 | 영상 업로드->인코딩 READY->학생 재생->시청률 | 렌더/공개영상 + HLS/progress API smoke | Partial, upload/READY browser chain gap |
 | 공지/QnA/상담 왕복 | roundtrip spec 존재 | Covered, 시각검수 보강 필요 |
@@ -79,7 +79,7 @@
 | P1 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 신청이 관리자 승인 후 학생 로그인으로 닫힘. 운영 API에서는 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `E2E_SIGNUP_CONTROLLED_PHONE=01031217466` 필요 |
 | P1 | `e2e/realuse/lecture-session-supplement.spec.ts` | UI로 강의, 수강생, 정규 차시, 보강 차시 생성 후 교사 모바일 반영 |
 | P1 | `e2e/realuse/assessment-clinic-chain.spec.ts` | 불합격 시험 결과가 클리닉 대상이 되고 예약/승인/출석 후 해소 |
-| P1 | `e2e/realuse/homework-submission-chain.spec.ts` | 과제 생성, 학생 제출, 관리자 채점, 학생 성적 반영 |
+| P1 | `e2e/student/homework-submission-realuse.spec.ts` | 과제 생성, 학생 제출, 관리자 채점, 학생 성적 반영, cleanup |
 | P2 | `e2e/realuse/video-playback-chain.spec.ts` | READY 영상이 학생에게 노출되고 재생/이어보기/시청률이 반영 |
 | P2 | `e2e/realuse/beginner-misuse.spec.ts` | 빈 입력, 중복 클릭, 뒤로가기, 모바일 키보드, 중복 예약 오류 검증 |
 | P2 | `e2e/realuse/visual-product-audit.spec.ts` | 핵심 화면 viewport별 screenshot과 overflow/overlap DOM check |
@@ -115,6 +115,7 @@ cd C:\academy\frontend
 pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter=list
 pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
+pnpm exec playwright test e2e/student/homework-submission-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts --reporter=list
 ```
 
@@ -163,5 +164,17 @@ pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-round
   14 passed.
 - 영상 HLS/progress는 backend post-deploy smoke/API canary에서 별도 통과:
   lecture `136`, session `159`, video `284`, enrollment `1052`.
+
+2026-06-07 KST homework follow-up에서 운영 API + production bundle 기준으로
+아래를 추가 검증했다.
+
+- `pnpm exec eslint e2e/student/homework-submission-realuse.spec.ts`: passed.
+- `pnpm exec playwright test e2e/student/homework-submission-realuse.spec.ts --reporter=list`:
+  1 passed.
+  - Admin API로 강의/차시/학생/과제를 생성하고, 학생 브라우저에서 실제 PNG 파일을
+    제출한 뒤, 관리자 scoring API로 `92/100`을 기록하고 학생 성적 UI 반영을 확인했다.
+  - Backend delete guard 배포 후 이전 잔여 `session=296`, `lecture=297` 삭제가
+    각각 `204`로 성공했고, active `[E2E-...] 과제체인` 강의/차시/학생 프로브는
+    모두 0건이었다.
 
 L2 상품성 리뷰는 자동 spec만으로 닫지 않는다. `REAL-USE-REVIEW-MANUAL.md`의 시각/상품성 판정표와 `_artifacts/realuse-review/{timestamp}/summary.md`를 함께 작성한다.
