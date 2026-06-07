@@ -37,6 +37,7 @@
 | 영역 | spec | 현재 가치 | 보강 필요 |
 |------|------|-----------|-----------|
 | 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
+| 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. temp-login activation은 수신값 env 제공 시 추가 검증 |
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
 | OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
@@ -45,12 +46,14 @@
 | QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |
 | 클리닉 왕복 | `e2e/flows/clinic-roundtrip.spec.ts` | 클리닉 세션 생성 후 학생/관리자 화면 로드 | 학생 예약/승인/해소 없음 |
+| 클리닉 보강 해소 | `e2e/student/clinic-remediation-realuse.spec.ts` | 실패 성적 -> 클리닉 target -> 학생 예약 -> staff 완료 -> 재시험 통과 -> 학생 result/grades remediated projection | fixture 생성/retake submit은 API-assisted. production run은 controlled notification env 필요 |
 | 클리닉 UI 생성 | `e2e/flows/clinic-ui-create.spec.ts` | API로 세션을 만들고 관리자/학생 화면 확인 | 파일 자체에 API-assisted 한계 명시 |
 | 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
 | 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
 | 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts`, `e2e/student/homework-submission-realuse.spec.ts` | 렌더/API shape와 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 체인 확인 | 관리자 UI 생성은 아직 API-assisted |
 | 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
 | 운영 시나리오 | `e2e/flows/real-scenario.spec.ts` | 의도한 큰 흐름을 담고 있음 | API setup 중심, cleanup 없음, 실사용 gate로는 위험 |
+| 학생 이상행동 guardrail | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜토큰 보호 라우트, 로그아웃 뒤로가기, 390px 모바일 overflow를 hard expect로 검증 | 상품성 시각 리뷰는 별도 manual 판정표 필요 |
 
 ## 4. 실사용 흐름별 커버리지
 
@@ -64,11 +67,11 @@
 | 시험 생성->학생 응시->자동 채점->성적 보드 | `score-report-realuse` 강함 | Partial, UI 생성 gap |
 | OMR 업로드->수동 보정->결과 반영 | `e2e/admin/omr-review-realuse.spec.ts` 운영 통과 | Covered for current gate; fixture setup API-assisted; upload/review/regrade/student projection은 browser+API로 검증 |
 | 과제 생성->학생 제출->관리자 채점->학생 성적 | `e2e/student/homework-submission-realuse.spec.ts` 운영 통과 | Covered for current gate; 관리자 생성/채점은 API-assisted |
-| 클리닉 대상 판별->예약->승인/출석->해소 | 개별 backend/frontend 조각 존재 | Gap |
+| 클리닉 대상 판별->예약->승인/출석->해소 | `e2e/student/clinic-remediation-realuse.spec.ts` 운영 통과 | Covered for current gate |
 | 영상 업로드->인코딩 READY->학생 재생->시청률 | 렌더/공개영상 + HLS/progress API smoke | Partial, upload/READY browser chain gap |
 | 공지/QnA/상담 왕복 | roundtrip spec 존재 | Covered, 시각검수 보강 필요 |
 | 알림톡 preview->confirm->provider/log/수신 | 여러 admin spec 존재 | Partial, 통제 발송 runbook 필요 |
-| 초심자/비의도 사용 | edge-case spec 산재 | Gap, 전용 묶음 필요 |
+| 초심자/비의도 사용 | `e2e/student/student-domain-guardrails.spec.ts` + 계정복구 모달 edge spec | Covered for launch guardrails; broader visual/product audit remains P2 |
 | viewport별 상품성 리뷰 | screenshot spec 산재 | Partial, 판정표 연결 필요 |
 
 ## 5. 반복 점검 spec 후보
@@ -78,12 +81,13 @@
 | 우선순위 | spec 후보 | 핵심 성공 조건 |
 |----------|-----------|----------------|
 | P1 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 신청이 관리자 승인 후 학생 로그인으로 닫힘. 운영 API에서는 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `E2E_SIGNUP_CONTROLLED_PHONE=01031217466` 필요 |
+| P1 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 실발송, 기존 비번 유지, staff reset/restore, cleanup. 운영 API에서는 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `01031217466` 필요 |
 | P1 | `e2e/realuse/lecture-session-supplement.spec.ts` | UI로 강의, 수강생, 정규 차시, 보강 차시 생성 후 교사 모바일 반영 |
-| P1 | `e2e/realuse/assessment-clinic-chain.spec.ts` | 불합격 시험 결과가 클리닉 대상이 되고 예약/승인/출석 후 해소 |
+| P1 | `e2e/student/clinic-remediation-realuse.spec.ts` | 불합격 시험 결과가 클리닉 대상이 되고 예약/승인/출석 후 해소 |
 | P1 | `e2e/student/homework-submission-realuse.spec.ts` | 과제 생성, 학생 제출, 관리자 채점, 학생 성적 반영, cleanup |
 | P1 | `e2e/admin/omr-review-realuse.spec.ts` | OMR PDF 생성, 관리자 UI 업로드, worker answer rows, 검토/재채점, 학생 성적 반영, cleanup |
 | P2 | `e2e/realuse/video-playback-chain.spec.ts` | READY 영상이 학생에게 노출되고 재생/이어보기/시청률이 반영 |
-| P2 | `e2e/realuse/beginner-misuse.spec.ts` | 빈 입력, 중복 클릭, 뒤로가기, 모바일 키보드, 중복 예약 오류 검증 |
+| P2 | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜 토큰, 로그아웃 뒤로가기, 모바일 overflow 검증 |
 | P2 | `e2e/realuse/visual-product-audit.spec.ts` | 핵심 화면 viewport별 screenshot과 overflow/overlap DOM check |
 
 ## 6. 선별 기준
@@ -118,6 +122,9 @@ pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter
 pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/omr-review-realuse.spec.ts --reporter=list
+pnpm exec playwright test e2e/auth/account-recovery-realuse.spec.ts --reporter=list
+pnpm exec playwright test e2e/student/clinic-remediation-realuse.spec.ts --reporter=list
+pnpm exec playwright test e2e/student/student-domain-guardrails.spec.ts --reporter=list
 pnpm exec playwright test e2e/student/homework-submission-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts --reporter=list
 ```
@@ -194,5 +201,23 @@ pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-round
     `[3,5]`였다.
   - Active OMR canary 강의/차시/학생 residue는 0건이었다. 비활성 archived exam
     `399`, `400`은 결과 이력 보존 delete guard `403`이 정상 동작한 것이다.
+
+2026-06-07 KST student-domain launch seal에서 운영 API + production bundle 기준으로
+아래를 추가 검증했다.
+
+- `pnpm exec playwright test e2e/auth/account-recovery-realuse.spec.ts --reporter=list`:
+  1 passed.
+  - 공용 비밀번호 찾기 UI가 통제번호 `01031217466`으로 실제 알림톡을 발송했고,
+    account notification log는 `sent` 상태와 마스킹된 수신자 요약을 반환했다.
+  - 기존 비밀번호는 public recovery 직후 그대로 유효했고, staff reset은 생성한
+    E2E 학생만 변경한 뒤 원복/삭제했다.
+- `pnpm exec playwright test e2e/student/clinic-remediation-realuse.spec.ts --reporter=list`:
+  1 passed.
+  - 실패 시험 결과가 클리닉 대상이 되고, 학생 예약/내 일정/승인/완료/재시험 통과 후
+    학생 결과와 성적 화면에서 보강 합격으로 바뀌었다.
+- `pnpm exec playwright test e2e/student/student-domain-guardrails.spec.ts --reporter=list`:
+  3 passed.
+  - 비로그인/가짜 토큰 보호 라우트, 로그아웃 후 뒤로가기, 390px 모바일 overflow를
+    hard expect로 검증했다.
 
 L2 상품성 리뷰는 자동 spec만으로 닫지 않는다. `REAL-USE-REVIEW-MANUAL.md`의 시각/상품성 판정표와 `_artifacts/realuse-review/{timestamp}/summary.md`를 함께 작성한다.
