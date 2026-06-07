@@ -36,7 +36,7 @@
 
 | 영역 | spec | 현재 가치 | 보강 필요 |
 |------|------|-----------|-----------|
-| 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup을 하나의 라운드트립으로 검증 | 운영 실행은 `01031217466` 통제번호가 활성 E2E fixture에 묶여 있어 현재 차단 |
+| 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts` | OMR CTA, 더보기, 편집모드, 발송 차단, 테이블 UX 확인 | 고정 fixture 의존 |
@@ -45,7 +45,7 @@
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |
 | 클리닉 왕복 | `e2e/flows/clinic-roundtrip.spec.ts` | 클리닉 세션 생성 후 학생/관리자 화면 로드 | 학생 예약/승인/해소 없음 |
 | 클리닉 UI 생성 | `e2e/flows/clinic-ui-create.spec.ts` | API로 세션을 만들고 관리자/학생 화면 확인 | 파일 자체에 API-assisted 한계 명시 |
-| 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드, READY, 재생, 시청률 없음 |
+| 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
 | 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
 | 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts` | 학생 grades/submit/inventory 렌더와 API shape 확인 | 과제 생성->학생 제출->채점 chain 없음 |
 | 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
@@ -55,7 +55,7 @@
 
 | 흐름 | 현재 커버리지 | 판정 |
 |------|---------------|------|
-| 공개 회원가입 신청->관리자 승인->학생 로그인 | `e2e/flows/signup-approval-roundtrip.spec.ts` 구현 | Partial, 운영 실발송 run은 통제번호 fixture 충돌 해소 필요 |
+| 공개 회원가입 신청->관리자 승인->학생 로그인 | `e2e/flows/signup-approval-roundtrip.spec.ts` 운영 실발송 run 통과 | Covered for controlled canary; future runs must keep duplicate pre-flight and controlled number only |
 | 관리자 학생 단건 등록->학생 로그인->cleanup | 일부 production QA 기록과 컴포넌트 변경 흔적 | Gap |
 | 강의 UI 생성->수강생 등록->정규/보강 차시 생성 | DNB/팝오버/부분 spec 존재 | Gap |
 | 차시 출결 입력->학생/교사 반영 | 출결 contract/spec 일부 존재 | Partial |
@@ -64,7 +64,7 @@
 | OMR 업로드->수동 보정->결과 반영 | 여러 OMR/Matchup/score spec 존재 | Partial, 운영 chain 선별 필요 |
 | 과제 생성->학생 제출->관리자 채점->학생 성적 | 렌더/API shape 중심 | Gap |
 | 클리닉 대상 판별->예약->승인/출석->해소 | 개별 backend/frontend 조각 존재 | Gap |
-| 영상 업로드->인코딩 READY->학생 재생->시청률 | 렌더/공개영상 중심 | Gap |
+| 영상 업로드->인코딩 READY->학생 재생->시청률 | 렌더/공개영상 + HLS/progress API smoke | Partial, upload/READY browser chain gap |
 | 공지/QnA/상담 왕복 | roundtrip spec 존재 | Covered, 시각검수 보강 필요 |
 | 알림톡 preview->confirm->provider/log/수신 | 여러 admin spec 존재 | Partial, 통제 발송 runbook 필요 |
 | 초심자/비의도 사용 | edge-case spec 산재 | Gap, 전용 묶음 필요 |
@@ -118,9 +118,10 @@ pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporte
 pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts --reporter=list
 ```
 
-운영 API에서 signup approval spec을 실행할 때는 반드시 통제번호 충돌을 먼저 해소한다. 현재
-Tenant 1에서 `01031217466`은 활성 E2E fixture 학생/학부모 번호로 사용 중이므로, spec의
-production guard가 실행을 차단하는 것이 정상이다.
+운영 API에서 signup approval spec을 실행할 때는 반드시 통제번호 충돌을 먼저 확인한다.
+2026-06-07 KST follow-up에서 기존 충돌 fixture는 삭제/영구삭제했고, 통제번호
+`01031217466` 실발송 canary는 통과했다. spec의 production guard는 여전히 정확한
+통제번호와 explicit allow flag 없이는 실행을 차단하는 것이 정상이다.
 
 2026-06-07 KST Phase 2 pass에서 `pnpm test:e2e:gate`는 production bundle/API 기준
 35 passed로 통과했다. 이 gate는 signup approval spec을 포함하지 않으므로, 공개 가입
@@ -143,5 +144,24 @@ production guard가 실행을 차단하는 것이 정상이다.
   - `exam-data-flow`는 생성한 `E2E Test Exam` template을 test cleanup과
     `afterAll`에서 정리한다.
 - 운영 cleanup 재확인: `E2E Test Exam` 0건, `[E2E] 상담 신청` 0건.
+
+2026-06-07 KST launch-readiness follow-up에서 추가로 아래를 닫았다.
+
+- `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1`,
+  `E2E_SIGNUP_CONTROLLED_PHONE=01031217466`,
+  `E2E_SIGNUP_EXPECT_ALIMTALK=1`
+  `pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter=list`:
+  1 passed.
+  - Tenant 1 auto-approve setting이 켜져 있으면 spec이 manual approval로 전환하고
+    afterAll에서 원래 설정으로 복구한다.
+  - latest provider/log proof: account notification log `id=2839`,
+    `target_id=parent:1932:01031217466`.
+  - cleanup 후 통제번호 duplicate check는 `available=true`.
+- `pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list`:
+  1 passed. cleanup은 detail delete 대신 bulk delete/permanent delete를 사용한다.
+- `pnpm exec playwright test e2e/student/dashboard-redesign.spec.ts e2e/student/dashboard-dark.spec.ts e2e/mobile-narrow-viewport-20260512.spec.ts --reporter=list`:
+  14 passed.
+- 영상 HLS/progress는 backend post-deploy smoke/API canary에서 별도 통과:
+  lecture `136`, session `159`, video `284`, enrollment `1052`.
 
 L2 상품성 리뷰는 자동 spec만으로 닫지 않는다. `REAL-USE-REVIEW-MANUAL.md`의 시각/상품성 판정표와 `_artifacts/realuse-review/{timestamp}/summary.md`를 함께 작성한다.

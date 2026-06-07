@@ -34,6 +34,8 @@ type CreatedState = {
   adminAccess?: string;
   requestId?: number;
   studentId?: number;
+  previousAutoApprove?: boolean;
+  shouldRestoreAutoApprove?: boolean;
 };
 
 const created: CreatedState = {};
@@ -146,16 +148,57 @@ async function submitSignup(page: Page): Promise<void> {
 
   await page.getByRole("dialog").getByRole("button", { name: "가입 신청" }).click();
   const response = await signupResponse;
+  const body = await response.json() as { id?: number; status?: string; name?: string; ps_number?: string };
   if (response.status() !== 201) {
-    throw new Error(`signup request -> ${response.status()} ${await response.text()}`);
+    if (response.status() === 200 && body.id) {
+      created.studentId = Number(body.id);
+    }
+    throw new Error(`signup request -> ${response.status()} ${JSON.stringify(body)}`);
   }
-  const body = await response.json() as { id?: number; status?: string };
   expect(body.status).toBe("pending");
   created.requestId = Number(body.id);
 
   await expect(page.getByRole("dialog").getByText("신청이 완료되었습니다. 승인 후 로그인해 주세요.")).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "확인" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
+}
+
+async function forceManualApproval(request: APIRequestContext, access: string): Promise<void> {
+  const current = await apiFetch<{ auto_approve?: boolean }>(
+    request,
+    "GET",
+    "/students/registration_requests/settings/",
+    access,
+  );
+  expect(current.status, `registration settings get -> ${current.status} ${JSON.stringify(current.body)}`).toBe(200);
+  created.previousAutoApprove = current.body.auto_approve === true;
+  if (!created.previousAutoApprove) return;
+
+  const updated = await apiFetch<{ auto_approve?: boolean }>(
+    request,
+    "PATCH",
+    "/students/registration_requests/settings/",
+    access,
+    { auto_approve: false },
+  );
+  expect(updated.status, `registration settings patch false -> ${updated.status} ${JSON.stringify(updated.body)}`).toBe(200);
+  expect(updated.body.auto_approve, "registration approval must be manual during this canary").toBe(false);
+  created.shouldRestoreAutoApprove = true;
+}
+
+async function restoreRegistrationSettings(request: APIRequestContext): Promise<void> {
+  if (!created.shouldRestoreAutoApprove) return;
+  const access = created.adminAccess || (await loginToken(request)).access;
+  const restored = await apiFetch<{ auto_approve?: boolean }>(
+    request,
+    "PATCH",
+    "/students/registration_requests/settings/",
+    access,
+    { auto_approve: created.previousAutoApprove === true },
+  );
+  expect(restored.status, `registration settings restore -> ${restored.status} ${JSON.stringify(restored.body)}`).toBe(200);
+  expect(restored.body.auto_approve, "registration settings should be restored").toBe(created.previousAutoApprove === true);
+  created.shouldRestoreAutoApprove = false;
 }
 
 async function approveFromAdminUi(page: Page): Promise<void> {
@@ -198,7 +241,7 @@ async function loginAsApprovedStudent(page: Page): Promise<void> {
   await page.goto(`${BASE}/student/profile`, { waitUntil: "load", timeout: 25_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
   await expect(page.getByText("내 정보").first()).toBeVisible();
-  await expect(page.getByDisplayValue(STUDENT_NAME).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(STUDENT_NAME).first()).toBeVisible({ timeout: 15_000 });
 }
 
 async function waitForApprovalLogs(page: Page): Promise<void> {
@@ -252,8 +295,23 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 }
 
 test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
+  test.describe.configure({ retries: 0 });
+
   test.afterAll(async ({ request }) => {
-    await cleanup(request);
+    const errors: string[] = [];
+    try {
+      await cleanup(request);
+    } catch (error) {
+      errors.push(`cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    try {
+      await restoreRegistrationSettings(request);
+    } catch (error) {
+      errors.push(`settings restore failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join("\n"));
+    }
   });
 
   test("public signup request is approved by staff and can log in as student", async ({ page, browser, request }) => {
@@ -264,6 +322,7 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
 
     const adminTokens = await loginToken(request);
     created.adminAccess = adminTokens.access;
+    await forceManualApproval(request, adminTokens.access);
 
     const studentPhone = phoneForRun("student");
     const parentPhone = phoneForRun("parent");

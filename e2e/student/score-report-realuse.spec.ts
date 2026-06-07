@@ -192,7 +192,15 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     data?: Record<string, unknown>,
     options?: { logFailure?: boolean },
   ) => {
-    const out = await apiFetch(request, method, path, token, data);
+    let out: { status: number; body: unknown };
+    try {
+      out = await apiFetch(request, method, path, token, data);
+    } catch (error) {
+      out = {
+        status: 0,
+        body: { error: error instanceof Error ? error.message : String(error) },
+      };
+    }
     if ((options?.logFailure ?? true) && ![200, 202, 204, 404].includes(out.status)) {
       console.log(`cleanup ${method} ${path}: ${out.status} ${JSON.stringify(out.body)}`);
     }
@@ -221,8 +229,12 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   }
   if (created.primaryEnrollmentId) await safe("DELETE", `/enrollments/${created.primaryEnrollmentId}/`);
   if (created.peerEnrollmentId) await safe("DELETE", `/enrollments/${created.peerEnrollmentId}/`);
-  if (created.primaryStudentId) await safe("DELETE", `/students/${created.primaryStudentId}/`);
-  if (created.peerStudentId) await safe("DELETE", `/students/${created.peerStudentId}/`);
+  const studentIds = [created.primaryStudentId, created.peerStudentId]
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+  if (studentIds.length > 0) {
+    await safe("POST", "/students/bulk_delete/", { ids: studentIds });
+    await safe("POST", "/students/bulk_permanent_delete/", { ids: studentIds });
+  }
   if (examRemovedFromSession && created.sessionId) await safe("DELETE", `/lectures/sessions/${created.sessionId}/`);
   if (examRemovedFromSession && created.lectureId) await safe("DELETE", `/lectures/lectures/${created.lectureId}/`);
 }

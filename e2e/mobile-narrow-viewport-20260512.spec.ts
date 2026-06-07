@@ -5,8 +5,12 @@
  */
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./helpers/auth";
+import { fileURLToPath } from "url";
 import * as path from "path";
 import * as fs from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SCREENSHOT_DIR = path.resolve(
   __dirname,
