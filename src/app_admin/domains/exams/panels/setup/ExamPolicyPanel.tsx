@@ -78,7 +78,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
     enabled: examId > 0,
   });
-  const canEditQuestions = exam?.exam_type === "template";
+  const canEditQuestions = exam?.exam_type === "template" || !exam?.template_exam_id;
 
   const savePassScore = async () => {
     if (numericPassScore > numericMaxScore) {

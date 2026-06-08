@@ -10,9 +10,9 @@ export type InitExamQuestionsParams =
   | {
       examId: number;
       choice_count: number;
-      choice_score: number;
       essay_count: number;
-      essay_score: number;
+      choice_score?: number;
+      essay_score?: number;
     };
 
 export function initExamQuestions(params: InitExamQuestionsParams) {
@@ -24,13 +24,12 @@ export function initExamQuestions(params: InitExamQuestionsParams) {
         }
       : {
           choice_count: params.choice_count,
-          choice_score: params.choice_score,
           essay_count: params.essay_count,
-          essay_score: params.essay_score,
+          ...(params.choice_score !== undefined ? { choice_score: params.choice_score } : {}),
+          ...(params.essay_score !== undefined ? { essay_score: params.essay_score } : {}),
         };
   return api.post<ExamQuestion[]>(
     `/exams/${params.examId}/questions/init/`,
     body
   );
 }
-

@@ -345,21 +345,28 @@ export default function AnswerKeyRegisterModal({
       return initExamQuestions({
         examId,
         choice_count: cc,
-        choice_score: 0,
         essay_count: ec,
-        essay_score: 0,
       });
     },
-    onSuccess: async (result) => {
+    onSuccess: async (result, overrides) => {
       const list = result?.data ?? [];
-      const appliedCc =
-        choiceCount !== ""
-          ? Math.max(0, Number(choiceCount) || 0)
-          : Math.max(0, list.length - (Number(essayCount) || 0));
-      const appliedEc =
-        essayCount !== ""
-          ? Math.max(0, Number(essayCount) || 0)
-          : Math.max(0, list.length - (Number(choiceCount) || 0));
+      let appliedCc: number;
+      let appliedEc: number;
+      if (overrides) {
+        const oc = overrides.choiceCount;
+        const oe = overrides.essayCount;
+        appliedCc = oc !== "" ? Math.max(0, Number(oc) || 0) : Math.max(0, list.length - (Number(oe) || 0));
+        appliedEc = oe !== "" ? Math.max(0, Number(oe) || 0) : Math.max(0, list.length - (Number(oc) || 0));
+      } else {
+        appliedCc =
+          choiceCount !== ""
+            ? Math.max(0, Number(choiceCount) || 0)
+            : Math.max(0, list.length - (Number(essayCount) || 0));
+        appliedEc =
+          essayCount !== ""
+            ? Math.max(0, Number(essayCount) || 0)
+            : Math.max(0, list.length - (Number(choiceCount) || 0));
+      }
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
       qc.setQueryData(["exam-questions", examId], list);
@@ -374,10 +381,6 @@ export default function AnswerKeyRegisterModal({
         choiceList.forEach((q: ExamQuestion, i: number) => {
           nextScoreDraft[q.id] = scores[i] ?? 0;
         });
-      } else {
-        choiceList.forEach((q: ExamQuestion) => {
-          nextScoreDraft[q.id] = 0;
-        });
       }
       if (essayAutoScore && Number.isFinite(Number(essayTotalInput)) && essayTotalInput !== "") {
         const total = Math.max(0, Number(essayTotalInput));
@@ -385,17 +388,15 @@ export default function AnswerKeyRegisterModal({
         essayList.forEach((q: ExamQuestion, i: number) => {
           nextScoreDraft[q.id] = scores[i] ?? 0;
         });
-      } else {
-        essayList.forEach((q: ExamQuestion) => {
-          nextScoreDraft[q.id] = 0;
-        });
       }
-      setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
-      if (canEditQuestions) {
-        for (const q of sorted) {
-          const score = nextScoreDraft[q.id];
-          if (score !== undefined && Number.isFinite(score)) {
-            await patchQuestionScore({ questionId: q.id, score });
+      if (Object.keys(nextScoreDraft).length > 0) {
+        setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
+        if (canEditQuestions) {
+          for (const q of sorted) {
+            const score = nextScoreDraft[q.id];
+            if (score !== undefined && Number.isFinite(score)) {
+              await patchQuestionScore({ questionId: q.id, score });
+            }
           }
         }
       }
