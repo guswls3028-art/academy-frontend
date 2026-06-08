@@ -53,6 +53,19 @@ E2E_BASE_URL=http://127.0.0.1:5174 pnpm exec playwright test e2e/stability/all-m
 실사용 데이터 보호를 위해 저장/삭제/발송/결제/업로드/승인/로그아웃 등 mutation 또는 외부 부작용 버튼은
 감사 리포트에 skip reason 으로 기록하고 클릭하지 않는다. 안전한 조회/필터/탭/메뉴/상세/닫기/취소 계열은 실제 클릭한다.
 
+### Fixture 기반 파괴/상태변경 버튼 감사
+
+`stability/destructive-fixture-button-audit.spec.ts` 는 전 메뉴 클릭 감사에서 의도적으로 제외한 저장/삭제/발송/업로드/승인/로그아웃 계열을
+`[E2E-DEST-*]` fixture 데이터로 실제 클릭한다. 학생 생성·수정·비밀번호 변경·활성/비활성·삭제/복원/영구삭제, 가입신청 승인/거절,
+학생 알림톡 예약 발송 후 즉시 취소, 자료실 첨부 업로드/삭제, 결제 카드 영역의 fixture 부재 guard를 검증한다.
+
+```sh
+pnpm exec playwright test e2e/stability/destructive-fixture-button-audit.spec.ts --project=chromium --reporter=list --retries=0
+```
+
+운영 발송 안전장치: 즉시 발송은 하지 않고 예약 발송을 즉시 취소한다. 가입승인 알림은 자동발송 설정이 켜져 있어도 통제 번호
+`01031217466` 한 곳만 수신자가 되도록 생성한다. 결제 카드는 fixture 생성 경로가 없으면 실제 카드 삭제/등록/결제를 클릭하지 않는다.
+
 ## 환경 변수 (`.env.e2e`)
 
 `.env.e2e.example`를 기준으로 로컬/CI secret을 채운다. 공용 `helpers/auth.ts`를 쓰는 정식 spec은

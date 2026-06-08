@@ -90,6 +90,10 @@ function isSystemTpl(t: MessageTemplateItem): boolean {
   return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
 }
 
+function isApprovedTpl(t: MessageTemplateItem): boolean {
+  return t.solapi_status === "APPROVED" && Boolean((t.solapi_template_id || "").trim());
+}
+
 function extractVars(body: string): string[] {
   const matches = body.match(/#\{([^}]+)\}/g) ?? [];
   return [...new Set(matches.map((m) => m.slice(2, -1)))];
@@ -170,20 +174,20 @@ function pickAutoSelectTemplate(
   const userCat = blockCategory === "student" ? "default" : blockCategory;
 
   if (!systemOnly) {
-    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default);
+    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && isApprovedTpl(t));
     if (myMatchDefault) return myMatchDefault;
 
-    const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat);
+    const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat && isApprovedTpl(t));
     if (myMatch) return myMatch;
   }
 
-  const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat);
+  const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat && isApprovedTpl(t));
   if (sysMatch) return sysMatch;
 
-  const sysDefault = list.find((t) => isSystemTpl(t) && t.is_user_default);
+  const sysDefault = list.find((t) => isSystemTpl(t) && t.is_user_default && isApprovedTpl(t));
   if (sysDefault) return sysDefault;
 
-  return list.find((t) => isSystemTpl(t));
+  return list.find((t) => isSystemTpl(t) && isApprovedTpl(t));
 }
 
 // ═══════════════════════════════════════════════════════════════
