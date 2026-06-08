@@ -46,11 +46,14 @@ import StudentPickerModal from "./StudentPickerModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import BBoxOverlay from "./BBoxOverlay";
 import type { CandidateRow } from "./omrReviewApi";
+import {
+  CHOICE_LABELS,
+  formatChoiceAnswer,
+  requiredChoiceTokens,
+} from "../../utils/choiceAnswerMatching";
 import "./OmrReviewWorkspace.css";
 
 type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
-
-const CHOICES = ["1", "2", "3", "4", "5"];
 
 function lecturesForCandidate(row: CandidateRow) {
   return row.lecture_title
@@ -1105,8 +1108,8 @@ function questionLabel(no: number | null | undefined, id: number, idx: number): 
 
 function isChoiceAnswer(a: OmrReviewDetailAnswer, current: string): boolean {
   return (
-    /^[1-5]$/.test((current || "").trim()) ||
-    CHOICES.includes((a.answer || "").trim()) ||
+    requiredChoiceTokens(current).length > 0 ||
+    requiredChoiceTokens(a.answer || "").length > 0 ||
     a.omr?.marking != null
   );
 }
@@ -1141,6 +1144,7 @@ function AnswerRow({
   const marking = String(answer.omr?.marking || "").toLowerCase();
   const conf = answer.omr?.confidence;
   const rowRef = useRef<HTMLDivElement | null>(null);
+  const selectedChoices = requiredChoiceTokens(current);
 
   // focused 상태로 전환 시 뷰포트 안으로 스크롤
   useEffect(() => {
@@ -1170,17 +1174,27 @@ function AnswerRow({
 
       {isChoice ? (
         <div className="orw-q-row__bubbles">
-          {CHOICES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`orw-bubble ${current === c ? "orw-bubble--selected" : ""}`}
-              onClick={(e) => { e.stopPropagation(); onFocusRow(); onChange(current === c ? "" : c); }}
-            >
-              {c}
-            </button>
-          ))}
-          {current === "" && (
+          {CHOICE_LABELS.map((c) => {
+            const selected = selectedChoices.includes(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                className={`orw-bubble ${selected ? "orw-bubble--selected" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFocusRow();
+                  const next = new Set(selectedChoices);
+                  if (next.has(c)) next.delete(c);
+                  else next.add(c);
+                  onChange(formatChoiceAnswer([...next]));
+                }}
+              >
+                {c}
+              </button>
+            );
+          })}
+          {selectedChoices.length === 0 && (
             <span className="orw-bubble-empty-hint">미선택</span>
           )}
         </div>
