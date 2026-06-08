@@ -7,9 +7,8 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Upload as UploadIcon } from "l
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { initVideoUpload, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
+import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
-import { blockAutoReload as blockAutoReloadFn } from "@/shared/ui/layout/VersionChecker";
 import "./VideoUploadModal.css";
 
 const VIDEO_ACCEPT = "video/*";
@@ -23,6 +22,7 @@ type Props = {
 export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const mountedRef = useRef(true);
 
   const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -38,6 +38,13 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const [initErrorMessages, setInitErrorMessages] = useState<string[]>([]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
     setBaseTitle("");
     setDescription("");
@@ -49,23 +56,6 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     setIsUploading(false);
     setInitErrorMessages([]);
   }, [isOpen]);
-
-  // 업로드 중 자동 리로드 차단 + beforeunload
-  useEffect(() => {
-    if (!isUploading) return;
-
-    const unblock = blockAutoReloadFn();
-
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-
-    return () => {
-      window.removeEventListener("beforeunload", handler);
-      unblock(); // 업로드 완료/취소 시 자동 리로드 허용
-    };
-  }, [isUploading]);
 
   const filledCount = useMemo(() => files.filter(Boolean).length, [files]);
   const canSubmit = useMemo(
@@ -143,113 +133,125 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     if (items.length === 0) return;
 
     setIsUploading(true);
-    const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
-    const successSlotIndexes: number[] = [];
-    const errorMsgs: string[] = [];
 
     try {
-      const initPromises = items.map(async ({ file, title, slotIndex }) => {
-        try {
-          const init = await initVideoUpload({
-            sessionId,
-            file,
-            title,
-            description,
-            folderId,
-            showWatermark,
-            allowSkip,
-            maxSpeed,
-          });
-          return { ok: true as const, init, file, slotIndex };
-        } catch (error) {
-          const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
-          const rawMsg =
-            err?.response?.data?.detail ||
-            err?.message ||
-            "업로드 시작에 실패했습니다.";
-          let userMsg = rawMsg;
-          if (err?.response?.status === 403 && !err?.response?.data?.detail) {
-            userMsg = "권한이 없습니다.";
-          } else if (err?.response?.status === 413 || /too large|용량|size/i.test(rawMsg)) {
-            userMsg = "파일이 너무 큽니다.";
-          } else if (err?.response?.status === 401) {
-            userMsg = "로그인이 만료되었습니다. 새로고침 후 다시 시도해 주세요.";
-          } else if (/network|fetch|timeout/i.test(rawMsg)) {
-            userMsg = "네트워크 오류 — 인터넷 연결을 확인해 주세요.";
+      await runWithVideoUploadGuard(async () => {
+        const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
+        const successSlotIndexes: number[] = [];
+        const errorMsgs: string[] = [];
+
+        const initPromises = items.map(async ({ file, title, slotIndex }) => {
+          try {
+            const init = await initVideoUpload({
+              sessionId,
+              file,
+              title,
+              description,
+              folderId,
+              showWatermark,
+              allowSkip,
+              maxSpeed,
+            });
+            return { ok: true as const, init, file, slotIndex };
+          } catch (error) {
+            const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+            const rawMsg =
+              err?.response?.data?.detail ||
+              err?.message ||
+              "업로드 시작에 실패했습니다.";
+            let userMsg = rawMsg;
+            if (err?.response?.status === 403 && !err?.response?.data?.detail) {
+              userMsg = "권한이 없습니다.";
+            } else if (err?.response?.status === 413 || /too large|용량|size/i.test(rawMsg)) {
+              userMsg = "파일이 너무 큽니다.";
+            } else if (err?.response?.status === 401) {
+              userMsg = "로그인 상태를 확인할 수 없습니다.";
+            } else if (/network|fetch|timeout/i.test(rawMsg)) {
+              userMsg = "네트워크 오류 — 인터넷 연결을 확인해 주세요.";
+            }
+            return { ok: false as const, file, slotIndex, msg: userMsg };
           }
-          return { ok: false as const, file, slotIndex, msg: userMsg };
-        }
-      });
-      const initRawResults = await Promise.all(initPromises);
-
-      initRawResults.forEach((r) => {
-        if (r.ok) {
-          initResults.push({ init: r.init, file: r.file });
-          successSlotIndexes.push(r.slotIndex);
-        } else {
-          errorMsgs.push(`${r.file.name}: ${r.msg}`);
-        }
-      });
-
-      if (initResults.length > 0) {
-        qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-      }
-
-      // 성공한 파일은 슬롯에서 제거(빈 슬롯 1개 보장), 실패한 파일은 슬롯에 남겨 즉시 재시도 가능
-      if (successSlotIndexes.length > 0) {
-        setFiles((prev) => {
-          const next = prev.map((f, idx) => (successSlotIndexes.includes(idx) ? null : f));
-          // 실패 슬롯 위주로 정렬: null이 아닌 것 먼저, 그 후 빈 슬롯 1개
-          const filled = next.filter((f) => f != null);
-          const finalNext: (File | null)[] = [...filled, null];
-          return finalNext;
         });
-      }
+        const initRawResults = await Promise.all(initPromises);
 
-      if (errorMsgs.length > 0) {
-        // 모달 내 띠로 영구 노출 + 토스트로 즉시 환기
-        setInitErrorMessages(errorMsgs);
-        feedback.error(
-          errorMsgs.length === 1
-            ? errorMsgs[0]
-            : `${errorMsgs.length}개 파일 실패. 모달의 빨간색 안내를 확인하고 ‘다시 시도’를 눌러 주세요.`
-        );
-        if (initResults.length === 0) return; // 전부 실패 → 모달 유지
-        // 부분 성공: 모달 유지 + 우하단으로 진행 상황 안내
-      } else {
-        onClose();
-      }
+        initRawResults.forEach((r) => {
+          if (r.ok) {
+            initResults.push({ init: r.init, file: r.file });
+            successSlotIndexes.push(r.slotIndex);
+          } else {
+            errorMsgs.push(`${r.file.name}: ${r.msg}`);
+          }
+        });
 
-      // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
-      const uploadResults = await uploadFilesWithLimit(initResults, 2);
-      const successCount = uploadResults.filter((r) => r.status === "fulfilled").length;
-      const r2Errors: string[] = [];
-      uploadResults.forEach((r, idx) => {
-        if (r.status === "rejected") {
-          r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+        if (initResults.length > 0) {
+          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+        }
+
+        // 성공한 파일은 슬롯에서 제거(빈 슬롯 1개 보장), 실패한 파일은 슬롯에 남겨 즉시 재시도 가능
+        if (successSlotIndexes.length > 0) {
+          setFiles((prev) => {
+            const next = prev.map((f, idx) => (successSlotIndexes.includes(idx) ? null : f));
+            // 실패 슬롯 위주로 정렬: null이 아닌 것 먼저, 그 후 빈 슬롯 1개
+            const filled = next.filter((f) => f != null);
+            const finalNext: (File | null)[] = [...filled, null];
+            return finalNext;
+          });
+        }
+
+        if (errorMsgs.length > 0) {
+          // 모달 내 띠로 영구 노출 + 토스트로 즉시 환기
+          setInitErrorMessages(errorMsgs);
+          feedback.error(
+            errorMsgs.length === 1
+              ? errorMsgs[0]
+              : `${errorMsgs.length}개 파일 실패. 모달의 빨간색 안내를 확인하고 ‘다시 시도’를 눌러 주세요.`
+          );
+          if (initResults.length === 0) return; // 전부 실패 → 모달 유지
+          // 부분 성공: 모달 유지 + 우하단으로 진행 상황 안내
+        } else {
+          onClose();
+        }
+
+        // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
+        const uploadResults = await uploadFilesWithLimit(initResults, 2);
+        const successCount = uploadResults.filter((r) => r.status === "fulfilled").length;
+        const r2Errors: string[] = [];
+        uploadResults.forEach((r, idx) => {
+          if (r.status === "rejected") {
+            r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+          }
+        });
+
+        if (successCount > 0) {
+          feedback.success(
+            r2Errors.length > 0
+              ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우상단 작업박스에서 확인하세요.`
+              : `${successCount}개 업로드 완료. 처리는 우상단 작업박스에서 이어서 진행됩니다.`
+          );
+          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+        }
+        if (r2Errors.length > 0) {
+          feedback.error(r2Errors.join(" / "));
         }
       });
-
-      if (successCount > 0) {
-        feedback.success(
-          r2Errors.length > 0
-            ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우상단 작업박스에서 확인하세요.`
-            : `${successCount}개 업로드 완료. 처리는 우상단 작업박스에서 이어서 진행됩니다.`
-        );
-        qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-      }
-      if (r2Errors.length > 0) {
-        feedback.error(r2Errors.join(" / "));
-      }
     } finally {
-      setIsUploading(false);
+      if (mountedRef.current) {
+        setIsUploading(false);
+      }
     }
   };
+
+  const handleClose = useCallback(() => {
+    if (isUploading) {
+      feedback.info("업로드는 작업박스에서 계속 진행됩니다.");
+    }
+    onClose();
+  }, [isUploading, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
+    <AdminModal open={isOpen} onClose={handleClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
       <ModalHeader
         type="action"
         title="영상 추가"
@@ -448,13 +450,13 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
       <ModalFooter
         left={
           <span className="modal-hint video-upload-modal__footer-hint">
-            업로드 버튼을 누르면 우상단 작업박스에서 업로드·처리 진행을 확인할 수 있습니다.
+            업로드는 우상단 작업박스에서 진행되며, 이 창을 닫아도 이어집니다.
           </span>
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={isUploading}>
-              취소
+            <Button intent="secondary" onClick={handleClose}>
+              {isUploading ? "닫기" : "취소"}
             </Button>
             <Button
               intent="primary"

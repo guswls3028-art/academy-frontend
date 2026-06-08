@@ -4,6 +4,7 @@
 
 import api from "@/shared/api/axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 
 type UploadInitResponse = {
   video: { id: number };
@@ -29,6 +30,59 @@ export interface InitVideoResult {
   putHeaders: Record<string, string>;
   tempId: string;
   contentType: string;
+}
+
+let activeBrowserUploadCount = 0;
+let unblockBrowserUploadReload: (() => void) | null = null;
+let removeBrowserUploadBeforeUnload: (() => void) | null = null;
+
+function handleBrowserUploadBeforeUnload(e: BeforeUnloadEvent): string {
+  if (activeBrowserUploadCount <= 0) return "";
+  e.preventDefault();
+  e.returnValue = "";
+  return "";
+}
+
+function installBrowserUploadGuard(): void {
+  if (typeof window === "undefined") return;
+  if (!unblockBrowserUploadReload) {
+    unblockBrowserUploadReload = blockAutoReload();
+  }
+  if (!removeBrowserUploadBeforeUnload) {
+    window.addEventListener("beforeunload", handleBrowserUploadBeforeUnload);
+    removeBrowserUploadBeforeUnload = () => {
+      window.removeEventListener("beforeunload", handleBrowserUploadBeforeUnload);
+    };
+  }
+}
+
+function releaseBrowserUploadGuard(): void {
+  if (activeBrowserUploadCount > 0) return;
+  removeBrowserUploadBeforeUnload?.();
+  removeBrowserUploadBeforeUnload = null;
+  unblockBrowserUploadReload?.();
+  unblockBrowserUploadReload = null;
+}
+
+function beginBrowserUploadGuard(): () => void {
+  activeBrowserUploadCount += 1;
+  installBrowserUploadGuard();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeBrowserUploadCount = Math.max(0, activeBrowserUploadCount - 1);
+    releaseBrowserUploadGuard();
+  };
+}
+
+export async function runWithVideoUploadGuard<T>(work: () => Promise<T>): Promise<T> {
+  const release = beginBrowserUploadGuard();
+  try {
+    return await work();
+  } finally {
+    release();
+  }
 }
 
 /**
