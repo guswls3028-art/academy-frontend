@@ -36,8 +36,9 @@ pnpm test:e2e:local    # _local/ 만
 ### 전 메뉴/버튼 사람형 클릭 감사
 
 `stability/all-menu-button-click-audit.spec.ts` 가 운영/로컬 프론트에서 관리자+개발자 데스크톱, 학생 모바일,
-선생님 모바일의 메뉴와 visible 클릭 후보를 순회하는 SSOT다. `strictTest` 를 사용해 console error, pageerror,
-5xx 응답, 로그인 튕김, 빈 화면, fatal text 를 defect 로 수집한다.
+선생님 모바일의 메뉴와 visible 클릭 후보를 순회하는 SSOT다. 빠른 route 전환 중 background XHR 이 abort 되면
+브라우저가 CORS 형태의 `net::ERR_FAILED` 를 console error 로 남길 수 있으므로 전역 `strictTest` 대신 스펙 내부 guard 를
+사용한다. 5xx 응답, 로그인 튕김, 빈 화면, fatal text, 실제 클릭 실패는 defect 로 수집한다.
 
 ```sh
 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0

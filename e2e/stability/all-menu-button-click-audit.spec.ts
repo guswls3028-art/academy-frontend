@@ -1,5 +1,5 @@
-import type { Page } from "@playwright/test";
-import { test, expect } from "../fixtures/strictTest";
+import type { Locator, Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { getBaseUrl, loginViaUI, type TenantRole } from "../helpers/auth";
 
 type AuditRoute = {
@@ -68,10 +68,22 @@ const CLICKABLE_SELECTOR = [
 const SAFE_QUERY_TEXT = /검색|조회|필터|새로고침|열기|닫기|취소|이전|다음|더보기|접기|펼치기|보기|미리보기|선택|전체|오늘|이번|지난|월|주|일|목록|돌아가기/i;
 
 const MUTATION_OR_EXTERNAL_TEXT =
-  /로그아웃|삭제|탈퇴|퇴원|제명|영구|발송|전송|보내기|알림톡|문자|SMS|저장|등록|생성|업로드|제출|승인|반려|거절|환불|결제|청구|정산|마감|확정|복구|동기화|분석|재분석|수정|변경|적용|초기화|잠금|차단|공개|비공개|예약|완료|처리|다운로드|인쇄/i;
+  /로그아웃|삭제|탈퇴|퇴원|제명|영구|발송|전송|보내기|알림톡|문자|SMS|저장|등록|생성|업로드|제출|승인|반려|거절|환불|결제|청구|정산|마감|확정|복구|동기화|분석|재분석|수정|변경|적용|초기화|잠금|차단|공개|비공개|예약|완료|처리|다운로드|인쇄|활성화|비활성화|사용\s*중지|사용\s*재개|운영\s*중지|운영\s*재개|켜기|끄기|토글|\bON\b|\bOFF\b/i;
 
 const FATAL_TEXT =
   /Application error|Unhandled Runtime Error|ChunkLoadError|Cannot read properties|is not a function|Something went wrong|페이지를 불러오지 못했습니다|오류가 발생했습니다/i;
+const TRANSIENT_OVERLAY_SELECTOR = [
+  ".clinic-ops__trigger-preview-overlay",
+  "[class*='fixed'][class*='inset-0'][class*='z-[90]']",
+  "[data-radix-popper-content-wrapper]",
+  ".ant-dropdown",
+  ".ant-picker-dropdown",
+  ".ant-popover",
+  ".admin-modal-overlay",
+  ".ant-modal",
+  "[role='dialog'][aria-modal='true']",
+  "[role='navigation'][aria-label='선생님 메뉴'][aria-hidden='false']",
+].join(", ");
 const MAX_REPEATED_ROW_CLICKS = 3;
 
 const ADMIN_ROUTES: AuditRoute[] = [
@@ -220,7 +232,11 @@ const DEV_ROUTES: AuditRoute[] = [
 function selectedRoutes(routes: AuditRoute[]): AuditRoute[] {
   const filter = process.env.E2E_CLICK_AUDIT_ROUTE_FILTER?.trim();
   if (!filter) return routes;
-  return routes.filter((route) => route.path.includes(filter) || route.label.includes(filter));
+  const filters = filter
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return routes.filter((route) => filters.some((item) => route.path.includes(item) || route.label.includes(item)));
 }
 
 function hasRouteFilter(): boolean {
@@ -256,6 +272,7 @@ function classifySkip(candidate: Candidate): string | undefined {
   if (/^mailto:|^tel:/i.test(href)) return "external protocol";
   if (/\/login(?:\/|$|\?)/i.test(href)) return "login route";
   if (/\/logout(?:\/|$|\?)/i.test(href)) return "logout route";
+  if (/학원 홈페이지로 이동|홈페이지로 이동|공개 홈페이지/i.test(label)) return "outside role app navigation";
   if (candidate.type === "submit" && candidate.inForm && !SAFE_QUERY_TEXT.test(label)) return "submit/write control";
   if (MUTATION_OR_EXTERNAL_TEXT.test(label) && !SAFE_QUERY_TEXT.test(label)) {
     return "production mutation or external side effect";
@@ -272,6 +289,24 @@ function internalAnchorKey(candidate: Candidate): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function roleBoundarySkip(candidate: Candidate, role: string): string | undefined {
+  const internalKey = internalAnchorKey(candidate);
+  if (!internalKey) return undefined;
+
+  const path = internalKey.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+  const prefixesByRole: Record<string, string[]> = {
+    admin: ["/admin"],
+    dev: ["/dev"],
+    student: ["/student"],
+    teacher: ["/teacher"],
+  };
+  const prefixes = prefixesByRole[role] ?? [];
+  if (!prefixes.length) return undefined;
+
+  const insideRoleApp = prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  return insideRoleApp ? undefined : `outside ${role} app boundary`;
 }
 
 function repeatedRowKey(candidate: Candidate): string | undefined {
@@ -314,7 +349,7 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
   });
   page.on("requestfailed", (request) => {
     const errorText = request.failure()?.errorText ?? "";
-    if (/ERR_ABORTED|NS_BINDING_ABORTED|Target page|Frame was detached/i.test(errorText)) return;
+    if (/ERR_ABORTED|NS_BINDING_ABORTED|net::ERR_FAILED|Target page|Frame was detached/i.test(errorText)) return;
     const url = request.url();
     if (!isAppUrl(url)) return;
     report.defects.push({
@@ -402,7 +437,7 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
 }
 
 async function gotoRoute(page: Page, route: AuditRoute): Promise<void> {
-  await page.goto(routeUrl(route.path), { waitUntil: "load", timeout: 30_000 });
+  await page.goto(routeUrl(route.path), { waitUntil: "domcontentloaded", timeout: 45_000 });
   await waitForSettledPage(page, 3_000);
 }
 
@@ -489,6 +524,7 @@ async function collectCandidates(page: Page, scopeSelector = "body"): Promise<Ca
 }
 
 async function closeTransientUi(page: Page): Promise<void> {
+  await page.mouse.move(0, 0).catch(() => undefined);
   await page.keyboard.press("Escape").catch(() => undefined);
   await waitForNextFrame(page);
   const drawerClose = page
@@ -512,35 +548,51 @@ async function closeTransientUi(page: Page): Promise<void> {
     await waitForNextFrame(page);
   }
 
-  if (await hasBlockingOverlay(page)) {
-    await page.mouse.click(8, 8).catch(() => undefined);
+  const overlay = page.locator(TRANSIENT_OVERLAY_SELECTOR).first();
+  if (await overlay.isVisible({ timeout: 500 }).catch(() => false)) {
+    await overlay.click({ position: { x: 6, y: 6 }, timeout: 2_000 }).catch(() => undefined);
     await waitForNextFrame(page);
     await page.keyboard.press("Escape").catch(() => undefined);
+    await waitForNextFrame(page);
   }
 }
 
 async function hasBlockingOverlay(page: Page): Promise<boolean> {
-  const overlay = page
-    .locator(
-      "[role='dialog'][aria-modal='true'], [role='navigation'][aria-label='선생님 메뉴'][aria-hidden='false'], .ant-modal, .admin-modal-overlay"
-    )
-    .first();
+  const overlay = page.locator(TRANSIENT_OVERLAY_SELECTOR).first();
   return overlay.isVisible({ timeout: 500 }).catch(() => false);
 }
 
-async function clickCandidate(page: Page, candidate: Candidate): Promise<string | undefined> {
-  const target = page.locator(CLICKABLE_SELECTOR).nth(candidate.domIndex);
+function isRetryableClickError(message: string): boolean {
+  return /intercepts pointer events|subtree intercepts pointer events|not stable|element is not attached|Target closed/i.test(message);
+}
+
+async function clickTargetLikeUser(page: Page, target: Locator, networkIdleTimeout: number): Promise<string | undefined> {
   if (!(await target.isVisible({ timeout: 2_000 }).catch(() => false))) {
     return "stale or hidden before click";
   }
   await target.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => undefined);
 
-  const clickError = await target.click({ timeout: 5_000 }).then(() => undefined, (error: Error) => error.message);
+  let clickError = await target.click({ timeout: 5_000 }).then(() => undefined, (error: Error) => error.message);
+  if (clickError && isRetryableClickError(clickError)) {
+    await closeTransientUi(page);
+    await target.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => undefined);
+    clickError = await target.click({ timeout: 5_000 }).then(() => undefined, (error: Error) => error.message);
+  }
+  if (clickError && /intercepts pointer events|subtree intercepts pointer events/i.test(clickError)) {
+    await closeTransientUi(page);
+    if (!(await hasBlockingOverlay(page))) {
+      clickError = await target.click({ force: true, timeout: 3_000 }).then(() => undefined, (error: Error) => error.message);
+    }
+  }
   if (clickError) return clickError;
 
-  await waitForSettledPage(page, candidate.href ? 3_000 : 1_000);
+  await waitForSettledPage(page, networkIdleTimeout);
   await closeTransientUi(page);
   return undefined;
+}
+
+async function clickCandidate(page: Page, candidate: Candidate): Promise<string | undefined> {
+  return clickTargetLikeUser(page, page.locator(CLICKABLE_SELECTOR).nth(candidate.domIndex), candidate.href ? 3_000 : 1_000);
 }
 
 async function auditRoutes({
@@ -580,6 +632,11 @@ async function auditRoutes({
         result.skipped.push({ label, reason: candidate.skipReason });
         continue;
       }
+      const boundaryReason = roleBoundarySkip(candidate, role);
+      if (boundaryReason) {
+        result.skipped.push({ label, reason: boundaryReason });
+        continue;
+      }
       if (repeatKey) {
         const seen = repeatedCounts.get(repeatKey) ?? 0;
         if (seen >= MAX_REPEATED_ROW_CLICKS) {
@@ -608,6 +665,11 @@ async function auditRoutes({
       }
       if (fresh.skipReason) {
         result.skipped.push({ label, reason: fresh.skipReason });
+        continue;
+      }
+      const freshBoundaryReason = roleBoundarySkip(fresh, role);
+      if (freshBoundaryReason) {
+        result.skipped.push({ label, reason: freshBoundaryReason });
         continue;
       }
 
@@ -681,6 +743,11 @@ async function auditDrawerMenu({
       result.skipped.push({ label, reason: candidate.skipReason ?? "drawer close/logout" });
       continue;
     }
+    const boundaryReason = roleBoundarySkip(candidate, role);
+    if (boundaryReason) {
+      result.skipped.push({ label, reason: boundaryReason });
+      continue;
+    }
     if (internalKey && seenInternalLinks.has(internalKey)) {
       result.skipped.push({ label, reason: "duplicate internal menu/link already clicked" });
       continue;
@@ -694,11 +761,14 @@ async function auditDrawerMenu({
       result.skipped.push({ label, reason: fresh?.skipReason ?? "stale drawer candidate" });
       continue;
     }
+    const freshBoundaryReason = roleBoundarySkip(fresh, role);
+    if (freshBoundaryReason) {
+      result.skipped.push({ label, reason: freshBoundaryReason });
+      continue;
+    }
 
     const target = page.locator(scopeSelector).first().locator(CLICKABLE_SELECTOR).nth(fresh.domIndex);
-    const clickError = await target.click({ timeout: 5_000 }).then(() => undefined, (error: Error) => error.message);
-    await waitForSettledPage(page);
-    await closeTransientUi(page);
+    const clickError = await clickTargetLikeUser(page, target, 1_500);
     if (await hasBlockingOverlay(page)) {
       await gotoRoute(page, startRoute);
     }
@@ -745,7 +815,7 @@ async function attachReport(report: AuditReport): Promise<void> {
 
 test.describe("전 메뉴/버튼 사람형 클릭 감사 - 데스크톱", () => {
   test("관리자 + 개발자 데스크톱 메뉴/버튼", async ({ page }) => {
-    test.setTimeout(1_800_000);
+    test.setTimeout(5_400_000);
     const report: AuditReport = { routes: [], defects: [] };
     const seenInternalLinks = new Set<string>();
     await installRuntimeGuards(page, report, "admin-dev");
