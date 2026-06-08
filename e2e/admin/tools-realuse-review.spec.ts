@@ -63,7 +63,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
 
   // ── OMR ──────────────────────────────────────────
 
-  test("OMR-1. mc 한도 초과 입력 → 45 자동 보정 + toast (P1-1)", async ({ page }) => {
+  test("OMR-1. mc 한도 초과 입력 → 60 자동 보정 + toast (P1-1)", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
 
     const mc = page.locator('input[type="number"]').first();
@@ -71,13 +71,13 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
     await mc.blur();
 
     // toast
-    const warn = page.getByText(/객관식은 최대 45/i).first();
+    const warn = page.getByText(/객관식은 최대 60/i).first();
     await expect(warn).toBeVisible({ timeout: 5_000 });
 
-    // 값 클램프 — 45 또는 그 이하
+    // 값 클램프 — 60 또는 그 이하
     await expect(mc).toHaveValue(/^\d+$/);
     const v = await mc.inputValue();
-    expect(Number(v)).toBeLessThanOrEqual(45);
+    expect(Number(v)).toBeLessThanOrEqual(60);
   });
 
   test("OMR-2. 입력 변경 → 700ms 후 미리보기 자동 갱신 (P1-2)", async ({ page }) => {
