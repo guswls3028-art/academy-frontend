@@ -24,7 +24,16 @@ export async function gotoAndSettle(
   opts?: { timeout?: number; settleMs?: number },
 ): Promise<void> {
   const timeout = opts?.timeout ?? 20_000;
-  await page.goto(url, { waitUntil: "commit", timeout });
+  try {
+    await page.goto(url, { waitUntil: "commit", timeout });
+  } catch (error) {
+    const message = String((error as Error)?.message || error);
+    const recoverableNavigation =
+      message.includes("NS_BINDING_ABORTED") ||
+      message.includes("interrupted by another navigation") ||
+      message.includes("__hplus_reload");
+    if (!recoverableNavigation) throw error;
+  }
   await page.waitForLoadState("domcontentloaded", { timeout }).catch(() => {});
   // SPA 의 React render 안정화에 networkidle 가 효과적
   await page.waitForLoadState("networkidle", { timeout }).catch(() => {});

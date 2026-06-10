@@ -35,6 +35,7 @@ function isChunkLoadError(error: Error): boolean {
   const m = error?.message || "";
   return (
     m.includes("dynamically imported module") ||
+    m.includes("Importing a module script failed") ||
     m.includes("Failed to fetch") ||
     m.includes("Loading chunk") ||
     m.includes("Loading CSS chunk") ||
@@ -57,18 +58,18 @@ export default class ErrorBoundary extends Component<Props, State> {
     const tenantCode = safeGet("tenantCode");
     const isChunk = isChunkLoadError(error);
 
+    const key = isChunk ? CHUNK_RELOAD_KEY : GENERIC_RELOAD_KEY;
+    const cooldown = isChunk ? CHUNK_RELOAD_COOLDOWN_MS : GENERIC_RELOAD_COOLDOWN_MS;
+    if (hardReloadWithCacheBust({ key, cooldownMs: cooldown })) {
+      return;
+    }
+
     console.error(
       "[ErrorBoundary]",
       { url, tenantCode, errorName: error.name, isChunk },
       error,
       info.componentStack,
     );
-
-    const key = isChunk ? CHUNK_RELOAD_KEY : GENERIC_RELOAD_KEY;
-    const cooldown = isChunk ? CHUNK_RELOAD_COOLDOWN_MS : GENERIC_RELOAD_COOLDOWN_MS;
-    if (hardReloadWithCacheBust({ key, cooldownMs: cooldown })) {
-      return;
-    }
 
     // 쿨다운 이내에 재발생 — 자동 복구 실패. 사용자에게 원본 정보 노출.
     this.setState({ recurred: true });

@@ -45,6 +45,19 @@ function seedBrowserAuth({ access, refresh, code }: { access: string; refresh: s
   try { sessionStorage.setItem("tenantCode", code); } catch { /* sessionStorage 차단 환경(비활성 쿠키 등) 무시 */ }
 }
 
+async function gotoCommitted(page: Page, url: string, timeout: number): Promise<void> {
+  try {
+    await page.goto(url, { waitUntil: "commit", timeout });
+  } catch (error) {
+    const message = String((error as Error)?.message || error);
+    const recoverableNavigation =
+      message.includes("NS_BINDING_ABORTED") ||
+      message.includes("interrupted by another navigation") ||
+      message.includes("__hplus_reload");
+    if (!recoverableNavigation) throw error;
+  }
+}
+
 /* ── Credentials ── */
 const CREDS: Record<TenantRole, { base: string; code: string; userEnv: string; passEnv: string }> = {
   "admin":          { base: BASE,     code: "hakwonplus", userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
@@ -105,11 +118,11 @@ export async function loginViaUI(
 
   await page.addInitScript(seedBrowserAuth, { access: tokens.access, refresh: tokens.refresh, code: c.code });
 
-  await page.goto(`${base}${loginPath}`, { waitUntil: "commit", timeout: 45_000 });
+  await gotoCommitted(page, `${base}${loginPath}`, 45_000);
 
   await page.evaluate(seedBrowserAuth, { access: tokens.access, refresh: tokens.refresh, code: c.code });
 
-  await page.goto(`${base}${dashPath}`, { waitUntil: "commit", timeout: 45_000 });
+  await gotoCommitted(page, `${base}${dashPath}`, 45_000);
   await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
 
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)

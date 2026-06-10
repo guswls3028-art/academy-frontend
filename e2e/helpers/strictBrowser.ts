@@ -24,6 +24,9 @@ const DEFAULT_IGNORE: RegExp[] = [
   /Download the React DevTools/i,
   // Cloudflare Network Error Logging beacon 실패 — 운영 의존 아님
   /cf-nel/i,
+  // 배포 직후 구 HTML이 새 배포에서 사라진 chunk를 참조할 때 브라우저가 먼저 남기는
+  // recoverable console error. 앱은 ErrorBoundary/lazyWithRetry에서 cache-bust reload로 회수한다.
+  /Importing a module script failed/i,
   // iframe sandbox 정당한 동작 — about:srcdoc 안에서 'allow-scripts' 미설정은
   // 의도된 보안 조치. 페이지 내 iframe 미리보기/embed (메시지 미리보기 등) 시 발생.
   // spec logic 과 무관, sandbox 자체가 보안 기능.
