@@ -19,6 +19,7 @@
     "verify:teacher-routes": "node scripts/verify-teacher-routes.mjs",
     "verify:landing-routes": "node scripts/verify-landing-routes.mjs",
     "verify:admin-routes": "node scripts/verify-admin-routes.mjs",
+    "verify:tenant-availability": "node scripts/verify-tenant-availability.mjs",
     "verify:routes": "pnpm verify:student-routes && pnpm verify:teacher-routes && pnpm verify:landing-routes && pnpm verify:admin-routes",
     "refactor:inventory": "node scripts/refactor-boundary-snapshot.mjs",
     "refactor:budget": "node scripts/refactor-boundary-snapshot.mjs --budget scripts/refactor-budget-baseline.json",
