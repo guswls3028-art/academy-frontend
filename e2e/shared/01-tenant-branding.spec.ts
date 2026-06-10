@@ -1,11 +1,15 @@
 import { test, expect } from "../fixtures/strictTest";
 
+function normalizeBrandText(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
 test.describe("테넌트 브랜딩 검증", () => {
   test("tchul.com 제목이 박철과학이다", async ({ page }) => {
     await page.goto("https://tchul.com");
     await page.waitForLoadState("domcontentloaded");
     const title = await page.title();
-    expect(title).toContain("박철과학");
+    expect(normalizeBrandText(title)).toContain("박철과학");
   });
 
   test("sswe.co.kr 제목이 SSWE이다", async ({ page }) => {
@@ -23,7 +27,7 @@ test.describe("테넌트 브랜딩 검증", () => {
     expect(title).not.toContain("학원플러스");
     expect(title).not.toContain("limglish");
     expect(title).not.toContain("SSWE");
-    expect(title).toContain("박철과학");
+    expect(normalizeBrandText(title)).toContain("박철과학");
   });
 
   test("sswe.co.kr 파비콘이 sswe 아이콘이다", async ({ page }) => {

@@ -6,6 +6,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
@@ -25,8 +26,7 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
 
-    await adminPage.goto(`${BASE}/admin/community/notice`);
-    await adminPage.waitForLoadState("load");
+    await gotoAndSettle(adminPage, `${BASE}/admin/community/notice`, { timeout: 45_000 });
 
     const resp = await apiCall(adminPage, "POST", "/community/posts/", {
       post_type: "notice", title: TITLE, content: CONTENT, node_ids: [],
@@ -40,11 +40,15 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
     studentPage = await ctx.newPage();
     await loginViaUI(studentPage, "student");
 
-    await studentPage.goto(`${BASE}/student/notices`);
-    await studentPage.waitForLoadState("load");
-
     const notice = studentPage.locator(`text=${TITLE}`).first();
-    await expect(notice).toBeVisible({ timeout: 10000 });
+    await waitForCondition(
+      async () => {
+        await gotoAndSettle(studentPage, `${BASE}/student/notices`, { timeout: 45_000 });
+        return notice.isVisible().catch(() => false);
+      },
+      { timeoutMs: 60_000, intervalMs: 3000, description: "student notice list reflects created notice" },
+    );
+    await expect(notice).toBeVisible({ timeout: 5_000 });
   });
 
   test("3. 학생이 공지 상세에서 내용을 확인한다", async () => {

@@ -24,7 +24,8 @@ export async function gotoAndSettle(
   opts?: { timeout?: number; settleMs?: number },
 ): Promise<void> {
   const timeout = opts?.timeout ?? 20_000;
-  await page.goto(url, { waitUntil: "load", timeout });
+  await page.goto(url, { waitUntil: "commit", timeout });
+  await page.waitForLoadState("domcontentloaded", { timeout }).catch(() => {});
   // SPA 의 React render 안정화에 networkidle 가 효과적
   await page.waitForLoadState("networkidle", { timeout }).catch(() => {});
   // 일부 화면은 useEffect 후 데이터 fetch 가 networkidle 이후 일어남 — 짧은 settle

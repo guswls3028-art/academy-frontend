@@ -53,10 +53,21 @@ function reloadOrNotify(): void {
   hardReloadWithCacheBust({ key: "version_reload_ts", cooldownMs: 10_000 });
 }
 
+function versionUrl(): string | null {
+  if (typeof window === "undefined" || !window.location.origin.startsWith("http")) {
+    return null;
+  }
+  const url = new URL("/version.json", window.location.origin);
+  url.searchParams.set("_", String(Date.now()));
+  return url.toString();
+}
+
 async function checkVersion(): Promise<boolean> {
   if (!CURRENT_VERSION) return false;
+  const url = versionUrl();
+  if (!url) return false;
   try {
-    const res = await fetch(`/version.json?_=${Date.now()}`, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store", credentials: "same-origin", mode: "same-origin" });
     if (!res.ok) return false;
     const ct = res.headers.get("content-type") || "";
     if (!ct.includes("json")) return false;

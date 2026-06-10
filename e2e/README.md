@@ -66,6 +66,25 @@ pnpm exec playwright test e2e/stability/destructive-fixture-button-audit.spec.ts
 운영 발송 안전장치: 즉시 발송은 하지 않고 예약 발송을 즉시 취소한다. 가입승인 알림은 자동발송 설정이 켜져 있어도 통제 번호
 `01031217466` 한 곳만 수신자가 되도록 생성한다. 결제 카드는 fixture 생성 경로가 없으면 실제 카드 삭제/등록/결제를 클릭하지 않는다.
 
+### 결제 제외 잔여 리스크 감사
+
+`stability/controlled-real-alimtalk-send.spec.ts` 는 통제 번호 `01031217466` fixture 학생 1명에게 실제 즉시 알림톡을 1건 발송하고,
+발송 로그의 `sent` 상태와 provider message id를 확인한다. 운영 API에서 통제 번호가 아니면 즉시 실패한다.
+
+`stability/adversarial-upload-fixture-audit.spec.ts` 는 빠른 중복 클릭, 세션 만료 중 저장, 한글/공백 파일명 및 1MB급 PDF 첨부 업로드/삭제를
+`[E2E-ADV-*]` fixture로 검증한다.
+
+```sh
+pnpm exec playwright test e2e/stability/controlled-real-alimtalk-send.spec.ts --project=chromium --reporter=list --retries=0
+pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts --project=chromium --reporter=list --retries=0
+```
+
+브라우저/모바일 매트릭스는 기본 CI 게이트를 늘리지 않기 위해 별도 config로 실행한다.
+
+```sh
+pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts --config=playwright.matrix.config.ts --reporter=list --retries=0
+```
+
 ## 환경 변수 (`.env.e2e`)
 
 `.env.e2e.example`를 기준으로 로컬/CI secret을 채운다. 공용 `helpers/auth.ts`를 쓰는 정식 spec은

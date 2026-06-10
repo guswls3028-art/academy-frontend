@@ -54,6 +54,8 @@ export interface NotificationLogItem {
   template_summary?: string;
   /** 실패 시 사유 */
   failure_reason?: string | null;
+  /** provider가 반환한 그룹/메시지 식별자 */
+  provider_message_id?: string;
   /** 실제 발송된 메시지 본문 */
   message_body?: string;
   /** 발송 방식 */

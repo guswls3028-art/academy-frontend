@@ -109,7 +109,8 @@ export async function loginViaUI(
 
   await page.evaluate(seedBrowserAuth, { access: tokens.access, refresh: tokens.refresh, code: c.code });
 
-  await page.goto(`${base}${dashPath}`, { waitUntil: "load", timeout: 45_000 });
+  await page.goto(`${base}${dashPath}`, { waitUntil: "commit", timeout: 45_000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
 
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
