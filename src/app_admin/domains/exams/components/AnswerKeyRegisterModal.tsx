@@ -237,6 +237,7 @@ export default function AnswerKeyRegisterModal({
     () => sortedQuestions.reduce((sum, q) => sum + (scoreDraft[q.id] ?? q.score ?? 0), 0),
     [sortedQuestions, scoreDraft]
   );
+  const canEditStructure = canEditQuestions;
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0);
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0);
 
@@ -411,6 +412,10 @@ export default function AnswerKeyRegisterModal({
 
   /** 적용 클릭: 자동점수 ON이면 총점 필수 검증, 선택형만 설정 시 서술형 0으로 전달 */
   const handleApply = () => {
+    if (!canEditStructure) {
+      feedback.info("템플릿에서 가져온 시험은 답안·배점 수정이 잠겨 있습니다.");
+      return;
+    }
     if (choiceAutoScore) {
       const v = choiceTotalInput;
       if (v === "" || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0) {
@@ -442,6 +447,10 @@ export default function AnswerKeyRegisterModal({
   };
 
   const handleSave = async () => {
+    if (!canEditStructure) {
+      feedback.info("템플릿에서 가져온 시험은 답안·배점 수정이 잠겨 있습니다.");
+      return;
+    }
     setSaveBusy(true);
     try {
       const normalized = normalizeAnswers(draft);
@@ -521,7 +530,7 @@ export default function AnswerKeyRegisterModal({
       type="action"
       width={MODAL_WIDTH.answerKey}
       onEnterConfirm={
-        activeTab === "answer" && hasQuestions && !saveBusy ? handleSave : undefined
+        activeTab === "answer" && hasQuestions && canEditStructure && !saveBusy ? handleSave : undefined
       }
     >
       <ModalHeader
@@ -593,6 +602,7 @@ export default function AnswerKeyRegisterModal({
                       });
                       feedback.info("선택형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
                     }}
+                    disabled={!canEditStructure}
                     aria-label="선택형 셋팅 초기화 (배점 포함, 문항 수 제외)"
                     title="선택형 답안·배점 초기화 (문항 수는 그대로)"
                   >
@@ -618,6 +628,7 @@ export default function AnswerKeyRegisterModal({
                       }}
                       placeholder="예: 20"
                       className="ds-input answer-key-input--count"
+                      disabled={!canEditStructure}
                     />
                   </label>
                   <label className={`answer-key-field answer-key-field--total ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
@@ -632,8 +643,8 @@ export default function AnswerKeyRegisterModal({
                       }
                       placeholder="예: 80"
                       className="ds-input answer-key-input--score"
-                      disabled={!choiceAutoScore}
-                      aria-readonly={!choiceAutoScore}
+                      disabled={!canEditStructure || !choiceAutoScore}
+                      aria-readonly={!canEditStructure || !choiceAutoScore}
                     />
                   </label>
                   <div className="answer-key-field">
@@ -643,6 +654,7 @@ export default function AnswerKeyRegisterModal({
                         type="button"
                         className={`answer-key-toggle-btn ${choiceAutoScore ? "is-active" : ""}`}
                         onClick={() => setChoiceAutoScore(true)}
+                        disabled={!canEditStructure}
                       >
                         사용
                       </button>
@@ -650,6 +662,7 @@ export default function AnswerKeyRegisterModal({
                         type="button"
                         className={`answer-key-toggle-btn ${!choiceAutoScore ? "is-active" : ""}`}
                         onClick={() => setChoiceAutoScore(false)}
+                        disabled={!canEditStructure}
                       >
                         미사용
                       </button>
@@ -660,7 +673,7 @@ export default function AnswerKeyRegisterModal({
                     intent="primary"
                     size="sm"
                     onClick={handleApply}
-                    disabled={initMut.isPending}
+                    disabled={!canEditStructure || initMut.isPending}
                     loading={initMut.isPending}
                   >
                     적용
@@ -688,6 +701,7 @@ export default function AnswerKeyRegisterModal({
                       onScoreReset={() =>
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
+                      editable={canEditStructure}
                       showDividerAfter={(index + 1) % 5 === 0 && index < choiceQuestions.length - 1}
                       bubblesRef={(el) => {
                         if (choiceBubbleRefs.current.length <= index) choiceBubbleRefs.current.length = index + 1;
@@ -743,6 +757,7 @@ export default function AnswerKeyRegisterModal({
                       });
                       feedback.info("서술형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
                     }}
+                    disabled={!canEditStructure}
                     aria-label="서술형 셋팅 초기화 (배점 포함, 문항 수 제외)"
                     title="서술형 답안·배점 초기화 (문항 수는 그대로)"
                   >
@@ -768,6 +783,7 @@ export default function AnswerKeyRegisterModal({
                       }}
                       placeholder="예: 1"
                       className="ds-input answer-key-input--count"
+                      disabled={!canEditStructure}
                     />
                   </label>
                   <label className={`answer-key-field answer-key-field--total ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
@@ -782,8 +798,8 @@ export default function AnswerKeyRegisterModal({
                       }
                       placeholder="예: 50"
                       className="ds-input answer-key-input--score"
-                      disabled={!essayAutoScore}
-                      aria-readonly={!essayAutoScore}
+                      disabled={!canEditStructure || !essayAutoScore}
+                      aria-readonly={!canEditStructure || !essayAutoScore}
                     />
                   </label>
                   <div className="answer-key-field">
@@ -793,6 +809,7 @@ export default function AnswerKeyRegisterModal({
                         type="button"
                         className={`answer-key-toggle-btn ${essayAutoScore ? "is-active" : ""}`}
                         onClick={() => setEssayAutoScore(true)}
+                        disabled={!canEditStructure}
                       >
                         사용
                       </button>
@@ -800,6 +817,7 @@ export default function AnswerKeyRegisterModal({
                         type="button"
                         className={`answer-key-toggle-btn ${!essayAutoScore ? "is-active" : ""}`}
                         onClick={() => setEssayAutoScore(false)}
+                        disabled={!canEditStructure}
                       >
                         미사용
                       </button>
@@ -810,7 +828,7 @@ export default function AnswerKeyRegisterModal({
                     intent="primary"
                     size="sm"
                     onClick={handleApply}
-                    disabled={initMut.isPending}
+                    disabled={!canEditStructure || initMut.isPending}
                     loading={initMut.isPending}
                   >
                     적용
@@ -838,6 +856,7 @@ export default function AnswerKeyRegisterModal({
                       onScoreReset={() =>
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
+                      editable={canEditStructure}
                       showDividerAfter={false}
                       inputRef={(el) => {
                         if (essayInputRefs.current.length <= index) essayInputRefs.current.length = index + 1;
@@ -915,7 +934,7 @@ export default function AnswerKeyRegisterModal({
               <Button
                 intent="primary"
                 onClick={handleSave}
-                disabled={saveBusy}
+                disabled={saveBusy || !canEditStructure}
                 loading={saveBusy}
               >
                 저장 (총 {Math.round(totalScore)}점)
@@ -945,6 +964,7 @@ function ChoiceRow({
   score,
   onScoreChange,
   onScoreReset,
+  editable,
   showDividerAfter = false,
   bubblesRef,
   onMoveToNextRow,
@@ -956,6 +976,7 @@ function ChoiceRow({
   score: number;
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
+  editable: boolean;
   showDividerAfter?: boolean;
   bubblesRef?: (el: HTMLDivElement | null) => void;
   onMoveToNextRow?: (currentValue: string) => void;
@@ -967,6 +988,7 @@ function ChoiceRow({
   const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
 
   const toggleChoice = (choice: string) => {
+    if (!editable) return;
     const next = new Set(selectedChoices);
     if (next.has(choice)) next.delete(choice);
     else next.add(choice);
@@ -974,6 +996,7 @@ function ChoiceRow({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!editable) return;
     if (/^[1-5]$/.test(e.key)) {
       e.preventDefault();
       toggleChoice(e.key);
@@ -1020,7 +1043,7 @@ function ChoiceRow({
         className="answer-key-row__bubbles"
         role="group"
         aria-label={`${question.number}번 정답`}
-        tabIndex={0}
+        tabIndex={editable ? 0 : -1}
         onKeyDown={handleKeyDown}
       >
         {CHOICES.map((c) => (
@@ -1032,6 +1055,7 @@ function ChoiceRow({
               checked={selectedChoices.has(c)}
               onChange={() => toggleChoice(c)}
               className="ds-sr-only"
+              disabled={!editable}
             />
             <span
               className={`exam-omr-bubble ${selectedChoices.has(c) ? "exam-omr-bubble--selected" : ""}`}
@@ -1045,10 +1069,10 @@ function ChoiceRow({
       <div className="answer-key-row__score-ctrl">
         <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
         <div className="answer-key-row__score-btns">
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)}>+1</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)}>+2</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)}>+5</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)} disabled={!editable}>+1</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)} disabled={!editable}>+2</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)} disabled={!editable}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화" disabled={!editable}>
             <ResetIcon />
           </button>
         </div>
@@ -1073,6 +1097,7 @@ function EssayRow({
   score,
   onScoreChange,
   onScoreReset,
+  editable,
   showDividerAfter = false,
   inputRef,
   onMoveToNextRow,
@@ -1084,12 +1109,14 @@ function EssayRow({
   score: number;
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
+  editable: boolean;
   showDividerAfter?: boolean;
   inputRef?: (el: HTMLInputElement | null) => void;
   onMoveToNextRow?: () => void;
   onMoveToPreviousRow?: () => void;
 }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!editable) return;
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
@@ -1114,15 +1141,16 @@ function EssayRow({
           onKeyDown={handleKeyDown}
           placeholder="해설참조"
           className="ds-input answer-key-row__input"
+          disabled={!editable}
         />
       </div>
       <div className="answer-key-row__score-ctrl">
         <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
         <div className="answer-key-row__score-btns">
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)}>+1</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)}>+2</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)}>+5</button>
-          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)} disabled={!editable}>+1</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)} disabled={!editable}>+2</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)} disabled={!editable}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화" disabled={!editable}>
             <ResetIcon />
           </button>
         </div>
