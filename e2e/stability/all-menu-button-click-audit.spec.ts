@@ -793,7 +793,7 @@ async function auditDrawerMenu({
   seenInternalLinks: Set<string>;
 }): Promise<void> {
   await gotoRoute(page, startRoute);
-  const menuButton = page.getByRole("button", { name: "메뉴" }).first();
+  const menuButton = page.getByRole("button", { name: /메뉴(?:\s*열기)?/ }).first();
   if (!(await menuButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
     report.defects.push({
       role,
