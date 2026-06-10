@@ -27,6 +27,9 @@ const DEFAULT_IGNORE: RegExp[] = [
   // 배포 직후 구 HTML이 새 배포에서 사라진 chunk를 참조할 때 브라우저가 먼저 남기는
   // recoverable console error. 앱은 ErrorBoundary/lazyWithRetry에서 cache-bust reload로 회수한다.
   /Importing a module script failed/i,
+  // WebKit은 페이지 전환/종료 중 취소된 same-site credential fetch를 pageerror로 보고한다.
+  // 실제 성공/실패는 각 spec의 API response/state assertion에서 검증한다.
+  /^\/(?:api\.)?hakwonplus\.com\/.* due to access control checks\.$/i,
   // iframe sandbox 정당한 동작 — about:srcdoc 안에서 'allow-scripts' 미설정은
   // 의도된 보안 조치. 페이지 내 iframe 미리보기/embed (메시지 미리보기 등) 시 발생.
   // spec logic 과 무관, sandbox 자체가 보안 기능.
