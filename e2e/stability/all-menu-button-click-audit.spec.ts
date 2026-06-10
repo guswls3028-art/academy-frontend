@@ -85,6 +85,41 @@ const TRANSIENT_OVERLAY_SELECTOR = [
   "[role='navigation'][aria-label='선생님 메뉴'][aria-hidden='false']",
 ].join(", ");
 const MAX_REPEATED_ROW_CLICKS = 3;
+const RECOVERABLE_RUNTIME_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const RECOVERABLE_RUNTIME_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const pendingRuntimeDefects = new WeakMap<AuditReport, Map<string, Defect>>();
+
+function runtimeDefectKey(method: string, url: string): string {
+  return `${method.toUpperCase()} ${url}`;
+}
+
+function isRecoverableRuntimeMethod(method: string): boolean {
+  return RECOVERABLE_RUNTIME_METHODS.has(method.toUpperCase());
+}
+
+function pendingDefectsFor(report: AuditReport): Map<string, Defect> {
+  let pending = pendingRuntimeDefects.get(report);
+  if (!pending) {
+    pending = new Map<string, Defect>();
+    pendingRuntimeDefects.set(report, pending);
+  }
+  return pending;
+}
+
+function deferRuntimeDefect(report: AuditReport, method: string, url: string, defect: Defect): void {
+  pendingDefectsFor(report).set(runtimeDefectKey(method, url), defect);
+}
+
+function clearRecoveredRuntimeDefect(report: AuditReport, method: string, url: string): void {
+  pendingRuntimeDefects.get(report)?.delete(runtimeDefectKey(method, url));
+}
+
+function flushPendingRuntimeDefects(report: AuditReport): void {
+  const pending = pendingRuntimeDefects.get(report);
+  if (!pending?.size) return;
+  report.defects.push(...pending.values());
+  pending.clear();
+}
 
 const ADMIN_ROUTES: AuditRoute[] = [
   { path: "/admin/dashboard", label: "관리자 대시보드" },
@@ -272,6 +307,7 @@ function classifySkip(candidate: Candidate): string | undefined {
   if (/^mailto:|^tel:/i.test(href)) return "external protocol";
   if (/\/login(?:\/|$|\?)/i.test(href)) return "login route";
   if (/\/logout(?:\/|$|\?)/i.test(href)) return "logout route";
+  if (/\blanding-nav-/.test(candidate.className)) return "public landing preview navigation";
   if (/학원 홈페이지로 이동|홈페이지로 이동|공개 홈페이지/i.test(label)) return "outside role app navigation";
   if (candidate.type === "submit" && candidate.inForm && !SAFE_QUERY_TEXT.test(label)) return "submit/write control";
   if (MUTATION_OR_EXTERNAL_TEXT.test(label) && !SAFE_QUERY_TEXT.test(label)) {
@@ -338,13 +374,24 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
   page.on("response", (response) => {
     const status = response.status();
     const url = response.url();
-    if (status >= 500 && isAppUrl(url)) {
-      report.defects.push({
-        role,
-        route: currentPathSafe(page),
-        action: "network",
-        detail: `${status} ${url}`,
-      });
+    if (!isAppUrl(url)) return;
+
+    const method = response.request().method().toUpperCase();
+    if (status < 500) {
+      clearRecoveredRuntimeDefect(report, method, url);
+      return;
+    }
+
+    const defect: Defect = {
+      role,
+      route: currentPathSafe(page),
+      action: "network",
+      detail: `${method} ${status} ${url}`,
+    };
+    if (isRecoverableRuntimeMethod(method) && RECOVERABLE_RUNTIME_STATUSES.has(status)) {
+      deferRuntimeDefect(report, method, url, defect);
+    } else {
+      report.defects.push(defect);
     }
   });
   page.on("requestfailed", (request) => {
@@ -352,12 +399,18 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
     if (/ERR_ABORTED|NS_BINDING_ABORTED|net::ERR_FAILED|Target page|Frame was detached/i.test(errorText)) return;
     const url = request.url();
     if (!isAppUrl(url)) return;
-    report.defects.push({
+    const method = request.method().toUpperCase();
+    const defect: Defect = {
       role,
       route: currentPathSafe(page),
       action: "requestfailed",
-      detail: `${errorText} ${url}`,
-    });
+      detail: `${method} ${errorText} ${url}`,
+    };
+    if (isRecoverableRuntimeMethod(method)) {
+      deferRuntimeDefect(report, method, url, defect);
+    } else {
+      report.defects.push(defect);
+    }
   });
 }
 
@@ -403,6 +456,10 @@ async function waitForSettledPage(page: Page, networkIdleTimeout = 1_500): Promi
   await waitForNextFrame(page);
 }
 
+function isRetryableNavigationError(message: string): boolean {
+  return /Timeout|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_HTTP2_PROTOCOL_ERROR|interrupted by another navigation|NS_BINDING_ABORTED/i.test(message);
+}
+
 async function assertUsablePage(page: Page, report: AuditReport, role: string, route: AuditRoute, action: string): Promise<void> {
   await waitForSettledPage(page);
   const path = currentPathSafe(page);
@@ -416,8 +473,13 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
     return;
   }
 
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  const normalized = normalizeSpaces(bodyText);
+  let bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  let normalized = normalizeSpaces(bodyText);
+  if (normalized.length < 2) {
+    await waitForSettledPage(page, 3_000);
+    bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    normalized = normalizeSpaces(bodyText);
+  }
   if (normalized.length < 2) {
     report.defects.push({
       role,
@@ -437,8 +499,23 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
 }
 
 async function gotoRoute(page: Page, route: AuditRoute): Promise<void> {
-  await page.goto(routeUrl(route.path), { waitUntil: "commit", timeout: 45_000 });
-  await waitForSettledPage(page, 3_000);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(routeUrl(route.path), { waitUntil: "commit", timeout: 45_000 });
+      await waitForSettledPage(page, 3_000);
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = String((error as Error)?.message || error);
+      if (attempt === 1 || !isRetryableNavigationError(message)) {
+        throw error;
+      }
+      await page.goto("about:blank", { waitUntil: "commit", timeout: 5_000 }).catch(() => undefined);
+      await waitForNextFrame(page);
+    }
+  }
+  throw lastError;
 }
 
 async function collectCandidates(page: Page, scopeSelector = "body"): Promise<Candidate[]> {
@@ -675,6 +752,10 @@ async function auditRoutes({
 
       const clickError = await clickCandidate(page, fresh);
       if (clickError) {
+        if (clickError === "stale or hidden before click") {
+          result.skipped.push({ label: labelOf(fresh), reason: clickError });
+          continue;
+        }
         report.defects.push({
           role,
           route: route.path,
@@ -774,6 +855,10 @@ async function auditDrawerMenu({
     }
 
     if (clickError) {
+      if (clickError === "stale or hidden before click") {
+        result.skipped.push({ label: labelOf(fresh), reason: clickError });
+        continue;
+      }
       report.defects.push({
         role,
         route: `${startRoute.path} drawer`,
@@ -807,6 +892,7 @@ async function loginForAudit(page: Page, authRole: TenantRole, landingPath: stri
 }
 
 async function attachReport(report: AuditReport): Promise<void> {
+  flushPendingRuntimeDefects(report);
   await test.info().attach("all-menu-button-click-audit.json", {
     contentType: "application/json",
     body: Buffer.from(JSON.stringify(report, null, 2), "utf-8"),

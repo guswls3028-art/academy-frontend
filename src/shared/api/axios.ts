@@ -14,6 +14,7 @@ import { captureApiError } from "@/shared/lib/sentryContext";
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
+  _transientRetryCount?: number;
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
@@ -294,13 +295,16 @@ api.interceptors.request.use(async (config) => {
     setRequestHeader(cfg, "X-Student-Id", selectedStudentId);
   }
 
-  // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
-  const asyncId = asyncStatusStore.trackRequest(
-    cfg.method ?? "get",
-    cfg.url,
-    cfg as AxiosRequestConfig & { meta?: { asyncLabel?: string } }
-  );
-  if (asyncId) (cfg as RetryConfig)._asyncId = asyncId;
+  // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록. 내부 재시도는 같은 task를 유지한다.
+  const retryCfg = cfg as RetryConfig;
+  if (!retryCfg._asyncId) {
+    const asyncId = asyncStatusStore.trackRequest(
+      cfg.method ?? "get",
+      cfg.url,
+      cfg as AxiosRequestConfig & { meta?: { asyncLabel?: string } }
+    );
+    if (asyncId) retryCfg._asyncId = asyncId;
+  }
 
   return cfg;
 });
@@ -324,12 +328,68 @@ const NETWORK_ERROR_CODES = new Set([
   "ERR_INTERNET_DISCONNECTED",
 ]);
 
+const TRANSIENT_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const TRANSIENT_RETRY_METHODS = new Set(["get", "head", "options"]);
+const MAX_TRANSIENT_RETRIES = 2;
+const TRANSIENT_RETRY_BASE_DELAY_MS = 350;
+
 function isNetworkError(err: AxiosError): boolean {
   if (err.response) return false;
   if (err.code && NETWORK_ERROR_CODES.has(err.code)) return true;
   // err.code 없이 response 없는 케이스: 'Network Error' 메시지 휴리스틱
   if (typeof err.message === "string" && /network/i.test(err.message)) return true;
   return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function normalizedMethod(config?: AxiosRequestConfig): string {
+  return String(config?.method || "get").toLowerCase();
+}
+
+function isAbortLikeError(err: AxiosError): boolean {
+  const message = `${err.code || ""} ${err.message || ""}`;
+  return /ERR_CANCELED|AbortError|canceled|cancelled/i.test(message);
+}
+
+function retryAfterDelayMs(err: AxiosError): number | null {
+  const raw = err.response?.headers?.["retry-after"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const seconds = Number.parseFloat(value);
+  if (Number.isFinite(seconds)) {
+    return Math.max(0, Math.min(seconds * 1000, 3_000));
+  }
+
+  const dateMs = Date.parse(value);
+  if (Number.isFinite(dateMs)) {
+    return Math.max(0, Math.min(dateMs - Date.now(), 3_000));
+  }
+  return null;
+}
+
+function shouldRetryTransientApiError(err: AxiosError, config: RetryConfig): boolean {
+  if (config.signal?.aborted || isAbortLikeError(err)) return false;
+  if (!TRANSIENT_RETRY_METHODS.has(normalizedMethod(config))) return false;
+  if (shouldSkipAuth(config.url, config)) return false;
+  if ((config._transientRetryCount ?? 0) >= MAX_TRANSIENT_RETRIES) return false;
+
+  const status = err.response?.status;
+  if (typeof status === "number" && TRANSIENT_HTTP_STATUSES.has(status)) return true;
+  return isNetworkError(err);
+}
+
+async function retryTransientApiRequest(config: RetryConfig, err: AxiosError): Promise<AxiosResponse> {
+  const retryCount = (config._transientRetryCount ?? 0) + 1;
+  config._transientRetryCount = retryCount;
+  const retryAfter = retryAfterDelayMs(err);
+  const backoff = TRANSIENT_RETRY_BASE_DELAY_MS * 2 ** (retryCount - 1);
+  const jitter = Math.floor(Math.random() * 120);
+  await sleep(retryAfter ?? backoff + jitter);
+  return api.request(config);
 }
 
 /**
@@ -349,15 +409,18 @@ api.interceptors.response.use(
   async (err: unknown) => {
     const config = isAxiosError(err) ? err.config as RetryConfig | undefined : undefined;
     const asyncId = config?._asyncId;
-    if (asyncId)
-      asyncStatusStore.completeTask(
-        asyncId,
-        "error",
-        getApiErrorMessage(err)
-      );
     if (!isAxiosError(err)) throw err;
 
-    // Sentry API 에러 추적: 4xx/5xx 응답을 자동 전송
+    const status = err.response?.status;
+    const original = err.config as RetryConfig | undefined;
+
+    if (!original) throw err;
+
+    if (shouldRetryTransientApiError(err, original)) {
+      return retryTransientApiRequest(original, err);
+    }
+
+    // Sentry API 에러 추적: 최종 실패한 4xx/5xx 응답만 전송
     const errStatus = err.response?.status;
     if (errStatus && errStatus >= 400) {
       captureApiError(
@@ -368,24 +431,31 @@ api.interceptors.response.use(
       );
     }
 
-    const status = err.response?.status;
-    const original = err.config as RetryConfig | undefined;
-
-    if (!original) throw err;
+    const completeAsyncError = () => {
+      if (asyncId)
+        asyncStatusStore.completeTask(
+          asyncId,
+          "error",
+          getApiErrorMessage(err)
+        );
+    };
 
     if (status === 402) {
       // Subscription expired — broadcast to UI
       try { window.dispatchEvent(new CustomEvent("subscription-expired", { detail: err.response?.data })); } catch { /* ignore */ }
+      completeAsyncError();
       throw err;
     }
 
     if (status === 403) {
+      completeAsyncError();
       throw err;
     }
 
     // 네트워크 장애(오프라인/DNS/연결끊김/타임아웃)는 인증 실패가 아니므로
     // 토큰 정리 없이 그대로 throw → 호출 측이 retry/UX 처리.
     if (isNetworkError(err)) {
+      completeAsyncError();
       throw err;
     }
 
@@ -424,6 +494,7 @@ api.interceptors.response.use(
           saveReturnPath();
           window.location.href = "/login";
         }
+        completeAsyncError();
         throw err;
       }
 
@@ -431,6 +502,7 @@ api.interceptors.response.use(
       return api.request(original);
     }
 
+    completeAsyncError();
     throw err;
   }
 );
