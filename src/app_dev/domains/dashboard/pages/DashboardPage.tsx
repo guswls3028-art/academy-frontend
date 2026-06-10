@@ -1,8 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 import { Link } from "react-router-dom";
 import { useDashboardSummary } from "@dev/domains/dashboard/hooks/useDashboard";
-import { useToggleMaintenance } from "@dev/domains/maintenance/hooks/useMaintenance";
-import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { DashboardSummary } from "@dev/domains/dashboard/api/dashboard.api";
 import s from "@dev/layout/DevLayout.module.css";
 
@@ -11,17 +9,6 @@ const fmtMoney = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 
 export default function DashboardPage() {
   const { data: summary, isLoading, isError, refetch } = useDashboardSummary();
-  const toggleMaintenance = useToggleMaintenance();
-  const { toast } = useDevToast();
-
-  function handleToggleMaintenance() {
-    if (!summary) return;
-    const next = !summary.maintenance.enabled_for_all;
-    toggleMaintenance.mutate(next, {
-      onSuccess: () => { toast(next ? "점검 모드 활성화" : "점검 모드 해제"); refetch(); },
-      onError: () => toast("점검 모드 변경 실패", "error"),
-    });
-  }
 
   return (
     <>
@@ -63,11 +50,7 @@ export default function DashboardPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
           <SignupChart summary={summary} />
-          <MaintenanceCard
-            summary={summary}
-            onToggle={handleToggleMaintenance}
-            isPending={toggleMaintenance.isPending}
-          />
+          <MaintenanceCard summary={summary} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginTop: 16 }}>
@@ -182,30 +165,28 @@ function SignupChart({ summary }: { summary: DashboardSummary | undefined }) {
 
 /* ===== Maintenance Card ===== */
 function MaintenanceCard({
-  summary, onToggle, isPending,
-}: { summary: DashboardSummary | undefined; onToggle: () => void; isPending: boolean }) {
+  summary,
+}: { summary: DashboardSummary | undefined }) {
   const m = summary?.maintenance;
   return (
     <div className={s.card}>
       <div className={s.cardHeader}>
         <h3 className={s.cardTitle}>점검 모드</h3>
         {m && (
-          <button
-            type="button"
-            className={s.toggle}
-            role="switch"
-            aria-checked={m.enabled_for_all}
-            disabled={isPending}
-            onClick={onToggle}
-            style={m.enabled_for_all ? { background: "var(--dev-warning)" } : undefined}
+          <span
+            className={s.headerBadge}
+            style={{
+              background: m.enabled_count > 0 ? "var(--dev-warning-subtle)" : "var(--dev-success-subtle)",
+              color: m.enabled_count > 0 ? "#92400e" : "#065f46",
+            }}
           >
-            <span className={s.toggleKnob} />
-          </button>
+            {m.enabled_count > 0 ? "점검 잔여" : "해제됨"}
+          </span>
         )}
       </div>
       <div className={s.cardBody}>
         <p style={{ fontSize: 13, color: "var(--dev-text-secondary)", margin: 0 }}>
-          모든 테넌트에 유지보수 화면을 표시합니다 (개발/시스템 테넌트 제외).
+          전체 테넌트 점검 ON은 운영 안전상 비활성화되어 있습니다.
         </p>
         {m && (
           <p style={{ fontSize: 12, color: "var(--dev-text-muted)", marginTop: 8 }}>
