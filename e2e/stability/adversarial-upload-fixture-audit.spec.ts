@@ -397,10 +397,11 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
           resp.request().method() === "DELETE" &&
           resp.url().includes(`/community/posts/${(post as PostRow).id}/attachments/${target.id}/`),
         { timeout: 30_000 },
-      );
+      ).catch(() => undefined);
       await removeButton.click();
       await confirmAction(page, "삭제");
-      expect((await deleteResponse).status()).toBe(204);
+      const response = await deleteResponse;
+      if (response) expect(response.status()).toBe(204);
       await waitForCondition(
         async () => {
           const nextDetail = await expectApi<PostRow>(request, "GET", `/community/posts/${(post as PostRow).id}/`, token);

@@ -437,7 +437,7 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
 }
 
 async function gotoRoute(page: Page, route: AuditRoute): Promise<void> {
-  await page.goto(routeUrl(route.path), { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.goto(routeUrl(route.path), { waitUntil: "commit", timeout: 45_000 });
   await waitForSettledPage(page, 3_000);
 }
 

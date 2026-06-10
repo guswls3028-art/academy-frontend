@@ -31,15 +31,25 @@ function safeGet(key: string): string | null {
   }
 }
 
-function isChunkLoadError(error: Error): boolean {
+function hasRecentReload(key: string, cooldownMs: number): boolean {
+  const lastReload = Number(safeGet(key) || "0");
+  return Number.isFinite(lastReload) && Date.now() - lastReload < cooldownMs;
+}
+
+function isChunkLoadError(error: Error, info?: ErrorInfo): boolean {
   const m = error?.message || "";
+  const stack = error?.stack || "";
+  const componentStack = info?.componentStack || "";
   return (
     m.includes("dynamically imported module") ||
     m.includes("Importing a module script failed") ||
     m.includes("Failed to fetch") ||
     m.includes("Loading chunk") ||
     m.includes("Loading CSS chunk") ||
-    m.includes("LAZY_DEFAULT_UNDEFINED")
+    m.includes("LAZY_DEFAULT_UNDEFINED") ||
+    stack.includes("dynamically imported module") ||
+    stack.includes("Importing a module script failed") ||
+    ((m === "Error" || m === "") && componentStack.includes("Lazy"))
   );
 }
 
@@ -56,11 +66,14 @@ export default class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const tenantCode = safeGet("tenantCode");
-    const isChunk = isChunkLoadError(error);
+    const isChunk = isChunkLoadError(error, info);
 
     const key = isChunk ? CHUNK_RELOAD_KEY : GENERIC_RELOAD_KEY;
     const cooldown = isChunk ? CHUNK_RELOAD_COOLDOWN_MS : GENERIC_RELOAD_COOLDOWN_MS;
     if (hardReloadWithCacheBust({ key, cooldownMs: cooldown })) {
+      return;
+    }
+    if (isChunk && hasRecentReload(CHUNK_RELOAD_KEY, CHUNK_RELOAD_COOLDOWN_MS)) {
       return;
     }
 
