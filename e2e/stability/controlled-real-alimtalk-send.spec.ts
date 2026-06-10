@@ -280,7 +280,8 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
     expect(log.success, `failure_reason=${log.failure_reason || ""}`).toBe(true);
     expect(log.status).toBe("sent");
     expect(log.message_mode).toBe("alimtalk");
-    expect(log.recipient_summary || "").toContain("010****");
+    expect(log.recipient_summary || "").toMatch(/010\d?\*{4}/);
+    expect(log.recipient_summary || "").not.toContain(CONTROLLED_PHONE);
     expect((log.provider_message_id || "").trim(), "Solapi/provider group id").not.toBe("");
   });
 });
