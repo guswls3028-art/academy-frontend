@@ -55,6 +55,8 @@ export function normalizeExam(raw: unknown): Exam {
     close_at: nullableText(data.close_at),
 
     template_exam_id: nullableNumber(data.template_exam_id),
+    structure_owner_id: numberOr(data.structure_owner_id, numberOr(data.id ?? data.exam_id, 0)),
+    can_edit_structure: data.can_edit_structure !== false,
 
     answer_visibility: normalizeAnswerVisibility(data.answer_visibility),
 

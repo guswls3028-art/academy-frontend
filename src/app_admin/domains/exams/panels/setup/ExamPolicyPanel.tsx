@@ -78,7 +78,8 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
     enabled: examId > 0,
   });
-  const canEditQuestions = exam?.exam_type === "template" || !exam?.template_exam_id;
+  const canEditQuestions = exam?.can_edit_structure ?? true;
+  const structureOwnerId = exam?.structure_owner_id ?? exam?.id ?? examId;
 
   const savePassScore = async () => {
     if (numericPassScore > numericMaxScore) {
@@ -204,7 +205,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
           open={answerModalOpen}
           onClose={() => setAnswerModalOpen(false)}
           examId={examId}
-          structureOwnerId={exam.template_exam_id ?? exam.id}
+          structureOwnerId={structureOwnerId}
           canEditQuestions={canEditQuestions}
           lectureName={resolvedLectureName}
           sessionName={resolvedSessionName}
@@ -213,7 +214,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
         <ExamPdfUploadModal
           open={pdfModalOpen}
           onClose={() => setPdfModalOpen(false)}
-          examId={exam?.template_exam_id ?? examId}
+          examId={examId}
         />
 
         {/* ── OMR 답안지 ── */}

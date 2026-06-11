@@ -48,6 +48,15 @@ export async function saveExamAsTemplate(examId: number, payload?: { title?: str
 }
 
 /**
+ * POST /exams/{id}/structure/ensure/
+ * regular 시험이 템플릿 구조를 live 참조 중이면 이 시험만의 복사본을 만든다.
+ */
+export async function ensureExamStructure(examId: number): Promise<Exam> {
+  const res = await api.post(`/exams/${examId}/structure/ensure/`);
+  return normalizeExam(res.data);
+}
+
+/**
  * POST /exams/{id}/recalculate/
  * (없으면 no-op)
  */

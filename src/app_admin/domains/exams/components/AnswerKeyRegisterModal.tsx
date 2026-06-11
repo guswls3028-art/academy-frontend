@@ -20,6 +20,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
+import { ensureExamStructure } from "../api/adminExam";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
 import {
   fetchExplanations,
@@ -150,11 +151,47 @@ export default function AnswerKeyRegisterModal({
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
   const { data: exam } = useAdminExam(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
+  const [ensureAttemptedExamId, setEnsureAttemptedExamId] = useState<number | null>(null);
+  const ensureStructureMut = useMutation({
+    mutationFn: ensureExamStructure,
+    onSuccess: (nextExam) => {
+      qc.setQueryData(["admin-exam", examId], nextExam);
+      setEnsuredExamId(examId);
+      qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      qc.invalidateQueries({ queryKey: ["answer-key", examId] });
+      qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
+    },
+    onError: (error: unknown) => {
+      feedback.error(extractApiError(error, "시험 구조 준비 실패"));
+    },
+  });
+  const needsStructureEnsure = open && exam?.exam_type === "regular";
+  const structureReady = !needsStructureEnsure || ensuredExamId === examId;
+  const effectiveStructureOwnerId = exam?.structure_owner_id ?? structureOwnerId;
+
+  useEffect(() => {
+    if (!open) {
+      setEnsuredExamId(null);
+      setEnsureAttemptedExamId(null);
+      return;
+    }
+    if (
+      !needsStructureEnsure ||
+      ensuredExamId === examId ||
+      ensureAttemptedExamId === examId ||
+      ensureStructureMut.isPending
+    ) {
+      return;
+    }
+    setEnsureAttemptedExamId(examId);
+    ensureStructureMut.mutate(examId);
+  }, [open, needsStructureEnsure, ensuredExamId, ensureAttemptedExamId, examId, ensureStructureMut]);
 
   const { data: questionsData } = useQuery({
     queryKey: ["exam-questions", examId],
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
-    enabled: open && Number.isFinite(examId),
+    enabled: open && Number.isFinite(examId) && structureReady,
   });
   const questions = questionsData ?? EMPTY_QUESTIONS;
 
@@ -168,7 +205,7 @@ export default function AnswerKeyRegisterModal({
         throw error;
       }
     },
-    enabled: open && questions.length > 0,
+    enabled: open && structureReady && questions.length > 0,
     retry: (_, error: unknown) => getResponseStatus(error) !== 404,
   });
   /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
@@ -200,7 +237,7 @@ export default function AnswerKeyRegisterModal({
   const { data: explanationsData } = useQuery({
     queryKey: ["exam-explanations", examId],
     queryFn: () => fetchExplanations(examId),
-    enabled: open && Number.isFinite(examId) && questions.length > 0,
+    enabled: open && Number.isFinite(examId) && structureReady && questions.length > 0,
   });
   const explanationsFromApi = explanationsData ?? EMPTY_EXPLANATIONS;
 
@@ -237,7 +274,7 @@ export default function AnswerKeyRegisterModal({
     () => sortedQuestions.reduce((sum, q) => sum + (scoreDraft[q.id] ?? q.score ?? 0), 0),
     [sortedQuestions, scoreDraft]
   );
-  const canEditStructure = canEditQuestions;
+  const canEditStructure = canEditQuestions && structureReady;
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0);
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0);
 
@@ -413,7 +450,7 @@ export default function AnswerKeyRegisterModal({
   /** 적용 클릭: 자동점수 ON이면 총점 필수 검증, 선택형만 설정 시 서술형 0으로 전달 */
   const handleApply = () => {
     if (!canEditStructure) {
-      feedback.info("템플릿에서 가져온 시험은 답안·배점 수정이 잠겨 있습니다.");
+      feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
     if (choiceAutoScore) {
@@ -448,7 +485,7 @@ export default function AnswerKeyRegisterModal({
 
   const handleSave = async () => {
     if (!canEditStructure) {
-      feedback.info("템플릿에서 가져온 시험은 답안·배점 수정이 잠겨 있습니다.");
+      feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
     setSaveBusy(true);
@@ -550,6 +587,7 @@ export default function AnswerKeyRegisterModal({
               intent="ghost"
               size="sm"
               onClick={() => setPdfModalOpen(true)}
+              disabled={!structureReady}
               title="시험지 PDF를 올리면 AI가 문항을 자동 인식합니다"
             >
               시험지 PDF 업로드
@@ -559,16 +597,21 @@ export default function AnswerKeyRegisterModal({
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
 
-      {/* PDF 업로드 통합 모달 — 자산은 template에만 업로드 가능하므로 structureOwnerId 사용 */}
+      {/* PDF 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
       <ExamPdfUploadModal
         open={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
-        examId={structureOwnerId}
+        examId={effectiveStructureOwnerId}
       />
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
-          {activeTab === "answer" && (
+          {!structureReady && (
+            <div className="answer-key-empty">
+              시험 구조를 준비하는 중입니다.
+            </div>
+          )}
+          {structureReady && activeTab === "answer" && (
             <>
             {/* 등록된 답안 요약 영역 제거 — 아래 문항 목록에서 동일 정보 제공 */}
             <div className="answer-key-two-panels">
@@ -872,7 +915,7 @@ export default function AnswerKeyRegisterModal({
             </>
           )}
 
-          {activeTab === "image" && (
+          {structureReady && activeTab === "image" && (
             <div className="answer-key-image-tab">
               {sortedQuestions.length === 0 ? (
                 <div className="answer-key-empty">
@@ -910,7 +953,7 @@ export default function AnswerKeyRegisterModal({
             </div>
           )}
 
-          {activeTab === "omr" && (
+          {structureReady && activeTab === "omr" && (
             <OmrSettingsTab
               examId={examId}
               examTitle={exam?.title || ""}

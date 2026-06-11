@@ -34,6 +34,8 @@ export type Exam = {
   close_at: string | null;
 
   template_exam_id: number | null;
+  structure_owner_id: number;
+  can_edit_structure: boolean;
 
   answer_visibility: AnswerVisibility;
 

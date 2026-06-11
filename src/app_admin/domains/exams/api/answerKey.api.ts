@@ -5,7 +5,7 @@ export type AnswerKeyValue = string | string[];
 
 export interface AnswerKey {
   id: number;
-  exam: number; // template exam id
+  exam: number; // effective structure owner exam id
   answers: Record<string, AnswerKeyValue>;
   created_at: string;
   updated_at: string;
