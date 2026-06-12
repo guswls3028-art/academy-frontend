@@ -55,7 +55,7 @@ test.describe("매치업 기능", () => {
     await page.screenshot({ path: "e2e/screenshots/matchup-tab.png", fullPage: true });
 
     // 저장소 탭 클릭
-    const storageTab = page.getByRole("link", { name: /^저장소$/ }).first();
+    const storageTab = page.getByRole("button", { name: /^저장소$/ }).first();
     await storageTab.click();
     await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 10000 });
     await expect(page.getByRole("button", { name: "추가" }).first()).toBeVisible({ timeout: 5000 });
@@ -64,7 +64,7 @@ test.describe("매치업 기능", () => {
     await page.screenshot({ path: "e2e/screenshots/storage-tab.png", fullPage: true });
 
     // 다시 매치업 탭
-    const matchupTab = page.getByRole("link", { name: /^매치업$/ }).first();
+    const matchupTab = page.getByRole("button", { name: /^매치업$/ }).first();
     await matchupTab.click();
     await expect(page).toHaveURL(/\/admin\/storage\/matchup/, { timeout: 10000 });
   });

@@ -45,6 +45,22 @@ function seedBrowserAuth({ access, refresh, code }: { access: string; refresh: s
   try { sessionStorage.setItem("tenantCode", code); } catch { /* sessionStorage 차단 환경(비활성 쿠키 등) 무시 */ }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseThrottleWaitMs(responseText: string, retryAfter: string | null): number {
+  const headerSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
+  if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
+    return Math.min(headerSeconds + 1, 30) * 1000;
+  }
+  const bodySeconds = Number.parseInt(responseText.match(/(\d+)\s*초/)?.[1] || "", 10);
+  if (Number.isFinite(bodySeconds) && bodySeconds > 0) {
+    return Math.min(bodySeconds + 1, 30) * 1000;
+  }
+  return 5_000;
+}
+
 async function gotoCommitted(page: Page, url: string, timeout: number): Promise<void> {
   try {
     await page.goto(url, { waitUntil: "commit", timeout });
@@ -83,6 +99,37 @@ function resolveCred(role: TenantRole): { base: string; code: string; user: stri
   };
 }
 
+async function requestLoginTokens(
+  page: Page,
+  role: TenantRole,
+  c: { code: string; user: string; pass: string },
+): Promise<{ access: string; refresh: string }> {
+  let lastFailure = "";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
+      data: { username: c.user, password: c.pass, tenant_code: c.code },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Code": c.code,
+      },
+      timeout: 60_000,
+    });
+
+    if (resp.status() === 200) {
+      return await resp.json() as { access: string; refresh: string };
+    }
+
+    const body = await resp.text();
+    lastFailure = `${resp.status()} ${body}`;
+    if (resp.status() !== 429 || attempt === 2) {
+      break;
+    }
+    await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
+  }
+
+  throw new Error(`E2E login failed for ${role} (${c.user}@${c.code}): ${lastFailure}`);
+}
+
 /**
  * API 기반 로그인 (모든 테넌트 공통)
  * 1. JWT 토큰 API 호출
@@ -96,21 +143,7 @@ export async function loginViaUI(
 ): Promise<void> {
   const c = resolveCred(role);
 
-  const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: c.user, password: c.pass, tenant_code: c.code },
-    headers: {
-      "Content-Type": "application/json",
-      "X-Tenant-Code": c.code,
-    },
-    timeout: 60_000,
-  });
-
-  if (resp.status() !== 200) {
-    const body = await resp.text();
-    throw new Error(`E2E login failed for ${role} (${c.user}@${c.code}): ${resp.status()} ${body}`);
-  }
-
-  const tokens = await resp.json() as { access: string; refresh: string };
+  const tokens = await requestLoginTokens(page, role, c);
 
   const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/admin");
   const base = trimTrailingSlash(c.base);

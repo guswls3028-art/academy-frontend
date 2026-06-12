@@ -187,11 +187,12 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
     await expect(page.getByText("READY")).toBeVisible({ timeout: 5_000 });
 
     // 모드 토글 — '스톱워치' 버튼 클릭
-    const [dialog] = await Promise.all([
-      page.waitForEvent("dialog", { timeout: 5_000 }),
-      page.getByRole("button", { name: /^스톱워치$/ }).click(),
-    ]);
-    expect(dialog.message()).toMatch(/타이머가 진행 중|시간이 사라/i);
-    await dialog.dismiss();
+    let dialogMessage = "";
+    page.once("dialog", async (dialog) => {
+      dialogMessage = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: /^스톱워치$/ }).click();
+    await expect.poll(() => dialogMessage, { timeout: 5_000 }).toMatch(/타이머가 진행 중|시간이 사라/i);
   });
 });
