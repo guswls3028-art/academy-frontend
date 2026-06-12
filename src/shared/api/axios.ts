@@ -129,6 +129,11 @@ function shouldSkipAuth(url?: string, config?: ApiRequestConfig) {
   return u.includes("/token/") || u.includes("/token/refresh/");
 }
 
+function isTokenEndpoint(url?: string): boolean {
+  const u = String(url || "");
+  return u.includes("/token/") || u.includes("/token/refresh/");
+}
+
 function setRequestHeader(config: AxiosRequestConfig, key: string, value: string) {
   const headers = AxiosHeaders.from(config.headers as HeaderSeed);
   headers.set(key, value);
@@ -374,7 +379,7 @@ function retryAfterDelayMs(err: AxiosError): number | null {
 function shouldRetryTransientApiError(err: AxiosError, config: RetryConfig): boolean {
   if (config.signal?.aborted || isAbortLikeError(err)) return false;
   if (!TRANSIENT_RETRY_METHODS.has(normalizedMethod(config))) return false;
-  if (shouldSkipAuth(config.url, config)) return false;
+  if (isTokenEndpoint(config.url)) return false;
   if ((config._transientRetryCount ?? 0) >= MAX_TRANSIENT_RETRIES) return false;
 
   const status = err.response?.status;

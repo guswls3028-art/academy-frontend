@@ -1,4 +1,5 @@
 // PATH: src/app_admin/domains/auth/api/auth.ts
+import axios from "axios";
 import api, { clearTokens, resetSessionEnding } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
@@ -7,6 +8,42 @@ export type LoginResponse = {
   refresh: string;
 };
 
+const LOGIN_TRANSIENT_RETRIES = 2;
+const LOGIN_TRANSIENT_BASE_DELAY_MS = 350;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isTransientLoginError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  const status = err.response?.status;
+  if (typeof status === "number") {
+    return [408, 429, 500, 502, 503, 504].includes(status);
+  }
+  const code = String(err.code || "");
+  const message = String(err.message || "");
+  return /ECONNABORTED|ERR_NETWORK|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|network|timeout/i.test(
+    `${code} ${message}`,
+  );
+}
+
+async function postLoginWithTransientRetry(body: Record<string, string>) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= LOGIN_TRANSIENT_RETRIES; attempt += 1) {
+    try {
+      return await api.post<LoginResponse>("/token/", body);
+    } catch (err: unknown) {
+      lastError = err;
+      if (!isTransientLoginError(err) || attempt >= LOGIN_TRANSIENT_RETRIES) break;
+      const backoff = LOGIN_TRANSIENT_BASE_DELAY_MS * 2 ** attempt;
+      const jitter = Math.floor(Math.random() * 120);
+      await sleep(backoff + jitter);
+    }
+  }
+  throw lastError;
+}
+
 export const login = async (username: string, password: string) => {
   const tenantCode = getTenantCodeForApiRequest();
   const body: Record<string, string> = { username, password };
@@ -14,7 +51,7 @@ export const login = async (username: string, password: string) => {
 
   let res;
   try {
-    res = await api.post<LoginResponse>("/token/", body);
+    res = await postLoginWithTransientRetry(body);
   } catch (err: unknown) {
     const ax = err as {
       response?: { status?: number; data?: { detail?: string | string[] | Record<string, unknown> } };
