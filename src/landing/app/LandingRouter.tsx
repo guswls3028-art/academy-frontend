@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
+import { resolveTenantCode } from "@/shared/tenant";
 
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
@@ -29,6 +30,15 @@ const LandingAboutPage = lazy(() => import("@/landing/pages/LandingAboutPage"));
 const LandingGuidePage = lazy(() => import("@/landing/pages/LandingGuidePage"));
 
 export default function LandingRouter() {
+  const location = useLocation();
+  const tenantResult = resolveTenantCode();
+  const tenantCode = tenantResult.ok ? tenantResult.code : null;
+  const isPromoTenant = tenantCode === "hakwonplus" || tenantCode === "9999";
+
+  if (isPromoTenant && !location.pathname.startsWith("/landing/admin")) {
+    return <Navigate to="/promo" replace />;
+  }
+
   return (
     <Routes>
       <Route index element={<PublicLandingPage />} />

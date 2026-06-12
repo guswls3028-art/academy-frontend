@@ -15,6 +15,7 @@ import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
 import { TermsPage, PrivacyPage } from "@admin/domains/legal";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
+import { resolveTenantCode } from "@/shared/tenant";
 
 const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
@@ -36,8 +37,9 @@ function MaintenanceGate({ enabled }: { enabled: boolean }) {
 /** 홍보 테넌트(hakwonplus, 9999)만 /promo 접근 허용. 그 외 테넌트는 / 로 리다이렉트. */
 function PromoGuard() {
   const { program, isLoading } = useProgram();
-  if (isLoading) return null;
-  const tc = program?.tenantCode;
+  const resolvedTenant = resolveTenantCode();
+  const tc = program?.tenantCode ?? (resolvedTenant.ok ? resolvedTenant.code : null);
+  if (isLoading && !tc) return null;
   if (tc === "hakwonplus" || tc === "9999") return <Outlet />;
   return <Navigate to="/" replace />;
 }

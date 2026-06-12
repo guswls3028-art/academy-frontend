@@ -31,6 +31,8 @@ import {
 } from "../utils/autoSendTiming";
 import {
   canBulkToggleAutoSendConfig,
+  getEffectiveTemplateStatus,
+  getEffectiveTemplateStatusLabel,
   getAutoSendSummary,
   isAllToggleableEnabled,
   type AutoSendSummary,
@@ -165,16 +167,8 @@ function TriggerCard({
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const hasTemplate = !!config.template;
-  const status = config.template_solapi_status;
-
-  const statusLabel =
-    status === "APPROVED"
-      ? "승인"
-      : status === "PENDING"
-        ? "검수대기"
-        : status === "REJECTED"
-          ? "반려"
-          : status || "";
+  const status = getEffectiveTemplateStatus(config);
+  const statusLabel = getEffectiveTemplateStatusLabel(config);
 
   const handleEditClick = () => {
     onEditTemplate?.(config.trigger, config.template);
@@ -301,6 +295,11 @@ function TriggerCard({
               <span
                 className={styles.statusBadge}
                 data-status={status}
+                title={
+                  config.effective_template_source === "unified"
+                    ? "공용 승인 템플릿으로 실제 발송됩니다."
+                    : undefined
+                }
               >
                 {statusLabel}
               </span>

@@ -17,6 +17,24 @@ export function canBulkToggleAutoSendConfig(config: AutoSendConfigItem): boolean
     && config.implementation_status !== "disabled";
 }
 
+export function getEffectiveTemplateStatus(config: AutoSendConfigItem): string {
+  return config.effective_template_solapi_status || config.template_solapi_status || "";
+}
+
+function hasEffectiveTemplate(config: AutoSendConfigItem): boolean {
+  return Boolean(config.effective_solapi_template_id || config.template);
+}
+
+export function getEffectiveTemplateStatusLabel(config: AutoSendConfigItem): string {
+  const status = getEffectiveTemplateStatus(config);
+  if (status === "APPROVED") {
+    return config.effective_template_source === "unified" ? "승인(공용)" : "승인";
+  }
+  if (status === "PENDING") return "검수대기";
+  if (status === "REJECTED") return "반려";
+  return status;
+}
+
 export function getAutoSendSummary(
   configs: AutoSendConfigItem[],
   isEnabled: (config: AutoSendConfigItem) => boolean = (config) => config.enabled,
@@ -30,10 +48,10 @@ export function getAutoSendSummary(
     systemAuto: configs.filter((config) => config.policy_mode === "SYSTEM_AUTO").length,
     manualOnly: configs.filter((config) => config.implementation_status === "manual_only").length,
     disabled: configs.filter((config) => config.implementation_status === "disabled" || config.policy_mode === "DISABLED").length,
-    templateMissing: configs.filter((config) => config.implementation_status !== "disabled" && !config.template).length,
+    templateMissing: configs.filter((config) => config.implementation_status !== "disabled" && !hasEffectiveTemplate(config)).length,
     reviewWaiting: configs.filter((config) => {
-      const status = config.template_solapi_status;
-      return Boolean(config.template) && Boolean(status) && status !== "APPROVED";
+      const status = getEffectiveTemplateStatus(config);
+      return hasEffectiveTemplate(config) && Boolean(status) && status !== "APPROVED";
     }).length,
   };
 }
