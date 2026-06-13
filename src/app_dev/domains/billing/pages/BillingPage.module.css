@@ -80,6 +80,34 @@
   margin-bottom: 12px;
 }
 
+.controlBar {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.searchWrap {
+  flex: 1;
+  max-width: 420px;
+  min-width: 240px;
+  position: relative;
+}
+
+.searchIcon {
+  color: var(--dev-text-muted);
+  left: 12px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.searchInput {
+  padding-left: 38px;
+}
+
 .filters .filterSelect {
   min-width: 120px;
   width: auto;
@@ -99,6 +127,14 @@
 
 .tableScroller {
   overflow-x: auto;
+}
+
+.desktopTableCard {
+  display: block;
+}
+
+.mobileTenantList {
+  display: none;
 }
 
 .exemptRow {
@@ -153,6 +189,7 @@
 
 .rowActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -270,4 +307,268 @@
   line-height: 1.5;
   margin-bottom: 12px;
   padding: 8px 12px;
+}
+
+.presetGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.presetButton,
+.planButton {
+  background: var(--dev-surface);
+  border: 1px solid var(--dev-border);
+  border-radius: 8px;
+  color: var(--dev-text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.presetButton {
+  padding: 10px;
+}
+
+.presetButton span,
+.planButton span {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.presetButton small,
+.planButton small {
+  color: var(--dev-text-muted);
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.presetButton[data-active="true"],
+.planButton[data-active="true"] {
+  background: var(--dev-primary-subtle);
+  border-color: var(--dev-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.daysInputRow {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+  margin-bottom: 12px;
+}
+
+.daysInputRow span {
+  color: var(--dev-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.previewBox {
+  background: var(--dev-bg);
+  border: 1px solid var(--dev-border-light);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.previewBox div {
+  min-width: 0;
+}
+
+.previewBox span {
+  color: var(--dev-text-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.previewBox strong {
+  color: var(--dev-text);
+  display: block;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.planGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planButton {
+  padding: 12px;
+}
+
+.planButton strong {
+  color: var(--dev-text);
+  display: block;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 3px;
+}
+
+.mobileTenantCard {
+  background: var(--dev-surface);
+  border: 1px solid var(--dev-border);
+  border-radius: var(--dev-radius);
+  box-shadow: var(--dev-shadow-sm);
+  padding: 14px;
+}
+
+.mobileTenantHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.mobileTenantName {
+  align-items: center;
+  color: var(--dev-text);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 15px;
+  font-weight: 800;
+  gap: 6px;
+  line-height: 1.35;
+}
+
+.mobileMetricGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 12px;
+}
+
+.metric {
+  background: var(--dev-bg);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.metric span {
+  color: var(--dev-text-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.metric strong {
+  color: var(--dev-text);
+  display: block;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.metric strong[data-tone="warn"] {
+  color: var(--dev-danger);
+}
+
+.mobileActions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 12px;
+}
+
+.mobileActions button:first-child {
+  grid-column: 1 / -1;
+}
+
+.mobileEmpty {
+  background: var(--dev-surface);
+  border: 1px solid var(--dev-border);
+  border-radius: var(--dev-radius);
+  color: var(--dev-text-muted);
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .summaryGrid {
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 14px;
+  }
+
+  .summaryCard {
+    padding: 12px;
+  }
+
+  .summaryValue {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  .tabBar {
+    margin-bottom: 12px;
+    overflow-x: auto;
+  }
+
+  .tabButton {
+    flex: 1;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .controlBar {
+    display: block;
+  }
+
+  .searchWrap {
+    display: block;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filters {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 8px;
+  }
+
+  .filters .filterSelect {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .checkboxLabel {
+    background: var(--dev-surface);
+    border: 1px solid var(--dev-border);
+    border-radius: 8px;
+    grid-column: 1 / -1;
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .desktopTableCard {
+    display: none;
+  }
+
+  .mobileTenantList {
+    display: grid;
+    gap: 10px;
+  }
+
+  .presetGrid,
+  .planGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .previewBox {
+    grid-template-columns: 1fr;
+  }
 }

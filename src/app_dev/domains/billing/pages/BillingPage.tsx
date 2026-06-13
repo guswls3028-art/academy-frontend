@@ -3,6 +3,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { CalendarPlus, CreditCard, Search } from "lucide-react";
 import {
   useBillingTenants,
   useBillingDashboard,
@@ -38,10 +39,41 @@ function formatPrice(n: number): string {
   return n.toLocaleString("ko-KR");
 }
 
+function formatMoney(n: number): string {
+  return `${formatPrice(n)}원`;
+}
+
+function parsePositiveInt(value: string): number | null {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getExtensionPreview(expiresAt: string | null, days: number): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentExpiry = expiresAt ? parseLocalDate(expiresAt) : today;
+  const base = currentExpiry > today ? currentExpiry : today;
+  const next = new Date(base);
+  next.setDate(next.getDate() + days);
+  return formatDate(toIsoDate(next));
+}
+
 const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  grace: "Grace",
-  expired: "Expired",
+  active: "정상",
+  grace: "유예",
+  expired: "만료",
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -50,7 +82,25 @@ const PLAN_LABELS: Record<string, string> = {
   max: "Max",
 };
 
+const BILLING_MODE_LABELS: Record<string, string> = {
+  AUTO_CARD: "카드 자동",
+  MANUAL_INVOICE: "수동 청구",
+};
+
 type Tab = "tenants" | "invoices";
+
+const EXTEND_PRESETS = [
+  { days: 30, label: "+30일", caption: "1개월" },
+  { days: 90, label: "+90일", caption: "3개월" },
+  { days: 180, label: "+180일", caption: "6개월" },
+  { days: 365, label: "+365일", caption: "1년" },
+];
+
+const PLAN_OPTIONS = [
+  { value: "standard", label: "Standard", price: 99000, caption: "기본 운영" },
+  { value: "pro", label: "Pro", price: 198000, caption: "성장형" },
+  { value: "max", label: "Max", price: 330000, caption: "대형 학원" },
+];
 
 function statusKey(status: string): string {
   return status.toLowerCase().replace(/[^a-z0-9_-]/g, "");
@@ -61,6 +111,7 @@ function statusKey(status: string): string {
 export default function BillingPage() {
   const { toast } = useDevToast();
   const [tab, setTab] = useState<Tab>("tenants");
+  const [tenantQuery, setTenantQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [planFilter, setPlanFilter] = useState("");
   const [expiringOnly, setExpiringOnly] = useState(false);
@@ -83,23 +134,45 @@ export default function BillingPage() {
   const [extendDays, setExtendDays] = useState("30");
   const [planModal, setPlanModal] = useState<TenantSubscriptionDto | null>(null);
   const [newPlan, setNewPlan] = useState("");
+  const extendDaysNumber = parsePositiveInt(extendDays);
+  const extendPreview = extendModal && extendDaysNumber
+    ? getExtensionPreview(extendModal.subscription_expires_at, extendDaysNumber)
+    : null;
+  const selectedPlan = PLAN_OPTIONS.find((p) => p.value === newPlan);
 
   // Filtered tenants
   const filtered = useMemo(() => {
     if (!tenants) return [];
     let list = tenants;
+    const query = tenantQuery.trim().toLowerCase();
+    if (query) {
+      list = list.filter((t) =>
+        t.tenant_code.toLowerCase().includes(query) ||
+        (t.tenant_name || "").toLowerCase().includes(query),
+      );
+    }
     if (statusFilter) list = list.filter((t) => t.subscription_status === statusFilter);
     if (planFilter) list = list.filter((t) => t.plan === planFilter);
     if (expiringOnly) list = list.filter((t) => t.days_remaining !== null && t.days_remaining <= 7);
     return list;
-  }, [tenants, statusFilter, planFilter, expiringOnly]);
+  }, [tenants, tenantQuery, statusFilter, planFilter, expiringOnly]);
 
   // ── Actions ──
 
+  function openExtendModal(t: TenantSubscriptionDto, days = 30) {
+    setExtendModal(t);
+    setExtendDays(String(days));
+  }
+
+  function openPlanModal(t: TenantSubscriptionDto) {
+    setPlanModal(t);
+    setNewPlan(t.plan);
+  }
+
   async function handleExtend() {
     if (!extendModal) return;
-    const days = parseInt(extendDays, 10);
-    if (!days || days <= 0) {
+    const days = parsePositiveInt(extendDays);
+    if (!days) {
       toast("1 이상의 일수를 입력하세요.", "error");
       return;
     }
@@ -108,7 +181,7 @@ export default function BillingPage() {
         programId: getProgramId(extendModal),
         days,
       });
-      toast(`${result.tenant_code} ${days}일 연장 완료 (-> ${result.subscription_expires_at})`);
+      toast(`${result.tenant_code} ${days}일 연장 완료 (만료일 ${formatDate(result.subscription_expires_at)})`);
       setExtendModal(null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
@@ -123,7 +196,7 @@ export default function BillingPage() {
         programId: getProgramId(planModal),
         plan: newPlan,
       });
-      toast(`${result.tenant_code} -> ${result.plan_display} (${formatPrice(result.monthly_price)}won)`);
+      toast(`${result.tenant_code} -> ${result.plan_display} (${formatMoney(result.monthly_price)})`);
       setPlanModal(null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
@@ -137,7 +210,7 @@ export default function BillingPage() {
     )
       ? "\n\n[LIVE TENANT] 이 작업은 운영 테넌트의 실제 구독 상태를 변경합니다."
       : "";
-    if (!confirm(`${inv.invoice_number} 입금 확인하시겠습니까?\n금액: ${formatPrice(inv.total_amount)}won${liveWarn}`)) return;
+    if (!confirm(`${inv.invoice_number} 입금 확인하시겠습니까?\n금액: ${formatMoney(inv.total_amount)}${liveWarn}`)) return;
     try {
       await markPaidMut.mutateAsync(inv.id);
       toast(`${inv.invoice_number} 입금 확인 완료`);
@@ -152,10 +225,10 @@ export default function BillingPage() {
       <header className={s.header}>
         <div className={s.headerLeft}>
           <Link to="/dev/dashboard" className={b.breadcrumbLink}>
-            Dashboard
+            대시보드
           </Link>
           <span className={b.breadcrumbSeparator}>/</span>
-          <span className={b.breadcrumbCurrent}>Billing</span>
+          <span className={b.breadcrumbCurrent}>결제 관리</span>
         </div>
       </header>
 
@@ -163,45 +236,56 @@ export default function BillingPage() {
         {/* ── Dashboard Summary ── */}
         {dashboard && (
           <div className={b.summaryGrid}>
-            <SummaryCard label="MRR" value={`${formatPrice(dashboard.mrr)}won`} />
-            <SummaryCard label="Total Tenants" value={String(dashboard.total_tenants)} />
-            <SummaryCard label="Expiring Soon" value={String(dashboard.expiring_soon)} warn={dashboard.expiring_soon > 0} />
-            <SummaryCard label="Overdue" value={String(dashboard.overdue_invoices)} warn={dashboard.overdue_invoices > 0} />
+            <SummaryCard label="월 반복 매출" value={formatMoney(dashboard.mrr)} />
+            <SummaryCard label="전체 테넌트" value={String(dashboard.total_tenants)} />
+            <SummaryCard label="7일 내 만료" value={String(dashboard.expiring_soon)} warn={dashboard.expiring_soon > 0} />
+            <SummaryCard label="연체 인보이스" value={String(dashboard.overdue_invoices)} warn={dashboard.overdue_invoices > 0} />
           </div>
         )}
 
         {/* ── Tab Bar ── */}
         <div className={b.tabBar}>
-          <TabBtn active={tab === "tenants"} onClick={() => setTab("tenants")}>Tenants</TabBtn>
-          <TabBtn active={tab === "invoices"} onClick={() => setTab("invoices")}>Invoices</TabBtn>
+          <TabBtn active={tab === "tenants"} onClick={() => setTab("tenants")}>테넌트 구독</TabBtn>
+          <TabBtn active={tab === "invoices"} onClick={() => setTab("invoices")}>인보이스</TabBtn>
         </div>
 
         {/* ── Tenants Tab ── */}
         {tab === "tenants" && (
           <>
             {/* Filters */}
-            <div className={b.filters}>
-              <select className={`${s.input} ${b.filterSelect}`}
-                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="grace">Grace</option>
-                <option value="expired">Expired</option>
-              </select>
-              <select className={`${s.input} ${b.filterSelect}`}
-                value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
-                <option value="">All Plans</option>
-                <option value="standard">Standard</option>
-                <option value="pro">Pro</option>
-                <option value="max">Max</option>
-              </select>
-              <label className={b.checkboxLabel}>
-                <input type="checkbox" checked={expiringOnly} onChange={(e) => setExpiringOnly(e.target.checked)} />
-                Expiring 7d
+            <div className={b.controlBar}>
+              <label className={b.searchWrap}>
+                <Search className={b.searchIcon} size={16} strokeWidth={1.8} />
+                <input
+                  className={`${s.input} ${b.searchInput}`}
+                  value={tenantQuery}
+                  onChange={(e) => setTenantQuery(e.target.value)}
+                  placeholder="테넌트명 또는 코드 검색"
+                />
               </label>
+              <div className={b.filters}>
+                <select className={`${s.input} ${b.filterSelect}`}
+                  value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">전체 상태</option>
+                  <option value="active">정상</option>
+                  <option value="grace">유예</option>
+                  <option value="expired">만료</option>
+                </select>
+                <select className={`${s.input} ${b.filterSelect}`}
+                  value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
+                  <option value="">전체 요금제</option>
+                  <option value="standard">Standard</option>
+                  <option value="pro">Pro</option>
+                  <option value="max">Max</option>
+                </select>
+                <label className={b.checkboxLabel}>
+                  <input type="checkbox" checked={expiringOnly} onChange={(e) => setExpiringOnly(e.target.checked)} />
+                  7일 내 만료
+                </label>
+              </div>
             </div>
 
-            <div className={s.card}>
+            <div className={`${s.card} ${b.desktopTableCard}`}>
               {tenantsLoading ? (
                 <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
               ) : (
@@ -209,15 +293,15 @@ export default function BillingPage() {
                   <table className={s.table}>
                     <thead>
                       <tr>
-                        <th>Tenant</th>
-                        <th>Plan</th>
-                        <th>Status</th>
-                        <th>Expires</th>
-                        <th>Remaining</th>
-                        <th>Next Bill</th>
-                        <th>Mode</th>
-                        <th>Price</th>
-                        <th>Actions</th>
+                        <th>테넌트</th>
+                        <th>요금제</th>
+                        <th>상태</th>
+                        <th>만료일</th>
+                        <th>잔여</th>
+                        <th>다음 결제</th>
+                        <th>방식</th>
+                        <th>월 금액</th>
+                        <th>조작</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -245,20 +329,26 @@ export default function BillingPage() {
                           </td>
                           <td className={b.dateCell}>{formatDate(t.next_billing_at)}</td>
                           <td className={b.billingModeCell}>
-                            {t.billing_mode === "AUTO_CARD" ? "Card" : "Invoice"}
+                            {BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode}
                           </td>
                           <td className={b.numericCell}>
-                            {formatPrice(t.monthly_price)}
+                            {formatMoney(t.monthly_price)}
                           </td>
                           <td>
                             <div className={b.rowActions}>
                               <button className={`${s.btn} ${s.btnSm}`}
-                                onClick={() => { setExtendModal(t); setExtendDays("30"); }}>
-                                Extend
+                                onClick={() => openExtendModal(t, 365)}>
+                                <CalendarPlus size={13} strokeWidth={1.8} />
+                                1년
                               </button>
                               <button className={`${s.btn} ${s.btnSm}`}
-                                onClick={() => { setPlanModal(t); setNewPlan(t.plan); }}>
-                                Plan
+                                onClick={() => openExtendModal(t)}>
+                                연장
+                              </button>
+                              <button className={`${s.btn} ${s.btnSm}`}
+                                onClick={() => openPlanModal(t)}>
+                                <CreditCard size={13} strokeWidth={1.8} />
+                                요금제
                               </button>
                             </div>
                           </td>
@@ -266,7 +356,7 @@ export default function BillingPage() {
                       ))}
                       {filtered.length === 0 && (
                         <tr><td colSpan={9} className={b.emptyCell}>
-                          No matching tenants
+                          조건에 맞는 테넌트가 없습니다.
                         </td></tr>
                       )}
                     </tbody>
@@ -274,6 +364,60 @@ export default function BillingPage() {
                 </div>
               )}
             </div>
+
+            {tenantsLoading && (
+              <div className={b.mobileTenantList}>
+                <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
+              </div>
+            )}
+
+            {!tenantsLoading && (
+              <div className={b.mobileTenantList}>
+                {filtered.map((t) => (
+                  <article key={t.tenant_id} className={b.mobileTenantCard}>
+                    <div className={b.mobileTenantHeader}>
+                      <div>
+                        <div className={b.mobileTenantName}>
+                          {t.tenant_name || t.tenant_code}
+                          <TenantTypeBadge exempt={isExempt(t.tenant_id)} />
+                        </div>
+                        <div className={b.tenantCode}>{t.tenant_code}</div>
+                      </div>
+                      <StatusBadge status={t.subscription_status} />
+                    </div>
+                    <div className={b.mobileMetricGrid}>
+                      <Metric label="요금제" value={PLAN_LABELS[t.plan] || t.plan} />
+                      <Metric label="만료일" value={formatDate(t.subscription_expires_at)} />
+                      <Metric label="잔여" value={t.days_remaining === null ? "제한 없음" : `${t.days_remaining}일`} tone={t.days_remaining !== null && t.days_remaining <= 7 ? "warn" : undefined} />
+                      <Metric label="다음 결제" value={formatDate(t.next_billing_at)} />
+                      <Metric label="방식" value={BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode} />
+                      <Metric label="월 금액" value={formatMoney(t.monthly_price)} />
+                    </div>
+                    <div className={b.mobileActions}>
+                      <button className={`${s.btn} ${s.btnPrimary}`}
+                        onClick={() => openExtendModal(t, 365)}>
+                        <CalendarPlus size={16} strokeWidth={1.8} />
+                        1년 연장
+                      </button>
+                      <button className={`${s.btn} ${s.btnSecondary}`}
+                        onClick={() => openExtendModal(t)}>
+                        기간 설정
+                      </button>
+                      <button className={`${s.btn} ${s.btnSecondary}`}
+                        onClick={() => openPlanModal(t)}>
+                        <CreditCard size={16} strokeWidth={1.8} />
+                        요금제
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                {filtered.length === 0 && (
+                  <div className={b.mobileEmpty}>
+                    조건에 맞는 테넌트가 없습니다.
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -283,13 +427,13 @@ export default function BillingPage() {
             <div className={b.filters}>
               <select className={`${s.input} ${b.filterSelect}`}
                 value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value)}>
-                <option value="">All Status</option>
-                <option value="SCHEDULED">Scheduled</option>
-                <option value="PENDING">Pending</option>
-                <option value="PAID">Paid</option>
-                <option value="FAILED">Failed</option>
-                <option value="OVERDUE">Overdue</option>
-                <option value="VOID">Void</option>
+                <option value="">전체 상태</option>
+                <option value="SCHEDULED">예정</option>
+                <option value="PENDING">대기</option>
+                <option value="PAID">입금 완료</option>
+                <option value="FAILED">실패</option>
+                <option value="OVERDUE">연체</option>
+                <option value="VOID">무효</option>
               </select>
             </div>
 
@@ -301,14 +445,14 @@ export default function BillingPage() {
                   <table className={s.table}>
                     <thead>
                       <tr>
-                        <th>Invoice</th>
-                        <th>Tenant</th>
-                        <th>Amount</th>
-                        <th>Period</th>
-                        <th>Due</th>
-                        <th>Status</th>
-                        <th>Paid At</th>
-                        <th>Actions</th>
+                        <th>인보이스</th>
+                        <th>테넌트</th>
+                        <th>금액</th>
+                        <th>기간</th>
+                        <th>납기</th>
+                        <th>상태</th>
+                        <th>입금일</th>
+                        <th>조작</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -316,7 +460,7 @@ export default function BillingPage() {
                         <tr key={inv.id}>
                           <td className={b.invoiceNumberCell}>{inv.invoice_number}</td>
                           <td>{inv.tenant_code}</td>
-                          <td className={b.numericCell}>{formatPrice(inv.total_amount)}</td>
+                          <td className={b.numericCell}>{formatMoney(inv.total_amount)}</td>
                           <td className={b.periodCell}>{inv.period_start} ~ {inv.period_end}</td>
                           <td className={b.dateCell}>{inv.due_date}</td>
                           <td><InvoiceStatusBadge status={inv.status} /></td>
@@ -330,7 +474,7 @@ export default function BillingPage() {
                                 onClick={() => handleMarkPaid(inv)}
                                 disabled={markPaidMut.isPending}
                               >
-                                Mark Paid
+                                입금 확인
                               </button>
                             )}
                           </td>
@@ -338,7 +482,7 @@ export default function BillingPage() {
                       ))}
                       {(!invoicesData?.results || invoicesData.results.length === 0) && (
                         <tr><td colSpan={8} className={b.emptyCell}>
-                          No invoices
+                          인보이스가 없습니다.
                         </td></tr>
                       )}
                     </tbody>
@@ -355,7 +499,8 @@ export default function BillingPage() {
         <div className={s.overlay} onClick={() => setExtendModal(null)}>
           <div className={s.modal} onClick={(e) => e.stopPropagation()}>
             <div className={s.modalHeader}>
-              <h2 className={s.modalTitle}>Extend Subscription</h2>
+              <h2 className={s.modalTitle}>구독 기간 연장</h2>
+              <p className={s.modalSub}>프리셋을 고르거나 필요한 일수를 직접 입력하세요.</p>
             </div>
             <div className={s.modalBody}>
               <p className={b.modalIntro}>
@@ -363,22 +508,50 @@ export default function BillingPage() {
                 {" "}<TenantTypeBadge exempt={isExempt(extendModal.tenant_id)} />
                 <br />
                 <span className={b.modalMeta}>
-                  Current: {extendModal.subscription_status} / expires {formatDate(extendModal.subscription_expires_at)}
-                  {extendModal.days_remaining !== null && ` (${extendModal.days_remaining}d left)`}
+                  현재 {STATUS_LABELS[extendModal.subscription_status] || extendModal.subscription_status}
+                  {" / "}만료일 {formatDate(extendModal.subscription_expires_at)}
+                  {extendModal.days_remaining !== null && ` (${extendModal.days_remaining}일 남음)`}
                 </span>
               </p>
               {!isExempt(extendModal.tenant_id) && <LiveWarning action="extend" />}
-              <label className={s.inputLabel}>Days to extend</label>
-              <input className={s.input} type="number" min="1" max="3650"
-                value={extendDays} onChange={(e) => setExtendDays(e.target.value)}
-                autoFocus
-              />
+              <div className={b.presetGrid} role="group" aria-label="연장 기간 프리셋">
+                {EXTEND_PRESETS.map((preset) => (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    className={b.presetButton}
+                    data-active={extendDays === String(preset.days) ? "true" : undefined}
+                    onClick={() => setExtendDays(String(preset.days))}
+                  >
+                    <span>{preset.label}</span>
+                    <small>{preset.caption}</small>
+                  </button>
+                ))}
+              </div>
+              <label className={s.inputLabel}>직접 입력</label>
+              <div className={b.daysInputRow}>
+                <input className={s.input} type="number" min="1" max="3650"
+                  value={extendDays} onChange={(e) => setExtendDays(e.target.value)}
+                  autoFocus
+                />
+                <span>일</span>
+              </div>
+              <div className={b.previewBox}>
+                <div>
+                  <span>현재 만료일</span>
+                  <strong>{formatDate(extendModal.subscription_expires_at)}</strong>
+                </div>
+                <div>
+                  <span>변경 후 예상</span>
+                  <strong>{extendPreview || "-"}</strong>
+                </div>
+              </div>
             </div>
             <div className={s.modalFooter}>
-              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setExtendModal(null)}>Cancel</button>
+              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setExtendModal(null)}>취소</button>
               <button className={`${s.btn} ${!isExempt(extendModal.tenant_id) ? s.btnDanger : s.btnPrimary}`}
                 onClick={handleExtend} disabled={extendMut.isPending}>
-                {extendMut.isPending ? "Extending..." : "Extend"}
+                {extendMut.isPending ? "연장 중..." : "운영에 적용"}
               </button>
             </div>
           </div>
@@ -390,7 +563,8 @@ export default function BillingPage() {
         <div className={s.overlay} onClick={() => setPlanModal(null)}>
           <div className={s.modal} onClick={(e) => e.stopPropagation()}>
             <div className={s.modalHeader}>
-              <h2 className={s.modalTitle}>Change Plan</h2>
+              <h2 className={s.modalTitle}>요금제 변경</h2>
+              <p className={s.modalSub}>월 금액이 실제 운영 테넌트에 바로 반영됩니다.</p>
             </div>
             <div className={s.modalBody}>
               <p className={b.modalIntro}>
@@ -398,22 +572,43 @@ export default function BillingPage() {
                 {" "}<TenantTypeBadge exempt={isExempt(planModal.tenant_id)} />
                 <br />
                 <span className={b.modalMeta}>
-                  Current: {planModal.plan_display} ({formatPrice(planModal.monthly_price)}won)
+                  현재 {planModal.plan_display} ({formatMoney(planModal.monthly_price)})
                 </span>
               </p>
               {!isExempt(planModal.tenant_id) && <LiveWarning action="change plan" />}
-              <label className={s.inputLabel}>New Plan</label>
-              <select className={s.input} value={newPlan} onChange={(e) => setNewPlan(e.target.value)}>
-                <option value="standard">Standard (99,000won)</option>
-                <option value="pro">Pro (198,000won)</option>
-                <option value="max">Max (330,000won)</option>
-              </select>
+              <label className={s.inputLabel}>변경할 요금제</label>
+              <div className={b.planGrid} role="radiogroup" aria-label="요금제 선택">
+                {PLAN_OPTIONS.map((plan) => (
+                  <button
+                    key={plan.value}
+                    type="button"
+                    className={b.planButton}
+                    data-active={newPlan === plan.value ? "true" : undefined}
+                    aria-pressed={newPlan === plan.value}
+                    onClick={() => setNewPlan(plan.value)}
+                  >
+                    <span>{plan.label}</span>
+                    <strong>{formatMoney(plan.price)}</strong>
+                    <small>{plan.caption}</small>
+                  </button>
+                ))}
+              </div>
+              <div className={b.previewBox}>
+                <div>
+                  <span>현재</span>
+                  <strong>{planModal.plan_display} · {formatMoney(planModal.monthly_price)}</strong>
+                </div>
+                <div>
+                  <span>변경 후</span>
+                  <strong>{selectedPlan ? `${selectedPlan.label} · ${formatMoney(selectedPlan.price)}` : "-"}</strong>
+                </div>
+              </div>
             </div>
             <div className={s.modalFooter}>
-              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setPlanModal(null)}>Cancel</button>
+              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setPlanModal(null)}>취소</button>
               <button className={`${s.btn} ${!isExempt(planModal.tenant_id) ? s.btnDanger : s.btnPrimary}`}
                 onClick={handleChangePlan} disabled={changePlanMut.isPending}>
-                {changePlanMut.isPending ? "Changing..." : "Change Plan"}
+                {changePlanMut.isPending ? "변경 중..." : "운영에 적용"}
               </button>
             </div>
           </div>
@@ -447,23 +642,31 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function InvoiceStatusBadge({ status }: { status: string }) {
+  const labels: Record<string, string> = {
+    SCHEDULED: "예정",
+    PENDING: "대기",
+    PAID: "입금 완료",
+    FAILED: "실패",
+    OVERDUE: "연체",
+    VOID: "무효",
+  };
   return (
     <span className={b.invoiceStatusBadge} data-status={statusKey(status)}>
-      {status}
+      {labels[status] || status}
     </span>
   );
 }
 
 function DaysCell({ days }: { days: number | null }) {
-  if (days === null) return <span className={b.daysCell} data-tone="muted">unlimited</span>;
+  if (days === null) return <span className={b.daysCell} data-tone="muted">제한 없음</span>;
   const tone = days <= 3 ? "danger" : days <= 7 ? "warning" : "default";
-  return <span className={b.daysCell} data-tone={tone}>{days}d</span>;
+  return <span className={b.daysCell} data-tone={tone}>{days}일</span>;
 }
 
 function TenantTypeBadge({ exempt }: { exempt: boolean }) {
   return (
     <span className={b.tenantTypeBadge} data-kind={exempt ? "dev" : "live"}>
-      {exempt ? "DEV" : "LIVE"}
+      {exempt ? "개발" : "운영"}
     </span>
   );
 }
@@ -471,9 +674,18 @@ function TenantTypeBadge({ exempt }: { exempt: boolean }) {
 function LiveWarning({ action }: { action: string }) {
   return (
     <div className={b.liveWarning}>
-      <strong>LIVE tenant</strong> - 이 작업은 운영 테넌트의 실제 구독 상태를 변경합니다.
+      <strong>운영 테넌트</strong> - 이 작업은 실제 구독 상태를 변경합니다.
       {action === "extend" && " 구독 만료일이 실제로 연장됩니다."}
       {action === "change plan" && " 요금제와 월 결제액이 실제로 변경됩니다."}
+    </div>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "warn" }) {
+  return (
+    <div className={b.metric}>
+      <span>{label}</span>
+      <strong data-tone={tone}>{value}</strong>
     </div>
   );
 }
