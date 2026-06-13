@@ -32,7 +32,7 @@ function getProgramId(t: TenantSubscriptionDto): number {
 
 function formatDate(d: string | null): string {
   if (!d) return "-";
-  return d.replace(/-/g, ". ") + ".";
+  return normalizeDateString(d).replace(/-/g, ". ") + ".";
 }
 
 function formatPrice(n: number): string {
@@ -49,8 +49,12 @@ function parsePositiveInt(value: string): number | null {
 }
 
 function parseLocalDate(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = normalizeDateString(value).split("-").map(Number);
   return new Date(year, month - 1, day);
+}
+
+function normalizeDateString(value: string): string {
+  return value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? value;
 }
 
 function toIsoDate(date: Date): string {
@@ -97,13 +101,24 @@ const EXTEND_PRESETS = [
 ];
 
 const PLAN_OPTIONS = [
-  { value: "standard", label: "Standard", price: 99000, caption: "기본 운영" },
-  { value: "pro", label: "Pro", price: 198000, caption: "성장형" },
-  { value: "max", label: "Max", price: 330000, caption: "대형 학원" },
+  { value: "standard", label: "Standard", caption: "기본 운영" },
+  { value: "pro", label: "Pro", caption: "성장형" },
+  { value: "max", label: "Max", caption: "대형 학원" },
 ];
+
+const PLAN_STANDARD_PRICES: Record<string, number> = {
+  standard: 99_000,
+  pro: 198_000,
+  max: 330_000,
+};
 
 function statusKey(status: string): string {
   return status.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+}
+
+function getPlanPreviewPrice(plan: string, tenant: TenantSubscriptionDto | null): number | null {
+  if (tenant?.plan === plan) return tenant.monthly_price;
+  return PLAN_STANDARD_PRICES[plan] ?? null;
 }
 
 // ── Main Component ──
@@ -139,6 +154,7 @@ export default function BillingPage() {
     ? getExtensionPreview(extendModal.subscription_expires_at, extendDaysNumber)
     : null;
   const selectedPlan = PLAN_OPTIONS.find((p) => p.value === newPlan);
+  const selectedPlanPrice = getPlanPreviewPrice(newPlan, planModal);
 
   // Filtered tenants
   const filtered = useMemo(() => {
@@ -578,20 +594,24 @@ export default function BillingPage() {
               {!isExempt(planModal.tenant_id) && <LiveWarning action="change plan" />}
               <label className={s.inputLabel}>변경할 요금제</label>
               <div className={b.planGrid} role="radiogroup" aria-label="요금제 선택">
-                {PLAN_OPTIONS.map((plan) => (
-                  <button
-                    key={plan.value}
-                    type="button"
-                    className={b.planButton}
-                    data-active={newPlan === plan.value ? "true" : undefined}
-                    aria-pressed={newPlan === plan.value}
-                    onClick={() => setNewPlan(plan.value)}
-                  >
-                    <span>{plan.label}</span>
-                    <strong>{formatMoney(plan.price)}</strong>
-                    <small>{plan.caption}</small>
-                  </button>
-                ))}
+                {PLAN_OPTIONS.map((plan) => {
+                  const price = getPlanPreviewPrice(plan.value, planModal);
+                  const isCurrentPlan = planModal.plan === plan.value;
+                  return (
+                    <button
+                      key={plan.value}
+                      type="button"
+                      className={b.planButton}
+                      data-active={newPlan === plan.value ? "true" : undefined}
+                      aria-pressed={newPlan === plan.value}
+                      onClick={() => setNewPlan(plan.value)}
+                    >
+                      <span>{plan.label}</span>
+                      <strong>{price === null ? "금액 확인 필요" : formatMoney(price)}</strong>
+                      <small>{isCurrentPlan ? "현재 적용 금액" : `${plan.caption} 정가`}</small>
+                    </button>
+                  );
+                })}
               </div>
               <div className={b.previewBox}>
                 <div>
@@ -600,7 +620,11 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <span>변경 후</span>
-                  <strong>{selectedPlan ? `${selectedPlan.label} · ${formatMoney(selectedPlan.price)}` : "-"}</strong>
+                  <strong>
+                    {selectedPlan
+                      ? `${selectedPlan.label} · ${selectedPlanPrice === null ? "금액 확인 필요" : formatMoney(selectedPlanPrice)}`
+                      : "-"}
+                  </strong>
                 </div>
               </div>
             </div>
