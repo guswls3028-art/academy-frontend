@@ -6,6 +6,7 @@ import api from "@/shared/api/axios";
 // ── Types ──
 
 export type TenantSubscriptionDto = {
+  program_id?: number;
   tenant_id: number;
   tenant_code: string;
   tenant_name: string;

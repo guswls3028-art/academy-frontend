@@ -23,6 +23,10 @@ function isExempt(tenantId: number): boolean {
   return EXEMPT_TENANT_IDS.has(tenantId);
 }
 
+function getProgramId(t: TenantSubscriptionDto): number {
+  return t.program_id ?? t.tenant_id;
+}
+
 // ── Helpers ──
 
 function formatDate(d: string | null): string {
@@ -101,7 +105,7 @@ export default function BillingPage() {
     }
     try {
       const result = await extendMut.mutateAsync({
-        programId: extendModal.tenant_id,
+        programId: getProgramId(extendModal),
         days,
       });
       toast(`${result.tenant_code} ${days}일 연장 완료 (-> ${result.subscription_expires_at})`);
@@ -116,7 +120,7 @@ export default function BillingPage() {
     if (!planModal || !newPlan) return;
     try {
       const result = await changePlanMut.mutateAsync({
-        programId: planModal.tenant_id,
+        programId: getProgramId(planModal),
         plan: newPlan,
       });
       toast(`${result.tenant_code} -> ${result.plan_display} (${formatPrice(result.monthly_price)}won)`);
