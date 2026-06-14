@@ -27,6 +27,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "npx playwright test",
+    "test:e2e:canary": "npx playwright test e2e/smoke/production-canary.spec.ts --project=chromium --reporter=list",
     "test:e2e:gate": "npx playwright test e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts e2e/smoke/smoke.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts e2e/flows/password-reset-roundtrip.spec.ts e2e/shared/03-tenant-isolation.spec.ts",
     "test:e2e:landing-routes": "npx playwright test e2e/refactor/landing-router.spec.ts",
     "test:e2e:local": "npx playwright test e2e/_local/",
