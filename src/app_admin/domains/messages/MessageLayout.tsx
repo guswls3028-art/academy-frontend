@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/messages/MessageLayout.tsx
-// 메시지 — DomainLayout 탭 SSOT
+// 알림톡 — DomainLayout 탭 SSOT
 
 import { Outlet, Link } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -20,16 +20,16 @@ export default function MessageLayout() {
 
   return (
     <DomainLayout
-      title="메시지"
+      title="알림톡"
       description="템플릿 · 자동발송 · 발송 내역 · 설정"
       tabs={MESSAGE_TABS}
     >
       {!alimtalkAvailable && info && (
-        <div className={styles.smsNotice}>
+        <div className={styles.alimtalkNotice}>
           <span>알림톡 발송 설정 확인 필요 — 채널 또는 승인 템플릿을 확인해 주세요</span>
           <Link
             to="/admin/message/settings"
-            className={styles.smsNoticeLink}
+            className={styles.alimtalkNoticeLink}
           >
             설정 보기 →
           </Link>

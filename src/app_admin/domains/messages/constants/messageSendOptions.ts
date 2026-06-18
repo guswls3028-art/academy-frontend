@@ -14,7 +14,7 @@ export const SEND_TYPE_OPTIONS = [
 ] as const;
 
 /**
- * 메시지 발송 모달 열 때 기본 선택값.
+ * 알림톡 발송 모달 열 때 기본 선택값.
  * 알림톡만 선택.
  */
 export function getDefaultSendModalModes(_smsAllowed: boolean): { useSms: boolean; useAlimtalk: boolean } {

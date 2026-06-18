@@ -67,7 +67,7 @@ export default function DashboardPage() {
     return d.toDateString() === now.toDateString();
   });
 
-  const messagingDisconnected = messagingInfo && !messagingInfo.sms_allowed;
+  const alimtalkDisconnected = messagingInfo && !messagingInfo.alimtalk_available;
 
   return (
     <DomainLayout
@@ -122,11 +122,11 @@ export default function DashboardPage() {
           </div>
         </DashboardWidget>
 
-        {/* 3) 메시지 미연동 경고 — 발송 차단 상태일 때만 노출 */}
-        {messagingDisconnected && (
+        {/* 3) 알림톡 미연동 경고 — 알림톡 발송 차단 상태일 때만 노출 */}
+        {alimtalkDisconnected && (
           <DashboardWidget
-            title="메시지 발송 미연동"
-            description="현재 알림톡/SMS 발송이 차단되어 있습니다. 자동·수동 발송이 모두 실패합니다."
+            title="알림톡 발송 미연동"
+            description="현재 알림톡 발송 준비가 완료되지 않았습니다. 승인 템플릿과 공용 채널 상태를 확인해 주세요."
           >
             <div className="flex flex-wrap items-center gap-4">
               <Button size="sm" intent="primary" onClick={() => navigate("/admin/message/settings")}>

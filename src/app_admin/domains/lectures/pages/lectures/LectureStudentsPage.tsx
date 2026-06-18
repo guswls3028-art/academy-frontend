@@ -20,7 +20,6 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 
 const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
@@ -73,7 +72,6 @@ function LectureStudentsSortableTh({
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { openSendMessageModal } = useSendMessageModal();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
 
@@ -199,23 +197,6 @@ export default function LectureStudentsPage() {
           선택 해제
         </Button>
         <span className="text-[var(--color-border-divider)]">|</span>
-        <Button
-          intent="secondary"
-          size="sm"
-          disabled={selectedIds.length === 0}
-          onClick={() =>
-            openSendMessageModal({
-              studentIds: selectedIds,
-              recipientLabel: `선택한 수강생 ${selectedIds.length}명`,
-              blockCategory: "lecture",
-              alimtalkExtraVars: {
-                강의명: lecture?.title || lecture?.name || "",
-              },
-            })
-          }
-        >
-          메시지 발송
-        </Button>
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
         엑셀 다운로드
       </Button>

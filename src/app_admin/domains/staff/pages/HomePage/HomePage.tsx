@@ -19,7 +19,6 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import styles from "./HomePage.module.css";
 
 const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
@@ -28,7 +27,6 @@ export default function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { openSendMessageModal } = useSendMessageModal();
   const { data: staffData, isLoading } = useStaffs();
   const rawStaffs = staffData?.staffs;
   const staffs = useMemo(() => rawStaffs ?? [], [rawStaffs]);
@@ -95,23 +93,6 @@ export default function HomePage() {
       <div className="staff-toolbar__group">
         <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
           선택 해제
-        </Button>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => {
-            if (selectedStaffIds.length === 0) {
-              feedback.info("직원을 선택한 뒤 메시지 발송을 눌러 주세요.");
-              return;
-            }
-            openSendMessageModal({
-              staffIds: selectedStaffIds,
-              recipientLabel: `선택한 직원 ${selectedStaffIds.length}명`,
-              blockCategory: "staff",
-            });
-          }}
-        >
-          메시지 발송
         </Button>
         <Button
           intent="secondary"

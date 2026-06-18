@@ -1,4 +1,4 @@
-.smsNotice {
+.alimtalkNotice {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -11,7 +11,7 @@
   line-height: 1.4;
 }
 
-.smsNoticeLink {
+.alimtalkNoticeLink {
   flex-shrink: 0;
   color: var(--color-status-warning, #d97706);
   font-size: 11px;

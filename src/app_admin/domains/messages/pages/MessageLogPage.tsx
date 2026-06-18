@@ -54,7 +54,7 @@ function formatDateFull(iso: string) {
 }
 
 const MESSAGE_MODE_LABELS: Record<string, string> = {
-  sms: "SMS",
+  sms: "문자 발송 차단(레거시)",
   alimtalk: "알림톡",
   both: "알림톡 (레거시)",
 };

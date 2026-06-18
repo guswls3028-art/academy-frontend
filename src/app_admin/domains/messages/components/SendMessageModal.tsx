@@ -1,12 +1,12 @@
 // PATH: src/app_admin/domains/messages/components/SendMessageModal.tsx
 //
-// 공용 메시지 발송 모달 — 알림톡 단독 SSOT (학원장 임근혁 보고: SMS 경로 폐기, 2026-05-12)
+// 공용 알림톡 발송 모달 — 알림톡 단독 SSOT (학원장 임근혁 보고: 레거시 문자 경로 폐기, 2026-05-12)
 //
 // 좌: 수신자/일괄안내/적용양식/카톡 미리보기/변수 상태 (단일 카드 묶음)
 // 우: 양식 선택 바 → 본문 textarea → (접이식 변수 팔레트)
 // footer: [취소] [발송하기]
 //
-// 모든 진입점(학생·출결·성적·클리닉·직원)에서 동일 UX. 단발성 발송 SSOT.
+// 명시적인 학생·학부모 알림톡 진입점에서 동일 UX. 단발성 알림톡 SSOT.
 //
 // 2026-05-13 양식 선택 분리:
 //   - 인라인 양식 패널/검색/카드리스트 제거 — `TemplatePickerModal`로 분리 (별도 1040px 팝업)
@@ -66,7 +66,6 @@ export type SendMessageModalProps = {
   open: boolean;
   onClose: () => void;
   initialStudentIds?: number[];
-  initialStaffIds?: number[];
   recipientLabel?: string;
   blockCategory?: TemplateCategory;
   initialBody?: string;
@@ -146,9 +145,7 @@ function formatScheduleLabel(iso: string | null): string {
 }
 
 function formatSendTargetLabel(target: SendToType): string {
-  if (target === "parent") return "학부모";
-  if (target === "student") return "학생";
-  return "직원";
+  return target === "parent" ? "학부모" : "학생";
 }
 
 /**
@@ -198,7 +195,6 @@ export default function SendMessageModal({
   open,
   onClose,
   initialStudentIds = EMPTY_ID_LIST,
-  initialStaffIds = EMPTY_ID_LIST,
   recipientLabel,
   blockCategory = "default",
   initialBody,
@@ -245,19 +241,15 @@ export default function SendMessageModal({
   );
 
   // ─── Derived ───
-  const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
-  const staffIds = initialStaffIds;
-  const hasRecipients = isStaffMode ? staffIds.length > 0 : studentIds.length > 0;
-  const recipientCount = isStaffMode ? staffIds.length : studentIds.length;
-  const sendToTargets: SendToType[] = isStaffMode
-    ? ["staff"]
-    : (() => {
-        const t: SendToType[] = [];
-        if (sendToParent) t.push("parent");
-        if (sendToStudent) t.push("student");
-        return t;
-      })();
+  const hasRecipients = studentIds.length > 0;
+  const recipientCount = studentIds.length;
+  const sendToTargets: SendToType[] = (() => {
+    const t: SendToType[] = [];
+    if (sendToParent) t.push("parent");
+    if (sendToStudent) t.push("student");
+    return t;
+  })();
   const scheduledSendAtIso = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledAt) return null;
     const d = new Date(scheduledAt);
@@ -330,7 +322,6 @@ export default function SendMessageModal({
     scheduledSendAtIso,
     selectedTemplateId,
     sendTargetKey,
-    staffIds,
     studentIds,
     subject,
   }), [
@@ -340,7 +331,6 @@ export default function SendMessageModal({
     scheduledSendAtIso,
     selectedTemplateId,
     sendTargetKey,
-    staffIds,
     studentIds,
     subject,
   ]);
@@ -389,8 +379,7 @@ export default function SendMessageModal({
 
   const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
-    if (isStaffMode) payload.staff_ids = staffIds;
-    else payload.student_ids = studentIds;
+    payload.student_ids = studentIds;
     if (selectedTemplateId) payload.template_id = selectedTemplateId;
     if (blockCategory) payload.block_category = blockCategory;
     const currentBody = body.trim();
@@ -410,11 +399,9 @@ export default function SendMessageModal({
     alimtalkExtraVarsPerStudent,
     blockCategory,
     body,
-    isStaffMode,
     recomputePerStudentVarsRef,
     scheduledSendAtIso,
     selectedTemplateId,
-    staffIds,
     studentIds,
     subject,
   ]);
@@ -719,9 +706,9 @@ export default function SendMessageModal({
       let totalScheduled = 0;
       let totalSkipped = 0;
       let completedCalls = 0;
-      const totalCalls = isStaffMode ? 1 : sendToTargets.length;
+      const totalCalls = sendToTargets.length;
 
-      const targets = isStaffMode ? ["staff" as SendToType] : sendToTargets;
+      const targets = sendToTargets;
       for (const sendTo of targets) {
         const res = await sendMessage(buildSendPayload(sendTo));
         totalEnqueued += res.enqueued ?? 0;
@@ -731,7 +718,7 @@ export default function SendMessageModal({
         asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
       }
 
-      const sendToLabel = isStaffMode ? "직원" : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
+      const sendToLabel = sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const accepted = totalEnqueued + totalScheduled;
       if (accepted > 0) {
         const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
@@ -768,9 +755,7 @@ export default function SendMessageModal({
   if (!open) return null;
 
   // ─── Labels ───
-  const fallbackLabel = isStaffMode
-    ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
-    : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
+  const fallbackLabel = hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음";
   const rawLabel = recipientLabel ?? fallbackLabel;
   const labelParts = rawLabel.split(" — ");
   const labelContext = labelParts.length > 1 ? labelParts[0] : null;
@@ -780,7 +765,6 @@ export default function SendMessageModal({
   const sendButtonText = (() => {
     if (sending) return "발송 중…";
     const verb = sendTiming === "scheduled" ? "예약" : "발송";
-    if (isStaffMode) return `직원 ${staffIds.length}명에게 알림톡 ${verb}`;
     const parts: string[] = [];
     if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
     if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
@@ -846,7 +830,7 @@ export default function SendMessageModal({
               )}
 
               {/* 학부모/학생 대상 토글 (학생 모드일 때만) */}
-              {hasRecipients && !isStaffMode && (
+              {hasRecipients && (
                 <div className="send-modal__recipient-targets">
                   <label className="send-modal__check">
                     <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending} />
@@ -978,7 +962,7 @@ export default function SendMessageModal({
                   </div>
                   <div className="send-modal__preflight-grid">
                     <span>대상</span>
-                    <strong>{isStaffMode ? "직원" : sendToTargets.map(formatSendTargetLabel).join(" + ")}</strong>
+                    <strong>{sendToTargets.map(formatSendTargetLabel).join(" + ")}</strong>
                     <span>템플릿</span>
                     <strong>{preflightResults[0]?.template.name || selectedTemplate?.name || selectedPreset?.name || "직접 작성"}</strong>
                   </div>
@@ -1322,7 +1306,7 @@ export default function SendMessageModal({
               <div className="send-modal__confirm-row">
                 <span className="send-modal__confirm-key">대상</span>
                 <span className="send-modal__confirm-val">
-                  {isStaffMode ? `직원 ${staffIds.length}명` : (() => {
+                  {(() => {
                     const parts: string[] = [];
                     if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
                     if (sendToStudent) parts.push(`학생 ${recipientCount}명`);

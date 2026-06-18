@@ -945,7 +945,7 @@ export default function ClinicConsoleWorkspace({
                         </button>
                         {previewCfg?.message_mode && (
                           <span className="clinic-ops__trigger-preview-mode">
-                            {previewCfg.message_mode === "alimtalk" ? "알림톡" : previewCfg.message_mode === "sms" ? "SMS" : previewCfg.message_mode}
+                            {previewCfg.message_mode === "alimtalk" ? "알림톡" : previewCfg.message_mode === "sms" ? "문자 발송 차단(레거시)" : previewCfg.message_mode}
                           </span>
                         )}
                       </div>

@@ -27,7 +27,6 @@ import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/sha
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
-import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import styles from "./StudentsHomePage.module.css";
 
@@ -38,7 +37,6 @@ export default function StudentsHomePage() {
   const location = useLocation();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { openSendMessageModal } = useSendMessageModal();
   const isMobile = useIsMobile();
 
   const isDeletedTab = location.pathname.includes("/deleted");
@@ -161,15 +159,6 @@ export default function StudentsHomePage() {
         <span className={`text-[var(--color-border-divider)] ${styles.selectionDivider}`}>|</span>
         {!isDeletedTab && (
           <>
-            <Button intent="secondary" size="sm" disabled={selectedCount === 0} onClick={() => {
-              if (visibleSelectedIds.length === 0) {
-                feedback.info("현재 목록에 선택된 학생이 없습니다.");
-                return;
-              }
-              openSendMessageModal({ studentIds: visibleSelectedIds, recipientLabel: `선택한 학생 ${visibleSelectedIds.length}명`, blockCategory: "student" });
-            }}>
-              메시지 발송
-            </Button>
             <Button
               intent="secondary"
               size="sm"

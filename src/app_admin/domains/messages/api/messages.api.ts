@@ -9,21 +9,23 @@ const PREFIX = "/messaging";
 // 타입 (1~4단계 백엔드 스키마와 맞춤)
 // ----------------------------------------
 
-/** 메시징 공급자 (솔라피 또는 뿌리오) */
+/** 알림톡 공급자 (솔라피 또는 뿌리오) */
 export type MessagingProvider = "solapi" | "ppurio";
 
 export interface TenantMessagingInfo {
   /** 학원 개별 카카오 프로필 ID (연동 시 저장) */
   kakao_pfid: string | null;
-  /** 테넌트별 SMS/알림톡 발신번호 (예: 01012345678) */
+  /** 알림톡 발신번호 (예: 01012345678) */
   messaging_sender: string | null;
-  /** 문자(SMS) 발송 허용 여부 (OWNER_TENANT_ID 전용 정책). API 응답 기준만 사용 */
+  /** legacy 표시용. 문자 실발송은 정책상 비활성화되어 있으며 API 응답 기준만 사용 */
   sms_allowed?: boolean;
-  /** 알림톡 채널 출처: 시스템 기본 채널 vs 학원 자체 연동 채널 */
-  channel_source?: "system_default" | "tenant_override";
+  /** 알림톡 채널 출처: 공용 owner 채널 */
+  channel_source?: "common_owner" | "system_default" | "tenant_override";
+  /** 실제 발송에 사용되는 공용 PFID */
+  resolved_pf_id?: string;
   /** 알림톡 발송 가능 여부 (PFID + 승인 템플릿 존재). API 응답 기준만 사용 */
   alimtalk_available?: boolean;
-  /** 메시징 공급자: solapi(기본) 또는 ppurio(뿌리오) */
+  /** 알림톡 공급자: solapi(기본) 또는 ppurio(뿌리오) */
   messaging_provider?: MessagingProvider;
   /** 자체 솔라피 API Key (마스킹됨, 읽기용) */
   own_solapi_api_key?: string;
@@ -432,17 +434,16 @@ export async function syncSolapiTemplates(): Promise<SolapiSyncResult> {
 }
 
 // ----------------------------------------
-// 메시지 발송 (공용 모달에서 사용)
+// 알림톡 발송 (명시적 알림톡 모달에서 사용)
 // ----------------------------------------
 
-export type SendToType = "student" | "parent" | "staff";
+export type SendToType = "student" | "parent";
 
 /** alimtalk=알림톡만 */
 export type MessageMode = "alimtalk";
 
 export interface SendMessagePayload {
   student_ids?: number[];
-  staff_ids?: number[];
   send_to: SendToType;
   /** alimtalk */
   message_mode?: MessageMode;

@@ -5,7 +5,7 @@
  * - DomainListToolbar + 테이블, Tab/화살표 셀 이동, 편집 모드에서만 셀 편집
  * - 학생 체크박스 선택 시 수업결과 알림톡 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  *
- * 2026-05-12: "메시지 발송"(SMS path) 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
+ * 2026-05-12: 범용 발송 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
  */
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -334,7 +334,7 @@ export default function SessionScoresEntryPage({
 
         {/* ── 그룹 1: primary 액션 ── */}
         {/*
-          "메시지 발송"(SMS path) 버튼 제거 (2026-05-12) — 학원장 임근혁 보고:
+          범용 발송 버튼 제거 (2026-05-12) — 학원장 임근혁 보고:
           "메세지 발송기능 프로그램에서 그냥 지워". 알림톡 발송은 "수업결과 알림톡 발송" 단일 경로.
         */}
         {showSelectionActions && (

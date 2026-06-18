@@ -25,7 +25,6 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
-import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -133,7 +132,6 @@ export default function StudentsDetailOverlay({
   const qc = useQueryClient();
   const studentQueryKey = ["student", id] as const;
   const studentsQueryKey = ["students"] as const;
-  const { openSendMessageModal } = useSendMessageModal();
 
   const [tab, setTab] = useState<StatTabKey>("enroll");
   const [editOpen, setEditOpen] = useState(false);
@@ -345,18 +343,6 @@ export default function StudentsDetailOverlay({
                   >
                     {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
                   </button>
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    onClick={() => openSendMessageModal({
-                      studentIds: [id],
-                      recipientLabel: student.name,
-                      blockCategory: "student",
-                    })}
-                  >
-                    메시지
-                  </Button>
                   <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
                     수정
                   </Button>

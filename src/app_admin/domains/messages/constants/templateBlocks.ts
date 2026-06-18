@@ -84,7 +84,7 @@ const B = {
 
 // ─── 카테고리별 블록 조합 ───
 
-/** 수동 메시지 발송에서 실제 치환 가능한 공통 변수만 */
+/** 수동 알림톡 발송에서 실제 치환 가능한 공통 변수만 */
 const COMMON_MESSAGE: TemplateBlock[] = [B.student_name, B.site_link];
 
 const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {

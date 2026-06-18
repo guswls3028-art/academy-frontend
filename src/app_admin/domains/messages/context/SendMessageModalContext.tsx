@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/messages/context/SendMessageModalContext.tsx
-// 공용 메시지 발송 모달 — 어디서든 openSendMessageModal({ studentIds, recipientLabel }) 호출
+// 알림톡 발송 모달 — 명시적인 학생/학부모 알림톡 경로에서만 호출
 
 import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
 import SendMessageModal from "../components/SendMessageModal";
@@ -8,7 +8,6 @@ import type { TemplateCategory } from "../constants/templateBlocks";
 
 export type OpenSendMessageOptions = {
   studentIds?: number[];
-  staffIds?: number[];
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
@@ -52,7 +51,6 @@ export function useSendMessageModal(): ContextValue {
 export function SendMessageModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [studentIds, setStudentIds] = useState<number[]>([]);
-  const [staffIds, setStaffIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
@@ -65,7 +63,6 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
-    setStaffIds(options.staffIds ?? []);
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
     setInitialBody(options.initialBody);
@@ -81,7 +78,6 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const close = useCallback(() => {
     setOpen(false);
     setStudentIds([]);
-    setStaffIds([]);
     setRecipientLabel(undefined);
     setBlockCategory(undefined);
     setInitialBody(undefined);
@@ -101,7 +97,6 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         open={open}
         onClose={close}
         initialStudentIds={studentIds}
-        initialStaffIds={staffIds}
         recipientLabel={recipientLabel}
         blockCategory={blockCategory}
         initialBody={initialBody}
