@@ -21,6 +21,7 @@ import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import TagAddModal from "../components/TagAddModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
+import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
@@ -38,6 +39,7 @@ export default function StudentsHomePage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const isMobile = useIsMobile();
+  const { openSendMessageModal } = useSendMessageModal();
 
   const isDeletedTab = location.pathname.includes("/deleted");
 
@@ -190,6 +192,23 @@ export default function StudentsHomePage() {
             </Button>
             <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedCount === 0}>
               태그 추가
+            </Button>
+            <Button
+              intent="secondary"
+              size="sm"
+              disabled={selectedCount === 0}
+              onClick={() => {
+                if (visibleSelectedIds.length === 0) {
+                  feedback.info("선택한 학생이 없습니다.");
+                  return;
+                }
+                openSendMessageModal({
+                  studentIds: visibleSelectedIds,
+                  recipientLabel: `선택한 학생 ${visibleSelectedIds.length}명`,
+                });
+              }}
+            >
+              메시지 발송
             </Button>
             <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedCount === 0}>
               비밀번호 변경

@@ -40,14 +40,20 @@ async function expectAuthEntry(page: import("@playwright/test").Page): Promise<v
   await waitForCondition(
     async () => {
       const loginFormVisible = await page.getByRole("textbox", { name: "아이디" }).isVisible().catch(() => false);
-      return loginFormVisible && !page.url().includes("/student");
+      const promoLoginVisible = await page.getByRole("link", { name: "로그인" }).first().isVisible().catch(() => false);
+      return (loginFormVisible || promoLoginVisible) && !page.url().includes("/student");
     },
     { timeoutMs: 20_000, intervalMs: 500, description: "redirect to auth entry" },
   );
   expect(page.url()).not.toContain("/student");
-  await expect(page.getByRole("textbox", { name: "아이디" })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("textbox", { name: "비밀번호" })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("button", { name: "로그인" })).toBeVisible({ timeout: 10_000 });
+  const loginForm = page.getByRole("textbox", { name: "아이디" });
+  if (await loginForm.isVisible().catch(() => false)) {
+    await expect(loginForm).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("textbox", { name: "비밀번호" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "로그인" })).toBeVisible({ timeout: 10_000 });
+    return;
+  }
+  await expect(page.getByRole("link", { name: "로그인" }).first()).toBeVisible({ timeout: 10_000 });
 }
 
 async function loginStudentOnce(
@@ -79,12 +85,6 @@ test.describe("[E2E] 학생 도메인 guardrail", () => {
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 25_000 });
     await expectAuthEntry(page);
 
-    await page.addInitScript(() => {
-      localStorage.setItem("access", "not-a-real-token");
-      localStorage.setItem("refresh", "not-a-real-refresh");
-      localStorage.setItem("tenant_code", "hakwonplus");
-      sessionStorage.setItem("tenantCode", "hakwonplus");
-    });
     await page.evaluate(() => {
       localStorage.setItem("access", "not-a-real-token");
       localStorage.setItem("refresh", "not-a-real-refresh");

@@ -36,9 +36,22 @@ type CreatedState = {
   studentId?: number;
   previousAutoApprove?: boolean;
   shouldRestoreAutoApprove?: boolean;
+  previousAutoSend?: AutoSendSnapshot[];
 };
 
 const created: CreatedState = {};
+
+type AutoSendSnapshot = {
+  trigger: string;
+  enabled: boolean;
+  template: number | null;
+  message_mode: string;
+  minutes_before: number | null;
+};
+
+type AutoSendConfig = AutoSendSnapshot & {
+  template_name?: string;
+};
 
 function isProductionApi(): boolean {
   try {
@@ -186,6 +199,65 @@ async function forceManualApproval(request: APIRequestContext, access: string): 
   created.shouldRestoreAutoApprove = true;
 }
 
+async function forceApprovalParentNotification(request: APIRequestContext, access: string): Promise<void> {
+  const current = await apiFetch<AutoSendConfig[]>(request, "GET", "/messaging/auto-send/", access);
+  expect(current.status, `auto-send get -> ${current.status} ${JSON.stringify(current.body)}`).toBe(200);
+  const parent = current.body.find((c) => c.trigger === "registration_approved_parent");
+  expect(parent, "registration_approved_parent auto-send config").toBeTruthy();
+  expect(parent?.template, "registration_approved_parent template must be configured").toBeTruthy();
+
+  created.previousAutoSend = [
+    {
+      trigger: parent!.trigger,
+      enabled: parent!.enabled,
+      template: parent!.template,
+      message_mode: parent!.message_mode,
+      minutes_before: parent!.minutes_before ?? null,
+    },
+  ];
+
+  if (parent!.enabled) return;
+
+  const updated = await apiFetch<AutoSendConfig[]>(
+    request,
+    "PATCH",
+    "/messaging/auto-send/",
+    access,
+    {
+      configs: [{
+        trigger: parent!.trigger,
+        enabled: true,
+        template_id: parent!.template,
+        message_mode: parent!.message_mode || "alimtalk",
+        minutes_before: parent!.minutes_before ?? null,
+      }],
+    },
+  );
+  expect(updated.status, `auto-send patch parent on -> ${updated.status} ${JSON.stringify(updated.body)}`).toBe(200);
+}
+
+async function restoreAutoSendSettings(request: APIRequestContext): Promise<void> {
+  if (!created.previousAutoSend?.length) return;
+  const access = created.adminAccess || (await loginToken(request)).access;
+  const restored = await apiFetch<AutoSendConfig[]>(
+    request,
+    "PATCH",
+    "/messaging/auto-send/",
+    access,
+    {
+      configs: created.previousAutoSend.map((c) => ({
+        trigger: c.trigger,
+        enabled: c.enabled,
+        template_id: c.template,
+        message_mode: c.message_mode || "alimtalk",
+        minutes_before: c.minutes_before ?? null,
+      })),
+    },
+  );
+  expect(restored.status, `auto-send restore -> ${restored.status} ${JSON.stringify(restored.body)}`).toBe(200);
+  created.previousAutoSend = undefined;
+}
+
 async function restoreRegistrationSettings(request: APIRequestContext): Promise<void> {
   if (!created.shouldRestoreAutoApprove) return;
   const access = created.adminAccess || (await loginToken(request)).access;
@@ -309,6 +381,11 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
     } catch (error) {
       errors.push(`settings restore failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+    try {
+      await restoreAutoSendSettings(request);
+    } catch (error) {
+      errors.push(`auto-send restore failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (errors.length > 0) {
       throw new Error(errors.join("\n"));
     }
@@ -323,6 +400,7 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
     const adminTokens = await loginToken(request);
     created.adminAccess = adminTokens.access;
     await forceManualApproval(request, adminTokens.access);
+    await forceApprovalParentNotification(request, adminTokens.access);
 
     const studentPhone = phoneForRun("student");
     const parentPhone = phoneForRun("parent");
