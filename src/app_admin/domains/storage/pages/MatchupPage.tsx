@@ -37,7 +37,7 @@ import HeaderMoreMenu from "./MatchupPage.parts/HeaderMoreMenu";
 import MergeModeRightPanel from "./MatchupPage.parts/MergeModeRightPanel";
 import IntentToggle from "./MatchupPage.parts/IntentToggle";
 import {
-  getDocumentIntent, getSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
+  getDocumentIntent, getSourceType, isIndexableSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
   type MatchupSourceType,
 } from "../components/matchup/documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -1077,7 +1077,16 @@ export default function MatchupPage() {
   }
 
   const isFailed = selectedDoc?.status === "failed";
-  const isNoneDetected = selectedDoc?.status === "done" && selectedDoc.meta?.segmentation_method === "none";
+  const selectedSourceType = selectedDoc ? getSourceType(selectedDoc) : null;
+  const isNoneDetected = selectedDoc?.status === "done" && (
+    selectedDoc.meta?.segmentation_method === "none" ||
+    (
+      selectedDoc.problem_count === 0 &&
+      selectedDoc.meta?.processing_quality === "no_problems" &&
+      selectedSourceType !== null &&
+      isIndexableSourceType(selectedSourceType)
+    )
+  );
 
   return (
     <>

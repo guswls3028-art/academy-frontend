@@ -15,7 +15,7 @@ import { Button, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import type { MatchupDocument, SegmentationMethod } from "../../api/matchup.api";
 import type { DocProgressMap } from "../../hooks/useMatchupPolling";
-import { getDocumentIntent } from "./documentIntent";
+import { getDocumentIntent, isIndexableSourceType, getSourceType } from "./documentIntent";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./DocumentList.module.css";
 
@@ -70,6 +70,22 @@ function categoryKeyOf(doc: MatchupDocument): string {
 
 function categoryLabelOf(key: string): string {
   return key === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : key;
+}
+
+function resolveSegmentationMethod(doc: MatchupDocument): SegmentationMethod | undefined {
+  const explicit = doc.meta?.segmentation_method;
+  if (explicit) return explicit;
+
+  if (
+    doc.status === "done"
+    && doc.problem_count === 0
+    && doc.meta?.processing_quality === "no_problems"
+    && isIndexableSourceType(getSourceType(doc))
+  ) {
+    return "none";
+  }
+
+  return undefined;
 }
 
 function CategoryMenuItem({
@@ -261,7 +277,7 @@ export default function DocumentList({
   };
 
   const renderDocRow = (doc: MatchupDocument) => {
-    const segMethod = doc.meta?.segmentation_method;
+    const segMethod = resolveSegmentationMethod(doc);
     const segInfo = segMethod ? SEG_META[segMethod] : null;
     const progress = progressMap[doc.id];
     const isSelected = selectedId === doc.id;
