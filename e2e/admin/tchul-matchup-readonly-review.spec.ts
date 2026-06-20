@@ -8,7 +8,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
-import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
 const BASE = "https://tchul.com";
 const SCREENSHOT_DIR = "e2e/_artifacts/tchul-matchup-review";
@@ -29,6 +29,24 @@ async function waitForSelectedDocument(page: Page): Promise<void> {
       (await page.locator('[data-testid="matchup-problem-grid"]').count()) > 0,
     { timeoutMs: 10_000, description: "matchup selected document detail" },
   ).catch(() => {});
+  const grid = page.locator('[data-testid="matchup-grid-container"]');
+  await expect(grid).toBeVisible({ timeout: 15_000 });
+  await waitForCondition(
+    async () => {
+      const cardCount = await page.locator('[data-testid="matchup-problem-card"]').count();
+      if (cardCount > 0) return true;
+      const text = await grid.innerText().catch(() => "");
+      if (/AI가 문제를 분석하고 있습니다|처리 중/.test(text)) return false;
+      return /자동으로 인식된 문제가 없습니다|문제 추출에 실패했습니다/.test(text);
+    },
+    { timeoutMs: 60_000, description: "matchup problem grid loaded" },
+  );
+  const firstCard = page.locator('[data-testid="matchup-problem-card"]').first();
+  if (await firstCard.isVisible().catch(() => false)) {
+    await firstCard.click();
+    await expect(page.getByText("유사 문제 검색 중...")).toBeHidden({ timeout: 60_000 }).catch(() => {});
+  }
+  await waitForRenderSettled(page, { timeout: 10_000 });
 }
 
 test.describe("Tchul T2 매치업 실사용 시각 검수 (read-only)", () => {
@@ -92,7 +110,11 @@ test.describe("Tchul T2 매치업 실사용 시각 검수 (read-only)", () => {
     if (visible) {
       await firstReport.click();
       await expect(page.locator('[data-testid="hit-report-preview-edit"]').first()).toBeVisible({ timeout: 15_000 });
-      await page.locator('[data-testid="hit-report-preview-iframe"]').first().waitFor({ state: "attached", timeout: 15_000 }).catch(() => {});
+      await page.locator('[data-testid="hit-report-preview-edit"]').first().click();
+      await expect(page.locator('[data-testid="matchup-hit-report-save-state"]').first()).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText("시험지 문항별 학원 자료를 검색하고 있습니다")).toBeHidden({ timeout: 90_000 });
+      await expect(page.getByText(/내 수업 자료 후보/).first()).toBeVisible({ timeout: 30_000 });
+      await waitForRenderSettled(page, { timeout: 20_000 });
       await page.screenshot({
         path: `${SCREENSHOT_DIR}/04-hit-report-editor.png`,
         fullPage: true,
