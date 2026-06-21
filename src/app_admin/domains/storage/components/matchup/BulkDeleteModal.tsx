@@ -6,7 +6,7 @@
 // 미고정 + 디자인 시스템과 일관성 0 + 입력 중 실시간 피드백 부재.
 //
 // 신규: 디자인 시스템 토큰 + portal 백드롭 + 라이브 미리보기. 학원장이 "162" 만
-// 입력해도 즉시 "162~maxNum 14개 삭제 (직접 자른 3개 자동 보호)" 가 노출되어
+// 입력해도 즉시 "162~maxNum 14개 삭제 (보호 문항 3개 제외)" 가 노출되어
 // 우발 손실 차단. 잘못 입력하면 빨간 인디케이터로 즉시 인지.
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -49,6 +49,10 @@ function parseRange(input: string, maxNum: number): ParseResult {
   return { ok: true, numberFrom: single, numberTo: maxNum };
 }
 
+function isDeleteProtected(problem: MatchupProblem): boolean {
+  return Boolean(problem.meta?.manual || problem.meta?.manual_owner_pinned);
+}
+
 export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props) {
   const [input, setInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -72,15 +76,15 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
     const { numberFrom, numberTo } = parsed;
     const inRange = (n: number) => n >= numberFrom && n <= numberTo;
     const hits = problems.filter((p) => inRange(p.number));
-    const manual = hits.filter((p) => Boolean(p.meta?.manual));
-    const targets = hits.filter((p) => !p.meta?.manual);
+    const protectedProblems = hits.filter(isDeleteProtected);
+    const targets = hits.filter((p) => !isDeleteProtected(p));
     const targetNums = targets.map((p) => p.number).sort((a, b) => a - b);
     return {
       from: numberFrom,
       to: numberTo,
       targets,
       targetCount: targets.length,
-      manualCount: manual.length,
+      protectedCount: protectedProblems.length,
       sampleHead: targetNums.slice(0, 5),
       sampleLast: targetNums.length > 5 ? targetNums[targetNums.length - 1] : null,
     };
@@ -165,7 +169,7 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
           <div className={styles.description}>
             현재 자료 총 <strong>{problems.length}개</strong> 문항
             (번호 {minNum}~{maxNum}).
-            <br />직접 자른 문항은 <strong>자동으로 보호</strong>됩니다.
+            <br />직접 자르거나 보고서에서 선별한 문항은 <strong>자동으로 보호</strong>됩니다.
           </div>
 
           <label className={styles.rangeLabel}>
@@ -225,10 +229,10 @@ export default function BulkDeleteModal({ problems, onConfirm, onClose }: Props)
                 </div>
               )}
 
-              {preview.manualCount > 0 && (
+              {preview.protectedCount > 0 && (
                 <div className={styles.protectedNote}>
                   <Shield size={ICON.xs} className={styles.inlineIcon} />
-                  직접 자른 {preview.manualCount}개 문항은 자동 보호됩니다
+                  보호 문항 {preview.protectedCount}개는 삭제에서 제외됩니다
                 </div>
               )}
             </div>

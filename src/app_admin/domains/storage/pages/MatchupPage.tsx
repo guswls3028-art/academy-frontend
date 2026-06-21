@@ -734,11 +734,23 @@ export default function MatchupPage() {
   const handleConfirmBulkDelete = useCallback(async () => {
     if (!selectedDoc || deleteSelectedIds.length === 0) return;
     const targetCount = deleteSelectedIds.length;
+    const protectedCount = deleteSelectedIds.reduce((acc, id) => {
+      const p = problems.find((item) => item.id === id);
+      return acc + (p?.meta?.manual || p?.meta?.manual_owner_pinned ? 1 : 0);
+    }, 0);
+    const deletableCount = Math.max(0, targetCount - protectedCount);
+    if (deletableCount <= 0) {
+      feedback.info("선택한 문항은 직접 자르기 또는 적중보고서 선별로 보호되어 삭제되지 않습니다.");
+      return;
+    }
     const ok = await confirm({
-      title: `${targetCount}개 문항 삭제`,
+      title: `${deletableCount}개 문항 삭제`,
       message:
-        `선택한 ${targetCount}개 문항을 삭제합니다. 직접 자른 문항은 자동 보호됩니다.\n\n` +
-        `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
+        `선택한 ${targetCount}개 중 삭제 가능한 ${deletableCount}개 문항을 삭제합니다.\n\n` +
+        (protectedCount > 0
+          ? `· 보호 문항 ${protectedCount}개는 제외됩니다.\n`
+          : "") +
+        `· 보고서에서 선별된 문항은 자동 보호됩니다.\n` +
         `· 이 작업은 되돌릴 수 없습니다.`,
       confirmText: "삭제",
       cancelText: "취소",
@@ -749,8 +761,9 @@ export default function MatchupPage() {
       const res = await bulkDeleteMatchupProblems(selectedDoc.id, {
         problem_ids: deleteSelectedIds,
       });
-      const preservedNote = res.preserved_manual > 0
-        ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+      const preservedCount = res.preserved_protected;
+      const preservedNote = preservedCount > 0
+        ? ` (보호 문항 ${preservedCount}개 제외)`
         : "";
       feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
       setDeleteSelectedIds([]);
@@ -761,22 +774,23 @@ export default function MatchupPage() {
       const msg = (e as Error)?.message ?? "일괄삭제 실패";
       feedback.error(msg);
     }
-  }, [selectedDoc, deleteSelectedIds, confirm, qc]);
+  }, [selectedDoc, deleteSelectedIds, problems, confirm, qc]);
 
   // Phase F — 카드별 1클릭 삭제. manual 보호 메시지 명시.
   const handleDeleteSingleProblem = useCallback(async (problem: { id: number; number: number; meta: Record<string, unknown> | null }) => {
     if (!selectedDoc) return;
     const meta = problem.meta as Record<string, unknown> | null;
     const isProtected = Boolean(meta?.manual || meta?.manual_owner_pinned);
+    if (isProtected) {
+      feedback.info(`Q${problem.number}은(는) 직접 자르기 또는 적중보고서 선별로 보호되어 삭제되지 않습니다.`);
+      return;
+    }
     const ok = await confirm({
       title: `Q${problem.number} 삭제`,
-      message: isProtected
-        ? `Q${problem.number}은(는) 직접 자른 문항입니다. 정말 삭제하시겠어요?\n\n` +
-          `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
-          `· 이 작업은 되돌릴 수 없습니다.`
-        : `Q${problem.number}을(를) 삭제합니다.\n\n` +
-          `· 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.\n` +
-          `· 이 작업은 되돌릴 수 없습니다.`,
+      message:
+        `Q${problem.number}을(를) 삭제합니다.\n\n` +
+        `· 보고서에서 선별된 문항은 자동 보호됩니다.\n` +
+        `· 이 작업은 되돌릴 수 없습니다.`,
       confirmText: "삭제",
       cancelText: "취소",
       danger: true,
@@ -886,7 +900,7 @@ export default function MatchupPage() {
             `이 옵션을 켜면 자료 유형(시험지/워크북 등)을 바꿀 때마다 자동분리가 ` +
             `즉시 다시 실행됩니다.\n\n` +
             `· 자동분리 결과는 전부 새로 생성됩니다.\n` +
-            `· 직접 자른(매뉴얼) 문항은 그대로 보존됩니다.\n` +
+            `· 직접 자르거나 보고서에서 선별한 문항은 그대로 보존됩니다.\n` +
             `· 변경 직전에 한 번 더 확인 다이얼로그가 뜹니다.\n\n` +
             `자료 유형 라벨만 바꾸고 싶다면 토글을 끈 채로 사용하세요.`,
           confirmText: "켜기",
@@ -921,8 +935,10 @@ export default function MatchupPage() {
     async (sourceType: import("../components/matchup/documentIntent").MatchupSourceType) => {
       if (!selectedDoc) return;
       if (autoReanalyze) {
-        const manualCount = problems.filter((p) => Boolean(p.meta?.manual)).length;
-        const autoCount = problems.length - manualCount;
+        const protectedCount = problems.filter((p) => Boolean(
+          p.meta?.manual || p.meta?.manual_owner_pinned,
+        )).length;
+        const autoCount = problems.length - protectedCount;
         const ok = await confirm({
           title: "자료 유형 변경 + 재분석",
           message:
@@ -930,8 +946,8 @@ export default function MatchupPage() {
             (autoCount > 0
               ? `· 자동분리 ${autoCount}개 문항이 새로 생성됩니다 (기존 결과 대체)\n`
               : "") +
-            (manualCount > 0
-              ? `· 직접 자른 ${manualCount}개 문항은 보존됩니다\n`
+            (protectedCount > 0
+              ? `· 보호 문항 ${protectedCount}개는 보존됩니다\n`
               : "") +
             `\n유형 라벨만 바꾸려면 "취소" 후 상단 토글을 끄고 다시 시도해 주세요.`,
           confirmText: "유형 변경 + 재분석",
@@ -1563,7 +1579,7 @@ export default function MatchupPage() {
                             fontSize: 11, color: "var(--color-text-secondary)",
                             cursor: "pointer", userSelect: "none",
                           }} title={autoReanalyze
-                            ? "유형을 바꾸면 즉시 재분석이 트리거됩니다. 직접 자른 문항은 보존되지만 자동분리 결과는 새로 생성됩니다."
+                            ? "유형을 바꾸면 즉시 재분석이 트리거됩니다. 보호 문항은 보존되지만 자동분리 결과는 새로 생성됩니다."
                             : "현재 유형 변경만 저장됩니다. 새 방식으로 다시 추출하려면 별도로 재분석 버튼을 눌러주세요."
                           }>
                             <input
@@ -2082,8 +2098,8 @@ export default function MatchupPage() {
                   number_from: numberFrom,
                   number_to: numberTo,
                 });
-                const preservedNote = res.preserved_manual > 0
-                  ? ` (직접 자른 ${res.preserved_manual}개 보호)`
+                const preservedNote = res.preserved_protected > 0
+                  ? ` (보호 문항 ${res.preserved_protected}개 제외)`
                   : "";
                 feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
                 await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });

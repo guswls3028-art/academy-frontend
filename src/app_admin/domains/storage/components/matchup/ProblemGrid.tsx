@@ -98,6 +98,7 @@ export default function ProblemGrid({
     const meta = p.meta as Record<string, unknown> | null;
     return acc + (meta?.manual || meta?.manual_owner_pinned ? 1 : 0);
   }, 0), [deleteSelectedIds, problemById]);
+  const deleteDeletableCount = Math.max(0, deleteSelectedCount - deleteProtectedCount);
   // mode entry CTA 바 — 합치기/일괄삭제 진입 가능. 두 모드 진입 핸들러 둘 다 없으면 hidden.
   const canEnterAnyMode = (!!onToggleMergeMode || !!onToggleDeleteMode) && problems.length >= 2;
   const showModeEntryBar = canEnterAnyMode && !mergeMode && !deleteMode;
@@ -252,7 +253,7 @@ export default function ProblemGrid({
         <div className={`${styles.modeBar} ${styles.deleteModeBar}`}>
           <Trash2 size={ICON.sm} className={styles.warningModeIcon} />
           <strong className={styles.warningText}>일괄 삭제 모드</strong>
-          <span className={styles.modeBarText}>— 삭제할 문항을 클릭해서 선택하세요. 직접 자른 문항은 자동 보호됩니다.</span>
+          <span className={styles.modeBarText}>— 삭제할 문항을 클릭해서 선택하세요. 직접 자르거나 보고서에서 선별한 문항은 자동 보호됩니다.</span>
           <button
             type="button"
             onClick={onToggleDeleteMode}
@@ -341,11 +342,11 @@ export default function ProblemGrid({
           {deleteProtectedCount > 0 && (
             <span data-testid="matchup-bulk-delete-protected-hint" className={styles.protectedHint}>
               <Shield size={ICON.xs} />
-              직접 자른 {deleteProtectedCount}개 자동 보호
+              보호 문항 {deleteProtectedCount}개 제외
             </span>
           )}
           <span className={styles.actionHint}>
-            삭제는 되돌릴 수 없습니다 — 적중보고서 큐레이션에 포함된 경우 자동 제외됩니다.
+            삭제는 되돌릴 수 없습니다. 보고서에서 선별된 문항은 삭제 대상에서 제외됩니다.
           </span>
           <div className={styles.actionButtons}>
             <button type="button" onClick={onClearDeleteSelection} className={styles.secondaryActionButton}>
@@ -354,11 +355,12 @@ export default function ProblemGrid({
             <button
               type="button"
               onClick={onConfirmBulkDelete}
+              disabled={deleteDeletableCount <= 0}
               data-testid="matchup-bulk-delete-confirm-action"
               className={styles.dangerActionButton}
             >
               <Trash2 size={ICON.xs} />
-              {deleteSelectedCount - deleteProtectedCount}개 삭제
+              {deleteDeletableCount}개 삭제
             </button>
           </div>
         </div>

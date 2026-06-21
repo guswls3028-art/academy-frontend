@@ -360,6 +360,12 @@
   border: 0;
 }
 
+.dangerActionButton:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  background: var(--color-bg-surface-soft);
+}
+
 .mergeConfirmButton {
   padding: 5px 14px;
   color: white;

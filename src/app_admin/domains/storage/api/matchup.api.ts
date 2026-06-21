@@ -121,6 +121,8 @@ export type MatchupDocument = {
 //   number_mismatch     : OCR로 본문 첫 줄에서 인식한 번호가 DB number와 다른 경우
 //                         "Q3 적중자료가 Q5 본문" 식 신뢰성 사고 차단용 검수 신호
 export type MatchupProblemMeta = {
+  manual?: boolean;
+  manual_owner_pinned?: boolean;
   merge_suspect?: boolean;
   is_partial?: boolean;
   number_mismatch?: { db: number; ocr: number };
@@ -563,11 +565,21 @@ export async function deleteMatchupProblem(problemId: number): Promise<void> {
 export async function bulkDeleteMatchupProblems(
   docId: number,
   payload: { number_from?: number; number_to?: number; problem_ids?: number[] },
-): Promise<{ deleted: number; ids: number[]; preserved_manual: number }> {
+): Promise<{
+  deleted: number;
+  ids: number[];
+  preserved_manual: number;
+  preserved_protected: number;
+}> {
   // 운영 사고 (2026-05-05): N=300 problems 삭제 시 R2 image 순차 삭제 30s+ 걸려
   // axios 디폴트 20s timeout 만남 ("1 누르고 20000ms 뜸"). 5분 명시 + backend
   // 최적화 (R2 batch + QuerySet.delete) 백로그.
-  const { data } = await api.post<{ deleted: number; ids: number[]; preserved_manual: number }>(
+  const { data } = await api.post<{
+    deleted: number;
+    ids: number[];
+    preserved_manual: number;
+    preserved_protected: number;
+  }>(
     `/matchup/documents/${docId}/bulk-delete-problems/`,
     payload,
     { timeout: 5 * 60_000 },

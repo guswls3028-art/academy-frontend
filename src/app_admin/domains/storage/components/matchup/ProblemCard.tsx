@@ -40,9 +40,8 @@ export default function ProblemCard({
   const isMergeSelected = mergeMode && mergeOrder > 0;
   // bulkSelectMode 진입 시 selected 가 곧 selection 표시.
   const showSelectedStyle = mergeMode ? isMergeSelected : selected;
-  // manual=true / manual_owner_pinned=true 는 학원장이 직접 자른 문항. backend 가
-  // protected_ids 로 일괄삭제/reanalyze 에서 자동 보호. UI 도 잠금 아이콘 + 삭제 시
-  // 명시 confirm 메시지로 보호 정보 노출.
+  // manual=true / manual_owner_pinned=true 는 학원장 수동 작업 또는 보고서 선별 문항.
+  // backend 가 protected_ids 로 일괄삭제/reanalyze 에서 자동 보호한다.
   const meta = problem.meta as Record<string, unknown> | null;
   const isManual = Boolean(meta?.manual);
   const isManualPinned = Boolean(meta?.manual_owner_pinned);
@@ -182,7 +181,13 @@ export default function ProblemCard({
           color: showSelectedStyle ? "var(--color-brand-primary)" : "var(--color-text-muted)",
           letterSpacing: "0.05em",
         }}>
-          <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={/* eslint-disable-line no-restricted-syntax */ {
+            display: "inline-flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 6,
+            minWidth: 0,
+          }}>
             Q{problem.number}
             {isPartial && (
               <span
@@ -224,16 +229,16 @@ export default function ProblemCard({
                 ariaLabel={`번호 불일치 DB Q${numberMismatch.db} OCR Q${numberMismatch.ocr}`}
               >
                 <AlertTriangle size={ICON_FOR_BADGE.xs} />
-                번호 불일치 (DB Q{numberMismatch.db} vs OCR Q{numberMismatch.ocr})
+                번호 불일치
               </Badge>
             )}
           </span>
           <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 2 }}>
-            {/* Phase F — manual 보호 표시 (잠금 아이콘). 일괄삭제/reanalyze 에서 자동 보호되는
+            {/* Phase F — 보호 표시 (잠금 아이콘). 일괄삭제/reanalyze 에서 자동 보호되는
                 문항임을 항상 시각화. hover 액션 영역과 별개로 항상 노출. */}
             {isProtected && (
               <span
-                title="직접 자른 문항입니다. 일괄삭제와 자동 재분석에서 보호됩니다."
+                title="직접 자르거나 보고서에서 선별한 문항입니다. 일괄삭제와 자동 재분석에서 보호됩니다."
                 aria-label="보호된 문항"
                 data-testid="matchup-problem-card-protected"
                 style={/* eslint-disable-line no-restricted-syntax */ {
