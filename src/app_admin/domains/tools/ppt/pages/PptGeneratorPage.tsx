@@ -415,7 +415,7 @@ export default function PptGeneratorPage() {
             {pdfFile && (
               <div className={styles.pdfInfoCard}>
                 <div className={styles.pdfInfoText}>
-                  PDF의 문항을 자동으로 분리해 슬라이드로 변환합니다. 텍스트 추출이 어려운 PDF는 페이지 단위로 전환됩니다.
+                  PDF의 문항을 자동으로 분리해 슬라이드로 변환합니다. 텍스트가 어려우면 이미지 기반으로 한 번 더 찾습니다.
                 </div>
               </div>
             )}
