@@ -245,16 +245,23 @@
   padding: 14px 24px;
   border: 0;
   border-radius: var(--radius-lg, 12px);
-  background: var(--color-primary);
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 10px 20px rgb(37 99 235 / 18%);
   color: #fff;
   cursor: pointer;
   font-size: 15px;
   font-weight: 700;
-  transition: background 0.15s;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.generateButton:not(:disabled):hover {
+  box-shadow: 0 12px 24px rgb(37 99 235 / 24%);
+  transform: translateY(-1px);
 }
 
 .generateButton:disabled {
   background: var(--color-bg-disabled, #aaa);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -346,6 +353,11 @@
   }
 
   .sidebar {
+    gap: 14px;
     width: 100%;
+  }
+
+  .generateButton {
+    order: -1;
   }
 }
