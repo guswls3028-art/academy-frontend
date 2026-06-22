@@ -54,7 +54,7 @@ function decodeHashId(hash: string) {
   }
 }
 
-function Header() {
+function Header({ onOpenLogin }: { onOpenLogin: () => void }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -119,10 +119,10 @@ function Header() {
               <PhoneCall size={16} />
               전화 문의
             </PhoneInquiryLink>
-            <a href="/login" className={styles.loginLink}>
+            <button type="button" className={styles.loginLink} onClick={onOpenLogin} data-testid="promo-login-open">
               <LogIn size={16} />
               로그인
-            </a>
+            </button>
             <Link to="/promo/demo" className={styles.demoLink}>
               <MousePointer2 size={16} />
               데모 요청
@@ -322,7 +322,7 @@ export default function PromoLayout() {
   return (
     <div className={styles.layout}>
       <PromoScrollManager />
-      <Header />
+      <Header onOpenLogin={() => setLoginOpen(true)} />
       <main className={styles.main}>
         <Outlet />
       </main>

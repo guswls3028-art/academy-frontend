@@ -2,7 +2,7 @@
 // 1번 tenant 프로모 내 랜딩 샘플 갤러리.
 // PromoLayout 바깥에서 렌더링되므로 자체 헤더/네비 제공.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTemplateComponent } from "../templates";
@@ -153,6 +153,26 @@ const toneClasses: Record<TemplateKey, string> = {
   program_promo: styles.toneProgram,
 };
 
+function isPreviewRouteControl(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("a[href]")) return true;
+
+  const button = target.closest("button");
+  if (!button) return false;
+
+  const testId = button.getAttribute("data-testid") || "";
+  if (
+    testId.startsWith("landing-nav-top-") ||
+    testId.startsWith("landing-nav-item-") ||
+    testId === "landing-nav-login" ||
+    testId === "landing-nav-myconsole"
+  ) {
+    return true;
+  }
+
+  return Boolean(button.closest("footer") && testId !== "landing-footer-scroll-top");
+}
+
 export default function LandingSamplesPage() {
   const [selectedKey, setSelectedKey] = useState<TemplateKey | null>(null);
 
@@ -171,6 +191,15 @@ export default function LandingSamplesPage() {
     const currentIdx = TEMPLATE_KEYS.indexOf(selectedKey);
     const prevKey = currentIdx > 0 ? TEMPLATE_KEYS[currentIdx - 1] : null;
     const nextKey = currentIdx < TEMPLATE_KEYS.length - 1 ? TEMPLATE_KEYS[currentIdx + 1] : null;
+    const stopPreviewNavigation = (event: MouseEvent<HTMLDivElement>) => {
+      if (!isPreviewRouteControl(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const stopPreviewSubmit = (event: FormEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
 
     return (
       <div className={styles.previewPage}>
@@ -203,7 +232,14 @@ export default function LandingSamplesPage() {
             </div>
           </div>
         </div>
-        <Template config={sample.config} isPreview />
+        <div
+          className={styles.previewCanvas}
+          data-testid="landing-sample-preview-canvas"
+          onClickCapture={stopPreviewNavigation}
+          onSubmitCapture={stopPreviewSubmit}
+        >
+          <Template config={sample.config} isPreview />
+        </div>
       </div>
     );
   }

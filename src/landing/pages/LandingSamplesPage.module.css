@@ -19,6 +19,10 @@
   backdrop-filter: blur(16px);
 }
 
+.previewCanvas {
+  min-height: calc(100vh - 52px);
+}
+
 .topbarInner {
   max-width: 1120px;
   min-height: 52px;
