@@ -2,7 +2,24 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { waitForRenderSettled } from "../helpers/wait";
 
-const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+function resolveLocalBase(): string {
+  const explicit = process.env.E2E_LANDING_BASE_URL || process.env.E2E_LOCAL_BASE_URL;
+  if (explicit) return explicit.replace(/\/+$/, "");
+
+  const e2eBase = process.env.E2E_BASE_URL || "";
+  try {
+    const host = new URL(e2eBase).hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+      return e2eBase.replace(/\/+$/, "");
+    }
+  } catch {
+    // Fall through to the default local dev server.
+  }
+
+  return "http://127.0.0.1:5174";
+}
+
+const BASE = resolveLocalBase();
 
 const landingConfig = {
   brand_name: "테스트 아카데미",
@@ -50,14 +67,19 @@ const landingConfig = {
 };
 
 async function stubLandingBootstrap(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("tenant_code", "dnb");
+    try { sessionStorage.setItem("tenantCode", "dnb"); } catch { /* ignore */ }
+  });
+
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        tenantCode: "hakwonplus",
-        display_name: "학원플러스",
-        ui_config: { login_title: "학원플러스" },
+        tenantCode: "dnb",
+        display_name: "테스트 아카데미",
+        ui_config: { login_title: "테스트 아카데미" },
         feature_flags: {},
         is_active: true,
       }),

@@ -4,11 +4,18 @@
  * - secondary 버튼이 흰배경에서 보이는지 (border 존재)
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI } from "../helpers/auth";
+import { loginViaUI, type TenantRole } from "../helpers/auth";
+
+function resolveAvailableAdminRole(): TenantRole {
+  if (process.env.LIMGLISH_ADMIN_USER && process.env.LIMGLISH_ADMIN_PASS) return "limglish-admin";
+  return "admin";
+}
 
 test.describe("Button nowrap & visibility", () => {
+  const adminRole = resolveAvailableAdminRole();
+
   test.beforeEach(async ({ page }) => {
-    await loginViaUI(page, "limglish-admin");
+    await loginViaUI(page, adminRole);
   });
 
   test("학생 관리 - 버튼 줄바꿈 없고 secondary 버튼 가시성 확보", async ({ page }) => {

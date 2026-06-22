@@ -3,59 +3,45 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
+import { loginViaUI } from "../helpers/auth";
 
 const PROD = process.env.E2E_BASE_URL || "https://hakwonplus.com";
-const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";
-const CODE = "hakwonplus";
-const USER = process.env.E2E_ADMIN_USER || (process.env.E2E_ADMIN_USER || "admin97");
-const PASS = process.env.E2E_ADMIN_PASS || (process.env.E2E_ADMIN_PASS || "koreaseoul97");
 
 async function gotoProd(page: Page, path: string) {
   await page.goto(`${PROD}${path}`, { waitUntil: "load", timeout: 20000 });
   await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 }
 
-async function loginProd(page: Page) {
-  const r = await page.request.post(`${API}/api/v1/token/`, {
-    data: { username: USER, password: PASS, tenant_code: CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
-  });
-  if (r.status() !== 200) throw new Error(`Login: ${r.status()}`);
-  const t = await r.json() as { access: string; refresh: string };
-  await page.goto(`${PROD}/login`, { waitUntil: "commit" });
-  await page.evaluate(({ a, rf, c }) => {
-    localStorage.setItem("access", a); localStorage.setItem("refresh", rf);
-    try { sessionStorage.setItem("tenantCode", c); } catch { return; }
-  }, { a: t.access, rf: t.refresh, c: CODE });
-}
-
 test.describe("Production smoke: billing", () => {
   test.setTimeout(120000);
-  test.beforeEach(async ({ page }) => { await loginProd(page); });
+  test.beforeEach(async ({ page }) => {
+    await loginViaUI(page, "admin", { landingPath: "/dev/billing" });
+  });
 
   test("PROD-1. /dev/billing renders dashboard", async ({ page }) => {
     await gotoProd(page, "/dev/billing");
-    await expect(page.locator("text=MRR")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("text=월 반복 매출")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("text=전체 테넌트")).toBeVisible({ timeout: 15000 });
     await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: "e2e/screenshots/prod-01-dashboard.png" });
   });
 
   test("PROD-2. Tenants/Invoices tab switch", async ({ page }) => {
     await gotoProd(page, "/dev/billing");
-    await page.locator("button").filter({ hasText: "Invoices" }).click();
-    const ok = await page.locator("th").filter({ hasText: "Invoice" }).isVisible({ timeout: 5000 }).catch(() => false)
-      || await page.locator("text=No invoices").isVisible({ timeout: 3000 }).catch(() => false);
+    await page.locator("button").filter({ hasText: /^인보이스$/ }).click();
+    const ok = await page.locator("th").filter({ hasText: "인보이스" }).isVisible({ timeout: 5000 }).catch(() => false)
+      || await page.locator("text=인보이스가 없습니다.").isVisible({ timeout: 3000 }).catch(() => false);
     expect(ok).toBe(true);
     await page.screenshot({ path: "e2e/screenshots/prod-02-invoices.png" });
   });
 
   test("PROD-3. Extend modal opens (no submit)", async ({ page }) => {
     await gotoProd(page, "/dev/billing");
-    const btn = page.locator("button").filter({ hasText: "Extend" }).first();
+    const btn = page.locator("button").filter({ hasText: /^연장$/ }).first();
     await btn.waitFor({ state: "visible", timeout: 10000 });
     await btn.click();
-    await expect(page.locator("h2").filter({ hasText: "Extend Subscription" })).toBeVisible({ timeout: 5000 });
-    await page.locator("button").filter({ hasText: "Cancel" }).click();
+    await expect(page.locator("h2").filter({ hasText: "구독 기간 연장" })).toBeVisible({ timeout: 5000 });
+    await page.locator("button").filter({ hasText: "취소" }).click();
     await page.screenshot({ path: "e2e/screenshots/prod-03-extend.png" });
   });
 
