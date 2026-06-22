@@ -92,6 +92,10 @@
   gap: 10px;
 }
 
+.svpFullscreenTopButton {
+  display: none;
+}
+
 .svpPills {
   display: flex;
   gap: 6px;
@@ -305,14 +309,19 @@
     margin-bottom: 6px;
   }
   .svpControlRow {
-    gap: 4px;
+    gap: 6px;
     flex-wrap: nowrap;
-    overflow: hidden;
+    overflow: visible;
   }
-  .svpLeftControls,
-  .svpRightControls {
+  .svpLeftControls {
+    flex: 1 1 auto;
+    min-width: 0;
     gap: 2px;
-    flex-shrink: 0;
+  }
+  .svpRightControls {
+    flex: 0 0 auto;
+    gap: 4px;
+    margin-left: auto;
   }
   .svpVolumeSlider {
     display: none;
@@ -334,6 +343,12 @@
     display: none;
   }
   .svpPills {
+    display: none;
+  }
+  .svpFullscreenTopButton {
+    display: grid;
+  }
+  .svpControls .svpQualityBtn {
     display: none;
   }
   .svpTime {
@@ -1072,6 +1087,14 @@
     padding: 8px 10px 18px;
   }
 
+  .vpp-player-section .svpTopBar {
+    padding: 8px 8px 6px;
+  }
+
+  .vpp-player-section .svpControls {
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom));
+  }
+
   .vpp-info-row {
     align-items: stretch;
     flex-direction: column;
@@ -1108,6 +1131,18 @@
 
   .vpp-playlist-list {
     max-height: 360px;
+  }
+}
+
+@media (max-width: 380px) {
+  .svpControls .svpBtn--volume,
+  .svpControls .svpBtn--mute {
+    display: none;
+  }
+
+  .svpControls .svpLeftControls,
+  .svpControls .svpRightControls {
+    gap: 2px;
   }
 }
 

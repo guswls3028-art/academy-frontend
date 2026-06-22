@@ -107,6 +107,20 @@ const initialControllerState: ControllerState = {
   reconnecting: false,
 };
 
+function getActiveFullscreenElement(): Element | null {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    null
+  );
+}
+
+function isIOSWebKitRuntime(): boolean {
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export default function StudentVideoPlayer({
   video,
   bootstrap,
@@ -181,10 +195,7 @@ export default function StudentVideoPlayer({
     if (!wrap) return;
 
     const onFullscreenChange = () => {
-      const el =
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.mozFullScreenElement;
+      const el = getActiveFullscreenElement();
       const active = el === wrap || (el && wrap.contains(el));
       if (!active) fullscreenFallbackRef.current = false;
       setIsFullscreen(!!active);
@@ -214,14 +225,31 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const vid = videoElRef.current;
     if (!vid) return;
-    const onNativeVideoFullscreenEnd = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(false);
+    const lockPageForFullscreen = () => {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    };
+    const unlockPageFromFullscreen = () => {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     };
+    const onNativeVideoFullscreenBegin = () => {
+      fullscreenFallbackRef.current = false;
+      setIsFullscreen(true);
+      setShowControls(true);
+      lockPageForFullscreen();
+      controllerRef.current?.queueFullscreenEvent(true);
+    };
+    const onNativeVideoFullscreenEnd = () => {
+      fullscreenFallbackRef.current = false;
+      setIsFullscreen(false);
+      unlockPageFromFullscreen();
+      controllerRef.current?.queueFullscreenEvent(false);
+    };
+    vid.addEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
     vid.addEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
     return () => {
+      vid.removeEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
       vid.removeEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
     };
   }, []);
@@ -328,13 +356,11 @@ export default function StudentVideoPlayer({
     const vid = videoElRef.current;
     const ctrl = controllerRef.current;
 
-    const isFs =
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement;
+    const isFs = getActiveFullscreenElement();
     const inFallback = fullscreenFallbackRef.current;
 
     const enterFallback = () => {
+      if (getActiveFullscreenElement()) return;
       fullscreenFallbackRef.current = true;
       setIsFullscreen(true);
       document.body.style.overflow = "hidden";
@@ -358,26 +384,45 @@ export default function StudentVideoPlayer({
           exitFallback();
           return;
         }
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        if (isFs) {
+          if (document.exitFullscreen) document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+          return;
+        }
+        if (vid?.webkitExitFullscreen) {
+          vid.webkitExitFullscreen();
+          return;
+        }
+        exitFallback();
         return;
       }
 
       ctrl?.queueFullscreenEvent(true);
 
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const enterNativeVideoFullscreen = () => {
+        if (!vid?.webkitEnterFullscreen) return false;
+        try {
+          vid.webkitEnterFullscreen();
+          fullscreenFallbackRef.current = false;
+          setIsFullscreen(true);
+          setShowControls(true);
+          document.body.style.overflow = "hidden";
+          document.body.style.touchAction = "none";
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       const tryNative = () => {
-        // iOS Safari: video 요소의 webkitEnterFullscreen으로 네이티브 전체화면 사용
-        if (isIOS && vid) {
-          if (vid.webkitEnterFullscreen) {
-            vid.webkitEnterFullscreen();
-            return true;
-          }
+        // iOS WebKit(Safari/Chrome/앱 내 브라우저): video 네이티브 전체화면이 가장 안정적이다.
+        if (isIOSWebKitRuntime() && enterNativeVideoFullscreen()) {
+          return true;
         }
         // Android 및 데스크톱: 래퍼 전체화면 (Fullscreen API)
         if (wrap?.requestFullscreen) {
-          wrap.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
+          wrap.requestFullscreen({ navigationUI: "hide" }).catch(() => setTimeout(enterFallback, 100));
           return true;
         }
         if (wrap?.webkitRequestFullscreen) {
@@ -393,8 +438,7 @@ export default function StudentVideoPlayer({
           vid.webkitRequestFullscreen();
           return true;
         }
-        if (vid?.webkitEnterFullscreen) {
-          vid.webkitEnterFullscreen();
+        if (enterNativeVideoFullscreen()) {
           return true;
         }
         return false;
@@ -406,12 +450,9 @@ export default function StudentVideoPlayer({
       }
 
       setTimeout(() => {
-        const nowFs =
-          document.fullscreenElement ||
-          document.webkitFullscreenElement ||
-          document.mozFullScreenElement;
-        if (!nowFs) enterFallback();
-      }, 200);
+        const nowFs = getActiveFullscreenElement();
+        if (!nowFs && !isIOSWebKitRuntime()) enterFallback();
+      }, 350);
     } catch {
       enterFallback();
     }
@@ -599,6 +640,12 @@ export default function StudentVideoPlayer({
                     <Pill key={idx} tone={p.tone}>{p.text}</Pill>
                   ))}
                 </div>
+                <IconButton
+                  className="svpFullscreenTopButton"
+                  icon={isFullscreen ? "shrink" : "fullscreen"}
+                  label={isFullscreen ? "전체화면 종료" : "전체화면"}
+                  onPointerDown={() => requestFullscreen()}
+                />
                 <KebabMenu
                   align="right"
                   label="메뉴"
@@ -718,6 +765,7 @@ export default function StudentVideoPlayer({
                       onSelect={setPlaybackRate}
                     />
                     <IconButton
+                      className="svpFullscreenButton"
                       icon={isFullscreen ? "shrink" : "fullscreen"}
                       label={isFullscreen ? "전체화면 종료" : "전체화면"}
                       onPointerDown={() => requestFullscreen()}

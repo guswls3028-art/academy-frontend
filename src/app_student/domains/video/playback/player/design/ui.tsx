@@ -26,6 +26,7 @@ export function IconButton({
   label,
   onClick,
   onPointerDown,
+  className,
 }: {
   icon:
     | "play"
@@ -39,14 +40,32 @@ export function IconButton({
     | "shrink";
   label: string;
   onClick?: () => void;
-  /** 모바일에서 전체화면 등 사용자 제스처 직후 API 호출용. 전달 시 pointerdown에서 호출하고 preventDefault로 click 중복 방지 */
-  onPointerDown?: (e: React.PointerEvent) => void;
+  /** 모바일에서 전체화면 등 사용자 제스처 직후 API 호출용. 키보드/구형 브라우저 click도 fallback 처리 */
+  onPointerDown?: () => void;
+  className?: string;
 }) {
+  const pointerHandledRef = useRef(false);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (onPointerDown) {
-      onPointerDown(e);
+      pointerHandledRef.current = true;
+      window.setTimeout(() => {
+        pointerHandledRef.current = false;
+      }, 500);
+      onPointerDown();
       e.preventDefault();
     }
+  };
+  const handleClick = () => {
+    if (onPointerDown) {
+      if (pointerHandledRef.current) {
+        pointerHandledRef.current = false;
+        return;
+      }
+      onPointerDown();
+      return;
+    }
+    onClick?.();
   };
   // 아이콘 크기. 모바일/터치 환경에서는 24px(WCAG/Apple HIG 권장 hit area 44+ px),
   // 데스크톱에서는 22px로 살짝 키워 노약자/저시력 학생 가독성 확보.
@@ -65,8 +84,9 @@ export function IconButton({
   return (
     <button
       type="button"
-      className="svpBtn"
-      onClick={onPointerDown ? undefined : onClick}
+      className={["svpBtn", `svpBtn--${icon}`, className || ""].filter(Boolean).join(" ")}
+      data-svp-icon={icon}
+      onClick={handleClick}
       onPointerDown={onPointerDown ? handlePointerDown : undefined}
       aria-label={label}
       title={label}
@@ -227,7 +247,7 @@ export function SpeedButton({
       <button
         ref={btnRef}
         type="button"
-        className={`svpSpeedBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
+        className={`svpSpeedBtn svpPlaybackRateBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
         onClick={handleOpen}
         aria-label={disabled ? "배속 제한" : `배속 ${label}`}
         title={disabled ? "배속 제한" : `배속 ${label}`}
@@ -314,7 +334,7 @@ export function QualityButton({
       <button
         ref={btnRef}
         type="button"
-        className={`svpSpeedBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
+        className={`svpSpeedBtn svpQualityBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
         onClick={handleOpen}
         aria-label={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
         title={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
