@@ -99,7 +99,16 @@ function filenameFromDisposition(disposition: string | undefined): string | null
 export async function downloadProblemStudioTransferPackage(
   payload: ProblemStudioGeneratePayload,
   sourceFiles: File[],
-): Promise<{ blob: Blob; filename: string; documentCount: number; warningCount: number; reviewFileCount: number }> {
+): Promise<{
+  blob: Blob;
+  filename: string;
+  documentCount: number;
+  warningCount: number;
+  reviewFileCount: number;
+  structuredItemCount: number;
+  ocrCandidateCount: number;
+  qualityLevel: string;
+}> {
   const form = new FormData();
   form.append("payload", JSON.stringify(payload));
   sourceFiles.forEach((file) => form.append("source_files", file));
@@ -121,6 +130,9 @@ export async function downloadProblemStudioTransferPackage(
     documentCount: Number(res.headers["x-problem-studio-document-count"] || 0),
     warningCount: Number(res.headers["x-problem-studio-warning-count"] || 0),
     reviewFileCount: Number(res.headers["x-problem-studio-review-file-count"] || 0),
+    structuredItemCount: Number(res.headers["x-problem-studio-structured-item-count"] || 0),
+    ocrCandidateCount: Number(res.headers["x-problem-studio-ocr-candidate-count"] || 0),
+    qualityLevel: String(res.headers["x-problem-studio-quality-level"] || ""),
   };
 }
 
