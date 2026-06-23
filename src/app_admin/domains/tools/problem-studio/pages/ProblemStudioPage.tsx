@@ -548,7 +548,11 @@ export default function ProblemStudioPage() {
         setGenerationNote("원본 이관 패키지 생성 중");
         const result = await downloadProblemStudioTransferPackage(payload, sourceFileBlobs);
         saveBlob(result.blob, result.filename);
-        setGenerationWarnings(result.warningCount > 0 ? [`변환 경고 ${result.warningCount}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.`] : []);
+        const transferWarnings = [
+          result.warningCount > 0 ? `변환 경고 ${result.warningCount}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.` : "",
+          result.ocrCandidateCount > 0 ? `OCR 후보 ${result.ocrCandidateCount}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
+        ].filter(Boolean);
+        setGenerationWarnings(transferWarnings);
         setGenerationNote(
           `원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개 · 구조화 ${result.structuredItemCount}개 · OCR후보 ${result.ocrCandidateCount}개`,
         );
@@ -825,7 +829,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>저장 ZIP에는 검수표, 자체양식 문제검수본, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
+                  <span>저장 ZIP에는 검수표, 자체양식 문제검수본, OCR 후보표, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
                 )}
               </div>
             </div>
