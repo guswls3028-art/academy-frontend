@@ -2,9 +2,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { fetchAssessmentHomeworks, type AssessmentHomeworkListItem } from "@/shared/api/contracts/assessments";
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
-import { fetchHomeworks, type HomeworkListItem } from "@admin/domains/homework/api/homeworks";
-import { QUERY_KEYS as HOMEWORK_QUERY_KEYS } from "@admin/domains/homework/queryKeys";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
 
 export type SessionExamSummaryRow = {
@@ -23,8 +23,8 @@ export type SessionExamsSummary = {
 export const sessionAssessmentQueryKeys = {
   exams: (sessionId: number) => ["admin-session-exams", sessionId] as const,
   examsSummary: (sessionId: number) => ["session-exams-summary", sessionId] as const,
-  homeworks: (sessionId: number) => ["session-homeworks", sessionId] as const,
-  homeworkPolicy: HOMEWORK_QUERY_KEYS.HOMEWORK_POLICY,
+  homeworks: assessmentQueryKeys.sessionHomeworks,
+  homeworkPolicy: assessmentQueryKeys.homeworkPolicy,
 };
 
 export async function fetchSessionExamsSummary(sessionId: number): Promise<SessionExamsSummary> {
@@ -32,8 +32,8 @@ export async function fetchSessionExamsSummary(sessionId: number): Promise<Sessi
   return res.data as SessionExamsSummary;
 }
 
-export async function fetchSessionHomeworks(sessionId: number): Promise<HomeworkListItem[]> {
-  return fetchHomeworks({ session_id: sessionId });
+export async function fetchSessionHomeworks(sessionId: number): Promise<AssessmentHomeworkListItem[]> {
+  return fetchAssessmentHomeworks({ session_id: sessionId });
 }
 
 export function removeSessionExamFromQueryCache(
