@@ -80,6 +80,47 @@ export async function createProblemStudioJob(
   return data;
 }
 
+function filenameFromDisposition(disposition: string | undefined): string | null {
+  if (!disposition) return null;
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      return utf8Match[1].trim().replace(/^"|"$/g, "");
+    }
+  }
+  const plainMatch = /filename="?([^";]+)"?/i.exec(disposition);
+  return plainMatch?.[1]?.trim() || null;
+}
+
+export async function downloadProblemStudioTransferPackage(
+  payload: ProblemStudioGeneratePayload,
+  sourceFiles: File[],
+): Promise<{ blob: Blob; filename: string; documentCount: number; warningCount: number }> {
+  const form = new FormData();
+  form.append("payload", JSON.stringify(payload));
+  sourceFiles.forEach((file) => form.append("source_files", file));
+
+  const res = await api.post<Blob>(
+    "/tools/problem-studio/transfer-document/",
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      responseType: "blob",
+      timeout: 900_000,
+    },
+  );
+  const filename = filenameFromDisposition(res.headers["content-disposition"])
+    || `${payload.title || "문제제작"}_원본이관.zip`;
+  return {
+    blob: res.data,
+    filename,
+    documentCount: Number(res.headers["x-problem-studio-document-count"] || 0),
+    warningCount: Number(res.headers["x-problem-studio-warning-count"] || 0),
+  };
+}
+
 export async function getProblemStudioJob(jobId: string): Promise<ProblemStudioJobStatusResponse> {
   const { data } = await api.get<ProblemStudioJobStatusResponse>(
     `/tools/problem-studio/jobs/${encodeURIComponent(jobId)}/`,

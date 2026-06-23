@@ -44,6 +44,7 @@ import {
 } from "../utils/worksheetDocument";
 import {
   createProblemStudioJob,
+  downloadProblemStudioTransferPackage,
   getProblemStudioJob,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
@@ -108,7 +109,7 @@ type PdfJsLib = {
 const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
 const SOURCE_KEY = "problem-studio:source-files:v1";
 const MAX_PDF_PAGES = 24;
-const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.png,.jpg,.jpeg,.webp";
+const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.zip,.png,.jpg,.jpeg,.webp";
 const DEFAULT_PROMPT = "문제 이미지나 파일을 올리면 한글 초안에 그대로 옮겨집니다.";
 const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5";
 const DEFAULT_ANSWER = "①";
@@ -317,6 +318,10 @@ function isHangulOrWordFile(file: File): boolean {
   return /\.(hwp|hwpx|doc|docx)$/i.test(file.name);
 }
 
+function isArchiveFile(file: File): boolean {
+  return file.type === "application/zip" || file.name.toLowerCase().endsWith(".zip");
+}
+
 function formatFileSize(size: number): string {
   if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`;
   if (size >= 1024) return `${Math.ceil(size / 1024)}KB`;
@@ -328,9 +333,21 @@ function describeSourceKind(file: File): string {
   if (name.endsWith(".hwp")) return "HWP";
   if (name.endsWith(".hwpx")) return "HWPX";
   if (name.endsWith(".doc") || name.endsWith(".docx")) return "Word";
+  if (name.endsWith(".zip")) return "ZIP";
   if (isPdfFile(file)) return "PDF";
   if (isImageFile(file)) return "스캔/이미지";
   return "기타";
+}
+
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function toSourceFileEntry(file: File): SourceFileEntry {
@@ -576,7 +593,7 @@ export default function ProblemStudioPage() {
           imported.push(...await pdfFileToImageQuestions(file));
           continue;
         }
-        if (isHangulOrWordFile(file)) {
+        if (isHangulOrWordFile(file) || isArchiveFile(file)) {
           registeredOnly += 1;
           continue;
         }
@@ -643,6 +660,15 @@ export default function ProblemStudioPage() {
           ...(pasteText.trim() ? [{ prompt: pasteText, choices: "", answer: "", explanation: "" }] : []),
         ],
       };
+      if (sourceFileBlobs.length > 0) {
+        setGenerationNote("원본 이관 패키지 생성 중");
+        const result = await downloadProblemStudioTransferPackage(payload, sourceFileBlobs);
+        saveBlob(result.blob, result.filename);
+        setGenerationWarnings(result.warningCount > 0 ? [`변환 경고 ${result.warningCount}건은 ZIP 안의 변환리포트에서 확인하세요.`] : []);
+        setGenerationNote(`원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개`);
+        feedback.success("원본 이관 패키지를 저장했습니다.");
+        return;
+      }
       const job = await createProblemStudioJob(payload, sourceFileBlobs);
       const pendingSourceFiles = job.source_files.length > 0
         ? toSourceEntries(job.source_files)
