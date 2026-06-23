@@ -18,8 +18,8 @@ export type ProblemStudioGeneratedQuestion = {
 };
 
 export type ProblemStudioGenerateResponse = {
-  generation_engine: "ai" | "rule_fallback" | string;
-  mode: string;
+  generation_engine: "ai" | "rule_fallback" | "source_transfer" | string;
+  mode: ProblemStudioVariantMode | string;
   mode_label: string;
   variant_count: number;
   questions: ProblemStudioGeneratedQuestion[];
@@ -43,12 +43,14 @@ export type ProblemStudioJobStatusResponse = {
   result: ProblemStudioGenerateResponse | null;
 };
 
+export type ProblemStudioVariantMode = "copy" | "same-type" | "trap" | "concept";
+
 export type ProblemStudioGeneratePayload = {
   title: string;
   class_name: string;
   subject: string;
   template_name: string;
-  variant_mode: string;
+  variant_mode: ProblemStudioVariantMode;
   variant_count: number;
   note_policy: string;
   use_ai: boolean;
