@@ -641,7 +641,7 @@ function SubmissionRow({
   const lectureTitleDisplay = row.lecture_title || "";
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors">
+    <div className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors sm:flex-nowrap sm:gap-3">
       {/* 일괄 선택 체크박스 */}
       <input
         type="checkbox"
@@ -654,6 +654,7 @@ function SubmissionRow({
       />
 
       <StudentNameWithLectureChip
+        className="min-w-0 max-w-full flex-[1_1_150px] sm:flex-none"
         name={row.student_name || "미식별 학생"}
         profilePhotoUrl={row.profile_photo_url}
         avatarSize={32}
@@ -678,7 +679,7 @@ function SubmissionRow({
       </span>
 
       <span
-        className="text-sm truncate min-w-0 max-w-[260px]"
+        className="text-sm truncate min-w-0 flex-[1_1_150px] max-w-full sm:max-w-[260px]"
         // eslint-disable-next-line no-restricted-syntax
         style={{
           color: resolved ? "var(--color-text-primary)" : "var(--color-text-muted)",
@@ -689,7 +690,7 @@ function SubmissionRow({
         {targetTitleDisplay}
       </span>
 
-      <span className="flex-1" />
+      <span className="hidden flex-1 sm:block" />
 
       <Badge variant="solid" tone={tone} className="flex-shrink-0">
         {statusLabel}
@@ -699,9 +700,9 @@ function SubmissionRow({
         {formatDate(row.created_at)}
       </span>
 
-      <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">
         {isNeedsId && resolved && canIdentifyInline && (
-          <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onIdentify}>
+          <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onIdentify} className="shrink-0">
             학생 지정
           </Button>
         )}
@@ -712,12 +713,13 @@ function SubmissionRow({
             size="sm"
             disabled
             title={orphanReason}
+            className="shrink-0"
           >
             지정 불가
           </Button>
         )}
         {isFailedReal && (
-          <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onRetry}>
+          <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onRetry} className="shrink-0">
             재처리
           </Button>
         )}
@@ -735,7 +737,7 @@ function SubmissionRow({
           </span>
         )}
         {(isDone || isAnswersReady) && resolved && (
-          <Button type="button" intent="primary" size="sm" onClick={onNavigate}>
+          <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>
         )}
@@ -746,6 +748,7 @@ function SubmissionRow({
             size="sm"
             disabled
             title={orphanReason}
+            className="shrink-0"
           >
             결과 없음
           </Button>
@@ -760,6 +763,7 @@ function SubmissionRow({
             disabled={busy}
             onClick={onDiscard}
             title="이 답안지를 폐기"
+            className="shrink-0"
           >
             폐기
           </Button>
