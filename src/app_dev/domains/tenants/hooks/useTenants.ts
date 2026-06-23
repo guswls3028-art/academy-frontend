@@ -20,6 +20,9 @@ const KEYS = {
   list: ["dev", "tenants"] as const,
   detail: (id: number) => ["dev", "tenants", id] as const,
   owners: (id: number) => ["dev", "tenants", id, "owners"] as const,
+  usage: (id: number) => ["dev", "tenants", id, "usage"] as const,
+  activity: (id: number) => ["dev", "tenants", id, "activity"] as const,
+  storage: (id: number) => ["dev", "tenants", id, "storage"] as const,
 };
 
 export function useTenantList() {
@@ -103,7 +106,7 @@ export function useRemoveOwner() {
 
 export function useTenantUsage(id: number | null) {
   return useQuery({
-    queryKey: ["dev", "tenants", id, "usage"] as const,
+    queryKey: KEYS.usage(id!),
     queryFn: () => getTenantUsage(id!),
     enabled: id != null && !isNaN(id),
     staleTime: 60_000,
@@ -112,7 +115,7 @@ export function useTenantUsage(id: number | null) {
 
 export function useTenantActivity(id: number | null) {
   return useQuery({
-    queryKey: ["dev", "tenants", id, "activity"] as const,
+    queryKey: KEYS.activity(id!),
     queryFn: () => getTenantActivity(id!),
     enabled: id != null && !isNaN(id),
     staleTime: 30_000,
@@ -128,7 +131,7 @@ export function useImpersonate() {
 
 export function useTenantStorage(id: number | null, opts?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ["dev", "tenants", id, "storage"] as const,
+    queryKey: KEYS.storage(id!),
     queryFn: () => getTenantStorage(id!),
     enabled: (opts?.enabled ?? true) && id != null && !isNaN(id),
     staleTime: 5 * 60 * 1000,
@@ -140,7 +143,7 @@ export function useRefreshTenantStorage() {
   return useMutation({
     mutationFn: (tenantId: number) => getTenantStorage(tenantId, { refresh: true }),
     onSuccess: (_data, tenantId) => {
-      qc.invalidateQueries({ queryKey: ["dev", "tenants", tenantId, "storage"] });
+      qc.invalidateQueries({ queryKey: KEYS.storage(tenantId) });
     },
   });
 }

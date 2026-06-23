@@ -150,14 +150,14 @@ export async function getTenantActivity(tenantId: number): Promise<{ results: Te
   return res.data;
 }
 
-export type ImpersonateResponse = {
+export type ImpersonationTokenDto = {
   access: string;
   refresh: string;
   target: { user_id: number; username: string; role: string; tenant_id: number; tenant_code: string };
 };
 
-export async function impersonateTenantUser(tenantId: number, userId: number): Promise<ImpersonateResponse> {
-  const res = await api.post<ImpersonateResponse>(
+export async function impersonateTenantUser(tenantId: number, userId: number): Promise<ImpersonationTokenDto> {
+  const res = await api.post<ImpersonationTokenDto>(
     `/core/dev/tenants/${tenantId}/impersonate/`,
     { user_id: userId },
   );

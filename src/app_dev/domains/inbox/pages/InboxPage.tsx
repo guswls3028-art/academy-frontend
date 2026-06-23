@@ -7,6 +7,7 @@ import { useInboxPosts, useCreateInboxReply, useDeleteInboxReply } from "@dev/do
 import { getInboxAttachmentUrl } from "@dev/domains/inbox/api/inbox.api";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { InboxPost } from "@dev/domains/inbox/api/inbox.api";
+import { numericDateText, numericDateTimeText } from "@/shared/utils/displayText";
 import s from "@dev/layout/DevLayout.module.css";
 import i from "./InboxPage.module.css";
 
@@ -137,7 +138,7 @@ export default function InboxPage() {
                         </span>
                       )}
                       <span className={i.postTime}>
-                        {formatRelative(post.created_at)}
+                        {relativeTimeText(post.created_at)}
                       </span>
                     </div>
                     <div className={i.postTitle}>
@@ -188,7 +189,7 @@ export default function InboxPage() {
                   {stripPrefix(selected.title)}
                 </h3>
                 <div className={i.detailByline}>
-                  {selected.author_display_name || "관리자"} &middot; {formatDate(selected.created_at)}
+                  {selected.author_display_name || "관리자"} &middot; {numericDateTimeText(selected.created_at)}
                 </div>
               </div>
 
@@ -254,7 +255,7 @@ export default function InboxPage() {
                             </span>
                           )}
                           <span className={i.replyTime}>
-                            {formatDate(reply.created_at)}
+                            {numericDateTimeText(reply.created_at)}
                           </span>
                           {reply.created_by === null && (
                             <button
@@ -312,12 +313,7 @@ function stripPrefix(title: string): string {
   return title.replace(/^\[(BUG|FB)\]\s*/, "");
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function formatRelative(iso: string): string {
+function relativeTimeText(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
   if (min < 1) return "방금";
@@ -326,7 +322,7 @@ function formatRelative(iso: string): string {
   if (hr < 24) return `${hr}시간 전`;
   const day = Math.floor(hr / 24);
   if (day < 30) return `${day}일 전`;
-  return formatDate(iso).split(" ")[0];
+  return numericDateText(iso);
 }
 
 function TypeBadge({ type }: { type: "bug" | "feedback" }) {

@@ -25,6 +25,7 @@ import {
   IconPlus,
   IconChevronRight,
 } from "@student/shared/ui/icons/Icons";
+import { bytesText, monthDayTimeText } from "@/shared/utils/displayText";
 import styles from "./InventoryHomeTab.module.css";
 
 const MAX_SIZE_MB = 100;
@@ -43,18 +44,6 @@ function FileIcon({ file }: { file: InventoryFile }) {
   if (ct.startsWith("video/") || icon === "video") return <IconVideo className={styles.fileIcon} />;
   if (ct.startsWith("image/") || icon === "image") return <IconImage className={styles.fileIcon} />;
   return <IconFileText className={styles.fileIcon} />;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
-
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly, queryKey }: Props) {
@@ -261,7 +250,7 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.displayName || file.name}</div>
                 <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
-                  {formatBytes(file.sizeBytes)}{file.createdAt && <> · {formatDate(file.createdAt)}</>}{file.description && <> · {file.description}</>}
+                  {bytesText(file.sizeBytes)}{file.createdAt && <> · {monthDayTimeText(file.createdAt)}</>}{file.description && <> · {file.description}</>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>

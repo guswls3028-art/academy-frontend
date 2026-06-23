@@ -1,18 +1,18 @@
 import api from "@/shared/api/axios";
 
-export type MaintenanceModeDto = {
+export type MaintenanceModeState = {
   enabledForAll: boolean;
   enabledCount: number;
   total: number;
 };
 
-type MaintenanceModeResponse = {
+type MaintenanceModePayload = {
   enabled_for_all?: unknown;
   enabled_count?: unknown;
   total?: unknown;
 };
 
-function toDto(data: MaintenanceModeResponse): MaintenanceModeDto {
+function toState(data: MaintenanceModePayload): MaintenanceModeState {
   return {
     enabledForAll: Boolean(data?.enabled_for_all),
     enabledCount: Number(data?.enabled_count ?? 0),
@@ -20,12 +20,12 @@ function toDto(data: MaintenanceModeResponse): MaintenanceModeDto {
   };
 }
 
-export async function getMaintenanceMode(): Promise<MaintenanceModeDto> {
-  const res = await api.get<MaintenanceModeResponse>("/core/maintenance-mode/");
-  return toDto(res.data);
+export async function getMaintenanceMode(): Promise<MaintenanceModeState> {
+  const res = await api.get<MaintenanceModePayload>("/core/maintenance-mode/");
+  return toState(res.data);
 }
 
-export async function setMaintenanceMode(enabled: boolean): Promise<MaintenanceModeDto> {
-  const res = await api.patch<MaintenanceModeResponse>("/core/maintenance-mode/", { enabled });
-  return toDto(res.data);
+export async function setMaintenanceMode(enabled: boolean): Promise<MaintenanceModeState> {
+  const res = await api.patch<MaintenanceModePayload>("/core/maintenance-mode/", { enabled });
+  return toState(res.data);
 }

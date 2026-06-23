@@ -10,7 +10,7 @@ type PromoLeadPayload = {
   website?: string;
 };
 
-type PromoLeadResponse = {
+type PromoLeadResult = {
   id: number;
   ok: boolean;
 };
@@ -34,7 +34,7 @@ function linesToMessage(lines: Array<[string, string | undefined]>) {
 }
 
 function postPromoLead(payload: PromoLeadPayload) {
-  return api.post<PromoLeadResponse>(
+  return api.post<PromoLeadResult>(
     "/core/landing/consult/",
     {
       ...payload,

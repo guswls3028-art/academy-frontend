@@ -7,6 +7,7 @@ import { fetchStorageQuota } from "@/shared/api/contracts/storage";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import EmptyState from "@student/layout/EmptyState";
+import { bytesText } from "@/shared/utils/displayText";
 import type { InventoryFile, InventoryFolder } from "../api/inventory.api";
 import styles from "./InventoryStatsTab.module.css";
 
@@ -34,13 +35,6 @@ function classifyType(contentType: string): string {
     if (contentType.startsWith(t.prefix)) return t.label;
   }
   return "기타";
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }
 
 function clampPercent(percent: number): number {
@@ -100,7 +94,7 @@ export default function InventoryStatsTab({ files, folders }: Props) {
           <StatGrid>
             <StatCard label="파일 수" value={`${files.length}개`} />
             <StatCard label="폴더 수" value={`${folders.length}개`} />
-            <StatCard label="총 용량" value={formatBytes(totalBytes)} />
+            <StatCard label="총 용량" value={bytesText(totalBytes)} />
           </StatGrid>
         </div>
       </div>
@@ -109,8 +103,8 @@ export default function InventoryStatsTab({ files, folders }: Props) {
       {quota && (
         <div>
           <div className={styles.quotaLabels}>
-            <span className="stu-muted">{formatBytes(quota.usedBytes)} 사용</span>
-            <span className="stu-muted">{formatBytes(quota.limitBytes)} 중</span>
+            <span className="stu-muted">{bytesText(quota.usedBytes)} 사용</span>
+            <span className="stu-muted">{bytesText(quota.limitBytes)} 중</span>
           </div>
           <svg className={styles.quotaBar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
             <rect width="100" height="8" fill="var(--stu-surface-soft)" rx="4" />
@@ -143,7 +137,7 @@ export default function InventoryStatsTab({ files, folders }: Props) {
                   />
                 </svg>
                 <span className={`stu-muted ${styles.typeMeta}`}>
-                  {g.count}개 · {formatBytes(g.totalBytes)}
+                  {g.count}개 · {bytesText(g.totalBytes)}
                 </span>
               </div>
             ))}

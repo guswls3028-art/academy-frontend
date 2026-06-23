@@ -17,41 +17,10 @@ import {
   type ScheduledNotificationItem,
 } from "../api/messages.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
 import styles from "./MessageLogPage.module.css";
 
 // ── helpers ──
-
-function formatDate(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatDateFull(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 const MESSAGE_MODE_LABELS: Record<string, string> = {
   sms: "문자 발송 차단(레거시)",
@@ -106,7 +75,7 @@ function ScheduledRow({
 }) {
   return (
     <div className={styles.scheduledRow}>
-      <span className={styles.scheduledAtCell}>{formatDate(item.send_at)}</span>
+      <span className={styles.scheduledAtCell}>{koreanDateTimeText(item.send_at)}</span>
       <span className={styles.recipientCell}>{item.recipient_summary || "—"}</span>
       <span className={styles.previewCell}>{item.message_preview || "—"}</span>
       <Button size="sm" intent="secondary" onClick={onCancel} disabled={cancelling}>
@@ -200,7 +169,7 @@ function LogRow({
     >
       {/* 일시 */}
       <span className={styles.sentAtCell}>
-        {formatDate(item.sent_at)}
+        {koreanDateTimeText(item.sent_at)}
       </span>
 
       {/* 상태 */}
@@ -287,7 +256,7 @@ function LogDetailModal({
     <AdminModal open={open} onClose={onClose} type="inspect" width={540}>
       <ModalHeader
         title="발송 상세"
-        description={formatDateFull(item.sent_at)}
+        description={koreanFullDateTimeText(item.sent_at)}
         type="inspect"
       />
       <ModalBody>
@@ -491,7 +460,7 @@ export default function MessageLogPage() {
   const handleCancelScheduled = async (item: ScheduledNotificationItem) => {
     const ok = await confirm({
       title: "예약 발송 취소",
-      message: `${formatDate(item.send_at)}에 예약된 ${item.recipient_summary || "알림톡"} 발송을 취소할까요?`,
+      message: `${koreanDateTimeText(item.send_at)}에 예약된 ${item.recipient_summary || "알림톡"} 발송을 취소할까요?`,
       confirmText: "예약 취소",
       cancelText: "유지",
       danger: true,

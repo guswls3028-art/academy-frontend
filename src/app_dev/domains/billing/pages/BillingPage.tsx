@@ -14,6 +14,8 @@ import {
 } from "@dev/domains/billing/hooks/useBilling";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { TenantSubscriptionDto, InvoiceDto } from "@dev/domains/billing/api/billing.api";
+import { dottedDateText, wonText } from "@/shared/utils/displayText";
+import { formatLocalDate } from "@/shared/utils/localDate";
 import s from "@dev/layout/DevLayout.module.css";
 import b from "./BillingPage.module.css";
 
@@ -30,19 +32,6 @@ function getProgramId(t: TenantSubscriptionDto): number {
 
 // ── Helpers ──
 
-function formatDate(d: string | null): string {
-  if (!d) return "-";
-  return normalizeDateString(d).replace(/-/g, ". ") + ".";
-}
-
-function formatPrice(n: number): string {
-  return n.toLocaleString("ko-KR");
-}
-
-function formatMoney(n: number): string {
-  return `${formatPrice(n)}원`;
-}
-
 function parsePositiveInt(value: string): number | null {
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -57,13 +46,6 @@ function normalizeDateString(value: string): string {
   return value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? value;
 }
 
-function toIsoDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function getExtensionPreview(expiresAt: string | null, days: number): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -71,10 +53,10 @@ function getExtensionPreview(expiresAt: string | null, days: number): string {
   const base = currentExpiry > today ? currentExpiry : today;
   const next = new Date(base);
   next.setDate(next.getDate() + days);
-  return formatDate(toIsoDate(next));
+  return dottedDateText(formatLocalDate(next));
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const SUBSCRIPTION_STATE_TEXT: Record<string, string> = {
   active: "정상",
   grace: "유예",
   expired: "만료",
@@ -197,7 +179,7 @@ export default function BillingPage() {
         programId: getProgramId(extendModal),
         days,
       });
-      toast(`${result.tenant_code} ${days}일 연장 완료 (만료일 ${formatDate(result.subscription_expires_at)})`);
+      toast(`${result.tenant_code} ${days}일 연장 완료 (만료일 ${dottedDateText(result.subscription_expires_at)})`);
       setExtendModal(null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
@@ -212,7 +194,7 @@ export default function BillingPage() {
         programId: getProgramId(planModal),
         plan: newPlan,
       });
-      toast(`${result.tenant_code} -> ${result.plan_display} (${formatMoney(result.monthly_price)})`);
+      toast(`${result.tenant_code} -> ${result.plan_display} (${wonText(result.monthly_price)})`);
       setPlanModal(null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
@@ -226,7 +208,7 @@ export default function BillingPage() {
     )
       ? "\n\n[LIVE TENANT] 이 작업은 운영 테넌트의 실제 구독 상태를 변경합니다."
       : "";
-    if (!confirm(`${inv.invoice_number} 입금 확인하시겠습니까?\n금액: ${formatMoney(inv.total_amount)}${liveWarn}`)) return;
+    if (!confirm(`${inv.invoice_number} 입금 확인하시겠습니까?\n금액: ${wonText(inv.total_amount)}${liveWarn}`)) return;
     try {
       await markPaidMut.mutateAsync(inv.id);
       toast(`${inv.invoice_number} 입금 확인 완료`);
@@ -252,7 +234,7 @@ export default function BillingPage() {
         {/* ── Dashboard Summary ── */}
         {dashboard && (
           <div className={b.summaryGrid}>
-            <SummaryCard label="월 반복 매출" value={formatMoney(dashboard.mrr)} />
+            <SummaryCard label="월 반복 매출" value={wonText(dashboard.mrr)} />
             <SummaryCard label="전체 테넌트" value={String(dashboard.total_tenants)} />
             <SummaryCard label="7일 내 만료" value={String(dashboard.expiring_soon)} warn={dashboard.expiring_soon > 0} />
             <SummaryCard label="연체 인보이스" value={String(dashboard.overdue_invoices)} warn={dashboard.overdue_invoices > 0} />
@@ -339,16 +321,16 @@ export default function BillingPage() {
                               </span>
                             )}
                           </td>
-                          <td className={b.dateCell}>{formatDate(t.subscription_expires_at)}</td>
+                          <td className={b.dateCell}>{dottedDateText(t.subscription_expires_at)}</td>
                           <td>
                             <DaysCell days={t.days_remaining} />
                           </td>
-                          <td className={b.dateCell}>{formatDate(t.next_billing_at)}</td>
+                          <td className={b.dateCell}>{dottedDateText(t.next_billing_at)}</td>
                           <td className={b.billingModeCell}>
                             {BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode}
                           </td>
                           <td className={b.numericCell}>
-                            {formatMoney(t.monthly_price)}
+                            {wonText(t.monthly_price)}
                           </td>
                           <td>
                             <div className={b.rowActions}>
@@ -403,11 +385,11 @@ export default function BillingPage() {
                     </div>
                     <div className={b.mobileMetricGrid}>
                       <Metric label="요금제" value={PLAN_LABELS[t.plan] || t.plan} />
-                      <Metric label="만료일" value={formatDate(t.subscription_expires_at)} />
+                      <Metric label="만료일" value={dottedDateText(t.subscription_expires_at)} />
                       <Metric label="잔여" value={t.days_remaining === null ? "제한 없음" : `${t.days_remaining}일`} tone={t.days_remaining !== null && t.days_remaining <= 7 ? "warn" : undefined} />
-                      <Metric label="다음 결제" value={formatDate(t.next_billing_at)} />
+                      <Metric label="다음 결제" value={dottedDateText(t.next_billing_at)} />
                       <Metric label="방식" value={BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode} />
-                      <Metric label="월 금액" value={formatMoney(t.monthly_price)} />
+                      <Metric label="월 금액" value={wonText(t.monthly_price)} />
                     </div>
                     <div className={b.mobileActions}>
                       <button className={`${s.btn} ${s.btnPrimary}`}
@@ -476,7 +458,7 @@ export default function BillingPage() {
                         <tr key={inv.id}>
                           <td className={b.invoiceNumberCell}>{inv.invoice_number}</td>
                           <td>{inv.tenant_code}</td>
-                          <td className={b.numericCell}>{formatMoney(inv.total_amount)}</td>
+                          <td className={b.numericCell}>{wonText(inv.total_amount)}</td>
                           <td className={b.periodCell}>{inv.period_start} ~ {inv.period_end}</td>
                           <td className={b.dateCell}>{inv.due_date}</td>
                           <td><InvoiceStatusBadge status={inv.status} /></td>
@@ -524,8 +506,8 @@ export default function BillingPage() {
                 {" "}<TenantTypeBadge exempt={isExempt(extendModal.tenant_id)} />
                 <br />
                 <span className={b.modalMeta}>
-                  현재 {STATUS_LABELS[extendModal.subscription_status] || extendModal.subscription_status}
-                  {" / "}만료일 {formatDate(extendModal.subscription_expires_at)}
+                  현재 {SUBSCRIPTION_STATE_TEXT[extendModal.subscription_status] || extendModal.subscription_status}
+                  {" / "}만료일 {dottedDateText(extendModal.subscription_expires_at)}
                   {extendModal.days_remaining !== null && ` (${extendModal.days_remaining}일 남음)`}
                 </span>
               </p>
@@ -555,7 +537,7 @@ export default function BillingPage() {
               <div className={b.previewBox}>
                 <div>
                   <span>현재 만료일</span>
-                  <strong>{formatDate(extendModal.subscription_expires_at)}</strong>
+                  <strong>{dottedDateText(extendModal.subscription_expires_at)}</strong>
                 </div>
                 <div>
                   <span>변경 후 예상</span>
@@ -588,7 +570,7 @@ export default function BillingPage() {
                 {" "}<TenantTypeBadge exempt={isExempt(planModal.tenant_id)} />
                 <br />
                 <span className={b.modalMeta}>
-                  현재 {planModal.plan_display} ({formatMoney(planModal.monthly_price)})
+                  현재 {planModal.plan_display} ({wonText(planModal.monthly_price)})
                 </span>
               </p>
               {!isExempt(planModal.tenant_id) && <LiveWarning action="change plan" />}
@@ -607,7 +589,7 @@ export default function BillingPage() {
                       onClick={() => setNewPlan(plan.value)}
                     >
                       <span>{plan.label}</span>
-                      <strong>{price === null ? "금액 확인 필요" : formatMoney(price)}</strong>
+                      <strong>{price === null ? "금액 확인 필요" : wonText(price)}</strong>
                       <small>{isCurrentPlan ? "현재 적용 금액" : `${plan.caption} 정가`}</small>
                     </button>
                   );
@@ -616,13 +598,13 @@ export default function BillingPage() {
               <div className={b.previewBox}>
                 <div>
                   <span>현재</span>
-                  <strong>{planModal.plan_display} · {formatMoney(planModal.monthly_price)}</strong>
+                  <strong>{planModal.plan_display} · {wonText(planModal.monthly_price)}</strong>
                 </div>
                 <div>
                   <span>변경 후</span>
                   <strong>
                     {selectedPlan
-                      ? `${selectedPlan.label} · ${selectedPlanPrice === null ? "금액 확인 필요" : formatMoney(selectedPlanPrice)}`
+                      ? `${selectedPlan.label} · ${selectedPlanPrice === null ? "금액 확인 필요" : wonText(selectedPlanPrice)}`
                       : "-"}
                   </strong>
                 </div>
@@ -660,7 +642,7 @@ function SummaryCard({ label, value, warn }: { label: string; value: string; war
 function StatusBadge({ status }: { status: string }) {
   return (
     <span className={b.statusBadge} data-status={statusKey(status)}>
-      {STATUS_LABELS[status] || status}
+      {SUBSCRIPTION_STATE_TEXT[status] || status}
     </span>
   );
 }

@@ -31,6 +31,7 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   renderPreviewBadges,
 } from "../constants/templateBlocks";
+import { koreanDateText } from "@/shared/utils/displayText";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 
@@ -39,18 +40,6 @@ const QUERY_KEY = ["messaging", "templates"] as const;
 /** 기본 템플릿 식별 — is_system 플래그 또는 이름 접두어 기준 */
 function isDefaultTemplate(t: MessageTemplateItem): boolean {
   return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
-}
-
-function formatDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
 }
 
 function SolapiStatusBadge({ status }: { status?: string }) {
@@ -398,7 +387,7 @@ export default function TemplateExplorer() {
                   lineHeight: 1.45,
                 }}
               >
-                {TEMPLATE_CATEGORY_LABELS[t.category]} · {formatDate(t.updated_at)}
+                {TEMPLATE_CATEGORY_LABELS[t.category]} · {koreanDateText(t.updated_at)}
               </div>
             </div>
           </div>
