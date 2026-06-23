@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/tools/problem-studio/pages/ProblemStudioPage.tsx
-// 문제 제작 스튜디오 — 업로드 기반 문제&정답지 생성 요구 정리 + 검수용 산출물 출력.
+// 문제 제작 스튜디오 — 원본 이관과 선생님 검수용 산출물 출력.
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
@@ -548,8 +548,10 @@ export default function ProblemStudioPage() {
         setGenerationNote("원본 이관 패키지 생성 중");
         const result = await downloadProblemStudioTransferPackage(payload, sourceFileBlobs);
         saveBlob(result.blob, result.filename);
-        setGenerationWarnings(result.warningCount > 0 ? [`변환 경고 ${result.warningCount}건은 ZIP 안의 변환리포트에서 확인하세요.`] : []);
-        setGenerationNote(`원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개`);
+        setGenerationWarnings(result.warningCount > 0 ? [`변환 경고 ${result.warningCount}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.`] : []);
+        setGenerationNote(
+          `원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개 · 검수파일 ${result.reviewFileCount || 4}개`,
+        );
         feedback.success("원본 이관 패키지를 저장했습니다.");
         return;
       }
@@ -721,7 +723,7 @@ export default function ProblemStudioPage() {
           <Badge tone="primary" size="md">원본 이관</Badge>
           <h2 id="worksheet-builder-title" className={styles.title}>문제 원본 한글 이관 도구</h2>
           <p className={styles.lead}>
-            선생님이 올린 문제 이미지나 PDF/HWP/HWPX/DOCX/ZIP 파일을 학원 양식의 한글 호환 검수 문서로 그대로 옮깁니다.
+            선생님이 올린 문제 이미지나 PDF/HWP/HWPX/DOCX/ZIP 파일을 한글 호환 검수 패키지로 그대로 옮깁니다.
           </p>
         </div>
         <div className={styles.heroStats}>
@@ -737,7 +739,7 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="source-title">1. 소스와 양식</h3>
-                <p>문제 이미지와 PDF/HWP/HWPX/DOCX/ZIP 자료를 한글 호환 문서로 옮깁니다.</p>
+                <p>문제 이미지와 PDF/HWP/HWPX/DOCX/ZIP 자료를 검수표가 포함된 한글 호환 패키지로 옮깁니다.</p>
               </div>
               <Button
                 type="button"
@@ -823,7 +825,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>소스 업로드 후 한글 파일로 옮기면 문항 편집기와 다운로드 문서에 바로 반영됩니다.</span>
+                  <span>저장 ZIP에는 먼저 열 검수표, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
                 )}
               </div>
             </div>
@@ -1023,8 +1025,12 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="output-title">한글 출력</h3>
-                <p>원본 문제를 먼저 한글 파일로 옮깁니다. 정답과 해설은 있으면 문항 번호 미주 형태로 묶습니다.</p>
+                <p>원본 문제를 한글 호환 검수 패키지로 옮깁니다. ZIP 안의 검수표부터 확인하면 됩니다.</p>
               </div>
+            </div>
+            <div className={styles.reviewBundle}>
+              <FileCheck2 size={ICON.sm} />
+              <span>검수 체크리스트 · 변환리포트 · 파일목록 · manifest 포함</span>
             </div>
             <div className={styles.outputButtons}>
               <Button
