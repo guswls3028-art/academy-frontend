@@ -16,7 +16,6 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import LoginModal from "../domains/landing/components/LoginModal";
 import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
 import styles from "./PromoLayout.module.css";
 
@@ -32,10 +31,6 @@ const NAV_ITEMS = [
 const ACTIVE_ALIASES: Record<string, string[]> = {
   "/promo/features": ["/promo/ai-grading"],
   "/promo/contact": ["/promo/demo"],
-};
-
-type PromoLocationState = {
-  openLogin?: boolean;
 };
 
 function isActive(pathname: string, path: string) {
@@ -54,7 +49,7 @@ function decodeHashId(hash: string) {
   }
 }
 
-function Header({ onOpenLogin }: { onOpenLogin: () => void }) {
+function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -119,10 +114,10 @@ function Header({ onOpenLogin }: { onOpenLogin: () => void }) {
               <PhoneCall size={16} />
               전화 문의
             </PhoneInquiryLink>
-            <button type="button" className={styles.loginLink} onClick={onOpenLogin} data-testid="promo-login-open">
+            <Link to="/login" className={styles.loginLink}>
               <LogIn size={16} />
               로그인
-            </button>
+            </Link>
             <Link to="/promo/demo" className={styles.demoLink}>
               <MousePointer2 size={16} />
               데모 요청
@@ -308,26 +303,14 @@ function Footer() {
 }
 
 export default function PromoLayout() {
-  const [loginOpen, setLoginOpen] = useState(false);
-  const location = useLocation();
-
-  useEffect(() => {
-    const state = location.state as PromoLocationState | null;
-    if (state?.openLogin) {
-      setLoginOpen(true);
-      window.history.replaceState({}, "");
-    }
-  }, [location.state]);
-
   return (
     <div className={styles.layout}>
       <PromoScrollManager />
-      <Header onOpenLogin={() => setLoginOpen(true)} />
+      <Header />
       <main className={styles.main}>
         <Outlet />
       </main>
       <Footer />
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

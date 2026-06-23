@@ -210,9 +210,6 @@
 .loginLink {
   color: currentColor;
   opacity: 0.76;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
 }
 
 .demoLink {

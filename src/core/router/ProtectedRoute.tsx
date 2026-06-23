@@ -66,12 +66,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     );
   }
 
-  // 홍보 테넌트는 /promo 로그인 모달로, 그 외는 /login 페이지로
-  const tc = program?.tenantCode;
-  const isPromoTenant = tc === "hakwonplus" || tc === "9999";
-  const loginRedirect = isPromoTenant
-    ? <Navigate to="/promo" state={{ openLogin: true }} replace />
-    : <Navigate to="/login" replace />;
+  const loginRedirect = <Navigate to="/login" replace />;
 
   if (!user) {
     return loginRedirect;

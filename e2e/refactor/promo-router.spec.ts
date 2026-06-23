@@ -249,13 +249,14 @@ test.describe("promo route navigation", () => {
     }
   });
 
-  test("opens promo login in-place instead of leaving the promo route", async ({ page }) => {
+  test("opens the login page from the promo header", async ({ page }) => {
     await gotoAndAssert(page, "/promo");
 
-    await page.getByTestId("promo-login-open").click();
-    await expect(page.getByPlaceholder("아이디")).toBeVisible();
-    await expect(page.getByPlaceholder("비밀번호")).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe("/promo");
+    await page.getByRole("link", { name: /^로그인$/ }).click();
+    await waitForRenderSettled(page);
+
+    expect(new URL(page.url()).pathname).toBe("/login");
+    await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
   });
 
   test("keeps landing sample previews inert inside the promo route", async ({ page }) => {
