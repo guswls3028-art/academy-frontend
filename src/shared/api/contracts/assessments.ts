@@ -14,6 +14,18 @@ export type AssessmentHomeworkListItem = {
   session_id?: number;
 };
 
+export type AssessmentHomeworkCutlineMode = "PERCENT" | "COUNT";
+
+export type AssessmentHomeworkPolicy = {
+  id: number;
+  session: number;
+  cutline_mode: AssessmentHomeworkCutlineMode;
+  cutline_value: number;
+  round_unit_percent: number;
+  created_at: string;
+  updated_at: string;
+};
+
 function unwrapList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (isApiRecord(data) && Array.isArray(data.results)) return data.results;
@@ -62,4 +74,33 @@ export async function fetchAssessmentHomeworks(params?: {
       session_id: asPositiveNumber(sid) ?? undefined,
     };
   });
+}
+
+function normalizeHomeworkPolicy(raw: unknown): AssessmentHomeworkPolicy {
+  const record = asRecord(raw);
+  const modeRaw = String(record.cutline_mode ?? "").toUpperCase();
+  const mode: AssessmentHomeworkCutlineMode = modeRaw === "COUNT" ? "COUNT" : "PERCENT";
+  const valueRaw = record.cutline_value ?? record.cutline_percent ?? 80;
+
+  return {
+    id: Number(record.id),
+    session: Number(record.session ?? record.session_id ?? 0),
+    cutline_mode: mode,
+    cutline_value: Number(valueRaw),
+    round_unit_percent: Number(record.round_unit_percent ?? 5),
+    created_at: String(record.created_at ?? ""),
+    updated_at: String(record.updated_at ?? ""),
+  };
+}
+
+export async function fetchAssessmentHomeworkPolicyBySession(
+  sessionId: number,
+): Promise<AssessmentHomeworkPolicy | null> {
+  if (!Number.isFinite(sessionId) || sessionId <= 0) return null;
+
+  const res = await api.get("/homework/policies/", {
+    params: { session: sessionId },
+  });
+  const list = unwrapList(res.data);
+  return list.length > 0 ? normalizeHomeworkPolicy(list[0]) : null;
 }

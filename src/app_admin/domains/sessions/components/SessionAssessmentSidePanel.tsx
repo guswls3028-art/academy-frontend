@@ -5,10 +5,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, ClipboardList, FileText, Layers, Plus } from "lucide-react";
 
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import {
+  fetchAssessmentHomeworkPolicyBySession,
+  type AssessmentHomeworkListItem,
+} from "@/shared/api/contracts/assessments";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
-import { fetchHomeworkPolicyBySession } from "@admin/domains/homework/api/homeworkPolicy";
-import type { HomeworkListItem } from "@admin/domains/homework/api/homeworks";
 import {
   fetchSessionExamsSummary,
   fetchSessionHomeworks,
@@ -364,14 +366,14 @@ export default function SessionAssessmentSidePanel({
 
   const { data: homeworkPolicy } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworkPolicy(sessionId),
-    queryFn: () => fetchHomeworkPolicyBySession(sessionId),
+    queryFn: () => fetchAssessmentHomeworkPolicyBySession(sessionId),
     enabled: !!sessionId,
   });
 
   const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
-      const rows: HomeworkListItem[] = await fetchSessionHomeworks(sessionId);
+      const rows: AssessmentHomeworkListItem[] = await fetchSessionHomeworks(sessionId);
       return rows.map((homework) => ({
         id: Number(homework.id),
         title: homework.title,
