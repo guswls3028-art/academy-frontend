@@ -550,11 +550,11 @@ export default function ProblemStudioPage() {
         saveBlob(result.blob, result.filename);
         const transferWarnings = [
           result.warningCount > 0 ? `변환 경고 ${result.warningCount}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.` : "",
-          result.ocrCandidateCount > 0 ? `OCR 후보 ${result.ocrCandidateCount}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
+          result.ocrCandidateCount > 0 ? `남은 OCR 후보 ${result.ocrCandidateCount}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
         ].filter(Boolean);
         setGenerationWarnings(transferWarnings);
         setGenerationNote(
-          `원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개 · 구조화 ${result.structuredItemCount}개 · OCR후보 ${result.ocrCandidateCount}개`,
+          `원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개 · 구조화 ${result.structuredItemCount}개 · 남은 OCR후보 ${result.ocrCandidateCount}개`,
         );
         feedback.success("원본 이관 패키지를 저장했습니다.");
         return;
@@ -727,7 +727,7 @@ export default function ProblemStudioPage() {
           <Badge tone="primary" size="md">원본 이관</Badge>
           <h2 id="worksheet-builder-title" className={styles.title}>문제 원본 한글 이관 도구</h2>
           <p className={styles.lead}>
-            선생님이 올린 문제 이미지나 PDF/HWP/HWPX/DOCX/ZIP 파일을 한글 호환 검수 패키지로 그대로 옮깁니다.
+            선생님이 올린 문제 이미지나 PDF/HWP/HWPX/DOCX/ZIP 파일을 한글 호환 검수 패키지와 HWPX 보조 검수본으로 옮깁니다.
           </p>
         </div>
         <div className={styles.heroStats}>
@@ -829,7 +829,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>저장 ZIP에는 검수표, 자체양식 문제검수본, OCR 후보표, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
+                  <span>저장 ZIP에는 검수표, 자체양식 문제검수본, HWPX 보조 검수본, OCR 후보표, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
                 )}
               </div>
             </div>
@@ -1029,12 +1029,12 @@ export default function ProblemStudioPage() {
             <div className={styles.panelHeader}>
               <div>
                 <h3 id="output-title">한글 출력</h3>
-                <p>원본 문제를 한글 호환 검수 패키지로 옮깁니다. ZIP 안의 검수표와 자체양식 문제검수본부터 확인하면 됩니다.</p>
+                <p>원본 문제를 한글 호환 검수 패키지로 옮깁니다. ZIP 안의 검수표, 자체양식 문제검수본, HWPX 보조 검수본부터 확인하면 됩니다.</p>
               </div>
             </div>
             <div className={styles.reviewBundle}>
               <FileCheck2 size={ICON.sm} />
-              <span>검수 체크리스트 · 자체양식 문제검수본 · 변환리포트 · manifest 포함</span>
+              <span>검수 체크리스트 · 자체양식 문제검수본 · HWPX 보조 검수본 · 변환리포트 · manifest 포함</span>
             </div>
             <div className={styles.outputButtons}>
               <Button
