@@ -331,6 +331,33 @@ export default function AnswerKeyRegisterModal({
   const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  const resetLocalDraftState = useCallback(() => {
+    setActiveTab("answer");
+    setPdfModalOpen(false);
+    setChoiceCount("");
+    setChoiceCountInput("");
+    setChoiceAutoScore(false);
+    setChoiceScoreMode("integer");
+    setChoiceTotalInput("");
+    setEssayCount("");
+    setEssayCountInput("");
+    setEssayAutoScore(false);
+    setEssayScoreMode("integer");
+    setEssayTotalInput("");
+    setDraft({});
+    setScoreDraft({});
+    setScoreAdjustmentDraft({ objective: 0, subjective: 0 });
+    setExplanationDraft({});
+    setExplanationSaveBusy(false);
+    setSaveBusy(false);
+    choiceBubbleRefs.current = [];
+    essayInputRefs.current = [];
+  }, []);
+
+  useEffect(() => {
+    resetLocalDraftState();
+  }, [examId, open, resetLocalDraftState]);
+
   const sortedQuestions = useMemo(
     () => [...questions].sort((a, b) => a.number - b.number),
     [questions]
@@ -367,12 +394,14 @@ export default function AnswerKeyRegisterModal({
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
 
   useEffect(() => {
+    if (!open) return;
     if (!answerKey || !answerKey.answers) return;
     setDraft(normalizeAnswers(answerKey.answers));
     setScoreAdjustmentDraft(parseScoreAdjustment(answerKey.answers));
-  }, [answerKey]);
+  }, [answerKey, open]);
 
   useEffect(() => {
+    if (!open) return;
     if (!answerKey || !answerKey.answers) return;
     // 기존 답안키 기반으로 선택형/서술형 수 자동 계산 (미설정 시에만)
     if (choiceCount === "" && essayCount === "" && sortedQuestions.length > 0) {
@@ -391,10 +420,11 @@ export default function AnswerKeyRegisterModal({
       setEssayCount(essayCnt > 0 ? essayCnt : 0);
       setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
     }
-  }, [answerKey, choiceCount, essayCount, sortedQuestions]);
+  }, [answerKey, choiceCount, essayCount, open, sortedQuestions]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
   useEffect(() => {
+    if (!open) return;
     if (sortedQuestions.length === 0) return;
     setScoreDraft((prev) => {
       let changed = false;
@@ -407,10 +437,11 @@ export default function AnswerKeyRegisterModal({
       });
       return changed ? next : prev;
     });
-  }, [sortedQuestions]);
+  }, [open, sortedQuestions]);
 
   /** AI 추출 해설 + 문항 이미지를 explanationDraft에 자동 반영 */
   useEffect(() => {
+    if (!open) return;
     if (sortedQuestions.length === 0) return;
     setExplanationDraft((prev) => {
       let changed = false;
@@ -446,7 +477,7 @@ export default function AnswerKeyRegisterModal({
       }
       return changed ? next : prev;
     });
-  }, [explanationsFromApi, sortedQuestions]);
+  }, [explanationsFromApi, open, sortedQuestions]);
 
   const initMut = useMutation({
     mutationFn: async (overrides?: { choiceCount?: CountDraft; essayCount?: CountDraft }) => {
@@ -591,6 +622,13 @@ export default function AnswerKeyRegisterModal({
     setChoiceCountInput(nextChoiceCount);
     setEssayCountInput(nextEssayCount);
     initMut.mutate({ choiceCount: nextChoiceCount, essayCount: nextEssayCount });
+  };
+
+  const handleApplyEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    handleApply();
   };
 
   const handleSave = async () => {
@@ -782,10 +820,7 @@ export default function AnswerKeyRegisterModal({
                         setChoiceCountInput(parseCountDraft(e.target.value))
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          setChoiceCount(choiceCountInput);
-                        }
+                        handleApplyEnter(e);
                       }}
                       placeholder="예: 20"
                       className="ds-input answer-key-input--count"
@@ -802,6 +837,7 @@ export default function AnswerKeyRegisterModal({
                       onChange={(e) =>
                         setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                       }
+                      onKeyDown={handleApplyEnter}
                       placeholder="예: 80"
                       className="ds-input answer-key-input--score"
                       disabled={!canEditStructure || !choiceAutoScore}
@@ -965,10 +1001,7 @@ export default function AnswerKeyRegisterModal({
                         setEssayCountInput(parseCountDraft(e.target.value))
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          setEssayCount(essayCountInput);
-                        }
+                        handleApplyEnter(e);
                       }}
                       placeholder="예: 1"
                       className="ds-input answer-key-input--count"
@@ -985,6 +1018,7 @@ export default function AnswerKeyRegisterModal({
                       onChange={(e) =>
                         setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                       }
+                      onKeyDown={handleApplyEnter}
                       placeholder="예: 50"
                       className="ds-input answer-key-input--score"
                       disabled={!canEditStructure || !essayAutoScore}
