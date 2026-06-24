@@ -52,6 +52,27 @@
   }
 }
 
+@media (max-width: 640px) {
+  [data-app="admin"] .domain-header__tabs-wrap {
+    overflow-x: visible;
+    padding: var(--space-1);
+  }
+
+  [data-app="admin"] .domain-header__tabs-wrap .ds-tabs {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  [data-app="admin"] .domain-header__tabs-wrap .ds-tab {
+    flex: 1 1 calc(50% - var(--space-1));
+    min-width: 0;
+    padding-right: var(--space-2);
+    padding-left: var(--space-2);
+    text-align: center;
+  }
+}
+
 /* ========================================
    2) 섹션 그리드 — 모바일에서 1~2열
    ======================================== */
