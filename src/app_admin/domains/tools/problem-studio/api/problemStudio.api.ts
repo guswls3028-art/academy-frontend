@@ -36,11 +36,43 @@ export type ProblemStudioJobCreateResponse = {
   source_text_chars: number;
 };
 
+export type ProblemStudioTransferJobCreateResponse = ProblemStudioJobCreateResponse;
+
 export type ProblemStudioJobStatusResponse = {
   job_id: string;
   status: string;
   error: string;
   result: ProblemStudioGenerateResponse | null;
+};
+
+export type ProblemStudioTransferJobResult = {
+  download_url: string;
+  filename: string;
+  r2_key?: string;
+  size_bytes: number;
+  document_count: number;
+  warning_count: number;
+  review_file_count: number;
+  structured_item_count: number;
+  ocr_candidate_count: number;
+  quality_level: string;
+};
+
+export type ProblemStudioTransferJobStatusResponse = {
+  job_id: string;
+  job_type?: string;
+  status: string;
+  progress?: {
+    percent?: number;
+    step_index?: number;
+    step_total?: number;
+    step_name?: string;
+    step_name_display?: string;
+    step_percent?: number;
+  } | null;
+  result?: ProblemStudioTransferJobResult | null;
+  error_message?: string | null;
+  message?: string;
 };
 
 export type ProblemStudioVariantMode = "copy" | "same-type" | "trap" | "concept";
@@ -73,6 +105,25 @@ export async function createProblemStudioJob(
 
   const { data } = await api.post<ProblemStudioJobCreateResponse>(
     "/tools/problem-studio/jobs/",
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120_000,
+    },
+  );
+  return data;
+}
+
+export async function createProblemStudioTransferJob(
+  payload: ProblemStudioGeneratePayload,
+  sourceFiles: File[],
+): Promise<ProblemStudioTransferJobCreateResponse> {
+  const form = new FormData();
+  form.append("payload", JSON.stringify(payload));
+  sourceFiles.forEach((file) => form.append("source_files", file));
+
+  const { data } = await api.post<ProblemStudioTransferJobCreateResponse>(
+    "/tools/problem-studio/transfer-jobs/",
     form,
     {
       headers: { "Content-Type": "multipart/form-data" },
@@ -139,6 +190,15 @@ export async function downloadProblemStudioTransferPackage(
 export async function getProblemStudioJob(jobId: string): Promise<ProblemStudioJobStatusResponse> {
   const { data } = await api.get<ProblemStudioJobStatusResponse>(
     `/tools/problem-studio/jobs/${encodeURIComponent(jobId)}/`,
+  );
+  return data;
+}
+
+export async function getProblemStudioTransferJob(
+  jobId: string,
+): Promise<ProblemStudioTransferJobStatusResponse> {
+  const { data } = await api.get<ProblemStudioTransferJobStatusResponse>(
+    `/jobs/${encodeURIComponent(jobId)}/progress/`,
   );
   return data;
 }

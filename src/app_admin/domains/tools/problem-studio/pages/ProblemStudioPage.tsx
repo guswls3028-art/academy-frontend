@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { downloadPresignedUrl } from "@/shared/utils/safeDownload";
 import {
   buildWorksheetPreviewHtml,
   downloadWorksheetPdf,
@@ -33,11 +34,14 @@ import {
 } from "../utils/worksheetDocument";
 import {
   createProblemStudioJob,
-  downloadProblemStudioTransferPackage,
+  createProblemStudioTransferJob,
   getProblemStudioJob,
+  getProblemStudioTransferJob,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
   type ProblemStudioGenerateResponse,
+  type ProblemStudioTransferJobResult,
+  type ProblemStudioTransferJobStatusResponse,
 } from "../api/problemStudio.api";
 import styles from "./ProblemStudioPage.module.css";
 
@@ -84,6 +88,7 @@ const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 const JOB_POLL_INTERVAL_MS = 1500;
 const JOB_TIMEOUT_MS = 900_000;
+const TRANSFER_JOB_TIMEOUT_MS = 1_800_000;
 
 const BETA_REWRITE_MODES: RewriteModeItem[] = [
   { key: "same-type", label: "유사 유형", detail: "같은 풀이 구조" },
@@ -224,17 +229,6 @@ function describeSourceKind(file: File): string {
   return "기타";
 }
 
-function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 function toSourceFileEntry(file: File): SourceFileEntry {
   return {
     id: makeId("src"),
@@ -354,6 +348,36 @@ async function waitForProblemStudioJob(jobId: string): Promise<ProblemStudioGene
     await sleep(JOB_POLL_INTERVAL_MS);
   }
   throw new Error("한글 이관 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
+}
+
+function problemStudioTransferStatusLabel(status: ProblemStudioTransferJobStatusResponse): string {
+  const progress = status.progress;
+  const step = progress?.step_name_display || progress?.step_name || "처리 중";
+  const percent = typeof progress?.percent === "number" ? Math.round(progress.percent) : null;
+  if (percent != null) return `${step} ${percent}%`;
+  if (status.status === "PENDING") return "대기 중";
+  if (status.status === "RUNNING") return step;
+  return status.status;
+}
+
+async function waitForProblemStudioTransferJob(
+  jobId: string,
+  onProgress: (status: ProblemStudioTransferJobStatusResponse) => void,
+): Promise<ProblemStudioTransferJobResult> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < TRANSFER_JOB_TIMEOUT_MS) {
+    const status = await getProblemStudioTransferJob(jobId);
+    onProgress(status);
+    if (status.status === "DONE") {
+      if (status.result?.download_url) return status.result;
+      throw new Error("원본 이관 결과 다운로드 링크를 불러오지 못했습니다.");
+    }
+    if (["FAILED", "REJECTED_BAD_INPUT", "FALLBACK_TO_GPU", "REVIEW_REQUIRED"].includes(status.status)) {
+      throw new Error(status.error_message || "원본 이관 작업을 완료하지 못했습니다.");
+    }
+    await sleep(JOB_POLL_INTERVAL_MS);
+  }
+  throw new Error("원본 이관 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
 }
 
 function shouldUseGeneratedTransferQuestions(response: ProblemStudioGenerateResponse): boolean {
@@ -545,16 +569,26 @@ export default function ProblemStudioPage() {
         questions: buildQuestionPayload(),
       };
       if (sourceFileBlobs.length > 0) {
-        setGenerationNote("원본 이관 패키지 생성 중");
-        const result = await downloadProblemStudioTransferPackage(payload, sourceFileBlobs);
-        saveBlob(result.blob, result.filename);
+        setGenerationNote("원본 업로드 중");
+        const job = await createProblemStudioTransferJob(payload, sourceFileBlobs);
+        const pendingSourceFiles = job.source_files.length > 0
+          ? toSourceEntries(job.source_files)
+          : sourceFiles;
+        setSourceFiles(pendingSourceFiles);
+        setGenerationWarnings(job.warnings);
+        setGenerationNote(`원본 이관 처리 중 · ${job.job_id.slice(0, 8)}`);
+
+        const result = await waitForProblemStudioTransferJob(job.job_id, (status) => {
+          setGenerationNote(`원본 이관 처리 중 · ${job.job_id.slice(0, 8)} · ${problemStudioTransferStatusLabel(status)}`);
+        });
+        downloadPresignedUrl(result.download_url, result.filename || `${payload.title || "문제제작"}_원본이관.zip`);
         const transferWarnings = [
-          result.warningCount > 0 ? `변환 경고 ${result.warningCount}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.` : "",
-          result.ocrCandidateCount > 0 ? `남은 OCR 후보 ${result.ocrCandidateCount}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
+          result.warning_count > 0 ? `변환 경고 ${result.warning_count}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.` : "",
+          result.ocr_candidate_count > 0 ? `남은 OCR 후보 ${result.ocr_candidate_count}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
         ].filter(Boolean);
         setGenerationWarnings(transferWarnings);
         setGenerationNote(
-          `원본 이관 패키지 · 문서 ${result.documentCount || sourceFileBlobs.length}개 · 구조화 ${result.structuredItemCount}개 · 남은 OCR후보 ${result.ocrCandidateCount}개`,
+          `원본 이관 패키지 · 문서 ${result.document_count || sourceFileBlobs.length}개 · 구조화 ${result.structured_item_count}개 · 남은 OCR후보 ${result.ocr_candidate_count}개`,
         );
         feedback.success("원본 이관 패키지를 저장했습니다.");
         return;
