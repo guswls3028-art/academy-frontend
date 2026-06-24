@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
 // 내 근태 + 지출 관리 — 등록/편집/삭제
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -155,13 +155,24 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
   const [amount, setAmount] = useState(String(editData?.amount || ""));
   const [memo, setMemo] = useState(editData?.memo || "");
 
+  useEffect(() => {
+    if (!open) return;
+    setDate(editData?.date || todayLocalISO());
+    setStartTime(editData?.start_time?.slice(0, 5) || "09:00");
+    setEndTime(editData?.end_time?.slice(0, 5) || "18:00");
+    setWorkType(editData?.work_type || "수업");
+    setTitle(editData?.title || "");
+    setAmount(editData?.amount != null && Number(editData.amount) > 0 ? String(editData.amount) : "");
+    setMemo(editData?.memo || "");
+  }, [open, editData, tab]);
+
   const mutation = useMutation({
     mutationFn: () => {
       if (tab === "attendance") {
         const payload = { date, start_time: startTime, end_time: endTime, work_type: workType, memo: memo || undefined };
         return isEdit ? updateAttendance(editData.id, payload) : createAttendance(payload);
       } else {
-        const payload = { date, title, amount: Number(amount), memo: memo || undefined };
+        const payload = { date, title: title.trim(), amount: Number(amount), memo: memo || undefined };
         return isEdit ? updateExpense(editData.id, payload) : createExpense(payload);
       }
     },
@@ -174,6 +185,21 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
   });
 
   const label = tab === "attendance" ? "근태" : "지출";
+  const parsedAmount = Number(amount);
+  const canSubmitExpense =
+    tab !== "expense" || (!!title.trim() && Number.isFinite(parsedAmount) && parsedAmount > 0);
+
+  function handleSubmit() {
+    if (!date) {
+      teacherToast.error("날짜를 입력해주세요.");
+      return;
+    }
+    if (tab === "expense" && !canSubmitExpense) {
+      teacherToast.error("지출 항목과 1원 이상의 금액을 입력해주세요.");
+      return;
+    }
+    mutation.mutate();
+  }
 
   return (
     <BottomSheet open={open} onClose={onClose} title={`${label} ${isEdit ? "편집" : "등록"}`}>
@@ -195,7 +221,7 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
         )}
         <Fld label="메모" value={memo} onChange={setMemo} placeholder="메모 (선택)" />
 
-        <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
+        <button onClick={handleSubmit} disabled={mutation.isPending || !canSubmitExpense}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}

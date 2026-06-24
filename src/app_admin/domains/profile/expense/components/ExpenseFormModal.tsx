@@ -8,8 +8,12 @@ import { type Expense } from "../../api/profile.api";
 type Form = {
   date: string;
   title: string;
-  amount: number;
+  amount: string;
   memo: string;
+};
+
+type ExpenseFormPayload = Omit<Form, "amount"> & {
+  amount: number;
 };
 
 export default function ExpenseFormModal({
@@ -23,14 +27,14 @@ export default function ExpenseFormModal({
   initial?: Expense | null;
   submitting?: boolean;
   onClose: () => void;
-  onSubmit: (data: Form) => Promise<void> | void;
+  onSubmit: (data: ExpenseFormPayload) => Promise<void> | void;
 }) {
   const isEdit = !!initial;
 
   const [form, setForm] = useState<Form>({
     date: "",
     title: "",
-    amount: 0,
+    amount: "",
     memo: "",
   });
 
@@ -43,7 +47,7 @@ export default function ExpenseFormModal({
       setForm({
         date: initial.date,
         title: initial.title,
-        amount: Number(initial.amount) || 0,
+        amount: Number(initial.amount) > 0 ? String(initial.amount) : "",
         memo: initial.memo ?? "",
       });
     } else {
@@ -51,7 +55,7 @@ export default function ExpenseFormModal({
       setForm({
         date: `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`,
         title: "",
-        amount: 0,
+        amount: "",
         memo: "",
       });
     }
@@ -66,7 +70,8 @@ export default function ExpenseFormModal({
   }, [open, onClose]);
 
   const canSubmit = useMemo(() => {
-    return !!form.date && !!form.title.trim();
+    const amount = Number(form.amount);
+    return !!form.date && !!form.title.trim() && Number.isFinite(amount) && amount > 0;
   }, [form]);
 
   if (!open) return null;
@@ -76,12 +81,16 @@ export default function ExpenseFormModal({
 
     if (!form.date) return setErr("날짜를 선택하세요.");
     if (!form.title.trim()) return setErr("항목을 입력하세요.");
+    const amount = Number(form.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return setErr("금액은 1원 이상 입력하세요.");
+    }
 
     try {
       await onSubmit({
         ...form,
         title: form.title.trim(),
-        amount: Number(form.amount) || 0,
+        amount,
       });
     } catch (e: unknown) {
       setErr(extractApiError(e, "저장 실패"));
@@ -141,10 +150,11 @@ export default function ExpenseFormModal({
                   onChange={(e) =>
                     setForm((p) => ({
                       ...p,
-                      amount: Number(e.target.value),
+                      amount: e.target.value,
                     }))
                   }
                   placeholder="0"
+                  min={1}
                 />
               </Row>
 

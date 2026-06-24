@@ -92,7 +92,7 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
     const payload: ExpenseMutationPayload = {
       date: form.date,
       title: form.title.trim(),
-      amount: Number(form.amount) || 0,
+      amount: form.amount,
       memo: form.memo?.trim() || undefined,
     };
 

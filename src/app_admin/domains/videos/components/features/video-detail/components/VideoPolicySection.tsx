@@ -41,7 +41,10 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
               min={0.25}
               max={5}
               value={policy.max_speed}
-              onChange={(e) => setMaxSpeed(Number(e.target.value))}
+              onChange={(e) => {
+                if (e.target.value === "") return;
+                setMaxSpeed(Number(e.target.value));
+              }}
               className="video-policy-input"
             />
             <span className="video-policy-speed">

@@ -26,6 +26,14 @@ const DEFAULT_POLICY: VideoPolicy = {
   max_speed: 1.0,
   show_watermark: true,
 };
+const MIN_VIDEO_MAX_SPEED = 0.25;
+const MAX_VIDEO_MAX_SPEED = 5;
+
+function normalizeMaxSpeed(value: unknown): number {
+  const speed = Number(value);
+  if (!Number.isFinite(speed)) return DEFAULT_POLICY.max_speed;
+  return Math.min(MAX_VIDEO_MAX_SPEED, Math.max(MIN_VIDEO_MAX_SPEED, speed));
+}
 
 interface Options {
   videoId: number;
@@ -58,7 +66,7 @@ export function useVideoPolicy({ videoId, initial }: Options) {
 
     setPolicy({
       allow_skip: Boolean(initialAllowSkip),
-      max_speed: Number(initialMaxSpeed ?? 1),
+      max_speed: normalizeMaxSpeed(initialMaxSpeed ?? DEFAULT_POLICY.max_speed),
       show_watermark: Boolean(initialShowWatermark),
     });
 
@@ -110,7 +118,7 @@ export function useVideoPolicy({ videoId, initial }: Options) {
 
     // setters
     setAllowSkip: (v: boolean) => update("allow_skip", v),
-    setMaxSpeed: (v: number) => update("max_speed", v),
+    setMaxSpeed: (v: number) => update("max_speed", normalizeMaxSpeed(v)),
     setShowWatermark: (v: boolean) => update("show_watermark", v),
 
     // actions
