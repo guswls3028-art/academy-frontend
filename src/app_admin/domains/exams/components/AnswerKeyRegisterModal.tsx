@@ -55,7 +55,11 @@ const EMPTY_QUESTIONS: ExamQuestion[] = [];
 const EMPTY_EXPLANATIONS: ExplanationData[] = [];
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+const MAX_EXAM_QUESTIONS = 500;
+const MAX_OMR_MC_COUNT = 60;
+const MAX_OMR_ESSAY_COUNT = 10;
 const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
+type CountDraft = number | "";
 type ScoreDistributionMode = "integer" | "decimal";
 type ScoreAdjustmentDraft = {
   objective: number;
@@ -85,6 +89,20 @@ function parseChoiceDraft(value: string): Set<string> {
 
 function formatChoiceDraft(values: Set<string>): string {
   return CHOICES.filter((choice) => values.has(choice)).join(",");
+}
+
+function parseCountDraft(value: string): CountDraft {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return "";
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function countDraftToNumber(value: CountDraft): number | undefined {
+  if (value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -276,14 +294,14 @@ export default function AnswerKeyRegisterModal({
     return answerKeysFromResponse(answerKeyList)[0] ?? null;
   }, [answerKeyList]);
 
-  const [choiceCount, setChoiceCount] = useState<number | "">("");
-  const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
+  const [choiceCount, setChoiceCount] = useState<CountDraft>("");
+  const [choiceCountInput, setChoiceCountInput] = useState<CountDraft>("");
   /** 자동점수 부여 ON이면 총점 입력 후 선택한 단위로 분배. 기본값 OFF */
   const [choiceAutoScore, setChoiceAutoScore] = useState(false);
   const [choiceScoreMode, setChoiceScoreMode] = useState<ScoreDistributionMode>("integer");
   const [choiceTotalInput, setChoiceTotalInput] = useState<number | "">("");
-  const [essayCount, setEssayCount] = useState<number | "">("");
-  const [essayCountInput, setEssayCountInput] = useState<number | "">("");
+  const [essayCount, setEssayCount] = useState<CountDraft>("");
+  const [essayCountInput, setEssayCountInput] = useState<CountDraft>("");
   /** 자동점수 부여. 기본값 OFF */
   const [essayAutoScore, setEssayAutoScore] = useState(false);
   const [essayScoreMode, setEssayScoreMode] = useState<ScoreDistributionMode>("integer");
@@ -431,15 +449,15 @@ export default function AnswerKeyRegisterModal({
   }, [explanationsFromApi, sortedQuestions]);
 
   const initMut = useMutation({
-    mutationFn: async (overrides?: { choiceCount?: number | ""; essayCount?: number | "" }) => {
+    mutationFn: async (overrides?: { choiceCount?: CountDraft; essayCount?: CountDraft }) => {
       const total = questions.length;
       let cc: number;
       let ec: number;
       if (overrides) {
         const oc = overrides.choiceCount;
         const oe = overrides.essayCount;
-        cc = oc !== "" ? Math.max(0, Number(oc) || 0) : Math.max(0, total - (Number(oe) || 0));
-        ec = oe !== "" ? Math.max(0, Number(oe) || 0) : Math.max(0, total - (Number(oc) || 0));
+        cc = oc !== "" && oc !== undefined ? Math.max(0, Number(oc) || 0) : Math.max(0, total - (Number(oe) || 0));
+        ec = oe !== "" && oe !== undefined ? Math.max(0, Number(oe) || 0) : Math.max(0, total - (Number(oc) || 0));
       } else {
         cc =
           choiceCount !== ""
@@ -450,7 +468,12 @@ export default function AnswerKeyRegisterModal({
             ? Math.max(0, Number(essayCount) || 0)
             : Math.max(0, total - (Number(choiceCount) || 0));
       }
+      cc = Math.trunc(cc);
+      ec = Math.trunc(ec);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
+      if (cc + ec > MAX_EXAM_QUESTIONS) {
+        throw new Error(`객관식+주관식 문항 수 합은 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
+      }
       return initExamQuestions({
         examId,
         choice_count: cc,
@@ -464,8 +487,8 @@ export default function AnswerKeyRegisterModal({
       if (overrides) {
         const oc = overrides.choiceCount;
         const oe = overrides.essayCount;
-        appliedCc = oc !== "" ? Math.max(0, Number(oc) || 0) : Math.max(0, list.length - (Number(oe) || 0));
-        appliedEc = oe !== "" ? Math.max(0, Number(oe) || 0) : Math.max(0, list.length - (Number(oc) || 0));
+        appliedCc = oc !== "" && oc !== undefined ? Math.max(0, Number(oc) || 0) : Math.max(0, list.length - (Number(oe) || 0));
+        appliedEc = oe !== "" && oe !== undefined ? Math.max(0, Number(oe) || 0) : Math.max(0, list.length - (Number(oc) || 0));
       } else {
         appliedCc =
           choiceCount !== ""
@@ -476,6 +499,8 @@ export default function AnswerKeyRegisterModal({
             ? Math.max(0, Number(essayCount) || 0)
             : Math.max(0, list.length - (Number(choiceCount) || 0));
       }
+      appliedCc = Math.trunc(appliedCc);
+      appliedEc = Math.trunc(appliedEc);
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
       qc.setQueryData(["exam-questions", examId], list);
@@ -542,20 +567,30 @@ export default function AnswerKeyRegisterModal({
         return;
       }
     }
-    setChoiceCount(choiceCountInput);
-    setEssayCount(essayCountInput);
-    const choiceVal = choiceCountInput !== "" ? Number(choiceCountInput) : undefined;
-    const essayVal = essayCountInput !== "" ? Number(essayCountInput) : undefined;
-    let payload: { choiceCount: number | ""; essayCount: number | "" } = {
-      choiceCount: choiceCountInput,
-      essayCount: essayCountInput,
-    };
-    if (choiceVal !== undefined && essayCountInput === "") {
-      payload = { choiceCount: choiceCountInput, essayCount: 0 };
-    } else if (essayVal !== undefined && choiceCountInput === "") {
-      payload = { choiceCount: Math.max(0, questions.length - essayVal), essayCount: essayCountInput };
+    const choiceVal = countDraftToNumber(choiceCountInput);
+    const essayVal = countDraftToNumber(essayCountInput);
+    if (choiceVal === undefined && essayVal === undefined) {
+      feedback.error("객관식 또는 서술형 문항 수를 입력해 주세요.");
+      return;
     }
-    initMut.mutate(payload);
+    const nextChoiceCount = choiceVal !== undefined
+      ? choiceVal
+      : Math.max(0, questions.length - (essayVal ?? 0));
+    const nextEssayCount = essayVal !== undefined ? essayVal : 0;
+    const nextTotal = nextChoiceCount + nextEssayCount;
+    if (nextTotal < 1) {
+      feedback.error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
+      return;
+    }
+    if (nextTotal > MAX_EXAM_QUESTIONS) {
+      feedback.error(`객관식+주관식 문항 수 합은 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
+      return;
+    }
+    setChoiceCount(nextChoiceCount);
+    setEssayCount(nextEssayCount);
+    setChoiceCountInput(nextChoiceCount);
+    setEssayCountInput(nextEssayCount);
+    initMut.mutate({ choiceCount: nextChoiceCount, essayCount: nextEssayCount });
   };
 
   const handleSave = async () => {
@@ -740,10 +775,11 @@ export default function AnswerKeyRegisterModal({
                     <input
                       type="number"
                       min={0}
+                      max={MAX_EXAM_QUESTIONS}
                       step={1}
                       value={choiceCountInput === "" ? "" : choiceCountInput}
                       onChange={(e) =>
-                        setChoiceCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                        setChoiceCountInput(parseCountDraft(e.target.value))
                       }
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -922,10 +958,11 @@ export default function AnswerKeyRegisterModal({
                     <input
                       type="number"
                       min={0}
-                      step={0.1}
+                      max={MAX_EXAM_QUESTIONS}
+                      step={1}
                       value={essayCountInput === "" ? "" : essayCountInput}
                       onChange={(e) =>
-                        setEssayCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                        setEssayCountInput(parseCountDraft(e.target.value))
                       }
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -943,7 +980,7 @@ export default function AnswerKeyRegisterModal({
                     <input
                       type="number"
                       min={0}
-                      step={1}
+                      step={0.1}
                       value={essayTotalInput === "" ? "" : essayTotalInput}
                       onChange={(e) =>
                         setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
@@ -1515,15 +1552,24 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
 }) {
+  const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
   return (
-    <OmrSheetBuilder
-      target={{ type: "exam", examId }}
-      initialExamTitle={examTitle || ""}
-      initialLectureName={lectureName || ""}
-      initialSessionName={sessionName || ""}
-      initialMcCount={choiceCount}
-      initialEssayCount={essayCount}
-      layout="modal"
-    />
+    <div className="answer-key-omr-tab">
+      {exceedsOmrLimit && (
+        <div className="answer-key-omr-limit-alert" role="status">
+          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 서술형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
+          현재 시험은 객관식 {choiceCount}문항, 서술형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
+        </div>
+      )}
+      <OmrSheetBuilder
+        target={{ type: "exam", examId }}
+        initialExamTitle={examTitle || ""}
+        initialLectureName={lectureName || ""}
+        initialSessionName={sessionName || ""}
+        initialMcCount={choiceCount}
+        initialEssayCount={essayCount}
+        layout="modal"
+      />
+    </div>
   );
 }
