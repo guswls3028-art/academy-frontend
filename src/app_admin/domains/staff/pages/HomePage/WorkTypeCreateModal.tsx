@@ -25,17 +25,22 @@ import {
 
 type FormData = {
   name: string;
-  base_hourly_wage: number;
+  base_hourly_wage: string;
   color: string;
   description: string;
 };
 
 const EMPTY_FORM: FormData = {
   name: "",
-  base_hourly_wage: 0,
+  base_hourly_wage: "",
   color: "#22c55e",
   description: "",
 };
+
+function parsePositiveAmount(value: string): number | null {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
 
 export default function WorkTypeCreateModal({
   open,
@@ -78,9 +83,11 @@ export default function WorkTypeCreateModal({
   // --- mutations ---
   const createM = useMutation({
     mutationFn: async () => {
+      const baseHourlyWage = parsePositiveAmount(form.base_hourly_wage);
+      if (baseHourlyWage === null) throw new Error("invalid_base_hourly_wage");
       const res = await api.post("/staffs/work-types/", {
         name: form.name,
-        base_hourly_wage: Number(form.base_hourly_wage),
+        base_hourly_wage: baseHourlyWage,
         color: form.color,
         description: form.description,
       });
@@ -100,9 +107,11 @@ export default function WorkTypeCreateModal({
   const updateM = useMutation({
     mutationFn: async () => {
       if (!editTarget) return;
+      const baseHourlyWage = parsePositiveAmount(form.base_hourly_wage);
+      if (baseHourlyWage === null) throw new Error("invalid_base_hourly_wage");
       return updateWorkType(editTarget.id, {
         name: form.name,
-        base_hourly_wage: Number(form.base_hourly_wage),
+        base_hourly_wage: baseHourlyWage,
         color: form.color,
         description: form.description,
       });
@@ -141,7 +150,7 @@ export default function WorkTypeCreateModal({
     setEditTarget(wt);
     setForm({
       name: wt.name,
-      base_hourly_wage: wt.base_hourly_wage,
+      base_hourly_wage: String(wt.base_hourly_wage),
       color: wt.color,
       description: wt.description,
     });
@@ -149,7 +158,7 @@ export default function WorkTypeCreateModal({
   };
 
   const handleSave = () => {
-    if (!form.name.trim() || form.base_hourly_wage <= 0) {
+    if (!form.name.trim() || parsePositiveAmount(form.base_hourly_wage) === null) {
       feedback.warning("필수 항목을 입력하세요.");
       return;
     }
@@ -285,7 +294,7 @@ export default function WorkTypeCreateModal({
               onChange={(e) =>
                 setForm((p) => ({
                   ...p,
-                  base_hourly_wage: Number(e.target.value),
+                  base_hourly_wage: e.target.value,
                 }))
               }
             />

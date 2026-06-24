@@ -31,20 +31,47 @@ export default function CreateExpenseModal({
   const [form, setForm] = useState({
     date: range.from,
     title: "",
-    amount: 0,
+    amount: "",
     memo: "",
   });
 
   useEffect(() => {
     if (open) {
-      setForm((p) => ({ ...p, date: range.from }));
+      setForm({
+        date: range.from,
+        title: "",
+        amount: "",
+        memo: "",
+      });
     }
   }, [open, range.from]);
 
   if (locked) return null;
 
+  const parsedAmount = Number(form.amount);
+  const canSubmit = Boolean(form.title.trim()) && Number.isFinite(parsedAmount) && parsedAmount > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) {
+      feedback.warning("항목과 금액을 입력하세요.");
+      return;
+    }
+    if (!createM.isPending) {
+      createM.mutate(
+        {
+          staff: staffId,
+          date: form.date,
+          title: form.title,
+          amount: parsedAmount,
+          memo: form.memo,
+        },
+        { onSuccess: onClose }
+      );
+    }
+  };
+
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.title.trim() || !Number.isFinite(form.amount) || form.amount <= 0) { feedback.warning("항목과 금액을 입력하세요."); return; } if (!createM.isPending) createM.mutate({ staff: staffId, date: form.date, title: form.title, amount: form.amount, memo: form.memo }, { onSuccess: onClose }); }}>
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={handleSubmit}>
       <ModalHeader
         title="비용 추가"
         description="직원의 비용 항목을 추가합니다."
@@ -80,7 +107,7 @@ export default function CreateExpenseModal({
               onChange={(e) =>
                 setForm((p) => ({
                   ...p,
-                  amount: Number(e.target.value),
+                  amount: e.target.value,
                 }))
               }
             />
@@ -106,23 +133,7 @@ export default function CreateExpenseModal({
             <ActionButton
               action="create"
               loading={createM.isPending}
-              onClick={() => {
-                if (!form.title.trim() || !Number.isFinite(form.amount) || form.amount <= 0) {
-                  feedback.warning("항목과 금액을 입력하세요.");
-                  return;
-                }
-
-                createM.mutate(
-                  {
-                    staff: staffId,
-                    date: form.date,
-                    title: form.title,
-                    amount: form.amount,
-                    memo: form.memo,
-                  },
-                  { onSuccess: onClose }
-                );
-              }}
+              onClick={handleSubmit}
             >
               추가
             </ActionButton>

@@ -42,13 +42,20 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
     work_type: undefined as number | undefined,
     start_time: "",
     end_time: "",
-    break_minutes: 0,
+    break_minutes: "",
     memo: "",
   });
 
   useEffect(() => {
     if (open) {
-      setForm((p) => ({ ...p, date: range.from, work_type: undefined }));
+      setForm({
+        date: range.from,
+        work_type: undefined,
+        start_time: "",
+        end_time: "",
+        break_minutes: "",
+        memo: "",
+      });
     }
   }, [open, range.from]);
 
@@ -63,6 +70,11 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
       feedback.warning("종료 시간은 시작 시간보다 늦어야 합니다.");
       return;
     }
+    const breakMinutes = form.break_minutes === "" ? 0 : Number(form.break_minutes);
+    if (!Number.isFinite(breakMinutes) || breakMinutes < 0) {
+      feedback.warning("휴게시간은 0분 이상으로 입력하세요.");
+      return;
+    }
     if (createM.isPending) return;
     createM.mutate(
       {
@@ -71,7 +83,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
         date: form.date,
         start_time: form.start_time,
         end_time: form.end_time,
-        break_minutes: form.break_minutes,
+        break_minutes: breakMinutes,
         memo: form.memo,
       },
       {
@@ -82,7 +94,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
             work_type: undefined,
             start_time: "",
             end_time: "",
-            break_minutes: 0,
+            break_minutes: "",
             memo: "",
           });
         },
@@ -164,7 +176,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
               onChange={(e) =>
                 setForm((p) => ({
                   ...p,
-                  break_minutes: Number(e.target.value),
+                  break_minutes: e.target.value,
                 }))
               }
             />
