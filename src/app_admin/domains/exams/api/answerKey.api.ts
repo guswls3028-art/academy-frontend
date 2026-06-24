@@ -1,7 +1,12 @@
 // PATH: src/app_admin/domains/exams/api/answerKeyApi.ts
 import api from "@/shared/api/axios";
 
-export type AnswerKeyValue = string | string[];
+export type AnswerKeyScoreAdjustment = {
+  objective?: number;
+  subjective?: number;
+};
+
+export type AnswerKeyValue = string | string[] | AnswerKeyScoreAdjustment;
 
 export interface AnswerKey {
   id: number;

@@ -55,6 +55,13 @@ const EMPTY_QUESTIONS: ExamQuestion[] = [];
 const EMPTY_EXPLANATIONS: ExplanationData[] = [];
 
 const CHOICES = ["1", "2", "3", "4", "5"];
+const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
+type ScoreDistributionMode = "integer" | "decimal";
+type ScoreAdjustmentDraft = {
+  objective: number;
+  subjective: number;
+};
+
 const CIRCLED_CHOICE_MAP: Record<string, string> = {
   "①": "1",
   "②": "2",
@@ -94,10 +101,14 @@ function isAnswerKey(value: unknown): value is AnswerKey {
   if (!isRecord(value)) return false;
   if (typeof value.id !== "number" || typeof value.exam !== "number") return false;
   if (!isRecord(value.answers)) return false;
-  return Object.values(value.answers).every(
-    (answer) =>
+  return Object.entries(value.answers).every(
+    ([key, answer]) =>
+      key === SCORE_ADJUSTMENT_KEY
+        ? isRecord(answer)
+        : (
       typeof answer === "string" ||
       (Array.isArray(answer) && answer.every((item) => typeof item === "string" || typeof item === "number"))
+        )
   );
 }
 
@@ -111,16 +122,67 @@ function answerKeysFromResponse(response: unknown): AnswerKey[] {
   return list.filter(isAnswerKey);
 }
 
-/** 총점을 문항 수만큼 정수로 균등 분배. 나누어떨어지지 않으면 낮은 점수가 앞문항부터 (예: 80점 17문항 → 4점×5문항, 5점×12문항) */
-function distributeTotalToScores(total: number, count: number): number[] {
-  if (count <= 0) return [];
-  const base = Math.floor(total / count);
-  const remainder = total - base * count;
-  const lowCount = count - remainder;
+/** 총점을 문항 수만큼 분배. decimal 모드는 문항 배점을 1자리로 맞추고 잔여 총점을 기본점수로 둔다. */
+function distributeTotalToScores(
+  total: number,
+  count: number,
+  mode: ScoreDistributionMode
+): { scores: number[]; adjustment: number } {
+  if (count <= 0) return { scores: [], adjustment: 0 };
+  const unit = mode === "decimal" ? 10 : 1;
+  const totalUnits = Math.max(0, Math.round(total * unit));
+  const baseUnits = Math.floor(totalUnits / count);
+  const remainderUnits = totalUnits - baseUnits * count;
+  const baseScore = baseUnits / unit;
+
+  if (mode === "decimal") {
+    return {
+      scores: Array.from({ length: count }, () => baseScore),
+      adjustment: roundScore(remainderUnits / unit),
+    };
+  }
+
+  const lowCount = count - remainderUnits;
   const result: number[] = [];
-  for (let i = 0; i < lowCount; i++) result.push(base);
-  for (let i = 0; i < remainder; i++) result.push(base + 1);
-  return result;
+  for (let i = 0; i < lowCount; i++) result.push(baseScore);
+  for (let i = 0; i < remainderUnits; i++) result.push(baseScore + 1);
+  return { scores: result, adjustment: 0 };
+}
+
+function roundScore(value: number): number {
+  return Math.round((value + Number.EPSILON) * 10) / 10;
+}
+
+function formatScore(value: number): string {
+  const rounded = roundScore(value);
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function parseScoreAdjustment(input: Record<string, AnswerKeyValue>): ScoreAdjustmentDraft {
+  const raw = input[SCORE_ADJUSTMENT_KEY];
+  if (!isRecord(raw)) return { objective: 0, subjective: 0 };
+  const objective = typeof raw.objective === "number" && Number.isFinite(raw.objective) ? raw.objective : 0;
+  const subjective = typeof raw.subjective === "number" && Number.isFinite(raw.subjective) ? raw.subjective : 0;
+  return {
+    objective: Math.max(0, roundScore(objective)),
+    subjective: Math.max(0, roundScore(subjective)),
+  };
+}
+
+function withScoreAdjustment(
+  answers: Record<string, string>,
+  adjustment: ScoreAdjustmentDraft
+): Record<string, AnswerKeyValue> {
+  const payload: Record<string, AnswerKeyValue> = { ...answers };
+  const objective = Math.max(0, roundScore(adjustment.objective));
+  const subjective = Math.max(0, roundScore(adjustment.subjective));
+  if (objective > 0 || subjective > 0) {
+    payload[SCORE_ADJUSTMENT_KEY] = {
+      ...(objective > 0 ? { objective } : {}),
+      ...(subjective > 0 ? { subjective } : {}),
+    };
+  }
+  return payload;
 }
 
 function answerValueToDraft(value: AnswerKeyValue | number | boolean | null | undefined): string {
@@ -133,6 +195,7 @@ function answerValueToDraft(value: AnswerKeyValue | number | boolean | null | un
 function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
   const out: Record<string, string> = {};
   Object.entries(input || {}).forEach(([k, v]) => {
+    if (k === SCORE_ADJUSTMENT_KEY) return;
     out[String(k)] = answerValueToDraft(v);
   });
   return out;
@@ -215,18 +278,24 @@ export default function AnswerKeyRegisterModal({
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
   const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
-  /** 자동점수 부여 ON이면 총점 입력 후 정수 분배. 기본값 OFF */
+  /** 자동점수 부여 ON이면 총점 입력 후 선택한 단위로 분배. 기본값 OFF */
   const [choiceAutoScore, setChoiceAutoScore] = useState(false);
+  const [choiceScoreMode, setChoiceScoreMode] = useState<ScoreDistributionMode>("integer");
   const [choiceTotalInput, setChoiceTotalInput] = useState<number | "">("");
   const [essayCount, setEssayCount] = useState<number | "">("");
   const [essayCountInput, setEssayCountInput] = useState<number | "">("");
   /** 자동점수 부여. 기본값 OFF */
   const [essayAutoScore, setEssayAutoScore] = useState(false);
+  const [essayScoreMode, setEssayScoreMode] = useState<ScoreDistributionMode>("integer");
   const [essayTotalInput, setEssayTotalInput] = useState<number | "">("");
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
+  const [scoreAdjustmentDraft, setScoreAdjustmentDraft] = useState<ScoreAdjustmentDraft>({
+    objective: 0,
+    subjective: 0,
+  });
   /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트, 문제 이미지 URL, 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, ExplanationState>
@@ -270,17 +339,19 @@ export default function AnswerKeyRegisterModal({
   const essayQuestions = sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount);
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
-  const totalScore = useMemo(
+  const questionTotalScore = useMemo(
     () => sortedQuestions.reduce((sum, q) => sum + (scoreDraft[q.id] ?? q.score ?? 0), 0),
     [sortedQuestions, scoreDraft]
   );
   const canEditStructure = canEditQuestions && structureReady;
-  const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0);
-  const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0);
+  const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
+  const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
+  const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
 
   useEffect(() => {
     if (!answerKey || !answerKey.answers) return;
     setDraft(normalizeAnswers(answerKey.answers));
+    setScoreAdjustmentDraft(parseScoreAdjustment(answerKey.answers));
   }, [answerKey]);
 
   useEffect(() => {
@@ -413,20 +484,24 @@ export default function AnswerKeyRegisterModal({
       const essayList = sorted.slice(appliedCc, appliedCc + appliedEc);
 
       const nextScoreDraft: Record<number, number> = {};
+      const nextScoreAdjustment: ScoreAdjustmentDraft = { ...scoreAdjustmentDraft };
       if (choiceAutoScore && Number.isFinite(Number(choiceTotalInput)) && choiceTotalInput !== "") {
         const total = Math.max(0, Number(choiceTotalInput));
-        const scores = distributeTotalToScores(total, choiceList.length);
+        const { scores, adjustment } = distributeTotalToScores(total, choiceList.length, choiceScoreMode);
+        nextScoreAdjustment.objective = adjustment;
         choiceList.forEach((q: ExamQuestion, i: number) => {
           nextScoreDraft[q.id] = scores[i] ?? 0;
         });
       }
       if (essayAutoScore && Number.isFinite(Number(essayTotalInput)) && essayTotalInput !== "") {
         const total = Math.max(0, Number(essayTotalInput));
-        const scores = distributeTotalToScores(total, essayList.length);
+        const { scores, adjustment } = distributeTotalToScores(total, essayList.length, essayScoreMode);
+        nextScoreAdjustment.subjective = adjustment;
         essayList.forEach((q: ExamQuestion, i: number) => {
           nextScoreDraft[q.id] = scores[i] ?? 0;
         });
       }
+      setScoreAdjustmentDraft(nextScoreAdjustment);
       if (Object.keys(nextScoreDraft).length > 0) {
         setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
         if (canEditQuestions) {
@@ -497,11 +572,12 @@ export default function AnswerKeyRegisterModal({
       essayIds.forEach((questionId) => {
         if (normalized[questionId] === "" || normalized[questionId] === undefined) normalized[questionId] = "해설참조";
       });
+      const answersPayload = withScoreAdjustment(normalized, scoreAdjustmentDraft);
       const targetExamId = examId;
       if (!answerKey) {
-        await createAnswerKey({ exam: targetExamId, answers: normalized });
+        await createAnswerKey({ exam: targetExamId, answers: answersPayload });
       } else {
-        await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: normalized });
+        await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       if (canEditQuestions) {
@@ -619,10 +695,15 @@ export default function AnswerKeyRegisterModal({
               <div className="answer-key-panel answer-key-panel--choice">
                 <div className="answer-key-section-header">
                   <div className="answer-key-section-btn answer-key-section-btn--label-only">
-                    <span className="answer-key-section-btn__title">선택형 ({choiceTotalScore}점)</span>
+                    <span className="answer-key-section-btn__title">선택형 ({formatScore(choiceTotalScore)}점)</span>
                     <span className="answer-key-section-badge" aria-label="문항 수">
                       {choiceQuestions.length}문항
                     </span>
+                    {scoreAdjustmentDraft.objective > 0 && (
+                      <span className="answer-key-section-badge" aria-label="기본점수">
+                        기본 {formatScore(scoreAdjustmentDraft.objective)}점
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -643,6 +724,7 @@ export default function AnswerKeyRegisterModal({
                         });
                         return next;
                       });
+                      setScoreAdjustmentDraft((prev) => ({ ...prev, objective: 0 }));
                       feedback.info("선택형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
                     }}
                     disabled={!canEditStructure}
@@ -679,7 +761,7 @@ export default function AnswerKeyRegisterModal({
                     <input
                       type="number"
                       min={0}
-                      step={1}
+                      step={0.1}
                       value={choiceTotalInput === "" ? "" : choiceTotalInput}
                       onChange={(e) =>
                         setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
@@ -708,6 +790,27 @@ export default function AnswerKeyRegisterModal({
                         disabled={!canEditStructure}
                       >
                         미사용
+                      </button>
+                    </div>
+                  </div>
+                  <div className={`answer-key-field ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
+                    <span className="answer-key-field__label">배점 단위</span>
+                    <div className="answer-key-default-score-toggle" role="group" aria-label="선택형 배점 단위">
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${choiceScoreMode === "integer" ? "is-active" : ""}`}
+                        onClick={() => setChoiceScoreMode("integer")}
+                        disabled={!canEditStructure || !choiceAutoScore}
+                      >
+                        정수
+                      </button>
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${choiceScoreMode === "decimal" ? "is-active" : ""}`}
+                        onClick={() => setChoiceScoreMode("decimal")}
+                        disabled={!canEditStructure || !choiceAutoScore}
+                      >
+                        소수 1자리
                       </button>
                     </div>
                   </div>
@@ -774,10 +877,15 @@ export default function AnswerKeyRegisterModal({
               <div className="answer-key-panel answer-key-panel--essay">
                 <div className="answer-key-section-header">
                   <div className="answer-key-section-btn answer-key-section-btn--label-only">
-                    <span className="answer-key-section-btn__title">서술형 ({essayTotalScore}점)</span>
+                    <span className="answer-key-section-btn__title">서술형 ({formatScore(essayTotalScore)}점)</span>
                     <span className="answer-key-section-badge" aria-label="문항 수">
                       {essayQuestions.length}문항
                     </span>
+                    {scoreAdjustmentDraft.subjective > 0 && (
+                      <span className="answer-key-section-badge" aria-label="기본점수">
+                        기본 {formatScore(scoreAdjustmentDraft.subjective)}점
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -798,6 +906,7 @@ export default function AnswerKeyRegisterModal({
                         });
                         return next;
                       });
+                      setScoreAdjustmentDraft((prev) => ({ ...prev, subjective: 0 }));
                       feedback.info("서술형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
                     }}
                     disabled={!canEditStructure}
@@ -813,7 +922,7 @@ export default function AnswerKeyRegisterModal({
                     <input
                       type="number"
                       min={0}
-                      step={1}
+                      step={0.1}
                       value={essayCountInput === "" ? "" : essayCountInput}
                       onChange={(e) =>
                         setEssayCountInput(e.target.value === "" ? "" : Number(e.target.value))
@@ -863,6 +972,27 @@ export default function AnswerKeyRegisterModal({
                         disabled={!canEditStructure}
                       >
                         미사용
+                      </button>
+                    </div>
+                  </div>
+                  <div className={`answer-key-field ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
+                    <span className="answer-key-field__label">배점 단위</span>
+                    <div className="answer-key-default-score-toggle" role="group" aria-label="서술형 배점 단위">
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${essayScoreMode === "integer" ? "is-active" : ""}`}
+                        onClick={() => setEssayScoreMode("integer")}
+                        disabled={!canEditStructure || !essayAutoScore}
+                      >
+                        정수
+                      </button>
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${essayScoreMode === "decimal" ? "is-active" : ""}`}
+                        onClick={() => setEssayScoreMode("decimal")}
+                        disabled={!canEditStructure || !essayAutoScore}
+                      >
+                        소수 1자리
                       </button>
                     </div>
                   </div>
@@ -980,7 +1110,7 @@ export default function AnswerKeyRegisterModal({
                 disabled={saveBusy || !canEditStructure}
                 loading={saveBusy}
               >
-                저장 (총 {Math.round(totalScore)}점)
+                저장 (총 {formatScore(totalScore)}점)
               </Button>
             )}
             {activeTab === "image" && sortedQuestions.length > 0 && (
@@ -1025,6 +1155,7 @@ function ChoiceRow({
   onMoveToNextRow?: (currentValue: string) => void;
   onMoveToPreviousRow?: () => void;
 }) {
+  const scoreTone = Math.min(10, Math.max(0, Math.floor(score)));
   const selectedChoices = parseChoiceDraft(draft);
   const firstSelected = CHOICES.find((choice) => selectedChoices.has(choice)) ?? "";
   const currentIndex = CHOICES.indexOf(firstSelected);
@@ -1110,7 +1241,7 @@ function ChoiceRow({
         ))}
       </div>
       <div className="answer-key-row__score-ctrl">
-        <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
+        <span className={`answer-key-row__score-val answer-key-row__score-val--${scoreTone}`}>{formatScore(score)}점</span>
         <div className="answer-key-row__score-btns">
           <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)} disabled={!editable}>+1</button>
           <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)} disabled={!editable}>+2</button>
@@ -1158,6 +1289,7 @@ function EssayRow({
   onMoveToNextRow?: () => void;
   onMoveToPreviousRow?: () => void;
 }) {
+  const scoreTone = Math.min(10, Math.max(0, Math.floor(score)));
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!editable) return;
     if (e.key === "Enter") {
@@ -1188,7 +1320,7 @@ function EssayRow({
         />
       </div>
       <div className="answer-key-row__score-ctrl">
-        <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
+        <span className={`answer-key-row__score-val answer-key-row__score-val--${scoreTone}`}>{formatScore(score)}점</span>
         <div className="answer-key-row__score-btns">
           <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)} disabled={!editable}>+1</button>
           <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)} disabled={!editable}>+2</button>
