@@ -87,41 +87,33 @@ test.describe("2. 학생 프로필 비밀번호 validation", () => {
     await gotoAndSettle(page, `${BASE}/student/profile`, { settleMs: 2000 });
     await page.screenshot({ path: `${SS}/2-profile-before.png` });
 
-    const pwSection = page.locator("text=비밀번호").first();
-    if (await pwSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const changePwBtn = page.locator("button, a").filter({ hasText: /비밀번호 변경|변경/ }).first();
-      if (await changePwBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await changePwBtn.click();
-        // 비밀번호 input 이 보일 때까지 대기 (waitForTimeout 제거)
-        await expect(page.locator('input[type="password"]').first()).toBeVisible({ timeout: 5_000 });
-      }
+    await expect(page.getByText("비밀번호 변경").first()).toBeVisible({ timeout: 5000 });
 
-      const currentPw = page.locator('input[type="password"]').first();
-      if (await currentPw.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await currentPw.fill("test1234");
+    const changePwBtn = page.getByRole("button", { name: "비밀번호 변경하기" });
+    await expect(changePwBtn).toBeVisible({ timeout: 5000 });
+    await changePwBtn.click();
 
-        const newPw = page.locator('input[type="password"]').nth(1);
-        if (await newPw.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await newPw.fill("abc");
+    const currentPw = page.getByPlaceholder("현재 비밀번호");
+    const newPw = page.getByPlaceholder("새 비밀번호", { exact: true });
+    const confirmPw = page.getByPlaceholder("새 비밀번호 확인");
+    await expect(currentPw).toBeVisible({ timeout: 5000 });
+    await expect(newPw).toBeVisible({ timeout: 5000 });
+    await expect(confirmPw).toBeVisible({ timeout: 5000 });
 
-          const confirmPw = page.locator('input[type="password"]').nth(2);
-          if (await confirmPw.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await confirmPw.fill("abc");
-          }
+    await currentPw.fill(process.env.E2E_STUDENT_PASS || "test1234");
+    await newPw.fill("abc");
+    await confirmPw.fill("abc");
 
-          const saveBtn = page.locator("button").filter({ hasText: /저장|변경|확인/ }).last();
-          if (await saveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await saveBtn.click();
+    await page.getByRole("button", { name: /^비밀번호 변경$/ }).click();
 
-            // 에러 메시지 또는 토스트 — 둘 중 하나 5초 내 노출되어야 함.
-            const errorVisible = await page.locator("text=4자 이상").isVisible({ timeout: 5000 }).catch(() => false);
-            const toastVisible = await page.locator('[class*="toast"], [role="alert"]').isVisible({ timeout: 5000 }).catch(() => false);
+    const errorVisible = await page.locator("text=4자 이상").isVisible({ timeout: 5000 }).catch(() => false);
+    const toastVisible = await page
+      .locator('[class*="toast"], [role="alert"]')
+      .filter({ hasText: /4자 이상|비밀번호/ })
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
-            expect(errorVisible || toastVisible, "비밀번호 validation 에러 표시").toBe(true);
-          }
-        }
-      }
-    }
+    expect(errorVisible || toastVisible, "비밀번호 validation 에러 표시").toBe(true);
     await page.screenshot({ path: `${SS}/2-profile-pw-validation.png` });
   });
 });
