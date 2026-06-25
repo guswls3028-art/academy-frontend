@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/components/VideoPolicySection.tsx
 
+import { useEffect, useState } from "react";
 import ToggleSwitch from "@admin/domains/videos/ui/ToggleSwitch";
 import { useVideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
 import type { VideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
@@ -17,6 +18,11 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
       videoId,
       initial,
     });
+  const [maxSpeedInput, setMaxSpeedInput] = useState(String(policy.max_speed));
+
+  useEffect(() => {
+    setMaxSpeedInput(String(policy.max_speed));
+  }, [policy.max_speed]);
 
   return (
     <div className="space-y-4">
@@ -40,10 +46,23 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
               step={0.25}
               min={0.25}
               max={5}
-              value={policy.max_speed}
+              value={maxSpeedInput}
               onChange={(e) => {
-                if (e.target.value === "") return;
-                setMaxSpeed(Number(e.target.value));
+                const nextValue = e.target.value;
+                setMaxSpeedInput(nextValue);
+                if (nextValue === "" || nextValue.endsWith(".")) return;
+                const parsed = Number(nextValue);
+                if (Number.isFinite(parsed)) setMaxSpeed(parsed);
+              }}
+              onBlur={() => {
+                const parsed = Number(maxSpeedInput);
+                if (!Number.isFinite(parsed) || maxSpeedInput === "") {
+                  setMaxSpeedInput(String(policy.max_speed));
+                  return;
+                }
+                const normalized = Math.min(5, Math.max(0.25, parsed));
+                setMaxSpeedInput(String(normalized));
+                setMaxSpeed(normalized);
               }}
               className="video-policy-input"
             />

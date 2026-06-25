@@ -71,6 +71,10 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const serverAnswers = akQ.data?.answers;
 
+  useEffect(() => {
+    setAnswers({});
+  }, [id]);
+
   // ✅ 서버에서 내려온 answer key를 최초/재조회 시 반영 (사용자 입력을 덮어쓰지 않도록 단순 merge)
   useEffect(() => {
     if (!serverAnswers || typeof serverAnswers !== "object") return;
@@ -234,14 +238,13 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
                 <div key={q.id} className="flex items-center gap-3 border rounded px-3 py-2">
                   <div className="w-12 text-sm font-semibold">#{q.number}</div>
 
-                  <input
-                    type="number"
-                    className="w-20 input"
-                    defaultValue={q.score}
-                    onBlur={(e) =>
+                  <SheetScoreInput
+                    question={q}
+                    disabled={scoreMut.isPending}
+                    onCommit={(score) =>
                       scoreMut.mutate({
                         questionId: q.id,
-                        score: Number(e.target.value),
+                        score,
                       })
                     }
                   />
@@ -318,4 +321,57 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
       )}
     </div>
   );
+}
+
+function SheetScoreInput({
+  question,
+  disabled,
+  onCommit,
+}: {
+  question: SheetQuestionEntity;
+  disabled: boolean;
+  onCommit: (score: number) => void;
+}) {
+  const [value, setValue] = useState(formatScoreInput(question.score));
+
+  useEffect(() => {
+    setValue(formatScoreInput(question.score));
+  }, [question.id, question.score]);
+
+  const handleBlur = () => {
+    const parsed = parseNonNegativeNumber(value);
+    if (value.trim() === "" || parsed == null) {
+      feedback.error("배점은 0 이상의 숫자로 입력해 주세요.");
+      setValue(formatScoreInput(question.score));
+      return;
+    }
+    if (parsed !== Number(question.score)) onCommit(parsed);
+  };
+
+  return (
+    <input
+      type="number"
+      min={0}
+      step={0.5}
+      className="w-20 input"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleBlur}
+      disabled={disabled}
+      aria-label={`${question.number}번 배점`}
+    />
+  );
+}
+
+function formatScoreInput(score: number | string | null | undefined): string {
+  if (score == null) return "";
+  return String(score);
+}
+
+function parseNonNegativeNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
 }

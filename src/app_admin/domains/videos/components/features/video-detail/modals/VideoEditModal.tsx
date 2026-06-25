@@ -25,17 +25,19 @@ export default function VideoEditModal({
 }: VideoEditModalProps) {
   const qc = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
-  const [order, setOrder] = useState(initialOrder);
+  const initialOrderValue = normalizeOrder(initialOrder) ?? 1;
+  const [orderInput, setOrderInput] = useState(String(initialOrderValue));
+  const orderValue = normalizeOrder(orderInput);
 
   useEffect(() => {
     if (open) {
       setTitle(initialTitle);
-      setOrder(initialOrder);
+      setOrderInput(String(normalizeOrder(initialOrder) ?? 1));
     }
   }, [open, initialTitle, initialOrder]);
 
   const mutation = useMutation({
-    mutationFn: () => updateVideo(videoId, { title: title.trim(), order }),
+    mutationFn: () => updateVideo(videoId, { title: title.trim(), order: orderValue ?? initialOrderValue }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["session-videos"] });
       qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
@@ -52,8 +54,8 @@ export default function VideoEditModal({
     },
   });
 
-  const hasChanges = title.trim() !== initialTitle || order !== initialOrder;
-  const canSave = title.trim().length > 0 && hasChanges;
+  const hasChanges = title.trim() !== initialTitle || orderValue !== initialOrderValue;
+  const canSave = title.trim().length > 0 && orderValue != null && hasChanges && !mutation.isPending;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -90,8 +92,12 @@ export default function VideoEditModal({
               <input
                 type="number"
                 min={1}
-                value={order}
-                onChange={(e) => setOrder(Math.max(1, parseInt(e.target.value) || 1))}
+                value={orderInput}
+                onChange={(e) => setOrderInput(e.target.value)}
+                onBlur={() => {
+                  if (orderValue == null) setOrderInput(String(initialOrderValue));
+                }}
+                aria-invalid={orderValue == null ? "true" : undefined}
                 className="video-edit-input video-edit-input--order"
               />
               <span className="video-edit-help">
@@ -111,7 +117,7 @@ export default function VideoEditModal({
           <Button
             intent="primary"
             onClick={handleSave}
-            disabled={!canSave || mutation.isPending}
+            disabled={!canSave}
           >
             {mutation.isPending ? "저장 중…" : "저장"}
           </Button>
@@ -119,4 +125,10 @@ export default function VideoEditModal({
       />
     </AdminModal>
   );
+}
+
+function normalizeOrder(value: number | string): number | null {
+  const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return Math.floor(parsed);
 }

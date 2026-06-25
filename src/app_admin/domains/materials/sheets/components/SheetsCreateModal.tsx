@@ -26,6 +26,13 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    setTitle("");
+    setSubject("");
+    setQuestionCount(20);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };

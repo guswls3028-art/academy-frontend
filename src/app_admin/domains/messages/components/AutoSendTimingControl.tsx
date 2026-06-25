@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { AutoSendConfigItem, DelayMode } from "../api/messages.api";
 import {
   coerceDelayValue,
@@ -18,6 +19,28 @@ export default function AutoSendTimingControl({
   disabled = false,
   onUpdate,
 }: AutoSendTimingControlProps) {
+  const [reminderText, setReminderText] = useState(
+    config.minutes_before == null ? "" : String(config.minutes_before),
+  );
+  const delayMode = config.delay_mode ?? "immediate";
+  const [delayMinutesText, setDelayMinutesText] = useState(
+    delayMode === "delay_minutes"
+      ? String(coerceDelayValue("delay_minutes", config.delay_value) ?? "")
+      : "",
+  );
+
+  useEffect(() => {
+    setReminderText(config.minutes_before == null ? "" : String(config.minutes_before));
+  }, [config.minutes_before, config.trigger]);
+
+  useEffect(() => {
+    setDelayMinutesText(
+      delayMode === "delay_minutes"
+        ? String(coerceDelayValue("delay_minutes", config.delay_value) ?? "")
+        : "",
+    );
+  }, [config.delay_value, config.trigger, delayMode]);
+
   const patch = (next: Partial<AutoSendConfigItem>, debounce = false) => {
     onUpdate({ ...config, ...next }, debounce);
   };
@@ -31,15 +54,25 @@ export default function AutoSendTimingControl({
           step={5}
           placeholder="0"
           className={`ds-input ${styles.reminderInput}`}
-          value={config.minutes_before ?? ""}
+          value={reminderText}
           onChange={(e) => {
             const value = e.target.value;
-            patch(
-              {
-                minutes_before: value === "" ? null : Math.max(0, Number.parseInt(value, 10) || 0),
-              },
-              true,
-            );
+            setReminderText(value);
+            if (value === "") {
+              patch({ minutes_before: null }, true);
+              return;
+            }
+            const parsed = Number.parseInt(value, 10);
+            if (Number.isFinite(parsed)) {
+              patch({ minutes_before: Math.max(0, parsed) }, true);
+            }
+          }}
+          onBlur={() => {
+            if (reminderText === "") return;
+            const parsed = Number.parseInt(reminderText, 10);
+            const normalized = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+            setReminderText(String(normalized));
+            patch({ minutes_before: normalized }, true);
           }}
           disabled={disabled}
           aria-label={`발송 시점 (${getReminderUnit(config.trigger)})`}
@@ -50,8 +83,6 @@ export default function AutoSendTimingControl({
       </div>
     );
   }
-
-  const delayMode = config.delay_mode ?? "immediate";
 
   return (
     <div className={styles.delayStack}>
@@ -79,13 +110,23 @@ export default function AutoSendTimingControl({
             step={10}
             placeholder={String(defaultDelayValue("delay_minutes"))}
             className={`ds-input ${styles.delayMinutesInput}`}
-            value={config.delay_value ?? defaultDelayValue("delay_minutes") ?? ""}
+            value={delayMinutesText}
             onChange={(e) => {
-              const parsed = Number.parseInt(e.target.value, 10);
-              patch(
-                { delay_value: Number.isFinite(parsed) ? Math.max(1, parsed) : defaultDelayValue("delay_minutes") },
-                true,
-              );
+              const value = e.target.value;
+              setDelayMinutesText(value);
+              if (value === "") return;
+              const parsed = Number.parseInt(value, 10);
+              if (Number.isFinite(parsed)) {
+                patch({ delay_value: Math.max(1, parsed) }, true);
+              }
+            }}
+            onBlur={() => {
+              const parsed = Number.parseInt(delayMinutesText, 10);
+              const normalized = Number.isFinite(parsed)
+                ? Math.max(1, parsed)
+                : defaultDelayValue("delay_minutes");
+              setDelayMinutesText(String(normalized ?? ""));
+              patch({ delay_value: normalized }, true);
             }}
             disabled={disabled}
           />

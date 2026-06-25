@@ -448,10 +448,23 @@ export default function AutoSendSettingsPanel({
   // ---- Local state (optimistic updates) ----
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
+  const hasPendingDebouncedSaveRef = useRef(false);
 
   useEffect(() => {
     setLocalConfigs(allConfigs);
   }, [allConfigs]);
+
+  useEffect(() => {
+    return () => {
+      if (!hasPendingDebouncedSaveRef.current) return;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      hasPendingDebouncedSaveRef.current = false;
+      if (pendingConfigsRef.current.length > 0) {
+        void updateAutoSendConfigs(pendingConfigsRef.current).catch(() => undefined);
+      }
+    };
+  }, []);
 
   // Filter to only the triggers this panel cares about
   const filteredConfigs = localConfigs.filter((c) =>
@@ -551,11 +564,17 @@ export default function AutoSendSettingsPanel({
       c.trigger === updated.trigger ? { ...c, ...updated } : c,
     );
     setLocalConfigs(next);
+    pendingConfigsRef.current = next;
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => updateMut.mutate(next), 600);
+      hasPendingDebouncedSaveRef.current = true;
+      debounceRef.current = setTimeout(() => {
+        hasPendingDebouncedSaveRef.current = false;
+        updateMut.mutate(pendingConfigsRef.current);
+      }, 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      hasPendingDebouncedSaveRef.current = false;
       updateMut.mutate(next);
     }
   };

@@ -13,7 +13,7 @@
 // - 따라서 이 모달은 운영자가 "필요한 문항만" 직접 입력하여 보정하는 방식으로 설계한다.
 // - 입력이 비어있는 문항은 서버에 보내지지 않는다(불필요 update 방지).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
@@ -45,6 +45,13 @@ export default function SubmissionManualEditModal({
 
   // answers: key=exam_question_id(string)
   const [localAnswers, setLocalAnswers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!open) return;
+    setIdentifierEnrollmentId("");
+    setNote("manual_edit");
+    setLocalAnswers({});
+  }, [open, submissionId]);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -85,8 +92,8 @@ export default function SubmissionManualEditModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-5xl rounded-2xl bg-[var(--bg-page)] shadow-2xl overflow-hidden border">
-        <div className="px-6 py-4 border-b bg-[var(--bg-surface)] flex items-center justify-between">
+      <div className="w-full max-w-5xl max-h-[calc(100vh-2rem)] rounded-2xl bg-[var(--bg-page)] shadow-2xl overflow-hidden border flex flex-col">
+        <div className="px-6 py-4 border-b bg-[var(--bg-surface)] flex items-center justify-between shrink-0">
           <div>
             <div className="text-base font-extrabold">제출 수동 수정</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
@@ -99,7 +106,7 @@ export default function SubmissionManualEditModal({
           </Button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto min-h-0">
           <div className="rounded-xl border bg-[var(--bg-surface-soft)] p-4 space-y-3">
             <div className="text-sm font-semibold">식별자(선택)</div>
             <div className="text-xs text-gray-600">
@@ -134,7 +141,7 @@ export default function SubmissionManualEditModal({
               exam_question_id 기준(단일진실)으로 저장됩니다.
             </div>
 
-            <div className="mt-3 rounded-xl border overflow-hidden">
+            <div className="mt-3 rounded-xl border overflow-auto max-h-[46vh]">
               <table className="table">
                 <thead>
                   <tr>

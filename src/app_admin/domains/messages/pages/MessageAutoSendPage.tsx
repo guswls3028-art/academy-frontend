@@ -372,10 +372,22 @@ export default function MessageAutoSendPage() {
   const globalEnabled = isAllToggleableEnabled(globalSummary);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
+  const hasPendingDebouncedSaveRef = useRef(false);
   const autoProvisionedRef = useRef(false);
   useEffect(() => {
     setLocalConfigs(configs);
   }, [configs]);
+
+  useEffect(() => {
+    return () => {
+      if (!hasPendingDebouncedSaveRef.current) return;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      hasPendingDebouncedSaveRef.current = false;
+      if (pendingConfigsRef.current.length > 0) {
+        void updateAutoSendConfigs(pendingConfigsRef.current).catch(() => undefined);
+      }
+    };
+  }, []);
 
   // 기본 템플릿이 없으면 자동 프로비저닝 (1회)
   useEffect(() => {
@@ -464,9 +476,14 @@ export default function MessageAutoSendPage() {
     pendingConfigsRef.current = next;
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => updateMut.mutate(pendingConfigsRef.current), 600);
+      hasPendingDebouncedSaveRef.current = true;
+      debounceRef.current = setTimeout(() => {
+        hasPendingDebouncedSaveRef.current = false;
+        updateMut.mutate(pendingConfigsRef.current);
+      }, 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      hasPendingDebouncedSaveRef.current = false;
       updateMut.mutate(next);
     }
   };

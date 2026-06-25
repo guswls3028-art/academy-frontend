@@ -69,14 +69,27 @@ async function expectMessagingModalHidden(page: Page, timeout = 3_000) {
 
 /** 양식 패널에서 "직접 작성하기" 진입 (양식 패널이 열려있지 않으면 먼저 연다). */
 async function openFreeformBody(page: Page) {
-  const templateSelectBtn = page.locator("button").filter({ hasText: /양식 선택|양식 변경/ }).first();
+  const modal = page.locator(MESSAGING_MODAL_ROOT);
+  const confirmOverlay = modal.locator(".send-modal__confirm-overlay");
+  if (await confirmOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+    await confirmOverlay.locator("button").filter({ hasText: "돌아가기" }).first().click();
+    await expect(confirmOverlay).toBeHidden({ timeout: 3_000 });
+  }
+  const templateSelectBtn = modal.locator("button").filter({ hasText: /양식 선택|양식 변경/ }).first();
   if (await templateSelectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await templateSelectBtn.click();
+    const picker = page.locator(".tpl-picker-modal");
+    await expect(picker, "양식 선택 모달이 열려야 함").toBeVisible({ timeout: 5_000 });
+    const freeformBtn = picker.locator("button").filter({ hasText: "직접 작성하기" }).first();
+    await expect(freeformBtn, "양식 선택 모달의 '직접 작성하기' 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
+    await freeformBtn.click();
+    await expect(picker, "양식 선택 모달이 닫혀야 함").toBeHidden({ timeout: 5_000 });
+  } else {
+    const freeformBtn = modal.locator("button").filter({ hasText: "직접 작성하기" }).first();
+    await expect(freeformBtn, "빈 본문 상태의 '직접 작성하기' 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
+    await freeformBtn.click();
   }
-  const freeformBtn = page.locator("button").filter({ hasText: "직접 작성하기" }).first();
-  await expect(freeformBtn, "양식 패널의 '직접 작성하기' 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
-  await freeformBtn.click();
-  await expect(page.locator("textarea").first(), "본문 textarea 가 보여야 함").toBeVisible({ timeout: 5_000 });
+  await expect(modal.locator("textarea").first(), "본문 textarea 가 보여야 함").toBeVisible({ timeout: 5_000 });
 }
 
 /** 스크린샷 저장 */
@@ -350,8 +363,13 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
     await openMessagingModal(page);
 
     // ── 알림톡 모드로 전환 ──
-    const alimBtn = page.locator("button").filter({ hasText: "알림톡" }).first();
-    await alimBtn.click();
+    const modal6 = page.locator(MESSAGING_MODAL_ROOT);
+    const alimBtn = modal6.getByRole("button", { name: /^알림톡$/ }).first();
+    if (await alimBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await alimBtn.click();
+    } else {
+      test.info().annotations.push({ type: "policy", description: "알림톡 단일 모달 — 채널 토글 없음" });
+    }
     await snap(page, "audit-6-alimtalk-mode");
 
     // ── 카카오 미리보기 확인 (알림톡 모드 진입 신호)
@@ -372,8 +390,7 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
 
     // ── SMS로 전환 후 다시 알림톡으로 — 채널 전환 시 본문 초기화 정책 검증 ──
     // SMS 미연동 환경에서는 SMS 토글 자체가 모달에 없음 → 채널 전환 검증 skip.
-    const modal6 = page.locator(MESSAGING_MODAL_ROOT);
-    const smsBtn = modal6.locator("button").filter({ hasText: "SMS" }).first();
+    const smsBtn = modal6.getByRole("button", { name: /^SMS$/ }).first();
     if (await smsBtn.isVisible({ timeout: 3_000 }).catch(() => false) && await smsBtn.isEnabled({ timeout: 3_000 }).catch(() => false)) {
       await smsBtn.click();
       // SMS 전환 후 본문은 알림톡 본문과 별도 (clear 정책) — 빈 값 또는 SMS 본문이 보여야 함.
