@@ -1,5 +1,6 @@
 type PaginatedApiResponse<T> = {
   results?: T[];
+  items?: T[];
 };
 
 export type ApiRecord = Record<string, unknown>;
@@ -13,6 +14,8 @@ export function listFromApiResponse<T>(raw: unknown): T[] {
   if (isApiRecord(raw)) {
     const results = (raw as PaginatedApiResponse<T>).results;
     if (Array.isArray(results)) return results;
+    const items = (raw as PaginatedApiResponse<T>).items;
+    if (Array.isArray(items)) return items;
   }
   return [];
 }

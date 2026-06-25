@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import { listFromApiResponse } from "@/shared/api/response";
 
 export type ClinicReason = "exam" | "homework" | "both";
 
@@ -68,5 +69,5 @@ export type RetakeResponse = {
 
 export async function fetchClinicTargets(params?: { section_id?: number }) {
   const res = await api.get("/results/admin/clinic-targets/", { params });
-  return res.data as ClinicTarget[];
+  return listFromApiResponse<ClinicTarget>(res.data);
 }

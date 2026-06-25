@@ -3,7 +3,7 @@
 // - list: GET /submissions/exams/<exam_id>/
 // - 운영자 수동 개입: manual-edit / retry
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -35,6 +35,13 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
   // batch upload
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [batchSheetId, setBatchSheetId] = useState<string>("");
+  const batchFileInputRef = useRef<HTMLInputElement | null>(null);
+  const clearBatchFiles = () => {
+    setBatchFiles([]);
+    if (batchFileInputRef.current) {
+      batchFileInputRef.current.value = "";
+    }
+  };
 
   const listQ = useQuery({
     queryKey: ["materials-submissions", examId],
@@ -59,7 +66,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
       });
     },
     onSuccess: () => {
-      setBatchFiles([]);
+      clearBatchFiles();
       setBatchSheetId("");
       qc.invalidateQueries({ queryKey: ["materials-submissions", examId] });
       feedback.success("업로드 요청이 접수되었습니다. 처리 상태는 목록에서 확인하세요.");
@@ -117,10 +124,15 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
           />
 
           <input
+            ref={batchFileInputRef}
             type="file"
             multiple
             accept="image/*,application/pdf"
-            onChange={(e) => setBatchFiles(Array.from(e.target.files ?? []))}
+            disabled={batchMut.isPending}
+            onChange={(e) => {
+              setBatchFiles(Array.from(e.target.files ?? []));
+              e.currentTarget.value = "";
+            }}
           />
 
           <Button
@@ -134,7 +146,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
           </Button>
 
           {(batchFiles?.length ?? 0) > 0 && (
-            <Button type="button" intent="secondary" size="md" onClick={() => setBatchFiles([])} disabled={batchMut.isPending}>
+            <Button type="button" intent="secondary" size="md" onClick={clearBatchFiles} disabled={batchMut.isPending}>
               선택 해제
             </Button>
           )}
