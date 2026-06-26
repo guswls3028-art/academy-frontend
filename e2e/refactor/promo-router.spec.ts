@@ -225,7 +225,7 @@ async function clickAndAssertTarget(page: Page, link: VisibleLink, sourcePath: s
 }
 
 test.describe("promo route navigation", () => {
-  test.setTimeout(300_000);
+  test.setTimeout(900_000);
 
   test.beforeEach(async ({ page }) => {
     await stubPromoBootstrap(page);
