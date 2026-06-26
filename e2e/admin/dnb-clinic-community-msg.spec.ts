@@ -3,7 +3,7 @@
  * clinic_mode=remediation, section_mode=false
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import type { Page } from "@playwright/test";
 
@@ -42,6 +42,8 @@ async function visitAndAssertNo5xx(page: Page, path: string, screenshot: string)
 }
 
 test.describe("DNB 클리닉/커뮤니티/메시징 검증", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(180000);
 
   test.beforeEach(async ({ page }) => {

@@ -5,6 +5,7 @@
 // 다양한 paper_type doc + 업로드 모달 단계별 + 모바일 + 적중보고서.
 
 import { test, expect, type Page } from "@playwright/test";
+import { openMatchupUploadModal } from "../helpers/matchup";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -84,15 +85,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
 
-    const upBtn = page.locator('button:has-text("자료 등록"), button:has-text("참고자료")').first();
-    if (await upBtn.count() === 0) {
-      await page.locator('button:has-text("업로드"), button:has-text("시험지")').first().click();
-    } else {
-      await upBtn.click();
-    }
-
-    const modal = page.locator('[data-testid="matchup-upload-modal"]');
-    await expect(modal).toBeVisible();
+    const modal = await openMatchupUploadModal(page, "reference");
     await modal.screenshot({ path: `${OUT}/03a-modal-empty.png` });
 
     // 1개 파일
@@ -103,7 +96,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
       mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4 dummy"),
     });
-    await expect(auto).toBeVisible({ timeout: 5000 });
+    await expect(auto).toBeAttached({ timeout: 5000 });
     await modal.screenshot({ path: `${OUT}/03b-modal-1file-ssen.png` });
 
     const st1 = await auto.getAttribute("data-source-type");
@@ -116,7 +109,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
       { name: "기출_2026_중간고사_2.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 b") },
       { name: "기출_2026_중간고사_3.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 c") },
     ]);
-    await expect(auto).toBeVisible({ timeout: 5000 });
+    await expect(auto).toBeAttached({ timeout: 5000 });
     await modal.screenshot({ path: `${OUT}/03c-modal-multi-files.png` });
 
     const st2 = await auto.getAttribute("data-source-type");
@@ -133,9 +126,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     await page.screenshot({ path: `${OUT}/04a-mobile-1100-landing.png`, fullPage: true });
 
     // 업로드 모달 모바일
-    const upBtn = page.locator('button:has-text("업로드"), button:has-text("시험지"), button:has-text("자료 등록")').first();
-    await upBtn.click();
-    await expect(page.locator('[data-testid="matchup-upload-modal"]')).toBeVisible({ timeout: 5000 });
+    await openMatchupUploadModal(page, "test");
     await page.screenshot({ path: `${OUT}/04b-mobile-1100-modal.png`, fullPage: true });
     await ctx.close();
   });

@@ -26,7 +26,7 @@ test.describe("선생앱 가이드", () => {
       await expect(main.locator("text=강의 만들고 수업 관리하기")).toBeVisible();
       await expect(main.locator("text=시험 출제하고 채점하기")).toBeVisible();
       await expect(main.locator("text=강의 영상 올리기")).toBeVisible();
-      await expect(main.locator("text=메시지 보내기")).toBeVisible();
+      await expect(main.locator("text=알림톡 보내기")).toBeVisible();
       await expect(main.locator("text=성적 확인하기")).toBeVisible();
     }
   });

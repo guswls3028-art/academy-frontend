@@ -27,6 +27,10 @@ const API = getApiBaseUrl();
 const TS = Date.now();
 const TAG = `[E2E-${TS}]`;
 const MATCHUP_URL = "https://hakwonplus.com/admin/storage/matchup";
+const OCR_CASE_TIMEOUT_MS = 900_000;
+const OCR_PROCESS_TIMEOUT_MS = 780_000;
+const TEXT_CASE_TIMEOUT_MS = 420_000;
+const TEXT_PROCESS_TIMEOUT_MS = 300_000;
 
 const BASE_DIR = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted";
 const CASES = [
@@ -132,30 +136,20 @@ async function openUploadAndSubmit(
   subject = "통합과학",
   grade = "고1",
 ): Promise<void> {
-  // + 아이콘 버튼 (문서 목록 헤더)
-  // 스크린샷에서 확인: "문서 목록" 텍스트 옆 + 버튼
-  const plusBtn = page.locator("button").filter({ has: page.locator("svg") }).last();
-
-  // 우선 "문서 목록" 레이블 근처 + 버튼 시도
-  const listHeader = page.locator("text=문서 목록").first();
-  if (await listHeader.isVisible({ timeout: 5000 }).catch(() => false)) {
-    // 같은 컨테이너 안의 + 버튼
-    const container = listHeader.locator("..").locator("button").last();
-    if (await container.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await container.click();
-    } else {
-      // 전체 페이지에서 마지막 + 아이콘 버튼
-      await plusBtn.click();
-    }
-  } else {
-    // 빈 상태: "문서 업로드" 버튼이 중앙에 있을 수 있음
-    const emptyUploadBtn = page.locator("button").filter({ hasText: /문서 업로드|업로드/ }).first();
-    if (await emptyUploadBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await emptyUploadBtn.click();
-    } else {
-      await plusBtn.click();
+  const uploadTriggers = [
+    page.locator('[data-testid="matchup-upload-button"]').first(),
+    page.getByRole("button", { name: /시험지|문서 업로드|업로드/ }).first(),
+    page.locator("button").filter({ hasText: /시험지|문서 업로드|업로드/ }).first(),
+  ];
+  let opened = false;
+  for (const trigger of uploadTriggers) {
+    if (await trigger.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await trigger.click();
+      opened = true;
+      break;
     }
   }
+  expect(opened, "매치업 시험지 업로드 버튼이 보여야 함").toBe(true);
 
   await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
@@ -267,7 +261,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
   });
 
   test("A-1: 은광여고 스캔본 업로드 → OCR 처리 → 문항 수 ≥30 검증", async () => {
-    test.setTimeout(420_000); // 7분
+    test.setTimeout(OCR_CASE_TIMEOUT_MS);
 
     // 1. 매치업 페이지 이동
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
@@ -301,8 +295,8 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
     docId = found!.id;
     console.log(`[A-DOC] id=${docId}`);
 
-    // 6. AI 처리 완료 대기 (list 폴링)
-    const result = await waitForDone(page, docId!, accessToken, 360_000);
+    // 6. AI 처리 완료 대기 (list 폴링). Cold-start + 대형 스캔 OCR은 6분을 넘길 수 있다.
+    const result = await waitForDone(page, docId!, accessToken, OCR_PROCESS_TIMEOUT_MS);
     console.log(`[A-DONE] status=${result.status}, count=${result.problem_count}`);
 
     // 7. CW 확인
@@ -408,7 +402,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
   });
 
   test("B-1: 경기고 스캔본 업로드 → OCR 처리 → 문항 수 ≥18 검증", async () => {
-    test.setTimeout(420_000);
+    test.setTimeout(OCR_CASE_TIMEOUT_MS);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
@@ -436,7 +430,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     docId = found!.id;
     console.log(`[B-DOC] id=${docId}`);
 
-    const result = await waitForDone(page, docId!, accessToken, 360_000);
+    const result = await waitForDone(page, docId!, accessToken, OCR_PROCESS_TIMEOUT_MS);
     console.log(`[B-DONE] status=${result.status}, count=${result.problem_count}`);
 
     const ocrAfter = getCWOcrCalls(60);
@@ -527,7 +521,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
   });
 
   test("C-1: 중산고 텍스트PDF 업로드 → OCR 없이 처리 → 문항 수 ≥28, text 비율 ≥80%", async () => {
-    test.setTimeout(300_000);
+    test.setTimeout(TEXT_CASE_TIMEOUT_MS);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
@@ -557,7 +551,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     docId = found!.id;
     console.log(`[C-DOC] id=${docId}`);
 
-    const result = await waitForDone(page, docId!, accessToken, 240_000);
+    const result = await waitForDone(page, docId!, accessToken, TEXT_PROCESS_TIMEOUT_MS);
     console.log(`[C-DONE] status=${result.status}, count=${result.problem_count}`);
 
     // CW 확인

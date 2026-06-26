@@ -5,7 +5,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const OUT = "e2e/_artifacts/matchup-uiux-postdeploy-2026-05-05";
@@ -56,6 +56,12 @@ async function waitForHitReportEditor(page: Page): Promise<void> {
   ).catch(() => {});
 }
 
+async function openDocRow(page: Page, row: Locator): Promise<void> {
+  await row.scrollIntoViewIfNeeded();
+  await row.click({ noWaitAfter: true });
+  await waitForDocDetail(page);
+}
+
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test.describe("매치업 UIUX 배포후 실사용", () => {
@@ -75,8 +81,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
   test("02-test-doc — 시험지 doc 헤더 (적중 보고서 작성 + 직접 자르기)", async ({ page }) => {
     const testDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test'][data-doc-status='done']").first();
     if (await testDoc.count() === 0) test.skip(true, "시험지 done doc 없음");
-    await testDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, testDoc);
     await page.screenshot({ path: `${OUT}/02-test-header-1440.png`, fullPage: false });
     await page.setViewportSize({ width: 1100, height: 800 });
     await expect(page.locator("body")).toBeVisible();
@@ -98,10 +103,11 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
     const n = await docs.count();
     let found = false;
     for (let i = 0; i < Math.min(n, 20); i++) {
-      await docs.nth(i).click();
-      await waitForDocDetail(page);
-      const banner = page.locator("[data-testid='matchup-paper-type-banner']");
-      if (await banner.count() > 0) {
+      const doc = docs.nth(i);
+      await openDocRow(page, doc);
+      const banner = page.locator("[data-testid='matchup-paper-type-banner']").first();
+      if (await banner.isVisible({ timeout: 500 }).catch(() => false)) {
+        await banner.scrollIntoViewIfNeeded();
         await banner.screenshot({ path: `${OUT}/04-paper-type-banner.png` });
         found = true;
         break;
@@ -115,8 +121,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
     const n = await docs.count();
     let found = false;
     for (let i = 0; i < Math.min(n, 20); i++) {
-      await docs.nth(i).click();
-      await waitForDocDetail(page);
+      await openDocRow(page, docs.nth(i));
       const btn = page.locator("[data-testid='matchup-low-conf-reviewer-open-btn']");
       if (await btn.count() > 0) {
         const region = btn.locator("xpath=ancestor::*[1]");

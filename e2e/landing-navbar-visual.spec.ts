@@ -2,32 +2,20 @@
  * Landing NavBar Visual Validation (2026-05-11)
  *
  * nexon dnfm 스타일 hamburger nav 재설계 검증.
- * Target: https://hakwonplus.com (production, hakwonplus tenant, has_landing:true)
+ * Target: public landing production tenant.
  *
  * 실행: npx playwright test e2e/landing-navbar-visual.spec.ts
  */
 
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { getBaseUrl, loginViaUI } from "./helpers/auth";
 
-const BASE = "https://hakwonplus.com";
-const API_BASE = "https://api.hakwonplus.com";
+const BASE = getBaseUrl("tchul-admin");
 const SS = "e2e/screenshots";
 
 async function loginAdmin(page: Page) {
-  const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-    timeout: 30_000,
-  });
-  if (resp.status() !== 200) throw new Error(`Login failed: ${resp.status()} ${await resp.text()}`);
-  const { access, refresh } = await resp.json() as { access: string; refresh: string };
-  await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 20_000 });
-  await page.evaluate(({ access, refresh }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    try { sessionStorage.setItem("tenantCode", "hakwonplus"); } catch { /**/ }
-  }, { access, refresh });
+  await loginViaUI(page, "tchul-admin");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,7 +23,7 @@ async function loginAdmin(page: Page) {
 // ─────────────────────────────────────────────────────────────────────────────
 test("1. 비로그인 /landing — hamburger + side panel", async ({ page }) => {
   // 완전 새 컨텍스트: 아무 인증 정보 없는 상태에서 /landing 직접 진입.
-  // hakwonplus.com 도메인이므로 SPA가 X-Tenant-Code: hakwonplus를 자동으로 붙임.
+  // TCHUL 공개 랜딩 도메인이므로 SPA가 tenant를 도메인에서 자동 해석한다.
   await page.goto(`${BASE}/landing`, { waitUntil: "load", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
@@ -120,7 +108,7 @@ test("1. 비로그인 /landing — hamburger + side panel", async ({ page }) => 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: 로그인 후 nav myconsole + LandingRoleFab
 // ─────────────────────────────────────────────────────────────────────────────
-test("2. 로그인 (admin97) — nav myconsole + LandingRoleFab", async ({ page }) => {
+test("2. 로그인 — nav myconsole + LandingRoleFab", async ({ page }) => {
   await loginAdmin(page);
   // fab 닫힘 상태 보장
   await page.evaluate(() => { localStorage.setItem("landing-fab-open", "0"); });

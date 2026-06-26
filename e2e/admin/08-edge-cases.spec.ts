@@ -145,35 +145,20 @@ test.describe("메시징 잠재 버그 시나리오 — edge cases", () => {
       if (overlayVisible) {
         await snap(page, "edge-1-confirm-overlay");
 
-        // ── 1b. "발송하기" 버튼 2번 빠르게 클릭 ──
+        // ── 1b. "발송하기" 버튼은 실제 발송하지 않고 표시/복귀만 확인 ──
         const confirmSendBtn = page.locator("button").filter({ hasText: "발송하기" }).last();
-
-        // 클릭 직후 disabled 전환 여부 확인
-        await confirmSendBtn.click();
-        // 바로 disabled 상태 확인 (비동기 처리 전)
-        const disabledAfterFirst = await confirmSendBtn.isDisabled().catch(() => true);
-        // 두 번째 클릭 시도 — 의도적 race (더블클릭 방지 검증의 본질)
-        await confirmSendBtn.click({ force: true }).catch(() => {});
-        // eslint-disable-next-line no-restricted-syntax
-        await page.waitForTimeout(200); // 의도적: 더블클릭 race 검증
-
-        const disabledAfterSecond = await confirmSendBtn.isDisabled().catch(() => true);
-        console.log(`[1] 1차 클릭 후 disabled: ${disabledAfterFirst}`);
-        console.log(`[1] 2차 클릭 후 disabled: ${disabledAfterSecond}`);
-        await snap(page, "edge-1-after-double-click");
-
-        // sendingRef.current 방어: 버튼이 "발송 중…"으로 바뀌거나 disabled여야 함
+        await expect(confirmSendBtn, "확인 오버레이의 발송하기 버튼이 보여야 함").toBeVisible({ timeout: 3_000 });
+        await expect(confirmSendBtn, "발송 직전 버튼은 최종 확인 단계에서 활성이어야 함").toBeEnabled({ timeout: 3_000 });
         const btnText = await confirmSendBtn.textContent().catch(() => "");
         console.log(`[1] 발송하기 버튼 텍스트: "${btnText}"`);
-        if (disabledAfterFirst || btnText?.includes("발송 중")) {
-          console.log("[1] PASS — 더블클릭 방지 정상: 1차 클릭 직후 버튼 비활성화됨");
-        } else {
-          console.log("[1] WARN — 1차 클릭 후 즉시 disabled가 아님. sendingRef 작동 시 API 중복 호출 없음은 확인 필요");
-        }
+        const backBtn = page.locator("button").filter({ hasText: "돌아가기" }).last();
+        await expect(backBtn, "운영 전체 suite에서는 실제 발송하지 않고 돌아갈 수 있어야 함").toBeVisible({ timeout: 3_000 });
+        await backBtn.click();
+        await expect(confirmSendBtn).toBeHidden({ timeout: 3_000 });
 
-        // 발송 후 모달 상태 캡처 — settle 후 스냅.
+        // 발송 전 복귀 후 모달 상태 캡처.
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-        await snap(page, "edge-1-after-send");
+        await snap(page, "edge-1-confirm-returned");
       } else {
         console.log("[1] 확인 오버레이 미표시 — requestSend canSend 조건 미충족");
         await snap(page, "edge-1-no-overlay");

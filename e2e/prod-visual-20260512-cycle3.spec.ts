@@ -132,9 +132,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
   await shot(page, "B-01-hit-reports-list");
 
   // Find a row with 🔗 share chip (active/published)
-  const shareChip = page.locator("[class*='chip'], [class*='Chip'], button, span")
-    .filter({ hasText: /🔗|공유|링크/ })
-    .first();
+  const shareChip = page.getByTestId("hit-report-share-copy").first();
   const shareChipVisible = await shareChip.isVisible().catch(() => false);
   console.log("[B] share chip visible:", shareChipVisible);
 
@@ -159,7 +157,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
   console.log("[B] chip initial style:", JSON.stringify(chipStyle));
 
   // Click share chip
-  const toast = page.locator("text=공유 링크를 복사했습니다").first();
+  const toast = page.getByText(/공유 링크를 (새로 만들고 )?복사했습니다|공유 링크가 위 입력창/).first();
   await shareChip.click();
   await toast.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
 
@@ -169,7 +167,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
   await shot(page, "B-03-after-chip-click");
 
   // Check toast count — should be exactly 1 (not duplicated)
-  const toastCount = await page.locator("text=공유 링크를 복사했습니다").count();
+  const toastCount = await page.getByText(/공유 링크를 (새로 만들고 )?복사했습니다|공유 링크가 위 입력창/).count();
   console.log("[B] toast count (expect 1):", toastCount);
 
   // Wait for toast to disappear and check chip style change

@@ -4,31 +4,13 @@
  * API: api.hakwonplus.com (X-Tenant-Code: dnb)
  */
 import { test, expect } from "../fixtures/strictTest";
-import { getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { getBaseUrl, loginViaUI, hasRoleCredentials } from "../helpers/auth";
 import type { Page } from "@playwright/test";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
-const API_BASE = getApiBaseUrl();
 
 async function loginDNB(page: Page) {
-  const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: "dheksql88", password: "dheksql0513", tenant_code: "dnb" },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": "dnb" },
-  });
-  expect(resp.status(), `DNB login failed: ${resp.status()}`).toBe(200);
-  const tokens = (await resp.json()) as { access: string; refresh: string };
-
-  await page.goto(`${DNB_BASE}/login`, { waitUntil: "commit" });
-  await page.evaluate(
-    ({ access, refresh }) => {
-      localStorage.setItem("access", access);
-      localStorage.setItem("refresh", refresh);
-      sessionStorage.setItem("tenantCode", "dnb");
-    },
-    { access: tokens.access, refresh: tokens.refresh },
-  );
-  await page.goto(`${DNB_BASE}/admin`, { waitUntil: "load", timeout: 20000 });
-  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+  await loginViaUI(page, "dnb-admin");
 }
 
 /** 페이지 렌더 에러 없음 확인 */
@@ -53,6 +35,8 @@ function watchTenantHeaders(page: Page) {
 
 // ============================================================
 test.describe("DNB 운영 전기능", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(120000);
   test.beforeEach(async ({ page }) => {
     await loginDNB(page);

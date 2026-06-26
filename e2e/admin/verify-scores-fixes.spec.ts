@@ -34,32 +34,30 @@ function assignmentsUrl() {
   return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments`;
 }
 
-async function clickSessionBlockCard(page: Page, titleText: string) {
-  const card = page.locator("button.session-block").filter({
-    has: page.locator(".session-block__title", { hasText: titleText }),
-  }).first();
-  await expect(card).toBeVisible({ timeout: 8000 });
-  await card.click();
-  // 모달 진입 — admin-modal 또는 dialog 가 떠야 함.
-  await expect(
-    page.locator("[role='dialog'], .admin-modal-overlay").first(),
-    `'${titleText}' 카드 클릭 후 모달이 열려야 함`,
-  ).toBeVisible({ timeout: 5_000 });
+function activeModal(page: Page) {
+  return page.locator("[role='dialog'], .admin-modal-overlay").last();
 }
 
-async function clickCreateFromScratch(page: Page, legacyTitleText: string) {
-  const fromScratch = page.getByRole("button", { name: /처음부터 만들기/ }).first();
-  if (await fromScratch.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await fromScratch.click();
-    await expect(fromScratch).toBeHidden({ timeout: 5_000 });
-    await expect(
-      page.locator("[role='dialog'], .admin-modal-overlay").first(),
-      "'처음부터 만들기' 선택 후 생성 폼이 열려야 함",
-    ).toBeVisible({ timeout: 5_000 });
-    return;
-  }
+async function openCreatePicker(page: Page, kind: "exam" | "homework") {
+  const label = kind === "exam" ? "+ 시험" : "+ 과제";
+  await page.locator("main").locator("button").filter({ hasText: label }).first().click();
+  const modal = activeModal(page);
+  await expect(modal, `${label} 클릭 후 생성 선택 모달이 열려야 함`).toBeVisible({ timeout: 8_000 });
+  await expect(modal.locator("button.session-block").filter({ hasText: "처음부터 만들기" }))
+    .toBeVisible({ timeout: 5_000 });
+  return modal;
+}
 
-  await clickSessionBlockCard(page, legacyTitleText);
+async function clickCreateFromScratch(page: Page, kind: "exam" | "homework") {
+  const modal = activeModal(page);
+  const fromScratch = modal.locator("button.session-block").filter({ hasText: "처음부터 만들기" }).first();
+  await expect(fromScratch, "'처음부터 만들기' 선택지가 보여야 함").toBeVisible({ timeout: 5_000 });
+  await fromScratch.click();
+
+  const firstField = kind === "exam"
+    ? modal.getByLabel("시험 1 제목")
+    : modal.getByLabel("과제 1 제목");
+  await expect(firstField, "'처음부터 만들기' 선택 후 생성 폼이 열려야 함").toBeVisible({ timeout: 5_000 });
 }
 
 async function getModalText(page: Page): Promise<string> {
@@ -83,32 +81,26 @@ test.describe("Verify Scores Fixes & UX", () => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
     await snap(page, "01-scores-tab-loaded");
 
-    const enrollBtn = page.locator("button").filter({ hasText: "수강생 일괄배정" }).first();
-    await expect(enrollBtn).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator("main").locator("button").filter({ hasText: "수강생 일괄배정" }),
+      "수강생 일괄배정은 기본 툴바가 아니라 더보기 안에 있어야 함",
+    ).toHaveCount(0);
 
     const dividers = page.locator('span[aria-hidden="true"]');
-    expect(await dividers.count()).toBeGreaterThanOrEqual(2);
+    expect(await dividers.count()).toBeGreaterThanOrEqual(1);
 
     // More menu
-    const moreBtn = page.locator("button[title='추가 기능']").first();
-    const moreBtnAlt = page.locator("button").filter({ hasText: "더보기" }).first();
-
-    let moreBtnToClick: ReturnType<Page["locator"]>;
-    if (await moreBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      moreBtnToClick = moreBtn;
-    } else if (await moreBtnAlt.isVisible({ timeout: 3000 }).catch(() => false)) {
-      moreBtnToClick = moreBtnAlt;
-    } else {
-      moreBtnToClick = page.locator(".domain-list-toolbar button").last();
-    }
-
+    const moreBtnToClick = page.getByRole("button", { name: "추가 기능" }).first();
+    await expect(moreBtnToClick).toBeVisible({ timeout: 10_000 });
     await moreBtnToClick.click();
     // 메뉴 항목이 보일 때까지 대기 (waitForTimeout 제거).
-    const printItem = page.locator("button, [role='menuitem']").filter({ hasText: "성적표 출력" }).first();
+    const menu = page.locator(".scores-more-menu").first();
+    await expect(menu.getByRole("button", { name: /수강생 일괄배정/ })).toBeVisible({ timeout: 5_000 });
+    const printItem = menu.locator("button, [role='menuitem']").filter({ hasText: "성적표 출력" }).first();
     await expect(printItem).toBeVisible({ timeout: 5000 });
     await snap(page, "01-more-menu-open");
 
-    const clinicItem = page.locator("button, [role='menuitem']").filter({ hasText: "클리닉 대상 보기" }).first();
+    const clinicItem = menu.locator("button, [role='menuitem']").filter({ hasText: "클리닉 대상 보기" }).first();
     await expect(clinicItem).toBeVisible({ timeout: 5000 });
 
     await page.keyboard.press("Escape");
@@ -144,29 +136,23 @@ test.describe("Verify Scores Fixes & UX", () => {
   test("3. Exam creation modal — cutline header and unit badge", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
-    const addExamBtn = page.locator("button").filter({ hasText: "+ 시험" }).first();
-    await expect(addExamBtn).toBeVisible({ timeout: 10000 });
-    await addExamBtn.click();
-    // 시험 picker 가 열릴 때까지.
-    await expect(
-      page.locator("button.session-block").first(),
-      "시험 picker (session-block 카드) 가 보여야 함",
-    ).toBeVisible({ timeout: 5_000 });
+    await openCreatePicker(page, "exam");
     await snap(page, "03-exam-picker");
 
-    await clickCreateFromScratch(page, "신규 시험");
+    await clickCreateFromScratch(page, "exam");
     await snap(page, "03-exam-creation-form");
 
-    const cutlineHeader = page.locator("th").filter({ hasText: "커트라인" }).first();
-    await expect(cutlineHeader).toBeVisible({ timeout: 10000 });
+    const modal = activeModal(page);
+    const cutlineInput = modal.getByLabel("시험 1 커트라인");
+    await expect(cutlineInput).toBeVisible({ timeout: 10000 });
 
-    // "점" 단위 뱃지 확인 — 미배포 가능성 있음 → annotation.
-    const headerText = await cutlineHeader.innerText();
-    if (!headerText.includes("점")) {
+    // "점" 단위 문맥 확인 — 미배포 가능성 있음 → annotation.
+    const formText = await modal.innerText();
+    if (!(formText.includes("커트라인") && formText.includes("점"))) {
       test.info().annotations.push({ type: "note", description: "'점' badge not deployed yet" });
     }
 
-    const titleInput = page.locator('input[aria-label*="시험"][aria-label*="제목"]').first();
+    const titleInput = modal.getByLabel("시험 1 제목");
     await expect(titleInput).toBeVisible({ timeout: 5000 });
 
     await snap(page, "03-cutline-unit-badge");
@@ -177,11 +163,9 @@ test.describe("Verify Scores Fixes & UX", () => {
   test("4. Exam creation modal — clinic info text", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
-    const addExamBtn = page.locator("button").filter({ hasText: "+ 시험" }).first();
-    await addExamBtn.click();
-    await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
+    await openCreatePicker(page, "exam");
 
-    await clickCreateFromScratch(page, "신규 시험");
+    await clickCreateFromScratch(page, "exam");
 
     const modalText = await getModalText(page);
 
@@ -201,34 +185,29 @@ test.describe("Verify Scores Fixes & UX", () => {
   test("5. Homework creation modal — common cutline behavior", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
-    const addHwBtn = page.locator("button").filter({ hasText: "+ 과제" }).first();
-    await expect(addHwBtn).toBeVisible({ timeout: 10000 });
-    await addHwBtn.click();
-    await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
+    await openCreatePicker(page, "homework");
     await snap(page, "05-hw-picker");
 
-    await clickCreateFromScratch(page, "신규 과제");
+    await clickCreateFromScratch(page, "homework");
     await snap(page, "05-hw-creation-form");
 
+    const modal = activeModal(page);
     // Add 2nd row
-    const addRowBtn = page.locator("button").filter({ hasText: /\+\s*추가/ }).first();
+    const addRowBtn = modal.locator("button").filter({ hasText: /\+\s*추가/ }).first();
     await expect(addRowBtn).toBeVisible({ timeout: 10000 });
     await addRowBtn.click();
-    // 2nd row 가 추가될 때까지 — 행 카운트 expect.
-    await expect(
-      page.locator("[role='dialog'] table tbody tr, .admin-modal-overlay table tbody tr"),
-      "'+ 추가' 클릭 후 과제 행이 2개 이상이어야 함",
-    ).toHaveCount(2, { timeout: 5_000 });
+    await expect(modal.getByLabel("과제 2 제목"), "'+ 추가' 클릭 후 과제 2행 제목 입력이 보여야 함")
+      .toBeVisible({ timeout: 5_000 });
     await snap(page, "05-hw-2nd-row-added");
 
-    const commonCutline = page.getByRole("spinbutton", { name: "공통 커트라인" });
+    const commonCutline = modal.getByRole("spinbutton", { name: "공통 커트라인" });
     await expect(commonCutline).toBeVisible({ timeout: 5000 });
     await expect(commonCutline).toHaveValue("80");
-    await expect(page.locator('input[aria-label*="커트라인"]')).toHaveCount(1);
-    await expect(page.locator('input[aria-label="과제 2 제목"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[aria-label="과제 2 만점"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[aria-label="과제 2 제출기한"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[aria-label="과제 2 커트라인"]')).toHaveCount(0);
+    await expect(modal.locator('input[aria-label*="커트라인"]')).toHaveCount(1);
+    await expect(modal.getByLabel("과제 2 제목")).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByLabel("과제 2 만점")).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByLabel("과제 2 제출기한")).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByLabel("과제 2 커트라인")).toHaveCount(0);
 
     await snap(page, "05-hw-common-cutline-single-source");
     await page.keyboard.press("Escape");
@@ -238,11 +217,9 @@ test.describe("Verify Scores Fixes & UX", () => {
   test("6. Homework creation modal — common apply info text", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
-    const addHwBtn = page.locator("button").filter({ hasText: "+ 과제" }).first();
-    await addHwBtn.click();
-    await expect(page.locator("button.session-block").first()).toBeVisible({ timeout: 5_000 });
+    await openCreatePicker(page, "homework");
 
-    await clickCreateFromScratch(page, "신규 과제");
+    await clickCreateFromScratch(page, "homework");
 
     const modalText = await getModalText(page);
 

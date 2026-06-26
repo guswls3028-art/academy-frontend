@@ -4,16 +4,17 @@
  * 검증 동선 (real user path):
  *  1. 좌측 트리: 카테고리 그룹 + 문서 행 + intent 뱃지 + 검색
  *  2. 시험지(test) 문서 선택 → 문제 그리드 + 유사 문제 / 자료별 매치 탭
- *  3. 액션바: 원본 보기 / 저장소에서 보기 / 직접 자르기 / 자동 적중 PDF / 적중 보고서 작성
+ *  3. 액션바: 적중 보고서 작성 / 직접 자르기 / 원본 보기 / 저장소에서 보기
  *  4. 카테고리 인라인 편집
  *  5. 문서 행 컨텍스트 메뉴 (intent/rename/category)
  *  6. 업로드 모달 (split mode + 카테고리 prefill)
- *  7. 자동 적중 PDF 실제 다운로드 + 파일 헤더 검증 (vertical stack 적용 후)
+ *  7. 적중 보고서 작성기 진입 + 편집기 로드 검증
  *
  * 운영 데이터 read-only 위주 + 카테고리 변경 즉시 원복.
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
+import { fetchMatchupDocuments, isExamLikeMatchupDocument, type MatchupE2EDocument } from "../helpers/matchup";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -36,6 +37,23 @@ function rec(severity: Defect["severity"], area: string, detail: string) {
   console.log(`[${severity}] ${area} — ${detail}`);
 }
 
+async function selectDoneDocumentWithProblems(
+  page: import("@playwright/test").Page,
+  preferExam = true,
+): Promise<MatchupE2EDocument | null> {
+  const docs = await fetchMatchupDocuments(page);
+  const candidates = docs.filter((doc) => doc.status === "done" && (doc.problem_count ?? 0) > 0);
+  const selected = (preferExam ? candidates.find(isExamLikeMatchupDocument) : undefined) ?? candidates[0] ?? null;
+  if (!selected) return null;
+
+  await gotoAndSettle(page, `${BASE}/admin/storage/matchup?docId=${selected.id}`, { timeout: 30_000 });
+  const target = page.locator(`[data-testid='matchup-doc-row'][data-doc-id='${selected.id}']`).first();
+  await expect(target).toBeVisible({ timeout: 15_000 });
+  await target.click();
+  console.log(`[REVIEW] 검증 문서 선택 id=${selected.id}, problems=${selected.problem_count ?? 0}`);
+  return selected;
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("매치업 실사용 리뷰 2026-04-30", () => {
@@ -56,27 +74,22 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     }
     expect(count).toBeGreaterThan(0);
 
-    // intent 뱃지 (시험지/참고자료) 분리 표시
-    const intentBadges = page.locator("[data-testid='matchup-doc-intent-badge'], [data-testid='matchup-intent-badge']");
-    const badgeCount = await intentBadges.count();
-    console.log(`[REVIEW] intent 뱃지: ${badgeCount}/${count}`);
-    if (badgeCount === 0 && count > 0) {
-      rec("P1", "intent 뱃지", "문서 행에 시험지/참고자료 구분 표시 누락");
+    // intent is exposed on each row and used by grouping/counters.
+    const intentRows = page.locator("[data-testid='matchup-doc-row'][data-doc-intent]");
+    const intentRowCount = await intentRows.count();
+    console.log(`[REVIEW] intent row attrs: ${intentRowCount}/${count}`);
+    if (intentRowCount === 0 && count > 0) {
+      rec("P1", "intent 표시", "문서 행에 시험지/참고자료 구분 속성 누락");
     }
   });
 
   test("02. 시험지 doc 선택 → 액션바 + 문제 그리드 + 유사/cross 탭", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
-    // intent=test 문서를 우선 선택. 없으면 첫 문서.
-    const testRow = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test']").first();
-    const fallback = page.locator("[data-testid='matchup-doc-row']").first();
-    if (await testRow.count() > 0) {
-      await testRow.click();
-      console.log("[REVIEW] 시험지 doc 선택");
-    } else {
-      await fallback.click();
-      console.log("[REVIEW] 일반 doc 선택 (시험지 미발견)");
+    const selected = await selectDoneDocumentWithProblems(page);
+    if (!selected) {
+      rec("P1", "문제 그리드", "운영 환경에 완료 상태이면서 문제 수가 있는 매치업 문서가 없음");
+      return;
     }
 
     // URL ?docId 동기화
@@ -89,13 +102,16 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
       rec("P1", "URL 동기화", `?docId=N 미반영: ${url}`);
     }
 
-    // 액션바 — 원본 보기 / 직접 자르기 / 자동 적중 PDF
-    const previewBtn = page.locator("[data-testid='matchup-doc-preview-btn']");
+    // 액션바 — 적중 보고서 작성 / 직접 자르기 / 원본 보기
     const cropBtn = page.locator("[data-testid='matchup-doc-manual-crop-btn']");
-    const pdfBtn = page.locator("[data-testid='matchup-doc-hit-report-btn']");
-    await expect(previewBtn).toBeVisible({ timeout: 8000 });
+    const curateBtn = page.locator("[data-testid='matchup-doc-hit-report-curate-btn']");
     await expect(cropBtn).toBeVisible();
-    await expect(pdfBtn).toBeVisible();
+    await expect(curateBtn).toBeVisible();
+    const moreMenuTrigger = page.locator("[data-testid='matchup-doc-more-menu-trigger']");
+    await expect(moreMenuTrigger).toBeVisible({ timeout: 8000 });
+    await moreMenuTrigger.click();
+    await expect(page.locator("[data-testid='matchup-doc-preview-btn']")).toBeVisible({ timeout: 5000 });
+    await page.keyboard.press("Escape");
     await page.screenshot({ path: path.join(SHOTS, "02-doc-action-bar.png"), fullPage: true });
 
     // 문제 그리드
@@ -138,7 +154,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     }
 
     // cross-matches 탭 (시험지에서만)
-    if (await testRow.count() > 0 && pCount > 0) {
+    if (isExamLikeMatchupDocument(selected) && pCount > 0) {
       await crossTab.click();
       await page.waitForLoadState("networkidle").catch(() => {});
       await page.screenshot({ path: path.join(SHOTS, "04-cross-matches.png"), fullPage: true });
@@ -150,52 +166,29 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     }
   });
 
-  test("03. 자동 적중 PDF 다운로드 (vertical stack 검증)", async ({ page }) => {
+  test("03. 적중 보고서 작성기 진입 (primary CTA 검증)", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
 
-    // 시험지 doc 우선. status=done 보장
-    const doneTestDoc = page.locator(
-      "[data-testid='matchup-doc-row'][data-doc-status='done'][data-doc-intent='test']",
-    ).first();
-    let used = doneTestDoc;
-    if (await doneTestDoc.count() === 0) {
-      // fallback: 첫 done doc
-      used = page.locator("[data-testid='matchup-doc-row'][data-doc-status='done']").first();
-    }
-    if (await used.count() === 0) {
-      // 더 fallback: 첫 row
-      used = page.locator("[data-testid='matchup-doc-row'], [data-doc-id]").first();
-    }
-    await used.click();
-
-    const pdfBtn = page.locator("[data-testid='matchup-doc-hit-report-btn']");
-    await expect(pdfBtn).toBeVisible({ timeout: 5000 });
-
-    const isDisabled = await pdfBtn.isDisabled();
-    if (isDisabled) {
-      rec("P1", "자동 PDF", "선택 doc에서 자동 적중 PDF 버튼 disabled (status≠done)");
+    const selected = await selectDoneDocumentWithProblems(page);
+    if (!selected) {
+      rec("P1", "적중 보고서", "운영 환경에 완료 상태이면서 문제 수가 있는 매치업 문서가 없음");
       return;
     }
 
-    // 다운로드 트리거 — Promise.all로 download event 캡처
-    const [download] = await Promise.all([
-      page.waitForEvent("download", { timeout: 5 * 60_000 }),
-      pdfBtn.click(),
-    ]);
+    const curateBtn = page.locator("[data-testid='matchup-doc-hit-report-curate-btn']");
+    await expect(curateBtn).toBeVisible({ timeout: 5000 });
 
-    const savePath = path.join(SHOTS, "auto-hit-report.pdf");
-    await download.saveAs(savePath);
-    const stat = fs.statSync(savePath);
-    console.log(`[REVIEW] PDF 크기: ${(stat.size / 1024).toFixed(1)} KB`);
-
-    // 매직 헤더 검증
-    const head = fs.readFileSync(savePath).slice(0, 5).toString("ascii");
-    expect(head).toMatch(/^%PDF-/);
-    if (stat.size < 50_000) {
-      rec("P1", "자동 PDF", `PDF 크기 비정상적으로 작음 (${stat.size}B) — 이미지 누락 가능`);
+    const isDisabled = await curateBtn.isDisabled();
+    if (isDisabled) {
+      rec("P1", "적중 보고서", "선택 doc에서 적중 보고서 작성 버튼 disabled (status≠done)");
+      return;
     }
 
-    await page.screenshot({ path: path.join(SHOTS, "05-pdf-download.png") });
+    await curateBtn.click();
+    await expect(page.getByRole("dialog", { name: "적중 보고서 작성" }))
+      .toBeVisible({ timeout: 30_000 });
+
+    await page.screenshot({ path: path.join(SHOTS, "05-hit-report-editor.png") });
   });
 
   test("04. 카테고리 인라인 편집 (변경 후 원복)", async ({ page }) => {
@@ -283,9 +276,14 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
     const modal = page.locator("[data-testid='matchup-upload-modal']").first();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // 분리 라디오 (B2 적용)
-    const splitRadio = page.locator("[data-testid='matchup-split-mode-toggle']");
-    const mergeRadio = page.locator("[data-testid='matchup-merge-mode-toggle']");
+    const fileInput = modal.getByTestId("matchup-file-input");
+    await expect(fileInput).toBeAttached({ timeout: 5000 });
+    const pdf = path.resolve(__dirname_, "../fixtures/test-matchup.pdf");
+    await fileInput.setInputFiles([pdf, pdf]);
+
+    // 분리 라디오는 복수 파일 선택 시 실제 사용자 조건에서 노출된다.
+    const splitRadio = modal.getByTestId("matchup-split-mode-toggle");
+    const mergeRadio = modal.getByTestId("matchup-merge-mode-toggle");
     if (await splitRadio.count() === 0 || await mergeRadio.count() === 0) {
       rec("P1", "split 라디오", "분리 모드 라디오 UI 누락 (B2 적용 회귀 가능)");
     }

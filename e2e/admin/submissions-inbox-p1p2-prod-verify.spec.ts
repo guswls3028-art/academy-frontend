@@ -9,20 +9,14 @@
  * 운영 데이터 변경 없이 endpoint 응답 + UI 동작만 검증.
  */
 import { test, expect } from "@playwright/test";
+import { loginTokenViaRequest } from "../helpers/auth";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
 const TENANT_CODE = "hakwonplus";
 
 async function getAccess(request: import("@playwright/test").APIRequestContext) {
-  const r = await request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: ADMIN_USER, password: ADMIN_PASS, tenant_code: TENANT_CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": TENANT_CODE },
-  });
-  expect(r.status()).toBe(200);
-  const j = await r.json();
-  return j.access as string;
+  const tokens = await loginTokenViaRequest(request, "admin");
+  return tokens.access;
 }
 
 test("pending API: target_resolved_reason 노출", async ({ request }) => {

@@ -5,7 +5,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const DOC_ROW_SELECTOR = "[data-testid='matchup-doc-row']";
@@ -40,6 +40,12 @@ async function waitForSimilarResults(page: Page): Promise<void> {
   ).catch(() => {});
 }
 
+async function openDocRow(page: Page, row: Locator): Promise<void> {
+  await row.scrollIntoViewIfNeeded();
+  await row.click({ noWaitAfter: true });
+  await waitForDocDetail(page);
+}
+
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test.describe("매치업 UIUX 시각 검수", () => {
@@ -59,8 +65,7 @@ test.describe("매치업 UIUX 시각 검수", () => {
   test("02 — 시험지 선택 시 헤더 액션바 (적중보고서 primary CTA + ⋮ 메뉴)", async ({ page }) => {
     const testDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test']").first();
     if (await testDoc.count() === 0) test.skip(true, "시험지 doc 없음");
-    await testDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, testDoc);
     await page.screenshot({
       path: "e2e/_artifacts/matchup-uiux-2026-05-04/02-test-doc-header.png",
       fullPage: false,
@@ -70,8 +75,8 @@ test.describe("매치업 UIUX 시각 검수", () => {
   test("03 — 참고자료 doc 헤더 (적중보고서 CTA 미노출 + segmented 토글 reference active)", async ({ page }) => {
     const refDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='reference']").first();
     if (await refDoc.count() === 0) test.skip(true, "참고자료 doc 없음");
-    await refDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, refDoc);
+    await expect(page.locator("[data-testid='matchup-doc-manual-crop-btn']")).toBeVisible({ timeout: 5_000 });
     await page.screenshot({
       path: "e2e/_artifacts/matchup-uiux-2026-05-04/03-reference-doc-header.png",
       fullPage: false,
@@ -81,8 +86,7 @@ test.describe("매치업 UIUX 시각 검수", () => {
   test("04 — 시험지 → 참고자료 confirm 다이얼로그", async ({ page }) => {
     const testDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test']").first();
     if (await testDoc.count() === 0) test.skip(true, "시험지 doc 없음");
-    await testDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, testDoc);
     await page.locator("[data-testid='matchup-intent-toggle-reference']").click();
     await expect(page.getByText(/시험지를 참고자료로 변경/)).toBeVisible({ timeout: 5000 });
     await page.screenshot({
@@ -96,8 +100,7 @@ test.describe("매치업 UIUX 시각 검수", () => {
   test("05 — 합치기 모드 우측 도움말", async ({ page }) => {
     const doneDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-status='done']").first();
     if (await doneDoc.count() === 0) test.skip(true, "완료 doc 없음");
-    await doneDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, doneDoc);
     const enter = page.locator("[data-testid='matchup-merge-mode-enter']");
     if (await enter.count() === 0) test.skip(true, "합치기 진입 없음");
     await enter.click();
@@ -111,8 +114,7 @@ test.describe("매치업 UIUX 시각 검수", () => {
   test("06 — 시험지 + 문제 선택 시 우측 SimilarResults (Pin hint + 카드)", async ({ page }) => {
     const testDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='test'][data-doc-status='done']").first();
     if (await testDoc.count() === 0) test.skip(true, "시험지 done doc 없음");
-    await testDoc.click();
-    await waitForDocDetail(page);
+    await openDocRow(page, testDoc);
     const firstP = page.locator("[data-testid='matchup-problem-card']").first();
     if (await firstP.count() === 0) test.skip(true, "문항 없음");
     await firstP.click();

@@ -135,10 +135,11 @@ test.describe.serial("Exam PDF upload flow", () => {
   });
 
   // ══════════════════════════════════════════════════════
-  // 2. Find or create exam with session context
+  // 2. Create a fresh exam with session context
   // ══════════════════════════════════════════════════════
-  test("2. Find or create exam with session + template context", async () => {
-    // Step A: Find existing regular exams (they have sessions)
+  test("2. Create exam with session + template context", async () => {
+    // Step A: sample existing state for debug only. Upload targets must be fresh,
+    // because templates already used by production exams are intentionally sealed.
     const resp = await apiCall(page, "GET", "/exams/");
     const allExams = listOf<ExamSummary>(resp.body, isExamSummary);
     console.log(`  Total exams found: ${allExams.length}`);
@@ -146,31 +147,6 @@ test.describe.serial("Exam PDF upload flow", () => {
       console.log(
         `    exam id=${e.id ?? e.exam_id} type=${e.exam_type} template_exam_id=${e.template_exam_id} title="${e.title}"`,
       );
-    }
-
-    // Find a regular exam with a template_exam_id
-    const regularWithTemplate = allExams.find(
-      (e) => e.exam_type === "regular" && numberFrom(e.template_exam_id) !== null,
-    );
-
-    if (regularWithTemplate) {
-      regularExamId = numberFrom(regularWithTemplate.id ?? regularWithTemplate.exam_id);
-      templateExamId = numberFrom(regularWithTemplate.template_exam_id);
-      console.log(`  Found regular exam ${regularExamId} with template ${templateExamId}`);
-    }
-
-    // If no regular with template, use the first available exam as-is for API testing.
-    if (!templateExamId && allExams.length > 0) {
-      const fallbackExam = allExams[0];
-      const eid = numberFrom(fallbackExam.id ?? fallbackExam.exam_id);
-      // Try asset upload directly - if it's a template, it might work
-      if (eid && fallbackExam.exam_type === "template") {
-        templateExamId = eid;
-        console.log(`  Using template exam directly: ${templateExamId}`);
-      } else if (eid) {
-        regularExamId = eid;
-        console.log(`  Using regular exam for navigation: ${regularExamId}`);
-      }
     }
 
     // Step B: Find session/lecture context for navigation
@@ -191,43 +167,41 @@ test.describe.serial("Exam PDF upload flow", () => {
         sessionId = numberFrom(sessions[0].id);
         if (!sessionId) continue;
 
-        // If we don't have a template exam yet, create one and link via regular
-        if (!templateExamId) {
-          // Create template exam
-          const tmplResp = await apiCall(page, "POST", "/exams/", {
-            title: `[E2E-${TS}] Template`,
-            subject: "E2E",
-            exam_type: "template",
-          });
-          const createdTemplateId = numberFrom(isRecord(tmplResp.body) ? tmplResp.body.id : null);
-          if (tmplResp.status < 300 && createdTemplateId) {
-            templateExamId = createdTemplateId;
-            createdTemplate = true;
-            console.log(`  Created template exam: ${templateExamId}`);
-
-            // Create regular exam from template (links to session)
-            const regResp = await apiCall(page, "POST", "/exams/", {
-              title: `[E2E-${TS}] Regular`,
-              template_exam_id: templateExamId,
-              session_id: sessionId,
-              exam_type: "regular",
-            });
-            const createdRegularId = numberFrom(isRecord(regResp.body) ? regResp.body.id : null);
-            if (regResp.status < 300 && createdRegularId) {
-              regularExamId = createdRegularId;
-              createdRegular = true;
-              console.log(`  Created regular exam: ${regularExamId} → template ${templateExamId}`);
-            }
-          }
+        const tmplResp = await apiCall(page, "POST", "/exams/", {
+          title: `[E2E-${TS}] Template`,
+          subject: "E2E",
+          exam_type: "template",
+        });
+        const createdTemplateId = numberFrom(isRecord(tmplResp.body) ? tmplResp.body.id : null);
+        if (tmplResp.status >= 300 || !createdTemplateId) {
+          throw new Error(`Template creation failed: ${tmplResp.status} ${JSON.stringify(tmplResp.body)}`);
         }
+        templateExamId = createdTemplateId;
+        createdTemplate = true;
+        console.log(`  Created template exam: ${templateExamId}`);
+
+        const regResp = await apiCall(page, "POST", "/exams/", {
+          title: `[E2E-${TS}] Regular`,
+          template_exam_id: templateExamId,
+          session_id: sessionId,
+          exam_type: "regular",
+        });
+        const createdRegularId = numberFrom(isRecord(regResp.body) ? regResp.body.id : null);
+        if (regResp.status >= 300 || !createdRegularId) {
+          throw new Error(`Regular exam creation failed: ${regResp.status} ${JSON.stringify(regResp.body)}`);
+        }
+        regularExamId = createdRegularId;
+        createdRegular = true;
+        console.log(`  Created regular exam: ${regularExamId} -> template ${templateExamId}`);
 
         console.log(`  Using lecture=${lectureId}, session=${sessionId}`);
         break;
       }
     }
 
-    // At minimum we need either a template or regular exam, and a session
-    expect(templateExamId ?? regularExamId).toBeGreaterThan(0);
+    expect(templateExamId).toBeGreaterThan(0);
+    expect(regularExamId).toBeGreaterThan(0);
+    expect(sessionId).toBeGreaterThan(0);
     console.log(`  Final: template=${templateExamId}, regular=${regularExamId}, session=${sessionId}, lecture=${lectureId}`);
   });
 

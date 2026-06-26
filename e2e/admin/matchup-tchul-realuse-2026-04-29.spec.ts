@@ -5,6 +5,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { selectStableDoneMatchupDocument } from "../helpers/matchup";
 import type { Locator, Page } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -259,20 +260,17 @@ test.describe("매치업 실사용 리뷰 v2 — tchul", () => {
   test("L6. 직접 자르기 (수동 크롭) 모달 진입", async ({ page }) => {
     await openMatchup(page);
 
-    await clickStatusChip(page, /완료\s*\d+/, "done status filter before crop");
-
-    const target = page.locator(DOC_ROW_SELECTOR).first();
-    await target.click();
+    const selected = await selectStableDoneMatchupDocument(page);
+    log(`크롭 검증 doc=${selected.id}, title=${selected.title || ""}, problems=${selected.problem_count ?? "n/a"}`);
     await waitForDocDetail(page);
 
-    const cropBtn = page.locator("button:has-text('직접 자르기')");
-    if (await cropBtn.count() === 0) { test.skip(true, "직접 자르기 버튼 없음"); return; }
-
+    const cropBtn = page.locator("[data-testid='matchup-doc-manual-crop-btn']").first();
+    await expect(cropBtn).toBeVisible({ timeout: 10_000 });
     await cropBtn.click();
 
-    const modal = page.locator("[role='dialog']").first();
+    const modal = page.locator("[data-testid='matchup-manual-crop-modal'], [role='dialog']").first();
     await expect(modal).toBeVisible({ timeout: 8000 });
-    await page.screenshot({ path: path.join(SHOTS, "v2-06-crop-modal.png"), fullPage: true });
+    await modal.screenshot({ path: path.join(SHOTS, "v2-06-crop-modal.png") });
 
     // 페이지 썸네일
     const thumbs = await page.locator("[data-testid='matchup-crop-page-thumb']").count();

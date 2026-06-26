@@ -17,6 +17,7 @@
 // 동일 채널을 이중 구독해 false positive 와 noise 가 늘어난다.
 import { test, expect, type Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { apiCall } from "../helpers/api";
 
 const BASE = getBaseUrl("admin");
 const TIMESTAMP = Date.now();
@@ -135,6 +136,15 @@ test.describe("시나리오 A — RichTextEditor lazy 분할 회귀", () => {
     const p = await ctx.newPage();
     try {
       await loginViaUI(p, "admin");
+      if (createdNoticeId) {
+        const delResp = await apiCall(p, "DELETE", `/community/posts/${createdNoticeId}/`);
+        if ([200, 204, 404].includes(delResp.status)) {
+          console.log(`[A cleanup] 공지 API 삭제 완료 (id=${createdNoticeId}, status=${delResp.status})`);
+          return;
+        }
+        console.warn(`[A cleanup] 공지 API 삭제 실패 (id=${createdNoticeId}, status=${delResp.status})`);
+      }
+
       await p.goto(`${BASE}/admin/community/notice`, {
         waitUntil: "load",
         timeout: 20000,

@@ -62,15 +62,24 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     await page.getByRole("button", { name: "수동 대상 추가" }).click();
 
     const frame = page.frameLocator("#cprev");
-    // 2-column 경로: .name-cell 사용
-    await expect(frame.locator(".name-cell").first()).toBeVisible({ timeout: 8000 });
+    await expect(frame.locator(".manual-name").first()).toBeVisible({ timeout: 8000 });
     await expect(frame.locator(".manual-mark")).toHaveCount(0);
     await expect(frame.locator(".manual-name")).toHaveCount(1);
+    await expect(frame.locator(".columns")).not.toContainText("수동");
 
     // 수동 셀이 단일 행 높이를 유지 (딱지로 인한 2줄 wrap 없음)
-    const cellH = await frame.locator(".manual-name").first().evaluate((el) => el.clientHeight);
-    const normH = await frame.locator(".name-cell:not(.manual-name)").first().evaluate((el) => el.clientHeight);
-    expect(Math.abs(cellH - normH)).toBeLessThanOrEqual(2);
+    const rowHeights = await frame.locator(".manual-name").first().evaluate((el) => {
+      const manualHeight = el.getBoundingClientRect().height;
+      const parent = el.parentElement;
+      const normal = parent
+        ? Array.from(parent.children).find((child) => child !== el && child.textContent?.includes("학생01"))
+        : null;
+      return {
+        manualHeight,
+        normalHeight: normal instanceof HTMLElement ? normal.getBoundingClientRect().height : manualHeight,
+      };
+    });
+    expect(Math.abs(rowHeights.manualHeight - rowHeights.normalHeight)).toBeLessThanOrEqual(2);
 
     await frame.locator(".page").screenshot({ path: `e2e-out/clinic-manual-2col-${TS}.png` });
   });

@@ -12,8 +12,7 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
-
-const TEST_NUMBER = 989;
+import { pickUnusedCropProblemNumber, selectStableDoneMatchupDocument } from "../helpers/matchup";
 
 test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup", async ({ page }) => {
   test.setTimeout(120_000);
@@ -21,9 +20,8 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
   await loginViaUI(page, "admin");
   await gotoAndSettle(page, "https://hakwonplus.com/admin/storage/matchup", { timeout: 30_000 });
 
-  const testRow = page.locator('[data-testid="matchup-doc-row"]').filter({ hasText: "E2E-CLEAN" }).first();
-  await expect(testRow).toBeVisible({ timeout: 15_000 });
-  await testRow.click();
+  const doc = await selectStableDoneMatchupDocument(page);
+  console.log(`✓ 시험지 doc 선택: ${doc.id} ${doc.title ?? ""}`);
 
   const cropBtn = page.locator('[data-testid="matchup-doc-manual-crop-btn"]');
   await expect(cropBtn).toBeVisible({ timeout: 10_000 });
@@ -63,8 +61,9 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
 
   // 번호 입력
   const numberInput = page.locator('[data-testid="matchup-paste-number-input"]');
-  await numberInput.fill(String(TEST_NUMBER));
-  console.log(`✓ 번호 입력 ${TEST_NUMBER}`);
+  const testNumber = await pickUnusedCropProblemNumber(page, 989);
+  await numberInput.fill(String(testNumber));
+  console.log(`✓ 번호 입력 ${testNumber}`);
 
   // 저장
   const saveBtn = page.locator('[data-testid="matchup-paste-save-btn"]');
@@ -74,12 +73,12 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
 
   // 저장 결과 확인 — problem 목록에 추가
   const newRow = page.locator('[data-testid="matchup-crop-problem-row"]').filter({
-    hasText: `${TEST_NUMBER}번`,
+    hasText: `${testNumber}번`,
   });
   await expect(newRow).toBeVisible({ timeout: 15_000 });
-  console.log(`✓ ${TEST_NUMBER}번 problem 목록 등장`);
-  await expect(newRow).toContainText(/수동/);
-  console.log("✓ 수동 라벨 노출");
+  console.log(`✓ ${testNumber}번 problem 목록 등장`);
+  await expect(newRow).toContainText(/직접 자른 영역/);
+  console.log("✓ 직접 자른 영역 라벨 노출");
 
   await page.screenshot({
     path: "e2e/_local/screenshots/manual-paste-fullsave-after-save.png",
@@ -93,7 +92,7 @@ test("Ctrl+V paste 풀 사이클 — 클립보드 이미지 → 저장 + cleanup
   await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
   await confirmBtn.click();
   await expect(newRow).not.toBeVisible({ timeout: 10_000 });
-  console.log(`✓ ${TEST_NUMBER}번 cleanup 완료`);
+  console.log(`✓ ${testNumber}번 cleanup 완료`);
 
   await page.keyboard.press("Escape");
   await expect(modal).not.toBeVisible({ timeout: 5_000 });

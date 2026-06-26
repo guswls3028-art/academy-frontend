@@ -16,8 +16,7 @@
 
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
-
-const TEST_NUMBER = 988; // 일반적인 시험지 문항 번호 범위 밖 — 충돌 회피
+import { pickUnusedCropProblemNumber, selectStableDoneMatchupDocument } from "../helpers/matchup";
 
 test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + cleanup", async ({ page }) => {
   test.setTimeout(120_000);
@@ -26,11 +25,8 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   await page.goto("https://hakwonplus.com/admin/storage/matchup", { waitUntil: "load", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-  // E2E-CLEAN 시험지 doc 선택
-  const testRow = page.locator('[data-testid="matchup-doc-row"]').filter({ hasText: "E2E-CLEAN" }).first();
-  await expect(testRow).toBeVisible({ timeout: 15_000 });
-  await testRow.click();
-  console.log("✓ 시험지 doc 선택");
+  const doc = await selectStableDoneMatchupDocument(page);
+  console.log(`✓ 시험지 doc 선택: ${doc.id} ${doc.title ?? ""}`);
 
   // "직접 자르기" 버튼 클릭
   const cropBtn = page.locator('[data-testid="matchup-doc-manual-crop-btn"]');
@@ -53,9 +49,9 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   await expect(canvas).toBeVisible({ timeout: 15_000 });
   await expect.poll(
     async () => canvas.evaluate((el) => {
-      const c = el as HTMLCanvasElement;
-      const rect = c.getBoundingClientRect();
-      return c.width > 0 && c.height > 0 && rect.width > 50 && rect.height > 50;
+      const rect = el.getBoundingClientRect();
+      const img = el.querySelector("img") as HTMLImageElement | null;
+      return rect.width > 50 && rect.height > 50 && !!img?.complete && img.naturalWidth > 0;
     }).catch(() => false),
     { timeout: 15_000, intervals: [250, 500, 1000] },
   ).toBe(true);
@@ -80,8 +76,9 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   // 인스펙터 번호 입력 (TEST_NUMBER로 변경)
   const numberInput = page.locator('[data-testid="matchup-crop-number-input"]');
   await expect(numberInput).toBeVisible({ timeout: 5_000 });
-  await numberInput.fill(String(TEST_NUMBER));
-  console.log(`✓ 번호 입력 ${TEST_NUMBER}`);
+  const testNumber = await pickUnusedCropProblemNumber(page, 988);
+  await numberInput.fill(String(testNumber));
+  console.log(`✓ 번호 입력 ${testNumber}`);
 
   // 저장 버튼 클릭
   const saveBtn = page.locator('[data-testid="matchup-crop-save-btn"]');
@@ -93,14 +90,14 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   // 저장 완료 — 토스트 또는 problem 목록에 추가 확인
   // problem row가 모달의 "이 페이지" 목록에 등장
   const newRow = page.locator('[data-testid="matchup-crop-problem-row"]').filter({
-    hasText: `${TEST_NUMBER}번`,
+    hasText: `${testNumber}번`,
   });
   await expect(newRow).toBeVisible({ timeout: 15_000 });
-  console.log(`✓ ${TEST_NUMBER}번 problem 모달 목록 등장`);
+  console.log(`✓ ${testNumber}번 problem 모달 목록 등장`);
 
-  // "수동" 라벨 확인 — meta.manual=true 표시
-  await expect(newRow).toContainText(/수동/);
-  console.log("✓ 수동 라벨 노출");
+  // 수동 생성 라벨 확인 — meta.manual=true 표시
+  await expect(newRow).toContainText(/직접 자른 영역/);
+  console.log("✓ 직접 자른 영역 라벨 노출");
 
   await page.screenshot({
     path: "e2e/_local/screenshots/manual-crop-fullsave-after-save.png",
@@ -116,7 +113,7 @@ test("시험지 직접 자르기 풀 사이클 — 박스 그리기 + 저장 + c
   await expect(confirmDeleteBtn).toBeVisible({ timeout: 5_000 });
   await confirmDeleteBtn.click();
   await expect(newRow).not.toBeVisible({ timeout: 10_000 });
-  console.log(`✓ ${TEST_NUMBER}번 problem cleanup 완료`);
+  console.log(`✓ ${testNumber}번 problem cleanup 완료`);
 
   // ESC로 모달 닫기
   await page.keyboard.press("Escape");

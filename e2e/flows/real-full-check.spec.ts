@@ -6,8 +6,17 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
+import { apiCall } from "../helpers/api";
 
 const BASE = getBaseUrl("admin");
+const TS = Date.now();
+const Q_TITLE = `[E2E-${TS}] 수학 도함수 질문`;
+const Q_BODY = `도함수 구하는 방법이 헷갈립니다. (${TS})`;
+const Q_ANSWER = `[E2E-${TS}] 도함수는 lim(h->0) [f(x+h)-f(x)]/h 입니다. 교재 52p를 참고하세요.`;
+
+type CommunityPostList = {
+  results?: Array<{ id: number; title: string }>;
+};
 
 async function visitAndSnap(page: Page, path: string, screenshot: string, settleMs = 1500) {
   await gotoAndSettle(page, `${BASE}${path}`, { settleMs });
@@ -18,6 +27,8 @@ test.describe.serial("전체 운영 검증", () => {
   let browser: Browser;
   let T: Page; // teacher
   let S: Page; // student
+  let qnaCleanupPage: Page | null = null;
+  let createdQuestionId: number | null = null;
 
   test.beforeAll(async ({ browser: b }) => { browser = b; });
 
@@ -96,40 +107,34 @@ test.describe.serial("전체 운영 검증", () => {
     await gotoAndSettle(S, `${BASE}/student/community`, { settleMs: 1500 });
 
     const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    }
+    await expect(qnaTab, "학생 커뮤니티에서 QnA 탭이 보여야 함").toBeVisible({ timeout: 10_000 });
+    await qnaTab.click();
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await S.screenshot({ path: "test-results/11a-qna-tab.png" });
 
-    const writeBtn = S.locator("button, a").filter({ hasText: /질문/ }).first();
-    if (await writeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await writeBtn.click();
+    const writeBtn = S.getByRole("button", { name: /질문하기/ });
+    await expect(writeBtn, "학생 QnA 질문하기 버튼이 보여야 함").toBeVisible({ timeout: 10_000 });
+    await writeBtn.click();
 
-      const title = S.locator('input[placeholder*="제목"]').first();
-      if (await title.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await title.fill("수학 도함수 질문입니다");
+    const title = S.locator('input[placeholder*="제목"]').first();
+    await expect(title, "QnA 제목 입력이 보여야 함").toBeVisible({ timeout: 10_000 });
+    await title.fill(Q_TITLE);
 
-        const editor = S.locator('.ProseMirror, [contenteditable="true"]').first();
-        if (await editor.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await editor.click();
-          await S.keyboard.type("도함수 구하는 방법이 헷갈립니다.");
-        }
+    const editor = S.locator(".ProseMirror[contenteditable='true'], [contenteditable='true']").last();
+    await expect(editor, "QnA 본문 에디터가 보여야 함").toBeVisible({ timeout: 10_000 });
+    await editor.fill(Q_BODY);
+    await expect(editor).toContainText(Q_BODY, { timeout: 5_000 });
 
-        await S.screenshot({ path: "test-results/11b-qna-form.png" });
+    await S.screenshot({ path: "test-results/11b-qna-form.png" });
 
-        const submit = S.locator("button").filter({ hasText: /보내기|등록/ }).first();
-        if (await submit.isEnabled({ timeout: 3000 }).catch(() => false)) {
-          await submit.click();
-          // 등록 후 목록에 새 질문이 노출되어야 round-trip 검증 완료.
-          await expect(
-            S.locator("text=수학 도함수 질문입니다").first(),
-            "QnA 등록 후 목록에 새 질문이 노출되어야 함",
-          ).toBeVisible({ timeout: 10_000 });
-          await S.screenshot({ path: "test-results/11c-qna-submitted.png" });
-        }
-      }
-    }
+    const submit = S.getByRole("button", { name: /질문 보내기|보내기|등록/ }).first();
+    await expect(submit, "본문 입력 후 질문 보내기 버튼이 활성화되어야 함").toBeEnabled({ timeout: 10_000 });
+    await submit.click();
+    await expect(
+      S.locator(`text=${Q_TITLE}`).first(),
+      "QnA 등록 후 목록에 새 질문이 노출되어야 함",
+    ).toBeVisible({ timeout: 15_000 });
+    await S.screenshot({ path: "test-results/11c-qna-submitted.png" });
   });
 
   // ── 학생: 클리닉 ──
@@ -182,25 +187,34 @@ test.describe.serial("전체 운영 검증", () => {
   // 교사 복귀 — QnA 답변
   // ══════════════════════════════
   test("21 교사: QnA 답변", async () => {
-    await gotoAndSettle(T, `${BASE}/admin/community/qna`, { settleMs: 2000 });
-    await T.screenshot({ path: "test-results/21-teacher-qna.png" });
+    const ctx = await browser.newContext();
+    qnaCleanupPage = await ctx.newPage();
+    await loginViaUI(qnaCleanupPage, "admin", { landingPath: "/admin/community/qna?scope=all" });
+    await qnaCleanupPage.screenshot({ path: "test-results/21-teacher-qna.png" });
 
-    const q = T.locator("text=도함수").first();
-    if (await q.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await q.click();
-      const reply = T.locator("textarea").last();
-      await expect(reply, "QnA 상세 진입 후 답변 textarea 가 보여야 함").toBeVisible({ timeout: 5_000 });
-      await T.screenshot({ path: "test-results/21b-qna-detail.png" });
+    const questionCard = qnaCleanupPage.locator(".qna-inbox__card").filter({ hasText: Q_TITLE }).first();
+    await expect(questionCard, "방금 학생이 등록한 QnA가 교사 목록에 보여야 함").toBeVisible({ timeout: 15_000 });
+    await questionCard.click();
 
-      await reply.fill("도함수는 lim(h→0) [f(x+h)-f(x)]/h 입니다. 교재 52p를 참고하세요.");
-      const send = T.locator("button").filter({ hasText: /답변|등록/ }).first();
-      await send.click();
-      await expect(
-        T.locator("text=교재 52p를 참고").first(),
-        "교사 답변이 게시글 상세에 즉시 반영되어야 함",
-      ).toBeVisible({ timeout: 10_000 });
-      await T.screenshot({ path: "test-results/21c-qna-replied.png" });
-    }
+    await expect(qnaCleanupPage.locator(".qna-inbox__thread-title").filter({ hasText: Q_TITLE }))
+      .toBeVisible({ timeout: 5_000 });
+    const selectedId = new URL(qnaCleanupPage.url()).searchParams.get("id");
+    if (selectedId && /^\d+$/.test(selectedId)) createdQuestionId = Number(selectedId);
+
+    await qnaCleanupPage.getByRole("button", { name: "답변하기" }).click();
+    const reply = qnaCleanupPage.locator(".qna-inbox__composer .ProseMirror").first();
+    await expect(reply, "QnA 상세 진입 후 답변 에디터가 보여야 함").toBeVisible({ timeout: 5_000 });
+    await qnaCleanupPage.screenshot({ path: "test-results/21b-qna-detail.png" });
+
+    await reply.fill(Q_ANSWER);
+    const send = qnaCleanupPage.locator("button").filter({ hasText: "답변 등록" }).first();
+    await expect(send).toBeEnabled({ timeout: 3_000 });
+    await send.click();
+    await expect(
+      qnaCleanupPage.locator(`text=${Q_ANSWER}`).first(),
+      "교사 답변이 게시글 상세에 즉시 반영되어야 함",
+    ).toBeVisible({ timeout: 10_000 });
+    await qnaCleanupPage.screenshot({ path: "test-results/21c-qna-replied.png" });
   });
 
   // ── 교사: 클리닉 운영 콘솔 ──
@@ -230,11 +244,11 @@ test.describe.serial("전체 운영 검증", () => {
       await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
 
-    const myQ = S.locator("text=도함수").first();
+    const myQ = S.locator(`text=${Q_TITLE}`).first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {
       await myQ.click();
       await expect(
-        S.locator("text=교재 52p를 참고").first(),
+        S.locator(`text=${Q_ANSWER}`).first(),
         "학생 화면에서도 교사 답변이 노출되어야 함 (round-trip)",
       ).toBeVisible({ timeout: 10_000 });
     }
@@ -242,6 +256,24 @@ test.describe.serial("전체 운영 검증", () => {
   });
 
   test.afterAll(async () => {
+    if (qnaCleanupPage) {
+      try {
+        if (!createdQuestionId) {
+          const list = await apiCall<CommunityPostList>(
+            qnaCleanupPage,
+            "GET",
+            "/community/admin/posts/?post_type=qna&page=1&page_size=500",
+          );
+          createdQuestionId = list.body.results?.find((post) => post.title === Q_TITLE)?.id ?? null;
+        }
+        if (createdQuestionId) {
+          await apiCall(qnaCleanupPage, "DELETE", `/community/posts/${createdQuestionId}/`);
+        }
+      } catch {
+        /* cleanup failure is reported by later audit/spec retries if data remains */
+      }
+    }
+    await qnaCleanupPage?.context()?.close();
     await S?.context()?.close();
     await T?.context()?.close();
   });

@@ -4,7 +4,9 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
-import { waitForCondition } from "../helpers/wait";
+import { apiCall } from "../helpers/api";
+import { gotoAndSettle } from "../helpers/wait";
+import { fetchMatchupDocuments, openMatchupUploadModal, waitForMatchupDocumentByTitle } from "../helpers/matchup";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -14,8 +16,20 @@ const __dirname = path.dirname(__filename);
 const TAG = `[E2E-${Date.now()}]`;
 
 test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
+  let cleanupTitle: string | null = null;
+
+  test.afterEach(async ({ page }) => {
+    if (!cleanupTitle) return;
+    const docs = await fetchMatchupDocuments(page).catch(() => []);
+    const targets = docs.filter((doc) => doc.title === cleanupTitle);
+    for (const doc of targets) {
+      await apiCall(page, "DELETE", `/matchup/documents/${doc.id}/`).catch(() => undefined);
+    }
+    cleanupTitle = null;
+  });
+
   test("PDF 업로드 → AI 분석 대기 → 문제 추출 확인", async ({ page }) => {
-    test.setTimeout(180_000); // 3분 (AI 처리 시간 고려)
+    test.setTimeout(480_000); // 운영 worker cold-start + 분석 대기 고려
 
     await loginViaUI(page, "admin");
 
@@ -27,11 +41,11 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     // 2. 업로드 모달 열기
-    await page.getByText("문서 업로드").click();
-    await expect(page.getByText("PDF, PNG, JPG 파일을 선택하세요")).toBeVisible({ timeout: 3000 });
+    const modal = await openMatchupUploadModal(page, "test");
+    await expect(modal.locator('[data-testid="matchup-file-input"]')).toBeAttached({ timeout: 5000 });
 
     // 3. 파일 선택 + 메타데이터 입력
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('[data-testid="matchup-file-input"]');
     const testPdf = path.resolve(__dirname, "../fixtures/test-matchup.pdf");
     await fileInput.setInputFiles(testPdf);
 
@@ -39,7 +53,9 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
     await expect(page.locator('input[placeholder="문서 제목"]')).not.toHaveValue("");
 
     // 제목을 E2E 태그로 변경
-    await page.locator('input[placeholder="문서 제목"]').fill(`${TAG} 수학 테스트`);
+    const title = `${TAG} 수학 테스트`;
+    cleanupTitle = title;
+    await page.locator('input[placeholder="문서 제목"]').fill(title);
     await page.locator('input[placeholder="예: 수학"]').fill("수학");
     await page.locator('input[placeholder="예: 고1"]').fill("고1");
 
@@ -47,81 +63,49 @@ test.describe("매치업 E2E — 업로드 → AI 처리 → 검증", () => {
     await page.screenshot({ path: "e2e/screenshots/matchup-upload-filled.png", fullPage: true });
 
     // 4. 업로드 실행 — 모달 안의 '업로드' 버튼 (마지막 버튼)
-    const uploadBtn = page.locator("button").filter({ hasText: /^업로드$/ }).last();
+    const uploadBtn = page.locator('[data-testid="matchup-upload-submit"]');
     await uploadBtn.click();
 
     // 모달 닫힘 확인
-    await expect(page.getByText("PDF, PNG, JPG 파일을 선택하세요")).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="matchup-upload-modal"]')).not.toBeVisible({ timeout: 30_000 });
 
-    // 5. 문서 목록에 표시 확인
-    const docItem = page.locator("text=" + `${TAG} 수학 테스트`);
-    await expect(docItem).toBeVisible({ timeout: 10000 });
+    // 5. 업로드한 문서가 운영 API에서 완료될 때까지 대기
+    const doc = await waitForMatchupDocumentByTitle(page, title, 360_000);
+    expect(doc.status, "업로드 문서 처리 상태").toBe("done");
+    expect(doc.problem_count ?? 0, "추출된 문제 수").toBeGreaterThan(0);
 
     // 스크린샷: 업로드 직후 (processing 상태)
     await page.screenshot({ path: "e2e/screenshots/matchup-processing.png", fullPage: true });
 
-    // 6. AI 처리 완료 대기 (최대 2분)
-    // 문서 클릭해서 선택
-    await docItem.click();
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-
-    // "처리 중" → "N문제" 로 변경될 때까지 대기
-    await waitForCondition(async () => {
-      // "문제" 텍스트가 나타나면 완료
-      const problemText = page.locator("text=/\\d+문제/").first();
-      if (await problemText.isVisible().catch(() => false)) {
-        return true;
-      }
-
-      // "실패" 체크
-      const failedText = page.locator("text=실패").first();
-      if (await failedText.isVisible().catch(() => false)) {
-        return true;
-      }
-
-      return false;
-    }, { timeoutMs: 120_000, intervalMs: 3_000, description: "matchup document processing completes" });
-    const failedText = page.locator("text=실패").first();
-    const failedVisible = await failedText.isVisible().catch(() => false);
-    if (failedVisible) {
-      await page.screenshot({ path: "e2e/screenshots/matchup-failed.png", fullPage: true });
-    }
-    const processingDone = !failedVisible;
+    // 6. 업로드한 문서 상세로 진입
+    await gotoAndSettle(page, `https://hakwonplus.com/admin/storage/matchup?docId=${doc.id}`, { timeout: 30_000 });
+    const docRow = page.locator(`[data-testid="matchup-doc-row"][data-doc-id="${doc.id}"]`).first();
+    if (await docRow.count() > 0) await docRow.click();
 
     // 스크린샷: 처리 완료 상태
     await page.screenshot({ path: "e2e/screenshots/matchup-done.png", fullPage: true });
 
-    if (processingDone) {
-      // 7. 문제 그리드 표시 확인
-      const problemCards = page.locator("text=/^Q\\d+$/");
-      await expect(problemCards.first()).toBeVisible({ timeout: 10_000 });
-      const cardCount = await problemCards.count();
-      console.log(`Extracted problems: ${cardCount}`);
-      expect(cardCount).toBeGreaterThan(0);
+    // 7. 문제 그리드 표시 확인
+    const problemCards = page.locator("[data-problem-id]");
+    await expect(problemCards.first()).toBeVisible({ timeout: 20_000 });
+    const cardCount = await problemCards.count();
+    console.log(`Extracted problems: ${cardCount}`);
+    expect(cardCount).toBeGreaterThan(0);
 
-      // 스크린샷: 문제 그리드
-      await page.screenshot({ path: "e2e/screenshots/matchup-problems.png", fullPage: true });
+    // 스크린샷: 문제 그리드
+    await page.screenshot({ path: "e2e/screenshots/matchup-problems.png", fullPage: true });
 
-      // 8. 첫 번째 문제 클릭 → 유사 문제 추천
-      await problemCards.first().click();
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    // 8. 첫 번째 문제 클릭 → 유사 문제 추천
+    await problemCards.first().click();
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
-      // 스크린샷: 유사 문제 (문제가 1개뿐이면 "유사한 문제를 찾지 못했습니다" 표시)
-      await page.screenshot({ path: "e2e/screenshots/matchup-similar.png", fullPage: true });
-    }
+    // 스크린샷: 유사 문제 (문제가 1개뿐이면 "유사한 문제를 찾지 못했습니다" 표시)
+    await page.screenshot({ path: "e2e/screenshots/matchup-similar.png", fullPage: true });
 
     // 9. Cleanup — 테스트 문서 삭제
-    // 삭제 버튼 클릭
-    const deleteBtn = page.locator(`button[title="삭제"]`).first();
-    if (await deleteBtn.isVisible().catch(() => false)) {
-      await deleteBtn.click();
-      // 확인 다이얼로그
-      const confirmBtn = page.getByRole("button", { name: "삭제" });
-      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-      }
-    }
+    const deleted = await apiCall(page, "DELETE", `/matchup/documents/${doc.id}/`);
+    expect([200, 202, 204]).toContain(deleted.status);
+    cleanupTitle = null;
 
     // 최종 스크린샷
     await page.screenshot({ path: "e2e/screenshots/matchup-final.png", fullPage: true });

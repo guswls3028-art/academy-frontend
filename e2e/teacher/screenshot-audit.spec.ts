@@ -50,7 +50,7 @@ test.describe("선생앱 전체 스크린샷", () => {
     await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
     await waitForTeacherPageReady(page);
     await page.getByRole("button", { name: "메뉴" }).click();
-    await expect(page.getByRole("button", { name: "설정" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "설정", exact: true })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/audit-teacher-12-drawer.png", fullPage: false });
   });
 });

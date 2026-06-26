@@ -8,7 +8,7 @@
  * 환경: hakwonplus.com / admin97
  */
 
-import { test } from "../fixtures/strictTest";
+import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
@@ -54,15 +54,12 @@ async function openSendModalFromStudentPage(page: Page): Promise<void> {
   }
   await msgBtn.click();
 
-  // 모달 진입 — role=dialog 없이도 SMS/알림톡 라벨이 존재하면 모달 열림으로 간주.
-  const modalBody = page.locator(".send-message-modal, [class*=AdminModal], [role=dialog]").first();
-  const modalVisible = await modalBody.isVisible({ timeout: 8000 }).catch(() => false);
-  if (!modalVisible) {
-    const bodyText = await page.locator("body").innerText().catch(() => "");
-    if (!(bodyText.includes("SMS") || bodyText.includes("알림톡"))) {
-      throw new Error("메시지 발송 모달이 열리지 않았습니다");
-    }
-  }
+  const modalBody = page.locator(".send-message-modal, [class*=AdminModal], [role=dialog]").last();
+  await expect(modalBody, "메시지 발송 모달 shell이 열려야 함").toBeVisible({ timeout: 8000 });
+  await expect(
+    page.locator("body"),
+    "메시지 발송 모달 본문/푸터가 렌더되어야 함",
+  ).toContainText(/알림톡 발송|양식을 선택하거나 직접 작성하세요|카카오 알림톡 발송/, { timeout: 8000 });
   await snap(page, "03-modal-opened");
 }
 
@@ -92,6 +89,7 @@ async function pickFirstSystemTemplate(
   const toggleVisible = await panelToggle.isVisible({ timeout: 5000 }).catch(() => false);
   console.log(`[INFO] "${panelButtonText}" 버튼 visible: ${toggleVisible}`);
 
+  let pickerToggle = panelToggle;
   if (!toggleVisible) {
     // "양식 변경" fallback
     const altToggle = page.locator("button").filter({ hasText: "양식 변경" }).first();
@@ -100,13 +98,14 @@ async function pickFirstSystemTemplate(
       console.log("[WARN] 양식 선택/변경 버튼을 찾지 못함");
       return null;
     }
-    await altToggle.click();
-  } else {
-    await panelToggle.click();
+    pickerToggle = altToggle;
   }
+  await pickerToggle.click();
   // 양식 패널 진입 settle.
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "04-template-panel");
+  const picker = page.getByRole("dialog").filter({ hasText: "양식 선택" }).last();
+  await expect(picker).toBeVisible({ timeout: 10_000 });
 
   // 시스템 기본 양식 목록에서 클릭 가능한 첫 번째 양식 카드 찾기
   // 시스템 양식은 "[HakwonPlus]" 또는 "[학원플러스]" 텍스트를 포함하는 카드
@@ -144,6 +143,10 @@ async function pickFirstSystemTemplate(
 
   console.log(`[INFO] 선택할 양식: "${templateName}"`);
   await templateCardBtn.click();
+  const applyBtn = picker.getByRole("button", { name: "이 양식 적용" });
+  await expect(applyBtn).toBeEnabled({ timeout: 5_000 });
+  await applyBtn.click();
+  await expect(picker).toBeHidden({ timeout: 10_000 });
   // 양식 적용 + 패널 닫힘 settle.
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "05-template-selected");
@@ -231,6 +234,8 @@ test("시나리오 1: SMS 양식 선택 후 본문 변경 정확성", async ({ p
     await changeBtn.click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await snap(page, "sc1-panel2-opened");
+    const picker2 = page.getByRole("dialog").filter({ hasText: "양식 선택" }).last();
+    await expect(picker2).toBeVisible({ timeout: 10_000 });
 
     // 두 번째 시스템 양식 찾기 (첫 번째와 다른 것)
     const systemTplBtns2 = page
@@ -243,9 +248,13 @@ test("시나리오 1: SMS 양식 선택 후 본문 변경 정확성", async ({ p
       const tpl2Name = (await systemTplBtns2.nth(1).innerText().catch(() => "")).split("\n")[0].trim();
       console.log(`[INFO] 두 번째 양식: "${tpl2Name}"`);
       await systemTplBtns2.nth(1).click();
+      await picker2.getByRole("button", { name: "이 양식 적용" }).click();
+      await expect(picker2).toBeHidden({ timeout: 10_000 });
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     } else if (count2 === 1) {
       await systemTplBtns2.first().click();
+      await picker2.getByRole("button", { name: "이 양식 적용" }).click();
+      await expect(picker2).toBeHidden({ timeout: 10_000 });
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     } else {
       await page.keyboard.press("Escape");
@@ -292,26 +301,9 @@ test("시나리오 2: 알림톡 양식 선택 후 본문 변경 + 직접 작성 
 
   // ── 알림톡 모드로 전환 ──
   console.log("\n[STEP 1] 알림톡 모드로 전환");
-  const alimtalkBtn = page.locator("button").filter({ hasText: "알림톡" }).first();
-  const alimtalkBtnVisible = await alimtalkBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  console.log(`[INFO] 알림톡 탭 버튼 visible: ${alimtalkBtnVisible}`);
-
-  if (!alimtalkBtnVisible) {
-    console.log("[WARN] 알림톡 버튼이 보이지 않음 — 모달 상태 확인");
-    await snap(page, "sc2-no-alimtalk-btn");
-    // SMS 힌트 dismiss 후 재시도
-    await dismissSmsEmptyHint(page);
-    const alimtalkBtn2 = page.locator("button").filter({ hasText: "알림톡" }).first();
-    const visible2 = await alimtalkBtn2.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`[INFO] hint dismiss 후 알림톡 버튼 visible: ${visible2}`);
-    if (!visible2) {
-      console.log("[SKIP] 알림톡 버튼을 찾지 못해 시나리오 2 건너뜀");
-      return;
-    }
-    await alimtalkBtn2.click();
-  } else {
-    await alimtalkBtn.click();
-  }
+  const modalText = await page.locator(".send-message-modal, [role=dialog]").first().innerText();
+  expect(modalText).toMatch(/알림톡|카카오/);
+  console.log("[INFO] 현재 메시지 모달은 알림톡 단일 플로우");
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await snap(page, "sc2-alimtalk-mode");
 
@@ -425,10 +417,20 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
 
   await openSendModalFromStudentPage(page);
 
-  // ── 3-A: SMS 모드 + 본문 비어있음 → "본문을 입력해 주세요" ──
-  console.log("\n[STEP 1] SMS 본문 비어있음 → disable 사유 확인");
+  // ── 3-A: 초기 상태. 현재 UX는 기본 양식이 자동 적용될 수 있으므로
+  // 양식 미선택 disable이 필수는 아니다. 대신 자동 적용 또는 disable 안내 둘 중 하나는 보여야 한다.
+  console.log("\n[STEP 1] 알림톡 초기 상태 → disable 사유 확인");
 
-  // SMS 힌트 dismiss (직접 작성하기 클릭)
+  const bodyText0 = await page.locator("body").innerText().catch(() => "");
+  const hasInitialReason = bodyText0.includes("양식을 선택하거나 직접 작성해 주세요") ||
+    bodyText0.includes("본문을 입력해 주세요");
+  console.log(`[CHECK] 3-A. 초기 disable 사유 표시: ${hasInitialReason}`);
+  expect(
+    hasInitialReason || bodyText0.includes("발송 전 확인") || bodyText0.includes("양식이 자동 적용"),
+    "초기 상태는 disable 사유 또는 자동 적용된 기본 양식 상태를 명확히 보여야 함",
+  ).toBe(true);
+
+  // 직접 작성하기 클릭 후 빈 본문 사유 확인
   await dismissSmsEmptyHint(page);
 
   // textarea가 비어있는 상태 확보 (초기 상태)
@@ -437,55 +439,16 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
   if (taSmsClear) {
     await textareaSms.clear();
   }
-  await snap(page, "sc3-sms-empty-body");
+  await snap(page, "sc3-empty-body");
 
   // disableReason 텍스트 확인
   const bodyText1 = await page.locator("body").innerText().catch(() => "");
   const hasSmsBodyReason = bodyText1.includes("본문을 입력해 주세요");
   console.log(`[CHECK] 3-A. SMS 본문 비어있음 → "본문을 입력해 주세요": ${hasSmsBodyReason}`);
-  if (hasSmsBodyReason) {
-    console.log("[PASS] SMS 본문 비어있을 때 올바른 disable 사유 표시");
-  } else {
-    // 실제 표시된 disable 사유 추출
-    const allSpans = await page.locator("span").allInnerTexts();
-    const reasonSpan = allSpans.find((t) => t.includes("주세요") || t.includes("연동") || t.includes("초과"));
-    console.log(`[FAIL] 예상 사유 없음. 현재 disable 사유 후보: "${reasonSpan ?? "없음"}"`);
-  }
+  expect(hasSmsBodyReason, "본문을 비우면 '본문을 입력해 주세요' disable 사유가 보여야 함").toBe(true);
 
-  // ── 3-B: 알림톡 모드 + 양식 미선택 + 직접작성 미선택 → disable 사유 확인 ──
-  console.log("\n[STEP 2] 알림톡 모드 + 양식/직접작성 미선택 → disable 사유 확인");
-
-  const alimtalkBtn = page.locator("button").filter({ hasText: "알림톡" }).first();
-  const alimtalkBtnVisible = await alimtalkBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (alimtalkBtnVisible) {
-    await alimtalkBtn.click();
-    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await snap(page, "sc3-alimtalk-no-template");
-
-    const bodyText2 = await page.locator("body").innerText().catch(() => "");
-    const hasAlimtalkReason = bodyText2.includes("양식을 선택하거나 직접 작성해 주세요");
-    console.log(`[CHECK] 3-B. 알림톡 미선택 → "양식을 선택하거나 직접 작성해 주세요": ${hasAlimtalkReason}`);
-    if (hasAlimtalkReason) {
-      console.log("[PASS] 알림톡 미선택 시 올바른 disable 사유 표시");
-    } else {
-      const allSpans2 = await page.locator("span").allInnerTexts();
-      const reasonSpan2 = allSpans2.find((t) => t.includes("주세요") || t.includes("연동") || t.includes("초과"));
-      console.log(`[FAIL] 예상 사유 없음. 현재 disable 사유 후보: "${reasonSpan2 ?? "없음"}"`);
-    }
-  } else {
-    console.log("[SKIP] 알림톡 버튼 없음");
-  }
-
-  // ── 3-C: 학부모 + 학생 모두 해제 → "발송 대상을 선택해 주세요" ──
-  console.log("\n[STEP 3] 학부모+학생 모두 해제 → disable 사유 확인");
-
-  // SMS 모드로 돌아가서 테스트 (알림톡 보다 단순)
-  const smsBtnForReset = page.locator("button").filter({ hasText: "SMS" }).first();
-  const smsBtnVisible = await smsBtnForReset.isVisible({ timeout: 3000 }).catch(() => false);
-  if (smsBtnVisible) {
-    await smsBtnForReset.click();
-    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-  }
+  // ── 3-B: 학부모 + 학생 모두 해제 → "발송 대상을 선택해 주세요" ──
+  console.log("\n[STEP 2] 학부모+학생 모두 해제 → disable 사유 확인");
 
   // 학부모 체크박스 해제
   const parentLabel = page.locator("label").filter({ hasText: /^학부모$/ }).first();
@@ -539,6 +502,7 @@ test("시나리오 3: 발송 disable 사유 정확성", async ({ page }) => {
     const reasonSpan3 = allSpans3.find((t) => t.includes("주세요") || t.includes("연동") || t.includes("초과") || t.includes("선택"));
     console.log(`[FAIL] 예상 사유 없음. 현재 disable 사유 후보: "${reasonSpan3 ?? "없음"}"`);
   }
+  expect(hasNoTargetReason, "대상을 모두 해제하면 '발송 대상을 선택해 주세요' disable 사유가 보여야 함").toBe(true);
 
   // "선택 필요" 인라인 텍스트 (체크박스 옆) 도 확인
   const selectNeeded = page.locator("text=선택 필요").first();

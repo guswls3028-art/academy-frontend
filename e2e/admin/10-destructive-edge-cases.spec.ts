@@ -76,7 +76,7 @@ test.describe("관리자 파괴 테스트", () => {
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 로딩 중 상태 확인 - "0건"이 "로딩 중" 전에 나타나면 안 됨
-    const todoSection = page.locator("text=미처리 일감").first();
+    const todoSection = page.getByRole("heading", { name: "오늘 처리할 일" });
     await todoSection.waitFor({ state: "visible", timeout: 10000 });
 
     // 로딩 중... 또는 실제 수치가 보여야 함 (0건 플래시 없음)

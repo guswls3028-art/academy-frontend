@@ -251,7 +251,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     const cap = attachNetCapture(page);
     await visit(page, "/teacher/settings/appearance");
 
-    await expect(page.getByRole("heading", { name: "외관" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "테마" })).toBeVisible();
     await expect(page.getByText("Modern White")).toBeVisible();
     await expect(page.getByText("Modern Dark")).toBeVisible();
 

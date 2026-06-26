@@ -8,6 +8,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
+import { openMatchupUploadModal } from "../helpers/matchup";
 
 const API = getApiBaseUrl();
 const TAG = `[E2E-${Date.now()}]`;
@@ -17,7 +18,7 @@ let uploadedDocId: number | null = null;
 
 test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
   test("스캔본 PDF 업로드 → 25개 이상 문항 분할 확인", async ({ page }) => {
-    test.setTimeout(300_000); // 5분 (OCR 호출 포함)
+    test.setTimeout(900_000); // 운영 worker cold-start + 스캔본 OCR 포함
 
     // ── 1. 로그인 ──
     await loginViaUI(page, "admin");
@@ -26,27 +27,11 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
       fullPage: true,
     });
 
-    // ── 2. 스토리지 > 매치업 페이지 이동 (사이드바 클릭) ──
-    // 사이드바에서 "스토리지" 메뉴 찾기
-    const storageMenu = page.locator("text=스토리지").first();
-    if (await storageMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await storageMenu.click();
-      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    }
-
-    // "매치업" 서브메뉴 클릭
-    const matchupMenu = page.locator("text=매치업").first();
-    if (await matchupMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await matchupMenu.click();
-      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    } else {
-      // 사이드바에서 못 찾으면 직접 이동 (fallback)
-      await page.goto("https://hakwonplus.com/admin/storage/matchup", {
-        waitUntil: "load",
-        timeout: 20000,
-      });
-    }
-
+    // ── 2. 스토리지 > 매치업 페이지 이동 ──
+    await page.goto("https://hakwonplus.com/admin/storage/matchup", {
+      waitUntil: "load",
+      timeout: 20000,
+    });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-02-matchup-page.png",
@@ -55,37 +40,20 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     console.log(`[NAV] Current URL: ${page.url()}`);
 
     // ── 3. 문서 업로드 버튼 클릭 ──
-    // "문서 업로드" 텍스트가 있는 버튼 or Plus 아이콘 버튼
-    const uploadBtnByText = page.locator("button").filter({ hasText: "문서 업로드" }).first();
-
-    if (await uploadBtnByText.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await uploadBtnByText.click();
-    } else {
-      // Plus 아이콘 버튼 (문서 목록 헤더의 + 버튼)
-      const plusBtn = page.locator("button svg.lucide-plus").locator("..");
-      if (await plusBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await plusBtn.click();
-      } else {
-        // 빈 상태의 업로드 버튼
-        const emptyUploadBtn = page.locator("button").filter({ hasText: /업로드/ }).first();
-        await emptyUploadBtn.click();
-      }
-    }
-
-    await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
+    const modal = await openMatchupUploadModal(page, "test");
     await page.screenshot({
       path: "e2e/screenshots/ocr-seg-03-upload-modal.png",
       fullPage: true,
     });
 
     // ── 4. 파일 선택 ──
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = modal.locator('[data-testid="matchup-file-input"]');
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(SCAN_PDF);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 제목 자동 채워지는지 확인
-    const titleInput = page.locator('input[placeholder="문서 제목"]');
+    const titleInput = modal.locator('input[placeholder="문서 제목"]');
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 제목을 E2E 태그로 변경
@@ -93,13 +61,13 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     await titleInput.fill(docTitle);
 
     // 과목 입력
-    const subjectInput = page.locator('input[placeholder="예: 수학"]');
+    const subjectInput = modal.locator('input[placeholder="예: 수학"]');
     if (await subjectInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await subjectInput.fill("통합과학");
     }
 
     // 학년 입력
-    const gradeInput = page.locator('input[placeholder="예: 고1"]');
+    const gradeInput = modal.locator('input[placeholder="예: 고1"]');
     if (await gradeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await gradeInput.fill("고1");
     }
@@ -110,14 +78,12 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     });
 
     // ── 5. 업로드 실행 ──
-    const submitBtn = page.locator("button").filter({ hasText: /^업로드$/ }).last();
+    const submitBtn = modal.locator('[data-testid="matchup-upload-submit"]');
     await submitBtn.click();
     console.log(`[UPLOAD] Clicked upload button at ${new Date().toISOString()}`);
 
     // 모달 닫힘 확인
-    await expect(
-      page.locator('input[type="file"]')
-    ).not.toBeAttached({ timeout: 10000 });
+    await expect(page.locator('[data-testid="matchup-upload-modal"]')).not.toBeVisible({ timeout: 30000 });
 
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page.screenshot({
@@ -155,7 +121,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     let processingDone = false;
     let finalProblemCount = 0;
     const pollStart = Date.now();
-    const maxWaitMs = 240_000; // 4분
+    const maxWaitMs = 780_000; // cold-start large scanned OCR
 
     while (Date.now() - pollStart < maxWaitMs) {
       // 의도적 폴링 주기 (5초) — OCR/segmentation 진행 상태 확인.

@@ -149,7 +149,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
     // 학원장에게 manual 우선 권장 + indexable=false 명시
     await expect(banner).toContainText("학생 답안지/폰사진");
     await expect(banner).toContainText("수동 자르기를 권장");
-    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외된 상태");
+    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외되어 있습니다");
     // warning row 2개 (paper_type + quality)
     const warnings = banner.getByTestId("document-guidance-warning");
     await expect(warnings).toHaveCount(2);
@@ -177,7 +177,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
     const banner = page.getByTestId("document-guidance-banner");
     await expect(banner).toContainText("자료 유형을 확정하지 못했습니다");
     await expect(banner).toContainText("검수가 필요한 자동분리 결과");
-    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외된 상태");
+    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외되어 있습니다");
   });
 
   test("non_question + no_problems + indexable=false → neutral 톤", async ({ page }) => {
@@ -186,7 +186,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
     await selectDoc(page, spec.id);
     const banner = page.getByTestId("document-guidance-banner");
     await expect(banner).toContainText("표지·정답지·해설지");
-    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외된 상태");
+    await expect(banner).toContainText("매치업 검색·비교 풀에서 제외되어 있습니다");
     // error 톤 0
     await expect(banner.getByTestId("document-guidance-warning")).toHaveCount(1);  // no_problems quality → warning
   });

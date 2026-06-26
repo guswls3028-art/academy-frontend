@@ -103,42 +103,45 @@ for (const vp of VIEWPORTS) {
       const reportId = await targetCard.getAttribute("data-report-id");
       console.log(`[editor-entry] viewport=${vp.name} target reportId=${reportId} status=${cardStatus}`);
 
-      // 카드 click → /admin/storage/matchup navigate + state.openHitReportForDoc 로 편집기 자동 오픈
+      // 카드 click → read-only PDF preview modal. "수정 →" 클릭 시 편집기 진입.
       await targetCard.scrollIntoViewIfNeeded();
       await targetCard.click();
-      // eslint-disable-next-line no-restricted-syntax
-      await page.waitForTimeout(4500);
+      const previewDialog = page.getByRole("dialog", { name: "적중보고서 미리보기" });
+      await expect(previewDialog).toBeVisible({ timeout: 20_000 });
+
+      const editButton = page.locator('[data-testid="hit-report-preview-edit"]').first();
+      await expect(editButton).toBeVisible({ timeout: 10_000 });
+      await page.screenshot({
+        path: `${SCREENSHOT_DIR}/${vp.name}-04-preview-modal.png`,
+        fullPage: true,
+      });
+      await editButton.click();
 
       // 매치업 페이지 도달 + 편집기 마운트 신호 — submit/unsubmit primary CTA 존재 검증
+      await page.waitForURL(/\/admin\/storage\/matchup/, { timeout: 30_000 });
       const primaryCta = page.locator(
-        'button:has-text("홈페이지에 게시"), button:has-text("게시 취소"), button:has-text("재편집 시작")',
+        '[data-testid="matchup-hit-report-publish-btn"], [data-testid="matchup-hit-report-unsubmit-btn"]',
       ).first();
-      const ctaVisible = await primaryCta.isVisible({ timeout: 8000 }).catch(() => false);
+      await expect(primaryCta, "hit report publish/unsubmit CTA").toBeVisible({ timeout: 60_000 });
 
       await page.screenshot({
         path: `${SCREENSHOT_DIR}/${vp.name}-04-editor-with-publish-cta.png`,
         fullPage: true,
       });
 
-      if (ctaVisible) {
-        const ctaText = await primaryCta.textContent();
-        console.log(`[editor-entry] ${vp.name} CTA found: "${ctaText?.trim()}"`);
-        const ctaBox = await primaryCta.boundingBox();
-        if (ctaBox) {
-          await page.screenshot({
-            path: `${SCREENSHOT_DIR}/${vp.name}-05-cta-buttons-closeup.png`,
-            clip: {
-              x: 0,
-              y: Math.max(0, ctaBox.y - 16),
-              width: vp.width,
-              height: Math.min(vp.height, 100),
-            },
-          });
-        }
-        // 진입 검증 — primary CTA 가 보이지 않으면 편집기 실패로 fail
-        expect(ctaVisible).toBe(true);
-      } else {
-        console.warn(`[editor-entry] ${vp.name} primary CTA not found — editor open 실패 신호 (URL=${page.url()})`);
+      const ctaText = await primaryCta.textContent();
+      console.log(`[editor-entry] ${vp.name} CTA found: "${ctaText?.trim()}"`);
+      const ctaBox = await primaryCta.boundingBox();
+      if (ctaBox) {
+        await page.screenshot({
+          path: `${SCREENSHOT_DIR}/${vp.name}-05-cta-buttons-closeup.png`,
+          clip: {
+            x: 0,
+            y: Math.max(0, ctaBox.y - 16),
+            width: vp.width,
+            height: Math.min(vp.height, 100),
+          },
+        });
       }
     });
 

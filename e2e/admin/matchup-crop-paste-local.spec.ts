@@ -17,6 +17,8 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const LOCAL = "http://localhost:5174";
 
 test.describe("매치업 크롭/붙여넣기 — 로컬 시각 확인", () => {
+  test.skip(process.env.E2E_INCLUDE_LOCAL_ONLY !== "1", "localhost:5174 전용 시각 확인은 명시 opt-in에서만 실행");
+
   test.beforeEach(async ({ page }) => {
     // 로컬 dev에 로그인 (auth.ts가 BASE 환경변수에 의존 — 여기선 page.goto로 직접)
     process.env.E2E_BASE_URL = LOCAL;

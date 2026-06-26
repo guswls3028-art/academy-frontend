@@ -4,7 +4,7 @@
  * 모든 테넌트 로그인을 이 파일로 통합.
  * 새 테넌트 추가 시 CREDS에 role 추가 + .env.e2e에 env var 추가.
  */
-import { type Page } from "@playwright/test";
+import { type APIRequestContext, type Page } from "@playwright/test";
 
 export type TenantRole =
   | "admin"
@@ -89,6 +89,16 @@ function requiredEnv(name: string, role: TenantRole): string {
   throw new Error(`Missing required E2E credential env ${name} for role ${role}. See .env.e2e.example.`);
 }
 
+export function hasRoleCredentials(role: TenantRole): boolean {
+  const c = CREDS[role];
+  return Boolean(process.env[c.userEnv]?.trim() && process.env[c.passEnv]?.trim());
+}
+
+export function missingRoleCredentialNames(role: TenantRole): string[] {
+  const c = CREDS[role];
+  return [c.userEnv, c.passEnv].filter((name) => !process.env[name]?.trim());
+}
+
 function resolveCred(role: TenantRole): { base: string; code: string; user: string; pass: string } {
   const c = CREDS[role];
   return {
@@ -128,6 +138,36 @@ async function requestLoginTokens(
   }
 
   throw new Error(`E2E login failed for ${role} (${c.user}@${c.code}): ${lastFailure}`);
+}
+
+export async function loginTokenViaRequest(
+  request: APIRequestContext,
+  role: TenantRole = "admin",
+): Promise<{ access: string; refresh: string }> {
+  const c = resolveCred(role);
+  let lastFailure = "";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const resp = await request.post(`${API_BASE}/api/v1/token/`, {
+      data: { username: c.user, password: c.pass, tenant_code: c.code },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Code": c.code,
+      },
+      timeout: 60_000,
+    });
+
+    if (resp.status() === 200) {
+      return await resp.json() as { access: string; refresh: string };
+    }
+
+    const body = await resp.text();
+    lastFailure = `${resp.status()} ${body}`;
+    if (resp.status() !== 429 || attempt === 2) break;
+    await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
+  }
+
+  throw new Error(`E2E request login failed for ${role} (${c.user}@${c.code}): ${lastFailure}`);
 }
 
 /**

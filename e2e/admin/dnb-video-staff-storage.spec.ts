@@ -3,7 +3,7 @@
  * 운영 환경에서 각 페이지 렌더링 + 콘솔에러/API에러/크래시 감지
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import type { Page } from "@playwright/test";
 
@@ -44,6 +44,8 @@ async function visitAndAssertRendered(page: Page, path: string, screenshot: stri
 }
 
 test.describe("DNB 영상/스태프/저장소/도구/개발자 검증", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(180000);
 
   test.beforeEach(async ({ page }) => {

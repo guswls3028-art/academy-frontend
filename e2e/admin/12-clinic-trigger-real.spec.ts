@@ -93,10 +93,9 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
 
     // ── 4. 워크스페이스 렌더 + 출석/결석 버튼 중 하나는 반드시 존재 ──
     const attendBtns = page.locator("button").filter({ hasText: /^출석$|^참석$/ });
-    const absentBtns = page.locator("button").filter({ hasText: /^결석$|^불참$/ });
 
     await expect(
-      attendBtns.first().or(absentBtns.first()),
+      page.locator("button").filter({ hasText: /^(출석|참석|결석|불참)$/ }).first(),
       "워크스페이스에 출석/결석 버튼이 보여야 함 (참가자 로드 실패 가능)",
     ).toBeVisible({ timeout: 15000 });
 

@@ -2,10 +2,13 @@
  * DNB 강의 CRUD 심화 E2E — API 레벨 생성/조회/삭제로 school_level_mode 환경 정상 확인
  */
 import { test, expect } from "../fixtures/strictTest";
-import { getApiBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import type { APIRequestContext } from "@playwright/test";
 
 const API_BASE = getApiBaseUrl();
+const DNB_CODE = "dnb";
+const DNB_USER = process.env.DNB_ADMIN_USER ?? "";
+const DNB_PASS = process.env.DNB_ADMIN_PASS ?? "";
 
 const TS = Date.now();
 const TITLE = `[E2E-${TS}] API강의테스트`;
@@ -27,6 +30,8 @@ function headers(token: string) {
 }
 
 test.describe.serial("DNB 강의 CRUD (API)", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test("1. 강의 생성 (POST)", async ({ request }) => {
     const token = await getToken(request);
     const resp = await request.post(`${API_BASE}/api/v1/lectures/lectures/`, {

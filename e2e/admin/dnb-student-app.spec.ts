@@ -7,11 +7,14 @@
  * 3. Cleanup: 테스트 학생 삭제
  */
 import { test, expect } from "../fixtures/strictTest";
-import { getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { getBaseUrl, getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import type { Page } from "@playwright/test";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
 const API = getApiBaseUrl();
+const CODE = "dnb";
+const ADMIN_USER = process.env.DNB_ADMIN_USER ?? "";
+const ADMIN_PASS = process.env.DNB_ADMIN_PASS ?? "";
 
 const TS = Date.now();
 const PHONE_SUFFIX = String(TS).slice(-8);
@@ -90,6 +93,8 @@ async function collectPageErrors(page: Page): Promise<{ consoleErrors: string[];
 }
 
 test.describe("DNB 학생앱 전체 E2E", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(180_000); // 3 minutes for the full suite
 
   test("0. Setup -- 테스트 학생 생성", async ({ page }) => {

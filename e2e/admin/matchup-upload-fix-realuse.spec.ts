@@ -26,11 +26,12 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     await gotoMatchup(page);
 
     // 매치업 페이지 root 컨테이너의 inline maxHeight 검사. 브라우저는 calc 표기를
-    // 정규화하므로 (`calc(-100px + 100vh)` ≡ `calc(100vh - 100px)`) 양쪽 모두 허용.
+    // 정규화하므로 (`calc(-100px + 100svh)` ≡ `calc(100svh - 100px)`) 양쪽 모두 허용.
     const root = page.locator("[class*='_root']").first();
     const style = await root.getAttribute("style");
-    expect(style ?? "").toMatch(/max-height:\s*calc\(([^)]*100vh[^)]*-[^)]*100px|[^)]*-[^)]*100px[^)]*\+[^)]*100vh)\)/);
-    expect(style ?? "").toMatch(/height:\s*calc\(([^)]*100vh[^)]*-[^)]*100px|[^)]*-[^)]*100px[^)]*\+[^)]*100vh)\)/);
+    const viewportHeightCalc = /calc\(([^)]*100s?vh[^)]*-[^)]*100px|[^)]*-[^)]*100px[^)]*\+[^)]*100s?vh)\)/;
+    expect(style ?? "").toMatch(new RegExp(`max-height:\\s*${viewportHeightCalc.source}`));
+    expect(style ?? "").toMatch(new RegExp(`height:\\s*${viewportHeightCalc.source}`));
 
     // 트리 영역에 overflow auto 적용 (CSS module 클래스라 직접 검사 어려움 — 부모 height
     // 제한이 핵심. 자식 .tree에 overflow:auto가 있어 그 효과가 발생함을 design system 신뢰.)

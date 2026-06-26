@@ -15,6 +15,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fetchJobProgress } from "../api/matchup.api";
 import type { MatchupDocument } from "../api/matchup.api";
 
+const MAX_PROGRESS_POLLS = 8;
+const STALE_PROCESSING_MS = 2 * 60 * 60 * 1000;
+
+function updatedAtMs(doc: MatchupDocument): number | null {
+  const parsed = Date.parse(doc.updated_at || "");
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export type DocProgress = {
   percent: number;
   stepName: string;
@@ -27,9 +35,15 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [progressMap, setProgressMap] = useState<DocProgressMap>({});
 
-  const processingDocs = documents.filter(
-    (d) => d.status === "processing" && d.ai_job_id,
-  );
+  const now = Date.now();
+  const processingDocs = documents
+    .filter((d) => {
+      if (d.status !== "processing" || !d.ai_job_id) return false;
+      const updatedAt = updatedAtMs(d);
+      return updatedAt === null || now - updatedAt <= STALE_PROCESSING_MS;
+    })
+    .sort((a, b) => (updatedAtMs(b) ?? 0) - (updatedAtMs(a) ?? 0))
+    .slice(0, MAX_PROGRESS_POLLS);
   const processingKey = processingDocs
     .map((d) => `${d.id}:${d.ai_job_id}`)
     .join(",");

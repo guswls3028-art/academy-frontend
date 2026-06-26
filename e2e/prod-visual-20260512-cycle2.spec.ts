@@ -68,7 +68,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
     await gotoAndSettle(page, `${BASE}/landing`);
 
     // brand_name chip
-    const brandChip = page.locator("text=HakwonPlus").first();
+    const brandChip = page.getByText(/HakwonPlus|학원플러스/).first();
     await expect(brandChip).toBeVisible({ timeout: 10000 });
     await shot(page, "V1-01-hero-initial");
 

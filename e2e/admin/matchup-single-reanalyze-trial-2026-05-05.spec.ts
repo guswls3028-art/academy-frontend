@@ -19,6 +19,7 @@ import { loginViaUI } from "../helpers/auth";
 const SHOT_DIR = "e2e/_artifacts/matchup-single-reanalyze-trial-2026-05-05";
 const API = "https://api.hakwonplus.com";
 const TARGET_DOC = 321;
+const ALLOW_REAL_REANALYZE = process.env.E2E_ALLOW_MATCHUP_REANALYZE_REAL === "1";
 
 test.beforeAll(() => {
   fs.mkdirSync(SHOT_DIR, { recursive: true });
@@ -29,15 +30,21 @@ async function snapshotDoc(
   H: Record<string, string>,
   docId: number,
 ): Promise<Record<string, unknown>> {
-  // doc 메타
-  const dr = await page.request.get(`${API}/api/v1/matchup/documents/${docId}/`, {
+  // doc 메타: documents detail GET은 지원하지 않으므로 목록 API의 현재 UI source와 맞춘다.
+  const dr = await page.request.get(`${API}/api/v1/matchup/documents/?page_size=500`, {
     headers: H,
     timeout: 30_000,
   });
-  if (dr.status() !== 200) {
-    return { _error: `doc fetch ${dr.status()}` };
-  }
-  const doc = await dr.json();
+  expect(dr.status(), "matchup documents list API").toBe(200);
+  const payload = await dr.json();
+  const docs = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.results)
+      ? payload.results
+      : [];
+  const doc = docs.find((d: { id?: number }) => Number(d.id) === docId);
+  expect(doc, `doc ${docId} present in matchup documents list`).toBeTruthy();
+
   // problems
   const pr = await page.request.get(
     `${API}/api/v1/matchup/problems/?document_id=${docId}`,
@@ -47,17 +54,21 @@ async function snapshotDoc(
   let bboxFilled = 0;
   let totalLen = 0;
   let pCount = 0;
-  if (pr.status() === 200) {
-    const list = (await pr.json()) as Array<{
-      meta?: Record<string, unknown> | null;
-      text?: string;
-    }>;
-    pCount = list.length;
-    for (const p of list) {
-      if (p.meta && p.meta.bbox) bboxFilled += 1;
-      else bboxNull += 1;
-      totalLen += (p.text ?? "").length;
-    }
+  expect(pr.status(), "matchup problems API").toBe(200);
+  const problemPayload = await pr.json();
+  const list = (Array.isArray(problemPayload)
+    ? problemPayload
+    : Array.isArray(problemPayload.results)
+      ? problemPayload.results
+      : []) as Array<{
+    meta?: Record<string, unknown> | null;
+    text?: string;
+  }>;
+  pCount = list.length;
+  for (const p of list) {
+    if (p.meta && p.meta.bbox) bboxFilled += 1;
+    else bboxNull += 1;
+    totalLen += (p.text ?? "").length;
   }
   return {
     status: doc.status,
@@ -77,6 +88,7 @@ async function snapshotDoc(
 }
 
 test("doc 321 reanalyze 시험 + before/after 측정", async ({ page }) => {
+  test.skip(!ALLOW_REAL_REANALYZE, "운영 문서 재분석은 명시 opt-in에서만 실행");
   test.setTimeout(420_000);
   await loginViaUI(page, "tchul-admin");
   const tok = await page.evaluate(() => localStorage.getItem("access"));
@@ -111,10 +123,7 @@ test("doc 321 reanalyze 시험 + before/after 측정", async ({ page }) => {
     body: rrBody.slice(0, 2000),
   }, null, 2));
 
-  if (rr.status() !== 200 && rr.status() !== 202) {
-    test.fail(true, `reanalyze dispatch failed ${rr.status()}: ${rrBody}`);
-    return;
-  }
+  expect([200, 202], `reanalyze dispatch failed ${rr.status()}: ${rrBody}`).toContain(rr.status());
 
   // 3. polling — 최대 6분 워커 처리 대기
   const startedAt = Date.now();
@@ -150,6 +159,8 @@ test("doc 321 reanalyze 시험 + before/after 측정", async ({ page }) => {
     JSON.stringify(after, null, 2),
   );
   console.log("AFTER:", JSON.stringify(after));
+  expect(after.status, "reanalyze final status").toBe("done");
+  expect(Number(after.problem_count_db), "reanalyze extracted problems").toBeGreaterThan(0);
 
   // 5. delta
   const delta = {

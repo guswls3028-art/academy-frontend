@@ -11,7 +11,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
-import { loginViaUI } from "../helpers/auth";
+import { loginTokenViaRequest, loginViaUI } from "../helpers/auth";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const TIMESTAMP = Date.now();
@@ -19,6 +19,14 @@ const TEMPLATE_NAME = `[AUDIT-CRUD-${TIMESTAMP}]`;
 const TEMPLATE_BODY = `E2E 감사 #{학생이름}님 테스트`;
 const UPDATED_BODY = `[수정됨] #{학생이름}님`;
 const DUPLICATE_NAME = `복사 - ${TEMPLATE_NAME}`;
+
+type TemplateRow = { id: number; name: string; is_system?: boolean };
+
+function templateList(data: unknown): TemplateRow[] {
+  if (Array.isArray(data)) return data as TemplateRow[];
+  const envelope = data as { results?: TemplateRow[] } | null | undefined;
+  return Array.isArray(envelope?.results) ? envelope.results : [];
+}
 
 async function snap(page: Page, name: string) {
   await page.screenshot({
@@ -49,10 +57,27 @@ function getTemplateCard(page: Page, name: string) {
 }
 
 test.describe("템플릿 CRUD 전체 플로우", () => {
+  test.describe.configure({ mode: "serial" });
   test.setTimeout(180_000);
 
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
+  });
+
+  test.afterAll(async ({ request }) => {
+    const { access } = await loginTokenViaRequest(request, "admin");
+    const resp = await request.get(`${process.env.E2E_API_URL || "https://api.hakwonplus.com"}/api/v1/messaging/templates/`, {
+      headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
+      params: { page_size: 300 },
+    });
+    if (!resp.ok()) return;
+    const rows = templateList(await resp.json());
+    const targets = rows.filter((row) => !row.is_system && (row.name === TEMPLATE_NAME || row.name === DUPLICATE_NAME));
+    for (const row of targets) {
+      await request.delete(`${process.env.E2E_API_URL || "https://api.hakwonplus.com"}/api/v1/messaging/templates/${row.id}/`, {
+        headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": "hakwonplus" },
+      });
+    }
   });
 
   // ═══════════════════════════════════════════════

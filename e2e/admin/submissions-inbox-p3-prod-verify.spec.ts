@@ -10,21 +10,14 @@
  * - 폐기된 row 는 폐기 사유 라벨 + neutral tone
  */
 import { test, expect } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { getBaseUrl, loginTokenViaRequest, loginViaUI } from "../helpers/auth";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
 const TENANT_CODE = "hakwonplus";
 
 test("pending API: is_discarded + discard_reason 필드 노출", async ({ request }) => {
   test.setTimeout(60_000);
-  const tokenResp = await request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: ADMIN_USER, password: ADMIN_PASS, tenant_code: TENANT_CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": TENANT_CODE },
-  });
-  expect(tokenResp.status()).toBe(200);
-  const { access } = await tokenResp.json();
+  const { access } = await loginTokenViaRequest(request, "admin");
 
   const resp = await request.get(`${API_BASE}/api/v1/submissions/submissions/pending/?filter=all`, {
     headers: { Authorization: `Bearer ${access}`, "X-Tenant-Code": TENANT_CODE },

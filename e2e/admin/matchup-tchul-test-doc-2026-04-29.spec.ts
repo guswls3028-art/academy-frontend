@@ -7,6 +7,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { fetchMatchupDocuments, isExamLikeMatchupDocument } from "../helpers/matchup";
 import type { Locator, Page } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -90,17 +91,17 @@ async function waitForCrossPanel(page: Page): Promise<void> {
 async function selectTestDoc(page: Page): Promise<void> {
   await openMatchup(page);
 
-  // 좌측 트리에서 "시험지" 그룹 헤더 찾고 그 아래 행 클릭
-  // intent badge가 노란색(test) — DOM에서 row내 intent 아이콘 검색
-  // 또는 'KakaoTalk' 같이 알려진 시험지 제목 직접 검색
-  const search = page.locator("[data-testid='matchup-doc-search']");
-  await search.fill("KakaoTalk");
-  await expect(search).toHaveValue("KakaoTalk");
-  await waitForRowsOrEmpty(page, "KakaoTalk search applied");
-  const rows = await page.locator(DOC_ROW_SELECTOR).count();
-  log(`검색 KakaoTalk → ${rows} rows`);
-  const target = page.locator(DOC_ROW_SELECTOR).first();
+  const docs = await fetchMatchupDocuments(page);
+  const doneWithProblems = docs.filter((doc) => doc.status === "done" && (doc.problem_count ?? 0) > 0);
+  const selected = doneWithProblems.find(isExamLikeMatchupDocument) ?? doneWithProblems[0];
+  expect(selected, "tchul 매치업 검증용 done 문서").toBeTruthy();
+
+  await gotoAndSettle(page, `${MATCHUP_URL}?docId=${selected!.id}`, { timeout: 30_000 });
+  await waitForRowsOrEmpty(page, "selected doc route settled");
+  const target = page.locator(`${DOC_ROW_SELECTOR}[data-doc-id='${selected!.id}']`).first();
+  await expect(target).toBeVisible({ timeout: 15_000 });
   await target.click();
+  log(`선택 문서 id=${selected!.id}, title=${selected!.title ?? ""}`);
   await waitForDocDetail(page);
 }
 
@@ -150,29 +151,14 @@ test.describe("매치업 v3 — tchul 시험지 doc 직접 타겟", () => {
     }
   });
 
-  test("T2. 자동 적중 PDF 다운로드 — 시험지 doc 기준", async ({ page }) => {
+  test("T2. 적중 보고서 작성 CTA — 시험지 doc 기준", async ({ page }) => {
     await selectTestDoc(page);
 
-    const pdfBtn = page.locator("[data-testid='matchup-doc-hit-report-btn']");
-    await expect(pdfBtn).toBeVisible({ timeout: 5000 });
-
-    log(`PDF 버튼 발견 → 다운로드 시도 (60s timeout)`);
-    const start = Date.now();
-    try {
-      const [download] = await Promise.all([
-        page.waitForEvent("download", { timeout: 60_000 }),
-        pdfBtn.click(),
-      ]);
-      const dlPath = path.join(SHOTS, "v3-02-hit-report.pdf");
-      await download.saveAs(dlPath);
-      const stat = fs.statSync(dlPath);
-      const head = fs.readFileSync(dlPath).slice(0, 8).toString("ascii");
-      const elapsed = Date.now() - start;
-      log(`PDF 다운로드 OK size=${(stat.size / 1024).toFixed(0)}KB, header='${head}', elapsed=${elapsed}ms`);
-    } catch (e) {
-      log(`PDF 다운로드 실패: ${(e as Error).message.slice(0, 120)}`);
-      await page.screenshot({ path: path.join(SHOTS, "v3-02-pdf-fail.png"), fullPage: true });
-    }
+    const curateBtn = page.locator("[data-testid='matchup-doc-hit-report-curate-btn']");
+    await expect(curateBtn).toBeVisible({ timeout: 5000 });
+    await expect(curateBtn).toBeEnabled({ timeout: 5000 });
+    log("적중 보고서 작성 CTA 노출/활성 확인");
+    await page.screenshot({ path: path.join(SHOTS, "v3-02-hit-report-cta.png"), fullPage: true });
   });
 
   test("T3. 적중 보고서 작성기 진입 + 편집 영역", async ({ page }) => {

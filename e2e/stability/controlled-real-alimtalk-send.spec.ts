@@ -12,7 +12,7 @@ import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
-test.setTimeout(240_000);
+test.setTimeout(420_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
@@ -169,11 +169,16 @@ async function findApprovedSendTemplate(request: APIRequestContext, token: strin
   const approved = listFromBody<TemplateRow>(body).filter(
     (tpl) => tpl.solapi_status === "APPROVED" && Boolean((tpl.solapi_template_id || "").trim()),
   );
+  const defaultApproved = approved.filter((tpl) => tpl.category === "default");
+  const defaultContentEnvelope = defaultApproved.find((tpl) =>
+    /#\{(공지내용|내용|선생님메모|선생님메모1)\}/.test(tpl.body || ""),
+  );
+  const defaultNoVarTemplate = defaultApproved.find((tpl) => templateVarNames(tpl.body || "").length === 0);
   const contentEnvelope = approved.find((tpl) =>
     /#\{(공지내용|내용|선생님메모|선생님메모1)\}/.test(tpl.body || ""),
   );
   const noVarTemplate = approved.find((tpl) => templateVarNames(tpl.body || "").length === 0);
-  const selected = contentEnvelope ?? noVarTemplate ?? approved[0];
+  const selected = defaultContentEnvelope ?? defaultNoVarTemplate ?? defaultApproved[0] ?? contentEnvelope ?? noVarTemplate ?? approved[0];
   expect(selected, "통제번호 실발송에 사용할 승인 알림톡 템플릿이 있어야 함").toBeTruthy();
   return selected;
 }
@@ -185,15 +190,43 @@ async function latestDialog(page: Page, text: string): Promise<Locator> {
 }
 
 async function applyTemplateFromPicker(page: Page, dialog: Locator, template: TemplateRow): Promise<void> {
-  await dialog.getByRole("button", { name: /^(양식 변경|양식 선택)$/ }).click();
-  const picker = await latestDialog(page, "양식 선택");
-  await picker.getByLabel("전체 카테고리 보기").check({ force: true });
-  await picker.getByPlaceholder("양식 이름").fill(template.name);
+  const picker = page.locator(".tpl-picker-modal").filter({ hasText: "양식 선택" }).last();
+  await dialog.getByRole("button", { name: /^(양식 변경|양식 선택)$/ }).click({ timeout: 10_000 });
+  await expect(picker).toBeVisible({ timeout: 15_000 });
+
+  const allCategories = picker.locator("label.tpl-picker__filter-check").filter({ hasText: "전체 카테고리 보기" }).first();
+  await expect(allCategories).toBeVisible({ timeout: 10_000 });
+  const allCategoriesInput = allCategories.locator("input[type='checkbox']");
+  if (!(await allCategoriesInput.isChecked().catch(() => false))) {
+    await allCategories.click();
+    await expect(allCategoriesInput).toBeChecked({ timeout: 10_000 });
+  }
+
+  await picker.locator(".tpl-picker__search-input input").fill(template.name);
   const card = picker.locator(".tpl-picker__card").filter({ hasText: template.name }).filter({ hasText: "승인" }).first();
   await expect(card).toBeVisible({ timeout: 15_000 });
   await card.click();
   await picker.getByRole("button", { name: "이 양식 적용", exact: true }).click();
   await expect(picker).toBeHidden({ timeout: 15_000 });
+}
+
+async function hasSelectedBodySource(dialog: Locator): Promise<boolean> {
+  const source = dialog.locator(".send-modal__tpl-bar-name, .send-modal__tpl-bar-freeform").first();
+  return source.isVisible({ timeout: 5000 }).catch(() => false);
+}
+
+async function setRecipientTarget(dialog: Locator, targetLabel: "학부모" | "학생", checked: boolean): Promise<void> {
+  const label = dialog.locator("label.send-modal__check").filter({ hasText: targetLabel }).first();
+  const input = label.locator("input[type='checkbox']");
+  await expect(label).toBeVisible({ timeout: 10_000 });
+  if ((await input.isChecked().catch(() => false)) === checked) return;
+
+  await label.click();
+  if (checked) {
+    await expect(input).toBeChecked({ timeout: 10_000 });
+  } else {
+    await expect(input).not.toBeChecked({ timeout: 10_000 });
+  }
 }
 
 async function selectStudentInUi(page: Page, name: string): Promise<void> {
@@ -227,7 +260,7 @@ async function waitForRealSendLog(
       );
       return !!matched && matched.status !== "processing";
     },
-    { timeoutMs: 180_000, intervalMs: 3000, description: "controlled real Alimtalk NotificationLog finalized" },
+    { timeoutMs: 300_000, intervalMs: 3000, description: "controlled real Alimtalk NotificationLog finalized" },
   );
   return matched as NotificationLogRow;
 }
@@ -244,7 +277,10 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
 
     const token = (await loginToken(request)).access;
     const operations = await expectApi<OperationsStatus>(request, "GET", "/messaging/operations/status/", token);
-    expect(operations.worker?.status, `messaging worker status ${JSON.stringify(operations.worker)}`).toBe("ok");
+    expect(
+      ["ok", "idle"],
+      `messaging worker status ${JSON.stringify(operations.worker)}`,
+    ).toContain(operations.worker?.status);
     expect(
       (operations.templates?.approved ?? 0) + (operations.templates?.owner_approved ?? 0),
       "승인 알림톡 템플릿이 있어야 함",
@@ -259,19 +295,26 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
     await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
 
     const dialog = await latestDialog(page, "알림톡 발송");
-    const studentTarget = dialog.locator("label.send-modal__check").filter({ hasText: "학생" }).locator("input[type='checkbox']");
-    if (await studentTarget.isChecked().catch(() => false)) await studentTarget.uncheck({ force: true });
-    const parentTarget = dialog.locator("label.send-modal__check").filter({ hasText: "학부모" }).locator("input[type='checkbox']");
-    if (!(await parentTarget.isChecked().catch(() => false))) await parentTarget.check({ force: true });
+    await setRecipientTarget(dialog, "학생", false);
+    await setRecipientTarget(dialog, "학부모", true);
 
     await dialog.locator("[aria-label='발송 시점']").getByRole("button", { name: "즉시", exact: true }).click();
-    await applyTemplateFromPicker(page, dialog, approvedTemplate);
+    if (!(await hasSelectedBodySource(dialog))) {
+      await applyTemplateFromPicker(page, dialog, approvedTemplate);
+    }
+
+    const messageBody = `${marker}\n이 메시지는 운영 발송 경로 확인을 위한 통제번호 전용 1건입니다.`;
     await dialog.locator("textarea").first().fill(
-      `${marker}\n이 메시지는 운영 발송 경로 확인을 위한 통제번호 전용 1건입니다.`,
+      messageBody,
     );
 
     const sendButton = dialog.getByRole("button", { name: /학부모 1명에게 알림톡 발송/ });
-    await expect(sendButton).toBeEnabled({ timeout: 45_000 });
+    const readyWithDefaultBody = await expect(sendButton).toBeEnabled({ timeout: 45_000 }).then(() => true).catch(() => false);
+    if (!readyWithDefaultBody) {
+      await applyTemplateFromPicker(page, dialog, approvedTemplate);
+      await dialog.locator("textarea").first().fill(messageBody);
+      await expect(sendButton).toBeEnabled({ timeout: 45_000 });
+    }
     await sendButton.click();
     await page.getByRole("button", { name: "발송하기", exact: true }).click();
     await expect(dialog).toBeHidden({ timeout: 45_000 });

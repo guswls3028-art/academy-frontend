@@ -1,6 +1,10 @@
 import { test, expect } from "../fixtures/strictTest";
 
-const BASE = process.env.E2E_LOCAL_BASE_URL || "http://127.0.0.1:5175";
+const BASE =
+  process.env.E2E_BASE_URL ||
+  process.env.PLAYWRIGHT_BASE_URL ||
+  process.env.E2E_LOCAL_BASE_URL ||
+  "http://127.0.0.1:5175";
 const POST_ID = 990001;
 
 test.describe("선생님 소통 모바일 답변 시트", () => {

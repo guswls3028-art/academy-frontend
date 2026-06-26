@@ -147,7 +147,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
     await snap(page, "full-4-clinic-settings");
 
     // 트리거 카드 — 5종 SSOT 회귀 검증.
-    for (const trigger of ["예약", "입실", "결석", "자율학습", "취소"]) {
+    for (const trigger of ["예약 완료", "참석", "결석", "하원", "취소"]) {
       await expect(
         page.locator(`text=${trigger}`).first(),
         `클리닉 메시지 설정 트리거 "${trigger}" 가 표시되어야 함`,
@@ -185,9 +185,9 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // 5. 알림톡 발송 검증
+  // 5. 알림톡 발송 직전 확인 검증
   // ═══════════════════════════════════════════════════════════════
-  test("5. 알림톡 발송 — 실제 발송 시도 + 결과 확인", async ({ page }) => {
+  test("5. 알림톡 발송 — 최종 확인 전까지", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
 
     const check = page.locator('input[type="checkbox"]').nth(1);
@@ -220,8 +220,15 @@ test.describe("메시징 미완 항목 완전 검증", () => {
     await textarea.fill(`[E2E-알림톡-${ts}] 메시징 감사. #{학생이름}님 무시해주세요.`);
 
     const stCheck = page.locator("label").filter({ hasText: "학생" }).locator("input[type=checkbox]").first();
+    const activeConfirm = page.locator(".send-modal__confirm-overlay").last();
+    if (await activeConfirm.isVisible({ timeout: 500 }).catch(() => false)) {
+      const backBtn = activeConfirm.locator("button").filter({ hasText: "돌아가기" }).first();
+      await expect(backBtn, "대상 변경 전 확인 오버레이에서 돌아갈 수 있어야 함").toBeVisible({ timeout: 3000 });
+      await backBtn.click();
+      await expect(activeConfirm).toBeHidden({ timeout: 3000 });
+    }
     if (await stCheck.isVisible({ timeout: 2000 }).catch(() => false) && await stCheck.isChecked()) {
-      await stCheck.uncheck();
+      await stCheck.uncheck({ force: true });
     }
 
     const mainSend = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
@@ -234,13 +241,11 @@ test.describe("메시징 미완 항목 완전 검증", () => {
       const confirmBtn = page.locator("button").filter({ hasText: "발송하기" }).first();
       await expect(confirmBtn, "확인 오버레이의 '발송하기' 버튼이 보여야 함").toBeVisible({ timeout: 5000 });
       await snap(page, "full-5-alimtalk-confirm");
-      await confirmBtn.click();
-      // 발송 요청 완료 후 모달 닫힘 또는 성공 토스트 노출 — 둘 중 하나.
-      await Promise.race([
-        page.locator("text=메시지 발송").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null),
-        page.locator("text=/발송.*완료|성공/").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => null),
-      ]);
-      await snap(page, "full-5-alimtalk-sent");
+      const backBtn = page.locator("button").filter({ hasText: "돌아가기" }).first();
+      await expect(backBtn, "운영 전체 suite에서는 기존 학생에게 실제 발송하지 않고 돌아갈 수 있어야 함").toBeVisible({ timeout: 5000 });
+      await backBtn.click();
+      await expect(confirmBtn).toBeHidden({ timeout: 5000 });
+      await snap(page, "full-5-alimtalk-confirm-returned");
     } else {
       // 외부 블로커 (채널 미설정 등) — annotation 으로 surface.
       test.info().annotations.push({ type: "external-blocker", description: "알림톡 발송 버튼 비활성 (채널 미연동/대상 부재 등)" });

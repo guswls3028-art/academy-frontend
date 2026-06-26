@@ -87,7 +87,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     await page.goto(`${TCHUL}/teacher/profile`, { waitUntil: "load", timeout: 15_000 });
 
     // 프로필 페이지 렌더링 확인 (h1)
-    await expect(page.getByRole("heading", { name: "내 프로필" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("heading", { name: "프로필" })).toBeVisible({ timeout: 5_000 });
 
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-03-profile-page.png", fullPage: true });
   });

@@ -44,17 +44,19 @@ test.describe("admin landings KPI inbox", () => {
     await expect(kpiGrid.getByText("운영 중 시험", { exact: true })).toBeVisible();
 
     // 토글 버튼 → 트리 모드
-    const toggle = page.getByTestId("results-mode-toggle");
+    const toggle = page.getByRole("button", { name: "강의별 탐색" });
     await expect(toggle).toBeVisible();
     await expect(toggle).toContainText("강의별 탐색");
     await toggle.click();
 
     // 트리 모드: 좌측 트리(강의·차시) 노출
+    await page.waitForURL(/\/admin\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("results-mode-toggle")).toContainText("오늘의 작업");
+    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
 
     // 다시 토글 → KPI 복귀
-    await page.getByTestId("results-mode-toggle").click();
+    await page.getByRole("button", { name: "오늘의 작업" }).click();
+    await page.waitForURL(/\/admin\/results$/, { timeout: 10_000 });
     await expect(page.getByTestId("results-kpi-grid")).toBeVisible();
 
     // 새로고침 후에도 마지막 모드 기억 (KPI)
@@ -68,14 +70,15 @@ test.describe("admin landings KPI inbox", () => {
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // KPI → tree 토글
-    await page.getByTestId("results-mode-toggle").click();
+    await page.getByRole("button", { name: "강의별 탐색" }).click();
+    await page.waitForURL(/\/admin\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
 
     // 새로고침 — 트리 모드가 유지되어야
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId("results-mode-toggle")).toContainText("오늘의 작업");
+    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
   });
 
   test("results landing — KPI shows fallback on API error", async ({ page }) => {
@@ -93,9 +96,8 @@ test.describe("admin landings KPI inbox", () => {
 
     const kpiGrid = page.getByTestId("results-kpi-grid");
     await expect(kpiGrid).toBeVisible({ timeout: 15_000 });
-    // 4개 KPI 모두 "—"
-    const dashCount = await kpiGrid.locator('.kpi-value:has-text("—")').count();
-    expect(dashCount).toBe(4);
+    // 4개 KPI 모두 fallback ellipsis("…")로 표시
+    await expect(kpiGrid.locator('[data-kpi="true"]').filter({ hasText: "…" })).toHaveCount(4);
   });
 
   test("results landing — KPI click navigates to submissions inbox", async ({ page }) => {

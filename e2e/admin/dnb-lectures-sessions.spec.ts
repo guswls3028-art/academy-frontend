@@ -4,7 +4,7 @@
  * Cleanup: all [E2E-*] test data removed after run.
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { loginViaUI, getBaseUrl, getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import type { Page, APIRequestContext } from "@playwright/test";
 
@@ -13,8 +13,8 @@ test.setTimeout(120000);
 const DNB_BASE = getBaseUrl("dnb-admin");
 const API = getApiBaseUrl();
 const CODE = "dnb";
-const ADMIN_USER = process.env.DNB_ADMIN_USER || "dheksql88";
-const ADMIN_PASS = process.env.DNB_ADMIN_PASS || "dheksql0513";
+const ADMIN_USER = process.env.DNB_ADMIN_USER ?? "";
+const ADMIN_PASS = process.env.DNB_ADMIN_PASS ?? "";
 
 const TS = Date.now();
 const LECTURE_TITLE = `[E2E-${TS}] 수학심화`;
@@ -54,6 +54,7 @@ async function screenshotAs(page: Page, name: string) {
 /* ───── tests ───── */
 
 test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
 
   /* 1. Lecture list via sidebar navigation */
   test("1. Sidebar > Lectures list renders with tabs", async ({ page }) => {

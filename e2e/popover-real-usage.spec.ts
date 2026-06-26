@@ -14,10 +14,10 @@
  *   - 나머지: 시각 검증 + 스크린샷 (저장 X, 모달 취소로 닫음)
  */
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { loginViaUI } from "./helpers/auth";
+import { getApiBaseUrl, getBaseUrl, loginViaUI } from "./helpers/auth";
 
-const BASE = "http://localhost:5174";
-const API_BASE = "https://api.hakwonplus.com";
+const BASE = getBaseUrl("admin").replace(/\/+$/, "");
+const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
 const STAMP = Date.now();
 
 type LectureRecord = { id: number | string; title?: string | null };

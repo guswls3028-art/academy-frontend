@@ -416,9 +416,9 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // 7. 실제 SMS 발송 + 수신 확인 (01031217466)
+  // 7. SMS 발송 직전 확인 UX
   // ═══════════════════════════════════════════════════════════════
-  test("7. 실제 SMS 발송 → 발송 내역 확인", async ({ page }) => {
+  test("7. SMS 발송 직전 확인 → 안전 가드 확인", async ({ page }) => {
     await navTo(page, "학생");
 
     // 첫 번째 학생 선택 — 학생 0명은 실발송 검증 무효. fail-fast.
@@ -471,29 +471,11 @@ test.describe("메시징 전역 감사 — 실사용자 흐름", () => {
       "발송 확인 오버레이의 '발송하기' 버튼이 표시되어야 함 (안전 가드)",
     ).toBeVisible({ timeout: 5000 });
     await snap(page, "audit-7-sms-confirm");
-    await confirmSend.click();
-
-    // 발송 요청 후 모달이 닫히거나 success 피드백이 나와야 함.
-    // (알림 토스트 또는 모달 닫힘 — 둘 중 하나)
-    await Promise.race([
-      page.locator(MESSAGING_MODAL_ROOT).waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null),
-      page.locator("text=/발송.*완료|성공/").first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => null),
-    ]);
-    await snap(page, "audit-7-sms-sent");
-
-    // 발송 내역에서 확인 — 큐 처리 시간 고려 폴링
-    await navTo(page, "메시지");
-    await clickDomainTab(page, "발송 내역");
-
-    await snap(page, "audit-7-sms-log-after");
-
-    // 최신 로그에 직전 발송 본문(timestamp 포함)이 반영되어야 함.
-    // SQS 처리 지연 대비 최대 30초 폴링.
-    const recentLog = page.locator(`text=${timestamp}`).first();
-    await expect(
-      recentLog,
-      `발송 내역에 직전 timestamp(${timestamp}) 가 30초 내 반영되어야 함 (SQS 처리)`,
-    ).toBeVisible({ timeout: 30_000 });
+    const backBtn = page.locator("button").filter({ hasText: "돌아가기" }).first();
+    await expect(backBtn, "운영 전체 suite에서는 기존 학생에게 실제 SMS/알림톡을 발송하지 않고 돌아갈 수 있어야 함").toBeVisible({ timeout: 5000 });
+    await backBtn.click();
+    await expect(confirmSend).toBeHidden({ timeout: 5000 });
+    await snap(page, "audit-7-sms-confirm-returned");
   });
 
   // ═══════════════════════════════════════════════════════════════

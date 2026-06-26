@@ -65,7 +65,7 @@ test.describe("Batch 10 실사용 리뷰", () => {
     await visit(page, "/teacher/messaging-settings");
 
     await page.screenshot({ path: `${SCREEN_DIR}/messaging-settings.png`, fullPage: true });
-    for (const label of ["공급자", "발신번호", "알림톡", "SMS"]) {
+    for (const label of ["공급자", "발신번호", "알림톡", "채널"]) {
       await expect(page.getByText(label).first()).toBeVisible({ timeout: 6_000 });
     }
     await expect(page.getByText("솔라피(Solapi)").first()).toBeVisible();
@@ -87,7 +87,7 @@ test.describe("Batch 10 실사용 리뷰", () => {
     await settle(page);
     await page.screenshot({ path: `${SCREEN_DIR}/students-selected.png`, fullPage: true });
 
-    for (const label of ["문자", "태그", "비번초기화", "삭제"]) {
+    for (const label of ["알림톡", "태그", "비번초기화", "삭제"]) {
       await expect(page.getByRole("button", { name: label }).first()).toBeVisible({ timeout: 3_000 });
     }
     await page.getByRole("button", { name: "비번초기화" }).first().click();
@@ -105,12 +105,12 @@ test.describe("Batch 10 실사용 리뷰", () => {
 
     await visit(page, "/teacher/exams/bundles");
     await page.screenshot({ path: `${SCREEN_DIR}/exam-bundles.png`, fullPage: true });
-    await expect(page.getByText("시험 번들").first()).toBeVisible();
+    await expect(page.getByText("시험 묶음").first()).toBeVisible();
 
-    const newBundleBtn = page.getByRole("button", { name: /새 번들/ });
+    const newBundleBtn = page.getByRole("button", { name: /새 묶음/ });
     if (await newBundleBtn.isVisible().catch(() => false)) {
       await newBundleBtn.click();
-      await expect(page.getByText(/번들 이름|번들 생성/).first()).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText(/묶음 이름|묶음 생성/).first()).toBeVisible({ timeout: 5_000 });
       await page.screenshot({ path: `${SCREEN_DIR}/exam-bundle-form.png`, fullPage: true });
     }
     expect(errors).toHaveLength(0);

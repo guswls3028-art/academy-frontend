@@ -203,7 +203,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
     const reportId = reports[0].id;
     console.log(`[05] reportId=${reportId}`);
 
-    // PDF 시도 — 큐레이트된 게 없으면 400/422일 수도. 응답 헤더만 보존.
+    // PDF 시도 — 운영 공유 산출물은 실제 다운로드 가능해야 한다.
     const pdfResp = await page.request.get(
       `https://api.hakwonplus.com/api/v1/matchup/hit-reports/${reportId}/curated.pdf`,
       {
@@ -220,19 +220,17 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
       `${SHOT_DIR}/05-pdf-headers.json`,
       JSON.stringify({ status: pdfResp.status(), headers: pdfHeaders }, null, 2),
     );
-    if (pdfResp.status() === 200) {
-      const buf = await pdfResp.body();
-      fs.writeFileSync(path.join(DOWNLOAD_DIR, `report-${reportId}.pdf`), buf);
-      const head = buf.slice(0, 8).toString();
-      console.log(`[05] PDF bytes=${buf.length} head="${head}"`);
-      fs.writeFileSync(
-        `${SHOT_DIR}/05-pdf-summary.txt`,
-        `bytes=${buf.length}\nhead=${head}\n`,
-      );
-    } else {
-      const body = await pdfResp.text();
-      fs.writeFileSync(`${SHOT_DIR}/05-pdf-error.txt`, body.slice(0, 4000));
-    }
+    expect(pdfResp.status(), "curated PDF download status").toBe(200);
+    const pdfBuf = await pdfResp.body();
+    fs.writeFileSync(path.join(DOWNLOAD_DIR, `report-${reportId}.pdf`), pdfBuf);
+    const pdfHead = pdfBuf.slice(0, 8).toString();
+    console.log(`[05] PDF bytes=${pdfBuf.length} head="${pdfHead}"`);
+    fs.writeFileSync(
+      `${SHOT_DIR}/05-pdf-summary.txt`,
+      `bytes=${pdfBuf.length}\nhead=${pdfHead}\n`,
+    );
+    expect(pdfBuf.length, "curated PDF byte size").toBeGreaterThan(1_000);
+    expect(pdfHead, "curated PDF header").toContain("%PDF");
 
     // ZIP 시도
     const zipResp = await page.request.get(
@@ -250,19 +248,17 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
       `${SHOT_DIR}/05-zip-headers.json`,
       JSON.stringify({ status: zipResp.status(), headers: zipResp.headers() }, null, 2),
     );
-    if (zipResp.status() === 200) {
-      const buf = await zipResp.body();
-      fs.writeFileSync(path.join(DOWNLOAD_DIR, `report-${reportId}.zip`), buf);
-      const head = buf.slice(0, 4).toString("hex");
-      console.log(`[05] ZIP bytes=${buf.length} head=${head}`);
-      fs.writeFileSync(
-        `${SHOT_DIR}/05-zip-summary.txt`,
-        `bytes=${buf.length}\nhead-hex=${head}\n`,
-      );
-    } else {
-      const body = await zipResp.text();
-      fs.writeFileSync(`${SHOT_DIR}/05-zip-error.txt`, body.slice(0, 4000));
-    }
+    expect(zipResp.status(), "share ZIP download status").toBe(200);
+    const zipBuf = await zipResp.body();
+    fs.writeFileSync(path.join(DOWNLOAD_DIR, `report-${reportId}.zip`), zipBuf);
+    const zipHead = zipBuf.slice(0, 4).toString("hex");
+    console.log(`[05] ZIP bytes=${zipBuf.length} head=${zipHead}`);
+    fs.writeFileSync(
+      `${SHOT_DIR}/05-zip-summary.txt`,
+      `bytes=${zipBuf.length}\nhead-hex=${zipHead}\n`,
+    );
+    expect(zipBuf.length, "share ZIP byte size").toBeGreaterThan(1_000);
+    expect(zipHead, "share ZIP header").toBe("504b0304");
   });
 
   test("06 매치업 통계 / 카테고리 풀 사이즈 (API)", async ({ page }) => {

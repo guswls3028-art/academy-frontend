@@ -36,7 +36,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("강의 목록 — 생성 버튼 존재", async ({ page }) => {
     await page.goto(`${BASE}/teacher/classes`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByRole("button", { name: /강의 생성/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /강의 (생성|추가)/ })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-02-lectures.png" });
   });
 
@@ -44,9 +44,10 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("학생 목록 — 등록/엑셀/가져오기 버튼", async ({ page }) => {
     await page.goto(`${BASE}/teacher/students`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByRole("button", { name: /등록/ })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("엑셀")).toBeVisible();
-    await expect(page.getByText("가져오기")).toBeVisible();
+    await expect(page.getByRole("button", { name: /추가/ })).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "더보기" }).click();
+    await expect(page.getByRole("button", { name: /엑셀 내보내기/ })).toBeVisible();
+    await expect(page.getByText(/엑셀 가져오기/)).toBeVisible();
     await page.screenshot({ path: "e2e/screenshots/parity-03-students.png" });
   });
 
@@ -54,7 +55,9 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("시험 목록 — 생성 버튼 존재", async ({ page }) => {
     await page.goto(`${BASE}/teacher/exams`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByRole("button", { name: /생성/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "시험 / 과제" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("tab", { name: "시험", selected: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "과제" })).toBeVisible();
     await page.screenshot({ path: "e2e/screenshots/parity-04-exams.png" });
   });
 
@@ -88,7 +91,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
     await page.goto(`${BASE}/teacher/staff`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByText(/직원 관리/).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: /직원 등록/ })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /직원 추가/ })).toBeVisible({ timeout: 5_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-08-staff.png" });
   });
 
@@ -105,7 +108,8 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("메시지 템플릿 — 페이지 렌더링", async ({ page }) => {
     await page.goto(`${BASE}/teacher/message-templates`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByText(/메시지 템플릿/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /템플릿 저장/ })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: /새 템플릿/ })).toBeVisible();
     await page.screenshot({ path: "e2e/screenshots/parity-10-templates.png" });
   });
 
@@ -113,7 +117,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("메시징 설정 — 페이지 렌더링", async ({ page }) => {
     await page.goto(`${BASE}/teacher/messaging-settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByText(/메시징 설정/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /메시지 설정/ })).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-11-msg-settings.png" });
   });
 
@@ -121,7 +125,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
   test("발송 이력 — 페이지 렌더링", async ({ page }) => {
     await page.goto(`${BASE}/teacher/message-log`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await expect(page.getByText(/발송 이력/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /발송 내역/ })).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-12-msg-log.png" });
   });
 

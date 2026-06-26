@@ -65,10 +65,12 @@ test.describe.serial("QnA UI 답변: 학생질문 -> 선생 UI 답변 -> 학생 
     // Verify the thread opened — the title should appear in the thread header
     await expect(adminPage.locator('.qna-inbox__thread-title').filter({ hasText: Q_TITLE })).toBeVisible({ timeout: 5000 });
 
-    // Fill the reply in the composer textarea
-    const replyTextarea = adminPage.locator('.qna-inbox__composer textarea');
-    await expect(replyTextarea).toBeVisible({ timeout: 5000 });
-    await replyTextarea.fill(A_CONTENT);
+    await adminPage.getByRole("button", { name: "답변하기" }).click();
+
+    // QnA 답변은 TipTap RichTextEditor로 입력된다.
+    const replyEditor = adminPage.locator(".qna-inbox__composer .ProseMirror").first();
+    await expect(replyEditor).toBeVisible({ timeout: 5000 });
+    await replyEditor.fill(A_CONTENT);
 
     // Click "답변 등록" button
     const sendBtn = adminPage.locator('button').filter({ hasText: "답변 등록" }).first();

@@ -111,7 +111,7 @@ export async function ensureClinicSessionForTrigger(page: Page): Promise<Ensured
   let studentId: number | null = envStudentId > 0 ? envStudentId : null;
 
   if (studentId === null) {
-    const studRes = await apiCall(page, "GET", "/admin/students/?page_size=1");
+    const studRes = await apiCall(page, "GET", "/students/?page_size=1");
     const arr = (studRes.body?.results ?? studRes.body ?? []) as Array<{ id: number }>;
     if (arr.length > 0) studentId = arr[0].id;
   }

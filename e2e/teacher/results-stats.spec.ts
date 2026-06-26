@@ -87,13 +87,15 @@ test.describe("선생앱 성적 통계", () => {
         await waitForResultsReady(page);
 
         // 8. KPI 카드 확인
-        const participantKpi = page.getByText("응시");
-        const avgKpi = page.getByText("평균", { exact: false });
-        const passRateKpi = page.getByText("합격률");
+        const scoreDist = page.getByRole("heading", { name: "점수 분포" });
+        const questionStats = page.getByRole("heading", { name: "문항별 정답률" });
+        const studentRank = page.getByRole("heading", { name: "학생별 성적" });
+        await expect(scoreDist).toBeVisible({ timeout: 10_000 });
 
-        const hasParticipant = await participantKpi.isVisible().catch(() => false);
-        const hasAvg = await avgKpi.isVisible().catch(() => false);
-        const hasPassRate = await passRateKpi.isVisible().catch(() => false);
+        const statsText = await page.locator("main").innerText();
+        const hasParticipant = statsText.includes("응시");
+        const hasAvg = statsText.includes("평균");
+        const hasPassRate = statsText.includes("합격률");
 
         console.log(`KPI — 응시: ${hasParticipant}, 평균: ${hasAvg}, 합격률: ${hasPassRate}`);
 
@@ -101,10 +103,6 @@ test.describe("선생앱 성적 통계", () => {
         expect(hasParticipant || hasAvg || hasPassRate).toBe(true);
 
         // 9. 통계 섹션 확인
-        const scoreDist = page.getByText("점수 분포");
-        const questionStats = page.getByText("문항별 정답률");
-        const studentRank = page.getByText("학생별 성적");
-
         const hasDist = await scoreDist.isVisible().catch(() => false);
         const hasQuestion = await questionStats.isVisible().catch(() => false);
         const hasRank = await studentRank.isVisible().catch(() => false);

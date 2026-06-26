@@ -1,6 +1,6 @@
 /**
  * E2E: 커뮤니티 좋아요 토글 + 댓글 좋아요 + 주소복사 + 404/권한 + visibility gate
- * Tenant 1 (admin97 / koreaseoul97)
+ * TCHUL public landing tenant
  * Tag: [E2E-{timestamp}]
  * Backend: POST /api/v1/community/posts/<id>/like/ (toggle) / DELETE (cancel)
  */
@@ -8,7 +8,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
-const BASE = getBaseUrl("admin");
+const BASE = getBaseUrl("tchul-admin");
 const TIMESTAMP = Date.now();
 const TAG = `[E2E-${TIMESTAMP}]`;
 
@@ -28,7 +28,7 @@ test.describe("커뮤니티 좋아요 토글 E2E", () => {
   // S1 + S2 + S3: 글쓰기 → 좋아요 토글 → 댓글 좋아요 → 주소복사
   test("S1-S3: 글쓰기 + 게시물 좋아요 토글 + 댓글 좋아요 + 주소복사", async ({ page }) => {
     // ── 로그인 ──────────────────────────────────────────────────────────────
-    await loginViaUI(page, "admin");
+    await loginViaUI(page, "tchul-admin");
 
     // ── 글쓰기 페이지로 이동 ─────────────────────────────────────────────────
     await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
@@ -171,19 +171,31 @@ test.describe("커뮤니티 좋아요 토글 E2E", () => {
     const replyLikeBtn = page.locator('[data-testid^="landing-community-reply-like-"]').first();
     await expect(replyLikeBtn).toBeVisible();
 
-    // 초기 — ♡ 좋아요 0
+    // 초기 — 좋아요 0 + inactive state
     await expect(replyLikeBtn).toContainText("좋아요 0");
-    await expect(replyLikeBtn).toContainText("♡");
+    await expect(replyLikeBtn).toHaveAttribute("aria-pressed", "false");
 
-    // 클릭 → ♥ 좋아요 1
-    await replyLikeBtn.click();
-    await expect(replyLikeBtn).toContainText("♥", { timeout: 3_000 });
+    // 클릭 → 좋아요 1 + active state
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/replies/") && r.url().includes("/like/") && r.request().method() === "POST",
+        { timeout: 8_000 },
+      ),
+      replyLikeBtn.click(),
+    ]);
+    await expect(replyLikeBtn).toHaveAttribute("aria-pressed", "true");
     await expect(replyLikeBtn).toContainText("좋아요 1", { timeout: 3_000 });
     await screenshot(page, "s2-reply-like-active");
 
-    // 다시 클릭 → ♡ 좋아요 0
-    await replyLikeBtn.click();
-    await expect(replyLikeBtn).toContainText("♡", { timeout: 3_000 });
+    // 다시 클릭 → 좋아요 0 + inactive state
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/replies/") && r.url().includes("/like/") && r.request().method() === "DELETE",
+        { timeout: 8_000 },
+      ),
+      replyLikeBtn.click(),
+    ]);
+    await expect(replyLikeBtn).toHaveAttribute("aria-pressed", "false");
     await expect(replyLikeBtn).toContainText("좋아요 0", { timeout: 3_000 });
     await screenshot(page, "s2-reply-like-cancelled");
 
@@ -206,7 +218,7 @@ test.describe("커뮤니티 좋아요 토글 E2E", () => {
 
   // S4: 404
   test("S4-a: 없는 postId → '글을 찾을 수 없습니다' + 게시판 목록으로 버튼", async ({ page }) => {
-    await loginViaUI(page, "admin");
+    await loginViaUI(page, "tchul-admin");
     await page.goto(`${BASE}/landing/community/board/posts/99999999`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
@@ -241,13 +253,13 @@ test.describe("커뮤니티 좋아요 토글 E2E", () => {
   });
 
   // S6: visibility gate — 비로그인 접근 (uses page fixture for auth stability)
-  // Note: admin97 cannot create qna posts (backend requires profile). Using board type
+  // Note: owner can create board posts. Using board type
   // which has the same frontend visibility gate (login required for all post types).
   test("S6: visibility gate — 비로그인으로 게시물 접근 → 로그인 유도", async ({ page, browser }) => {
     // Use fixture page (auth already stable via loginViaUI)
-    await loginViaUI(page, "admin");
+    await loginViaUI(page, "tchul-admin");
 
-    // Navigate to board write page (admin97 can create board posts)
+    // Navigate to board write page.
     await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 

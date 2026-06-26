@@ -3,7 +3,7 @@
  * school_level_mode=elementary_middle, section_mode=false, clinic_mode=remediation
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import type { Page } from "@playwright/test";
 
@@ -27,6 +27,8 @@ function attachErrorCollectors(page: Page) {
 }
 
 test.describe("DNB 코어 + 학생 관리 E2E", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(180000);
   test.beforeEach(async ({ page }) => {
     attachErrorCollectors(page);

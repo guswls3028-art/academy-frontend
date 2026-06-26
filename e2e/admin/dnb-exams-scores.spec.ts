@@ -3,7 +3,7 @@
  * 실사용자 관점에서 각 페이지 렌더링 + 빈 상태 또는 데이터 표시 확인
  */
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI, getBaseUrl, getApiBaseUrl } from "../helpers/auth";
+import { loginViaUI, getBaseUrl, getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
@@ -21,6 +21,8 @@ function apiHeaders(token: string) {
 }
 
 test.describe("DNB 시험/성적/과제/도구 E2E 검증", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.setTimeout(180000);
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "dnb-admin");

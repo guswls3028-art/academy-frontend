@@ -3,7 +3,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
-import { loginViaUI } from "../helpers/auth";
+import { loginViaUI, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 
 async function waitForResultsReady(page: Page) {
@@ -20,6 +20,8 @@ async function waitForScrollSettled(page: Page) {
 }
 
 test.describe("DNB 성적 통계", () => {
+  test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "dnb-admin");
   });

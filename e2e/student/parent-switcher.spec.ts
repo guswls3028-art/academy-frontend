@@ -141,7 +141,7 @@ test.describe("학부모 자녀 스위처", () => {
 
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "load" });
       await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {});
-      await expect(page.getByText("오늘 할 일")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("region", { name: "우리 아이 요약" })).toBeVisible({ timeout: 15_000 });
 
       /* 자녀 스위처 — role=tablist + 자녀 2명 */
       const switcher = page.getByRole("tablist", { name: "자녀 선택" });
@@ -165,7 +165,7 @@ test.describe("학부모 자녀 스위처", () => {
       expect(secondActive).toBe("true");
       const firstActiveAfter = await tabs.first().getAttribute("aria-selected");
       expect(firstActiveAfter).toBe("false");
-      await expect(page.getByText("오늘 할 일")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("region", { name: "우리 아이 요약" })).toBeVisible({ timeout: 15_000 });
 
       /* 전환 후 스크린샷 */
       await page.screenshot({ path: "e2e/screenshots/parent-switcher-after-switch.png", fullPage: true });

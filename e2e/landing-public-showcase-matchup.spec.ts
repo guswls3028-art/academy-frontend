@@ -11,16 +11,17 @@
  *      - LandingEditor hit_reports section → "외부 노출 종료 날짜" panel 노출
  *      - 학생 detail overlay 수강 탭 → "📋 수강 매트릭스" 진입 box 노출
  *
- * Tenant 1 (hakwonplus) — admin97/koreaseoul97
+ * TCHUL public landing tenant
  * 작성 흐름은 API smoke로 분리 가능. 본 spec 은 read-only DOM 검증.
  */
 
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { getApiBaseUrl, getBaseUrl, loginViaUI } from "./helpers/auth";
 
-const BASE = process.env.PLAYWRIGHT_BASE_URL || "https://hakwonplus.com";
-const API_BASE = process.env.PLAYWRIGHT_API_BASE || "https://api.hakwonplus.com";
-const TENANT_CODE = process.env.PLAYWRIGHT_TENANT_CODE || "hakwonplus";
+const BASE = getBaseUrl("tchul-admin");
+const API_BASE = getApiBaseUrl();
+const TENANT_CODE = "tchul";
 const TAG = `[E2E-${Date.now()}]`;
 
 // dev local 환경 tenant resolution 회피 — X-Tenant-Code 강제 주입.
@@ -29,20 +30,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 async function loginAdmin(page: Page): Promise<string> {
-  const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-    timeout: 30_000,
-  });
-  if (resp.status() !== 200) throw new Error(`Login failed: ${resp.status()}`);
-  const body = await resp.json() as { access: string; refresh: string };
-  await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 20_000 });
-  await page.evaluate(({ access, refresh }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    try { sessionStorage.setItem("tenantCode", "hakwonplus"); } catch { /**/ }
-  }, body);
-  return body.access;
+  await loginViaUI(page, "tchul-admin");
+  return await page.evaluate(() => localStorage.getItem("access") || "");
 }
 
 // ────────────────────────────────────────────────
@@ -85,7 +74,7 @@ test("D. 학원장 성적탭 — ⚙ popover에 '랜딩 게시' 진입점", asyn
 
 test("E. /landing-public/showcase/ API — public list 호출 가능", async ({ request }) => {
   const resp = await request.get(`${API_BASE}/api/v1/landing-public/showcase/`, {
-    headers: { "X-Tenant-Code": "hakwonplus", Accept: "application/json" },
+    headers: { "X-Tenant-Code": TENANT_CODE, Accept: "application/json" },
     timeout: 15_000,
   });
   // 401/403 아닌 200 (비로그인 read OK)
@@ -99,7 +88,7 @@ test("E. /landing-public/showcase/ API — public list 호출 가능", async ({ 
 test("F. /matchup/landing/public/ API — 카드 메타에 exam_cycle/exam_year 포함 가능", async ({ request }) => {
   // 학원장이 게시한 보고서가 1건이라도 있어야 의미 있음. ids 미공급 시 empty list.
   const resp = await request.get(`${API_BASE}/api/v1/matchup/landing/public/?ids=1,2,3`, {
-    headers: { "X-Tenant-Code": "hakwonplus", Accept: "application/json" },
+    headers: { "X-Tenant-Code": TENANT_CODE, Accept: "application/json" },
     timeout: 15_000,
   });
   expect([200, 404]).toContain(resp.status());

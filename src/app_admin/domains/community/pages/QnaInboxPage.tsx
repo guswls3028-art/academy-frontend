@@ -393,7 +393,7 @@ function ThreadView({
                 onClick={() => {
                   composerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                   setTimeout(() => {
-                    const editor = composerRef.current?.querySelector<HTMLElement>(".ql-editor");
+                    const editor = composerRef.current?.querySelector<HTMLElement>(".ProseMirror");
                     editor?.focus();
                   }, 400);
                 }}

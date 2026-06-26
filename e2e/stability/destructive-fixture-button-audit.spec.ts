@@ -427,6 +427,20 @@ async function applyMessageTemplateFromPicker(page: Page, dialog: Locator, templ
   await expect(picker).toBeHidden({ timeout: 15_000 });
 }
 
+async function setRecipientTarget(dialog: Locator, targetLabel: "학부모" | "학생", checked: boolean): Promise<void> {
+  const label = dialog.locator("label.send-modal__check").filter({ hasText: targetLabel }).first();
+  const input = label.locator("input[type='checkbox']");
+  await expect(label).toBeVisible({ timeout: 10_000 });
+  if ((await input.isChecked().catch(() => false)) === checked) return;
+
+  await label.click();
+  if (checked) {
+    await expect(input).toBeChecked({ timeout: 10_000 });
+  } else {
+    await expect(input).not.toBeChecked({ timeout: 10_000 });
+  }
+}
+
 async function findMaterialPost(
   request: APIRequestContext,
   token: string,
@@ -568,7 +582,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
       request,
       approveName,
       `e2eapp${suffix("a")}`,
-      CONTROLLED_PHONE,
+      generatedPhone(201),
       CONTROLLED_PHONE,
     );
     expect(approveReq.status, `approve registration create -> ${approveReq.status} ${JSON.stringify(approveReq.body)}`).toBe(201);
@@ -615,10 +629,8 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
     const dialog = await latestDialog(page, "알림톡 발송");
 
-    const studentTarget = dialog.locator("label.send-modal__check").filter({ hasText: "학생" }).locator("input[type='checkbox']");
-    if (await studentTarget.isChecked().catch(() => false)) await studentTarget.uncheck({ force: true });
-    const parentTarget = dialog.locator("label.send-modal__check").filter({ hasText: "학부모" }).locator("input[type='checkbox']");
-    if (!(await parentTarget.isChecked().catch(() => false))) await parentTarget.check({ force: true });
+    await setRecipientTarget(dialog, "학생", false);
+    await setRecipientTarget(dialog, "학부모", true);
 
     await dialog.locator("[aria-label='발송 시점']").getByRole("button", { name: "예약", exact: true }).click();
     await dialog.getByLabel("예약 발송 시각").fill(localDateTimeInput(7));

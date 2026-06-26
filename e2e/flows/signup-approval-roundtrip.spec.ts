@@ -9,7 +9,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
-import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(240_000);
 
@@ -62,13 +62,17 @@ function isProductionApi(): boolean {
 }
 
 function phoneForRun(kind: "student" | "parent"): string {
-  if (isProductionApi()) return CONTROLLED_PHONE;
+  if (isProductionApi()) return kind === "parent" ? CONTROLLED_PHONE : DEFAULT_STUDENT_PHONE;
   return kind === "student" ? DEFAULT_STUDENT_PHONE : DEFAULT_PARENT_PHONE;
 }
 
 function phoneBlocks(phone: string): { mid: string; last: string } {
   const tail = phone.replace(/\D/g, "").slice(3);
   return { mid: tail.slice(0, 4), last: tail.slice(4, 8) };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function headers(token: string): Record<string, string> {
@@ -199,41 +203,66 @@ async function forceManualApproval(request: APIRequestContext, access: string): 
   created.shouldRestoreAutoApprove = true;
 }
 
-async function forceApprovalParentNotification(request: APIRequestContext, access: string): Promise<void> {
+async function forceControlledApprovalNotification(request: APIRequestContext, access: string): Promise<void> {
   const current = await apiFetch<AutoSendConfig[]>(request, "GET", "/messaging/auto-send/", access);
   expect(current.status, `auto-send get -> ${current.status} ${JSON.stringify(current.body)}`).toBe(200);
+  const student = current.body.find((c) => c.trigger === "registration_approved_student");
   const parent = current.body.find((c) => c.trigger === "registration_approved_parent");
   expect(parent, "registration_approved_parent auto-send config").toBeTruthy();
   expect(parent?.template, "registration_approved_parent template must be configured").toBeTruthy();
 
-  created.previousAutoSend = [
-    {
-      trigger: parent!.trigger,
-      enabled: parent!.enabled,
-      template: parent!.template,
-      message_mode: parent!.message_mode,
-      minutes_before: parent!.minutes_before ?? null,
-    },
-  ];
+  created.previousAutoSend = [student, parent].filter((c): c is AutoSendConfig => Boolean(c)).map((c) => ({
+    trigger: c.trigger,
+    enabled: c.enabled,
+    template: c.template,
+    message_mode: c.message_mode,
+    minutes_before: c.minutes_before ?? null,
+  }));
 
-  if (parent!.enabled) return;
+  const configs: Array<{
+    trigger: string;
+    enabled: boolean;
+    template_id: number | null;
+    message_mode: string;
+    minutes_before: number | null;
+  }> = [];
+
+  if (student?.enabled) {
+    configs.push({
+      trigger: student.trigger,
+      enabled: false,
+      template_id: student.template,
+      message_mode: student.message_mode || "alimtalk",
+      minutes_before: student.minutes_before ?? null,
+    });
+  }
+
+  if (!parent!.enabled) {
+    configs.push({
+      trigger: parent!.trigger,
+      enabled: true,
+      template_id: parent!.template,
+      message_mode: parent!.message_mode || "alimtalk",
+      minutes_before: parent!.minutes_before ?? null,
+    });
+  }
+
+  if (configs.length === 0) return;
 
   const updated = await apiFetch<AutoSendConfig[]>(
     request,
     "PATCH",
     "/messaging/auto-send/",
     access,
-    {
-      configs: [{
-        trigger: parent!.trigger,
-        enabled: true,
-        template_id: parent!.template,
-        message_mode: parent!.message_mode || "alimtalk",
-        minutes_before: parent!.minutes_before ?? null,
-      }],
-    },
+    { configs },
   );
-  expect(updated.status, `auto-send patch parent on -> ${updated.status} ${JSON.stringify(updated.body)}`).toBe(200);
+  expect(updated.status, `auto-send patch controlled approval policy -> ${updated.status} ${JSON.stringify(updated.body)}`).toBe(200);
+
+  const refreshed = updated.body;
+  const updatedStudent = refreshed.find((c) => c.trigger === "registration_approved_student");
+  const updatedParent = refreshed.find((c) => c.trigger === "registration_approved_parent");
+  if (updatedStudent) expect(updatedStudent.enabled, "student approval auto-send must be disabled for controlled production run").toBe(false);
+  expect(updatedParent?.enabled, "parent approval auto-send must be enabled for controlled production run").toBe(true);
 }
 
 async function restoreAutoSendSettings(request: APIRequestContext): Promise<void> {
@@ -321,34 +350,71 @@ async function waitForApprovalLogs(page: Page): Promise<void> {
 
   const studentTarget = `student:${created.studentId}`;
   const parentTarget = `parent:${created.studentId}:${phoneForRun("parent")}`;
-  const sameRecipient = phoneForRun("student") === phoneForRun("parent");
-  const expectedTargets = new Set(sameRecipient ? [parentTarget] : [studentTarget, parentTarget]);
+  const deadline = Date.now() + (isProductionApi() ? 300_000 : 120_000);
+  let lastStatus = "";
+  let recentRegistrationLogs: unknown[] = [];
 
-  await waitForCondition(
-    async () => {
-      const tokens = await page.evaluate(() => ({
-        access: localStorage.getItem("access") || "",
+  while (Date.now() < deadline) {
+    const tokens = await page.evaluate(() => ({
+      access: localStorage.getItem("access") || "",
+    }));
+    const out = await apiFetch<{
+      results?: Array<{
+        success?: boolean;
+        status?: string;
+        notification_type?: string;
+        target_id?: string;
+        target_name?: string;
+        sent_at?: string;
+        failure_reason?: string;
+      }>;
+    }>(
+      page.request,
+      "GET",
+      "/messaging/log/?page_size=50",
+      tokens.access,
+    );
+
+    lastStatus = String(out.status);
+    if (out.status === 200 && Array.isArray(out.body.results)) {
+      const registrationLogs = out.body.results.filter((row) => {
+        return (row.notification_type || "").startsWith("registration_approved") ||
+          row.target_id === parentTarget ||
+          row.target_id === studentTarget ||
+          row.target_name === STUDENT_NAME;
+      });
+      recentRegistrationLogs = registrationLogs.slice(0, 8).map((row) => ({
+        sent_at: row.sent_at,
+        success: row.success,
+        status: row.status,
+        notification_type: row.notification_type,
+        target_id: row.target_id,
+        target_name: row.target_name,
+        failure_reason: row.failure_reason,
       }));
-      const out = await apiFetch<{ results?: Array<{ success?: boolean; status?: string; target_id?: string }> }>(
-        page.request,
-        "GET",
-        "/messaging/log/?page_size=50&status=success",
-        tokens.access,
-      );
-      if (out.status !== 200 || !Array.isArray(out.body.results)) return false;
-      const targets = new Set(
-        out.body.results
-          .filter((row) => row.success === true && row.status === "sent")
-          .map((row) => row.target_id || ""),
-      );
-      if (!Array.from(expectedTargets).every((target) => targets.has(target))) return false;
-      return !(sameRecipient && targets.has(studentTarget));
-    },
-    {
-      timeoutMs: 120_000,
-      intervalMs: 3_000,
-      description: "registration approval Alimtalk NotificationLog",
-    },
+
+      const parentLog = registrationLogs.find((row) => {
+        return row.success === true &&
+          row.status === "sent" &&
+          row.notification_type === "registration_approved_parent" &&
+          row.target_id === parentTarget;
+      });
+      const studentLog = registrationLogs.find((row) => {
+        return row.success === true &&
+          row.status === "sent" &&
+          row.notification_type === "registration_approved_student" &&
+          row.target_id === studentTarget;
+      });
+      if (parentLog && !studentLog) return;
+    }
+
+    await sleep(3_000);
+  }
+
+  throw new Error(
+    `registration approval Alimtalk NotificationLog timeout: expected parent target ${parentTarget}, ` +
+    `student target must stay absent ${studentTarget}, last log API status ${lastStatus}, ` +
+    `recent registration logs ${JSON.stringify(recentRegistrationLogs)}`,
   );
 }
 
@@ -400,7 +466,7 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
     const adminTokens = await loginToken(request);
     created.adminAccess = adminTokens.access;
     await forceManualApproval(request, adminTokens.access);
-    await forceApprovalParentNotification(request, adminTokens.access);
+    await forceControlledApprovalNotification(request, adminTokens.access);
 
     const studentPhone = phoneForRun("student");
     const parentPhone = phoneForRun("parent");
@@ -415,7 +481,7 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
     );
     expect(duplicate.status, `duplicate check -> ${duplicate.status} ${JSON.stringify(duplicate.body)}`).toBe(200);
     expect(duplicate.body.username?.available, `username unavailable: ${duplicate.body.username?.reason ?? ""}`).toBe(true);
-    expect(duplicate.body.phone?.available, `controlled phone unavailable: ${duplicate.body.phone?.reason ?? ""}`).toBe(true);
+    expect(duplicate.body.phone?.available, `student phone unavailable: ${duplicate.body.phone?.reason ?? ""}`).toBe(true);
 
     await fillSignupForm(page, studentPhone, parentPhone);
     await submitSignup(page);

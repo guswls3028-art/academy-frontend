@@ -152,8 +152,8 @@ function formatSendTargetLabel(target: SendToType): string {
  * 자동 선택 우선순위:
  *   1. 본 테넌트 양식: 카테고리 일치 + 기본 지정
  *   2. 본 테넌트 양식: 카테고리 일치 (가장 최근)
- *   3. 기본 제공 편지지
- *   4. 시스템 기본 (최후 호환)
+ *   3. 시스템 양식: 카테고리 일치
+ * 카테고리가 맞지 않으면 기본 제공 편지지로 남긴다.
  */
 function pickAutoSelectTemplate(
   list: MessageTemplateItem[],
@@ -181,10 +181,7 @@ function pickAutoSelectTemplate(
   const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat && isApprovedTpl(t));
   if (sysMatch) return sysMatch;
 
-  const sysDefault = list.find((t) => isSystemTpl(t) && t.is_user_default && isApprovedTpl(t));
-  if (sysDefault) return sysDefault;
-
-  return list.find((t) => isSystemTpl(t) && isApprovedTpl(t));
+  return undefined;
 }
 
 // ═══════════════════════════════════════════════════════════════
