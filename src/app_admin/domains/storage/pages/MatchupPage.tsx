@@ -24,6 +24,7 @@ import {
   reanalyzeMatchupDocument,
   bulkDeleteMatchupProblems,
   deleteMatchupProblem,
+  cleanMatchupDocumentPublicImages,
 } from "../api/matchup.api";
 import type { SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
@@ -177,6 +178,7 @@ export default function MatchupPage() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteSelectedIds, setDeleteSelectedIds] = useState<number[]>([]);
   const [intentUpdating, setIntentUpdating] = useState(false);
+  const [publicCleanupRunning, setPublicCleanupRunning] = useState(false);
   // 자료 유형 변경 chip 펼침 토글 — default 닫힘 (학원장 시야 차단, directive 2026-05-09).
   const [sourceTypeEditorOpen, setSourceTypeEditorOpen] = useState(false);
   // 다른 doc 선택 시 chip 자동 접힘 (이전 doc의 펼친 상태 잔존 방지).
@@ -828,6 +830,36 @@ export default function MatchupPage() {
     setCropDocId(selectedDoc.id);
   }, [selectedDoc]);
 
+  const handlePublicCleanup = useCallback(async () => {
+    if (!selectedDoc) return;
+    if (selectedDoc.status !== "done") {
+      feedback.info("문서 분석이 완료된 뒤 공개용 이미지를 정리할 수 있습니다.");
+      return;
+    }
+    if (problems.length === 0) {
+      feedback.info("정리할 문항 이미지가 없습니다.");
+      return;
+    }
+
+    setPublicCleanupRunning(true);
+    try {
+      const res = await cleanMatchupDocumentPublicImages(selectedDoc.id);
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+      const existingNote = res.skipped > 0 ? ` · 기존 ${res.skipped}개 유지` : "";
+      feedback.success(`공개용 이미지 ${res.processed}개 정리 완료${existingNote}`);
+      if (res.failed.length > 0) {
+        feedback.info(`정리 실패 ${res.failed.length}개는 원본 이미지를 계속 사용합니다.`);
+      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (e as Error)?.message
+        ?? "공개용 이미지 정리 실패";
+      feedback.error(msg);
+    } finally {
+      setPublicCleanupRunning(false);
+    }
+  }, [selectedDoc, problems.length, qc]);
+
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
     if (getDocumentIntent(selectedDoc) === intent) return;
@@ -1306,6 +1338,23 @@ export default function MatchupPage() {
                       leftIcon={<Crop size={ICON.sm} />}
                     >
                       직접 자르기
+                    </Button>
+                  )}
+                  {selectedDoc && (
+                    <Button
+                      size="sm"
+                      intent="ghost"
+                      disabled={publicCleanupRunning || selectedDoc.status !== "done" || problems.length === 0}
+                      onClick={handlePublicCleanup}
+                      data-testid="matchup-doc-public-cleanup-btn"
+                      title="학생 필기나 채점 흔적 노출을 줄이기 위해 공개용 이미지를 정리합니다"
+                      leftIcon={
+                        publicCleanupRunning
+                          ? <RefreshCw size={ICON.sm} className="animate-spin" />
+                          : <ShieldCheck size={ICON.sm} />
+                      }
+                    >
+                      {publicCleanupRunning ? "정리 중" : "공개용 정리"}
                     </Button>
                   )}
                   {/* 보조 액션 — ⋮ 메뉴로 묶음. 자주 안 쓰이는 "범위 일괄삭제"는

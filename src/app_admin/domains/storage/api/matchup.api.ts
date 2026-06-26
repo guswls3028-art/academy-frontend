@@ -126,6 +126,15 @@ export type MatchupProblemMeta = {
   merge_suspect?: boolean;
   is_partial?: boolean;
   number_mismatch?: { db: number; ocr: number };
+  public_cleanup?: {
+    mode?: string;
+    version?: string;
+    source_image_key?: string;
+    public_image_key?: string;
+    red_mask_ratio?: number;
+    generated_at?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 };
 
@@ -135,7 +144,9 @@ export type MatchupProblem = {
   number: number;
   text: string;
   image_key: string;
+  public_image_key?: string;
   image_url?: string;
+  public_image_url?: string;
   meta: MatchupProblemMeta;
   created_at: string;
 };
@@ -534,6 +545,28 @@ export async function fetchMatchupProblemDetail(
   id: number,
 ): Promise<MatchupProblem> {
   const { data } = await api.get<MatchupProblem>(`/matchup/problems/${id}/`);
+  return data;
+}
+
+export type MatchupPublicCleanupResult = {
+  ok: boolean;
+  doc_id: number;
+  total: number;
+  processed: number;
+  skipped: number;
+  failed: Array<{ problem_id: number; error: string }>;
+  avg_red_mask_ratio: number | null;
+};
+
+export async function cleanMatchupDocumentPublicImages(
+  docId: number,
+  force = false,
+): Promise<MatchupPublicCleanupResult> {
+  const { data } = await api.post<MatchupPublicCleanupResult>(
+    `/matchup/documents/${docId}/public-cleanup/`,
+    { force },
+    { timeout: 5 * 60_000 },
+  );
   return data;
 }
 

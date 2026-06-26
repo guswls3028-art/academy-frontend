@@ -4,7 +4,7 @@
 // 썸네일을 정말로 보고 싶을 때는 확대 버튼으로 큰 이미지 모달.
 
 import { useEffect, useState } from "react";
-import { Maximize2, X, AlertTriangle, Loader2, Trash2, Scissors, Lock } from "lucide-react";
+import { Maximize2, X, AlertTriangle, Loader2, Trash2, Scissors, Lock, ShieldCheck } from "lucide-react";
 import { ICON, Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
@@ -58,16 +58,18 @@ export default function ProblemCard({
   // 기본은 list API가 내려준 image_url 사용 (N+1 없음).
   // 서버가 아직 image_url 미포함 버전이면 fallback으로 presign 1회 호출 (backend 배포 전 호환).
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
-  const imgUrl = problem.image_url || fallbackUrl;
+  const publicCleanup = problem.meta?.public_cleanup;
+  const hasPublicImage = Boolean(problem.public_image_url || problem.public_image_key);
+  const imgUrl = problem.public_image_url || problem.image_url || fallbackUrl;
 
   useEffect(() => {
-    if (problem.image_url || !problem.image_key) return;
+    if (problem.public_image_url || problem.image_url || !problem.image_key) return;
     let cancelled = false;
     getMatchupProblemPresignUrl(problem.id)
       .then((u) => { if (!cancelled) setFallbackUrl(u); })
       .catch(() => { if (!cancelled) setFallbackUrl(null); });
     return () => { cancelled = true; };
-  }, [problem.id, problem.image_key, problem.image_url]);
+  }, [problem.id, problem.image_key, problem.image_url, problem.public_image_url]);
 
   useEffect(() => {
     if (!zoomOpen) return;
@@ -232,6 +234,21 @@ export default function ProblemCard({
                 번호 불일치
               </Badge>
             )}
+            {hasPublicImage && (
+              <Badge
+                tone="success"
+                size="xs"
+                title={
+                  typeof publicCleanup?.red_mask_ratio === "number"
+                    ? `공개용 이미지 정리 완료 · 빨간 흔적 ${Math.round(publicCleanup.red_mask_ratio * 1000) / 10}%`
+                    : "공개용 이미지 정리 완료"
+                }
+                ariaLabel="공개용 이미지 정리 완료"
+              >
+                <ShieldCheck size={ICON_FOR_BADGE.xs} />
+                공개용
+              </Badge>
+            )}
           </span>
           <span style={/* eslint-disable-line no-restricted-syntax */ { display: "inline-flex", alignItems: "center", gap: 2 }}>
             {/* Phase F — 보호 표시 (잠금 아이콘). 일괄삭제/reanalyze 에서 자동 보호되는
@@ -287,7 +304,7 @@ export default function ProblemCard({
             {imgUrl && (
               <button
                 onClick={(e) => { e.stopPropagation(); setZoomOpen(true); }}
-                title="원본 크게 보기"
+                title={hasPublicImage ? "공개용 이미지 크게 보기" : "원본 크게 보기"}
                 style={/* eslint-disable-line no-restricted-syntax */ {
                   background: "none", border: "none", cursor: "pointer",
                   color: "var(--color-text-muted)", padding: 2,
@@ -313,7 +330,7 @@ export default function ProblemCard({
           }}>
             <img
               src={imgUrl}
-              alt={`Q${problem.number}`}
+              alt={hasPublicImage ? `Q${problem.number} 공개용` : `Q${problem.number}`}
               style={/* eslint-disable-line no-restricted-syntax */ {
                 width: "100%",
                 height: "100%",
@@ -381,7 +398,7 @@ export default function ProblemCard({
           </button>
           <img
             src={imgUrl}
-            alt={`Q${problem.number} 원본`}
+            alt={hasPublicImage ? `Q${problem.number} 공개용` : `Q${problem.number} 원본`}
             onClick={(e) => e.stopPropagation()}
             style={/* eslint-disable-line no-restricted-syntax */ {
               maxWidth: "100%", maxHeight: "100%",
