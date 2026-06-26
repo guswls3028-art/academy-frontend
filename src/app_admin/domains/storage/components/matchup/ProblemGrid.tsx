@@ -41,6 +41,8 @@ type Props = {
   // Phase F — 카드별 즉시 액션 (hover). bulk/merge 모드에선 자동 hide.
   onDeleteProblem?: (problem: MatchupProblem) => void;
   onSplitProblem?: (problem: MatchupProblem) => void;
+  onApprovePublicImage?: (problem: MatchupProblem) => void;
+  onUploadPublicImage?: (problem: MatchupProblem, file: File) => void;
 };
 
 // 파이프라인 단계 — matchup_pipeline.py와 동기화. 사용자가 어디까지 됐는지 인식.
@@ -81,6 +83,7 @@ export default function ProblemGrid({
   onToggleDeleteMode, onToggleDeleteSelect, onClearDeleteSelection, onConfirmBulkDelete,
   onOpenManualCrop, onRetry,
   onDeleteProblem, onSplitProblem,
+  onApprovePublicImage, onUploadPublicImage,
 }: Props) {
   const mergeSelectedCount = mergeSelectedIds.length;
   const mergeOrderById = useMemo(
@@ -325,9 +328,11 @@ export default function ProblemGrid({
               mergeMode={mergeMode}
               mergeOrder={mergeOrderById.get(p.id) ?? 0}
               bulkSelectMode={deleteMode}
-              onDelete={onDeleteProblem ? () => onDeleteProblem(p) : undefined}
-              onSplit={onSplitProblem ? () => onSplitProblem(p) : undefined}
-            />
+            onDelete={onDeleteProblem ? () => onDeleteProblem(p) : undefined}
+            onSplit={onSplitProblem ? () => onSplitProblem(p) : undefined}
+            onApprovePublicImage={onApprovePublicImage}
+            onUploadPublicImage={onUploadPublicImage}
+          />
           );
         })}
       </div>

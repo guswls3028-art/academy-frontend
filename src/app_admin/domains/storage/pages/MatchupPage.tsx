@@ -25,8 +25,10 @@ import {
   bulkDeleteMatchupProblems,
   deleteMatchupProblem,
   cleanMatchupDocumentPublicImages,
+  approveMatchupProblemPublicImage,
+  uploadMatchupProblemPublicImage,
 } from "../api/matchup.api";
-import type { SimilarProblem } from "../api/matchup.api";
+import type { MatchupProblem, SimilarProblem } from "../api/matchup.api";
 import { useMatchupPolling } from "../hooks/useMatchupPolling";
 import DocumentList from "../components/matchup/DocumentList";
 import ProblemGrid from "../components/matchup/ProblemGrid";
@@ -368,6 +370,28 @@ export default function MatchupPage() {
     // documents ref 가 매 polling 마다 바뀌어도 processingPendingKey 가 같으면 noop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [processingPendingKey]);
+
+  const publicCleanupPendingKey = useMemo(
+    () => documents
+      .filter((d) => d.meta?.public_cleanup?.status === "processing" && d.meta?.public_cleanup?.job_id)
+      .map((d) => `${d.id}:${d.meta?.public_cleanup?.job_id}:${d.title}`)
+      .join("|"),
+    [documents],
+  );
+  useEffect(() => {
+    documents.forEach((d) => {
+      const cleanup = d.meta?.public_cleanup;
+      const jobId = cleanup?.status === "processing" ? String(cleanup.job_id || "") : "";
+      if (!jobId || hasAsyncWorkerTask(jobId)) return;
+      asyncStatusStore.addWorkerJob(
+        `공개용 정리: ${d.title}`,
+        jobId,
+        "matchup_public_cleanup",
+        d.id,
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicCleanupPendingKey]);
 
   // ── 문제 목록 ──
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
@@ -843,12 +867,28 @@ export default function MatchupPage() {
 
     setPublicCleanupRunning(true);
     try {
-      const res = await cleanMatchupDocumentPublicImages(selectedDoc.id);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-      const existingNote = res.skipped > 0 ? ` · 기존 ${res.skipped}개 유지` : "";
-      feedback.success(`공개용 이미지 ${res.processed}개 정리 완료${existingNote}`);
-      if (res.failed.length > 0) {
-        feedback.info(`정리 실패 ${res.failed.length}개는 원본 이미지를 계속 사용합니다.`);
+      const shouldForceRerun = Boolean(
+        selectedDoc.meta?.public_cleanup
+        && selectedDoc.meta.public_cleanup.status !== "processing",
+      );
+      const res = await cleanMatchupDocumentPublicImages(selectedDoc.id, shouldForceRerun);
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      if (res.queued && res.job_id) {
+        asyncStatusStore.addWorkerJob(
+          `공개용 정리: ${selectedDoc.title}`,
+          res.job_id,
+          "matchup_public_cleanup",
+          selectedDoc.id,
+        );
+        feedback.success("공개용 이미지 정리를 시작했습니다. 우하단 작업 상자에서 진행률을 확인하세요.");
+      } else {
+        await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+        const existingNote = res.skipped > 0 ? ` · 기존 ${res.skipped}개 유지` : "";
+        const reviewNote = (res.review_required ?? 0) > 0 ? ` · 검수 필요 ${res.review_required}개` : "";
+        feedback.success(`공개용 이미지 ${res.processed}개 정리 완료${existingNote}${reviewNote}`);
+        if (res.failed.length > 0) {
+          feedback.info(`정리 실패 ${res.failed.length}개는 원본 이미지를 계속 사용합니다.`);
+        }
       }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -859,6 +899,48 @@ export default function MatchupPage() {
       setPublicCleanupRunning(false);
     }
   }, [selectedDoc, problems.length, qc]);
+
+  const handleApprovePublicImage = useCallback(async (problem: MatchupProblem) => {
+    if (!selectedDoc) return;
+    const ok = await confirm({
+      title: `Q${problem.number} 공개용 이미지 승인`,
+      message: "확대 이미지에서 필기나 채점 흔적이 노출되지 않는 것을 확인했으면 승인하세요. 승인 후 공식 보고서에서 이 공개용 이미지를 사용합니다.",
+      confirmText: "승인",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+
+    try {
+      await approveMatchupProblemPublicImage(problem.id);
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success(`Q${problem.number} 공개용 이미지를 승인했습니다.`);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (e as Error)?.message
+        ?? "공개용 이미지 승인 실패";
+      feedback.error(msg);
+    }
+  }, [selectedDoc, confirm, qc]);
+
+  const handleUploadPublicImage = useCallback(async (problem: MatchupProblem, file: File) => {
+    if (!selectedDoc) return;
+    if (file.size > 25 * 1024 * 1024) {
+      feedback.info("공개용 이미지는 25MB 이하로 업로드해 주세요.");
+      return;
+    }
+    try {
+      await uploadMatchupProblemPublicImage(problem.id, file);
+      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      feedback.success(`Q${problem.number} 공개용 이미지를 교체했습니다.`);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? (e as Error)?.message
+        ?? "공개용 이미지 업로드 실패";
+      feedback.error(msg);
+    }
+  }, [selectedDoc, qc]);
 
   const handleChangeIntent = useCallback(async (intent: "reference" | "test") => {
     if (!selectedDoc) return;
@@ -1344,17 +1426,22 @@ export default function MatchupPage() {
                     <Button
                       size="sm"
                       intent="ghost"
-                      disabled={publicCleanupRunning || selectedDoc.status !== "done" || problems.length === 0}
+                      disabled={
+                        publicCleanupRunning
+                        || selectedDoc.status !== "done"
+                        || problems.length === 0
+                        || selectedDoc.meta?.public_cleanup?.status === "processing"
+                      }
                       onClick={handlePublicCleanup}
                       data-testid="matchup-doc-public-cleanup-btn"
                       title="학생 필기나 채점 흔적 노출을 줄이기 위해 공개용 이미지를 정리합니다"
                       leftIcon={
-                        publicCleanupRunning
+                        publicCleanupRunning || selectedDoc.meta?.public_cleanup?.status === "processing"
                           ? <RefreshCw size={ICON.sm} className="animate-spin" />
                           : <ShieldCheck size={ICON.sm} />
                       }
                     >
-                      {publicCleanupRunning ? "정리 중" : "공개용 정리"}
+                      {publicCleanupRunning || selectedDoc.meta?.public_cleanup?.status === "processing" ? "정리 중" : "공개용 정리"}
                     </Button>
                   )}
                   {/* 보조 액션 — ⋮ 메뉴로 묶음. 자주 안 쓰이는 "범위 일괄삭제"는
@@ -1703,6 +1790,62 @@ export default function MatchupPage() {
                   </div>
                 )}
 
+                {selectedDoc?.meta?.public_cleanup && (() => {
+                  const cleanup = selectedDoc.meta.public_cleanup;
+                  const status = String(cleanup.status || "");
+                  if (!status) return null;
+                  const reviewCount = Number(cleanup.review_required ?? 0);
+                  const failedCount = Number(cleanup.failed ?? 0);
+                  const total = Number(cleanup.total ?? 0);
+                  const ready = Number(cleanup.ready ?? 0);
+                  const isProcessing = status === "processing";
+                  const officialReady = cleanup.official_ready === true;
+                  const toneColor = officialReady
+                    ? "var(--color-status-success)"
+                    : isProcessing
+                      ? "var(--color-brand-primary)"
+                      : "var(--color-warning)";
+                  const statusLabel = isProcessing
+                    ? "정리 중"
+                    : officialReady
+                      ? "공식자료 준비 완료"
+                      : status === "failed"
+                        ? "정리 실패"
+                        : "검수 필요";
+                  return (
+                    <div
+                      data-testid="matchup-public-cleanup-summary"
+                      style={/* eslint-disable-line no-restricted-syntax */ {
+                        flexShrink: 0,
+                        padding: "var(--space-2) var(--space-3)",
+                        borderRadius: "var(--radius-md)",
+                        background: officialReady
+                          ? "color-mix(in srgb, var(--color-status-success) 7%, transparent)"
+                          : "color-mix(in srgb, var(--color-warning) 7%, transparent)",
+                        border: `1px solid color-mix(in srgb, ${toneColor} 28%, transparent)`,
+                        display: "flex", alignItems: "center", gap: "var(--space-2)",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {isProcessing
+                        ? <RefreshCw size={ICON.sm} className="animate-spin" style={/* eslint-disable-line no-restricted-syntax */ { color: toneColor, flexShrink: 0 }} />
+                        : <ShieldCheck size={ICON.sm} style={/* eslint-disable-line no-restricted-syntax */ { color: toneColor, flexShrink: 0 }} />}
+                      <span style={/* eslint-disable-line no-restricted-syntax */ {
+                        fontSize: 12, fontWeight: 800, color: toneColor,
+                      }}>
+                        공개용 자료 {statusLabel}
+                      </span>
+                      <span style={/* eslint-disable-line no-restricted-syntax */ {
+                        fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 600,
+                      }}>
+                        전체 {total} · 준비 {ready}
+                        {reviewCount > 0 ? ` · 검수 ${reviewCount}` : ""}
+                        {failedCount > 0 ? ` · 실패 ${failedCount}` : ""}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 {/* Phase F (2026-05-10) — AI 자동분리 검수 진입점.
                     Stage 6.3A Proposal Review v1. ENV MATCHUP_PROPOSAL_FIRST_TENANTS default off
                     → 대부분 doc 빈 list. 그래도 학원장이 검수 화면 위치를 파악할 수 있도록 항상 노출.
@@ -1894,6 +2037,8 @@ export default function MatchupPage() {
                       onConfirmBulkDelete={handleConfirmBulkDelete}
                       onDeleteProblem={(p) => handleDeleteSingleProblem({ id: p.id, number: p.number, meta: p.meta as Record<string, unknown> | null })}
                       onSplitProblem={(p) => handleSplitProblem({ meta: p.meta as Record<string, unknown> | null })}
+                      onApprovePublicImage={handleApprovePublicImage}
+                      onUploadPublicImage={handleUploadPublicImage}
                       onOpenManualCrop={selectedDoc ? () => setCropDocId(selectedDoc.id) : undefined}
                       onRetry={selectedDoc ? () => handleRetry(selectedDoc.id) : undefined}
                     />

@@ -241,6 +241,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       jobType === "matchup_analysis"
       || jobType === "matchup_manual"
       || jobType === "matchup_index"
+      || jobType === "matchup_public_cleanup"
     ) {
       const docId = task.meta?.sourceId ? Number(task.meta.sourceId) : null;
       navigate("/admin/storage/matchup", docId ? { state: { selectDocId: docId } } : undefined);

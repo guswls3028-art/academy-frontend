@@ -3,8 +3,8 @@
 // image_url은 list API에서 바로 내려옴 (N+1 presign 제거).
 // 썸네일을 정말로 보고 싶을 때는 확대 버튼으로 큰 이미지 모달.
 
-import { useEffect, useState } from "react";
-import { Maximize2, X, AlertTriangle, Loader2, Trash2, Scissors, Lock, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Maximize2, X, AlertTriangle, Loader2, Trash2, Scissors, Lock, ShieldCheck, CheckCircle2, Upload } from "lucide-react";
 import { ICON, Badge, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import type { MatchupProblem } from "../../api/matchup.api";
 import { getMatchupProblemPresignUrl } from "../../api/matchup.api";
@@ -25,6 +25,8 @@ type Props = {
   // F4 (Phase F) — 분할 진입점 (해당 페이지로 ManualCropModal 점프).
   onDelete?: () => void;
   onSplit?: () => void;
+  onApprovePublicImage?: (problem: MatchupProblem) => void;
+  onUploadPublicImage?: (problem: MatchupProblem, file: File) => void;
 };
 
 export default function ProblemCard({
@@ -36,6 +38,8 @@ export default function ProblemCard({
   bulkSelectMode = false,
   onDelete,
   onSplit,
+  onApprovePublicImage,
+  onUploadPublicImage,
 }: Props) {
   const isMergeSelected = mergeMode && mergeOrder > 0;
   // bulkSelectMode 진입 시 selected 가 곧 selection 표시.
@@ -60,7 +64,11 @@ export default function ProblemCard({
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const publicCleanup = problem.meta?.public_cleanup;
   const hasPublicImage = Boolean(problem.public_image_url || problem.public_image_key);
+  const cleanupStatus = publicCleanup?.status || "";
+  const publicReviewRequired = Boolean(publicCleanup?.review_required) || cleanupStatus === "review_required";
+  const publicApproved = cleanupStatus === "approved" || publicCleanup?.mode === "manual_upload";
   const imgUrl = problem.public_image_url || problem.image_url || fallbackUrl;
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (problem.public_image_url || problem.image_url || !problem.image_key) return;
@@ -82,7 +90,7 @@ export default function ProblemCard({
 
   // 자동분리 결함 의심 카드는 외곽 강조 + warning stripe로 시각 우선순위.
   // 기존 작은 뱃지(9px)는 그리드에서 묻혔던 사고 보완.
-  const hasIssue = numberMismatch || isMergeSuspect;
+  const hasIssue = numberMismatch || isMergeSuspect || publicReviewRequired;
   // Phase F — hover 시에만 카드 액션(삭제/분할) 노출. bulk-select / merge / partial
   // 상태에서는 액션 숨김 (선택 토글이 우선).
   const [hoverActionsOpen, setHoverActionsOpen] = useState(false);
@@ -236,17 +244,23 @@ export default function ProblemCard({
             )}
             {hasPublicImage && (
               <Badge
-                tone="success"
+                tone={publicReviewRequired ? "warning" : "success"}
                 size="xs"
                 title={
-                  typeof publicCleanup?.mark_mask_ratio === "number"
-                    ? `공개용 이미지 정리 완료 · 흔적 ${Math.round(publicCleanup.mark_mask_ratio * 1000) / 10}%`
-                    : "공개용 이미지 정리 완료"
+                  publicReviewRequired
+                    ? "공개용 이미지가 생성됐지만 검은 필기/표시 가능성이 있어 확인이 필요합니다"
+                    : typeof publicCleanup?.mark_mask_ratio === "number"
+                      ? `공개용 이미지 정리 완료 · 흔적 ${Math.round(publicCleanup.mark_mask_ratio * 1000) / 10}%`
+                      : publicApproved
+                        ? "공개용 이미지 승인 완료"
+                        : "공개용 이미지 정리 완료"
                 }
-                ariaLabel="공개용 이미지 정리 완료"
+                ariaLabel={publicReviewRequired ? "공개용 이미지 검수 필요" : "공개용 이미지 정리 완료"}
               >
-                <ShieldCheck size={ICON_FOR_BADGE.xs} />
-                공개용
+                {publicReviewRequired
+                  ? <AlertTriangle size={ICON_FOR_BADGE.xs} />
+                  : <ShieldCheck size={ICON_FOR_BADGE.xs} />}
+                {publicReviewRequired ? "공개 검수" : publicApproved ? "공개 승인" : "공개용"}
               </Badge>
             )}
           </span>
@@ -282,6 +296,52 @@ export default function ProblemCard({
               >
                 <Scissors size={ICON.xs} />
               </button>
+            )}
+            {hasPublicImage && publicReviewRequired && onApprovePublicImage && !mergeMode && !bulkSelectMode && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onApprovePublicImage(problem); }}
+                title="이미지를 확인했고 공식자료에 사용해도 됩니다"
+                aria-label="공개용 이미지 승인"
+                data-testid="matchup-problem-public-approve"
+                style={/* eslint-disable-line no-restricted-syntax */ {
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--color-status-success)", padding: 2,
+                  display: "flex", alignItems: "center",
+                }}
+              >
+                <CheckCircle2 size={ICON.xs} />
+              </button>
+            )}
+            {hasPublicImage && publicReviewRequired && onUploadPublicImage && !mergeMode && !bulkSelectMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); uploadInputRef.current?.click(); }}
+                  title="선생님이 만든 깨끗한 공개용 이미지를 업로드합니다"
+                  aria-label="공개용 이미지 업로드"
+                  data-testid="matchup-problem-public-upload"
+                  style={/* eslint-disable-line no-restricted-syntax */ {
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--color-text-muted)", padding: 2,
+                    display: "flex", alignItems: "center",
+                  }}
+                >
+                  <Upload size={ICON.xs} />
+                </button>
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  hidden
+                  onClick={(e) => { e.stopPropagation(); }}
+                  onChange={(e) => {
+                    const file = e.currentTarget.files?.[0];
+                    e.currentTarget.value = "";
+                    if (file) onUploadPublicImage(problem, file);
+                  }}
+                />
+              </>
             )}
             {/* Phase F — hover 시 카드별 1클릭 삭제(F1). manual 인 경우 호출부 confirm 에서
                 보호 메시지 명시. 일반 문항도 confirm 필수. */}

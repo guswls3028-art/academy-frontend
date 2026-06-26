@@ -90,6 +90,21 @@ export type MatchupDocumentMeta = {
   // Phase 5-deep: 학원장이 검수 모달에서 매치업 인덱싱 제외한 페이지 idx 리스트.
   // 다음 reanalyze 시 워커가 해당 페이지 skip → 다시 problem 생성 안 됨.
   excluded_pages?: number[];
+  public_cleanup?: {
+    version?: string;
+    status?: "processing" | "ready" | "review_required" | "failed" | string;
+    official_ready?: boolean;
+    job_id?: string;
+    total?: number;
+    ready?: number;
+    approved?: number;
+    review_required?: number;
+    failed?: number;
+    avg_mark_mask_ratio?: number | null;
+    generated_at?: string;
+    queued_at?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 };
 
@@ -129,6 +144,10 @@ export type MatchupProblemMeta = {
   public_cleanup?: {
     mode?: string;
     version?: string;
+    status?: "ready" | "review_required" | "approved" | string;
+    quality_score?: number;
+    review_required?: boolean;
+    review_reasons?: string[];
     source_image_key?: string;
     public_image_key?: string;
     mark_mask_ratio?: number;
@@ -552,11 +571,20 @@ export async function fetchMatchupProblemDetail(
 
 export type MatchupPublicCleanupResult = {
   ok: boolean;
+  queued?: boolean;
   doc_id: number;
+  job_id?: string;
+  type?: string;
+  status?: string;
+  official_ready?: boolean;
   total: number;
   processed: number;
   skipped: number;
+  ready?: number;
+  approved?: number;
+  review_required?: number;
   failed: Array<{ problem_id: number; error: string }>;
+  avg_mark_mask_ratio?: number | null;
   avg_red_mask_ratio: number | null;
 };
 
@@ -566,8 +594,31 @@ export async function cleanMatchupDocumentPublicImages(
 ): Promise<MatchupPublicCleanupResult> {
   const { data } = await api.post<MatchupPublicCleanupResult>(
     `/matchup/documents/${docId}/public-cleanup/`,
-    { force },
+    { force, async: true },
     { timeout: 5 * 60_000 },
+  );
+  return data;
+}
+
+export async function approveMatchupProblemPublicImage(
+  problemId: number,
+): Promise<{ ok: boolean; problem: MatchupProblem }> {
+  const { data } = await api.post<{ ok: boolean; problem: MatchupProblem }>(
+    `/matchup/problems/${problemId}/public-cleanup/approve/`,
+  );
+  return data;
+}
+
+export async function uploadMatchupProblemPublicImage(
+  problemId: number,
+  file: File,
+): Promise<{ ok: boolean; problem: MatchupProblem }> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<{ ok: boolean; problem: MatchupProblem }>(
+    `/matchup/problems/${problemId}/public-image/`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
   );
   return data;
 }

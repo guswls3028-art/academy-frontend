@@ -224,6 +224,9 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
       result?: {
         problem_count?: number;
         document_id?: number;
+        processed?: number;
+        review_required?: number;
+        failed?: Array<unknown>;
       };
       error_message?: string | null;
     }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
@@ -246,11 +249,20 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
         asyncStatusStore.completeTask(taskId, "error", errMsg || "매치업 분석 실패");
       } else if (status === "DONE") {
         const result = res.data?.result;
-        const cnt = Number(result?.problem_count ?? 0);
-        if (cnt > 0) {
-          asyncStatusStore.setTaskLabel(taskId, `매치업 분석 완료 — ${cnt}문제 추출`);
+        if (res.data?.job_type === "matchup_public_cleanup") {
+          const processed = Number(result?.processed ?? 0);
+          const reviewRequired = Number(result?.review_required ?? 0);
+          const failed = Array.isArray(result?.failed) ? result.failed.length : 0;
+          const reviewText = reviewRequired > 0 ? ` · 검수 ${reviewRequired}개` : "";
+          const failedText = failed > 0 ? ` · 실패 ${failed}개` : "";
+          asyncStatusStore.setTaskLabel(taskId, `공개용 정리 완료 — ${processed}개${reviewText}${failedText}`);
         } else {
-          asyncStatusStore.setTaskLabel(taskId, "매치업 분석 완료");
+          const cnt = Number(result?.problem_count ?? 0);
+          if (cnt > 0) {
+            asyncStatusStore.setTaskLabel(taskId, `매치업 분석 완료 — ${cnt}문제 추출`);
+          } else {
+            asyncStatusStore.setTaskLabel(taskId, "매치업 분석 완료");
+          }
         }
         asyncStatusStore.completeTask(taskId, "success");
         onSuccess?.();
@@ -451,6 +463,8 @@ export function useWorkerJobPoller(
         } else if (t.meta!.jobType === "ppt_generation") {
           pollPptJob(t.id, pptCb);
         } else if (t.meta!.jobType === "matchup_analysis") {
+          pollMatchupJob(t.id, matchupCb);
+        } else if (t.meta!.jobType === "matchup_public_cleanup") {
           pollMatchupJob(t.id, matchupCb);
         } else if (t.meta!.jobType === "matchup_document_watch") {
           pollMatchupDocumentWatch(t.id, t.meta!.jobId, matchupCb);
