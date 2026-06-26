@@ -131,7 +131,9 @@ export type MatchupProblemMeta = {
     version?: string;
     source_image_key?: string;
     public_image_key?: string;
+    mark_mask_ratio?: number;
     red_mask_ratio?: number;
+    dark_mask_ratio?: number;
     generated_at?: string;
     [key: string]: unknown;
   };

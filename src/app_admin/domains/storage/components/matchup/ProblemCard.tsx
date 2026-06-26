@@ -239,8 +239,8 @@ export default function ProblemCard({
                 tone="success"
                 size="xs"
                 title={
-                  typeof publicCleanup?.red_mask_ratio === "number"
-                    ? `공개용 이미지 정리 완료 · 빨간 흔적 ${Math.round(publicCleanup.red_mask_ratio * 1000) / 10}%`
+                  typeof publicCleanup?.mark_mask_ratio === "number"
+                    ? `공개용 이미지 정리 완료 · 흔적 ${Math.round(publicCleanup.mark_mask_ratio * 1000) / 10}%`
                     : "공개용 이미지 정리 완료"
                 }
                 ariaLabel="공개용 이미지 정리 완료"
