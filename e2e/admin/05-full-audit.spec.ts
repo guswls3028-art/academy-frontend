@@ -200,9 +200,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
     const sendBtn = page.locator("button").filter({ hasText: /메시지/ }).first();
     await sendBtn.click();
     await expect(page.locator("text=메시지 발송").first()).toBeVisible({ timeout: 5_000 });
-
-    const alimBtn = page.locator("button").filter({ hasText: "알림톡" }).first();
-    await alimBtn.click();
+    await expect(page.locator(".send-modal__title").filter({ hasText: /알림톡 발송/ })).toBeVisible({ timeout: 5_000 });
 
     // 양식 선택 → 직접 작성
     const tplBtn = page.locator("button").filter({ hasText: /양식 선택/ }).first();
@@ -231,7 +229,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
       await stCheck.uncheck({ force: true });
     }
 
-    const mainSend = page.locator("button").filter({ hasText: /에게.*발송/ }).last();
+    const mainSend = page.locator(".send-modal__send-btn").last();
     const enabled = await mainSend.isEnabled().catch(() => false);
 
     await snap(page, "full-5-alimtalk-attempt");

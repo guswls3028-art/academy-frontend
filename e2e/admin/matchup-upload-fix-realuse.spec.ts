@@ -61,8 +61,8 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     const mergeToggle = page.getByTestId("matchup-merge-mode-toggle");
     await expect(splitToggle).toBeVisible();
     await expect(mergeToggle).toBeVisible();
-    await expect(page.getByText(/각각 별도/)).toBeVisible();
-    await expect(page.getByText(/한 .* 합치기/)).toBeVisible();
+    await expect(splitToggle).toContainText(/각각 별도/);
+    await expect(mergeToggle).toContainText(/한 .* 합치기/);
 
     // 한 시험지로 합치기 → 안내 변경
     await mergeToggle.click();
