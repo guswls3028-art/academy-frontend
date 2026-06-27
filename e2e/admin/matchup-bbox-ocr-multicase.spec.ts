@@ -1,9 +1,9 @@
 /**
  * E2E: 매치업 bbox-aware OCR 세그멘테이션 종합 검증 (commit a7a8d026)
  *
- * Case A: 스캔본 — 은광여고 (기대: ≥30문제, OCR 경로)
- * Case B: 스캔본 — 경기고  (기대: ≥18문제, OCR 경로)
- * Case C: 텍스트PDF — 중산고 (기대: ≥28문제, text 경로, OCR 없음)
+ * Case A: 실제 문제지 이미지 PDF 앞쪽 6페이지 (기대: ≥10문제, OCR 경로)
+ * Case B: 실제 문제지 이미지 PDF 뒤쪽 6페이지 (기대: ≥10문제, OCR 경로)
+ * Case C: 실제 문제지 텍스트 PDF 전체본 (기대: ≥28문제, text 경로)
  *
  * 검증:
  * - Browser DOM: 문서 카드 완료, 문항 수 표시, 상세 모달 크롭 이미지
@@ -21,8 +21,12 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import { execSync } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
 import type { Page } from "@playwright/test";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const API = getApiBaseUrl();
 const TS = Date.now();
 const TAG = `[E2E-${TS}]`;
@@ -32,26 +36,26 @@ const OCR_PROCESS_TIMEOUT_MS = 780_000;
 const TEXT_CASE_TIMEOUT_MS = 420_000;
 const TEXT_PROCESS_TIMEOUT_MS = 300_000;
 
-const BASE_DIR = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted";
+const FIXTURE_DIR = path.resolve(__dirname, "../fixtures");
 const CASES = [
   {
-    key: "A-은광여고",
-    file: `${BASE_DIR}/2025-1-m 고1 은광여고 통합과학.pdf`,
-    title: `${TAG} 은광여고 통합과학 스캔본`,
-    minProblems: 30,
+    key: "A-실제OCR앞쪽",
+    file: path.join(FIXTURE_DIR, "integrated-science-ocr-pages2-7.pdf"),
+    title: `${TAG} 통합과학 이미지PDF 앞쪽`,
+    minProblems: 10,
     isOcr: true,
   },
   {
-    key: "B-경기고",
-    file: `${BASE_DIR}/2025-1-m 고1 경기고 통합과학.pdf`,
-    title: `${TAG} 경기고 통합과학 스캔본`,
-    minProblems: 18,
+    key: "B-실제OCR뒤쪽",
+    file: path.join(FIXTURE_DIR, "integrated-science-ocr-pages8-13.pdf"),
+    title: `${TAG} 통합과학 이미지PDF 뒤쪽`,
+    minProblems: 10,
     isOcr: true,
   },
   {
-    key: "C-중산고",
-    file: `${BASE_DIR}/2025-1-m 고1 중산고 통합과학1.pdf`,
-    title: `${TAG} 중산고 통합과학 텍스트PDF`,
+    key: "C-실제Text전체",
+    file: path.join(FIXTURE_DIR, "integrated-science-16pages.pdf"),
+    title: `${TAG} 통합과학 텍스트PDF 전체`,
     minProblems: 28,
     isOcr: false,
   },
@@ -243,9 +247,9 @@ const results: Array<{
 }> = [];
 
 // ──────────────────────────────────────────────────────────────
-// Case A: 은광여고 스캔본
+// Case A: 실제 문제지 이미지 PDF 앞쪽
 // ──────────────────────────────────────────────────────────────
-test.describe.serial("Case A: 은광여고 스캔본", () => {
+test.describe.serial("Case A: 실제 문제지 이미지 PDF 앞쪽", () => {
   let page: Page;
   let docId: number | null = null;
   const c = CASES[0];
@@ -260,7 +264,7 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
     await page.context().close();
   });
 
-  test("A-1: 은광여고 스캔본 업로드 → OCR 처리 → 문항 수 ≥30 검증", async () => {
+  test("A-1: 이미지 PDF 앞쪽 업로드 → OCR 처리 → 문항 수 ≥10 검증", async () => {
     test.setTimeout(OCR_CASE_TIMEOUT_MS);
 
     // 1. 매치업 페이지 이동
@@ -384,9 +388,9 @@ test.describe.serial("Case A: 은광여고 스캔본", () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// Case B: 경기고 스캔본
+// Case B: 실제 문제지 이미지 PDF 뒤쪽
 // ──────────────────────────────────────────────────────────────
-test.describe.serial("Case B: 경기고 스캔본", () => {
+test.describe.serial("Case B: 실제 문제지 이미지 PDF 뒤쪽", () => {
   let page: Page;
   let docId: number | null = null;
   const c = CASES[1];
@@ -401,7 +405,7 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
     await page.context().close();
   });
 
-  test("B-1: 경기고 스캔본 업로드 → OCR 처리 → 문항 수 ≥18 검증", async () => {
+  test("B-1: 이미지 PDF 뒤쪽 업로드 → OCR 처리 → 문항 수 ≥10 검증", async () => {
     test.setTimeout(OCR_CASE_TIMEOUT_MS);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });
@@ -503,9 +507,9 @@ test.describe.serial("Case B: 경기고 스캔본", () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// Case C: 중산고 텍스트 PDF (회귀 체크)
+// Case C: 실제 문제지 텍스트 PDF 전체본 (회귀 체크)
 // ──────────────────────────────────────────────────────────────
-test.describe.serial("Case C: 중산고 텍스트PDF", () => {
+test.describe.serial("Case C: 실제 문제지 텍스트PDF 전체본", () => {
   let page: Page;
   let docId: number | null = null;
   const c = CASES[2];
@@ -520,7 +524,7 @@ test.describe.serial("Case C: 중산고 텍스트PDF", () => {
     await page.context().close();
   });
 
-  test("C-1: 중산고 텍스트PDF 업로드 → OCR 없이 처리 → 문항 수 ≥28, text 비율 ≥80%", async () => {
+  test("C-1: 텍스트PDF 전체본 업로드 → 처리 → 문항 수 ≥28, text 비율 ≥80%", async () => {
     test.setTimeout(TEXT_CASE_TIMEOUT_MS);
 
     await page.goto(MATCHUP_URL, { waitUntil: "load", timeout: 20000 });

@@ -376,13 +376,31 @@
 }
 
 .previewCell {
+  display: flex;
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  align-items: baseline;
+  gap: 8px;
   color: var(--color-text-secondary);
   font-size: 13px;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.previewText {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+}
+
+.previewMeta {
+  flex: 0 1 auto;
+  min-width: 48px;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
 }
 
 .failureCell {

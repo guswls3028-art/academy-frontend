@@ -37,6 +37,27 @@ const FILTER_OPTIONS: { key: StatusFilter; label: string; count?: number }[] = [
   { key: "failure", label: "실패" },
 ];
 
+function isRawTemplateCode(value?: string): boolean {
+  return Boolean(value?.trim().startsWith("KA01"));
+}
+
+function messagePreview(item: NotificationLogItem): string {
+  const body = item.message_body?.trim();
+  if (body) return body.slice(0, 120);
+
+  const template = item.template_summary?.trim();
+  if (template && !isRawTemplateCode(template)) return template;
+
+  return "—";
+}
+
+function templateLabel(item: NotificationLogItem): string {
+  const body = item.message_body?.trim();
+  const template = item.template_summary?.trim();
+  if (!body || !template || isRawTemplateCode(template)) return "";
+  return template;
+}
+
 // ── StatusBadge ──
 
 function StatusBadge({ success, size = "sm" }: { success: boolean; size?: "sm" | "md" }) {
@@ -189,9 +210,10 @@ function LogRow({
 
       {/* 내용 미리보기 */}
       <span className={styles.previewCell}>
-        {(item.template_summary && !item.template_summary.startsWith("KA01"))
-          ? item.template_summary
-          : item.message_body?.slice(0, 80) || "—"}
+        <span className={styles.previewText}>{messagePreview(item)}</span>
+        {templateLabel(item) ? (
+          <span className={styles.previewMeta}>{templateLabel(item)}</span>
+        ) : null}
       </span>
 
       {/* 실패 사유 (짧게) */}

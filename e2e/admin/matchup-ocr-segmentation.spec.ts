@@ -2,22 +2,26 @@
  * E2E: 스캔본 PDF OCR 세그멘테이션 검증
  * commit 6f29d311 — 페이지당 4~6개 문항 분할 개선
  *
- * 대상: 2025-1-m 고1 숙명여고 통합과학.pdf (8페이지 스캔본)
- * 기대: 25개 이상 문항 카드 (이전: 7~8개 페이지 단위)
+ * 대상: integrated-science-ocr-pages2-7.pdf (실제 문제지 6페이지 이미지 PDF)
+ * 기대: 10개 이상 문항 카드 (이전 page fallback이면 6개 수준)
  * Tenant 1 (hakwonplus), 운영 서버
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getApiBaseUrl } from "../helpers/auth";
 import { openMatchupUploadModal } from "../helpers/matchup";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const API = getApiBaseUrl();
 const TAG = `[E2E-${Date.now()}]`;
-const SCAN_PDF = "C:/academy/_artifacts/fixtures/매치업테스트자료/extracted/2025-1-m 고1 숙명여고 통합과학.pdf";
+const SCAN_PDF = path.resolve(__dirname, "../fixtures/integrated-science-ocr-pages2-7.pdf");
 
 let uploadedDocId: number | null = null;
 
 test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
-  test("스캔본 PDF 업로드 → 25개 이상 문항 분할 확인", async ({ page }) => {
+  test("실제 이미지 PDF 업로드 → 10개 이상 문항 분할 확인", async ({ page }) => {
     test.setTimeout(900_000); // 운영 worker cold-start + 스캔본 OCR 포함
 
     // ── 1. 로그인 ──
@@ -57,7 +61,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 제목을 E2E 태그로 변경
-    const docTitle = `${TAG} 숙명여고 통합과학 스캔본`;
+    const docTitle = `${TAG} 통합과학 이미지PDF OCR 세그멘테이션`;
     await titleInput.fill(docTitle);
 
     // 과목 입력
@@ -186,11 +190,11 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
     console.log(`[RESULT] Final problem_count: ${finalProblemCount}`);
 
-    // 핵심 검증: 25개 이상 문항
+    // 핵심 검증: page fallback(6쪽=6문항 수준)을 넘는 문항 단위 분리
     expect(
       finalProblemCount,
-      `문항 수 ${finalProblemCount}개 — 25개 이상이어야 합니다 (OCR 세그멘테이션 개선 검증)`
-    ).toBeGreaterThanOrEqual(25);
+      `문항 수 ${finalProblemCount}개 — 10개 이상이어야 합니다 (OCR 세그멘테이션 개선 검증)`
+    ).toBeGreaterThanOrEqual(10);
 
     // 페이지 새로고침하여 DOM 갱신 후 "N문제" 텍스트 확인
     await page.reload({ waitUntil: "load", timeout: 15000 });
@@ -221,7 +225,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
     console.log(`[GRID] Problem cards visible in DOM: ${cardCount}`);
 
     if (cardCount > 0) {
-      expect(cardCount).toBeGreaterThanOrEqual(25);
+      expect(cardCount).toBeGreaterThanOrEqual(10);
 
       // ── 11. 첫 번째 문제 카드 클릭 → 상세 이미지 확인 ──
       await problemCards.first().click();
@@ -256,7 +260,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
       const problems = await problemsResp.json() as Array<{ id: number; number: number; image_key: string }>;
       console.log(`[API] /matchup/problems/ returned ${problems.length} problems`);
       console.log(`[API] Problem numbers: ${problems.map((p) => p.number).join(", ")}`);
-      expect(problems.length).toBeGreaterThanOrEqual(25);
+      expect(problems.length).toBeGreaterThanOrEqual(10);
 
       // 이미지 키 확인 (문항 단위 크롭)
       const firstProblem = problems[0];

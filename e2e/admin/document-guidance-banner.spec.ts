@@ -88,7 +88,7 @@ function buildDocPayload(spec: DocSpec) {
 
 async function mockDocRoutes(page: import("@playwright/test").Page, spec: DocSpec) {
   const payload = buildDocPayload(spec);
-  await page.route(`${API_BASE}/api/v1/matchup/documents/`, async (route: Route) => {
+  await page.route(`${API_BASE}/api/v1/matchup/documents/**`, async (route: Route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
         status: 200, contentType: "application/json",
@@ -104,7 +104,7 @@ async function mockDocRoutes(page: import("@playwright/test").Page, spec: DocSpe
       body: JSON.stringify([]),
     });
   });
-  await page.route(`${API_BASE}/api/v1/matchup/categories/`, async (route: Route) => {
+  await page.route(`${API_BASE}/api/v1/matchup/categories/**`, async (route: Route) => {
     await route.fulfill({
       status: 200, contentType: "application/json",
       body: JSON.stringify([{ name: "[E2E] guidance", total: 1, tests: 0, references: 1 }]),
@@ -200,7 +200,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
       ...buildDocPayload(spec),
       meta: {},  // override — guidance 없음
     };
-    await page.route(`${API_BASE}/api/v1/matchup/documents/`, async (route: Route) => {
+    await page.route(`${API_BASE}/api/v1/matchup/documents/**`, async (route: Route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           status: 200, contentType: "application/json",
@@ -213,7 +213,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
     await page.route(`${API_BASE}/api/v1/matchup/problems/**`, async (route: Route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
     });
-    await page.route(`${API_BASE}/api/v1/matchup/categories/`, async (route: Route) => {
+    await page.route(`${API_BASE}/api/v1/matchup/categories/**`, async (route: Route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
     });
     await page.goto(`${BASE}/admin/storage/matchup?docId=${spec.id}`, { waitUntil: "networkidle" });
