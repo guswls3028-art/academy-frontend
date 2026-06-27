@@ -53,10 +53,6 @@ type CommunityPostRow = {
   category_label?: string | null;
 };
 
-type SubmissionRow = {
-  status?: string | null;
-};
-
 export function createEmptyOperationalNotificationCounts(): OperationalNotificationCounts {
   return {
     qnaPending: 0,
@@ -139,17 +135,8 @@ async function fetchRegistrationRequestsPendingCount(): Promise<number | null> {
 
 async function fetchRecentSubmissionsCount(): Promise<number | null> {
   try {
-    const res = await api.get("/submissions/submissions/", { params: { limit: 100 } });
-    const submissions = unwrapList<SubmissionRow>(res.data);
-    return submissions.filter(
-      (s) =>
-        s.status === "submitted" ||
-        s.status === "dispatched" ||
-        s.status === "extracting" ||
-        s.status === "needs_identification" ||
-        s.status === "answers_ready" ||
-        s.status === "grading"
-    ).length;
+    const res = await api.get("/submissions/submissions/pending/", { params: { filter: "pending" } });
+    return unwrapList<unknown>(res.data).length;
   } catch {
     return null;
   }
