@@ -970,6 +970,16 @@ export async function fetchHitReportDraft(
   return data;
 }
 
+export async function fetchHitReportQuickDraft(
+  docId: number,
+): Promise<HitReportDraftResponse> {
+  const { data } = await api.get<HitReportDraftResponse>(
+    `/matchup/documents/${docId}/hit-report-draft/`,
+    { params: { mode: "quick" }, timeout: 20_000 },
+  );
+  return data;
+}
+
 export async function fetchHitReportPins(
   docId: number,
 ): Promise<HitReportPinsResponse> {

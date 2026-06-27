@@ -15,7 +15,7 @@
 // PDF SSOT(_pane_color_for_class)와 동기화 비용 증가. 따라서 파일 단위 lint 예외.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { X, Save, Send, FileText, Check, Share2, AlertTriangle, EyeOff, Eye } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -24,6 +24,7 @@ import api from "@/shared/api/axios";
 import ManualCropModal from "./ManualCropModal";
 import {
   fetchHitReportDraft,
+  fetchHitReportQuickDraft,
   updateHitReport,
   upsertHitReportEntries,
   submitHitReport,
@@ -51,11 +52,43 @@ type EntryDraft = {
   dirty: boolean;
 };
 
+function entriesFromDraft(
+  resp: HitReportDraftResponse,
+  existing?: Record<number, EntryDraft>,
+): Record<number, EntryDraft> {
+  const next: Record<number, EntryDraft> = {};
+  for (const ep of resp.exam_problems) {
+    const cur = existing?.[ep.id];
+    if (cur) {
+      next[ep.id] = cur;
+      continue;
+    }
+    next[ep.id] = {
+      examProblemId: ep.id,
+      selectedProblemIds: ep.entry?.selected_problem_ids || [],
+      comment: ep.entry?.comment || "",
+      order: ep.entry?.order ?? 0,
+      excluded: ep.entry?.excluded ?? false,
+      dirty: false,
+    };
+  }
+  return next;
+}
+
+function selectedMetaById(resp: HitReportDraftResponse): Record<number, HitReportSelectedMeta> {
+  const m: Record<number, HitReportSelectedMeta> = {};
+  for (const meta of resp.selected_problem_meta) m[meta.id] = meta;
+  return m;
+}
+
 export default function HitReportEditor({ docId, onClose }: Props) {
   const confirm = useConfirm();
+  const loadSeqRef = useRef(0);
   const [data, setData] = useState<HitReportDraftResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [candidateError, setCandidateError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [entries, setEntries] = useState<Record<number, EntryDraft>>({});
   const [reportTitle, setReportTitle] = useState("");
@@ -91,44 +124,74 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     feedback.info("다음부터 게시 전에 다시 확인합니다.");
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const resp = await fetchHitReportDraft(docId);
-      setData(resp);
+  const applyDraft = useCallback((
+    resp: HitReportDraftResponse,
+    options: { resetHeader: boolean; preserveEntries: boolean },
+  ) => {
+    setData(resp);
+    if (options.resetHeader) {
       setReportTitle(resp.report.title || "");
       setReportSummary(resp.report.summary || "");
       setHeaderDirty(false);
+    }
+    setActiveIndex((i) => Math.min(i, Math.max(resp.exam_problems.length - 1, 0)));
+    setEntries((prev) => entriesFromDraft(resp, options.preserveEntries ? prev : undefined));
+    setExtraMeta(selectedMetaById(resp));
+  }, []);
 
-      const next: Record<number, EntryDraft> = {};
-      for (const ep of resp.exam_problems) {
-        next[ep.id] = {
-          examProblemId: ep.id,
-          selectedProblemIds: ep.entry?.selected_problem_ids || [],
-          comment: ep.entry?.comment || "",
-          order: ep.entry?.order ?? 0,
-          excluded: ep.entry?.excluded ?? false,
-          dirty: false,
-        };
-      }
-      setEntries(next);
-
-      const m: Record<number, HitReportSelectedMeta> = {};
-      for (const meta of resp.selected_problem_meta) m[meta.id] = meta;
-      setExtraMeta(m);
+  const refreshCandidates = useCallback(async (seq: number = loadSeqRef.current) => {
+    setCandidateLoading(true);
+    setCandidateError(null);
+    try {
+      const resp = await fetchHitReportDraft(docId);
+      if (loadSeqRef.current !== seq) return;
+      applyDraft(resp, { resetHeader: false, preserveEntries: true });
     } catch (e) {
+      if (loadSeqRef.current !== seq) return;
       console.error(e);
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || "보고서 로드 실패 — 네트워크 또는 서버 오류.";
-      setLoadError(msg);
-      feedback.error(msg);
+        || "자동 후보 검색 실패 — 보고서는 계속 편집할 수 있습니다.";
+      setCandidateError(msg);
+      feedback.warning(msg);
     } finally {
-      setLoading(false);
+      if (loadSeqRef.current === seq) setCandidateLoading(false);
     }
-  }, [docId]);
+  }, [applyDraft, docId]);
+
+  const load = useCallback(async () => {
+    const seq = loadSeqRef.current + 1;
+    loadSeqRef.current = seq;
+    setLoading(true);
+    setLoadError(null);
+    setCandidateError(null);
+    setCandidateLoading(false);
+    try {
+      const resp = await fetchHitReportQuickDraft(docId);
+      if (loadSeqRef.current !== seq) return;
+      applyDraft(resp, { resetHeader: true, preserveEntries: false });
+      setLoading(false);
+      void refreshCandidates(seq);
+    } catch (e) {
+      console.error(e);
+      try {
+        const resp = await fetchHitReportDraft(docId);
+        if (loadSeqRef.current !== seq) return;
+        applyDraft(resp, { resetHeader: true, preserveEntries: false });
+      } catch (fallbackError) {
+        if (loadSeqRef.current !== seq) return;
+        console.error(fallbackError);
+        const msg = (fallbackError as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+          || "보고서 로드 실패 — 네트워크 또는 서버 오류.";
+        setLoadError(msg);
+        feedback.error(msg);
+      }
+    } finally {
+      if (loadSeqRef.current === seq) setLoading(false);
+    }
+  }, [applyDraft, docId, refreshCandidates]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => () => { loadSeqRef.current += 1; }, []);
 
   // useMemo로 array identity 안정화 — react-hooks/exhaustive-deps 경고 회피.
   const examProblems = useMemo(() => data?.exam_problems || [], [data]);
@@ -629,6 +692,42 @@ export default function HitReportEditor({ docId, onClose }: Props) {
           </div>
 
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            {!loading && candidateLoading && (
+              <span
+                data-testid="matchup-hit-report-candidate-loading"
+                title="유사 자료 후보는 뒤에서 검색 중입니다. 기존 선택과 코멘트는 바로 편집할 수 있습니다."
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  fontSize: 11, fontWeight: 700,
+                  padding: "3px 9px", borderRadius: 999,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
+                  color: "var(--color-brand-primary)",
+                  border: "1px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent)",
+                }}
+              >
+                후보 검색 중…
+              </span>
+            )}
+            {!loading && candidateError && !candidateLoading && (
+              <button
+                type="button"
+                data-testid="matchup-hit-report-candidate-retry"
+                onClick={() => void refreshCandidates()}
+                title={candidateError}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontSize: 11, fontWeight: 700,
+                  padding: "3px 9px", borderRadius: 999,
+                  background: "color-mix(in srgb, var(--color-status-warning) 12%, transparent)",
+                  color: "var(--color-status-warning)",
+                  border: "1px solid color-mix(in srgb, var(--color-status-warning) 35%, transparent)",
+                  cursor: "pointer",
+                }}
+              >
+                <AlertTriangle size={ICON.xs} />
+                후보 검색 재시도
+              </button>
+            )}
             {/* 4-state 자동저장 인디케이터 —
                 저장 중(파란) / 저장 실패(빨강·클릭 재시도) / 변경됨(주황) / 저장됨(회색 ✓) */}
             <button
@@ -985,6 +1084,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               activeCandidateId={activeCandidateId}
               selectedIds={selectedIdsStable}
               candidateMap={candidateMap}
+              candidatesLoading={candidateLoading}
+              candidateError={candidateError}
               onToggle={toggleSelect}
               onSetActive={setActiveCandidateId}
               onEditSource={handleEditSource}

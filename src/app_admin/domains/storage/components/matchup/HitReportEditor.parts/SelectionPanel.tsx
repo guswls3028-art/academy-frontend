@@ -16,12 +16,15 @@ import {
 
 function SelectionPanelInner({
   active, activeCandidateId, selectedIds, candidateMap,
+  candidatesLoading, candidateError,
   onToggle, onSetActive, onEditSource, disabled,
 }: {
   active: HitReportExamProblem | null;
   activeCandidateId: number | null;
   selectedIds: number[];
   candidateMap: Map<number, CandidateMeta>;
+  candidatesLoading: boolean;
+  candidateError: string | null;
   onToggle: (id: number) => void;
   onSetActive: (id: number) => void;
   onEditSource: (docId: number, docTitle: string, pageIndex?: number | null) => void;
@@ -46,7 +49,7 @@ function SelectionPanelInner({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            내 수업 자료 후보 ({active.candidates.length})
+            내 수업 자료 후보 ({candidatesLoading ? "검색 중" : active.candidates.length})
           </span>
           {selectedIds.length > 0 && (
             <span style={{
@@ -95,12 +98,22 @@ function SelectionPanelInner({
             borderRadius: 6, lineHeight: 1.6,
           }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "var(--color-text-primary)" }}>
-              {extraSelected.length === 0 ? "유사 자료가 없습니다" : "추가할 후보 자료가 없습니다"}
+              {candidatesLoading
+                ? "유사 자료 후보 검색 중"
+                : candidateError
+                  ? "후보 검색을 완료하지 못했습니다"
+                  : extraSelected.length === 0
+                    ? "유사 자료가 없습니다"
+                    : "추가할 후보 자료가 없습니다"}
             </div>
             <div style={{ fontSize: 11 }}>
-              {extraSelected.length === 0
-                ? "매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동 매칭됩니다."
-                : "아래에 있는 이전 선택은 모두 원본이 삭제되었습니다. 새 자료를 추가하려면 모달을 닫고 매치업 페이지에서 자료를 매뉴얼 크롭/paste 해주세요."}
+              {candidatesLoading
+                ? "보고서 작성은 바로 가능하고, 검색이 끝나면 이 영역에 후보가 채워집니다."
+                : candidateError
+                  ? "상단의 후보 검색 재시도를 눌러 다시 불러올 수 있습니다."
+                  : extraSelected.length === 0
+                    ? "매치업 페이지에서 자료를 매뉴얼 크롭/paste로 추가하면 자동 매칭됩니다."
+                    : "아래에 있는 이전 선택은 모두 원본이 삭제되었습니다. 새 자료를 추가하려면 모달을 닫고 매치업 페이지에서 자료를 매뉴얼 크롭/paste 해주세요."}
             </div>
           </div>
         ) : null}
