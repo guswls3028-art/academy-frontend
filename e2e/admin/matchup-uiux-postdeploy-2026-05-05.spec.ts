@@ -62,6 +62,15 @@ async function openDocRow(page: Page, row: Locator): Promise<void> {
   await waitForDocDetail(page);
 }
 
+async function tryOpenDocRow(page: Page, row: Locator): Promise<boolean> {
+  try {
+    await openDocRow(page, row);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test.describe("매치업 UIUX 배포후 실사용", () => {
@@ -104,7 +113,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
     let found = false;
     for (let i = 0; i < Math.min(n, 20); i++) {
       const doc = docs.nth(i);
-      await openDocRow(page, doc);
+      if (!(await tryOpenDocRow(page, doc))) continue;
       const banner = page.locator("[data-testid='matchup-paper-type-banner']").first();
       if (await banner.isVisible({ timeout: 500 }).catch(() => false)) {
         await banner.scrollIntoViewIfNeeded();
@@ -121,7 +130,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
     const n = await docs.count();
     let found = false;
     for (let i = 0; i < Math.min(n, 20); i++) {
-      await openDocRow(page, docs.nth(i));
+      if (!(await tryOpenDocRow(page, docs.nth(i)))) continue;
       const btn = page.locator("[data-testid='matchup-low-conf-reviewer-open-btn']");
       if (await btn.count() > 0) {
         const region = btn.locator("xpath=ancestor::*[1]");

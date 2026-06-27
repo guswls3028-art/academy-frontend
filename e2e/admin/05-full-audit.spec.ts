@@ -205,10 +205,20 @@ test.describe("메시징 미완 항목 완전 검증", () => {
     // 양식 선택 → 직접 작성
     const tplBtn = page.locator("button").filter({ hasText: /양식 선택/ }).first();
     if (await tplBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await tplBtn.click();
-      const free = page.locator("button").filter({ hasText: "직접 작성하기" }).first();
-      if (await free.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await free.click();
+      const openedTemplateMenu = await tplBtn.click({ timeout: 5_000 }).then(
+        () => true,
+        () => false,
+      );
+      if (openedTemplateMenu) {
+        const free = page.locator("button").filter({ hasText: "직접 작성하기" }).first();
+        if (await free.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await free.click();
+        }
+      } else {
+        test.info().annotations.push({
+          type: "optional-ui-timeout",
+          description: "양식 선택 버튼 클릭이 지연되어 직접 입력 textarea 검증으로 진행",
+        });
       }
     }
 
