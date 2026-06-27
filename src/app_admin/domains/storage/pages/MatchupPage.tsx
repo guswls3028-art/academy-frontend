@@ -1351,7 +1351,7 @@ export default function MatchupPage() {
                 </span>
               </div>
             ) : (
-              <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}>
+              <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", flexDirection: "column", gap: "var(--space-4)", minHeight: "100%" }}>
                 {/* ── Tier 1: 제목 + 적중 보고서 primary CTA + ⋮ 보조 액션 ──
                     학원장이 가장 자주 누르는 산출물 CTA를 우측에 강하게 시각화.
                     원본보기/저장소/직접자르기는 ⋮ 메뉴 또는 Tier 2 (배너/하단)에서 처리. */}
@@ -1995,7 +1995,9 @@ export default function MatchupPage() {
                 <div style={/* eslint-disable-line no-restricted-syntax */ {
                   display: "flex",
                   flexDirection: isNarrowViewport ? "column" : "row",
-                  gap: "var(--space-4)", flex: 1, minHeight: 0,
+                  gap: "var(--space-4)",
+                  flex: "1 0 auto",
+                  minHeight: isNarrowViewport ? 0 : 560,
                 }}>
                   <div
                     ref={gridContainerRef}
@@ -2004,7 +2006,7 @@ export default function MatchupPage() {
                       flex: isNarrowViewport ? "1 1 auto" : 3,
                       minWidth: 0,
                       width: isNarrowViewport ? "100%" : undefined,
-                      overflowY: "auto",
+                      overflowY: "visible",
                     }}
                   >
                     <h4 style={/* eslint-disable-line no-restricted-syntax */ {
@@ -2048,8 +2050,7 @@ export default function MatchupPage() {
                     flex: isNarrowViewport ? "0 0 auto" : 2,
                     minWidth: isNarrowViewport ? 0 : 300,
                     width: isNarrowViewport ? "100%" : undefined,
-                    maxHeight: isNarrowViewport ? "50%" : undefined,
-                    overflowY: "auto",
+                    overflowY: "visible",
                     borderLeft: isNarrowViewport ? "none" : "1px solid var(--color-border-divider)",
                     borderTop: isNarrowViewport ? "1px solid var(--color-border-divider)" : "none",
                     paddingLeft: isNarrowViewport ? 0 : "var(--space-4)",
@@ -2098,7 +2099,7 @@ export default function MatchupPage() {
                         </button>
                       ))}
                     </div>
-                    <div style={/* eslint-disable-line no-restricted-syntax */ { flex: 1, minHeight: 0, overflowY: "auto" }}>
+                    <div style={/* eslint-disable-line no-restricted-syntax */ { flex: 1, minHeight: 0, overflowY: "visible" }}>
                       {/* 합치기 모드 도움말 — 우측 패널이 비어있으면 학원장이 "왜 안 보이지?" 혼란.
                           합치기 모드 컨텍스트를 명시적으로 안내. */}
                       {mergeMode && rightPanelTab === "similar" ? (

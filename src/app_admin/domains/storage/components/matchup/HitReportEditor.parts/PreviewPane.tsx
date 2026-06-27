@@ -193,34 +193,60 @@ function candidateDocTitle(candidate: CandidateMeta): string {
 function PreviewMatchGrid({ candidates }: { candidates: CandidateMeta[] }) {
   const rows = candidates.length <= 2 ? candidates.length : 2;
   const cols = candidates.length <= 2 ? 1 : 2;
+  const visibleCandidates = candidates.slice(0, 4);
+  const overflowCount = candidates.length - visibleCandidates.length;
   return (
     <div style={{
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-      gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+      display: "flex",
+      flexDirection: "column",
       gap: 4,
       minHeight: 0,
     }}>
-      {candidates.slice(0, 4).map((candidate, index) => {
-        const sim = "similarity" in candidate ? candidate.similarity : 0;
-        const tier = "similarity" in candidate ? classifyMatch(sim) : "miss";
-        const label = `내 수업 자료 ${index + 1}/${candidates.length}`;
-        const sub = [
-          `${candidateDocTitle(candidate)}  ·  Q${candidate.number}`,
-          "similarity" in candidate ? `${(sim * 100).toFixed(1)}%` : "",
-        ].filter(Boolean).join("  ·  ");
-        return (
-          <PreviewSubPane
-            key={candidate.id}
-            captionLabel={label}
-            captionSub={sub}
-            captionColor={"similarity" in candidate ? TIER_COLOR[tier] : "#94A3B8"}
-            captionBg={"similarity" in candidate ? TIER_BG[tier] : "#F1F5F9"}
-            imageUrl={candidate.image_url || null}
-            placeholderText="이미지가 없습니다"
-          />
-        );
-      })}
+      <div style={{
+        flex: 1,
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+        gap: 4,
+        minHeight: 0,
+      }}>
+        {visibleCandidates.map((candidate, index) => {
+          const sim = "similarity" in candidate ? candidate.similarity : 0;
+          const tier = "similarity" in candidate ? classifyMatch(sim) : "miss";
+          const label = `내 수업 자료 ${index + 1}/${candidates.length}`;
+          const sub = [
+            `${candidateDocTitle(candidate)}  ·  Q${candidate.number}`,
+            "similarity" in candidate ? `${(sim * 100).toFixed(1)}%` : "",
+          ].filter(Boolean).join("  ·  ");
+          return (
+            <PreviewSubPane
+              key={candidate.id}
+              captionLabel={label}
+              captionSub={sub}
+              captionColor={"similarity" in candidate ? TIER_COLOR[tier] : "#94A3B8"}
+              captionBg={"similarity" in candidate ? TIER_BG[tier] : "#F1F5F9"}
+              imageUrl={candidate.image_url || null}
+              placeholderText="이미지가 없습니다"
+            />
+          );
+        })}
+      </div>
+      {overflowCount > 0 && (
+        <div style={{
+          flexShrink: 0,
+          padding: "5px 8px",
+          borderRadius: 4,
+          background: "color-mix(in srgb, var(--color-brand-primary) 8%, white)",
+          border: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent)",
+          color: "var(--color-brand-primary)",
+          fontSize: 10,
+          fontWeight: 700,
+          lineHeight: 1.35,
+          textAlign: "center",
+        }}>
+          나머지 {overflowCount}건은 PDF 다음 페이지에 이어서 표시됩니다
+        </div>
+      )}
     </div>
   );
 }

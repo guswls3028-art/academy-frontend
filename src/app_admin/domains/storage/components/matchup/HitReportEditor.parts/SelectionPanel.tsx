@@ -32,6 +32,10 @@ function SelectionPanelInner({
   const extraSelected = selectedIds.filter(
     (pid) => !active.candidates.some((c) => c.id === pid),
   );
+  const overflowSelectedCount = Math.max(0, selectedIds.length - 4);
+  const selectionHint = overflowSelectedCount > 0
+    ? `선택 자료 ${selectedIds.length}건 중 ${overflowSelectedCount}건은 PDF 다음 페이지에 이어집니다`
+    : "여러 자료를 담으면 PDF 한 페이지에 최대 4건씩 묶여 표시됩니다";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
@@ -55,7 +59,7 @@ function SelectionPanelInner({
           )}
         </div>
         <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-          여러 자료를 담으면 PDF 한 페이지에 묶여 표시됩니다
+          {selectionHint}
         </div>
       </div>
       {/* 제출 잠금 안내 — submitted 보고서 재진입 시 사용자가 "왜 PDF 추가 버튼이 안 눌려?" 라고
