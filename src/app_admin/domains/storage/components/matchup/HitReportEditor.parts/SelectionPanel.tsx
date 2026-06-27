@@ -55,7 +55,7 @@ function SelectionPanelInner({
           )}
         </div>
         <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-          행 클릭 = 미리보기 / "+ PDF에 추가" 버튼 = 보고서에 포함
+          여러 자료를 담으면 PDF 한 페이지에 묶여 표시됩니다
         </div>
       </div>
       {/* 제출 잠금 안내 — submitted 보고서 재진입 시 사용자가 "왜 PDF 추가 버튼이 안 눌려?" 라고

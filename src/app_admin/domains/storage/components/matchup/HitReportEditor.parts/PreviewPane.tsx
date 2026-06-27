@@ -25,7 +25,7 @@ import {
 
 function PreviewPaneInner({
   active, activeIndex, examProblemsCount, documentTitle,
-  activeCandidateId, candidateMap, comment, onComment, disabled,
+  activeCandidateId, selectedIds, candidateMap, comment, onComment, disabled,
   onPrev, onNext,
 }: {
   active: HitReportExamProblem | null;
@@ -33,6 +33,7 @@ function PreviewPaneInner({
   examProblemsCount: number;
   documentTitle: string;
   activeCandidateId: number | null;
+  selectedIds: number[];
   candidateMap: Map<number, CandidateMeta>;
   comment: string;
   onComment: (v: string) => void;
@@ -42,12 +43,27 @@ function PreviewPaneInner({
 }) {
   if (!active) return null;
 
-  const activeCand = activeCandidateId != null ? candidateMap.get(activeCandidateId) : null;
+  const selectedCandidates = selectedIds
+    .map((id) => candidateMap.get(id))
+    .filter((c): c is CandidateMeta => Boolean(c));
+  const selectedSet = new Set(selectedIds);
+  const showSelectedGroup = selectedCandidates.length > 1
+    && (activeCandidateId == null || selectedSet.has(activeCandidateId));
+  const singleActiveCand = activeCandidateId != null ? candidateMap.get(activeCandidateId) : null;
+  const groupBestCand = selectedCandidates.reduce<CandidateMeta | null>((best, cand) => {
+    if (!best) return cand;
+    const bestSim = "similarity" in best ? best.similarity : 0;
+    const candSim = "similarity" in cand ? cand.similarity : 0;
+    return candSim > bestSim ? cand : best;
+  }, null);
+  const activeCand = showSelectedGroup ? groupBestCand : singleActiveCand;
   const sim: number = activeCand && "similarity" in activeCand
     ? (activeCand as HitReportCandidate).similarity
     : 0;
   const tier: Tier = activeCand ? classifyMatch(sim) : "miss";
-  const labelText = activeCand
+  const labelText = showSelectedGroup
+    ? `선택 자료 ${selectedCandidates.length}건${activeCand && "similarity" in activeCand ? `  ·  최고 ${(sim * 100).toFixed(1)}%` : ""}`
+    : activeCand
     ? (tier === "miss"
         ? `유사도 ${(sim * 100).toFixed(1)}%`
         : `${TIER_LABEL[tier]}  ·  ${(sim * 100).toFixed(1)}%`)
@@ -55,11 +71,7 @@ function PreviewPaneInner({
   const tierColor = TIER_COLOR[tier];
   const tierBg = TIER_BG[tier];
 
-  const candDocTitle = activeCand
-    ? ("document_title" in activeCand && activeCand.document_title)
-      ? activeCand.document_title
-      : ("document_id" in activeCand ? `자료 ${activeCand.document_id}번` : "")
-    : "";
+  const candDocTitle = activeCand ? candidateDocTitle(activeCand) : "";
 
   return (
     <div style={{
@@ -128,17 +140,20 @@ function PreviewPaneInner({
           imageUrl={active.image_url || null}
           placeholderText="시험지 이미지가 없습니다"
         />
-        {/* 우 — active 후보 (적중 분류 색 cap) — 강사 본인 수업자료 */}
-        <PreviewSubPane
-          captionLabel="내 수업 자료"
-          captionSub={activeCand
-            ? `${candDocTitle}  ·  Q${activeCand.number}`
-            : "우측 후보 목록에서 선택하세요"}
-          captionColor={activeCand ? tierColor : "#94A3B8"}
-          captionBg={activeCand ? tierBg : "#F1F5F9"}
-          imageUrl={activeCand?.image_url || null}
-          placeholderText={activeCand ? "이미지가 없습니다" : "후보를 클릭하면 미리보기"}
-        />
+        {showSelectedGroup ? (
+          <PreviewMatchGrid candidates={selectedCandidates} />
+        ) : (
+          <PreviewSubPane
+            captionLabel="내 수업 자료"
+            captionSub={activeCand
+              ? `${candDocTitle}  ·  Q${activeCand.number}`
+              : "우측 후보 목록에서 선택하세요"}
+            captionColor={activeCand ? tierColor : "#94A3B8"}
+            captionBg={activeCand ? tierBg : "#F1F5F9"}
+            imageUrl={activeCand?.image_url || null}
+            placeholderText={activeCand ? "이미지가 없습니다" : "후보를 클릭하면 미리보기"}
+          />
+        )}
       </div>
 
       {/* 코멘트 — PDF 코멘트 band와 동일 위치/역할 */}
@@ -148,7 +163,7 @@ function PreviewPaneInner({
         display: "flex", flexDirection: "column", gap: 4,
       }}>
         <label style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 600 }}>
-          지도 코멘트 / 해설  <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>· PDF 각 후보 페이지 하단에 노출</span>
+          지도 코멘트 / 해설  <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>· PDF 문항 페이지 하단에 노출</span>
         </label>
         <textarea
           value={comment}
@@ -165,6 +180,47 @@ function PreviewPaneInner({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+function candidateDocTitle(candidate: CandidateMeta): string {
+  return ("document_title" in candidate && candidate.document_title)
+    ? candidate.document_title
+    : ("document_id" in candidate ? `자료 ${candidate.document_id}번` : "");
+}
+
+function PreviewMatchGrid({ candidates }: { candidates: CandidateMeta[] }) {
+  const rows = candidates.length <= 2 ? candidates.length : 2;
+  const cols = candidates.length <= 2 ? 1 : 2;
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+      gap: 4,
+      minHeight: 0,
+    }}>
+      {candidates.slice(0, 4).map((candidate, index) => {
+        const sim = "similarity" in candidate ? candidate.similarity : 0;
+        const tier = "similarity" in candidate ? classifyMatch(sim) : "miss";
+        const label = `내 수업 자료 ${index + 1}/${candidates.length}`;
+        const sub = [
+          `${candidateDocTitle(candidate)}  ·  Q${candidate.number}`,
+          "similarity" in candidate ? `${(sim * 100).toFixed(1)}%` : "",
+        ].filter(Boolean).join("  ·  ");
+        return (
+          <PreviewSubPane
+            key={candidate.id}
+            captionLabel={label}
+            captionSub={sub}
+            captionColor={"similarity" in candidate ? TIER_COLOR[tier] : "#94A3B8"}
+            captionBg={"similarity" in candidate ? TIER_BG[tier] : "#F1F5F9"}
+            imageUrl={candidate.image_url || null}
+            placeholderText="이미지가 없습니다"
+          />
+        );
+      })}
     </div>
   );
 }
@@ -189,7 +245,7 @@ function PreviewSubPane({
         padding: "6px 10px", background: captionBg,
         display: "flex", flexDirection: "column", gap: 1, flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: captionColor, letterSpacing: 0.3 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: captionColor, letterSpacing: 0 }}>
           {captionLabel}
         </span>
         <span style={{

@@ -970,6 +970,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
               examProblemsCount={examProblems.length}
               documentTitle={documentTitle}
               activeCandidateId={activeCandidateId}
+              selectedIds={selectedIdsStable}
               candidateMap={candidateMap}
               comment={activeEntry?.comment ?? ""}
               onComment={setComment}
