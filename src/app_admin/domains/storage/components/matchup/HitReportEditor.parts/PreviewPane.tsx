@@ -5,8 +5,8 @@
 // 의도적 사용. 부모 HitReportEditor.tsx 와 동일 정책.
 /* eslint-disable no-restricted-syntax */
 
-import { memo, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { memo, useState, type CSSProperties, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type {
   HitReportCandidate,
@@ -41,7 +41,16 @@ function PreviewPaneInner({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const [zoomItem, setZoomItem] = useState<PreviewZoomItem | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+
   if (!active) return null;
+
+  const openZoom = (item: PreviewZoomItem) => {
+    setZoomItem(item);
+    setZoomScale(1);
+  };
+  const closeZoom = () => setZoomItem(null);
 
   const selectedCandidates = selectedIds
     .map((id) => candidateMap.get(id))
@@ -143,9 +152,10 @@ function PreviewPaneInner({
           captionBg={SOURCE_PANE_BG}
           imageUrl={active.image_url || null}
           placeholderText="시험지 이미지가 없습니다"
+          onOpenZoom={openZoom}
         />
         {showSelectedGroup ? (
-          <PreviewMatchRail candidates={selectedCandidates} />
+          <PreviewMatchRail candidates={selectedCandidates} onOpenZoom={openZoom} />
         ) : (
           <PreviewSubPane
             captionLabel="내 수업 자료"
@@ -156,6 +166,7 @@ function PreviewPaneInner({
             captionBg={activeCand ? tierBg : "#F1F5F9"}
             imageUrl={activeCand?.image_url || null}
             placeholderText={activeCand ? "이미지가 없습니다" : "후보를 클릭하면 미리보기"}
+            onOpenZoom={openZoom}
           />
         )}
       </div>
@@ -184,9 +195,27 @@ function PreviewPaneInner({
           }}
         />
       </div>
+      {zoomItem && (
+        <PreviewZoomOverlay
+          item={zoomItem}
+          scale={zoomScale}
+          onClose={closeZoom}
+          onZoomIn={() => setZoomScale((v) => Math.min(2.5, Number((v + 0.25).toFixed(2))))}
+          onZoomOut={() => setZoomScale((v) => Math.max(0.75, Number((v - 0.25).toFixed(2))))}
+          onReset={() => setZoomScale(1)}
+        />
+      )}
     </div>
   );
 }
+
+type PreviewZoomItem = {
+  captionLabel: string;
+  captionSub: string;
+  captionColor: string;
+  captionBg: string;
+  imageUrl: string;
+};
 
 function candidateDocTitle(candidate: CandidateMeta): string {
   return ("document_title" in candidate && candidate.document_title)
@@ -194,7 +223,12 @@ function candidateDocTitle(candidate: CandidateMeta): string {
     : ("document_id" in candidate ? `자료 ${candidate.document_id}번` : "");
 }
 
-function PreviewMatchRail({ candidates }: { candidates: CandidateMeta[] }) {
+function PreviewMatchRail({
+  candidates, onOpenZoom,
+}: {
+  candidates: CandidateMeta[];
+  onOpenZoom: (item: PreviewZoomItem) => void;
+}) {
   const shouldFitRows = candidates.length <= 2;
   return (
     <div style={{
@@ -264,6 +298,7 @@ function PreviewMatchRail({ candidates }: { candidates: CandidateMeta[] }) {
               imageUrl={candidate.image_url || null}
               placeholderText="이미지가 없습니다"
               paneStyle={shouldFitRows ? undefined : { minHeight: 320 }}
+              onOpenZoom={onOpenZoom}
             />
           );
         })}
@@ -273,7 +308,7 @@ function PreviewMatchRail({ candidates }: { candidates: CandidateMeta[] }) {
 }
 
 function PreviewSubPane({
-  captionLabel, captionSub, captionColor, captionBg, imageUrl, placeholderText, paneStyle,
+  captionLabel, captionSub, captionColor, captionBg, imageUrl, placeholderText, paneStyle, onOpenZoom,
 }: {
   captionLabel: string;
   captionSub: string;
@@ -282,7 +317,13 @@ function PreviewSubPane({
   imageUrl: string | null;
   placeholderText: string;
   paneStyle?: CSSProperties;
+  onOpenZoom?: (item: PreviewZoomItem) => void;
 }) {
+  const canZoom = Boolean(imageUrl && onOpenZoom);
+  const handleOpenZoom = () => {
+    if (!imageUrl || !onOpenZoom) return;
+    onOpenZoom({ captionLabel, captionSub, captionColor, captionBg, imageUrl });
+  };
   return (
     <div style={{
       display: "flex", flexDirection: "column",
@@ -305,24 +346,218 @@ function PreviewSubPane({
         </span>
       </div>
       <div style={{
+        position: "relative",
         flex: 1, minHeight: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 6, overflow: "auto",
       }}>
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={captionLabel}
-            style={{
-              maxWidth: "100%", maxHeight: "100%",
-              objectFit: "contain", background: "white",
-            }}
-          />
+          <>
+            <button
+              type="button"
+              onClick={handleOpenZoom}
+              aria-label={`${captionLabel} 크게 보기`}
+              title="크게 보기"
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 0,
+                border: 0,
+                padding: 0,
+                background: "transparent",
+                cursor: canZoom ? "zoom-in" : "default",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={imageUrl}
+                alt={captionLabel}
+                style={{
+                  maxWidth: "100%", maxHeight: "100%",
+                  objectFit: "contain", background: "white",
+                }}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenZoom}
+              aria-label={`${captionLabel} 크게 보기`}
+              title="크게 보기"
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "5px 8px",
+                border: "1px solid color-mix(in srgb, var(--color-border-divider) 80%, transparent)",
+                borderRadius: 4,
+                background: "rgba(255,255,255,0.92)",
+                color: "var(--color-text-primary)",
+                fontSize: 11,
+                fontWeight: 800,
+                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.14)",
+                cursor: "zoom-in",
+              }}
+            >
+              <Maximize2 size={14} />
+              크게 보기
+            </button>
+          </>
         ) : (
           <span style={{ color: "#94A3B8", fontSize: 12 }}>{placeholderText}</span>
         )}
       </div>
     </div>
+  );
+}
+
+function PreviewZoomOverlay({
+  item, scale, onClose, onZoomIn, onZoomOut, onReset,
+}: {
+  item: PreviewZoomItem;
+  scale: number;
+  onClose: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${item.captionLabel} 크게 보기`}
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      tabIndex={-1}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 10000,
+        background: "rgba(15, 23, 42, 0.78)",
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 12px",
+          borderRadius: "8px 8px 0 0",
+          background: "var(--color-bg-surface)",
+          borderBottom: "1px solid var(--color-border-divider)",
+          boxShadow: "0 16px 40px rgba(15, 23, 42, 0.18)",
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            color: item.captionColor,
+            fontSize: 13,
+            fontWeight: 900,
+            letterSpacing: 0,
+          }}>
+            {item.captionLabel}
+          </div>
+          <div style={{
+            color: "var(--color-text-secondary)",
+            fontSize: 12,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {item.captionSub}
+          </div>
+        </div>
+        <ZoomButton label="축소" onClick={onZoomOut}>
+          <Minus size={16} />
+        </ZoomButton>
+        <span style={{
+          minWidth: 44,
+          textAlign: "center",
+          fontSize: 12,
+          fontWeight: 800,
+          color: "var(--color-text-secondary)",
+        }}>
+          {Math.round(scale * 100)}%
+        </span>
+        <ZoomButton label="확대" onClick={onZoomIn}>
+          <Plus size={16} />
+        </ZoomButton>
+        <ZoomButton label="원래 크기" onClick={onReset}>
+          <RotateCcw size={16} />
+        </ZoomButton>
+        <ZoomButton label="확대 보기 닫기" onClick={onClose}>
+          <X size={18} />
+        </ZoomButton>
+      </div>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          minHeight: 0,
+          overflow: "auto",
+          background: "color-mix(in srgb, var(--color-bg-canvas) 92%, #0f172a)",
+          borderRadius: "0 0 8px 8px",
+          boxShadow: "0 16px 40px rgba(15, 23, 42, 0.18)",
+          display: "flex",
+          alignItems: scale > 1 ? "flex-start" : "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <img
+          src={item.imageUrl}
+          alt={item.captionLabel}
+          style={{
+            width: `${scale * 100}%`,
+            maxWidth: scale === 1 ? "100%" : "none",
+            maxHeight: scale === 1 ? "100%" : "none",
+            objectFit: "contain",
+            background: "white",
+            boxShadow: "0 2px 16px rgba(15, 23, 42, 0.18)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ZoomButton({
+  label, onClick, children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 6,
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+        color: "var(--color-text-primary)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
