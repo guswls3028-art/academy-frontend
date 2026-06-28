@@ -22,6 +22,7 @@ import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { mergeMatchupProblems } from "../../api/matchup.api";
 import type { MatchupProblem } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 
 type Props = {
   docId: number;
@@ -89,8 +90,8 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
         targetNumber,
       );
       feedback.success(`${ordered.length}개 문항을 Q${merged.number}로 합쳤습니다. OCR/임베딩 재계산 중입니다.`);
-      qc.invalidateQueries({ queryKey: ["matchup-problems", docId] });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(docId) });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       onSuccess(merged.id);
       onClose();
     } catch (e: unknown) {

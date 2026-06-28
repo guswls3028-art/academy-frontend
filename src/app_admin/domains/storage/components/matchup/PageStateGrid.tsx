@@ -36,6 +36,7 @@ import {
   type PageStateValue,
   type PageStateRecommendation,
 } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 
 const STATE_LABEL: Record<PageStateValue, string> = {
   auto: "자동",
@@ -85,13 +86,13 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
   const [showRecommendations, setShowRecommendations] = useState(true);
 
   const pagesQuery = useQuery({
-    queryKey: ["matchup-doc-pages", doc.id],
+    queryKey: storageQueryKeys.matchupDocPages(doc.id),
     queryFn: () => fetchDocumentPages(doc.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const statesQuery = useQuery({
-    queryKey: ["matchup-page-states", doc.id],
+    queryKey: storageQueryKeys.matchupPageStates(doc.id),
     queryFn: () => getMatchupPageStates(doc.id),
   });
 
@@ -145,16 +146,16 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
     mutationFn: (items: Array<{ page_index: number; state: PageStateValue }>) =>
       bulkSetMatchupPageStates(doc.id, items),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["matchup-page-states", doc.id] });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupPageStates(doc.id) });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     },
   });
 
   const reanalyzeMutation = useMutation({
     mutationFn: () => reanalyzeMatchupDocument(doc.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(doc.id) });
     },
   });
 

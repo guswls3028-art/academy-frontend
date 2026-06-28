@@ -32,6 +32,7 @@ import {
   type ProposalConfidenceLabel,
   type ProposalConflictType,
 } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 
 type Props = {
   documentId: number;
@@ -64,7 +65,7 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ["matchup-proposals", documentId, "pending"],
+    queryKey: storageQueryKeys.matchupPendingProposals(documentId),
     queryFn: () => fetchProposals({ documentId, status: "pending", limit: 200 }),
     staleTime: 15_000,
   });
@@ -80,9 +81,9 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
     try {
       await approveProposal(p.id);
       feedback.success(`Q${p.detected_problem_number} 승인 — 매치업에 추가됨`);
-      await qc.invalidateQueries({ queryKey: ["matchup-proposals", documentId] });
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProposals(documentId) });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(documentId) });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         ?? (e as Error)?.message
@@ -112,7 +113,7 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
     try {
       await rejectProposal(p.id, { code: "manual_reject" });
       feedback.success(`Q${p.detected_problem_number} 거절 완료`);
-      await qc.invalidateQueries({ queryKey: ["matchup-proposals", documentId] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProposals(documentId) });
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         ?? (e as Error)?.message
