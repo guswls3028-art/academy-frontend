@@ -5,7 +5,7 @@
 // 의도적 사용. 부모 HitReportEditor.tsx 와 동일 정책.
 /* eslint-disable no-restricted-syntax */
 
-import { memo, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type {
@@ -356,7 +356,7 @@ function PreviewSubPane({
             <button
               type="button"
               onClick={handleOpenZoom}
-              aria-label={`${captionLabel} 크게 보기`}
+              aria-label={`${captionLabel} 이미지 크게 보기`}
               title="크게 보기"
               style={{
                 width: "100%",
@@ -383,7 +383,7 @@ function PreviewSubPane({
             <button
               type="button"
               onClick={handleOpenZoom}
-              aria-label={`${captionLabel} 크게 보기`}
+              aria-label={`${captionLabel} 크게 보기 버튼`}
               title="크게 보기"
               style={{
                 position: "absolute",
@@ -425,14 +425,32 @@ function PreviewZoomOverlay({
   onZoomOut: () => void;
   onReset: () => void;
 }) {
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    overlayRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [onClose]);
+
   return (
     <div
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-label={`${item.captionLabel} 크게 보기`}
       onClick={onClose}
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
       }}
       tabIndex={-1}
       style={{
