@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, RefreshCw, Sparkles } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
   fetchHitReportBoardPreview,
   type BoardPreviewCard,
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export default function HitReportBoardPreviewStrip({ open = true }: Props) {
+  const isMobile = useIsMobile();
   const [cards, setCards] = useState<BoardPreviewCard[]>([]);
   const [totalPublished, setTotalPublished] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -75,47 +77,71 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
         border: "1px solid var(--color-border-divider)",
         background: "linear-gradient(135deg, var(--color-bg-elevated, #f8fafc) 0%, var(--color-bg-canvas) 100%)",
         borderRadius: 8,
-        padding: "12px 14px",
+        padding: isMobile ? "14px" : "12px 14px",
         display: "flex",
         flexDirection: "column",
         gap: 10,
       }}
     >
       {/* header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 16 }}>🌐</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            우리 학원 매치업 게시판
-            {totalPublished > 0 && (
-              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)" }}>
-                {totalPublished}건 게시 중
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1 }}>
-            학원장님이 게시판에 올린 보고서가 학부모·외부 방문자에게 노출됩니다.
+      <div style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "center",
+        gap: isMobile ? 10 : 8,
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>🌐</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "2px 8px",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.45,
+              color: "var(--color-text-primary)",
+            }}>
+              <span>우리 학원 매치업 게시판</span>
+              {totalPublished > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                  {totalPublished}건 게시 중
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.5 }}>
+              학원장님이 게시판에 올린 보고서가 학부모·외부 방문자에게 노출됩니다.
+            </div>
           </div>
         </div>
-        <Button
-          size="sm"
-          intent="ghost"
-          onClick={() => void load()}
-          disabled={loading}
-          leftIcon={<RefreshCw size={ICON.sm} />}
-          title="게시판 새로고침"
-        >
-          {loading ? "갱신 중…" : "새로고침"}
-        </Button>
-        <Button
-          size="sm"
-          intent="primary"
-          onClick={() => window.open("/landing", "_blank", "noopener,noreferrer")}
-          leftIcon={<ExternalLink size={ICON.sm} />}
-          title="학원 홈페이지 매치업 게시판 전체 보기 (새 탭)"
-        >
-          전체 보기
-        </Button>
+        <div style={{
+          display: isMobile ? "grid" : "flex",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+          gap: 8,
+          width: isMobile ? "100%" : undefined,
+        }}>
+          <Button
+            size="sm"
+            intent="ghost"
+            onClick={() => void load()}
+            disabled={loading}
+            leftIcon={<RefreshCw size={ICON.sm} />}
+            title="게시판 새로고침"
+            style={{ width: isMobile ? "100%" : undefined }}
+          >
+            {loading ? "갱신 중…" : "새로고침"}
+          </Button>
+          <Button
+            size="sm"
+            intent="primary"
+            onClick={() => window.open("/landing", "_blank", "noopener,noreferrer")}
+            leftIcon={<ExternalLink size={ICON.sm} />}
+            title="학원 홈페이지 매치업 게시판 전체 보기 (새 탭)"
+            style={{ width: isMobile ? "100%" : undefined }}
+          >
+            전체 보기
+          </Button>
+        </div>
       </div>
 
       {/* body */}
