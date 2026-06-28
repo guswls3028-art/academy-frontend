@@ -23,7 +23,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import ManualCropModal from "./ManualCropModal";
 import {
-  fetchHitReportDraft,
+  fetchHitReportCandidateBatch,
   fetchHitReportQuickDraft,
   updateHitReport,
   upsertHitReportEntries,
@@ -40,6 +40,8 @@ type Props = {
   docId: number;
   onClose: () => void;
 };
+
+const CANDIDATE_BATCH_SIZE = 16;
 
 type EntryDraft = {
   examProblemId: number;
@@ -84,6 +86,7 @@ function selectedMetaById(resp: HitReportDraftResponse): Record<number, HitRepor
 export default function HitReportEditor({ docId, onClose }: Props) {
   const confirm = useConfirm();
   const loadSeqRef = useRef(0);
+  const candidateProblemIdsRef = useRef<number[]>([]);
   const [data, setData] = useState<HitReportDraftResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     resp: HitReportDraftResponse,
     options: { resetHeader: boolean; preserveEntries: boolean },
   ) => {
+    candidateProblemIdsRef.current = resp.exam_problems.map((ep) => ep.id);
     setData(resp);
     if (options.resetHeader) {
       setReportTitle(resp.report.title || "");
@@ -139,24 +143,64 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     setExtraMeta(selectedMetaById(resp));
   }, []);
 
-  const refreshCandidates = useCallback(async (seq: number = loadSeqRef.current) => {
+  const mergeCandidateBatch = useCallback((resp: HitReportDraftResponse) => {
+    const incomingMeta = selectedMetaById(resp);
+    setData((prev) => {
+      if (!prev) return resp;
+      const byProblemId = new Map(resp.exam_problems.map((ep) => [ep.id, ep]));
+      const selectedMeta = new Map(prev.selected_problem_meta.map((m) => [m.id, m]));
+      for (const meta of resp.selected_problem_meta) selectedMeta.set(meta.id, meta);
+
+      return {
+        ...prev,
+        report: resp.report || prev.report,
+        exam_problems: prev.exam_problems.map((ep) => {
+          const incoming = byProblemId.get(ep.id);
+          if (!incoming) return ep;
+          return {
+            ...ep,
+            image_url: incoming.image_url ?? ep.image_url,
+            candidates: incoming.candidates,
+            entry: incoming.entry ?? ep.entry,
+          };
+        }),
+        selected_problem_meta: Array.from(selectedMeta.values()),
+      };
+    });
+    setExtraMeta((prev) => ({ ...prev, ...incomingMeta }));
+  }, []);
+
+  const refreshCandidates = useCallback(async (
+    seq: number = loadSeqRef.current,
+    problemIds: number[] = candidateProblemIdsRef.current,
+  ) => {
+    const ids = Array.from(new Set(problemIds.filter((id) => Number.isFinite(id) && id > 0)));
+    if (ids.length === 0) return;
     setCandidateLoading(true);
     setCandidateError(null);
+    let failedBatches = 0;
     try {
-      const resp = await fetchHitReportDraft(docId);
-      if (loadSeqRef.current !== seq) return;
-      applyDraft(resp, { resetHeader: false, preserveEntries: true });
-    } catch (e) {
-      if (loadSeqRef.current !== seq) return;
-      console.error(e);
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || "자동 후보 검색 실패 — 보고서는 계속 편집할 수 있습니다.";
-      setCandidateError(msg);
-      feedback.warning(msg);
+      for (let i = 0; i < ids.length; i += CANDIDATE_BATCH_SIZE) {
+        if (loadSeqRef.current !== seq) return;
+        const chunk = ids.slice(i, i + CANDIDATE_BATCH_SIZE);
+        try {
+          const resp = await fetchHitReportCandidateBatch(docId, chunk);
+          if (loadSeqRef.current !== seq) return;
+          mergeCandidateBatch(resp);
+        } catch (e) {
+          failedBatches += 1;
+          console.error(e);
+        }
+      }
+      if (failedBatches > 0 && loadSeqRef.current === seq) {
+        const msg = `자동 후보 검색 일부 실패 (${failedBatches}개 묶음) — 보고서는 계속 편집할 수 있습니다.`;
+        setCandidateError(msg);
+        feedback.warning(msg);
+      }
     } finally {
       if (loadSeqRef.current === seq) setCandidateLoading(false);
     }
-  }, [applyDraft, docId]);
+  }, [docId, mergeCandidateBatch]);
 
   const load = useCallback(async () => {
     const seq = loadSeqRef.current + 1;
@@ -170,21 +214,14 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       if (loadSeqRef.current !== seq) return;
       applyDraft(resp, { resetHeader: true, preserveEntries: false });
       setLoading(false);
-      void refreshCandidates(seq);
+      void refreshCandidates(seq, resp.exam_problems.map((ep) => ep.id));
     } catch (e) {
+      if (loadSeqRef.current !== seq) return;
       console.error(e);
-      try {
-        const resp = await fetchHitReportDraft(docId);
-        if (loadSeqRef.current !== seq) return;
-        applyDraft(resp, { resetHeader: true, preserveEntries: false });
-      } catch (fallbackError) {
-        if (loadSeqRef.current !== seq) return;
-        console.error(fallbackError);
-        const msg = (fallbackError as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-          || "보고서 로드 실패 — 네트워크 또는 서버 오류.";
-        setLoadError(msg);
-        feedback.error(msg);
-      }
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || "보고서 기본 화면 로드 실패 — 네트워크 또는 서버 오류.";
+      setLoadError(msg);
+      feedback.error(msg);
     } finally {
       if (loadSeqRef.current === seq) setLoading(false);
     }
@@ -218,16 +255,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       return;
     }
     const sel = activeEntry?.selectedProblemIds ?? [];
-    if (sel.length > 0) {
-      setActiveCandidateId(sel[0]);
-    } else if (active.candidates.length > 0) {
-      setActiveCandidateId(active.candidates[0].id);
-    } else {
-      setActiveCandidateId(null);
+    const validCandidateIds = new Set([
+      ...sel,
+      ...active.candidates.map((c) => c.id),
+    ]);
+    if (activeCandidateId != null && validCandidateIds.has(activeCandidateId)) {
+      return;
     }
-    // active.id 변할 때만 — entry 갱신 시는 유지
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.id]);
+    setActiveCandidateId(sel[0] ?? active.candidates[0]?.id ?? null);
+  }, [active, activeCandidateId, activeEntry?.selectedProblemIds]);
 
   // ── 편집 핸들러 ──
 

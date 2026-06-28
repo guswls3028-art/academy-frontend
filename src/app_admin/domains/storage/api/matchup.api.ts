@@ -970,6 +970,20 @@ export async function fetchHitReportDraft(
   return data;
 }
 
+export async function fetchHitReportCandidateBatch(
+  docId: number,
+  problemIds: number[],
+): Promise<HitReportDraftResponse> {
+  const { data } = await api.get<HitReportDraftResponse>(
+    `/matchup/documents/${docId}/hit-report-draft/`,
+    {
+      params: { mode: "candidates", problem_ids: problemIds.join(",") },
+      timeout: 60_000,
+    },
+  );
+  return data;
+}
+
 export async function fetchHitReportQuickDraft(
   docId: number,
 ): Promise<HitReportDraftResponse> {
