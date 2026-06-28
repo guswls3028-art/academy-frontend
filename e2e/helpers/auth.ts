@@ -21,6 +21,7 @@ const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const _SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr"; // 향후 sswe 테넌트 spec 추가 시 사용
 const DNB = process.env.DNB_BASE_URL || "https://dnbacademy.co.kr";
 const LIMGLISH = process.env.LIMGLISH_BASE_URL || "https://limglish.kr";
+const LOGIN_TOKEN_MAX_ATTEMPTS = 5;
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -52,11 +53,11 @@ function sleep(ms: number): Promise<void> {
 function parseThrottleWaitMs(responseText: string, retryAfter: string | null): number {
   const headerSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
   if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
-    return Math.min(headerSeconds + 1, 30) * 1000;
+    return Math.min(headerSeconds + 1, 75) * 1000;
   }
   const bodySeconds = Number.parseInt(responseText.match(/(\d+)\s*초/)?.[1] || "", 10);
   if (Number.isFinite(bodySeconds) && bodySeconds > 0) {
-    return Math.min(bodySeconds + 1, 30) * 1000;
+    return Math.min(bodySeconds + 1, 75) * 1000;
   }
   return 5_000;
 }
@@ -115,7 +116,7 @@ async function requestLoginTokens(
   c: { code: string; user: string; pass: string },
 ): Promise<{ access: string; refresh: string }> {
   let lastFailure = "";
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < LOGIN_TOKEN_MAX_ATTEMPTS; attempt += 1) {
     const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
       data: { username: c.user, password: c.pass, tenant_code: c.code },
       headers: {
@@ -131,7 +132,7 @@ async function requestLoginTokens(
 
     const body = await resp.text();
     lastFailure = `${resp.status()} ${body}`;
-    if (resp.status() !== 429 || attempt === 2) {
+    if (resp.status() !== 429 || attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1) {
       break;
     }
     await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
@@ -147,7 +148,7 @@ export async function loginTokenViaRequest(
   const c = resolveCred(role);
   let lastFailure = "";
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < LOGIN_TOKEN_MAX_ATTEMPTS; attempt += 1) {
     const resp = await request.post(`${API_BASE}/api/v1/token/`, {
       data: { username: c.user, password: c.pass, tenant_code: c.code },
       headers: {
@@ -163,7 +164,7 @@ export async function loginTokenViaRequest(
 
     const body = await resp.text();
     lastFailure = `${resp.status()} ${body}`;
-    if (resp.status() !== 429 || attempt === 2) break;
+    if (resp.status() !== 429 || attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1) break;
     await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
   }
 

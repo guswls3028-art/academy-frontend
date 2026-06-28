@@ -4,20 +4,11 @@
  * 보호 라우트/로그아웃 뒤로가기/모바일 폭 overflow를 launch gate로 고정한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
+import { getBaseUrl, loginTokenViaRequest, loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
-const API = getApiBaseUrl().replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const STUDENT_USER = requiredEnv("E2E_STUDENT_USER");
-const STUDENT_PASS = requiredEnv("E2E_STUDENT_PASS");
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (typeof value === "string" && value.trim()) return value.trim();
-  throw new Error(`Missing required env ${name}. See .env.e2e.example.`);
-}
 
 async function clearBrowserAuth(page: import("@playwright/test").Page): Promise<void> {
   await page.addInitScript(() => {
@@ -61,13 +52,7 @@ async function loginStudentOnce(
   request: import("@playwright/test").APIRequestContext,
   landingPath: string,
 ): Promise<void> {
-  const resp = await request.post(`${API}/api/v1/token/`, {
-    data: { username: STUDENT_USER, password: STUDENT_PASS, tenant_code: CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
-    timeout: 60_000,
-  });
-  expect(resp.status()).toBe(200);
-  const tokens = await resp.json() as { access: string; refresh: string };
+  const tokens = await loginTokenViaRequest(request, "student");
 
   await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 45_000 });
   await page.evaluate(({ access, refresh, code }) => {

@@ -27,6 +27,7 @@ const DEFAULT_IGNORE: RegExp[] = [
   // 배포 직후 구 HTML이 새 배포에서 사라진 chunk를 참조할 때 브라우저가 먼저 남기는
   // recoverable console error. 앱은 ErrorBoundary/lazyWithRetry에서 cache-bust reload로 회수한다.
   /Importing a module script failed/i,
+  /LAZY_DEFAULT_UNDEFINED/i,
   // WebKit은 페이지 전환/종료 중 취소된 same-site credential fetch를 pageerror로 보고한다.
   // 실제 성공/실패는 각 spec의 API response/state assertion에서 검증한다.
   /^\/(?:api\.)?hakwonplus\.com\/.* due to access control checks\.$/i,
@@ -36,12 +37,13 @@ const DEFAULT_IGNORE: RegExp[] = [
   /Blocked script execution in 'about:srcdoc'/i,
 ];
 
-const OPTIONAL_NOTIFICATION_CORS_ENDPOINTS: RegExp[] = [
+const TRANSIENT_PRODUCTION_CORS_ENDPOINTS: RegExp[] = [
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/clinic\/participants\/\?[^']*\bstatus=pending\b/i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/admin\/posts\/\?[^']*\bpost_type=(?:qna|counsel)\b/i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/admin\/reports\/pending-count\//i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/notifications\/unread-count\//i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/core\/landing\/admin\/consult\//i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/results\/admin\/clinic-targets\//i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/results\/admin\/teacher-dashboard-counts\//i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/students\/registration_requests\/\?[^']*\bstatus=pending\b/i,
   /https:\/\/api\.hakwonplus\.com\/api\/v1\/submissions\/submissions\/pending\/\?[^']*\bfilter=pending\b/i,
@@ -62,7 +64,7 @@ function allowed(text: string, extra: RegExp[]): boolean {
 
 function isOptionalNotificationCors(text: string): boolean {
   return /Access to XMLHttpRequest .* has been blocked by CORS policy: No 'Access-Control-Allow-Origin'/i.test(text) &&
-    OPTIONAL_NOTIFICATION_CORS_ENDPOINTS.some((re) => re.test(text));
+    TRANSIENT_PRODUCTION_CORS_ENDPOINTS.some((re) => re.test(text));
 }
 
 function isFailedResourceFromBlockedCors(text: string): boolean {

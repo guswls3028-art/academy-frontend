@@ -19,29 +19,61 @@ const PARENT_INITIAL_PASS = "9990";
 const PARENT_STABLE_PASS = "9990e2e";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
 const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "test1234";
+const TOKEN_MAX_ATTEMPTS = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseTokenThrottleWaitMs(responseText: string, retryAfter: string | null): number {
+  const headerSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
+  if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
+    return Math.min(headerSeconds + 1, 75) * 1000;
+  }
+  const bodySeconds = Number.parseInt(responseText.match(/(\d+)\s*초/)?.[1] || "", 10);
+  if (Number.isFinite(bodySeconds) && bodySeconds > 0) {
+    return Math.min(bodySeconds + 1, 75) * 1000;
+  }
+  return 5_000;
+}
 
 async function issueToken(request: APIRequestContext, username: string, password: string) {
-  const resp = await request.post(`${API}/api/v1/token/`, {
-    data: { username, password, tenant_code: "hakwonplus" },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-    timeout: 60_000,
-  });
-  expect(resp.status()).toBe(200);
-  return await resp.json() as { access: string; refresh: string };
+  let lastFailure = "";
+  for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
+    const resp = await request.post(`${API}/api/v1/token/`, {
+      data: { username, password, tenant_code: "hakwonplus" },
+      headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
+      timeout: 60_000,
+    });
+    if (resp.status() === 200) {
+      return await resp.json() as { access: string; refresh: string };
+    }
+    const body = await resp.text();
+    lastFailure = `${resp.status()} ${body}`;
+    if (resp.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) break;
+    await sleep(parseTokenThrottleWaitMs(body, resp.headers()["retry-after"] || null));
+  }
+  throw new Error(`token issue failed for ${username}@hakwonplus: ${lastFailure}`);
 }
 
 async function tryIssueToken(request: APIRequestContext, username: string, password: string) {
-  const resp = await request.post(`${API}/api/v1/token/`, {
-    data: { username, password, tenant_code: "hakwonplus" },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-    timeout: 60_000,
-  });
+  for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
+    const resp = await request.post(`${API}/api/v1/token/`, {
+      data: { username, password, tenant_code: "hakwonplus" },
+      headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
+      timeout: 60_000,
+    });
 
-  if (resp.status() !== 200) {
-    return null;
+    if (resp.status() === 200) {
+      return await resp.json() as { access: string; refresh: string };
+    }
+    const body = await resp.text();
+    if (resp.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) {
+      return null;
+    }
+    await sleep(parseTokenThrottleWaitMs(body, resp.headers()["retry-after"] || null));
   }
-
-  return await resp.json() as { access: string; refresh: string };
+  return null;
 }
 
 async function ensureParentTokens(request: APIRequestContext) {

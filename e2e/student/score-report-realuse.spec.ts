@@ -30,6 +30,7 @@ const PRIMARY_USER = `e2esr${String(TS).slice(-8)}a`;
 const PEER_USER = `e2esr${String(TS).slice(-8)}b`;
 const PRIMARY_PARENT_PHONE = `010${String(TS).slice(-8)}`;
 const PEER_PARENT_PHONE = `010${String(TS + 1).slice(-8)}`;
+const TOKEN_MAX_ATTEMPTS = 5;
 
 type Tokens = { access: string; refresh: string };
 
@@ -55,18 +56,43 @@ function headers(token: string): Record<string, string> {
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseTokenThrottleWaitMs(responseText: string, retryAfter: string | null): number {
+  const headerSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
+  if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
+    return Math.min(headerSeconds + 1, 75) * 1000;
+  }
+  const bodySeconds = Number.parseInt(responseText.match(/(\d+)\s*초/)?.[1] || "", 10);
+  if (Number.isFinite(bodySeconds) && bodySeconds > 0) {
+    return Math.min(bodySeconds + 1, 75) * 1000;
+  }
+  return 5_000;
+}
+
 async function loginToken(
   request: APIRequestContext,
   username: string,
   password: string,
 ): Promise<Tokens> {
-  const resp = await request.post(`${API}/api/v1/token/`, {
-    data: { username, password, tenant_code: CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
-    timeout: 60_000,
-  });
-  expect(resp.status()).toBe(200);
-  return await resp.json() as Tokens;
+  let lastFailure = "";
+  for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
+    const resp = await request.post(`${API}/api/v1/token/`, {
+      data: { username, password, tenant_code: CODE },
+      headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
+      timeout: 60_000,
+    });
+    if (resp.status() === 200) {
+      return await resp.json() as Tokens;
+    }
+    const body = await resp.text();
+    lastFailure = `${resp.status()} ${body}`;
+    if (resp.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) break;
+    await sleep(parseTokenThrottleWaitMs(body, resp.headers()["retry-after"] || null));
+  }
+  throw new Error(`token issue failed for ${username}@${CODE}: ${lastFailure}`);
 }
 
 async function apiFetch<TBody = any>(

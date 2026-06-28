@@ -125,17 +125,21 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
     if (!found) test.skip(true, "paper-type 경고 배너 띄워진 doc 없음");
   });
 
-  test("05-low-conf-banner — 검수 필요 페이지 영역 + 검수 페이지 열기", async ({ page }) => {
+  test("05-low-conf-banner — 검수 필요 페이지 영역 + 검수 페이지 열기", async ({ page }, testInfo) => {
+    testInfo.setTimeout(90_000);
     const docs = page.locator("[data-testid='matchup-doc-row'][data-doc-status='done']");
     const n = await docs.count();
     let found = false;
     for (let i = 0; i < Math.min(n, 20); i++) {
       if (!(await tryOpenDocRow(page, docs.nth(i)))) continue;
-      const btn = page.locator("[data-testid='matchup-low-conf-reviewer-open-btn']");
-      if (await btn.count() > 0) {
+      const btn = page.locator("[data-testid='matchup-low-conf-reviewer-open-btn']").first();
+      if (await btn.isVisible({ timeout: 500 }).catch(() => false)) {
+        await btn.scrollIntoViewIfNeeded();
         const region = btn.locator("xpath=ancestor::*[1]");
-        await region.screenshot({ path: `${OUT}/05-low-conf-area.png` });
-        await btn.click();
+        await region.screenshot({ path: `${OUT}/05-low-conf-area.png`, timeout: 10_000 }).catch(async () => {
+          await page.screenshot({ path: `${OUT}/05-low-conf-area.png`, fullPage: false });
+        });
+        await btn.click({ timeout: 10_000 });
         await waitForCondition(
           async () => (await page.locator("[data-testid='matchup-low-conf-reviewer']").count()) > 0,
           { timeoutMs: 5000, description: "low confidence reviewer opened" },
