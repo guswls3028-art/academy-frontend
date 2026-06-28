@@ -27,6 +27,7 @@ import {
 } from "../api/storage.api";
 import { promoteInventoryToMatchup } from "../api/matchup.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { storageQueryKeys } from "../queryKeys";
 
 const MATCHUP_SUPPORTED_TYPES = new Set([
   "application/pdf",
@@ -84,11 +85,11 @@ export default function MyStorageExplorer() {
   const [renameValue, setRenameValue] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["storage-inventory", SCOPE],
+    queryKey: storageQueryKeys.storageInventory(SCOPE),
     queryFn: () => fetchInventoryList(SCOPE),
   });
   const { data: quota } = useQuery({
-    queryKey: ["storage-quota"],
+    queryKey: storageQueryKeys.storageQuota,
     queryFn: fetchStorageQuota,
   });
   const isLocked = quota?.plan === "standard";
@@ -110,7 +111,7 @@ export default function MyStorageExplorer() {
     if (!newFolderName.trim()) return;
     try {
       await createFolder(SCOPE, currentFolderId, newFolderName.trim());
-      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
@@ -135,9 +136,9 @@ export default function MyStorageExplorer() {
         file: payload.file,
         promoteToMatchup: payload.promoteToMatchup,
       });
-      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
       if (payload.promoteToMatchup) {
-        qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       }
       // 모달 close는 UploadModal이 batch 전체 완료 후 직접 호출.
       // (이전엔 매 파일 업로드 후 close 호출 → 다중 업로드 첫 파일 성공 시 모달이 사라져
@@ -275,7 +276,7 @@ export default function MyStorageExplorer() {
       setIsDeleting(true);
       try {
         const res = await deleteFolder(SCOPE, folderId, undefined, { recursive: true });
-        qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+        qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
         if (res && "deleted" in res) {
           feedback.success(
             `"${name}" 삭제 완료 — 폴더 ${res.deleted.folders} · 파일 ${res.deleted.files}` +
@@ -283,7 +284,7 @@ export default function MyStorageExplorer() {
           );
           // 매치업 cascade 영향 시 매치업 캐시도 갱신
           if (res.deleted.matchup_docs > 0) {
-            qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+            qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
           }
         }
         // 삭제된 폴더가 현재 진입 중이면 부모로 이동
@@ -375,9 +376,9 @@ export default function MyStorageExplorer() {
         feedback.error((e as Error).message);
       }
     }
-    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     if (totalMatchup > 0 || selectedMatchupFiles.length > 0) {
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     }
     clearSelection();
     setIsDeleting(false);
@@ -399,7 +400,7 @@ export default function MyStorageExplorer() {
       } else {
         await renameFile(SCOPE, renamingId.id, renameValue.trim());
       }
-      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     } catch (e) {
       feedback.error((e as Error).message);
     }
@@ -414,22 +415,21 @@ export default function MyStorageExplorer() {
       onDuplicate?: "overwrite" | "rename"
     ) => {
       setMovingId(sourceId);
-      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([
-        "storage-inventory",
-        SCOPE,
-      ]);
+      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(
+        storageQueryKeys.storageInventory(SCOPE),
+      );
       const applyOptimistic = () => {
         if (!prev) return;
         if (type === "file") {
           const files = prev.files.map((f) =>
             f.id === sourceId ? { ...f, folderId: targetFolderId } : f
           );
-          qc.setQueryData(["storage-inventory", SCOPE], { ...prev, files });
+          qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), { ...prev, files });
         } else {
           const folders = prev.folders.map((f) =>
             f.id === sourceId ? { ...f, parentId: targetFolderId } : f
           );
-          qc.setQueryData(["storage-inventory", SCOPE], { ...prev, folders });
+          qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), { ...prev, folders });
         }
       };
       applyOptimistic();
@@ -441,9 +441,9 @@ export default function MyStorageExplorer() {
           targetFolderId,
           onDuplicate,
         });
-        await qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
       } catch (e) {
-        if (prev) qc.setQueryData(["storage-inventory", SCOPE], prev);
+        if (prev) qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), prev);
         const ce = e as MoveConflictError & Error;
         if (ce.status === 409 && ce.code === "duplicate") {
           setConflict({
@@ -482,8 +482,8 @@ export default function MyStorageExplorer() {
         inventoryFileId: file.id,
         title: file.displayName,
       });
-      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       if (doc.ai_job_id) {
         asyncStatusStore.addWorkerJob(
           `매치업 분석: ${file.displayName}`,
@@ -556,8 +556,8 @@ export default function MyStorageExplorer() {
       }
     }
     setBulkPromoting(false);
-    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
-    qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
 
     const parts: string[] = [];
     if (succeeded > 0) parts.push(`${succeeded}개 등록`);
@@ -941,8 +941,8 @@ export default function MyStorageExplorer() {
                   if (!ok) return;
                   try {
                     await deleteFile(SCOPE, target.id);
-                    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
-                    if (target.matchup) qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+                    qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
+                    if (target.matchup) qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
                   } catch (e) {
                     feedback.error((e as Error).message);
                   }

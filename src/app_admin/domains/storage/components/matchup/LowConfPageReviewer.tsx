@@ -35,6 +35,7 @@ import {
   vlmClassifyMatchupPage,
 } from "../../api/matchup.api";
 import type { MatchupDocument, LowConfPage, VlmClassifyResult } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 import { paperTypeLabel } from "./paperType";
 
 const REASON_LABEL: Record<string, string> = {
@@ -80,12 +81,12 @@ export default function LowConfPageReviewer({
   const [vlmLoadingIdx, setVlmLoadingIdx] = useState<number | null>(null);
 
   const pagesQuery = useQuery({
-    queryKey: ["matchup-doc-pages", doc.id],
+    queryKey: storageQueryKeys.matchupDocPages(doc.id),
     queryFn: () => fetchDocumentPages(doc.id),
     staleTime: 5 * 60 * 1000,
   });
   const problemsQuery = useQuery({
-    queryKey: ["matchup-problems", doc.id],
+    queryKey: storageQueryKeys.matchupProblems(doc.id),
     queryFn: () => fetchMatchupProblems(doc.id),
   });
 
@@ -138,8 +139,8 @@ export default function LowConfPageReviewer({
       nextExcluded.add(activeIdx);
       setExcludedThisSession(nextExcluded);
       // 즉시 problems / documents 캐시 무효화
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(doc.id) });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       const nextPage = lowConfPages.find(
         (p) => p.idx !== activeIdx && !nextExcluded.has(p.idx),
       );
@@ -173,7 +174,7 @@ export default function LowConfPageReviewer({
         next.delete(activeIdx);
         return next;
       });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     } catch (e) {
       console.error(e);
       const msg =
@@ -203,8 +204,8 @@ export default function LowConfPageReviewer({
     try {
       await reanalyzeMatchupDocument(doc.id);
       feedback.success("재분석을 시작했습니다. 잠시 후 결과가 반영됩니다.");
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(doc.id) });
       onClose();
     } catch (e) {
       console.error(e);

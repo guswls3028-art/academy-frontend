@@ -43,6 +43,7 @@ import {
   getDocumentIntent, getSourceType, isIndexableSourceType, SOURCE_TYPE_LABELS, SOURCE_TYPE_ORDER,
   type MatchupSourceType,
 } from "../components/matchup/documentIntent";
+import { storageQueryKeys } from "../queryKeys";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 const DocumentUploadModal = lazy(() => import("../components/matchup/DocumentUploadModal"));
@@ -255,7 +256,7 @@ export default function MatchupPage() {
   // 그대로 보여주고 background refetch 만 수행 → "왼쪽에서 문서 선택해 주세요" 빈 상태가
   // 짧게 깜빡이던 결함 fix. 문서 status 변경은 useMatchupPolling 이 별도로 처리.
   const { data: documents = [], isLoading: docsLoading } = useQuery({
-    queryKey: ["matchup-documents"],
+    queryKey: storageQueryKeys.matchupDocuments,
     queryFn: fetchMatchupDocuments,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
@@ -301,7 +302,7 @@ export default function MatchupPage() {
     async (from: string, to: string) => {
       if (!from || from === to) return;
       const res = await renameMatchupCategory({ from, to });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       const trimmed = to.trim();
       if (res.updated > 0) {
         feedback.success(
@@ -327,7 +328,7 @@ export default function MatchupPage() {
         documentIds: targetIds,
         category: "",
       });
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       feedback.success(`"${name}" 카테고리의 ${res.updated}개 문서를 미분류로 이동했습니다.`);
     },
     [documents, qc],
@@ -473,7 +474,7 @@ export default function MatchupPage() {
   }, [hitReportId, selectedProblemId, pinsByExamPid, pendingPinIds]);
 
   const { data: rawProblems = [], isLoading: problemsLoading } = useQuery({
-    queryKey: ["matchup-problems", selectedDocId],
+    queryKey: storageQueryKeys.matchupProblems(selectedDocId),
     queryFn: () => fetchMatchupProblems(selectedDocId!),
     // status==='processing'에서도 활성화 — 백엔드가 세그멘테이션 직후 skeleton row를
     // INSERT하므로 신규 업로드 사용자에게 즉시 부분 결과(N개 카드 + "처리 중" 뱃지)
@@ -579,7 +580,7 @@ export default function MatchupPage() {
           // best-effort — 실패 시 학원장이 나중에 편집 가능
         }
       }
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       if (doc.ai_job_id) {
         asyncStatusStore.addWorkerJob(
           `매치업 분석: ${doc.title || payload.file.name}`,
@@ -607,10 +608,10 @@ export default function MatchupPage() {
         setSelectedDocId(null);
         setSelectedProblemId(null);
       }
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       // 사용자에게 storage-as-canonical 모델을 자명하게 — 원본은 살아있음
       feedback.success("매치업 분석 결과가 삭제되었습니다. 원본 PDF는 저장소에 그대로 있습니다.");
-      qc.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory("admin") });
     },
     [qc, selectedDocId, setSelectedDocId],
   );
@@ -619,8 +620,8 @@ export default function MatchupPage() {
     async (id: number) => {
       const doc = await retryMatchupDocument(id);
       if (selectedDocId === id) setSelectedProblemId(null);
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-      qc.invalidateQueries({ queryKey: ["matchup-problems", id] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(id) });
       if (doc?.ai_job_id) {
         asyncStatusStore.addWorkerJob(
           `매치업 분석 재시도: ${doc.title}`,
@@ -662,7 +663,7 @@ export default function MatchupPage() {
     setCategorySaving(true);
     try {
       await updateMatchupDocument(selectedDoc.id, { category: next });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       feedback.success(next ? `카테고리를 "${next}"로 변경했습니다.` : "카테고리를 비웠습니다.");
       setCategoryEditing(false);
       setCategoryDraft("");
@@ -794,8 +795,8 @@ export default function MatchupPage() {
       feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
       setDeleteSelectedIds([]);
       setDeleteMode(false);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "일괄삭제 실패";
       feedback.error(msg);
@@ -827,10 +828,10 @@ export default function MatchupPage() {
       feedback.success(`Q${problem.number} 삭제 완료`);
       // 옵티미스틱: 캐시에서 즉시 제거.
       qc.setQueryData<unknown[]>(
-        ["matchup-problems", selectedDoc.id],
+        storageQueryKeys.matchupProblems(selectedDoc.id),
         (old) => (old ?? []).filter((p) => (p as { id: number }).id !== problem.id),
       );
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       // 선택된 problem 이 삭제 대상이면 selection 해제.
       setSelectedProblemId((prev) => (prev === problem.id ? null : prev));
     } catch (e: unknown) {
@@ -839,7 +840,7 @@ export default function MatchupPage() {
         ?? "삭제 실패";
       feedback.error(msg);
       // 실패 시 캐시 invalidate 로 복원.
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
     }
   }, [selectedDoc, confirm, qc]);
 
@@ -872,7 +873,7 @@ export default function MatchupPage() {
         && selectedDoc.meta.public_cleanup.status !== "processing",
       );
       const res = await cleanMatchupDocumentPublicImages(selectedDoc.id, shouldForceRerun);
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       if (res.queued && res.job_id) {
         asyncStatusStore.addWorkerJob(
           `공개용 정리: ${selectedDoc.title}`,
@@ -882,7 +883,7 @@ export default function MatchupPage() {
         );
         feedback.success("공개용 이미지 정리를 시작했습니다. 우하단 작업 상자에서 진행률을 확인하세요.");
       } else {
-        await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
         const existingNote = res.skipped > 0 ? ` · 기존 ${res.skipped}개 유지` : "";
         const reviewNote = (res.review_required ?? 0) > 0 ? ` · 검수 필요 ${res.review_required}개` : "";
         feedback.success(`공개용 이미지 ${res.processed}개 정리 완료${existingNote}${reviewNote}`);
@@ -912,8 +913,8 @@ export default function MatchupPage() {
 
     try {
       await approveMatchupProblemPublicImage(problem.id);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       feedback.success(`Q${problem.number} 공개용 이미지를 승인했습니다.`);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -931,8 +932,8 @@ export default function MatchupPage() {
     }
     try {
       await uploadMatchupProblemPublicImage(problem.id, file);
-      await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       feedback.success(`Q${problem.number} 공개용 이미지를 교체했습니다.`);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -962,7 +963,7 @@ export default function MatchupPage() {
     setIntentUpdating(true);
     try {
       await updateMatchupDocument(selectedDoc.id, { intent });
-      await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       if (intent === "test") {
         feedback.success("시험지로 바꿨습니다. 이제 적중 보고서를 작성할 수 있어요.");
       } else {
@@ -1072,12 +1073,12 @@ export default function MatchupPage() {
       }
       try {
         await updateMatchupDocument(selectedDoc.id, { source_type: sourceType });
-        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
         if (autoReanalyze) {
           try {
             await reanalyzeMatchupDocument(selectedDoc.id);
             feedback.success("자료 유형 변경 + 재분석 시작");
-            await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
+            await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
           } catch (e) {
             const msg =
               (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -1107,7 +1108,7 @@ export default function MatchupPage() {
       if (!doc || getDocumentIntent(doc) === next) return;
       try {
         await updateMatchupDocument(id, { intent: next });
-        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
         feedback.success(next === "test"
           ? "문서를 시험지로 변경했습니다."
           : "문서를 참고자료로 변경했습니다.");
@@ -1124,7 +1125,7 @@ export default function MatchupPage() {
     async (id: number, title: string) => {
       try {
         await updateMatchupDocument(id, { title });
-        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
         feedback.success("문서 이름을 변경했습니다.");
       } catch (e) {
         const msg = e instanceof Error ? e.message : "이름 변경 실패";
@@ -1139,7 +1140,7 @@ export default function MatchupPage() {
     async (id: number, category: string) => {
       try {
         await updateMatchupDocument(id, { category });
-        await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
         feedback.success(category
           ? `카테고리를 "${category}"로 변경했습니다.`
           : "카테고리를 미분류로 변경했습니다.");
@@ -1154,7 +1155,7 @@ export default function MatchupPage() {
   const handleNavigateToProblem = useCallback((documentId: number, problemNumber: number) => {
     setSelectedDocId(documentId);
     setPendingNavigateNumber(problemNumber);
-    qc.invalidateQueries({ queryKey: ["matchup-problems", documentId] });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(documentId) });
   }, [qc, setSelectedDocId]);
 
   useEffect(() => {
@@ -2297,8 +2298,8 @@ export default function MatchupPage() {
                   ? ` (보호 문항 ${res.preserved_protected}개 제외)`
                   : "";
                 feedback.success(`${res.deleted}개 문항 삭제 완료${preservedNote}`);
-                await qc.invalidateQueries({ queryKey: ["matchup-problems", selectedDoc.id] });
-                await qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+                await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(selectedDoc.id) });
+                await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
               } catch (e: unknown) {
                 const msg = (e as Error)?.message ?? "일괄삭제 실패";
                 feedback.error(msg);

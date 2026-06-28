@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
 import { fetchStorageQuota } from "../api/storage.api";
+import { storageQueryKeys } from "../queryKeys";
 import styles from "./QuotaIndicator.module.css";
 
 type QuotaIndicatorProps = {
@@ -19,7 +20,7 @@ function formatBytes(bytes: number): string {
 
 export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
   const { data, isLoading } = useQuery({
-    queryKey: ["storage-quota"],
+    queryKey: storageQueryKeys.storageQuota,
     queryFn: fetchStorageQuota,
     staleTime: 60 * 1000,
   });

@@ -22,6 +22,7 @@ import {
   type InventoryFile,
   type MoveConflictError,
 } from "../api/storage.api";
+import { storageQueryKeys } from "../queryKeys";
 import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
@@ -70,7 +71,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
   const [renameValue, setRenameValue] = useState("");
 
   const QK = useMemo(
-    () => ["storage-inventory", SCOPE, studentPs] as const,
+    () => storageQueryKeys.storageStudentInventory(studentPs),
     [studentPs]
   );
 

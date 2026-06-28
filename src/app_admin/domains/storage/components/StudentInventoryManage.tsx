@@ -8,6 +8,7 @@ import { Search, User } from "lucide-react";
 import { fetchStudents } from "@admin/domains/students/api/students.api";
 import type { ClientStudent } from "@admin/domains/students/api/students.api";
 import StudentStorageExplorer from "./StudentStorageExplorer";
+import { storageQueryKeys } from "../queryKeys";
 import styles from "./StudentInventoryManage.module.css";
 
 type StudentInventoryManageProps = {
@@ -34,7 +35,7 @@ export default function StudentInventoryManage({
   }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["storage-student-search", debouncedSearch],
+    queryKey: storageQueryKeys.storageStudentSearch(debouncedSearch),
     queryFn: () => fetchStudents(debouncedSearch, {}, "", 1, false),
   });
 

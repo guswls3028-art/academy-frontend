@@ -27,6 +27,7 @@ import {
   deleteMatchupProblem,
 } from "../../api/matchup.api";
 import type { MatchupDocument } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 
 // id/title만 사용 — 매치업 보고서 작성 화면(HitReportEditor)에서 후보 doc 전체
 // 객체를 새로 fetch하지 않고도 호출할 수 있게 minimal subset만 요구. 매치업 메인
@@ -167,13 +168,13 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
   }, []);
 
   const pagesQuery = useQuery({
-    queryKey: ["matchup-doc-pages", doc.id],
+    queryKey: storageQueryKeys.matchupDocPages(doc.id),
     queryFn: () => fetchDocumentPages(doc.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const problemsQuery = useQuery({
-    queryKey: ["matchup-problems", doc.id],
+    queryKey: storageQueryKeys.matchupProblems(doc.id),
     queryFn: () => fetchMatchupProblems(doc.id),
   });
 
@@ -432,7 +433,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       });
       // 옵티미스틱 즉시 반영 — 캐시에 직접 추가/교체.
       qc.setQueryData<typeof problems>(
-        ["matchup-problems", doc.id],
+        storageQueryKeys.matchupProblems(doc.id),
         (old) => {
           const base = old ?? [];
           const filtered = base.filter((p) => p.number !== created.number);
@@ -440,7 +441,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
         },
       );
       // 외부 doc 리스트 problem_count만 갱신 — problem 캐시는 옵티미스틱 신뢰.
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       // 토스트 대신 인라인 인디케이터(저장 흐름 안 끊김). 실패만 토스트.
       setJustSavedAt(Date.now());
       // 사용자가 진행한 새 박스/번호 보존.
@@ -480,14 +481,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     try {
       const created = await pasteImageAsMatchupProblem(doc.id, pasted.file, num);
       qc.setQueryData<typeof problems>(
-        ["matchup-problems", doc.id],
+        storageQueryKeys.matchupProblems(doc.id),
         (old) => {
           const base = old ?? [];
           const filtered = base.filter((p) => p.number !== created.number);
           return [...filtered, created].sort((a, b) => a.number - b.number);
         },
       );
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       setJustSavedAt(Date.now());
       // 사용자가 새 paste 시작하지 않았으면 클리어 + URL revoke. 새 paste면 그쪽이 우선.
       setPasted((cur) => {
@@ -525,14 +526,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     if (!ok) return;
     // 옵티미스틱: 즉시 캐시에서 제거 후 비동기 백엔드 삭제. 실패하면 invalidate로 복원.
     qc.setQueryData<typeof problems>(
-      ["matchup-problems", doc.id],
+      storageQueryKeys.matchupProblems(doc.id),
       (old) => (old ?? []).filter((p) => p.id !== problemId),
     );
     try {
       await deleteMatchupProblem(problemId);
-      qc.invalidateQueries({ queryKey: ["matchup-documents"] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     } catch {
-      qc.invalidateQueries({ queryKey: ["matchup-problems", doc.id] });
+      qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(doc.id) });
       feedback.error("삭제 실패 — 복원됨");
     }
   };

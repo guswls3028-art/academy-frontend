@@ -25,6 +25,7 @@ import {
   promoteInventoryToMatchup,
   type PromoteAlreadyExistsError,
 } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import "./PromoteFromInventoryModal.css";
 
@@ -97,7 +98,7 @@ export default function PromoteFromInventoryModal({
   } | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["storage-inventory", "admin"],
+    queryKey: storageQueryKeys.storageInventory("admin"),
     queryFn: () => fetchInventoryList("admin"),
   });
 
@@ -227,8 +228,8 @@ export default function PromoteFromInventoryModal({
     setSubmitting(false);
     setProgress(null);
 
-    qc.invalidateQueries({ queryKey: ["matchup-documents"] });
-    qc.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+    qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory("admin") });
 
     if (success > 0) {
       const parts = [`${success}개 매치업으로 가져오기 완료`];

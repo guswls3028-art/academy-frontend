@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import { fetchDocumentCrossMatches, type CrossMatchProblem } from "../../api/matchup.api";
+import { storageQueryKeys } from "../../queryKeys";
 import styles from "./CrossMatchesPanel.module.css";
 
 type DocGroup = {
@@ -73,7 +74,7 @@ type Props = {
 
 export default function CrossMatchesPanel({ docId, enabled, selectedDocIntent = "reference", onSelectProblem }: Props) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["matchup-cross-matches", docId],
+    queryKey: storageQueryKeys.matchupCrossMatches(docId),
     queryFn: () => fetchDocumentCrossMatches(docId!, 1),
     enabled: enabled && !!docId,
     staleTime: 60_000,

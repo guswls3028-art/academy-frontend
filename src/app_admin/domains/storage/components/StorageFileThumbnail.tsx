@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { FileText, Image as ImageIcon, FileSpreadsheet, FileArchive, FilePlay, File as FileIcon } from "lucide-react";
 import { getPresignedUrl } from "../api/storage.api";
 import type { InventoryFile } from "../api/storage.api";
+import { storageQueryKeys } from "../queryKeys";
 import styles from "./StorageFileThumbnail.module.css";
 
 type IconChoice = {
@@ -33,7 +34,7 @@ export default function StorageFileThumbnail({ file }: { file: InventoryFile }) 
 
   // 이미지만 presign 발급 — react-query cache로 동일 r2_key 재사용
   const { data: thumb, isError } = useQuery({
-    queryKey: ["storage-thumb", file.id, file.r2Key],
+    queryKey: storageQueryKeys.storageThumb(file.id, file.r2Key),
     queryFn: async () => {
       const { url } = await getPresignedUrl(file.r2Key, 3600);
       return url;
