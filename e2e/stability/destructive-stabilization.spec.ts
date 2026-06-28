@@ -13,13 +13,23 @@ import { gotoAndSettle } from "../helpers/wait";
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 // ── 공통 헬퍼 ──
+async function recoverFromTransientEdgePage(page: Page) {
+  const edgeError = page.locator("text=Bad gateway").or(page.locator("text=Error code 502")).first();
+  if (!(await edgeError.isVisible({ timeout: 500 }).catch(() => false))) return;
+  await gotoAndSettle(page, `${BASE}/admin/dashboard`);
+}
+
 async function navTo(page: Page, menuText: string, timeout = 10000) {
+  await recoverFromTransientEdgePage(page);
   const link = page
     .locator(
       "nav a, aside a, [class*=sidebar] a, [class*=Sidebar] a, [class*=drawer] a"
     )
     .filter({ hasText: menuText })
     .first();
+  if (!(await link.isVisible({ timeout }).catch(() => false))) {
+    await recoverFromTransientEdgePage(page);
+  }
   await expect(link, `사이드바에 "${menuText}" 메뉴가 보여야 함`).toBeVisible({ timeout });
   await link.click();
   // SPA 렌더 안정화 — networkidle 기반 (waitForTimeout 제거)

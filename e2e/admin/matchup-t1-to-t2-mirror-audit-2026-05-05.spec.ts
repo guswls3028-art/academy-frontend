@@ -17,7 +17,7 @@
  *
  * 주의: read-only — 새 doc 업로드/삭제/edit 등 mutation 없음. screenshot + DOM assertion만.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import * as fs from "node:fs";
 
@@ -36,6 +36,14 @@ const TARGET_DOCS = [
   { id: 329, expected: 25, hint: "언남" },
 ];
 
+async function gotoMatchup(page: Page) {
+  await page.goto(`${BASE}/admin/storage/matchup`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await expect(page.locator('[data-testid="matchup-doc-row"]').first()).toBeVisible({ timeout: 20_000 });
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
@@ -45,13 +53,9 @@ test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
 
   test("01: 매치업 메인 페이지 렌더 + 9 doc 가시성", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${BASE}/admin/storage/matchup`, {
-      waitUntil: "networkidle",
-      timeout: 60_000,
-    });
+    await gotoMatchup(page);
 
     const rows = page.locator('[data-testid="matchup-doc-row"]');
-    await expect(rows.first()).toBeVisible({ timeout: 15_000 });
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/01-matchup-main.png`,
       fullPage: true,
@@ -76,11 +80,7 @@ test.describe("T1 → T2 매치업 mirror 시각 검수 (read-only)", () => {
   for (const t of TARGET_DOCS) {
     test(`02: doc ${t.id} (${t.hint}) — 클릭 → 문항 이미지 렌더`, async ({ page }) => {
       await loginViaUI(page, "tchul-admin");
-      await page.goto(`${BASE}/admin/storage/matchup`, {
-        waitUntil: "networkidle",
-        timeout: 60_000,
-      });
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      await gotoMatchup(page);
 
       // 정확한 doc 찾기 — hint로 filter
       const row = page.locator('[data-testid="matchup-doc-row"]')

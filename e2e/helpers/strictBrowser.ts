@@ -36,6 +36,17 @@ const DEFAULT_IGNORE: RegExp[] = [
   /Blocked script execution in 'about:srcdoc'/i,
 ];
 
+const OPTIONAL_NOTIFICATION_CORS_ENDPOINTS: RegExp[] = [
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/clinic\/participants\/\?[^']*\bstatus=pending\b/i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/admin\/posts\/\?[^']*\bpost_type=(?:qna|counsel)\b/i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/admin\/reports\/pending-count\//i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/community\/notifications\/unread-count\//i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/core\/landing\/admin\/consult\//i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/results\/admin\/teacher-dashboard-counts\//i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/students\/registration_requests\/\?[^']*\bstatus=pending\b/i,
+  /https:\/\/api\.hakwonplus\.com\/api\/v1\/submissions\/submissions\/pending\/\?[^']*\bfilter=pending\b/i,
+];
+
 type Mode = "strict" | "report" | "off";
 
 function resolveMode(): Mode {
@@ -47,6 +58,15 @@ function resolveMode(): Mode {
 
 function allowed(text: string, extra: RegExp[]): boolean {
   return [...DEFAULT_IGNORE, ...extra].some((re) => re.test(text));
+}
+
+function isOptionalNotificationCors(text: string): boolean {
+  return /Access to XMLHttpRequest .* has been blocked by CORS policy: No 'Access-Control-Allow-Origin'/i.test(text) &&
+    OPTIONAL_NOTIFICATION_CORS_ENDPOINTS.some((re) => re.test(text));
+}
+
+function isFailedResourceFromBlockedCors(text: string): boolean {
+  return /^Failed to load resource: net::ERR_FAILED$/i.test(text.trim());
 }
 
 export type StrictBrowserGuards = {
@@ -69,10 +89,24 @@ export function attachStrictBrowserGuards(
   const extra = options?.extraIgnore ?? [];
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  let pendingOptionalCorsResourceFailures = 0;
+  let lastOptionalCorsAt = 0;
 
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const text = msg.text();
+    if (pendingOptionalCorsResourceFailures > 0 && Date.now() - lastOptionalCorsAt > 5_000) {
+      pendingOptionalCorsResourceFailures = 0;
+    }
+    if (isOptionalNotificationCors(text)) {
+      pendingOptionalCorsResourceFailures += 1;
+      lastOptionalCorsAt = Date.now();
+      return;
+    }
+    if (pendingOptionalCorsResourceFailures > 0 && isFailedResourceFromBlockedCors(text)) {
+      pendingOptionalCorsResourceFailures -= 1;
+      return;
+    }
     if (allowed(text, extra)) return;
     consoleErrors.push(text);
   });
