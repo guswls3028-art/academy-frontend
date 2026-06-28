@@ -35,10 +35,10 @@ function SelectionPanelInner({
   const extraSelected = selectedIds.filter(
     (pid) => !active.candidates.some((c) => c.id === pid),
   );
-  const overflowSelectedCount = Math.max(0, selectedIds.length - 4);
+  const overflowSelectedCount = Math.max(0, selectedIds.length - 2);
   const selectionHint = overflowSelectedCount > 0
-    ? `선택 자료 ${selectedIds.length}건 중 ${overflowSelectedCount}건은 PDF 다음 페이지에 이어집니다`
-    : "여러 자료를 담으면 PDF 한 페이지에 최대 4건씩 묶여 표시됩니다";
+    ? `선택 자료 ${selectedIds.length}건 · PDF는 2건씩 나눠 크게 표시됩니다`
+    : "여러 자료를 담으면 문항별 대비 근거로 함께 표시됩니다";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>

@@ -5,7 +5,7 @@
 // 의도적 사용. 부모 HitReportEditor.tsx 와 동일 정책.
 /* eslint-disable no-restricted-syntax */
 
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type {
@@ -128,7 +128,11 @@ function PreviewPaneInner({
       {/* 2-pane 본문 */}
       <div style={{
         flex: 1, minHeight: 0,
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4,
+        display: "grid",
+        gridTemplateColumns: showSelectedGroup
+          ? "minmax(0, 0.92fr) minmax(0, 1.38fr)"
+          : "minmax(0, 1fr) minmax(0, 1fr)",
+        gap: 4,
         padding: 4, background: "#f1f5f9",
       }}>
         {/* 좌 — 시험지 (warning 톤 cap, PDF와 동일) */}
@@ -141,7 +145,7 @@ function PreviewPaneInner({
           placeholderText="시험지 이미지가 없습니다"
         />
         {showSelectedGroup ? (
-          <PreviewMatchGrid candidates={selectedCandidates} />
+          <PreviewMatchRail candidates={selectedCandidates} />
         ) : (
           <PreviewSubPane
             captionLabel="내 수업 자료"
@@ -190,27 +194,59 @@ function candidateDocTitle(candidate: CandidateMeta): string {
     : ("document_id" in candidate ? `자료 ${candidate.document_id}번` : "");
 }
 
-function PreviewMatchGrid({ candidates }: { candidates: CandidateMeta[] }) {
-  const rows = candidates.length <= 2 ? candidates.length : 2;
-  const cols = candidates.length <= 2 ? 1 : 2;
-  const visibleCandidates = candidates.slice(0, 4);
-  const overflowCount = candidates.length - visibleCandidates.length;
+function PreviewMatchRail({ candidates }: { candidates: CandidateMeta[] }) {
+  const shouldFitRows = candidates.length <= 2;
   return (
     <div style={{
       display: "flex",
       flexDirection: "column",
-      gap: 4,
       minHeight: 0,
+      background: "white",
+      border: "1px solid var(--color-border-divider)",
+      borderRadius: 4,
+      overflow: "hidden",
     }}>
       <div style={{
-        flex: 1,
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-        gap: 4,
-        minHeight: 0,
+        flexShrink: 0,
+        padding: "7px 10px",
+        background: "color-mix(in srgb, var(--color-brand-primary) 9%, white)",
+        borderBottom: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
       }}>
-        {visibleCandidates.map((candidate, index) => {
+        <span style={{
+          color: "var(--color-brand-primary)",
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0,
+        }}>
+          내 수업 자료 {candidates.length}건
+        </span>
+        <span style={{
+          color: "var(--color-text-muted)",
+          fontSize: 10,
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+        }}>
+          PDF 2건 단위
+        </span>
+      </div>
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: "auto",
+        padding: 8,
+        background: "#f8fafc",
+        display: "grid",
+        gridTemplateRows: shouldFitRows
+          ? `repeat(${candidates.length}, minmax(0, 1fr))`
+          : undefined,
+        gridAutoRows: shouldFitRows ? undefined : "minmax(320px, auto)",
+        gap: 8,
+      }}>
+        {candidates.map((candidate, index) => {
           const sim = "similarity" in candidate ? candidate.similarity : 0;
           const tier = "similarity" in candidate ? classifyMatch(sim) : "miss";
           const label = `내 수업 자료 ${index + 1}/${candidates.length}`;
@@ -227,32 +263,17 @@ function PreviewMatchGrid({ candidates }: { candidates: CandidateMeta[] }) {
               captionBg={"similarity" in candidate ? TIER_BG[tier] : "#F1F5F9"}
               imageUrl={candidate.image_url || null}
               placeholderText="이미지가 없습니다"
+              paneStyle={shouldFitRows ? undefined : { minHeight: 320 }}
             />
           );
         })}
       </div>
-      {overflowCount > 0 && (
-        <div style={{
-          flexShrink: 0,
-          padding: "5px 8px",
-          borderRadius: 4,
-          background: "color-mix(in srgb, var(--color-brand-primary) 8%, white)",
-          border: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent)",
-          color: "var(--color-brand-primary)",
-          fontSize: 10,
-          fontWeight: 700,
-          lineHeight: 1.35,
-          textAlign: "center",
-        }}>
-          나머지 {overflowCount}건은 PDF 다음 페이지에 이어서 표시됩니다
-        </div>
-      )}
     </div>
   );
 }
 
 function PreviewSubPane({
-  captionLabel, captionSub, captionColor, captionBg, imageUrl, placeholderText,
+  captionLabel, captionSub, captionColor, captionBg, imageUrl, placeholderText, paneStyle,
 }: {
   captionLabel: string;
   captionSub: string;
@@ -260,12 +281,14 @@ function PreviewSubPane({
   captionBg: string;
   imageUrl: string | null;
   placeholderText: string;
+  paneStyle?: CSSProperties;
 }) {
   return (
     <div style={{
       display: "flex", flexDirection: "column",
       background: "white", border: "1px solid var(--color-border-divider)",
       borderRadius: 4, overflow: "hidden", minHeight: 0,
+      ...paneStyle,
     }}>
       <div style={{
         padding: "6px 10px", background: captionBg,
