@@ -14,6 +14,7 @@ import { FileText, Filter, RefreshCw, AlertTriangle } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import useAuth from "@/auth/hooks/useAuth";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
   fetchHitReportList,
   fetchPublishedHitReportIds,
@@ -32,6 +33,7 @@ export default function HitReportListPage() {
   const navigate = useNavigate();
   useQueryClient();  // 캐시 무효화 시 사용 가능 (현재는 직접 invalidate X)
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const isAcademyAdmin = !!(
     user?.is_superuser
     || user?.tenantRole === "owner"
@@ -151,53 +153,98 @@ export default function HitReportListPage() {
 
   return (
     <div style={{
-      maxWidth: 1100, margin: "0 auto", padding: "20px 24px",
+      maxWidth: isMobile ? "100%" : 1100,
+      margin: "0 auto",
+      padding: isMobile ? "16px 14px 96px" : "20px 24px",
       display: "flex", flexDirection: "column", gap: 16,
     }}>
       {/* 헤더 */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 12,
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "center",
+        gap: isMobile ? 10 : 12,
         paddingBottom: 12, borderBottom: "1px solid var(--color-border-divider)",
       }}>
-        <FileText size={ICON.lg} color="var(--color-status-success)" />
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-text-primary)" }}>
-            적중 보고서
-            {summary && reports.length > 0 && summary.total_exam > 0 && (
-              <span style={{
-                marginLeft: 12, fontSize: 14, fontWeight: 700,
-                color: avgHitRate >= 50 ? "var(--color-status-success)"
-                  : avgHitRate >= 25 ? "var(--color-brand-primary)"
-                  : "var(--color-text-muted)",
-              }}>
-                통산 적중률 {avgHitRate.toFixed(1)}%
-              </span>
-            )}
-          </h1>
-          <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>
-            {tab === "mine" ? "내가 작성한 보고서" : "학원 전체 보고서"}
-            {summary && (
-              <span>
-                {"  ·  "}총 {summary.total}건 (게시 {summary.submitted} / 작성중 {summary.drafts})
-              </span>
-            )}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
+          <FileText size={ICON.lg} color="var(--color-status-success)" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "baseline",
+              gap: isMobile ? "4px 8px" : 0,
+              fontSize: 18,
+              fontWeight: 700,
+              lineHeight: 1.35,
+              margin: 0,
+              color: "var(--color-text-primary)",
+            }}>
+              <span>적중 보고서</span>
+              {summary && reports.length > 0 && summary.total_exam > 0 && (
+                <span style={{
+                  marginLeft: isMobile ? 0 : 12,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  color: avgHitRate >= 50 ? "var(--color-status-success)"
+                    : avgHitRate >= 25 ? "var(--color-brand-primary)"
+                    : "var(--color-text-muted)",
+                }}>
+                  통산 적중률 {avgHitRate.toFixed(1)}%
+                </span>
+              )}
+            </h1>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.5 }}>
+              {tab === "mine" ? "내가 작성한 보고서" : "학원 전체 보고서"}
+              {summary && (
+                <span>
+                  {"  ·  "}총 {summary.total}건 (게시 {summary.submitted} / 작성중 {summary.drafts})
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        <Button size="sm" intent="ghost" onClick={() => void load()} disabled={loading} leftIcon={<RefreshCw size={ICON.sm} />}>
-          새로고침
-        </Button>
-        {/* 학원장 spec (박철T 2026-05-13 라이브): "매치업 페이지에서 작성하기를 누를수있게".
-            게시판 페이지로 deep link + 자동 PDF 업로드 모달 open. */}
-        {isAcademyAdmin && (
-          <>
-            <Button size="sm" intent="ghost" onClick={() => navigate("/landing/admin/matchup-board")}>
-              게시판 관리
-            </Button>
-            <Button size="sm" intent="primary" onClick={() => navigate("/landing/admin/matchup-board?compose=upload")}>
-              + PDF 업로드 게시
-            </Button>
-          </>
-        )}
+        <div style={{
+          display: isMobile ? "grid" : "flex",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+          alignItems: "center",
+          gap: 8,
+          width: isMobile ? "100%" : undefined,
+        }}>
+          <Button
+            size="sm"
+            intent="ghost"
+            onClick={() => void load()}
+            disabled={loading}
+            leftIcon={<RefreshCw size={ICON.sm} />}
+            style={{ width: isMobile ? "100%" : undefined }}
+          >
+            새로고침
+          </Button>
+          {/* 학원장 spec (박철T 2026-05-13 라이브): "매치업 페이지에서 작성하기를 누를수있게".
+              게시판 페이지로 deep link + 자동 PDF 업로드 모달 open. */}
+          {isAcademyAdmin && (
+            <>
+              <Button
+                size="sm"
+                intent="ghost"
+                onClick={() => navigate("/landing/admin/matchup-board")}
+                style={{ width: isMobile ? "100%" : undefined }}
+              >
+                게시판 관리
+              </Button>
+              <Button
+                size="sm"
+                intent="primary"
+                onClick={() => navigate("/landing/admin/matchup-board?compose=upload")}
+                style={{ width: isMobile ? "100%" : undefined, gridColumn: isMobile ? "1 / -1" : undefined }}
+              >
+                + PDF 업로드 게시
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.
@@ -293,6 +340,7 @@ export default function HitReportListPage() {
                 onShowcaseToggle={isAcademyAdmin ? () => handleShowcaseToggle(r.id, showcaseIds.has(r.id)) : undefined}
                 onShareCopy={() => handleShareCopy(r.id)}
                 shareLoading={sharingId === r.id}
+                compact={isMobile}
               />
             ))}
           </div>
@@ -342,6 +390,7 @@ function TabBtn({
 function ReportRow({
   report, showAuthor, onClick, showcaseOn, showcaseToggling, onShowcaseToggle,
   onShareCopy, shareLoading,
+  compact,
 }: {
   report: HitReportListItem;
   showAuthor: boolean;
@@ -351,6 +400,7 @@ function ReportRow({
   onShowcaseToggle?: () => void;
   onShareCopy?: () => void;
   shareLoading?: boolean;
+  compact?: boolean;
 }) {
   const shareActive = !!report.has_share_token;
   const isSubmitted = report.status === "submitted";
@@ -386,7 +436,10 @@ function ReportRow({
         borderRadius: 6,
         background: "var(--color-bg-canvas)",
         cursor: "pointer",
-        display: "flex", alignItems: "center", gap: 12,
+        display: "flex",
+        flexDirection: compact ? "column" : "row",
+        alignItems: compact ? "stretch" : "center",
+        gap: compact ? 10 : 12,
         transition: "background 0.12s, border-color 0.12s",
       }}
       onMouseOver={(e) => {
@@ -487,7 +540,11 @@ function ReportRow({
       </div>
 
       <div style={{
-        width: 90, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end",
+        width: compact ? "100%" : 90,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        alignItems: compact ? "stretch" : "flex-end",
         flexShrink: 0,
       }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: progressColor }}>

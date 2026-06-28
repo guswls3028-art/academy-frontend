@@ -528,6 +528,10 @@
     width: min(100% - 24px, 1240px);
   }
 
+  .mobileTabs {
+    display: none;
+  }
+
   .brandText small {
     display: none;
   }
