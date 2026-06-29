@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { formatRoundedVideoDuration } from "../utils/videoFormat";
 import "./VideoReorderModal.css";
 
 /** Minimal video shape — works with both Video (videos API) and MediaVideo (session tab) */
@@ -29,17 +30,6 @@ interface VideoReorderModalProps {
   /** 세션 이름 맵: session_id → label (VideoExplorerPage에서 전달, 크로스 세션 표시용) */
   sessionNameMap?: Map<number, string>;
   onSaved: () => void;
-}
-
-/** duration(초) → "MM:SS" or "H:MM:SS" */
-function formatDuration(seconds: number | null | undefined): string | null {
-  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
 export default function VideoReorderModal({
@@ -162,7 +152,7 @@ export default function VideoReorderModal({
 
             {/* Video rows */}
             {orderedVideos.map((video, index) => {
-              const dur = formatDuration(video.duration);
+              const dur = formatRoundedVideoDuration(video.duration);
               const sessionLabel =
                 sessionNameMap && video.session_id != null
                   ? sessionNameMap.get(video.session_id)

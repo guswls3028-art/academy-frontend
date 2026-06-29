@@ -28,22 +28,8 @@ import VideoEngagementBar from "@admin/domains/videos/components/features/video-
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
+import { formatVideoBytes, formatVideoDuration } from "../utils/videoFormat";
 import "./VideoDetailPage.css";
-
-function formatBytes(b?: number) {
-  return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "—";
-}
-
-function formatDuration(d?: string | number | null) {
-  if (!d) return null;
-  const sec = typeof d === "string" ? parseInt(d, 10) : d;
-  if (isNaN(sec) || sec <= 0) return null;
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 /* ── Chevron icon for collapsible ── */
 function ChevronIcon({ open }: { open: boolean }) {
@@ -161,6 +147,7 @@ export default function VideoDetailPage() {
   }
 
   const video = data.video;
+  const durationLabel = formatVideoDuration(video.duration);
   const students = data.students ?? [];
   const total = students.length;
   const completed100 = students.filter((s) => normalizeVideoProgressRatio(s.progress) >= 1).length;
@@ -243,16 +230,16 @@ export default function VideoDetailPage() {
                 {video.created_at && (
                   <span>{video.created_at}</span>
                 )}
-                {formatDuration(video.duration) && (
+                {durationLabel && (
                   <>
                     <span className="video-detail-dot">·</span>
-                    <span>{formatDuration(video.duration)}</span>
+                    <span>{durationLabel}</span>
                   </>
                 )}
                 {video.file_size && (
                   <>
                     <span className="video-detail-dot">·</span>
-                    <span>{formatBytes(video.file_size)}</span>
+                    <span>{formatVideoBytes(video.file_size)}</span>
                   </>
                 )}
                 <span className="video-detail-meta-spacer" />

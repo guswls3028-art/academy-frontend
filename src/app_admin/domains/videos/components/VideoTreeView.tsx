@@ -44,6 +44,7 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";
 import VideoEditModal from "./features/video-detail/modals/VideoEditModal";
 import VideoReorderModal from "./VideoReorderModal";
+import { formatRoundedVideoDuration } from "../utils/videoFormat";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./VideoExplorer.module.css";
 
@@ -70,16 +71,6 @@ function formatViewCount(count: number): string {
   if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
   if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천`;
   return `${count}`;
-}
-
-function formatDuration(seconds: number | null | undefined): string | null {
-  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
 export default function VideoTreeView() {
@@ -469,7 +460,7 @@ export default function VideoTreeView() {
                 )}
 
                 {videos.map((v) => {
-                  const durationLabel = formatDuration(v.duration);
+                  const durationLabel = formatRoundedVideoDuration(v.duration);
                   const hasViewCount = v.view_count != null && Number.isFinite(v.view_count);
 
                   return (
