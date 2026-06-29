@@ -8,7 +8,6 @@
  *
  * 기존 좌우 분할 UI 폐기 — 4조합을 한 눈에 볼 수 있도록 2차원 그리드로 재편.
  */
-/* eslint-disable no-restricted-syntax -- legacy matrix uses inline DS tokens; current touch fixes hook order only. */
 import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +30,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import styles from "./SectionManagementPage.module.css";
 
 const DAY_OPTIONS = [
   { value: 0, label: "월" },
@@ -264,7 +264,7 @@ export default function SectionManagementPage() {
   }
 
   if (!Number.isFinite(lecId)) {
-    return <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>강의 정보를 찾을 수 없습니다.</div>;
+    return <div className={`p-4 text-sm ${styles.invalidLecture}`}>강의 정보를 찾을 수 없습니다.</div>;
   }
 
   const isLoading = sectionsLoading || assignLoading || enrollLoading;
@@ -343,19 +343,15 @@ export default function SectionManagementPage() {
         {/* ===== 클리닉 미편성 경고 배너 (정규형 전용) ===== */}
         {showClinic && clinicSections.length > 0 && totalStudents > 0 && clinicAssignedCount < totalStudents && (
           <div
-            className="rounded-xl p-3 flex items-center gap-3"
-            style={{
-              background: "color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-bg-surface))",
-              border: "1px solid color-mix(in srgb, var(--color-warning, #d97706) 35%, var(--color-border-divider))",
-            }}
+            className={`rounded-xl p-3 flex items-center gap-3 ${styles.warningBanner}`}
             role="alert"
           >
-            <AlertTriangle size={18} style={{ color: "var(--color-warning, #d97706)", flexShrink: 0 }} />
+            <AlertTriangle size={18} className={styles.warningIcon} />
             <div className="flex-1">
-              <div className="text-[13px] font-bold" style={{ color: "var(--color-warning, #d97706)" }}>
+              <div className={`text-[13px] font-bold ${styles.warningTitle}`}>
                 클리닉반 미편성 학생 {totalStudents - clinicAssignedCount}명
               </div>
-              <div className="text-[12px]" style={{ color: "var(--color-text-secondary)" }}>
+              <div className={`text-[12px] ${styles.secondaryText}`}>
                 정규형 클리닉은 모든 학생이 클리닉반에 편성되어야 합니다. 자동배정 또는 아래 매트릭스에서 수동 이동하세요.
               </div>
             </div>
@@ -373,8 +369,7 @@ export default function SectionManagementPage() {
 
         {/* ===== 요약 + 액션 ===== */}
         <div
-          className="rounded-xl p-4 flex items-center justify-between flex-wrap gap-3"
-          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
+          className={`rounded-xl p-4 flex items-center justify-between flex-wrap gap-3 ${styles.panel}`}
         >
           <div className="flex items-center gap-5 flex-wrap">
             <SummaryStat label="전체 학생" value={totalStudents} />
@@ -420,7 +415,7 @@ export default function SectionManagementPage() {
         </div>
 
         {/* ===== 반 카드 (수업/클리닉) ===== */}
-        <div className="grid gap-4" style={{ gridTemplateColumns: showClinic ? "1fr 1fr" : "1fr" }}>
+        <div className={`grid gap-4 ${showClinic ? styles.sectionGrid : styles.sectionGridSingle}`}>
           <SectionListCard
             title="수업반"
             icon={<BookOpen size={16} />}
@@ -447,17 +442,15 @@ export default function SectionManagementPage() {
 
         {/* ===== 매트릭스 ===== */}
         <div
-          className="rounded-xl overflow-hidden"
-          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
+          className={`rounded-xl overflow-hidden ${styles.panel}`}
         >
           <div
-            className="px-4 py-3 flex items-center justify-between"
-            style={{ background: "var(--color-bg-surface-sunken)", borderBottom: "1px solid var(--color-border-divider)" }}
+            className={`px-4 py-3 flex items-center justify-between ${styles.matrixHeader}`}
           >
-            <span className="text-[14px] font-bold" style={{ color: "var(--color-text-primary)" }}>
+            <span className={`text-[14px] font-bold ${styles.primaryText}`}>
               편성 매트릭스
             </span>
-            <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>
+            <span className={`text-[12px] ${styles.mutedText}`}>
               셀을 클릭하면 학생을 이동할 수 있습니다.
             </span>
           </div>
@@ -508,20 +501,20 @@ export default function SectionManagementPage() {
 /* =================== Sub-components =================== */
 
 function Divider() {
-  return <span style={{ width: 1, height: 20, background: "var(--color-border-divider)" }} />;
+  return <span className={styles.divider} />;
 }
 
 function SummaryStat({ label, value, tone = "default" }: {
   label: string; value: string | number; tone?: "default" | "ok" | "warning";
 }) {
-  const valueColor =
-    tone === "warning" ? "var(--color-warning, #d97706)" :
-    tone === "ok" ? "var(--color-success, #16a34a)" :
-    "var(--color-text-primary)";
+  const valueClass =
+    tone === "warning" ? styles.summaryValueWarning :
+    tone === "ok" ? styles.summaryValueOk :
+    styles.summaryValueDefault;
   return (
     <div className="flex flex-col">
-      <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>{label}</span>
-      <span className="text-[16px] font-bold tabular-nums" style={{ color: valueColor }}>{value}</span>
+      <span className={`text-[11px] font-medium ${styles.mutedText}`}>{label}</span>
+      <span className={`text-[16px] font-bold tabular-nums ${valueClass}`}>{value}</span>
     </div>
   );
 }
@@ -538,35 +531,30 @@ function SectionListCard({
   onEdit: (s: Section) => void;
   onDelete: (s: Section) => void;
 }) {
-  const accent = tone === "brand" ? "var(--color-brand-primary)" : "var(--color-warning, #d97706)";
-  const accentBg = `color-mix(in srgb, ${accent} 8%, var(--color-bg-surface))`;
+  const headerClass = tone === "brand" ? styles.listHeaderBrand : styles.listHeaderWarning;
+  const badgeClass = tone === "brand" ? styles.sectionBadgeBrand : styles.sectionBadgeWarning;
 
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-border-divider)" }}
-    >
+    <div className={`rounded-xl overflow-hidden ${styles.panel}`}>
       <div
-        className="px-4 py-3 flex items-center justify-between"
-        style={{ background: accentBg, borderBottom: `1px solid color-mix(in srgb, ${accent} 15%, transparent)` }}
+        className={`px-4 py-3 flex items-center justify-between ${headerClass}`}
       >
-        <div className="flex items-center gap-2" style={{ color: accent }}>
+        <div className="flex items-center gap-2">
           <span>{icon}</span>
           <span className="text-[14px] font-bold">{title}</span>
-          <span className="text-[12px] font-semibold" style={{ color: "var(--color-text-muted)" }}>
+          <span className={`text-[12px] font-semibold ${styles.mutedText}`}>
             {sections.length}개
           </span>
         </div>
         <Button intent="ghost" size="sm" onClick={onAdd} leftIcon={<Plus size={16} />}>반 추가</Button>
       </div>
 
-      <div className="p-3 flex flex-col gap-2" style={{ minHeight: 120 }}>
+      <div className={`p-3 flex flex-col gap-2 ${styles.listBody}`}>
         {isLoading ? (
-          <div className="text-center py-6 text-[13px]" style={{ color: "var(--color-text-muted)" }}>불러오는 중...</div>
+          <div className={`text-center py-6 text-[13px] ${styles.mutedText}`}>불러오는 중...</div>
         ) : sections.length === 0 ? (
           <div
-            className="text-center py-6 text-[13px] rounded-lg"
-            style={{ color: "var(--color-text-muted)", border: "1px dashed var(--color-border-divider)" }}
+            className={`text-center py-6 text-[13px] rounded-lg ${styles.emptyList}`}
           >
             등록된 반이 없습니다
           </div>
@@ -574,36 +562,32 @@ function SectionListCard({
           sections.map((sec) => (
             <div
               key={sec.id}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg"
-              style={{ background: "var(--color-bg-surface-sunken)", border: "1px solid var(--color-border-divider)" }}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${styles.sectionRow}`}
             >
               <span
-                className="inline-flex items-center justify-center text-[13px] font-bold"
-                style={{ minWidth: 32, height: 28, background: accent, color: "#fff", borderRadius: 6, padding: "0 8px" }}
+                className={`inline-flex items-center justify-center text-[13px] font-bold ${styles.sectionBadge} ${badgeClass}`}
               >
                 {sec.label}
               </span>
               <div className="flex-1 flex flex-col">
-                <span className="text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                <span className={`text-[13px] font-semibold ${styles.primaryText}`}>
                   {sec.day_of_week_display} {sec.start_time?.slice(0, 5)}
                   {sec.end_time ? ` ~ ${sec.end_time.slice(0, 5)}` : ""}
                 </span>
-                <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                <span className={`text-[11px] ${styles.mutedText}`}>
                   {sec.location ? `${sec.location} · ` : ""}정원 {sec.max_capacity ?? "무제한"} · 현재 {sec.assignment_count}명
                 </span>
               </div>
               <button
                 onClick={() => onEdit(sec)}
-                className="p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
-                style={{ color: "var(--color-text-muted)" }}
+                className={`p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)] ${styles.iconButtonMuted}`}
                 aria-label={`${sec.label}반 수정`}
               >
                 <Pencil size={14} />
               </button>
               <button
                 onClick={() => onDelete(sec)}
-                className="p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
-                style={{ color: "var(--color-error)" }}
+                className={`p-1.5 rounded hover:bg-[var(--color-bg-surface-hover)] ${styles.iconButtonDanger}`}
                 aria-label={`${sec.label}반 삭제`}
               >
                 <Trash2 size={14} />
@@ -643,45 +627,27 @@ function MatrixGrid({
   return (
     <div className="overflow-x-auto">
       <table
-        className="w-full text-[13px]"
-        style={{ borderCollapse: "separate", borderSpacing: 0, minWidth: 560 }}
+        className={`w-full text-[13px] ${styles.matrixTable}`}
       >
         <thead>
           <tr>
             <th
-              style={{
-                padding: "10px 12px",
-                borderBottom: "1px solid var(--color-border-divider)",
-                borderRight: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface-sunken)",
-                textAlign: "left",
-                fontSize: 11,
-                color: "var(--color-text-muted)",
-                fontWeight: 600,
-                width: 140,
-              }}
+              className={`${styles.matrixHeaderCell} ${styles.matrixCornerHeader}`}
             >
               수업 \ 클리닉
             </th>
             {clinicCols.map((c) => (
               <th
                 key={c?.id ?? "U"}
-                style={{
-                  padding: "10px 8px",
-                  borderBottom: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface-sunken)",
-                  textAlign: "center",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: c == null ? "var(--color-text-muted)" : "var(--color-warning, #d97706)",
-                  minWidth: 140,
-                }}
+                className={`${styles.matrixHeaderCell} ${styles.matrixColumnHeader} ${
+                  c == null ? styles.matrixColumnMuted : styles.matrixColumnWarning
+                }`}
               >
                 {c == null
                   ? (showClinic ? "클리닉 미배정" : "학생")
                   : (<>
                       <span>{c.label}반</span>
-                      <span style={{ marginLeft: 6, fontSize: 11, color: "var(--color-text-muted)", fontWeight: 500 }}>
+                      <span className={styles.matrixMeta}>
                         {c.day_of_week_display} {c.start_time?.slice(0, 5)}
                       </span>
                     </>)
@@ -694,21 +660,14 @@ function MatrixGrid({
           {rowSections.map((rowSec) => (
             <tr key={rowSec?.id ?? "U"}>
               <td
-                style={{
-                  padding: "10px 12px",
-                  borderBottom: "1px solid var(--color-border-divider)",
-                  borderRight: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface-sunken)",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: rowSec == null ? "var(--color-text-muted)" : "var(--color-brand-primary)",
-                  verticalAlign: "top",
-                }}
+                className={`${styles.matrixRowHeader} ${
+                  rowSec == null ? styles.matrixRowMuted : styles.matrixRowBrand
+                }`}
               >
                 {rowSec == null ? "수업 미배정" : (
                   <div className="flex flex-col">
                     <span>{rowSec.label}반</span>
-                    <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 500 }}>
+                    <span className={styles.matrixMeta}>
                       {rowSec.day_of_week_display} {rowSec.start_time?.slice(0, 5)}
                     </span>
                   </div>
@@ -719,14 +678,9 @@ function MatrixGrid({
                 return (
                   <td
                     key={clinicSec?.id ?? "U"}
-                    style={{
-                      padding: 6,
-                      borderBottom: "1px solid var(--color-border-divider)",
-                      verticalAlign: "top",
-                      background: rowSec == null || (showClinic && clinicSec == null)
-                        ? "color-mix(in srgb, var(--color-warning) 4%, transparent)"
-                        : "var(--color-bg-surface)",
-                    }}
+                    className={`${styles.matrixCell} ${
+                      rowSec == null || (showClinic && clinicSec == null) ? styles.matrixCellUnassigned : ""
+                    }`}
                   >
                     <MatrixCell
                       students={cell}
@@ -771,8 +725,7 @@ function MatrixCell({
   if (students.length === 0) {
     return (
       <div
-        className="flex items-center justify-center text-[12px]"
-        style={{ minHeight: 60, color: "var(--color-text-muted)" }}
+        className={`flex items-center justify-center text-[12px] ${styles.matrixEmptyCell}`}
       >
         —
       </div>
@@ -780,7 +733,7 @@ function MatrixCell({
   }
 
   return (
-    <div className="flex flex-col gap-1" style={{ minHeight: 60 }}>
+    <div className={`flex flex-col gap-1 ${styles.matrixCellStack}`}>
       {students.map((s) => {
         const isOpen = openStudentId === s.id;
         const a = assignmentByEnrollment.get(s.id);
@@ -790,13 +743,9 @@ function MatrixCell({
               type="button"
               onClick={() => setOpenStudentId(isOpen ? null : s.id)}
               disabled={busy}
-              className="w-full text-left px-2 py-1 rounded text-[12px] font-medium truncate"
-              style={{
-                background: isOpen ? "var(--color-primary-light, #e0e7ff)" : "var(--color-bg-surface-sunken)",
-                color: "var(--color-text-primary)",
-                border: "1px solid var(--color-border-divider)",
-                cursor: busy ? "wait" : "pointer",
-              }}
+              className={`w-full text-left px-2 py-1 rounded text-[12px] font-medium truncate ${
+                styles.studentButton
+              } ${isOpen ? styles.studentButtonOpen : ""} ${busy ? styles.studentButtonBusy : ""}`}
             >
               {s.student?.name ?? "이름없음"}
             </button>
@@ -841,21 +790,15 @@ function StudentMoveMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="absolute left-0 top-full z-50 mt-1 rounded-lg p-3 flex flex-col gap-2"
-        style={{
-          minWidth: 220,
-          background: "var(--color-bg-surface)",
-          border: "1px solid var(--color-border-default)",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-        }}
+        className={`absolute left-0 top-full z-50 mt-1 rounded-lg p-3 flex flex-col gap-2 ${styles.moveMenu}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-[12px] font-bold" style={{ color: "var(--color-text-primary)" }}>
+        <div className={`text-[12px] font-bold ${styles.primaryText}`}>
           {enrollment.student?.name} 이동
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>수업반</span>
+          <span className={`text-[11px] font-medium ${styles.mutedText}`}>수업반</span>
           <select
             className="ds-input"
             value={pickedClass ?? ""}
@@ -870,7 +813,7 @@ function StudentMoveMenu({
 
         {showClinic && (
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>클리닉반</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>클리닉반</span>
             <select
               className="ds-input"
               value={pickedClinic ?? ""}
@@ -890,7 +833,7 @@ function StudentMoveMenu({
             intent="ghost"
             size="sm"
             onClick={onClear}
-            style={{ color: "var(--color-error)" }}
+            className={styles.dangerButton}
           >
             편성 해제
           </Button>
@@ -921,22 +864,20 @@ function SectionFormModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.4)" }}
+      className={`fixed inset-0 z-50 flex items-center justify-center ${styles.modalBackdrop}`}
       onClick={onClose}
     >
       <div
-        className="rounded-xl p-5 w-[420px] flex flex-col gap-3"
-        style={{ background: "var(--color-bg-surface)", boxShadow: "0 12px 32px rgba(0,0,0,0.16)" }}
+        className={`rounded-xl p-5 w-[420px] flex flex-col gap-3 ${styles.modalCard}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-[16px] font-bold" style={{ color: "var(--color-text-primary)" }}>
+        <h3 className={`text-[16px] font-bold ${styles.primaryText}`}>
           {editId ? "반 수정" : `${form.section_type === "CLASS" ? "수업반" : "클리닉반"} 추가`}
         </h3>
 
         <div className="grid grid-cols-3 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>반 이름</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>반 이름</span>
             <input
               className="ds-input"
               placeholder="A"
@@ -947,7 +888,7 @@ function SectionFormModal({
             />
           </label>
           <label className="flex flex-col gap-1 col-span-2">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>타입</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>타입</span>
             <select
               className="ds-input"
               value={form.section_type}
@@ -962,7 +903,7 @@ function SectionFormModal({
 
         <div className="grid grid-cols-3 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>요일</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>요일</span>
             <select
               className="ds-input"
               value={form.day_of_week}
@@ -974,7 +915,7 @@ function SectionFormModal({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>시작</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>시작</span>
             <input
               className="ds-input"
               type="time"
@@ -983,7 +924,7 @@ function SectionFormModal({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>종료</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>종료</span>
             <input
               className="ds-input"
               type="time"
@@ -995,7 +936,7 @@ function SectionFormModal({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>장소</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>장소</span>
             <input
               className="ds-input"
               placeholder="선택 입력"
@@ -1004,7 +945,7 @@ function SectionFormModal({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>정원</span>
+            <span className={`text-[11px] font-medium ${styles.mutedText}`}>정원</span>
             <input
               className="ds-input"
               type="number"

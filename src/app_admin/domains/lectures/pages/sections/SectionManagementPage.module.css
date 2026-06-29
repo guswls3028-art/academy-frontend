@@ -1,0 +1,236 @@
+.invalidLecture {
+  color: var(--color-error);
+}
+
+.warningBanner {
+  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 35%, var(--color-border-divider));
+}
+
+.warningIcon {
+  color: var(--color-warning, #d97706);
+  flex-shrink: 0;
+}
+
+.warningTitle {
+  color: var(--color-warning, #d97706);
+}
+
+.primaryText {
+  color: var(--color-text-primary);
+}
+
+.secondaryText {
+  color: var(--color-text-secondary);
+}
+
+.mutedText {
+  color: var(--color-text-muted);
+}
+
+.errorText {
+  color: var(--color-error);
+}
+
+.panel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+}
+
+.sectionGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.sectionGridSingle {
+  grid-template-columns: 1fr;
+}
+
+.matrixHeader {
+  background: var(--color-bg-surface-sunken);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-divider);
+}
+
+.summaryValueDefault {
+  color: var(--color-text-primary);
+}
+
+.summaryValueOk {
+  color: var(--color-success, #16a34a);
+}
+
+.summaryValueWarning {
+  color: var(--color-warning, #d97706);
+}
+
+.listHeaderBrand {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+}
+
+.listHeaderWarning {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 15%, transparent);
+}
+
+.listBody {
+  min-height: 120px;
+}
+
+.emptyList {
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-divider);
+}
+
+.sectionRow {
+  background: var(--color-bg-surface-sunken);
+  border: 1px solid var(--color-border-divider);
+}
+
+.sectionBadge {
+  min-width: 32px;
+  height: 28px;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 8px;
+}
+
+.sectionBadgeBrand {
+  background: var(--color-brand-primary);
+}
+
+.sectionBadgeWarning {
+  background: var(--color-warning, #d97706);
+}
+
+.iconButtonMuted {
+  color: var(--color-text-muted);
+}
+
+.iconButtonDanger {
+  color: var(--color-error);
+}
+
+.matrixTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 560px;
+}
+
+.matrixCornerHeader {
+  width: 140px;
+  padding: 10px 12px;
+  border-right: 1px solid var(--color-border-divider);
+  text-align: left;
+  font-size: 11px;
+}
+
+.matrixHeaderCell {
+  background: var(--color-bg-surface-sunken);
+  border-bottom: 1px solid var(--color-border-divider);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.matrixColumnHeader {
+  min-width: 140px;
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.matrixColumnWarning {
+  color: var(--color-warning, #d97706);
+}
+
+.matrixColumnMuted {
+  color: var(--color-text-muted);
+}
+
+.matrixMeta {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.matrixRowHeader {
+  padding: 10px 12px;
+  border-right: 1px solid var(--color-border-divider);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-sunken);
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: top;
+}
+
+.matrixRowBrand {
+  color: var(--color-brand-primary);
+}
+
+.matrixRowMuted {
+  color: var(--color-text-muted);
+}
+
+.matrixCell {
+  padding: 6px;
+  border-bottom: 1px solid var(--color-border-divider);
+  vertical-align: top;
+  background: var(--color-bg-surface);
+}
+
+.matrixCellUnassigned {
+  background: color-mix(in srgb, var(--color-warning) 4%, transparent);
+}
+
+.matrixEmptyCell,
+.matrixCellStack {
+  min-height: 60px;
+}
+
+.matrixEmptyCell {
+  color: var(--color-text-muted);
+}
+
+.studentButton {
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-sunken);
+  cursor: pointer;
+}
+
+.studentButtonOpen {
+  background: var(--color-primary-light, #e0e7ff);
+}
+
+.studentButtonBusy {
+  cursor: wait;
+}
+
+.moveMenu {
+  min-width: 220px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dangerButton {
+  color: var(--color-error);
+}
+
+.modalBackdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modalCard {
+  background: var(--color-bg-surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
