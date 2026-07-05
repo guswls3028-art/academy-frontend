@@ -8,12 +8,9 @@ import { useExpenses } from "../../hooks/useExpenses";
 import CreateExpenseModal from "./CreateExpenseModal";
 import { Button } from "@/shared/ui/ds";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
+import { cx } from "@/shared/utils/cx";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import "../../styles/staff-area.css";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 function fmtDateTime(v?: string | null) {
   if (!v) return "-";

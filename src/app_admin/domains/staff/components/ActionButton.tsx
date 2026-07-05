@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/components/ActionButton.tsx
 import React from "react";
+import { cx } from "@/shared/utils/cx";
 
 type Variant =
   | "primary"
@@ -11,10 +12,6 @@ type Variant =
   | "danger-outline";
 
 type Size = "xs" | "sm" | "md";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 const BASE =
   "inline-flex items-center justify-center select-none whitespace-nowrap font-semibold rounded-lg border transition " +

@@ -2,13 +2,10 @@
 // 월 마감 — 대형 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
 import { Button } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import "../../styles/staff-area.css";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function MonthLockPanel() {
   const { year, month, locked, canManage, lockM } = useWorkMonth();

@@ -4,15 +4,12 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
 import CreateWorkRecordModal from "./CreateWorkRecordModal";
 import "../../styles/staff-area.css";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function WorkRecordsPanel() {
   const { staffId, range, locked } = useWorkMonth();

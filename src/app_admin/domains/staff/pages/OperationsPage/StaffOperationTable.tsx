@@ -7,10 +7,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Staff } from "../../api/staff.api";
 import { EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+import { cx } from "@/shared/utils/cx";
 
 const EMPTY_STAFFS: Staff[] = [];
 const ROLE_ORDER = { TEACHER: 0, ASSISTANT: 1 } as const;
