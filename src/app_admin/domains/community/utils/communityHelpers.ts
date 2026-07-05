@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/community/utils/communityHelpers.ts
 // Shared helper functions for community pages (Board, Materials, Notice, QnA)
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { formatCompactFileSize } from "@/shared/utils/fileSize";
 
 /**
  * Strip HTML tags and return plain text content.
@@ -66,11 +67,4 @@ export function toLectureChips(enrollments?: Array<{
   }));
 }
 
-/**
- * Format byte count into human-readable size (B / KB / MB).
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
+export { formatCompactFileSize as formatFileSize };
