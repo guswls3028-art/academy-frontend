@@ -9,7 +9,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { ChevronRight, Search } from "@teacher/shared/ui/Icons";
-import { formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
+import { formatBillingDate as formatDate, formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
 import {
   fetchInvoices,
   fetchInvoiceDetail,
@@ -38,13 +38,6 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
 ];
 
 const STATUS_TONE: Record<InvoiceStatus, "success" | "danger" | "warning" | "info" | "neutral"> = FEES_STATUS_TONE;
-
-function formatDate(date: string | null | undefined): string {
-  if (!date) return "-";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return parsed.toLocaleDateString("ko-KR");
-}
 
 export default function FeesInvoicesPage() {
   const navigate = useNavigate();
