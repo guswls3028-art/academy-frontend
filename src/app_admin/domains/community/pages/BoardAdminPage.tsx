@@ -32,6 +32,7 @@ import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
 import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button, Badge } from "@/shared/ui/ds";
@@ -112,8 +113,8 @@ export default function BoardAdminPage() {
     try {
       const res = await bulkUpdatePostStatus(Array.from(selectedIds), newStatus);
       feedback.success(`${res.updated}건 ${labelMap[newStatus]} 완료`);
-      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-      qc.invalidateQueries({ queryKey: ["community", "board", "counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
       clearSelection();
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -124,17 +125,17 @@ export default function BoardAdminPage() {
   }, [selectedIds, bulkSubmitting, clearSelection, confirm, qc]);
 
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
-    queryKey: ["community-scope-nodes"],
+    queryKey: adminCommunityQueryKeys.scopeNodes,
     queryFn: fetchScopeNodes,
   });
 
   const { data: lectures = [] } = useQuery<Lecture[]>({
-    queryKey: ["lectures-list"],
+    queryKey: adminCommunityQueryKeys.lecturesList,
     queryFn: () => fetchLectures({ is_active: true }),
   });
 
   const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
-    queryKey: ["lecture-sessions", expandedLectureId],
+    queryKey: adminCommunityQueryKeys.lectureSessions(expandedLectureId),
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
@@ -155,7 +156,7 @@ export default function BoardAdminPage() {
 
   // 게시판 전체 목록 (post_type 기반, scope는 클라이언트 필터, q는 서버 검색)
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-board-posts-all", debouncedQuery],
+    queryKey: adminCommunityQueryKeys.boardPostsList(debouncedQuery),
     queryFn: async () => {
       const { results } = await fetchAdminPosts({
         postType: "board",
@@ -422,8 +423,8 @@ export default function BoardAdminPage() {
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community", "board", "counts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
               setShowCreate(false);
               feedback.success("게시물이 등록되었습니다.");
             }}
@@ -436,8 +437,8 @@ export default function BoardAdminPage() {
             onClose={() => setSelectedId(null)}
             onDeleted={() => {
               setSelectedId(null);
-              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community", "board", "counts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
             }}
           />
         )}
@@ -645,7 +646,7 @@ function PostDetailView({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
-    queryKey: ["community-post", postId],
+    queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
   });
@@ -670,9 +671,9 @@ function PostDetailView({
   const updateMut = useMutation({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-      qc.invalidateQueries({ queryKey: ["community", "board", "counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
       setEditingTitle(false);
       feedback.success("수정되었습니다.");
     },
@@ -684,7 +685,7 @@ function PostDetailView({
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       feedback.success("게시물이 삭제되었습니다.");
       onDeleted();
     },
@@ -812,7 +813,7 @@ function AdminAttachmentSection({
   const uploadMut = useMutation({
     mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       feedback.success("파일이 첨부되었습니다.");
     },
     onError: (e: unknown) => {
@@ -823,7 +824,7 @@ function AdminAttachmentSection({
   const deleteMut = useMutation({
     mutationFn: (attId: number) => deletePostAttachment(postId, attId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       feedback.success("첨부파일이 삭제되었습니다.");
     },
     onError: (e: unknown) => {

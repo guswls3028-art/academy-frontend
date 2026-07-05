@@ -27,6 +27,7 @@ import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
 import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button, Badge } from "@/shared/ui/ds";
@@ -77,17 +78,17 @@ export default function MaterialsBoardPage() {
   const qc = useQueryClient();
 
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
-    queryKey: ["community-scope-nodes"],
+    queryKey: adminCommunityQueryKeys.scopeNodes,
     queryFn: fetchScopeNodes,
   });
 
   const { data: lectures = [] } = useQuery<Lecture[]>({
-    queryKey: ["lectures-list"],
+    queryKey: adminCommunityQueryKeys.lecturesList,
     queryFn: () => fetchLectures({ is_active: true }),
   });
 
   const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
-    queryKey: ["lecture-sessions", expandedLectureId],
+    queryKey: adminCommunityQueryKeys.lectureSessions(expandedLectureId),
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
@@ -107,7 +108,7 @@ export default function MaterialsBoardPage() {
 
   // 자료실 전체 목록 (post_type 기반, scope는 클라이언트 필터, q는 서버 검색)
   const postsQ = useQuery<PostEntity[]>({
-    queryKey: ["community-materials-posts-all", debouncedQuery],
+    queryKey: adminCommunityQueryKeys.materialsPostsList(debouncedQuery),
     queryFn: async () => {
       const { results } = await fetchAdminPosts({
         postType: "materials",
@@ -253,8 +254,8 @@ export default function MaterialsBoardPage() {
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("materials") });
               setShowCreate(false);
               feedback.success("자료가 등록되었습니다.");
             }}
@@ -267,8 +268,8 @@ export default function MaterialsBoardPage() {
             onClose={() => setSelectedId(null)}
             onDeleted={() => {
               setSelectedId(null);
-              qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("materials") });
             }}
           />
         )}
@@ -431,7 +432,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
 function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose: () => void; onDeleted: () => void }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data: post, isLoading } = useQuery({ queryKey: ["community-post", postId], queryFn: () => fetchPost(postId), enabled: postId != null });
+  const { data: post, isLoading } = useQuery({ queryKey: adminCommunityQueryKeys.post(postId), queryFn: () => fetchPost(postId), enabled: postId != null });
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingContent, setEditingContent] = useState(false);
@@ -450,9 +451,9 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
   const updateMut = useMutation({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-materials-posts-all"] });
-      qc.invalidateQueries({ queryKey: ["community", "materials", "counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("materials") });
       setEditingTitle(false);
       feedback.success("수정되었습니다.");
     },
@@ -461,7 +462,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("자료가 삭제되었습니다."); onDeleted(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("자료가 삭제되었습니다."); onDeleted(); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 
@@ -553,13 +554,13 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
 
   const uploadMut = useMutation({
     mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("파일이 첨부되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("파일이 첨부되었습니다."); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "파일 업로드에 실패했습니다."); },
   });
 
   const deleteMut = useMutation({
     mutationFn: (attId: number) => deletePostAttachment(postId, attId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("첨부파일이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("첨부파일이 삭제되었습니다."); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 

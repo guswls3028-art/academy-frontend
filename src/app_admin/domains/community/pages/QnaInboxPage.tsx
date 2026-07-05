@@ -26,6 +26,7 @@ import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import QnaMatchupResults from "../components/QnaMatchupResults";
+import { adminCommunityQueryKeys } from "../queryKeys";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
@@ -61,7 +62,7 @@ export default function QnaInboxPage() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const { data: questions = [], isLoading } = useQuery<Question[]>({
-    queryKey: ["community-questions", "all"],
+    queryKey: adminCommunityQueryKeys.questionsAll,
     queryFn: () => fetchCommunityQuestions(allScopeParams),
   });
 
@@ -270,7 +271,7 @@ function ThreadView({
   const confirm = useConfirm();
   const composerRef = useRef<HTMLDivElement>(null);
   const { data: post, isLoading } = useQuery({
-    queryKey: ["community-post", postId],
+    queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
     // AI 매치업 결과는 비동기 워커에서 채워짐 — 결과 도착 전까지 5초 간격 polling.
@@ -310,8 +311,8 @@ function ThreadView({
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-questions"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.questions });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
       feedback.success("질문이 삭제되었습니다.");
       onDelete();
     },

@@ -21,6 +21,7 @@ import {
   deleteReply as deleteReplyApi,
   type Answer,
 } from "../api/community.api";
+import { adminCommunityQueryKeys } from "../queryKeys";
 
 export type ThreadMode = "comment" | "answer";
 
@@ -92,7 +93,7 @@ function ThreadList({
   invalidateKeys: readonly unknown[][];
 }) {
   const { data: replies = [], isLoading } = useQuery<Answer[]>({
-    queryKey: ["post-replies", postId],
+    queryKey: adminCommunityQueryKeys.postReplies(postId),
     queryFn: () => fetchPostReplies(postId),
   });
 
@@ -149,8 +150,8 @@ function ReplyBlock({
   const avatarRole: "student" | "teacher" = role === "student" ? "student" : "teacher";
 
   const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-    qc.invalidateQueries({ queryKey: ["community-post", postId] });
+    qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.postReplies(postId) });
+    qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
     for (const key of invalidateKeys) qc.invalidateQueries({ queryKey: key });
   };
 
@@ -255,8 +256,8 @@ function ThreadComposer({
   const createMut = useMutation({
     mutationFn: () => createAnswer(postId, content),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", postId] });
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.postReplies(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       for (const key of invalidateKeys) qc.invalidateQueries({ queryKey: key });
       setContent("");
       feedback.success(mode === "answer" ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");

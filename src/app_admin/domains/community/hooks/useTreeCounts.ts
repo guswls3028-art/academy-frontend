@@ -4,6 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchPostCounts, type PostType } from "../api/community.api";
+import { adminCommunityQueryKeys } from "../queryKeys";
 
 export interface TreeCounts {
   totalCount: number;
@@ -24,7 +25,7 @@ export function useTreeCounts(postType: PostType): {
   isError: boolean;
 } {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["community", postType, "counts"],
+    queryKey: adminCommunityQueryKeys.counts(postType),
     queryFn: () => fetchPostCounts(postType),
     staleTime: 30_000,
   });

@@ -21,6 +21,7 @@ import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
+import { adminCommunityQueryKeys } from "../queryKeys";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
   communityAuthorContextQueryKey,
@@ -43,7 +44,7 @@ export default function CounselAdminPage() {
 
   // Fetch counsel posts
   const { data: postsData, isLoading: postsLoading } = useQuery({
-    queryKey: ["community-counsel-posts"],
+    queryKey: adminCommunityQueryKeys.counselPosts,
     queryFn: () => fetchAdminPosts({ postType: "counsel", pageSize: 500 }),
     enabled: true,
   });
@@ -188,7 +189,7 @@ export default function CounselAdminPage() {
             onSelectPost={(id) => setSelectedId(id)}
             onDelete={() => {
               setSelectedId(null);
-              qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counselPosts });
             }}
           />
         )}
@@ -265,7 +266,7 @@ function CounselThreadView({
   const confirm = useConfirm();
   const composerRef = useRef<HTMLDivElement>(null);
   const { data: post, isLoading } = useQuery({
-    queryKey: ["community-post", postId],
+    queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
   });
@@ -289,8 +290,8 @@ function CounselThreadView({
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-counsel-posts"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counselPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
       feedback.success("상담 신청이 삭제되었습니다.");
       onDelete();
     },

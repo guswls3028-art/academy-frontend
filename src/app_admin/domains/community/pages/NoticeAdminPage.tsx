@@ -23,6 +23,7 @@ import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
 import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button, Badge } from "@/shared/ui/ds";
@@ -70,17 +71,17 @@ export default function NoticeAdminPage() {
   const qc = useQueryClient();
 
   const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
-    queryKey: ["community-scope-nodes"],
+    queryKey: adminCommunityQueryKeys.scopeNodes,
     queryFn: () => fetchScopeNodes(),
   });
 
   const { data: lectures = [] } = useQuery<Lecture[]>({
-    queryKey: ["lectures-list"],
+    queryKey: adminCommunityQueryKeys.lecturesList,
     queryFn: () => fetchLectures({ is_active: true }),
   });
 
   const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
-    queryKey: ["lecture-sessions", expandedLectureId],
+    queryKey: adminCommunityQueryKeys.lectureSessions(expandedLectureId),
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
@@ -91,7 +92,7 @@ export default function NoticeAdminPage() {
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const { data: allNotices = [], isLoading, isError, error } = useQuery<PostEntity[]>({
-    queryKey: ["community-notice-posts", debouncedQuery],
+    queryKey: adminCommunityQueryKeys.noticePostsList(debouncedQuery),
     queryFn: async () => {
       const { results } = await fetchAdminPosts({
         postType: "notice",
@@ -233,9 +234,9 @@ export default function NoticeAdminPage() {
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-              qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-              qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+              qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("notice") });
               setShowCreate(false);
               feedback.success("공지가 등록되었습니다.");
             }}
@@ -332,7 +333,7 @@ function NoticeDetailView({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({
-    queryKey: ["community-post", postId],
+    queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
   });
@@ -354,10 +355,10 @@ function NoticeDetailView({
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
-      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("notice") });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       feedback.success("공지가 삭제되었습니다.");
       onDeleted();
     },
@@ -369,9 +370,9 @@ function NoticeDetailView({
   const updateMut = useMutation({
     mutationFn: (data: Partial<PostUpdatePayload>) => updatePost(postId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("notice") });
       feedback.success("수정되었습니다.");
     },
     onError: (e: unknown) => {
@@ -382,9 +383,9 @@ function NoticeDetailView({
   const updateTitleMut = useMutation({
     mutationFn: (title: string) => updatePost(postId, { title }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community", "notice", "counts"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("notice") });
       feedback.success("제목이 수정되었습니다.");
     },
     onError: (e: unknown) => {
@@ -395,9 +396,9 @@ function NoticeDetailView({
   const updateContentMut = useMutation({
     mutationFn: (content: string) => updatePost(postId, { content }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-post", postId] });
-      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
-      qc.invalidateQueries({ queryKey: ["community-board-posts-all"] });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
       setContentSaved(true);
       feedback.success("내용이 저장되었습니다.");
       setTimeout(() => setContentSaved(false), 2000);
