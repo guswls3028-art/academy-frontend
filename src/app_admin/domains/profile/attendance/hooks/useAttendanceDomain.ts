@@ -11,6 +11,7 @@ import {
   fetchMyAttendance,
   updateAttendance,
 } from "../../api/profile.api";
+import { adminProfileQueryKeys } from "../../queryKeys";
 
 /** 백엔드가 배열 or {results: []} 형태로 와도 방어 */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,38 +36,35 @@ export function useAttendanceDomain(month: string, range: { from: string; to: st
   const qc = useQueryClient();
 
   const listQ = useQuery({
-    queryKey: ["my-attendance", month],
+    queryKey: adminProfileQueryKeys.myAttendance(month),
     queryFn: () => fetchMyAttendance(month),
   });
 
   const summaryQ = useQuery({
-    queryKey: ["my-attendance-summary", month],
+    queryKey: adminProfileQueryKeys.myAttendanceSummary(month),
     queryFn: () => fetchAttendanceSummary(month),
   });
 
+  const invalidateAttendance = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: adminProfileQueryKeys.myAttendance(month) }),
+      qc.invalidateQueries({ queryKey: adminProfileQueryKeys.myAttendanceSummary(month) }),
+    ]);
+
   const createMut = useMutation({
     mutationFn: createAttendance,
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-attendance", month] });
-      await qc.invalidateQueries({ queryKey: ["my-attendance-summary", month] });
-    },
+    onSuccess: invalidateAttendance,
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<AttendanceMutationPayload> }) =>
       updateAttendance(id, data),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-attendance", month] });
-      await qc.invalidateQueries({ queryKey: ["my-attendance-summary", month] });
-    },
+    onSuccess: invalidateAttendance,
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteAttendance(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-attendance", month] });
-      await qc.invalidateQueries({ queryKey: ["my-attendance-summary", month] });
-    },
+    onSuccess: invalidateAttendance,
   });
 
   const [open, setOpen] = useState(false);

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { FaBuilding } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTenantInfo, updateTenantInfo } from "../../api/profile.api";
+import { adminProfileQueryKeys } from "../../queryKeys";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import styles from "./ProfileAccountComponents.module.css";
@@ -13,13 +14,13 @@ import styles from "./ProfileAccountComponents.module.css";
 export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
   const qc = useQueryClient();
   const { data: info, isLoading } = useQuery({
-    queryKey: ["tenant-info"],
+    queryKey: adminProfileQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
   });
   const updateMut = useMutation({
     mutationFn: updateTenantInfo,
     onSuccess: (data) => {
-      qc.setQueryData(["tenant-info"], data);
+      qc.setQueryData(adminProfileQueryKeys.tenantInfo, data);
       feedback.success("저장되었습니다.");
     },
     onError: () => feedback.error("저장에 실패했습니다."),

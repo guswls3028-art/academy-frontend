@@ -9,6 +9,7 @@ import {
   fetchMyExpenses,
   updateExpense,
 } from "../../api/profile.api";
+import { adminProfileQueryKeys } from "../../queryKeys";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -32,7 +33,7 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
   const qc = useQueryClient();
 
   const listQ = useQuery({
-    queryKey: ["my-expenses", month],
+    queryKey: adminProfileQueryKeys.myExpenses(month),
     queryFn: () => fetchMyExpenses(month),
   });
 
@@ -48,26 +49,23 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
     [rows]
   );
 
+  const invalidateExpenses = () =>
+    qc.invalidateQueries({ queryKey: adminProfileQueryKeys.myExpenses(month) });
+
   const createMut = useMutation({
     mutationFn: createExpense,
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-expenses", month] });
-    },
+    onSuccess: invalidateExpenses,
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<ExpenseMutationPayload> }) =>
       updateExpense(id, payload),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-expenses", month] });
-    },
+    onSuccess: invalidateExpenses,
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteExpense(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["my-expenses", month] });
-    },
+    onSuccess: invalidateExpenses,
   });
 
   const [open, setOpen] = useState(false);

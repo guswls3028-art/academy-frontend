@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchMe, updateProfile, changePassword } from "../../api/profile.api";
+import { adminProfileQueryKeys } from "../../queryKeys";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -19,7 +20,7 @@ export default function ProfileAccountPage() {
   const { clearAuth } = useAuth();
 
   const meQ = useQuery({
-    queryKey: ["me"],
+    queryKey: adminProfileQueryKeys.me,
     queryFn: fetchMe,
   });
 
@@ -44,7 +45,7 @@ export default function ProfileAccountPage() {
       }
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: adminProfileQueryKeys.me });
     },
     onError: () => {
       feedback.error("프로필 저장에 실패했습니다.");
