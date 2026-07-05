@@ -1,8 +1,7 @@
 // ======================================================================================
 // FILE: src/features/materials/api/answerKeys.ts  (SSOT ALIGN: exams/answer-keys/?exam=<exam_id>)
 // ======================================================================================
-import api from "@/shared/api/axios";
-import axios from "axios";
+import api, { isApiErrorStatus } from "@/shared/api/axios";
 import {
   isApiRecord,
   listFromApiResponse,
@@ -68,7 +67,7 @@ export async function getExamAnswerKey(examId: number): Promise<AnswerKeyEntity 
     const first = listFromApiResponse(res.data).map(normalizeAnswerKey).find((item) => item !== null);
     return first ?? null;
   } catch (err: unknown) {
-    if (axios.isAxiosError(err) && err.response?.status === 404) {
+    if (isApiErrorStatus(err, 404)) {
       return null;
     }
     throw err;

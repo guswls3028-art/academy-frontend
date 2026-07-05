@@ -1,7 +1,7 @@
 // PATH: src/app_student/domains/community/api/community.api.ts
 // 학생 커뮤니티 단일 API — post_type 기반 분류
 
-import axios from "axios";
+import { isApiErrorStatus } from "@/shared/api/axios";
 import studentApi from "@student/shared/api/student.api";
 import {
   createCommunityPost,
@@ -170,7 +170,7 @@ export async function fetchReplies(postId: number): Promise<Answer[]> {
   try {
     return fetchCommunityPostReplies(studentApi, postId);
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) return [];
+    if (isApiErrorStatus(error, 404)) return [];
     throw error;
   }
 }

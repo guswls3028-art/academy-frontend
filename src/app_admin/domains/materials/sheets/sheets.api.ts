@@ -1,6 +1,5 @@
 // PATH: src/app_admin/domains/materials/sheets/sheets.api.ts
-import api from "@/shared/api/axios";
-import axios from "axios";
+import api, { isApiErrorStatus } from "@/shared/api/axios";
 
 import {
   listSheets,
@@ -279,10 +278,7 @@ export async function getTemplateEditorSummaryApi(examId: number): Promise<Templ
     const res = await api.get(`/exams/${examId}/template-editor/`);
     return res.data as TemplateEditorSummary;
   } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      const s = err.response?.status;
-      if (s === 400 || s === 404) return null;
-    }
+    if (isApiErrorStatus(err, [400, 404])) return null;
     throw err;
   }
 }
@@ -292,10 +288,7 @@ export async function getTemplateValidationApi(examId: number): Promise<Template
     const res = await api.get(`/exams/${examId}/template-validation/`);
     return res.data as TemplateValidationResult;
   } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      const s = err.response?.status;
-      if (s === 400 || s === 404) return null;
-    }
+    if (isApiErrorStatus(err, [400, 404])) return null;
     throw err;
   }
 }

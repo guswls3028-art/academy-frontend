@@ -234,12 +234,21 @@ async function ensureFreshToken(): Promise<string | null> {
   return proactiveRefreshPromise;
 }
 
-function isAxiosError(e: unknown): e is AxiosError {
+export function isApiError(e: unknown): e is AxiosError {
   return axios.isAxiosError(e);
 }
 
+export function getApiErrorStatus(e: unknown): number | null {
+  return isApiError(e) ? (e.response?.status ?? null) : null;
+}
+
+export function isApiErrorStatus(e: unknown, status: number | readonly number[]): boolean {
+  const actual = getApiErrorStatus(e);
+  return Array.isArray(status) ? actual != null && status.includes(actual) : actual === status;
+}
+
 function getApiErrorMessage(err: unknown): string {
-  if (isAxiosError(err)) {
+  if (isApiError(err)) {
     const data = err.response?.data;
     if (data && typeof data === "object" && "detail" in data) {
       const detail = data.detail;
@@ -412,9 +421,9 @@ api.interceptors.response.use(
     return res;
   },
   async (err: unknown) => {
-    const config = isAxiosError(err) ? err.config as RetryConfig | undefined : undefined;
+    const config = isApiError(err) ? err.config as RetryConfig | undefined : undefined;
     const asyncId = config?._asyncId;
-    if (!isAxiosError(err)) throw err;
+    if (!isApiError(err)) throw err;
 
     const status = err.response?.status;
     const original = err.config as RetryConfig | undefined;

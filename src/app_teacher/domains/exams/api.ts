@@ -1,7 +1,6 @@
 // PATH: src/app_teacher/domains/exams/api.ts
 // 시험/과제 API — 기존 admin API 재사용
-import api from "@/shared/api/axios";
-import axios from "axios";
+import api, { isApiErrorStatus } from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
 
 /** 선생님이 담당하는 운영 시험 목록 (최근순) */
@@ -104,7 +103,7 @@ export async function fetchTemplatesWithUsage(): Promise<TeacherTemplateWithUsag
     const res = await api.get("/exams/templates/with-usage/", { params: { page_size: 200 } });
     return listFromApiResponse<TeacherTemplateWithUsage>(res.data);
   } catch (e: unknown) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
+    if (isApiErrorStatus(e, 404)) return [];
     throw e;
   }
 }
@@ -114,7 +113,7 @@ export async function fetchHomeworkTemplatesWithUsage(): Promise<TeacherTemplate
     const res = await api.get("/homeworks/templates/with-usage/", { params: { page_size: 200 } });
     return listFromApiResponse<TeacherTemplateWithUsage>(res.data);
   } catch (e: unknown) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
+    if (isApiErrorStatus(e, 404)) return [];
     throw e;
   }
 }
@@ -134,7 +133,7 @@ export async function fetchBundles(): Promise<ExamBundle[]> {
     const raw = res.data;
     return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
   } catch (e: unknown) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) return [];
+    if (isApiErrorStatus(e, 404)) return [];
     throw e;
   }
 }

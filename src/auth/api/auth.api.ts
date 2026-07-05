@@ -1,6 +1,5 @@
 // PATH: src/app_admin/domains/auth/api/auth.ts
-import axios from "axios";
-import api, { clearTokens, resetSessionEnding } from "@/shared/api/axios";
+import api, { clearTokens, isApiError, resetSessionEnding } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type LoginResponse = {
@@ -16,7 +15,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isTransientLoginError(err: unknown): boolean {
-  if (!axios.isAxiosError(err)) return false;
+  if (!isApiError(err)) return false;
   const status = err.response?.status;
   if (typeof status === "number") {
     return [408, 429, 500, 502, 503, 504].includes(status);
