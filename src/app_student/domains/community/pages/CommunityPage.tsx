@@ -71,6 +71,12 @@ function tabFromPath(pathname: string): Tab | null {
   return null;
 }
 
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 // ─── Shared tab bar ───
 function SegmentedTabs<T extends string>({
   items,
@@ -1079,12 +1085,6 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
     }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  };
-
   return (
     <div className="community-attachments">
       {/* 이미지 미리보기 — 클릭 시 lightbox */}
@@ -1151,7 +1151,7 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
             <div className="community-file-name">
               {att.original_name}
             </div>
-            <div className="stu-muted community-file-size">{formatSize(att.size_bytes)}</div>
+            <div className="stu-muted community-file-size">{formatAttachmentSize(att.size_bytes)}</div>
           </div>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="community-file-download-icon">
             <path d="M8 2v9M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -1214,12 +1214,6 @@ function FilePickerSection({
     onChange(files.filter((_, i) => i !== idx));
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  };
-
   return (
     <div className="community-file-picker">
       <div className="community-file-picker__head">
@@ -1262,7 +1256,7 @@ function FilePickerSection({
               <span className="community-file-item__name">
                 {f.name}
               </span>
-              <span className="stu-muted community-file-item__size">{formatSize(f.size)}</span>
+              <span className="stu-muted community-file-item__size">{formatAttachmentSize(f.size)}</span>
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
