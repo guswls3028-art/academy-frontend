@@ -29,6 +29,7 @@ import {
   LANDING_COMMUNITY_TABS,
   type LandingCommunityBoard,
 } from "../utils/communityBoardPolicy";
+import { formatLandingCompactDate as formatDate } from "../utils/dateFormat";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -453,15 +454,4 @@ function SkeletonRows({ cardBg, border }: { cardBg: string; border: string }) {
       <style>{`@keyframes landingSkelRow { 0% { background-position: 0% 50% } 100% { background-position: -200% 50% } }`}</style>
     </div>
   );
-}
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    const now = new Date();
-    const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (sameDay) return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
 }

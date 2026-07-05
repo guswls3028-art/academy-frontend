@@ -18,6 +18,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import { formatLandingCompactDate as formatDate } from "../utils/dateFormat";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -370,15 +371,4 @@ function SkeletonGrid({ border, cardBg }: { border: string; cardBg: string }) {
       <style>{`@keyframes lrSkel { 0% { background-position: 0% 50% } 100% { background-position: -200% 50% } }`}</style>
     </div>
   );
-}
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    const now = new Date();
-    const same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (same) return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
 }

@@ -21,6 +21,7 @@ import {
   type PublicReview,
   type ReviewsSummary,
 } from "../api/publicCommunity";
+import { formatLandingCompactDate as formatDate } from "../utils/dateFormat";
 
 interface Props {
   theme?: "dark" | "light";
@@ -246,15 +247,4 @@ function SkelRows({ border, cardBg, count }: { border: string; cardBg: string; c
       ))}
     </div>
   );
-}
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    const now = new Date();
-    const same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (same) return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
 }

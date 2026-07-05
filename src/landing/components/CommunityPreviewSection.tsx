@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
+import { formatLandingCompactDate as formatDate } from "../utils/dateFormat";
 
 type BoardType = "board" | "qna" | "notice" | "materials";
 
@@ -262,17 +263,4 @@ function EmptyState({ text, textSecondary, cardBg, border }: { text: string; tex
       textAlign: "center", fontSize: 14, color: textSecondary,
     }}>{text}</div>
   );
-}
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    const now = new Date();
-    const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (sameDay) {
-      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    }
-    return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
 }
