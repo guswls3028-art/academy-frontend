@@ -25,6 +25,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
+  timeAgo,
   toLectureChips,
 } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
@@ -208,14 +209,6 @@ function CounselCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
-  const timeAgo = (() => {
-    const d = new Date(post.created_at);
-    const diff = (Date.now() - d.getTime()) / 60000;
-    if (diff < 60) return `${Math.max(1, Math.floor(diff))}분 전`;
-    if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
-    return `${Math.floor(diff / 1440)}일 전`;
-  })();
-
   const statusClass = post.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
   const statusLabel = post.is_answered ? "답변 완료" : "답변 대기";
   const studentName = post.created_by_deleted ? "삭제된 학생" : normalizeStudentName(post.created_by_display);
@@ -240,7 +233,7 @@ function CounselCard({
               density="compact"
             />
             <span className="qna-inbox__card-meta-dot" />
-            <span>{timeAgo}</span>
+            <span>{timeAgo(post.created_at)}</span>
             {post.category_label && (
               <>
                 <span className="qna-inbox__card-meta-dot" />

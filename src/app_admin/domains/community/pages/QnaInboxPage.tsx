@@ -29,6 +29,7 @@ import QnaMatchupResults from "../components/QnaMatchupResults";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
+  timeAgo,
   toLectureChips,
 } from "../utils/communityHelpers";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -213,15 +214,6 @@ function QuestionCard({
   isUnread: boolean;
   onClick: () => void;
 }) {
-  const timeAgo = (() => {
-    const d = new Date(question.created_at);
-    const now = Date.now();
-    const diff = (now - d.getTime()) / 60000;
-    if (diff < 60) return `${Math.max(1, Math.floor(diff))}분 전`;
-    if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
-    return `${Math.floor(diff / 1440)}일 전`;
-  })();
-
   const statusClass = question.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
   const statusLabel = question.is_answered ? "답변 완료" : "답변 대기";
   const studentName = question.created_by_deleted ? "삭제된 학생" : normalizeStudentName(question.student_name);
@@ -248,7 +240,7 @@ function QuestionCard({
               lectures={question.lecture_title ? [{ lectureName: question.lecture_title }] : undefined}
             />
             <span className="qna-inbox__card-meta-dot" />
-            <span>{timeAgo}</span>
+            <span>{timeAgo(question.created_at)}</span>
           </div>
           {question.category_label && (
             <div className="qna-inbox__card-meta qna-inbox__card-meta--sub">
