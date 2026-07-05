@@ -6,13 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
+import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
 import { FEES_STATUS_LABEL, type InvoiceStatus } from "../utils/feesStatus";
 import styles from "./FeesDashboardTab.module.css";
-
-function formatKRW(n: number) {
-  return `${n.toLocaleString("ko-KR")}원`;
-}
 
 const STATUS_CLASS: Record<InvoiceStatus, string> = {
   PENDING: styles.statusPending,

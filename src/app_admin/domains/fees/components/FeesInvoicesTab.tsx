@@ -10,6 +10,7 @@ import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { StatusBadge } from "./FeesDashboardTab";
 import styles from "./FeesInvoicesTab.module.css";
 import {
@@ -23,10 +24,6 @@ import {
   type StudentInvoice,
   type PaymentMethod,
 } from "../api/fees.api";
-
-function formatKRW(n: number) {
-  return `${n.toLocaleString("ko-KR")}원`;
-}
 
 export default function FeesInvoicesTab() {
   const qc = useQueryClient();

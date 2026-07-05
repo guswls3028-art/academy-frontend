@@ -8,6 +8,7 @@ import { ChevronLeft, AlertCircle, CheckCircle, Award } from "@teacher/shared/ui
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import api from "@/shared/api/axios";
+import { formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 
 type SubscriptionInfo = {
   plan: string;
@@ -62,10 +63,6 @@ function formatDate(dateStr: string | null): string {
   } catch {
     return dateStr;
   }
-}
-
-function formatPrice(price: number): string {
-  return price.toLocaleString("ko-KR") + "원";
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {

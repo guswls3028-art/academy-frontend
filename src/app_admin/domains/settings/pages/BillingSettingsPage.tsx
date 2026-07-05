@@ -3,6 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 import CardManagementSection from "../components/CardManagementSection";
 import styles from "./BillingSettingsPage.module.css";
 
@@ -42,10 +43,6 @@ function formatDate(dateStr: string | null): string {
   } catch {
     return dateStr;
   }
-}
-
-function formatPrice(price: number): string {
-  return price.toLocaleString("ko-KR") + "원";
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {

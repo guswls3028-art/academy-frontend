@@ -7,6 +7,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import { formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type FeeType, type StudentInvoice } from "../api";
 import {
   FEES_PERMISSION_ERROR_DESCRIPTION,
@@ -14,11 +15,6 @@ import {
   isFeesPermissionError,
 } from "../feesError";
 import styles from "./FeesDashboardPage.module.css";
-
-function formatKRW(n: number | null | undefined): string {
-  if (n == null) return "-";
-  return new Intl.NumberFormat("ko-KR").format(Math.round(n));
-}
 
 export default function FeesDashboardPage() {
   const navigate = useNavigate();

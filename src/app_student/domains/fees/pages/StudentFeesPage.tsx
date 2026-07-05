@@ -7,6 +7,7 @@ import studentApi from "@student/shared/api/student.api";
 import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
+import { formatKRW } from "@/shared/product/fees/feesFormat";
 import styles from "./StudentFeesPage.module.css";
 
 type InvoiceStatus = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
@@ -38,10 +39,6 @@ interface Payment {
   amount: number;
   payment_method_display: string;
   paid_at: string;
-}
-
-function formatKRW(n: number) {
-  return `${n.toLocaleString("ko-KR")}원`;
 }
 
 export default function StudentFeesPage() {

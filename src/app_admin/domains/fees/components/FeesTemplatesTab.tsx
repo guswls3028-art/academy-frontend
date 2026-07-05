@@ -10,6 +10,7 @@ import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { formatKRW } from "@/shared/product/fees/feesFormat";
 import styles from "./FeesTemplatesTab.module.css";
 import {
   fetchFeeTemplates,
@@ -21,10 +22,6 @@ import {
   type FeeType,
   type BillingCycle,
 } from "../api/fees.api";
-
-function formatKRW(n: number) {
-  return `${n.toLocaleString("ko-KR")}원`;
-}
 
 const FEE_TYPE_OPTIONS: { value: FeeType; label: string }[] = [
   { value: "TUITION", label: "수강료" },
