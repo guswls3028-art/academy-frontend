@@ -25,6 +25,7 @@ import {
   type SheetQuestionEntity,
 } from "../../sheets.api";
 
+import { adminMaterialsQueryKeys } from "../../../queryKeys";
 import SheetsSubmissionsTab from "../submissions/SheetsSubmissionsTab";
 
 const CHOICES = ["A", "B", "C", "D", "E"] as const;
@@ -39,25 +40,25 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   const [tab, setTab] = useState<TabKey>("editor");
 
   const sheetQ = useQuery({
-    queryKey: ["materials-sheet", id],
+    queryKey: adminMaterialsQueryKeys.sheet(id),
     queryFn: () => getSheetApi(id),
     enabled: id > 0,
   });
 
   const qQ = useQuery({
-    queryKey: ["materials-sheet-questions", id],
+    queryKey: adminMaterialsQueryKeys.sheetQuestions(id),
     queryFn: () => getSheetQuestionsApi(id),
     enabled: id > 0,
   });
 
   const akQ = useQuery({
-    queryKey: ["materials-sheet-answerkey", id],
+    queryKey: adminMaterialsQueryKeys.sheetAnswerKey(id),
     queryFn: () => getSheetAnswerKeyApi(id),
     enabled: id > 0,
   });
 
   const assetsQ = useQuery({
-    queryKey: ["materials-sheet-assets", id],
+    queryKey: adminMaterialsQueryKeys.sheetAssets(id),
     queryFn: () => listExamAssetsApi(id),
     enabled: id > 0,
   });
@@ -91,28 +92,34 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   }, [serverAnswers]);
 
   const [omrQuestionCount, setOmrQuestionCount] = useState<(typeof QUESTION_COUNTS)[number]>(20);
+  const invalidateQuestions = () =>
+    qc.invalidateQueries({ queryKey: adminMaterialsQueryKeys.sheetQuestions(id) });
+  const invalidateAnswerKey = () =>
+    qc.invalidateQueries({ queryKey: adminMaterialsQueryKeys.sheetAnswerKey(id) });
+  const invalidateAssets = () =>
+    qc.invalidateQueries({ queryKey: adminMaterialsQueryKeys.sheetAssets(id) });
 
   const scoreMut = useMutation({
     mutationFn: patchSheetQuestionScoreApi,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
+    onSuccess: invalidateQuestions,
     onError: (e) => feedback.error(extractApiError(e, "배점 저장 실패")),
   });
 
   const answerKeyMut = useMutation({
     mutationFn: upsertSheetAnswerKeyApi,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-answerkey", id] }),
+    onSuccess: invalidateAnswerKey,
     onError: (e) => feedback.error(extractApiError(e, "정답 저장 실패")),
   });
 
   const autoGenMut = useMutation({
     mutationFn: autoGenerateQuestionsApi,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
+    onSuccess: invalidateQuestions,
     onError: (e) => feedback.error(extractApiError(e, "문항 자동 복구 실패")),
   });
 
   const genOmrMut = useMutation({
     mutationFn: generateOmrSheetAssetApi,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-assets", id] }),
+    onSuccess: invalidateAssets,
     onError: (e) => feedback.error(extractApiError(e, "OMR 생성 실패")),
   });
 

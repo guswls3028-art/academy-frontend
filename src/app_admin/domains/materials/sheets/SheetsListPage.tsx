@@ -5,6 +5,7 @@ import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
+import { adminMaterialsQueryKeys } from "../queryKeys";
 import styles from "./SheetsListPage.module.css";
 
 export default function SheetsListPage() {
@@ -13,7 +14,7 @@ export default function SheetsListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const sheetsQ = useQuery({
-    queryKey: ["materials-sheets"],
+    queryKey: adminMaterialsQueryKeys.sheets,
     queryFn: listSheetsApi,
   });
 
@@ -85,7 +86,7 @@ export default function SheetsListPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(sheet) => {
-          qc.invalidateQueries({ queryKey: ["materials-sheets"] });
+          qc.invalidateQueries({ queryKey: adminMaterialsQueryKeys.sheets });
           setCreateOpen(false);
           setEditingId(sheet.id);
         }}

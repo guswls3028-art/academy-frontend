@@ -15,6 +15,7 @@ import {
   uploadOmrBatchApi,
   type ExamSubmissionRow,
 } from "./submissions.api";
+import { adminMaterialsQueryKeys } from "../../../queryKeys";
 import SubmissionRow from "./SubmissionRow";
 import SubmissionManualEditModal from "./SubmissionManualEditModal";
 
@@ -42,9 +43,11 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
       batchFileInputRef.current.value = "";
     }
   };
+  const invalidateSubmissions = () =>
+    qc.invalidateQueries({ queryKey: adminMaterialsQueryKeys.submissions(examId) });
 
   const listQ = useQuery({
-    queryKey: ["materials-submissions", examId],
+    queryKey: adminMaterialsQueryKeys.submissions(examId),
     queryFn: () => listExamSubmissionsApi(examId),
     enabled: examId > 0,
     refetchInterval: 10_000, // 운영 화면: 자동 갱신
@@ -52,7 +55,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
 
   const retryMut = useMutation({
     mutationFn: (submissionId: number) => retrySubmissionApi(submissionId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-submissions", examId] }),
+    onSuccess: invalidateSubmissions,
     onError: (e) => feedback.error(extractApiError(e, "재시도 실패")),
   });
 
@@ -68,7 +71,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
     onSuccess: () => {
       clearBatchFiles();
       setBatchSheetId("");
-      qc.invalidateQueries({ queryKey: ["materials-submissions", examId] });
+      invalidateSubmissions();
       feedback.success("업로드 요청이 접수되었습니다. 처리 상태는 목록에서 확인하세요.");
     },
     onError: (e) => feedback.error(extractApiError(e, "다건 업로드 실패")),
@@ -205,7 +208,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
           submissionId={selectedId}
           questions={questions}
           onDone={() => {
-            qc.invalidateQueries({ queryKey: ["materials-submissions", examId] });
+            invalidateSubmissions();
             setSelectedId(null);
           }}
         />
