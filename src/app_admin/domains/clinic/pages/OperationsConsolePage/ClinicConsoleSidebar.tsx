@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { Clock, MapPin, Plus, Copy, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { cx } from "@/shared/utils/cx";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -26,10 +27,6 @@ function buildMonthGrid(year: number, month: number): (string | null)[] {
     grid.push(first.add(i, "day").format("YYYY-MM-DD"));
   while (grid.length < totalCells) grid.push(null);
   return grid;
-}
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
 }
 
 type Props = {

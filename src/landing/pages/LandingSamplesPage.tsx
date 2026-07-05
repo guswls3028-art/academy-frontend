@@ -5,6 +5,7 @@
 import { useState, useEffect, type FormEvent, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { cx } from "@/shared/utils/cx";
 import { getTemplateComponent } from "../templates";
 import type { LandingConfig, TemplateKey } from "../types";
 import styles from "./LandingSamplesPage.module.css";
@@ -143,8 +144,6 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
 };
 
 const TEMPLATE_KEYS: TemplateKey[] = ["minimal_tutor", "premium_dark", "academic_trust", "program_promo"];
-
-const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(" ");
 
 const toneClasses: Record<TemplateKey, string> = {
   minimal_tutor: styles.toneMinimal,

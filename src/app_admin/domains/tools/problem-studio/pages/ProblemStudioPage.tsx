@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { cx } from "@/shared/utils/cx";
 import { downloadPresignedUrl } from "@/shared/utils/safeDownload";
 import {
   buildWorksheetPreviewHtml,
@@ -95,10 +96,6 @@ const BETA_REWRITE_MODES: RewriteModeItem[] = [
   { key: "trap", label: "함정 보강", detail: "오답 유도 포인트" },
   { key: "concept", label: "개념형", detail: "짧은 개념 확인" },
 ];
-
-function cx(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(" ");
-}
 
 function makeId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

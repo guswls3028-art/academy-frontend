@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
+import { cx } from "@/shared/utils/cx";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import {
@@ -24,9 +25,6 @@ import {
   invalidateTeacherExamResultQueries,
 } from "@teacher/domains/results/examResultContract";
 import styles from "./MobileScoreEntryPage.module.css";
-
-const cx = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ");
 
 type Tone = "success" | "warning" | "danger" | "muted";
 

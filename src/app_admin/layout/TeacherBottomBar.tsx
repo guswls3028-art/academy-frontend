@@ -2,13 +2,10 @@
  * 선생앱 모바일 전용: 하단 탭바. 홈/학생/강의/커뮤니티/메뉴(드로어)
  */
 import { NavLink } from "react-router-dom";
+import { cx } from "@/shared/utils/cx";
 import { useAdminLayout } from "./useAdminLayout";
 import { ADMIN_MOBILE_TABS, NavIcon } from "./adminNavConfig";
 import styles from "./TeacherBottomBar.module.css";
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function TeacherBottomBar() {
   const layout = useAdminLayout();

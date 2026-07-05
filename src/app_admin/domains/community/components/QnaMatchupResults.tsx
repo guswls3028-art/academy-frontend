@@ -3,6 +3,7 @@
 
 import { Sparkles } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 
 type MatchupResult = {
   problem_id: number;
@@ -20,10 +21,6 @@ type MatchupResult = {
 type Props = {
   results: MatchupResult[];
 };
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function QnaMatchupResults({ results }: Props) {
   if (!results || results.length === 0) return null;

@@ -5,13 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { fetchVideoEngagement } from "@admin/domains/videos/api/videos.api";
+import { cx } from "@/shared/utils/cx";
 import styles from "./VideoEngagementBar.module.css";
 
 type StatTone = "default" | "danger" | "primary";
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 function formatCount(n: number | null | undefined): string {
   if (n == null || n <= 0) return "0";

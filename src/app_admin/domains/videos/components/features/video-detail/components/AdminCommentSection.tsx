@@ -12,11 +12,8 @@ import {
 } from "@admin/domains/videos/api/videos.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { cx } from "@/shared/utils/cx";
 import styles from "./AdminCommentSection.module.css";
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 /* ─── Relative time format ─── */
 function timeAgo(dateStr: string): string {

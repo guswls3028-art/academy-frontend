@@ -6,12 +6,9 @@ import dayjs from "dayjs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
+import { cx } from "@/shared/utils/cx";
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { clinicQueryKeys } from "../../queryKeys";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 type ClinicSession = {
   id: number;

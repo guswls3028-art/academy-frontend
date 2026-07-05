@@ -1,4 +1,5 @@
 // PATH: src/app_teacher/domains/comms/components/PostListItem.tsx
+import { cx } from "@/shared/utils/cx";
 import type { Post } from "../api";
 
 import styles from "./PostListItem.module.css";
@@ -8,10 +9,6 @@ interface Props {
   showReplyBadge?: boolean;
   attention?: boolean;
   onClick: () => void;
-}
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
 }
 
 export default function PostListItem({ post, showReplyBadge, attention = false, onClick }: Props) {

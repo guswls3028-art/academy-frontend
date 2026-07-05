@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useConfirm } from "@/shared/ui/confirm";
+import { cx } from "@/shared/utils/cx";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 
 import {
@@ -16,10 +17,6 @@ import {
 } from "../api/video.api";
 import { timeAgo } from "../utils/timeAgo";
 import styles from "./VideoCommentSection.module.css";
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 type CommentAvatarProps = {
   name: string;

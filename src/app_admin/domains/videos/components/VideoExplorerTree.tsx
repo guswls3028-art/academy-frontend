@@ -4,15 +4,12 @@ import { FolderOpen } from "lucide-react";
 import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import type { VideoFolder } from "../api/videos.api";
 import { formatSessionTreeLabel } from "@/shared/ui/session-block";
+import { cx } from "@/shared/utils/cx";
 import styles from "./VideoExplorerTree.module.css";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
 
 export type VideoFolderId = "public" | number | null; // "public" | sessionId | folderId (음수는 폴더 ID)
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 type Props = {
   lectures: LectureWithSessions[];

@@ -2,6 +2,7 @@
 // 모바일 스톱워치 — 내장 타이머 + PC 타이머 exe 다운로드 옵션
 import { useEffect, useRef, useState } from "react";
 import { ICON } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { useNavigate } from "react-router-dom";
 import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -22,10 +23,6 @@ function formatElapsed(ms: number): string {
 }
 
 type Lap = { index: number; total: number; delta: number };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function StopwatchPage() {
   const navigate = useNavigate();

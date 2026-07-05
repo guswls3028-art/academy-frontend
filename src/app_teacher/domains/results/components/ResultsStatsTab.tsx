@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { cx } from "@/shared/utils/cx";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Card, SectionTitle, KpiCard } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
@@ -31,9 +32,6 @@ import {
   Cell,
 } from "recharts";
 import styles from "./ResultsStatsTab.module.css";
-
-const cx = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ");
 
 type LectureOption = {
   id: number;
