@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TagCreateModal from "./TagCreateModal";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { adminStudentsQueryKeys } from "../queryKeys";
 
 type TagAddModalProps = {
   open: boolean;
@@ -33,7 +34,7 @@ export default function TagAddModal({
   const [showCreate, setShowCreate] = useState(false);
   const tenantCode = resolveTenantCodeString();
   const { data: tags = [], isLoading } = useQuery({
-    queryKey: ["students", "tags", tenantCode],
+    queryKey: adminStudentsQueryKeys.tagsForTenant(tenantCode),
     queryFn: getTags,
     enabled: open,
   });
@@ -140,7 +141,7 @@ export default function TagAddModal({
         onClose={() => setShowCreate(false)}
         usedColors={tags.map((t) => t.color).filter(Boolean)}
         onSuccess={(tag) => {
-          qc.invalidateQueries({ queryKey: ["students", "tags"] });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.tags });
           setSelectedTagId(tag.id);
           setShowCreate(false);
         }}

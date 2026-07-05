@@ -25,6 +25,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
+import { adminStudentsQueryKeys } from "../queryKeys";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -151,19 +152,19 @@ export default function StudentsDetailOverlay({
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const { data: student, isLoading, isError } = useQuery({
-    queryKey: ["student", id],
+    queryKey: adminStudentsQueryKeys.studentDetail(id),
     queryFn: () => getStudentDetail(id),
     enabled: !!id,
   });
 
   const { data: tags } = useQuery({
-    queryKey: ["students", "tags"],
+    queryKey: adminStudentsQueryKeys.tags,
     queryFn: getTags,
   });
 
   // 공유 데이터: 대시보드 + 탭에서 중복 호출 제거
   const { data: gradesData } = useQuery({
-    queryKey: ["student", id, "grades"],
+    queryKey: adminStudentsQueryKeys.studentGrades(id),
     queryFn: async () => {
       const res = await api.get<StudentGradesResponse>("/results/admin/student-grades/", { params: { student_id: id } });
       return {
@@ -177,7 +178,7 @@ export default function StudentsDetailOverlay({
   const homeworkGrades = gradesData?.homeworks ?? [];
 
   const { data: clinicData } = useQuery({
-    queryKey: ["student", id, "clinic"],
+    queryKey: adminStudentsQueryKeys.studentClinic(id),
     queryFn: async () => {
       const res = await api.get<ClinicParticipant[] | ListEnvelope<ClinicParticipant>>("/clinic/participants/", { params: { student: id, page_size: 50 } });
       return listFromResponse(res.data);
@@ -185,7 +186,7 @@ export default function StudentsDetailOverlay({
     enabled: id > 0,
   });
   const { data: questionsData } = useQuery({
-    queryKey: ["student", id, "questions"],
+    queryKey: adminStudentsQueryKeys.studentQuestions(id),
     queryFn: async () => {
       const res = await api.get<CommunityPost[] | ListEnvelope<CommunityPost>>("/community/posts/", { params: { author_student: id, page_size: 50 } });
       return listFromResponse(res.data);
@@ -193,7 +194,7 @@ export default function StudentsDetailOverlay({
     enabled: id > 0,
   });
   const { data: accountNotifications, isLoading: accountNotificationsLoading } = useQuery({
-    queryKey: ["student", id, "account-notifications"],
+    queryKey: adminStudentsQueryKeys.studentAccountNotifications(id),
     queryFn: () => fetchStudentAccountNotifications(id, 5),
     enabled: id > 0,
   });
@@ -201,29 +202,29 @@ export default function StudentsDetailOverlay({
   const addTag = useMutation({
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", id] });
-      qc.invalidateQueries({ queryKey: ["students", "tags"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.tags });
     },
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const removeTag = useMutation({
     mutationFn: (tagId: number) => detachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const toggleActive = useMutation({
     mutationFn: (nextActive: boolean) => toggleStudentActive(id, nextActive),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", id] });
-      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
     },
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });

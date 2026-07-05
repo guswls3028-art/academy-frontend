@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudents, type StudentFilters } from "../api/students.api";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { adminStudentsQueryKeys } from "../queryKeys";
 
 const PAGE_SIZE = 50;
 
@@ -14,7 +15,7 @@ export function useStudentsQuery(
 ) {
   const tenantCode = resolveTenantCodeString();
   return useQuery({
-    queryKey: ["students", tenantCode, search, filters, sort, page, deleted],
+    queryKey: adminStudentsQueryKeys.studentsList(tenantCode, search, filters, sort, page, deleted),
     queryFn: async () => {
       const { data, count, pageSize } = await fetchStudents(search, filters, sort, page, deleted);
       return { data, count, pageSize: pageSize ?? PAGE_SIZE };

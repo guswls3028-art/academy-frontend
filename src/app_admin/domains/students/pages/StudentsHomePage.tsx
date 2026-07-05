@@ -22,6 +22,7 @@ import StudentFilterModal from "../components/StudentFilterModal";
 import TagAddModal from "../components/TagAddModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
+import { adminStudentsQueryKeys } from "../queryKeys";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
@@ -135,8 +136,8 @@ export default function StudentsHomePage() {
     mutationFn: ({ id, nextActive }: { id: number; nextActive: boolean }) =>
       toggleStudentActive(id, nextActive),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["students"] });
-      qc.invalidateQueries({ queryKey: ["student"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student });
     },
     onError: () => { feedback.error("상태 변경에 실패했습니다."); },
   });
@@ -234,7 +235,7 @@ export default function StudentsHomePage() {
                   const deletedIds = [...visibleSelectedIds];
                   const { deleted } = await bulkDeleteStudents(visibleSelectedIds);
                   setSelectedIds([]);
-                  qc.invalidateQueries({ queryKey: ["students"] });
+                  qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
                   feedback.success(`${deleted}명 삭제되었습니다.`);
                   if (deleted > 0) setWithdrawalNotif({ open: true, ids: deletedIds });
                 } catch (e: unknown) {
@@ -261,7 +262,7 @@ export default function StudentsHomePage() {
                 try {
                   const { restored, skipped = [] } = await bulkRestoreStudents(visibleSelectedIds);
                   setSelectedIds([]);
-                  qc.invalidateQueries({ queryKey: ["students"] });
+                  qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
                   if (skipped.length > 0) {
                     const firstReason = skipped[0]?.reason ? `: ${skipped[0].reason}` : "";
                     feedback.warning(`${restored}명 복원, ${skipped.length}명은 복원하지 못했습니다${firstReason}`);
@@ -288,7 +289,7 @@ export default function StudentsHomePage() {
                 try {
                   const { deleted } = await bulkPermanentDeleteStudents(visibleSelectedIds);
                   setSelectedIds([]);
-                  qc.invalidateQueries({ queryKey: ["students"] });
+                  qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
                   feedback.success(`${deleted}명 영구 삭제되었습니다.`);
                 } catch (e: unknown) {
                   const msg = getApiErrorMessage(e, "삭제 중 오류가 발생했습니다.");
@@ -367,7 +368,7 @@ export default function StudentsHomePage() {
                       if (r.records_to_remove === 0) return;
                       setDuplicateFixing(true);
                       await fixDeletedStudentDuplicates();
-                      qc.invalidateQueries({ queryKey: ["students"] });
+                      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
                     } catch (err) {
                       console.warn("중복 정리 실패:", err);
                       feedback.error("중복 정리 중 오류가 발생했습니다.");
@@ -512,7 +513,7 @@ export default function StudentsHomePage() {
         onSuccess={() => {
           setShowCreate(false);
           setBulkUploadProgress(null);
-          qc.invalidateQueries({ queryKey: ["students"] });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
         }}
         onBulkProgress={setBulkUploadProgress}
       />
@@ -535,8 +536,8 @@ export default function StudentsHomePage() {
         onSuccess={() => {
           setShowTagModal(false);
           setSelectedIds([]);
-          qc.invalidateQueries({ queryKey: ["students"] });
-          qc.invalidateQueries({ queryKey: ["student"] });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student });
         }}
         adding={tagAdding}
         setAdding={setTagAdding}
@@ -552,7 +553,7 @@ export default function StudentsHomePage() {
         onSuccess={() => {
           setShowPasswordResetModal(false);
           setSelectedIds([]);
-          qc.invalidateQueries({ queryKey: ["students"] });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
         }}
         resetting={passwordResetting}
         setResetting={setPasswordResetting}

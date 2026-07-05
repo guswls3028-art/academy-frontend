@@ -33,6 +33,7 @@ import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import { adminStudentsQueryKeys } from "../queryKeys";
 import "@/styles/design-system/modal.css";
 import "./StudentsRequestsPage.css";
 
@@ -186,13 +187,13 @@ export default function StudentsRequestsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["students", "registration_requests"],
+    queryKey: adminStudentsQueryKeys.registrationRequests,
     queryFn: () =>
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 100 }),
   });
 
   const settingsQ = useQuery({
-    queryKey: ["students", "registration_requests_settings"],
+    queryKey: adminStudentsQueryKeys.registrationRequestSettings,
     queryFn: fetchRegistrationRequestSettings,
   });
 
@@ -204,9 +205,9 @@ export default function StudentsRequestsPage() {
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveRegistrationRequest(id),
     onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
-      qc.invalidateQueries({ queryKey: ["students"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setDetailOpen(false);
       setDetailRequest(null);
       setSelectedIds((prev) => {
@@ -224,9 +225,9 @@ export default function StudentsRequestsPage() {
   const bulkApproveMutation = useMutation({
     mutationFn: (requestIds: number[]) => bulkApproveRegistrationRequests(requestIds),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
-      qc.invalidateQueries({ queryKey: ["students"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setSelectedIds(new Set());
       if (res.approved > 0)
         feedback.success(`${res.approved}건 승인되었습니다.`);
@@ -244,8 +245,8 @@ export default function StudentsRequestsPage() {
   const rejectMutation = useMutation({
     mutationFn: (id: number) => rejectRegistrationRequest(id),
     onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setDetailOpen(false);
       setDetailRequest(null);
       setSelectedIds((prev) => {
@@ -263,8 +264,8 @@ export default function StudentsRequestsPage() {
   const bulkRejectMutation = useMutation({
     mutationFn: (requestIds: number[]) => bulkRejectRegistrationRequests(requestIds),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setSelectedIds(new Set());
       if (res.rejected > 0)
         feedback.success(`${res.rejected}건 거절되었습니다.`);
@@ -278,7 +279,7 @@ export default function StudentsRequestsPage() {
     mutationFn: (on: boolean) =>
       updateRegistrationRequestSettings({ auto_approve: on }),
     onSuccess: (res) => {
-      qc.setQueryData(["students", "registration_requests_settings"], res);
+      qc.setQueryData(adminStudentsQueryKeys.registrationRequestSettings, res);
     },
     onError: (err: unknown) => {
       const msg =
@@ -296,7 +297,7 @@ export default function StudentsRequestsPage() {
 
   /* ── 승인 시 자동발송 on/off ── */
   const autoSendQ = useQuery({
-    queryKey: ["messaging", "auto-send"],
+    queryKey: adminStudentsQueryKeys.messagingAutoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 60_000,
   });
@@ -336,7 +337,7 @@ export default function StudentsRequestsPage() {
       ]);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.messagingAutoSend });
     },
     onError: () => {
       feedback.error("알림 설정 변경에 실패했습니다.");
