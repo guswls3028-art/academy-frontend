@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchExams, fetchHomeworks } from "../api";
 
@@ -11,10 +12,6 @@ import styles from "./ExamListPage.module.css";
 
 type Tab = "exam" | "homework";
 type SortableItem = { created_at?: string };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function ExamListPage() {
   const [tab, setTab] = useState<Tab>("exam");

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { cx } from "@/shared/utils/cx";
 import { Check, Edit3 } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import type { TodaySession } from "../api";
@@ -20,10 +21,6 @@ const QUICK_BUTTON_CLASS: Record<QuickButtonVariant, { idle: string; done: strin
   success: { idle: styles.quickButtonSuccess, done: styles.quickButtonSuccessDone },
   primary: { idle: styles.quickButtonPrimary, done: styles.quickButtonPrimaryDone },
 };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 function toMinutes(hhmm?: string | null): number | null {
   if (!hhmm) return null;

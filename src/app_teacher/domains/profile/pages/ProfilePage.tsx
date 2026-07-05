@@ -3,6 +3,7 @@
 import { useNavigate } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { ICON } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";
 import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
 import { Check, ChevronLeft, Download } from "@teacher/shared/ui/Icons";
@@ -15,10 +16,6 @@ const ROLE_LABELS: Record<string, string> = {
   teacher: "강사",
   staff: "직원",
 };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function ProfilePage() {
   const navigate = useNavigate();

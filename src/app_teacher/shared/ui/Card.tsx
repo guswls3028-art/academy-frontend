@@ -2,6 +2,7 @@
 // 공용 카드/섹션 — 데스크톱 ds-section/ds-panel 모바일 대응
 import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
+import { cx } from "@/shared/utils/cx";
 import { ChevronLeft } from "@teacher/shared/ui/Icons";
 import styles from "./Card.module.css";
 
@@ -14,10 +15,6 @@ const KPI_VALUE_COLOR_CLASS: Record<string, string> = {
   "var(--tc-text-secondary)": styles.kpiValueSecondary,
   "var(--tc-text)": "",
 };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 /** 카드 컨테이너 */
 export function Card({
