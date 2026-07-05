@@ -14,6 +14,7 @@ import {
   deletePost,
   type PostEntity,
 } from "@admin/domains/community/api/community.api";
+import { adminDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPage.module.css";
 import { PATCH_NOTES, type PatchNote, type NoteCategory } from "./patchNotesData";
 
@@ -153,9 +154,10 @@ export function BugReportPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bugPostsQueryKey = adminDeveloperQueryKeys.posts("bug_report");
 
   const { data: posts } = useQuery({
-    queryKey: ["dev-posts", "bug_report"],
+    queryKey: bugPostsQueryKey,
     queryFn: async () => {
       const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
       return { results: results.filter((p) => p.title?.startsWith("[BUG]")), count: 0 };
@@ -225,7 +227,7 @@ export function BugReportPage() {
       previews.forEach(URL.revokeObjectURL);
       setImages([]);
       setPreviews([]);
-      qc.invalidateQueries({ queryKey: ["dev-posts", "bug_report"] });
+      qc.invalidateQueries({ queryKey: bugPostsQueryKey });
     },
     onError: (e: Error) => feedback.error(e.message),
   });
@@ -234,7 +236,7 @@ export function BugReportPage() {
     mutationFn: (postId: number) => deletePost(postId),
     onSuccess: () => {
       feedback.success("삭제되었습니다.");
-      qc.invalidateQueries({ queryKey: ["dev-posts", "bug_report"] });
+      qc.invalidateQueries({ queryKey: bugPostsQueryKey });
     },
     onError: (e: Error) => feedback.error(e.message),
   });
@@ -329,9 +331,10 @@ export function FeedbackPage() {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const feedbackPostsQueryKey = adminDeveloperQueryKeys.posts("dev_feedback");
 
   const { data: posts } = useQuery({
-    queryKey: ["dev-posts", "dev_feedback"],
+    queryKey: feedbackPostsQueryKey,
     queryFn: async () => {
       const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
       return { results: results.filter((p) => p.title?.startsWith("[FB]")), count: 0 };
@@ -368,7 +371,7 @@ export function FeedbackPage() {
       setTitle("");
       setContent("");
       setFiles([]);
-      qc.invalidateQueries({ queryKey: ["dev-posts", "dev_feedback"] });
+      qc.invalidateQueries({ queryKey: feedbackPostsQueryKey });
     },
     onError: (e: Error) => feedback.error(e.message),
   });
@@ -377,7 +380,7 @@ export function FeedbackPage() {
     mutationFn: (postId: number) => deletePost(postId),
     onSuccess: () => {
       feedback.success("삭제되었습니다.");
-      qc.invalidateQueries({ queryKey: ["dev-posts", "dev_feedback"] });
+      qc.invalidateQueries({ queryKey: feedbackPostsQueryKey });
     },
     onError: (e: Error) => feedback.error(e.message),
   });

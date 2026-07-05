@@ -19,6 +19,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
+import { adminDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPage.module.css";
 
 /* ── Types ── */
@@ -148,7 +149,7 @@ export default function FeatureFlagsPage() {
   // Fetch tenants (platform admin only - Tenant 1) — owner가 아닌 경우에도 fetch
   // 자체는 cheap + tenant 측 차단(403/empty). hook 순서를 안정시키는 게 우선.
   const { data: tenants } = useQuery<TenantWithFlags[]>({
-    queryKey: ["tenants-feature-flags"],
+    queryKey: adminDeveloperQueryKeys.tenantFeatureFlags,
     queryFn: async () => {
       const res = await api.get<TenantWithFlags[]>("/core/tenants/");
       return res.data;
