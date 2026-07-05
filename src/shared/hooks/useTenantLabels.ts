@@ -12,6 +12,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 
 interface TenantLabelInfo {
   pass_label?: string;
@@ -31,7 +32,7 @@ export interface TenantLabels {
 
 export function useTenantLabels(): TenantLabels {
   const { data, isLoading } = useQuery({
-    queryKey: ["tenant-info", "labels"],
+    queryKey: accountQueryKeys.tenantLabels,
     queryFn: async () => {
       const res = await api.get<TenantLabelInfo>("/core/tenant-info/");
       return res.data;

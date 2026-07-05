@@ -6,11 +6,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClinicTargets } from "@/shared/api/contracts/clinicTargets";
+import { clinicQueryKeys } from "@/shared/api/queryKeys/clinic";
 import { ClinicHighlightContext, type ClinicHighlightContextValue } from "./clinicHighlightContextCore";
 
 export function ClinicHighlightProvider({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["clinic-highlight-ids"],
+    queryKey: clinicQueryKeys.highlightIds,
     queryFn: () => fetchClinicTargets(),
     staleTime: 30_000,
     refetchInterval: 60_000,

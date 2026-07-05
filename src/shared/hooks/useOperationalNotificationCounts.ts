@@ -7,10 +7,11 @@ import {
   type OperationalNotificationItem,
   type OperationalNotificationSource,
 } from "@/shared/api/contracts/notifications";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 
 export function useOperationalNotificationCounts() {
   const q = useQuery({
-    queryKey: ["admin", "notification-counts"],
+    queryKey: notificationQueryKeys.operationalCounts,
     queryFn: fetchOperationalNotificationCounts,
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,

@@ -13,6 +13,7 @@ import { ChevronRight, Clock, MessageSquare, Send } from "@teacher/shared/ui/Ico
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
+import { teacherTodayQueryKeys } from "../queryKeys";
 import SessionCard from "../components/SessionCard";
 
   const notificationLinkStyle: CSSProperties = {
@@ -34,7 +35,7 @@ export default function TodayPage() {
   const { user } = useAuth();
 
   const { data: sessions, isLoading } = useQuery({
-    queryKey: ["today-sessions", today],
+    queryKey: teacherTodayQueryKeys.sessions(today),
     queryFn: () => fetchTodaySessions(today),
     staleTime: 60_000,
   });
