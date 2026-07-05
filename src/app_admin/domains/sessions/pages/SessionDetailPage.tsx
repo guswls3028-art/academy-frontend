@@ -22,6 +22,7 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
+import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import "./SessionDetailPage.css";
@@ -86,15 +87,15 @@ export default function SessionDetailPage() {
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
   const { data: session, isError: sessionError } = useQuery({
-    queryKey: ["session", sId],
+    queryKey: adminSessionQueryKeys.sessionDetail(sId),
     queryFn: () => fetchSession(sId),
     enabled: Number.isFinite(sId),
   });
 
   const invalidateSession = () => {
-    qc.invalidateQueries({ queryKey: ["session-enrollments", sId] });
-    qc.invalidateQueries({ queryKey: ["attendance", sId] });
-    qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.sessionEnrollments(sId) });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.attendance(sId) });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.attendanceMatrix(lecId) });
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sId) });
   };
 

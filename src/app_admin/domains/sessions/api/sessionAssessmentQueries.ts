@@ -6,6 +6,7 @@ import { fetchAssessmentHomeworks, type AssessmentHomeworkListItem } from "@/sha
 import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import type { SessionExamRow } from "@admin/domains/results/api/adminSessionExams";
+import { adminSessionQueryKeys } from "../queryKeys";
 
 export type SessionExamSummaryRow = {
   exam_id: number;
@@ -62,7 +63,7 @@ export async function invalidateSessionExamQueries(
     qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) }),
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) }),
     examId != null
-      ? qc.invalidateQueries({ queryKey: ["admin-exam", examId] })
+      ? qc.invalidateQueries({ queryKey: adminSessionQueryKeys.adminExam(examId) })
       : Promise.resolve(),
   ]);
 }

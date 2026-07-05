@@ -33,6 +33,7 @@ import type { ClinicTarget } from "@admin/domains/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { adminSessionQueryKeys } from "../queryKeys";
 import "./SessionClinicTab.css";
 
 /* ─── Constants ─── */
@@ -74,7 +75,7 @@ export default function SessionClinicTab({
   const { sectionMode } = useSectionMode();
 
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
-    queryKey: ["session", sessionId],
+    queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () => {
       const { default: api } = await import("@/shared/api/axios");
       return (await api.get(`/lectures/sessions/${sessionId}/`)).data as LectureSession;
@@ -83,25 +84,25 @@ export default function SessionClinicTab({
   });
 
   const { data: allSections = [], isLoading: sectionsLoading, isError: sectionsError } = useQuery<Section[]>({
-    queryKey: ["lecture-sections", lectureId],
+    queryKey: adminSessionQueryKeys.lectureSections(lectureId),
     queryFn: () => fetchSections(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SectionAssignment[]>({
-    queryKey: ["section-assignments", lectureId],
+    queryKey: adminSessionQueryKeys.sectionAssignments(lectureId),
     queryFn: () => fetchSectionAssignments(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
   const { data: sessionEnrollments = [], isLoading: enrollmentsLoading } = useQuery<SessionEnrollmentRow[]>({
-    queryKey: ["session-enrollments", sessionId],
+    queryKey: adminSessionQueryKeys.sessionEnrollments(sessionId),
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: Number.isFinite(sessionId),
   });
 
   const { data: allSessions = [] } = useQuery<LectureSession[]>({
-    queryKey: ["lecture-sessions", lectureId],
+    queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
   });

@@ -8,6 +8,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { adminSessionQueryKeys } from "./queryKeys";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
@@ -15,14 +16,14 @@ export default function SessionLayout() {
   const location = useLocation();
 
   const { data: session, isLoading, isError } = useQuery({
-    queryKey: ["session", sessionId],
+    queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () =>
       (await api.get(`/lectures/sessions/${sessionId}/`)).data,
     enabled: !!lectureId && !!sessionId,
   });
 
   const { data: lecture } = useQuery({
-    queryKey: ["lecture", lectureId],
+    queryKey: adminSessionQueryKeys.lecture(lectureId),
     queryFn: async () =>
       (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: !!lectureId,

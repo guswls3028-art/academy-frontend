@@ -17,6 +17,7 @@ import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/produc
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { adminSessionQueryKeys } from "../queryKeys";
 import styles from "./SessionBlock.module.css";
 
 interface Props {
@@ -186,13 +187,13 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const { sectionMode, clinicMode } = useSectionMode();
 
   const { data: rawSessions = [], isLoading } = useQuery({
-    queryKey: ["lecture-sessions", lectureId],
+    queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
   });
 
   const { data: sections = [] } = useQuery<SectionType[]>({
-    queryKey: ["lecture-sections", lectureId],
+    queryKey: adminSessionQueryKeys.lectureSections(lectureId),
     queryFn: () => fetchSections(lectureId),
     enabled: Number.isFinite(lectureId) && sectionMode,
   });
@@ -200,9 +201,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const sessions = sortSessionsByDisplayOrder(rawSessions);
 
   const invalidate = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["lecture-sessions", lectureId] });
-    qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] });
-    qc.invalidateQueries({ queryKey: ["session"] });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSessions(lectureId) });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSections(lectureId) });
+    qc.invalidateQueries({ queryKey: adminSessionQueryKeys.session });
   }, [qc, lectureId]);
 
   const handleClose = () => {
