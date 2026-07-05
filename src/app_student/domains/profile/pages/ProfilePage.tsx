@@ -13,34 +13,25 @@ import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 /** 미입력 표시 JSX — italic 회색 */
 const EMPTY_PLACEHOLDER = (
   <span className="student-profile-empty">미입력</span>
 );
 
-function formatPhone(phone: string | null | undefined): React.ReactNode {
-  if (!phone || !phone.trim()) return EMPTY_PLACEHOLDER;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("010")) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return phone;
-}
-
-function formatGender(g: string | null | undefined): React.ReactNode {
-  if (g === "M") return "남";
-  if (g === "F") return "여";
-  return EMPTY_PLACEHOLDER;
-}
+const STUDENT_GENDER_LABELS = {
+  M: "남",
+  F: "여",
+} as const;
 
 /** 값이 없으면 미입력 placeholder, 있으면 그대로 반환 */
-function valueOrEmpty(val: string | null | undefined): React.ReactNode {
+function valueOrEmpty(
+  val: string | null | undefined,
+  render?: (value: string) => React.ReactNode
+): React.ReactNode {
   if (!val || !val.trim()) return EMPTY_PLACEHOLDER;
-  return val;
+  return render ? render(val) : val;
 }
 
 export default function ProfilePage() {
@@ -403,7 +394,7 @@ export default function ProfilePage() {
                   aria-label="학부모 전화번호"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{formatPhone(profile.parent_phone)}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.parent_phone, formatPhone)}</div>
               )}
             </div>
 
@@ -419,7 +410,7 @@ export default function ProfilePage() {
                   aria-label="학생 전화번호"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.phone ? formatPhone(profile.phone) : EMPTY_PLACEHOLDER}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.phone, formatPhone)}</div>
               )}
             </div>
 
@@ -443,7 +434,11 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{formatGender(profile.gender)}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>
+                  {profile.gender === "M" || profile.gender === "F"
+                    ? STUDENT_GENDER_LABELS[profile.gender]
+                    : EMPTY_PLACEHOLDER}
+                </div>
               )}
             </div>
 
