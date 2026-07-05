@@ -1,6 +1,7 @@
 ﻿// PATH: src/app_admin/domains/staff/hooks/useStaffs.ts
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffs } from "../api/staff.api";
+import { staffQueryKeys } from "../queryKeys";
 
 export type UseStaffsParams = {
   search?: string;
@@ -15,7 +16,7 @@ export type UseStaffsParams = {
  */
 export function useStaffs(params?: UseStaffsParams) {
   return useQuery({
-    queryKey: ["staffs", params ?? {}],
+    queryKey: staffQueryKeys.staffsList(params ?? {}),
     queryFn: () => fetchStaffs(params),
     staleTime: 10_000,
   });

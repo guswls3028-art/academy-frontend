@@ -1,6 +1,7 @@
 ﻿// PATH: src/app_admin/domains/staff/hooks/usePayrollSnapshots.ts
 import { useQuery } from "@tanstack/react-query";
 import { fetchPayrollSnapshots } from "../api/payrollSnapshots.api";
+import { staffQueryKeys } from "../queryKeys";
 
 export type UsePayrollSnapshotsParams = {
   staff?: number;
@@ -15,7 +16,7 @@ export type UsePayrollSnapshotsParams = {
  */
 export function usePayrollSnapshots(params: UsePayrollSnapshotsParams) {
   return useQuery({
-    queryKey: ["payroll-snapshots", params],
+    queryKey: staffQueryKeys.payrollSnapshotsList(params),
     queryFn: () => fetchPayrollSnapshots(params),
   });
 }

@@ -8,6 +8,7 @@ import {
 } from "../api/expenses.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { staffQueryKeys } from "../queryKeys";
 
 export type UseExpensesParams = {
   staff: number;
@@ -25,15 +26,15 @@ export function useExpenses(params: UseExpensesParams) {
   const qc = useQueryClient();
 
   const listQ = useQuery({
-    queryKey: ["expenses", params],
+    queryKey: staffQueryKeys.expensesList(params),
     queryFn: () => fetchExpenses(params),
     enabled: !!params.staff && !!params.date_from && !!params.date_to,
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["expenses"] });
-    qc.invalidateQueries({ queryKey: ["staff-summary", params.staff] });
-    qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.expenses });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.summaryForStaff(params.staff) });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
   };
 
   const createM = useMutation({

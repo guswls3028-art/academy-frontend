@@ -8,12 +8,13 @@ import {
   lockWorkMonth,
   isLockedFromLocks,
 } from "../api/workMonthLocks.api"; // ??? IA  NOTE: legacy comment removed (encoding issue)
+import { staffQueryKeys } from "../queryKeys";
 
 export function useWorkMonthLock(params: { staff: number; year: number; month: number }) {
   const qc = useQueryClient();
 
   const locksQ = useQuery({
-    queryKey: ["work-month-locks", params.staff, params.year, params.month],
+    queryKey: staffQueryKeys.workMonthLocksForMonth(params.staff, params.year, params.month),
     queryFn: () =>
       fetchWorkMonthLocks({
         staff: params.staff,
@@ -28,17 +29,16 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
   const lockM = useMutation({
     mutationFn: () => lockWorkMonth({ staff: params.staff, year: params.year, month: params.month }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["work-month-locks", params.staff] });
-      qc.invalidateQueries({ queryKey: ["work-records", params.staff] });
-      qc.invalidateQueries({ queryKey: ["expenses", params.staff] });
-      qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.workMonthLocksForStaff(params.staff) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.workRecordsForStaff(params.staff) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.expensesForStaff(params.staff) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
       import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`));
     },
   });
 
   return { locksQ, locked, lockM };
 }
-
 
 
 

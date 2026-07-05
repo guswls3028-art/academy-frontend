@@ -8,6 +8,7 @@ import {
 } from "../api/workRecords.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { staffQueryKeys } from "../queryKeys";
 
 export type UseWorkRecordsParams = {
   staff: number;
@@ -25,16 +26,16 @@ export function useWorkRecords(params: UseWorkRecordsParams) {
   const qc = useQueryClient();
 
   const listQ = useQuery({
-    queryKey: ["work-records", params],
+    queryKey: staffQueryKeys.workRecordsList(params),
     queryFn: () => fetchWorkRecords(params),
     enabled:
       !!params.staff && !!params.date_from && !!params.date_to,
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["work-records"] });
-    qc.invalidateQueries({ queryKey: ["staff-summary", params.staff] });
-    qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.workRecords });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.summaryForStaff(params.staff) });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
   };
 
   const createM = useMutation({
