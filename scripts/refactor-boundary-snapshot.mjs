@@ -102,6 +102,13 @@ function countMatches(text, pattern) {
   return [...text.matchAll(pattern)].length;
 }
 
+function omitStandaloneLineComments(text) {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith('//'))
+    .join('\n');
+}
+
 function topEntries(map, limit = 20) {
   return [...map.entries()]
     .sort(([, a], [, b]) => b - a)
@@ -132,21 +139,22 @@ const metrics = {
 
 for (const file of srcFiles) {
   const text = read(file);
+  const metricText = omitStandaloneLineComments(text);
   const relative = rel(file);
   const specs = importSpecifiers(text);
   const currentDomain = domainFromRelPath(relative);
 
-  metrics.local_format_defs += countMatches(text, /\b(?:const|function)\s+format[A-Z][A-Za-z0-9_]*/g);
-  metrics.status_map_defs += countMatches(text, /\b[A-Za-z0-9_]*(?:Status|STATUS)[A-Za-z0-9_]*(?:Map|MAP|Labels|LABELS|Meta|META)\b/g);
-  metrics.query_key_literals += countMatches(text, /\bqueryKey\s*:\s*\[/g);
-  metrics.inline_style_objects += countMatches(text, /\bstyle\s*=\s*\{\s*\{/g);
-  metrics.raw_badge_classes += countMatches(text, /\bclassName\s*=\s*["'][^"']*\bds-[^"']*badge\b[^"']*["']/g);
-  metrics.api_response_type_defs += countMatches(text, /\b(?:interface|type)\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b/g);
-  metrics.direct_axios_calls += countMatches(text, /\baxios\s*\./g);
-  metrics.fetch_calls += countMatches(text, /\bfetch\s*\(/g);
-  metrics.local_storage_refs += countMatches(text, /\blocalStorage\b/g);
-  metrics.session_storage_refs += countMatches(text, /\bsessionStorage\b/g);
-  metrics.explicit_any_refs += countMatches(text, /\bany\b/g);
+  metrics.local_format_defs += countMatches(metricText, /\b(?:const|function)\s+format[A-Z][A-Za-z0-9_]*/g);
+  metrics.status_map_defs += countMatches(metricText, /\b[A-Za-z0-9_]*(?:Status|STATUS)[A-Za-z0-9_]*(?:Map|MAP|Labels|LABELS|Meta|META)\b/g);
+  metrics.query_key_literals += countMatches(metricText, /\bqueryKey\s*:\s*\[/g);
+  metrics.inline_style_objects += countMatches(metricText, /\bstyle\s*=\s*\{\s*\{/g);
+  metrics.raw_badge_classes += countMatches(metricText, /\bclassName\s*=\s*["'][^"']*\bds-[^"']*badge\b[^"']*["']/g);
+  metrics.api_response_type_defs += countMatches(metricText, /\b(?:interface|type)\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b/g);
+  metrics.direct_axios_calls += countMatches(metricText, /\baxios\s*\./g);
+  metrics.fetch_calls += countMatches(metricText, /\bfetch\s*\(/g);
+  metrics.local_storage_refs += countMatches(metricText, /\blocalStorage\b/g);
+  metrics.session_storage_refs += countMatches(metricText, /\bsessionStorage\b/g);
+  metrics.explicit_any_refs += countMatches(metricText, /\bany\b/g);
   metrics.ts_expect_error_refs += countMatches(text, /@ts-expect-error/g);
 
   for (const { spec, index } of specs) {
