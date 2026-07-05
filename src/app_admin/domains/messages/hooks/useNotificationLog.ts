@@ -5,12 +5,11 @@ import {
   fetchNotificationLog,
   type NotificationLogParams,
 } from "../api/messages.api";
-
-const KEY = ["messaging", "log"] as const;
+import { messageQueryKeys } from "../queryKeys";
 
 export function useNotificationLog(params?: NotificationLogParams) {
   return useQuery({
-    queryKey: [...KEY, params ?? {}],
+    queryKey: messageQueryKeys.logList(params ?? {}),
     queryFn: () => fetchNotificationLog(params),
     staleTime: 30 * 1000,
   });

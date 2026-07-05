@@ -9,12 +9,11 @@ import {
   testCredentials,
   type TenantMessagingInfo,
 } from "../api/messages.api";
-
-const KEY = ["messaging", "info"] as const;
+import { messageQueryKeys } from "../queryKeys";
 
 export function useMessagingInfo() {
   const q = useQuery({
-    queryKey: KEY,
+    queryKey: messageQueryKeys.info,
     queryFn: fetchMessagingInfo,
     staleTime: 60 * 1000,
   });
@@ -25,7 +24,7 @@ export function useUpdateKakaoPfid() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (pfid: string) => updateKakaoPfid(pfid),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: messageQueryKeys.info }),
     onError: () => {
       import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
         feedback.error("카카오 PFID 저장에 실패했습니다.")
@@ -46,7 +45,7 @@ export function useUpdateMessagingInfo() {
         own_ppurio_account?: string;
       }
     ) => updateMessagingInfo(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: messageQueryKeys.info }),
     onError: () => {
       import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
         feedback.error("메시징 설정 저장에 실패했습니다.")
@@ -72,7 +71,7 @@ export function useTestCredentials() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => testCredentials(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: messageQueryKeys.info }),
     onError: () => {
       import("@/shared/ui/feedback/feedback").then(({ feedback }) =>
         feedback.error("연동 테스트에 실패했습니다.")

@@ -8,8 +8,7 @@ import {
   type AutoSendConfigItem,
 } from "../api/messages.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
-
-const QUERY_KEY = ["messaging", "auto-send"] as const;
+import { messageQueryKeys } from "../queryKeys";
 
 /**
  * 자동발송 설정을 조회하고, 특정 trigger의 enabled를 토글하는 mutation을 제공한다.
@@ -18,7 +17,7 @@ export function useAutoSendConfig() {
   const qc = useQueryClient();
 
   const { data: configs = [], isLoading } = useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30_000,
   });
@@ -31,7 +30,7 @@ export function useAutoSendConfig() {
       return updateAutoSendConfigs(next);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success("자동발송 설정이 변경되었습니다.");
     },
     onError: () => {

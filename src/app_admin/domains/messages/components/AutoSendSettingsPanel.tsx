@@ -39,6 +39,7 @@ import {
 } from "../utils/autoSendConfigState";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { messageQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 import styles from "./AutoSendSettingsPanel.module.css";
@@ -128,8 +129,6 @@ export type AutoSendSettingsPanelProps = {
 // Query keys
 // ---------------------------------------------------------------------------
 
-const QUERY_KEY = ["messaging", "auto-send"] as const;
-const TEMPLATES_KEY = ["messaging", "templates"] as const;
 const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
 // ---------------------------------------------------------------------------
@@ -434,13 +433,13 @@ export default function AutoSendSettingsPanel({
 
   // ---- Data fetching ----
   const { data: allConfigs = EMPTY_CONFIGS, isLoading } = useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30_000,
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: TEMPLATES_KEY,
+    queryKey: messageQueryKeys.templates,
     queryFn: () => fetchMessageTemplates(),
     staleTime: 30_000,
   });
@@ -482,7 +481,7 @@ export default function AutoSendSettingsPanel({
   const updateMut = useMutation({
     mutationFn: updateAutoSendConfigs,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success("자동발송 설정이 저장되었습니다.");
     },
     onError: (err: unknown) => {
@@ -508,8 +507,8 @@ export default function AutoSendSettingsPanel({
       return updateMessageTemplate(editingTemplate.id, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TEMPLATES_KEY });
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
       feedback.success(
         "템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.",
@@ -523,8 +522,8 @@ export default function AutoSendSettingsPanel({
   const deleteTemplateMut = useMutation({
     mutationFn: (id: number) => deleteMessageTemplate(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TEMPLATES_KEY });
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
       feedback.success("템플릿이 삭제되었습니다.");
     },
@@ -537,7 +536,7 @@ export default function AutoSendSettingsPanel({
     mutationFn: (payload: MessageTemplatePayload) =>
       createMessageTemplate(payload),
     onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: TEMPLATES_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       if (creatingForTrigger && created?.id) {
         const next = localConfigs.map((c) =>
           c.trigger === creatingForTrigger

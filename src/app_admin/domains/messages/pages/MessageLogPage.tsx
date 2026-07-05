@@ -18,6 +18,7 @@ import {
 } from "../api/messages.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
+import { messageQueryKeys } from "../queryKeys";
 import styles from "./MessageLogPage.module.css";
 
 // ── helpers ──
@@ -436,12 +437,12 @@ export default function MessageLogPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
   const { data: scheduledData } = useQuery({
-    queryKey: ["messaging", "scheduled", "pending"],
+    queryKey: messageQueryKeys.scheduledPending,
     queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
     staleTime: 10 * 1000,
   });
   const { data: operationsStatus, isLoading: operationsLoading } = useQuery({
-    queryKey: ["messaging", "operations-status"],
+    queryKey: messageQueryKeys.operationsStatus,
     queryFn: fetchMessagingOperationsStatus,
     staleTime: 15 * 1000,
     refetchInterval: 30 * 1000,
@@ -449,8 +450,8 @@ export default function MessageLogPage() {
   const cancelMut = useMutation({
     mutationFn: cancelScheduledNotification,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messaging", "scheduled", "pending"] });
-      qc.invalidateQueries({ queryKey: ["messaging", "operations-status"] });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.scheduledPending });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       feedback.success("예약 발송이 취소되었습니다.");
     },
     onError: () => {

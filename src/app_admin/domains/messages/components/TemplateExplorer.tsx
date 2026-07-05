@@ -32,10 +32,9 @@ import {
   renderPreviewBadges,
 } from "../constants/templateBlocks";
 import { koreanDateText } from "@/shared/utils/displayText";
+import { messageQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
-
-const QUERY_KEY = ["messaging", "templates"] as const;
 
 /** 기본 템플릿 식별 — is_system 플래그 또는 이름 접두어 기준 */
 function isDefaultTemplate(t: MessageTemplateItem): boolean {
@@ -212,7 +211,7 @@ export default function TemplateExplorer() {
   } | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: [...QUERY_KEY, activeCategory],
+    queryKey: messageQueryKeys.templatesByCategory(activeCategory),
     queryFn: () => fetchMessageTemplates(activeCategory),
     staleTime: 30 * 1000,
   });
@@ -221,7 +220,7 @@ export default function TemplateExplorer() {
     mutationFn: (payload: MessageTemplatePayload) =>
       createMessageTemplate(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setModalOpen(null);
       feedback.success("템플릿이 저장되었습니다.");
     },
@@ -237,7 +236,7 @@ export default function TemplateExplorer() {
       payload: Partial<MessageTemplatePayload>;
     }) => updateMessageTemplate(id, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setModalOpen(null);
       feedback.success("템플릿이 수정되었습니다.");
     },
@@ -247,7 +246,7 @@ export default function TemplateExplorer() {
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteMessageTemplate(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setConfirmAction(null);
       feedback.success("템플릿이 삭제되었습니다.");
     },
@@ -260,7 +259,7 @@ export default function TemplateExplorer() {
   const submitReviewMut = useMutation({
     mutationFn: (id: number) => submitMessageTemplateReview(id),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setConfirmAction(null);
       feedback.success(data.detail || "검수 신청이 완료되었습니다.");
     },
@@ -278,7 +277,7 @@ export default function TemplateExplorer() {
   const provisionMut = useMutation({
     mutationFn: provisionDefaultTemplates,
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       const parts: string[] = [];
       if (result.created_templates > 0) parts.push(`${result.created_templates}개 생성`);
       if (result.reset_templates > 0) parts.push(`${result.reset_templates}개 기본값 복원`);

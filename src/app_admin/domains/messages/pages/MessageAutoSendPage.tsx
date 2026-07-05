@@ -41,11 +41,10 @@ import {
   isAllToggleableEnabled,
   type AutoSendSummary,
 } from "../utils/autoSendConfigState";
+import { messageQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MessageAutoSendPage.module.css";
 import "../styles/templateEditor.css";
-
-const QUERY_KEY = ["messaging", "auto-send"] as const;
 
 const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
@@ -352,17 +351,17 @@ export default function MessageAutoSendPage() {
   useMessagingInfo();
 
   const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30 * 1000,
   });
   const { data: templates = [] } = useQuery({
-    queryKey: ["messaging", "templates"],
+    queryKey: messageQueryKeys.templates,
     queryFn: () => fetchMessageTemplates(),
     staleTime: 30 * 1000,
   });
   const { data: customTemplates = [] } = useQuery({
-    queryKey: ["messaging", "templates", "custom-default"],
+    queryKey: messageQueryKeys.customDefaultTemplate,
     queryFn: () => fetchMessageTemplates("default"),
     staleTime: 30 * 1000,
   });
@@ -403,7 +402,7 @@ export default function MessageAutoSendPage() {
   const updateMut = useMutation({
     mutationFn: updateAutoSendConfigs,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success("자동발송 설정이 저장되었습니다.");
     },
     onError: (err: unknown) => {
@@ -421,8 +420,8 @@ export default function MessageAutoSendPage() {
       return updateMessageTemplate(editingTemplate.id, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
       feedback.success("템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.");
     },
@@ -434,7 +433,7 @@ export default function MessageAutoSendPage() {
   const createTemplateMut = useMutation({
     mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
     onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       if (creatingForTrigger && created?.id) {
         const next = localConfigs.map((c) =>
           c.trigger === creatingForTrigger ? { ...c, template: created.id } : c,
@@ -453,8 +452,8 @@ export default function MessageAutoSendPage() {
   const provisionMut = useMutation({
     mutationFn: provisionDefaultTemplates,
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
-      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       const parts: string[] = [];
       if (result.created_templates > 0) parts.push(`템플릿 ${result.created_templates}개 생성`);
       if (result.reset_templates > 0) parts.push(`${result.reset_templates}개 기본값 복원`);

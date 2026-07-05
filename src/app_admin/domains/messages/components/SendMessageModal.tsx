@@ -37,6 +37,7 @@ import {
   type SendPreflightResponse,
   type SendToType,
 } from "../api/messages.api";
+import { messageQueryKeys } from "../queryKeys";
 import {
   TEMPLATE_CATEGORY_LABELS,
   getBlocksForCategory,
@@ -732,10 +733,10 @@ export default function SendMessageModal({
         feedback.warning(hint);
         asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
       }
-      queryClient.invalidateQueries({ queryKey: ["messaging", "info"] });
-      queryClient.invalidateQueries({ queryKey: ["messaging", "log"] });
-      queryClient.invalidateQueries({ queryKey: ["messaging", "scheduled"] });
-      queryClient.invalidateQueries({ queryKey: ["messaging", "operations-status"] });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.info });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.log });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.scheduled });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       onClose();
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "response" in e
