@@ -28,3 +28,24 @@ export function formatLandingDateTime(raw: string | null | undefined): string {
     return "";
   }
 }
+
+export function formatLandingYmdDate(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    const date = new Date(raw);
+    return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())}`;
+  } catch {
+    return "";
+  }
+}
+
+export function formatLandingYmdDateOrRaw(raw: string | null): string {
+  if (!raw) return "";
+  try {
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw;
+    return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())}`;
+  } catch {
+    return raw;
+  }
+}

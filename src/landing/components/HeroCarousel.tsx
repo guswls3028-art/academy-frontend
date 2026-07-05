@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { HitReportPublicCard, HitReportShowcaseItem, HeroCarouselItem } from "../types";
 import { fetchPublicHitReportsCached, normalizeHitReportIds } from "../api/hitReports";
+import { formatLandingYmdDate as formatDate } from "../utils/dateFormat";
 
 const AUTOPLAY_MS = 5000;
 
@@ -70,14 +71,6 @@ const LIGHT_TOKENS: CarouselTokens = {
   ctaBg: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
   ctaText: "#FFFFFF",
 };
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
-}
 
 export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
   items?: HitReportShowcaseItem[];

@@ -21,6 +21,7 @@ import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import { formatLandingYmdDate as formatDate } from "../utils/dateFormat";
 
 const NAV_TOKENS: NavBarTokens = {
   bg: "rgba(10,14,26,0.85)",
@@ -197,14 +198,6 @@ function SkelGrid() {
       ))}
     </div>
   );
-}
-
-function formatDate(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const d = new Date(raw);
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return ""; }
 }
 
 // ─────────────────────────────────────────────

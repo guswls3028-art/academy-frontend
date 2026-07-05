@@ -21,19 +21,9 @@ import {
   MatchupLandingShell,
 } from "./LandingMatchupBoardShell";
 import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
+import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch {
-    return iso;
-  }
-}
 
 function StatusBadge({ card, accent }: { card: MatchupShowcaseCard; accent: string }) {
   if (card.expired) {

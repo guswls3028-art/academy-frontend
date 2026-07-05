@@ -19,18 +19,10 @@ import {
   MatchupLandingShell,
 } from "./LandingMatchupBoardShell";
 import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
-import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
+import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
+import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-  } catch { return iso; }
-}
 
 export default function LandingMatchupBoardDetailPage() {
   const { id } = useParams<{ id: string }>();
