@@ -13,6 +13,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { teacherCommsQueryKeys } from "../queryKeys";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -40,7 +41,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: scopeNodes } = useQuery({
-    queryKey: ["community-scope-nodes"],
+    queryKey: teacherCommsQueryKeys.scopeNodes,
     queryFn: fetchScopeNodes,
     enabled: open,
   });
@@ -118,7 +119,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
       return post;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.success(`${postTypeLabel}이 등록되었습니다.`);
       resetAndClose();
     },

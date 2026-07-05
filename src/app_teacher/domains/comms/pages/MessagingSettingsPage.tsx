@@ -17,6 +17,7 @@ import {
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherCommsQueryKeys } from "../queryKeys";
 import styles from "./MessagingSettingsPage.module.css";
 
 const SERVER_IP = "43.201.119.172";
@@ -45,12 +46,12 @@ export default function MessagingSettingsPage() {
   const confirm = useConfirm();
 
   const { data: info, isLoading } = useQuery({
-    queryKey: ["teacher-messaging-info"],
+    queryKey: teacherCommsQueryKeys.messagingInfo,
     queryFn: fetchMessagingInfo,
   });
 
   const { data: autoConfigs } = useQuery({
-    queryKey: ["teacher-auto-send-configs"],
+    queryKey: teacherCommsQueryKeys.autoSendConfigs,
     queryFn: fetchAutoSendConfigs,
   });
 
@@ -71,7 +72,7 @@ export default function MessagingSettingsPage() {
 
   const updateMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateMessagingInfo>[0]) => updateMessagingInfo(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-messaging-info"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.messagingInfo }),
   });
 
   const verifyMut = useMutation({
@@ -475,7 +476,7 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
   const toggleMut = useMutation({
     mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-auto-send-configs"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       teacherToast.success(!enabled ? "자동 발송을 켰습니다." : "자동 발송을 껐습니다.");
     },
   });
@@ -547,7 +548,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
   }, [open, config]);
 
   const { data: templates } = useQuery({
-    queryKey: ["teacher-msg-templates"],
+    queryKey: teacherCommsQueryKeys.templates,
     queryFn: fetchAllTemplates,
     enabled: open,
   });
@@ -562,7 +563,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
       return updateAutoSendConfig(config.trigger, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-auto-send-configs"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       teacherToast.success("자동 발송 설정이 저장되었습니다.");
       onClose();
     },

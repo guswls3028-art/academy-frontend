@@ -14,6 +14,7 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchMessageLog, type MessageLogItem } from "../api";
+import { teacherCommsQueryKeys } from "../queryKeys";
 
 /** 한글 이름 마스킹: 박해환 → 박○○, 이연 → 이○. */
 function maskName(name: string): string {
@@ -42,7 +43,7 @@ export default function MessageLogPage() {
   const isPrivileged = role === "owner" || role === "admin";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-message-log"],
+    queryKey: teacherCommsQueryKeys.messageLog,
     queryFn: () => fetchMessageLog(1, 50),
   });
 

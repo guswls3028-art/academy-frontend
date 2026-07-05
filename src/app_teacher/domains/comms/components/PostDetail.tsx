@@ -12,6 +12,7 @@ import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, 
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherCommsQueryKeys } from "../queryKeys";
 
 interface Props {
   post: Post;
@@ -36,7 +37,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const isStaffPost = post.author_role === "staff";
 
   const { data: replies, isLoading } = useQuery({
-    queryKey: ["post-replies", post.id],
+    queryKey: teacherCommsQueryKeys.postReplies(post.id),
     queryFn: () => fetchPostReplies(post.id),
   });
 
@@ -49,9 +50,9 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     onSuccess: () => {
       setReplyText("");
       setReplyOpen(false);
-      qc.invalidateQueries({ queryKey: ["post-replies", post.id] });
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.postReplies(post.id) });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.notificationCounts });
       teacherToast.success(isAnswerPost ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, isAnswerPost ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
@@ -63,7 +64,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     onSuccess: (updated) => {
       setPost(updated);
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.success("게시글이 수정되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "게시글을 수정하지 못했습니다.")),
@@ -72,7 +73,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const deleteMutation = useMutation({
     mutationFn: () => deletePost(post.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.info("게시글이 삭제되었습니다.");
       onBack();
     },
@@ -82,8 +83,8 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const deleteReplyMutation = useMutation({
     mutationFn: (replyId: number) => deleteReply(post.id, replyId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["post-replies", post.id] });
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.postReplies(post.id) });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.info("댓글이 삭제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "댓글을 삭제하지 못했습니다.")),
@@ -93,7 +94,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     mutationFn: () => togglePostPin(post.id, !post.is_pinned),
     onSuccess: (updated) => {
       setPost(updated);
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.success(updated.is_pinned ? "공지가 고정되었습니다." : "고정이 해제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "고정 상태를 변경하지 못했습니다.")),
@@ -103,7 +104,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     mutationFn: () => updatePost(post.id, { is_urgent: !post.is_urgent } as any),
     onSuccess: (updated) => {
       setPost(updated);
-      qc.invalidateQueries({ queryKey: ["teacher-comms"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       teacherToast.success(updated.is_urgent ? "긴급 공지로 설정되었습니다." : "긴급 설정이 해제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "긴급 설정을 변경하지 못했습니다.")),

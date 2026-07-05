@@ -8,6 +8,7 @@ import type { RegistrationRequest } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { teacherCommsQueryKeys } from "../queryKeys";
 
 interface Props {
   requests: RegistrationRequest[];
@@ -93,8 +94,8 @@ function RequestDetail({
   const approveMut = useMutation({
     mutationFn: () => approveRegistration(r.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-registration-requests"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.notificationCounts });
       teacherToast.success(`${r.name} 학생이 승인되었습니다.`);
       onDone();
     },
@@ -104,8 +105,8 @@ function RequestDetail({
   const rejectMut = useMutation({
     mutationFn: () => rejectRegistration(r.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-registration-requests"] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.registrationRequests });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.notificationCounts });
       teacherToast.info(`${r.name} 학생의 신청이 거절되었습니다.`);
       onDone();
     },

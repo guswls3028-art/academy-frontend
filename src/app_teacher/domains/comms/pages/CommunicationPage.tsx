@@ -8,6 +8,7 @@ import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPending
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
 import type { Post } from "../api";
+import { teacherCommsQueryKeys } from "../queryKeys";
 import PostListItem from "../components/PostListItem";
 import PostDetail from "../components/PostDetail";
 import RegistrationRequestList from "../components/RegistrationRequestList";
@@ -74,7 +75,7 @@ export default function CommunicationPage() {
   }, [searchInput]);
 
   const { data: posts, isLoading: postsLoading } = useQuery({
-    queryKey: ["teacher-comms", tab, searchQuery],
+    queryKey: teacherCommsQueryKeys.postsList(tab, searchQuery),
     queryFn: () => fetchPosts(postType, 50, searchQuery || undefined),
     enabled: isPostTab,
     refetchInterval: tab === "qna" || tab === "counsel" ? 15_000 : false,
@@ -85,7 +86,7 @@ export default function CommunicationPage() {
   });
 
   const { data: reqData, isLoading: reqLoading } = useQuery({
-    queryKey: ["teacher-registration-requests"],
+    queryKey: teacherCommsQueryKeys.registrationRequests,
     queryFn: () => fetchRegistrationRequests("pending"),
     enabled: tab === "requests",
   });

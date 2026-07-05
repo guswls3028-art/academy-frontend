@@ -14,6 +14,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
+import { teacherCommsQueryKeys } from "../queryKeys";
 
 /** 발신번호 마스킹: staff/teacher 권한에게 학원장 개인번호 숨김 (시각 검수 L-12). */
 function maskPhone(phone: string | null | undefined): string {
@@ -34,7 +35,7 @@ export default function MessageTemplatesPage() {
   const [editSheet, setEditSheet] = useState<{ open: boolean; template?: MsgTemplate }>({ open: false });
 
   const { data: templates, isLoading } = useQuery({
-    queryKey: ["teacher-msg-templates"],
+    queryKey: teacherCommsQueryKeys.templates,
     queryFn: fetchAllTemplates,
   });
 
@@ -61,14 +62,14 @@ export default function MessageTemplatesPage() {
   }, [templates]);
 
   const { data: info } = useQuery({
-    queryKey: ["teacher-messaging-info"],
+    queryKey: teacherCommsQueryKeys.messagingInfo,
     queryFn: fetchMessagingInfo,
   });
   const alimtalkAvailable = info?.alimtalk_available ?? Boolean(info?.kakao_pfid);
 
   const deleteMut = useMutation({
     mutationFn: deleteTemplate,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] }); teacherToast.info("템플릿이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates }); teacherToast.info("템플릿이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "템플릿을 삭제하지 못했습니다.")),
   });
 
@@ -189,7 +190,7 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
       ? updateTemplate(template!.id, { name, category, body })
       : createTemplate({ name, category, body }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-msg-templates"] });
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates });
       teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
       onClose();
     },
