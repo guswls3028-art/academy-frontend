@@ -1,10 +1,12 @@
 // PATH: src/app_student/domains/community/queryKeys.ts
 
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
+
 export const studentCommunityQueryKeys = {
   myActivity: (limit: number) => ["student", "community", "my-activity", limit] as const,
-  me: ["student", "me"] as const,
+  me: studentQueryKeys.me,
   videoMe: ["student", "video", "me"] as const,
-  notificationCounts: ["student", "notifications", "counts"] as const,
+  notificationCounts: studentQueryKeys.notificationCounts,
 
   noticePosts: ["student", "notice", "posts"] as const,
   noticePost: (postId: number) => ["student", "notice", "post", postId] as const,
@@ -13,11 +15,11 @@ export const studentCommunityQueryKeys = {
   materialsPosts: ["student", "materials", "posts"] as const,
   materialsPost: (postId: number) => ["student", "materials", "post", postId] as const,
 
-  qnaQuestions: ["student", "qna", "questions"] as const,
+  qnaQuestions: studentQueryKeys.qnaQuestions,
   qnaQuestion: (questionId: number) => ["student", "qna", "question", questionId] as const,
   qnaReplies: (questionId: number) => ["student", "qna", "replies", questionId] as const,
 
-  counselRequests: ["student", "counsel", "requests"] as const,
+  counselRequests: studentQueryKeys.counselRequests,
   counselRequest: (requestId: number) => ["student", "counsel", "request", requestId] as const,
   counselReplies: (requestId: number) => ["student", "counsel", "replies", requestId] as const,
 };

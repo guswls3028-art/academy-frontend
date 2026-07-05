@@ -13,6 +13,7 @@ import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 
 const STORAGE_KEY_PREFIX = "stu:seen-notifications";
 const LEGACY_STORAGE_KEY = "stu:seen-notifications";
@@ -118,7 +119,7 @@ export function useMarkNotificationsSeen() {
       if (changed) {
         saveSeen(existing);
         // 카운트 쿼리 무효화 → 배지 숫자 즉시 갱신
-        queryClient.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+        queryClient.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
       }
     },
     [queryClient],

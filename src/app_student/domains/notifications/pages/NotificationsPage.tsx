@@ -15,6 +15,7 @@ import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/commu
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { IconChevronRight, IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -33,29 +34,29 @@ export default function NotificationsPage() {
   const { data: counts, isLoading: countsLoading, isError: countsError } = useNotificationCounts();
 
   const { data: clinicBookings, isLoading: clinicLoading, isError: clinicError } = useQuery({
-    queryKey: ["student", "clinic", "bookings"],
+    queryKey: studentQueryKeys.clinicBookings,
     queryFn: fetchMyClinicBookingRequests,
     staleTime: 30000,
   });
 
-  const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+  const { data: profile } = useQuery({ queryKey: studentQueryKeys.me, queryFn: fetchMyProfile });
 
   const { data: myQnaQuestions = [], isLoading: qnaLoading, isError: qnaError } = useQuery({
-    queryKey: ["student", "qna", "questions"],
+    queryKey: studentQueryKeys.qnaQuestions,
     queryFn: () => fetchMyQuestions(profile!.id, 50),
     enabled: profile?.id != null,
     staleTime: 30000,
   });
 
   const { data: myCounselRequests = [], isLoading: counselLoading, isError: counselError } = useQuery({
-    queryKey: ["student", "counsel", "requests"],
+    queryKey: studentQueryKeys.counselRequests,
     queryFn: () => fetchMyCounselRequests(profile!.id, 50),
     enabled: profile?.id != null,
     staleTime: 30000,
   });
 
   const { data: gradesSummary, isLoading: gradesLoading, isError: gradesError } = useQuery({
-    queryKey: ["student", "grades", "summary"],
+    queryKey: studentQueryKeys.gradesSummary,
     queryFn: fetchMyGradesSummary,
     staleTime: 30000,
   });
@@ -143,11 +144,11 @@ export default function NotificationsPage() {
           title="알림을 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
           onRetry={() => {
-            qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
-            qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
-            qc.invalidateQueries({ queryKey: ["student", "me"] });
-            qc.invalidateQueries({ queryKey: ["student", "grades", "summary"] });
-            qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.clinicBookings });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.qnaQuestions });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.me });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
           }}
         />
       </StudentPageShell>

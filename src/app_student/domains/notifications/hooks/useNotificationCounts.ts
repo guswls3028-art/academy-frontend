@@ -5,18 +5,19 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchNotificationCounts } from "../api/notifications.api";
 
 export function useNotificationCounts() {
   const queryClient = useQueryClient();
   return useQuery({
-    queryKey: ["student", "notifications", "counts"],
+    queryKey: studentQueryKeys.notificationCounts,
     queryFn: async () => {
-      let profile = queryClient.getQueryData<{ id: number }>(["student", "me"]);
+      let profile = queryClient.getQueryData<{ id: number }>(studentQueryKeys.me);
       if (profile?.id == null) {
         try {
           profile = await queryClient.ensureQueryData({
-            queryKey: ["student", "me"],
+            queryKey: studentQueryKeys.me,
             queryFn: fetchMyProfile,
             staleTime: 60_000,
           });
