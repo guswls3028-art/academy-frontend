@@ -60,7 +60,7 @@ export default function ExamHeaderQuickEdit({
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-      await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      await qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExam(examId) });
       await qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
       feedback.success(`${title || examTitle} 저장됨`);
       setOpen(false);

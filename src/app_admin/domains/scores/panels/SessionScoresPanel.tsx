@@ -213,8 +213,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       if (newStatus === "SECESSION") {
-        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-        qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.attendanceMatrix(lectureId) });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionEnrollments(sessionId) });
         feedback.success("퇴원 처리되었습니다.");
       }
     } catch {
