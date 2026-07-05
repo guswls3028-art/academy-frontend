@@ -25,6 +25,7 @@ import {
   isFeesPermissionError,
 } from "../feesError";
 import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@/shared/product/fees/feesStatus";
+import { teacherFeesQueryKeys } from "../queryKeys";
 import styles from "./FeesInvoicesPage.module.css";
 
 type FilterKey = "ALL" | "PENDING" | "PARTIAL" | "OVERDUE" | "PAID";
@@ -49,7 +50,7 @@ export default function FeesInvoicesPage() {
   const [search, setSearch] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["teacher-fees-invoices", filter, search],
+    queryKey: teacherFeesQueryKeys.invoiceList(filter, search),
     queryFn: () =>
       fetchInvoices({
         ...(filter !== "ALL" ? { status: filter } : {}),
@@ -196,7 +197,7 @@ function InvoiceDetailSheet({
   }, [invoiceId, open]);
 
   const { data: invoice, isLoading } = useQuery({
-    queryKey: ["teacher-fees-invoice", invoiceId],
+    queryKey: teacherFeesQueryKeys.invoice(invoiceId),
     queryFn: () => fetchInvoiceDetail(invoiceId!),
     enabled: invoiceId != null && open,
   });
@@ -212,10 +213,10 @@ function InvoiceDetailSheet({
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-fees-invoices"] });
-      qc.invalidateQueries({ queryKey: ["teacher-fees-invoice", invoiceId] });
-      qc.invalidateQueries({ queryKey: ["teacher-fees-dashboard"] });
-      qc.invalidateQueries({ queryKey: ["teacher-fees-overdue"] });
+      qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.invoices });
+      qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.invoice(invoiceId) });
+      qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.dashboard });
+      qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.overdue });
       teacherToast.success("결제를 기록했습니다.");
       setPayMode(false);
       setPayAmount("");

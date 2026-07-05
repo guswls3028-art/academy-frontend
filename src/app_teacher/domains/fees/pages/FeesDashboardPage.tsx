@@ -14,6 +14,7 @@ import {
   FEES_PERMISSION_ERROR_TITLE,
   isFeesPermissionError,
 } from "../feesError";
+import { teacherFeesQueryKeys } from "../queryKeys";
 import styles from "./FeesDashboardPage.module.css";
 
 export default function FeesDashboardPage() {
@@ -23,14 +24,14 @@ export default function FeesDashboardPage() {
   const [month] = useState(now.getMonth() + 1);
 
   const { data: dashboard, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["teacher-fees-dashboard", year, month],
+    queryKey: teacherFeesQueryKeys.dashboardMonth(year, month),
     queryFn: () => fetchDashboard({ year, month }),
     retry: (failureCount, queryError) => !isFeesPermissionError(queryError) && failureCount < 2,
   });
   const isPermissionError = isFeesPermissionError(error);
 
   const { data: overdue } = useQuery({
-    queryKey: ["teacher-fees-overdue"],
+    queryKey: teacherFeesQueryKeys.overdue,
     queryFn: fetchOverdueInvoices,
     enabled: dashboard != null,
   });
