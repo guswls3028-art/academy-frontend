@@ -9,6 +9,7 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
+import { teacherProfileQueryKeys } from "../queryKeys";
 
 type SubscriptionInfo = {
   plan: string;
@@ -63,14 +64,14 @@ export default function BillingPage() {
   const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["teacher-subscription"],
+    queryKey: teacherProfileQueryKeys.subscription,
     queryFn: fetchSubscription,
     staleTime: 30_000,
     retry: 1,
   });
 
   const { data: cards } = useQuery({
-    queryKey: ["teacher-billing-cards"],
+    queryKey: teacherProfileQueryKeys.billingCards,
     queryFn: fetchCards,
     staleTime: 60_000,
   });

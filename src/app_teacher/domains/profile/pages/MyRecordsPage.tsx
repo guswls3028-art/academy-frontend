@@ -13,6 +13,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { todayLocalISO } from "@/shared/utils/localDate";
+import { teacherProfileQueryKeys } from "../queryKeys";
 
 type Tab = "attendance" | "expense";
 
@@ -46,24 +47,24 @@ export default function MyRecordsPage() {
   const [editTarget, setEditTarget] = useState<any>(null);
 
   const { data: attendance } = useQuery({
-    queryKey: ["my-attendance", month],
+    queryKey: teacherProfileQueryKeys.attendance(month),
     queryFn: () => fetchAttendance(month),
     enabled: tab === "attendance",
   });
   const { data: expenses } = useQuery({
-    queryKey: ["my-expenses", month],
+    queryKey: teacherProfileQueryKeys.expenses(month),
     queryFn: () => fetchExpenses(month),
     enabled: tab === "expense",
   });
 
   const deleteAttMut = useMutation({
     mutationFn: deleteAttendance,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-attendance", month] }); teacherToast.info("근태 기록이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherProfileQueryKeys.attendance(month) }); teacherToast.info("근태 기록이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "근태 기록을 삭제하지 못했습니다.")),
   });
   const deleteExpMut = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-expenses", month] }); teacherToast.info("지출 기록이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherProfileQueryKeys.expenses(month) }); teacherToast.info("지출 기록이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "지출 기록을 삭제하지 못했습니다.")),
   });
 
@@ -177,7 +178,7 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: tab === "attendance" ? ["my-attendance", month] : ["my-expenses", month] });
+      qc.invalidateQueries({ queryKey: tab === "attendance" ? teacherProfileQueryKeys.attendance(month) : teacherProfileQueryKeys.expenses(month) });
       teacherToast.success(`${label} 기록이 ${isEdit ? "수정" : "등록"}되었습니다.`);
       onClose();
     },
