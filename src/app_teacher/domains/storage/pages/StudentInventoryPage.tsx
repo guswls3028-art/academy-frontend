@@ -18,19 +18,8 @@ import {
 import { fetchStudents } from "@teacher/domains/students/api";
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import { useConfirm } from "@/shared/ui/confirm";
+import { formatStorageBytes as formatBytes } from "../storageFormat";
 import styles from "./StudentInventoryPage.module.css";
-
-function formatBytes(n: number): string {
-  if (!n) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let v = n;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
-}
 
 export default function StudentInventoryPage() {
   const navigate = useNavigate();
