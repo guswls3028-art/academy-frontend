@@ -30,6 +30,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { adminLectureQueryKeys } from "../../queryKeys";
 import styles from "./SectionManagementPage.module.css";
 
 const DAY_OPTIONS = [
@@ -102,34 +103,34 @@ export default function SectionManagementPage() {
 
   // ===== Data =====
   const { data: lecture } = useQuery({
-    queryKey: ["lecture", lecId],
+    queryKey: adminLectureQueryKeys.lecture(lecId),
     queryFn: async () => (await api.get(`/lectures/lectures/${lecId}/`)).data,
     enabled: Number.isFinite(lecId),
   });
 
   const { data: sections = [], isLoading: sectionsLoading } = useQuery<Section[]>({
-    queryKey: ["lecture-sections", lecId],
+    queryKey: adminLectureQueryKeys.lectureSections(lecId),
     queryFn: () => fetchSections(lecId),
     enabled: Number.isFinite(lecId),
   });
 
   const { data: assignments = [], isLoading: assignLoading } = useQuery<SectionAssignment[]>({
-    queryKey: ["section-assignments", lecId],
+    queryKey: adminLectureQueryKeys.sectionAssignments(lecId),
     queryFn: () => fetchSectionAssignments(lecId),
     enabled: Number.isFinite(lecId),
   });
 
   const { data: enrollments = [], isLoading: enrollLoading } = useQuery<EnrollmentLite[]>({
-    queryKey: ["lecture-enrollments", lecId],
+    queryKey: adminLectureQueryKeys.lectureEnrollments(lecId),
     queryFn: () => fetchLectureEnrollments(lecId) as Promise<EnrollmentLite[]>,
     enabled: Number.isFinite(lecId),
   });
 
   // ===== Mutations =====
   const invalidate = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["lecture-sections", lecId] });
-    qc.invalidateQueries({ queryKey: ["section-assignments", lecId] });
-    qc.invalidateQueries({ queryKey: ["lecture-enrollments", lecId] });
+    qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureSections(lecId) });
+    qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sectionAssignments(lecId) });
+    qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lecId) });
   }, [qc, lecId]);
 
   const createMut = useMutation({

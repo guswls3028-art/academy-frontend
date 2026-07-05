@@ -13,6 +13,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
+import { adminLectureQueryKeys } from "../../queryKeys";
 
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
 const LECTURES_TABLE_COLUMN_DEFS: TableColumnDef[] = [
@@ -156,7 +157,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lectures", LECTURES_TABLE_COLUMN_DEFS);
 
   const { data = [], isLoading, error, isFetching } = useQuery({
-    queryKey: ["lectures"],
+    queryKey: adminLectureQueryKeys.lectures,
     queryFn: async (): Promise<LectureItem[]> => {
       const res = await api.get("/lectures/lectures/");
       return extractLectureListPayload(res.data)
@@ -417,11 +418,11 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
             setEditLectureId(id);
           }}
           onAfterEnd={() => {
-            qc.invalidateQueries({ queryKey: ["lectures"] });
+            qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
             navigate("/admin/lectures/past");
           }}
-          onAfterRestore={() => qc.invalidateQueries({ queryKey: ["lectures"] })}
-          onAfterDelete={() => qc.invalidateQueries({ queryKey: ["lectures"] })}
+          onAfterRestore={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
+          onAfterDelete={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
         />
       )}
     </>

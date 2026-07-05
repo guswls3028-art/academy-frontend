@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchSessions, sortSessionsByDisplayOrder, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
+import { adminLectureQueryKeys } from "../../queryKeys";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -30,7 +31,7 @@ export default function LectureSessionsPage() {
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-sessions", LECTURE_SESSIONS_COLUMN_DEFS);
 
   const { data: rawSessions = [], isLoading, isError } = useQuery<Session[]>({
-    queryKey: ["lecture-sessions", lecId],
+    queryKey: adminLectureQueryKeys.lectureSessionsForLecture(lecId),
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
@@ -118,7 +119,7 @@ export default function LectureSessionsPage() {
 
   const handleClose = useCallback(() => {
     setOpen(false);
-    qc.invalidateQueries({ queryKey: ["lecture-sessions", lecId] });
+    qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureSessionsForLecture(lecId) });
   }, [qc, lecId]);
 
   function SortableTh({

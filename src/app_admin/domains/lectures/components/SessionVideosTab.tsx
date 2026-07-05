@@ -17,6 +17,7 @@ import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { adminLectureQueryKeys } from "../queryKeys";
 import styles from "./SessionVideosTab.module.css";
 
 const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
@@ -84,7 +85,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       await api.delete(`/media/videos/${id}/`);
     },
     onSuccess: (_data, videoId) => {
-      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
       asyncStatusStore.removeTask(String(videoId));
     },
     onError: (e: unknown) => {
@@ -128,7 +129,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       return res.data;
     },
     onSuccess: (_data, videoId) => {
-      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
       const video = videos.find((v: MediaVideo) => v.id === videoId);
       const label = video?.title ? `${video.title} 재시도` : `영상 ${videoId} 재시도`;
       asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
@@ -159,8 +160,8 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       ]);
     },
     onMutate: async ({ videoA, videoB }) => {
-      await qc.cancelQueries({ queryKey: ["session-videos", sessionId] });
-      const prev = qc.getQueryData<MediaVideo[]>(["session-videos", sessionId]);
+      await qc.cancelQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
+      const prev = qc.getQueryData<MediaVideo[]>(adminLectureQueryKeys.sessionVideos(sessionId));
       if (prev) {
         const orderA = videoA.order ?? 1;
         const orderB = videoB.order ?? 1;
@@ -175,11 +176,11 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["session-videos", sessionId], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(adminLectureQueryKeys.sessionVideos(sessionId), ctx.prev);
       feedback.error("순서 변경에 실패했습니다.");
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
     },
   });
 
@@ -414,7 +415,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             onClose={() => setReorderOpen(false)}
             videos={videos}
             onSaved={() => {
-              qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+              qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
             }}
           />
         </Suspense>

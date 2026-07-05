@@ -8,6 +8,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { Button } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { adminLectureQueryKeys } from "./queryKeys";
 
 function safeStr(v: unknown) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -21,7 +22,7 @@ export default function LectureLayout() {
   const hasValidLectureId = Number.isFinite(lectureIdNum);
 
   const { data: lecture, isLoading } = useQuery({
-    queryKey: ["lecture", hasValidLectureId ? lectureIdNum : null],
+    queryKey: adminLectureQueryKeys.lecture(hasValidLectureId ? lectureIdNum : null),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
     enabled: hasValidLectureId,
   });

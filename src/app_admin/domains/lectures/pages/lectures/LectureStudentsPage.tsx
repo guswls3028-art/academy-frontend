@@ -13,6 +13,7 @@ import { sortSessionsByDateDesc } from "@admin/domains/lectures/api/sessions";
 import LectureEnrollStudentModal from "@admin/domains/lectures/components/LectureEnrollStudentModal";
 import LectureEnrollExcelModal from "@admin/domains/lectures/components/LectureEnrollExcelModal";
 import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
+import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -90,13 +91,13 @@ export default function LectureStudentsPage() {
   }, [searchInput]);
 
   const { data: matrix, isLoading } = useQuery({
-    queryKey: ["attendance-matrix", lectureIdNum],
+    queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum),
     queryFn: () => fetchAttendanceMatrix(lectureIdNum),
     enabled: Number.isFinite(lectureIdNum),
   });
 
   const { data: lecture } = useQuery({
-    queryKey: ["lecture", lectureIdNum],
+    queryKey: adminLectureQueryKeys.lecture(lectureIdNum),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
     enabled: Number.isFinite(lectureIdNum),
   });
@@ -392,7 +393,7 @@ export default function LectureStudentsPage() {
         open={showLectureEnroll}
         onClose={() => setShowLectureEnroll(false)}
         onSuccess={() => {
-          qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureIdNum] });
+          qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
           setShowLectureEnroll(false);
         }}
         onChooseSessionCreate={() => setShowSessionCreateModal(true)}
@@ -412,7 +413,7 @@ export default function LectureStudentsPage() {
         open={showEnrollExcelModal}
         onClose={() => setShowEnrollExcelModal(false)}
         onSuccess={() => {
-          qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureIdNum] });
+          qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
           setShowEnrollExcelModal(false);
         }}
       />

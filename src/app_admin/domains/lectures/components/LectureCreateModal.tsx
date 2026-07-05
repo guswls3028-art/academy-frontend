@@ -18,6 +18,7 @@ import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
+import { adminLectureQueryKeys } from "../queryKeys";
 import "./LectureCreateModal.css";
 
 const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
@@ -103,20 +104,20 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const modalTitle = useMemo(() => (isEditMode ? "강의 수정" : "강의 추가"), [isEditMode]);
 
   const { data: instructorOptions = [] } = useQuery({
-    queryKey: ["lecture-instructor-options"],
+    queryKey: adminLectureQueryKeys.lectureInstructorOptions,
     queryFn: fetchLectureInstructorOptions,
     enabled: isOpen,
   });
 
   const { data: staffMe } = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: adminLectureQueryKeys.staffMe,
     queryFn: fetchStaffMe,
     enabled: isOpen,
   });
   const isPayrollManager = !!staffMe?.is_payroll_manager;
 
   const { data: existingLecture, isLoading: isLoadingLecture } = useQuery({
-    queryKey: ["lecture", lectureId],
+    queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: () => fetchLecture(lectureId!),
     enabled: isOpen && isEditMode && lectureId != null,
   });
@@ -168,10 +169,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lectures"] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
       if (isEditMode && lectureId != null) {
-        qc.invalidateQueries({ queryKey: ["lecture", lectureId] });
-        qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lectureId) });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureSessions });
       }
       feedback.success(isEditMode ? "강의가 수정되었습니다." : "강의가 등록되었습니다.");
       onClose();

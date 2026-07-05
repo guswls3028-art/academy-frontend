@@ -16,6 +16,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { createSession } from "../api/sessions";
+import { adminLectureQueryKeys } from "../queryKeys";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import {
   formatSessionLabel,
@@ -72,13 +73,13 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   const [timeInput, setTimeInput] = useState("");
 
   const { data: lecture } = useQuery({
-    queryKey: ["lecture", lectureId],
+    queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: Number.isFinite(lectureId),
   });
 
   const { data: sessionsData } = useQuery({
-    queryKey: ["sessions", lectureId],
+    queryKey: adminLectureQueryKeys.sessionsForLecture(lectureId),
     queryFn: async () => (await api.get(`/lectures/sessions/?lecture=${lectureId}`)).data,
     enabled: Number.isFinite(lectureId),
   });

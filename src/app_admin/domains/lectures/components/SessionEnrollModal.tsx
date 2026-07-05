@@ -26,6 +26,7 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
+import { adminLectureQueryKeys } from "../queryKeys";
 
 const PAGE_SIZE = 100;
 
@@ -288,21 +289,21 @@ export default function SessionEnrollModal({
   // ── Queries ────────────────────────────────────────────────────────────────
   /** 출결(attendance) 기준 이미 등록된 학생 ID 전체 — 수강생 등록 모달에서 목록/등록 제외용. 엑셀 일괄업로드 멱등은 별도. */
   const { data: attendanceEnrolledIds = [] } = useQuery({
-    queryKey: ["attendance-enrolled-ids", sessionId],
+    queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId),
     queryFn: () => fetchAttendanceEnrolledStudentIds(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
     staleTime: 10_000, // 10초 — 모달 내 탭 전환 시 불필요한 refetch 방지
   });
 
   const { data: sessionEnrollments = [] } = useQuery({
-    queryKey: ["session-enrollments", sessionId],
+    queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId),
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
     staleTime: 10_000,
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["lecture-sessions", lectureId],
+    queryKey: adminLectureQueryKeys.lectureSessionsForLecture(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: isOpen && Number.isFinite(lectureId),
   });
@@ -340,7 +341,7 @@ export default function SessionEnrollModal({
   }, [schoolType, grade]);
 
   const { data: studentsData, isLoading: loadingStudents } = useQuery({
-    queryKey: ["session-enroll-modal-students", search, apiFilters, sort, page],
+    queryKey: adminLectureQueryKeys.sessionEnrollModalStudentsList(search, apiFilters, sort, page),
     queryFn: () => fetchStudents(search, apiFilters, sort, page),
     enabled: isOpen,
     refetchOnMount: "always",
@@ -383,11 +384,11 @@ export default function SessionEnrollModal({
       const { created, payload } = result;
       const { studentIds, statusByStudentId } = payload;
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] }),
-        qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
-        qc.invalidateQueries({ queryKey: ["attendance-enrolled-ids", sessionId] }),
-        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] }),
-        qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureId) }),
       ]);
       if (statusByStudentId && created.length) {
         let skippedSecession = 0;
@@ -1312,7 +1313,7 @@ export default function SessionEnrollModal({
           setPage(1);
           setSchoolType("");
           setGrade(0);
-          qc.invalidateQueries({ queryKey: ["session-enroll-modal-students"] });
+          qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollModalStudents });
           setStudentCreateOpen(false);
         }}
       />

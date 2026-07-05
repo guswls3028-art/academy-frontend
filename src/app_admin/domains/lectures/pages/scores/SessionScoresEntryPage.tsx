@@ -33,6 +33,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
+import { adminLectureQueryKeys } from "../../queryKeys";
 import api from "@/shared/api/axios";
 import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintPreviewModal";
 import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
@@ -91,19 +92,19 @@ export default function SessionScoresEntryPage({
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
-    queryKey: ["lecture", numericLectureId],
+    queryKey: adminLectureQueryKeys.lecture(numericLectureId),
     queryFn: async () => (await api.get(`/lectures/lectures/${numericLectureId}/`)).data,
     enabled: Number.isFinite(numericLectureId),
   });
   /** 세션 정보 (PDF 제목용) */
   const { data: sessionData } = useQuery({
-    queryKey: ["session-detail", numericSessionId],
+    queryKey: adminLectureQueryKeys.sessionDetail(numericSessionId),
     queryFn: async () => (await api.get(`/lectures/sessions/${numericSessionId}/`)).data,
     enabled: Number.isFinite(numericSessionId),
   });
   /** 출결 (PDF 출결 열 + 클리닉 현황용) */
   const { data: attendanceForPdf } = useQuery({
-    queryKey: ["attendance-for-pdf", numericSessionId],
+    queryKey: adminLectureQueryKeys.attendanceForPdf(numericSessionId),
     queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
     enabled: Number.isFinite(numericSessionId),
   });

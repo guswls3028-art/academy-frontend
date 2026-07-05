@@ -34,6 +34,7 @@ import { substituteScoreVars, buildGenericScoreTemplate, buildScoreDetail } from
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { adminLectureQueryKeys } from "../../queryKeys";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import "./attendance-ui.css";
 
@@ -130,7 +131,7 @@ export default function SessionAttendancePage({
   }, [openStatusRowAttId]);
 
   const { data: attendanceResult, isLoading } = useQuery({
-    queryKey: ["attendance", sessionId, page, search, statusFilter],
+    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter),
     queryFn: () =>
       fetchAttendance(sessionId, {
         page,
@@ -147,7 +148,7 @@ export default function SessionAttendancePage({
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const { data: lecture } = useQuery<{ title?: string; name?: string; color?: string | null; chip_label?: string | null }>({
-    queryKey: ["lecture", lectureId],
+    queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: lectureId != null && Number.isFinite(lectureId),
   });
@@ -160,9 +161,9 @@ export default function SessionAttendancePage({
     }) =>
       updateAttendance(id, { status, confirm_secession }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       if (Number.isFinite(lectureId)) {
-        qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       }
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
     },
@@ -259,10 +260,10 @@ export default function SessionAttendancePage({
     try {
       await Promise.all(selectedIds.map((attendanceId) => deleteAttendance(attendanceId)));
       setSelectedIds([]);
-      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-      qc.invalidateQueries({ queryKey: ["attendance-for-pdf", sessionId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForPdf(sessionId) });
       feedback.success(`${count}명이 이 차시에서 제외되었습니다.`);
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
@@ -434,8 +435,8 @@ export default function SessionAttendancePage({
     if (!ok) return;
     try {
       const result = await bulkSetPresent(sessionId);
-      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
     } catch {
@@ -599,8 +600,8 @@ export default function SessionAttendancePage({
                       code === "SECESSION"
                         ? {
                             onSuccess: () => {
-                              qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-                              qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
+                              qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
+                              qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
                               feedback.success(`${att.name} 학생이 퇴원 처리되었습니다.`);
                             },
                           }

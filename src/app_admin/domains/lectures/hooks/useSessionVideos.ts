@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { VIDEO_STATUS_IN_PROGRESS, type VideoStatus } from "@/shared/api/contracts/videos";
+import { adminLectureQueryKeys } from "../queryKeys";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_BACKOFF_AFTER_MS = 3 * 60 * 1000; // 3 minutes
@@ -22,7 +23,7 @@ export function useSessionVideos(sessionId: number) {
   const pollStartedAt = useRef<number | null>(null);
 
   return useQuery({
-    queryKey: ["session-videos", sessionId],
+    queryKey: adminLectureQueryKeys.sessionVideos(sessionId),
     enabled: !!sessionId,
 
     queryFn: async () => {
