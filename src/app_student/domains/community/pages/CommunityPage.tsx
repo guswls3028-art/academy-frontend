@@ -34,6 +34,7 @@ import {
   type PostAttachment,
   type Answer,
 } from "../api/community.api";
+import { studentCommunityQueryKeys } from "../queryKeys";
 import "./CommunityPage.css";
 
 // ─── Types ───
@@ -139,7 +140,7 @@ function StatusChip({ answered }: { answered: boolean }) {
 // ═══════════════════════════════════════════
 function MyActivitySummary() {
   const q = useQuery({
-    queryKey: ["student", "community", "my-activity", 30],
+    queryKey: studentCommunityQueryKeys.myActivity(30),
     // dynamic import to avoid circular if needed
     queryFn: () => import("../api/community.api").then((m) => m.fetchMyActivity(30)),
     staleTime: 60 * 1000,
@@ -266,7 +267,7 @@ export default function CommunityPage() {
 // ═══════════════════════════════════════════
 function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
   const { data: posts = [], isLoading, isError } = useQuery({
-    queryKey: ["student", "notice", "posts"],
+    queryKey: studentCommunityQueryKeys.noticePosts,
     queryFn: () => fetchNoticePosts(),
   });
 
@@ -295,7 +296,7 @@ function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
 
 function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const { data: post, isLoading } = useQuery({
-    queryKey: ["student", "notice", "post", id],
+    queryKey: studentCommunityQueryKeys.noticePost(id),
     queryFn: () => fetchPostDetail(id),
     enabled: Number.isFinite(id),
   });
@@ -339,12 +340,12 @@ function QnaTab({
   const [filter, setFilter] = useState<QnaFilter>("all");
 
   const { data: profile } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentCommunityQueryKeys.me,
     queryFn: fetchMyProfile,
   });
 
   const { data: questions = [], isLoading } = useQuery({
-    queryKey: ["student", "qna", "questions"],
+    queryKey: studentCommunityQueryKeys.qnaQuestions,
     queryFn: () => fetchMyQuestions(profile!.id),
     enabled: profile?.id != null,
   });
@@ -397,7 +398,7 @@ function QnaTab({
 // ─── QnA Detail ───
 function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; onBack: () => void }) {
   const { data: fetched, isLoading } = useQuery({
-    queryKey: ["student", "qna", "question", id],
+    queryKey: studentCommunityQueryKeys.qnaQuestion(id),
     queryFn: () => fetchQuestionDetail(id),
     initialData: cached,
   });
@@ -421,7 +422,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
   const answered = isAnswered(question);
   const markSeen = useMarkNotificationsSeen();
   const { data: replies = [], isLoading } = useQuery<Answer[]>({
-    queryKey: ["student", "qna", "replies", question.id],
+    queryKey: studentCommunityQueryKeys.qnaReplies(question.id),
     queryFn: () => fetchReplies(question.id),
     enabled: answered,
   });
@@ -509,8 +510,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     } catch { /* quota exceeded */ }
   }, [title, content, categoryLabel]);
 
-  const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
-  const { data: videoMe } = useQuery({ queryKey: ["student", "video", "me"], queryFn: fetchVideoMe, staleTime: 60_000 });
+  const { data: profile } = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
+  const { data: videoMe } = useQuery({ queryKey: studentCommunityQueryKeys.videoMe, queryFn: fetchVideoMe, staleTime: 60_000 });
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
   const hasLectureOptions = lectureOptions.length > 0;
 
@@ -529,7 +530,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           await uploadPostAttachments(post.id, files);
         } catch {
           // 게시글은 생성됨 — 첨부파일만 실패. 목록 갱신 후 사용자에게 알림.
-          qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
+          qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.qnaQuestions });
           const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
           studentToast.info("질문은 등록되었으나 첨부파일 업로드에 실패했습니다.");
           onSuccess();
@@ -539,8 +540,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       return post;
     },
     onSuccess: async () => {
-      qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
-      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.qnaQuestions });
+      qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       studentToast.success("질문이 등록되었습니다.");
       // 등록 성공 시 draft 비움
@@ -549,7 +550,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     },
     onError: (err: unknown) => {
       const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
-      if (code === "profile_required") qc.invalidateQueries({ queryKey: ["student", "me"] });
+      if (code === "profile_required") qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.me });
     },
   });
 
@@ -632,7 +633,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
 // ═══════════════════════════════════════════
 function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
   const { data: posts = [], isLoading, isError } = useQuery({
-    queryKey: ["student", "board", "posts"],
+    queryKey: studentCommunityQueryKeys.boardPosts,
     queryFn: () => fetchBoardPosts(),
   });
 
@@ -661,7 +662,7 @@ function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
 
 function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const { data: post, isLoading } = useQuery({
-    queryKey: ["student", "board", "post", id],
+    queryKey: studentCommunityQueryKeys.boardPost(id),
     queryFn: () => fetchPostDetail(id),
     enabled: Number.isFinite(id),
   });
@@ -705,12 +706,12 @@ function CounselTab({
   const [filter, setFilter] = useState<QnaFilter>("all");
 
   const { data: profile } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentCommunityQueryKeys.me,
     queryFn: fetchMyProfile,
   });
 
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ["student", "counsel", "requests"],
+    queryKey: studentCommunityQueryKeys.counselRequests,
     queryFn: () => fetchMyCounselRequests(profile!.id),
     enabled: profile?.id != null,
   });
@@ -763,7 +764,7 @@ function CounselTab({
 // ─── Counsel Detail ───
 function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; onBack: () => void }) {
   const { data: fetched, isLoading } = useQuery({
-    queryKey: ["student", "counsel", "request", id],
+    queryKey: studentCommunityQueryKeys.counselRequest(id),
     queryFn: () => fetchPostDetail(id),
     initialData: cached,
   });
@@ -787,7 +788,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
   const answered = isAnswered(request);
   const markSeen = useMarkNotificationsSeen();
   const { data: replies = [], isLoading } = useQuery<Answer[]>({
-    queryKey: ["student", "counsel", "replies", request.id],
+    queryKey: studentCommunityQueryKeys.counselReplies(request.id),
     queryFn: () => fetchReplies(request.id),
     enabled: answered,
   });
@@ -859,7 +860,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [files, setFiles] = useState<File[]>([]);
   const [categoryLabel, setCategoryLabel] = useState("");
 
-  const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
+  const { data: profile } = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -869,7 +870,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
         try {
           await uploadPostAttachments(post.id, files);
         } catch {
-          qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
+          qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
           const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
           studentToast.info("상담 요청은 등록되었으나 첨부파일 업로드에 실패했습니다.");
           onSuccess();
@@ -879,15 +880,15 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       return post;
     },
     onSuccess: async () => {
-      qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
-      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
+      qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       studentToast.success("상담 요청이 등록되었습니다.");
       onSuccess();
     },
     onError: (err: unknown) => {
       const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
-      if (code === "profile_required") qc.invalidateQueries({ queryKey: ["student", "me"] });
+      if (code === "profile_required") qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.me });
     },
   });
 
@@ -959,7 +960,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
 // ═══════════════════════════════════════════
 function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
   const { data: posts = [], isLoading, isError } = useQuery({
-    queryKey: ["student", "materials", "posts"],
+    queryKey: studentCommunityQueryKeys.materialsPosts,
     queryFn: () => fetchMaterialsPosts(),
   });
 
@@ -988,7 +989,7 @@ function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
 
 function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const { data: post, isLoading } = useQuery({
-    queryKey: ["student", "materials", "post", id],
+    queryKey: studentCommunityQueryKeys.materialsPost(id),
     queryFn: () => fetchPostDetail(id),
     enabled: Number.isFinite(id),
   });
