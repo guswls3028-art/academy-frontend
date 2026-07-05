@@ -17,6 +17,7 @@ import {
   fetchTemplatesWithUsage, fetchHomeworkTemplatesWithUsage,
   type ExamBundle,
 } from "../api";
+import { teacherExamsQueryKeys } from "../queryKeys";
 
 export default function ExamBundlesPage() {
   const navigate = useNavigate();
@@ -26,14 +27,14 @@ export default function ExamBundlesPage() {
   const [editTarget, setEditTarget] = useState<ExamBundle | null>(null);
 
   const { data: bundles, isLoading } = useQuery({
-    queryKey: ["teacher-exam-bundles"],
+    queryKey: teacherExamsQueryKeys.bundles,
     queryFn: fetchBundles,
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteBundle,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-exam-bundles"] });
+      qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.bundles });
       teacherToast.success("묶음이 삭제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "묶음을 삭제하지 못했습니다.")),
@@ -112,7 +113,7 @@ function BundleFormSheet({ open, onClose, editData }: {
 
   // Load full bundle when editing
   const { data: fullBundle } = useQuery({
-    queryKey: ["teacher-exam-bundle", editData?.id],
+    queryKey: teacherExamsQueryKeys.bundle(editData?.id),
     queryFn: () => fetchBundle(editData!.id),
     enabled: open && isEdit,
   });
@@ -138,7 +139,7 @@ function BundleFormSheet({ open, onClose, editData }: {
       return isEdit ? updateBundle(editData!.id, payload) : createBundle(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-exam-bundles"] });
+      qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.bundles });
       teacherToast.success(isEdit ? "수정되었습니다." : "묶음이 생성되었습니다.");
       onClose();
     },
@@ -207,12 +208,12 @@ function TemplatePickerSheet({ open, onClose, onPick }: {
 }) {
   const [pickerTab, setPickerTab] = useState<"exam" | "homework">("exam");
   const { data: exams } = useQuery({
-    queryKey: ["teacher-exam-templates-usage"],
+    queryKey: teacherExamsQueryKeys.examTemplatesUsage,
     queryFn: fetchTemplatesWithUsage,
     enabled: open && pickerTab === "exam",
   });
   const { data: homeworks } = useQuery({
-    queryKey: ["teacher-homework-templates-usage"],
+    queryKey: teacherExamsQueryKeys.homeworkTemplatesUsage,
     queryFn: fetchHomeworkTemplatesWithUsage,
     enabled: open && pickerTab === "homework",
   });

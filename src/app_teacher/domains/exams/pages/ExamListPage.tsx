@@ -7,6 +7,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchExams, fetchHomeworks } from "../api";
+import { teacherExamsQueryKeys } from "../queryKeys";
 
 import styles from "./ExamListPage.module.css";
 
@@ -54,7 +55,7 @@ function sortByCreated<T extends SortableItem>(items: readonly T[] | undefined):
 function ExamTab() {
   const navigate = useNavigate();
   const { data: exams, isLoading } = useQuery({
-    queryKey: ["teacher-exams"],
+    queryKey: teacherExamsQueryKeys.exams,
     queryFn: () => fetchExams({ exam_type: "regular" }),
     staleTime: 60_000,
   });
@@ -106,7 +107,7 @@ function ExamTab() {
 function HomeworkTab() {
   const navigate = useNavigate();
   const { data: hws, isLoading } = useQuery({
-    queryKey: ["teacher-homeworks"],
+    queryKey: teacherExamsQueryKeys.homeworks,
     queryFn: () => fetchHomeworks({ homework_type: "regular" }),
     staleTime: 60_000,
   });

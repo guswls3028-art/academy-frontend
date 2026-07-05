@@ -13,6 +13,7 @@ import { fetchExamResults as fetchExamResultRows } from "@teacher/domains/result
 import { fetchExamEnrollmentRows } from "@/shared/api/contracts/examEnrollments";
 import { normalizeExam } from "../normalizers";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { teacherExamsQueryKeys } from "../queryKeys";
 import styles from "./OmrPage.module.css";
 
 type TeacherExamResultRow = {
@@ -53,7 +54,7 @@ export default function OmrPage() {
   const pendingStartedAtRef = useRef<Map<number, number>>(new Map());
 
   const { data: exam } = useQuery({
-    queryKey: ["teacher-exam", eid],
+    queryKey: teacherExamsQueryKeys.exam(eid),
     queryFn: async () => normalizeExam(await fetchExam(eid)),
     enabled: Number.isFinite(eid),
   });
@@ -63,20 +64,20 @@ export default function OmrPage() {
   );
 
   const { data: defaults, isLoading } = useQuery({
-    queryKey: ["teacher-omr-defaults", eid],
+    queryKey: teacherExamsQueryKeys.omrDefaults(eid),
     queryFn: () => fetchOMRDefaults(eid),
     enabled: Number.isFinite(eid),
   });
 
   const { data: results } = useQuery({
-    queryKey: ["teacher-exam-results", eid],
+    queryKey: teacherExamsQueryKeys.examResults(eid),
     queryFn: () => fetchExamResultRows(eid),
     enabled: Number.isFinite(eid),
     // 채점 대기 중이면 5초 폴링 — 결과 자동 갱신
     refetchInterval: pendingScoring.size > 0 ? 5000 : false,
   });
   const { data: rosterRows = [] } = useQuery({
-    queryKey: ["teacher-omr-exam-enrollments", eid, sessionIds],
+    queryKey: teacherExamsQueryKeys.omrEnrollments(eid, sessionIds),
     queryFn: async () => {
       const responses = await Promise.all(
         sessionIds.map((sessionId) => fetchExamEnrollmentRows({ examId: eid, sessionId })),
@@ -295,8 +296,8 @@ export default function OmrPage() {
           pendingStartedAtRef.current.set(submittedEid, Date.now());
           setPendingScoring((p) => new Set(p).add(submittedEid));
           // 즉시 1회 갱신 시도
-          qc.invalidateQueries({ queryKey: ["teacher-exam-results", eid] });
-          qc.invalidateQueries({ queryKey: ["teacher-omr-exam-enrollments", eid] });
+          qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.examResults(eid) });
+          qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.omrEnrollmentsForExam(eid) });
         }}
       />
     </div>

@@ -10,6 +10,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { fetchTemplatesWithUsage, fetchHomeworkTemplatesWithUsage } from "../api";
 import type { TeacherTemplateWithUsage } from "../api";
+import { teacherExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamTemplatesPage.module.css";
 
 type Tab = "exam" | "homework";
@@ -19,13 +20,13 @@ export default function ExamTemplatesPage() {
   const [tab, setTab] = useState<Tab>("exam");
 
   const { data: examTemplates, isLoading: examLoading } = useQuery({
-    queryKey: ["teacher-exam-templates-usage"],
+    queryKey: teacherExamsQueryKeys.examTemplatesUsage,
     queryFn: fetchTemplatesWithUsage,
     enabled: tab === "exam",
   });
 
   const { data: hwTemplates, isLoading: hwLoading } = useQuery({
-    queryKey: ["teacher-homework-templates-usage"],
+    queryKey: teacherExamsQueryKeys.homeworkTemplatesUsage,
     queryFn: fetchHomeworkTemplatesWithUsage,
     enabled: tab === "homework",
   });

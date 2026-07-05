@@ -11,6 +11,7 @@ import {
   normalizeHomeworkSubmissions,
   type HomeworkSubmission,
 } from "../normalizers";
+import { teacherExamsQueryKeys } from "../queryKeys";
 import styles from "./HomeworkDetailPage.module.css";
 
 function isSubmittedSubmission(submission: HomeworkSubmission): boolean {
@@ -30,13 +31,13 @@ export default function HomeworkDetailPage() {
   const hid = Number(homeworkId);
 
   const { data: hw, isLoading: loadingHw } = useQuery({
-    queryKey: ["teacher-homework", hid],
+    queryKey: teacherExamsQueryKeys.homework(hid),
     queryFn: async () => normalizeHomework(await fetchHomework(hid)),
     enabled: Number.isFinite(hid),
   });
 
   const { data: submissions, isLoading: loadingSub } = useQuery({
-    queryKey: ["teacher-homework-submissions", hid],
+    queryKey: teacherExamsQueryKeys.homeworkSubmissions(hid),
     queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid)),
     enabled: Number.isFinite(hid),
   });

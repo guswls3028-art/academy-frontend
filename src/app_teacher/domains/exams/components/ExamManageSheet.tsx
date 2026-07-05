@@ -12,6 +12,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
+import { teacherExamsQueryKeys } from "../queryKeys";
 
 interface Props {
   open: boolean;
@@ -42,19 +43,19 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
 
   const editMut = useMutation({
     mutationFn: () => updateExam(exam.id, { title, pass_score: passScore ? Number(passScore) : undefined }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); setMsg("저장됨"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams }); setMsg("저장됨"); },
     onError: (e) => teacherToast.error(extractApiError(e, "시험을 수정하지 못했습니다.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: () => deleteExam(exam.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); onDeleted(); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams }); onDeleted(); onClose(); },
     onError: (e) => teacherToast.error(extractApiError(e, "시험을 삭제하지 못했습니다.")),
   });
 
   const toggleMut = useMutation({
     mutationFn: () => updateExam(exam.id, { is_active: !exam.is_active }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-exams"] }); setMsg(exam.is_active ? "시험 닫힘" : "시험 열림"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams }); setMsg(exam.is_active ? "시험 닫힘" : "시험 열림"); },
     onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
 

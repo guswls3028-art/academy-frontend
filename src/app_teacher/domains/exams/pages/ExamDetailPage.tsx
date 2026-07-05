@@ -25,6 +25,7 @@ import {
   type ExamResultRow,
   type TeacherExamDetail,
 } from "../normalizers";
+import { teacherExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamDetailPage.module.css";
 
 export default function ExamDetailPage() {
@@ -34,13 +35,13 @@ export default function ExamDetailPage() {
   const [manageOpen, setManageOpen] = useState(false);
 
   const { data: exam, isLoading: loadingExam } = useQuery({
-    queryKey: ["teacher-exam", eid],
+    queryKey: teacherExamsQueryKeys.exam(eid),
     queryFn: async () => normalizeExam(await fetchExam(eid)),
     enabled: Number.isFinite(eid),
   });
 
   const { data: results, isLoading: loadingResults } = useQuery({
-    queryKey: ["teacher-exam-results", eid],
+    queryKey: teacherExamsQueryKeys.examResults(eid),
     queryFn: async () => normalizeResultRows(await fetchExamResults(eid)),
     enabled: Number.isFinite(eid),
   });
@@ -53,7 +54,7 @@ export default function ExamDetailPage() {
   // enrollment fallback — admin endpoint 는 result row 있는 학생만 반환.
   // 멀티 세션 시험은 각 차시의 "시험 선택 enrollment"만 합쳐야 과잉 노출이 없다.
   const { data: examEnrollmentRows } = useQuery({
-    queryKey: ["teacher-exam-enrollment-rows", eid, sessionIds],
+    queryKey: teacherExamsQueryKeys.examEnrollmentRows(eid, sessionIds),
     queryFn: async () => {
       const responses = await Promise.all(
         sessionIds.map((sessionId) => fetchExamEnrollmentRows({ examId: eid, sessionId })),
@@ -196,7 +197,7 @@ function ResultRow({
   const mutation = useMutation({
     mutationFn: (score: number) => updateResult(examId, enrollmentId, { score, maxScore }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-exam-results", examId] });
+      qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.examResults(examId) });
       feedback.success(`${name} 점수가 저장되었습니다.`);
       setEditing(false);
     },
