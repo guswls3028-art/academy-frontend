@@ -14,5 +14,6 @@ export {
   isSupplement,
   formatSessionOrderLabel,
   formatSessionBlockLabel,
+  formatSessionTreeLabel,
 } from "./session-block.constants";
 export type { SessionBlockVariant } from "./session-block.constants";

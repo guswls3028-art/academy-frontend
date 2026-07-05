@@ -3,7 +3,7 @@
 import { FolderOpen } from "lucide-react";
 import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import type { VideoFolder } from "../api/videos.api";
-import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { formatSessionTreeLabel } from "@/shared/ui/session-block";
 import styles from "./VideoExplorerTree.module.css";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
@@ -20,12 +20,6 @@ type Props = {
   currentFolderId: VideoFolderId;
   onSelectFolder: (folderId: VideoFolderId) => void;
 };
-
-function formatSessionTitle(s: Session): string {
-  const label = formatSessionBlockLabel(s);
-  const date = s.date ? new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "";
-  return date ? `${label} ${date}` : label;
-}
 
 function FolderTreeNode({
   folder,
@@ -125,7 +119,7 @@ export default function VideoExplorerTree({
                       onClick={() => onSelectFolder(s.id)}
                     >
                       <FolderOpen size={16} aria-hidden />
-                      <span>{formatSessionTitle(s)}</span>
+                      <span>{formatSessionTreeLabel(s)}</span>
                     </button>
                   );
                 })}

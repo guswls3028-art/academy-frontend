@@ -49,3 +49,13 @@ export function formatSessionOrderLabel(
 export function formatSessionBlockLabel(session: SessionOrderLike | null | undefined): string {
   return formatSessionLabel(session);
 }
+
+export function formatSessionTreeLabel(
+  session: (SessionOrderLike & { date?: string | null }) | null | undefined,
+): string {
+  const label = formatSessionBlockLabel(session);
+  const date = session?.date
+    ? new Date(session.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })
+    : "";
+  return date ? `${label} ${date}` : label;
+}
