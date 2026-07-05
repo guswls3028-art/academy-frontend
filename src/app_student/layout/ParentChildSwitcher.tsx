@@ -15,16 +15,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import { cx } from "@/shared/utils/cx";
 import {
   getParentStudentId,
   initParentStudentId,
   setParentStudentId,
 } from "@student/shared/api/parentStudentSelection";
 import styles from "./ParentChildSwitcher.module.css";
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function isStudentScopedQueryKey(queryKey: readonly unknown[]): boolean {
   const head = queryKey[0];

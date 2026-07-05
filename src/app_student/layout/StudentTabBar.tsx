@@ -7,6 +7,7 @@ import { NavLink } from "react-router-dom";
 
 import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
+import { cx } from "@/shared/utils/cx";
 import { IconBell, IconBoard, IconCalendar, IconHome, IconPlay } from "../shared/ui/icons/Icons";
 import NotificationBadge from "../shared/ui/components/NotificationBadge";
 import styles from "./StudentTabBar.module.css";
@@ -19,10 +20,6 @@ type StudentTabItem = {
   Icon: TabIcon;
   badgeKey?: keyof NotificationCounts;
 };
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 const tabs: StudentTabItem[] = [
   { to: "/student/dashboard", label: "홈", Icon: IconHome },

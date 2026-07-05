@@ -4,6 +4,7 @@
  */
 import type { ReactNode } from "react";
 
+import { cx } from "@/shared/utils/cx";
 import styles from "./StatCard.module.css";
 
 type AccentTone = "success" | "danger" | "warn";
@@ -30,10 +31,6 @@ const trendToneClass: Record<TrendDirection, string> = {
   down: styles.trendDown,
   neutral: styles.trendNeutral,
 };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 export function StatCard({ label, value, accent, icon, trend, trendDirection }: StatCardProps) {
   return (

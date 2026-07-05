@@ -9,6 +9,7 @@
  */
 import type { ReactNode } from "react";
 
+import { cx } from "@/shared/utils/cx";
 import styles from "./EmptyState.module.css";
 
 type EmptyStateProps = {
@@ -18,10 +19,6 @@ type EmptyStateProps = {
   compact?: boolean; // 작은 크기 (카드 내부용)
   onRetry?: () => void; // 재시도 콜백 (에러 상태에서 사용)
 };
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function EmptyState({
   title,

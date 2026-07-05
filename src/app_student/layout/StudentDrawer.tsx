@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from "react";
 import { Link } from "react-router-dom";
 
 import { logout } from "@/auth/api/auth.api";
+import { cx } from "@/shared/utils/cx";
 import {
   IconBell,
   IconBoard,
@@ -41,10 +42,6 @@ type NavGroup = {
     Icon: DrawerIcon;
   }>;
 };
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 const NAV: NavGroup[] = [
   {
