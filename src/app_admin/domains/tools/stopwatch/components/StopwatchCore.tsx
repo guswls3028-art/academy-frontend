@@ -2,6 +2,7 @@
 // 프리미엄 스톱워치 — 빔프로젝터 모드 지원, 테넌트 로고 브랜딩
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { getStopwatchTimeParts, padStopwatchPart as pad, toStopwatchTimeText } from "../stopwatchTime";
 import styles from "./StopwatchCore.module.css";
 
 type Mode = "timer" | "stopwatch";
@@ -18,25 +19,6 @@ interface Props {
   projector?: boolean;
   onProjectorChange?: (v: boolean) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
-}
-
-function pad(n: number, d = 2) {
-  return String(n).padStart(d, "0");
-}
-
-function formatTime(ms: number) {
-  const t = Math.floor(ms);
-  return {
-    h: pad(Math.floor(t / 3600000)),
-    m: pad(Math.floor((t % 3600000) / 60000)),
-    s: pad(Math.floor((t % 60000) / 1000)),
-    cs: pad(Math.floor((t % 1000) / 10)),
-  };
-}
-
-function formatTimeStr(ms: number) {
-  const f = formatTime(ms);
-  return `${f.h}:${f.m}:${f.s}.${f.cs}`;
 }
 
 type Lap = { n: number; split: number; total: number };
@@ -172,7 +154,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     onModeChange?.(next);
   }, [mode, running, elapsed, laps.length, onModeChange]);
 
-  const t = formatTime(elapsed);
+  const t = getStopwatchTimeParts(elapsed);
   const hasLaps = laps.length > 0;
   const isReady = !running && elapsed === 0;
   const isPaused = !running && elapsed > 0;
@@ -310,8 +292,8 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
               return (
                 <div key={l.n} className={cls}>
                   <span className={styles.lapN}>LAP {pad(l.n)}</span>
-                  <span className={styles.lapS}>{formatTimeStr(l.split)}</span>
-                  <span className={styles.lapT}>{formatTimeStr(l.total)}</span>
+                  <span className={styles.lapS}>{toStopwatchTimeText(l.split)}</span>
+                  <span className={styles.lapT}>{toStopwatchTimeText(l.total)}</span>
                 </div>
               );
             })}

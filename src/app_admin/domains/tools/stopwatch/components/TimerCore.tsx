@@ -2,6 +2,7 @@
 // 프리미엄 카운트다운 타이머 — 시험 남은시간 표시, 빔프로젝터 모드 지원
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { getStopwatchTimeParts, padStopwatchPart as pad } from "../stopwatchTime";
 import styles from "./TimerCore.module.css";
 
 type Mode = "timer" | "stopwatch";
@@ -17,20 +18,6 @@ interface Props {
   onProjectorChange?: (v: boolean) => void;
   /** External fullscreen container ref — if provided, fullscreen targets this element */
   containerRef?: React.RefObject<HTMLDivElement | null>;
-}
-
-function pad(n: number, d = 2) {
-  return String(n).padStart(d, "0");
-}
-
-function formatTime(ms: number) {
-  const t = Math.max(0, Math.floor(ms));
-  return {
-    h: pad(Math.floor(t / 3600000)),
-    m: pad(Math.floor((t % 3600000) / 60000)),
-    s: pad(Math.floor((t % 60000) / 1000)),
-    cs: pad(Math.floor((t % 1000) / 10)),
-  };
 }
 
 type Phase = "setup" | "ready" | "running" | "paused" | "finished";
@@ -304,7 +291,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     onModeChange?.(next);
   }, [mode, phase, onModeChange]);
 
-  const t = formatTime(remaining);
+  const t = getStopwatchTimeParts(remaining, { clamp: true });
   const isWarning = phase === "running" && remaining > 0 && remaining < 60_000;
   const totalMinSec = totalSet > 0
     ? `${Math.floor(totalSet / 60_000)}분 ${pad(Math.floor((totalSet % 60_000) / 1000))}초`
