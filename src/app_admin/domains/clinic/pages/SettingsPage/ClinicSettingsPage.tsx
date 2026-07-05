@@ -37,7 +37,7 @@ function passcardGradientStyle(colors: [string, string, string]): CSSProperties 
 
 export default function ClinicSettingsPage() {
   const meQ = useQuery({
-    queryKey: ["clinic-me"],
+    queryKey: clinicQueryKeys.me,
     queryFn: fetchClinicMe,
     retry: 1,
   });

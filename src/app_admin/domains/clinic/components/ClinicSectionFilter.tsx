@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
+import { clinicQueryKeys } from "../queryKeys";
 
 type Props = {
   value: number | null;
@@ -14,7 +15,7 @@ export default function ClinicSectionFilter({ value, onChange }: Props) {
   const { sectionMode } = useSectionMode();
 
   const { data: sections = [] } = useQuery<Section[]>({
-    queryKey: ["all-sections"],
+    queryKey: clinicQueryKeys.allSections,
     queryFn: () => fetchAllSections(),
     enabled: sectionMode,
     staleTime: 60_000,

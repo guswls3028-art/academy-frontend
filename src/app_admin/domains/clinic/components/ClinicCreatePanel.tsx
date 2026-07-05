@@ -205,7 +205,7 @@ export default function ClinicCreatePanel({
 
   // 정규형 클리닉일 때만 CLINIC type section 목록 조회
   const clinicSectionsQ = useQuery<Section[]>({
-    queryKey: ["clinic-sections-regular"],
+    queryKey: clinicQueryKeys.regularSections,
     queryFn: () => fetchAllSections({ section_type: "CLINIC" }),
     enabled: showSectionPicker,
     staleTime: 60_000,
@@ -302,7 +302,7 @@ export default function ClinicCreatePanel({
 
   // 강의 목록 (필터 열렸을 때만 로드)
   const lecturesQ = useQuery<Lecture[]>({
-    queryKey: ["lectures-for-clinic-filter"],
+    queryKey: clinicQueryKeys.lecturesForFilter,
     queryFn: () => fetchLectures({ is_active: true }),
     enabled: showFilters,
     staleTime: 60_000,

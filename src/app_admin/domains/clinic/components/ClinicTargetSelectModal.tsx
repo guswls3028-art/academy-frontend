@@ -17,6 +17,7 @@ import { fetchClinicStudentsPaginated } from "../api/clinicStudents.api";
 import type { ClinicTarget } from "../api/clinicTargets";
 import type { ClinicStudent } from "../api/clinicStudents.api";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { clinicQueryKeys } from "../queryKeys";
 import "./ClinicTargetSelectModal.css";
 
 /**
@@ -193,7 +194,7 @@ export default function ClinicTargetSelectModal({
 
   // ── 전체 학생 탭: 서버 페이지네이션 ──
   const studentsQ = useQuery({
-    queryKey: ["clinic-students-paginated", page, debouncedSearch],
+    queryKey: clinicQueryKeys.studentsPaginated(page, debouncedSearch),
     queryFn: () =>
       fetchClinicStudentsPaginated({
         page,

@@ -12,4 +12,10 @@ export const clinicQueryKeys = {
   sessionsMonth: ["clinic-sessions-month"] as const,
   sessionsMonthRange: (from: string, to: string) => ["clinic-sessions-month", from, to] as const,
   notificationCounts: ["admin", "notification-counts"] as const,
+  studentSearch: (q: string) => ["clinic-student-search", q] as const,
+  studentsPaginated: (page: number, search: string) => ["clinic-students-paginated", page, search] as const,
+  allSections: ["all-sections"] as const,
+  regularSections: ["clinic-sections-regular"] as const,
+  lecturesForFilter: ["lectures-for-clinic-filter"] as const,
+  me: ["clinic-me"] as const,
 };

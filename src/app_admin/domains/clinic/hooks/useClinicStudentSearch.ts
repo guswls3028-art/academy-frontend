@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { searchClinicStudents } from "../api/clinicStudents.api";
+import { clinicQueryKeys } from "../queryKeys";
 
 /**
  * 대기업 실무 기준:
@@ -20,7 +21,7 @@ export function useClinicStudentSearch(raw: string) {
   const enabled = useMemo(() => q.length >= 2, [q]);
 
   return useQuery({
-    queryKey: ["clinic-student-search", q],
+    queryKey: clinicQueryKeys.studentSearch(q),
     queryFn: () => searchClinicStudents({ q }),
     enabled,
     staleTime: 10_000,
