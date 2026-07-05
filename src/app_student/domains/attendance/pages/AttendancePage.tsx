@@ -7,6 +7,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import api from "@student/shared/api/student.api";
 import { formatYmd } from "@student/shared/utils/date";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import styles from "./AttendancePage.module.css";
 
 type AttendanceSummary = {
@@ -59,7 +60,7 @@ async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
 
 export default function AttendancePage() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["student", "attendance", "summary"],
+    queryKey: studentQueryKeys.attendanceSummary,
     queryFn: fetchAttendanceSummary,
     staleTime: 30_000,
   });

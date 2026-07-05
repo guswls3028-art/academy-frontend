@@ -18,6 +18,7 @@ import studentApi from "@student/shared/api/student.api";
 import type { Submission } from "@/shared/api/contracts/submissions";
 import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import styles from "./SubmitAssignmentPage.module.css";
 
@@ -87,7 +88,7 @@ export default function SubmitAssignmentPage() {
       setSelectedFile(null);
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      qc.invalidateQueries({ queryKey: ["student", "grades", "summary"] });
+      qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
       studentToast.success(
         selected ? `${selected.title} 제출이 완료되었습니다.` : "제출이 완료되었습니다."
       );

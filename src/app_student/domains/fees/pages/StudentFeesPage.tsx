@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import studentApi from "@student/shared/api/student.api";
 import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
@@ -46,7 +47,7 @@ export default function StudentFeesPage() {
   const selectedStudentId = getParentStudentId();
 
   const { data: invoices, isLoading, isError, refetch } = useQuery({
-    queryKey: ["student", "fees", "invoices", selectedStudentId],
+    queryKey: studentQueryKeys.feesInvoices(selectedStudentId),
     queryFn: async () => {
       const res = await studentApi.get<Invoice[]>("/student/fees/invoices/");
       return res.data;
@@ -55,7 +56,7 @@ export default function StudentFeesPage() {
   });
 
   const { data: detail } = useQuery({
-    queryKey: ["student", "fees", "invoices", selectedStudentId, selectedId],
+    queryKey: studentQueryKeys.feesInvoice(selectedStudentId, selectedId),
     queryFn: async () => {
       const res = await studentApi.get<Invoice>(`/student/fees/invoices/${selectedId}/`);
       return res.data;
@@ -65,7 +66,7 @@ export default function StudentFeesPage() {
   });
 
   const { data: payments } = useQuery({
-    queryKey: ["student", "fees", "payments", selectedStudentId],
+    queryKey: studentQueryKeys.feesPayments(selectedStudentId),
     queryFn: async () => {
       const res = await studentApi.get<Payment[]>("/student/fees/payments/");
       return res.data;

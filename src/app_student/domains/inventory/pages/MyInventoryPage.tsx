@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import { IconFolder } from "@student/shared/ui/icons/Icons";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchMyInventory } from "../api/inventory.api";
 import InventoryHomeTab from "../components/InventoryHomeTab";
 import InventoryStatsTab from "../components/InventoryStatsTab";
@@ -21,12 +22,12 @@ export default function MyInventoryPage() {
   const [tab, setTab] = useState("home");
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
   });
 
   const ps = profile?.ps_number || "";
-  const queryKey = ["student-inventory", ps] as const;
+  const queryKey = studentQueryKeys.inventory(ps);
 
   const { data: inventory, isLoading: invLoading } = useQuery({
     queryKey,

@@ -9,6 +9,7 @@ import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { fetchNoticeDetail, getAttachmentDownloadUrl, type PostAttachment } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
 import styles from "./NoticeDetailPage.module.css";
 
@@ -22,7 +23,7 @@ export default function NoticeDetailPage() {
   const noticeId = id ? Number(id) : null;
 
   const { data: notice, isLoading, isError, refetch } = useQuery({
-    queryKey: ["student-notice", noticeId],
+    queryKey: studentQueryKeys.notice(noticeId),
     queryFn: () => (noticeId != null ? fetchNoticeDetail(noticeId) : Promise.resolve(null)),
     enabled: noticeId != null,
   });

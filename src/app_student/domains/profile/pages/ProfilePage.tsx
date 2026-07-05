@@ -11,6 +11,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { IconPencil } from "@student/shared/ui/icons/Icons";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -63,7 +64,7 @@ export default function ProfilePage() {
   const slm = useSchoolLevelMode();
 
   const { data: profile, isLoading, isError, refetch } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
   });
 
@@ -94,7 +95,7 @@ export default function ProfilePage() {
   const updateProfileMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateMyProfile>[0]) => updateMyProfile(payload),
     onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["student", "me"] });
+      qc.invalidateQueries({ queryKey: studentQueryKeys.me });
       setEditing(false);
       studentToast.success("저장되었습니다.");
       if (variables.username !== undefined) {
@@ -118,7 +119,7 @@ export default function ProfilePage() {
   const photoMutation = useMutation({
     mutationFn: (file: File) => updateMyProfilePhoto(file),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", "me"] });
+      qc.invalidateQueries({ queryKey: studentQueryKeys.me });
       studentToast.success("프로필 사진이 변경되었습니다.");
     },
     onError: () => {

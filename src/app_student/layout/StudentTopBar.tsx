@@ -14,6 +14,7 @@ import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } fr
 import { logout } from "@/auth/api/auth.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { useStudentTheme } from "@student/shared/context/studentTheme";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
@@ -95,7 +96,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const { isDark, toggleMode } = useStudentTheme();
   const branding = getStudentTenantBranding(tenantCode);
   const { data: profile } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
     staleTime: 30_000,
   });
@@ -395,7 +396,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
 // 알림 종 (#65 P2) — community unread 카운트. 30초마다 자동 갱신.
 function NotificationBell({ onClick }: { onClick: () => void }) {
   const { data } = useQuery({
-    queryKey: ["student", "community-unread"],
+    queryKey: studentQueryKeys.communityUnread,
     queryFn: async (): Promise<number> => {
       try {
         const res = await api.get<{ count?: number }>("/community/notifications/unread-count/");

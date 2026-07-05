@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchClinicIdcard } from "../api/idcard";
 import "../styles/idcard.css";
 
@@ -40,7 +41,7 @@ export default function ClinicIDCardPage() {
   const liveNow = useLiveClock();
   const pageRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, error: queryError } = useQuery({
-    queryKey: ["clinic-idcard"],
+    queryKey: studentQueryKeys.clinicIdcard,
     queryFn: fetchClinicIdcard,
     refetchInterval: 2000, // 2초마다 자동 갱신 (선생님이 색상 변경 시 즉시 반영)
   });

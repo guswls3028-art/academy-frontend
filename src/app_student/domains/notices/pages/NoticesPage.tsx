@@ -8,6 +8,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchNotices, type PostEntity } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
 
 type NoticeTab = "all" | "lecture" | "session";
@@ -29,7 +30,7 @@ export default function NoticesPage() {
   const [activeTab, setActiveTab] = useState<NoticeTab>("all");
 
   const { data: notices, isLoading, isError, refetch } = useQuery({
-    queryKey: ["student-notices"],
+    queryKey: studentQueryKeys.notices,
     queryFn: fetchNotices,
   });
 

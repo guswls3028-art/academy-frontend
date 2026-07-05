@@ -7,6 +7,7 @@ import { fetchStorageQuota } from "@/shared/api/contracts/storage";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import EmptyState from "@student/layout/EmptyState";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { bytesText } from "@/shared/utils/displayText";
 import type { InventoryFile, InventoryFolder } from "../api/inventory.api";
 import styles from "./InventoryStatsTab.module.css";
@@ -44,7 +45,7 @@ function clampPercent(percent: number): number {
 
 export default function InventoryStatsTab({ files, folders }: Props) {
   const { data: quota } = useQuery({
-    queryKey: ["storage-quota"],
+    queryKey: studentQueryKeys.storageQuota,
     queryFn: fetchStorageQuota,
     staleTime: 60 * 1000,
   });

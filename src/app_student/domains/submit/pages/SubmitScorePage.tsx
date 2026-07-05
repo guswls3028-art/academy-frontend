@@ -9,6 +9,7 @@ import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { uploadMyFile, fetchMyInventory, getMyFileUrl, type InventoryFile } from "@student/domains/inventory/api/inventory.api";
 import { IconFileText, IconImage, IconDownload, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { formatCompactFileSize as formatBytes } from "@/shared/utils/fileSize";
 import styles from "./SubmitScorePage.module.css";
 
@@ -34,14 +35,14 @@ export default function SubmitScorePage() {
   const [error, setError] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
   });
 
   const ps = profile?.ps_number || "";
 
   const { data: inventory } = useQuery({
-    queryKey: ["student-inventory", ps],
+    queryKey: studentQueryKeys.inventory(ps),
     queryFn: () => fetchMyInventory(ps),
     enabled: !!ps,
   });
@@ -76,7 +77,7 @@ export default function SubmitScorePage() {
     },
     onSuccess: () => {
       clearSelectedFile();
-      qc.invalidateQueries({ queryKey: ["student-inventory", ps] });
+      qc.invalidateQueries({ queryKey: studentQueryKeys.inventory(ps) });
       studentToast.success("성적표가 제출되었습니다.");
     },
     onError: (e: Error) => {
