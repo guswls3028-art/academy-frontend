@@ -9,6 +9,7 @@ import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { uploadMyFile, fetchMyInventory, getMyFileUrl, type InventoryFile } from "@student/domains/inventory/api/inventory.api";
 import { IconFileText, IconImage, IconDownload, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { formatCompactFileSize as formatBytes } from "@/shared/utils/fileSize";
 import styles from "./SubmitScorePage.module.css";
 
 const ACCEPT = "image/*,.pdf";
@@ -18,12 +19,6 @@ function FileIcon({ file }: { file: InventoryFile }) {
   const ct = file.contentType || "";
   if (ct.startsWith("image/")) return <IconImage className={styles.fileIcon} />;
   return <IconFileText className={styles.fileIcon} />;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function formatDate(iso: string): string {

@@ -9,16 +9,11 @@ import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { fetchNoticeDetail, getAttachmentDownloadUrl, type PostAttachment } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
+import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
 import styles from "./NoticeDetailPage.module.css";
 
 function isImageAttachment(att: PostAttachment): boolean {
   return att.content_type.startsWith("image/");
-}
-
-function formatAttachmentSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 export default function NoticeDetailPage() {

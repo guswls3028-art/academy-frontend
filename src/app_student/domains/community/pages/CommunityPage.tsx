@@ -12,6 +12,7 @@ import { IconPlus, IconChevronRight, IconBoard } from "@student/shared/ui/icons/
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
+import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
@@ -69,12 +70,6 @@ const TABS: { key: Tab; label: string }[] = [
 function tabFromPath(pathname: string): Tab | null {
   if (pathname.endsWith("/qna")) return "qna";
   return null;
-}
-
-function formatAttachmentSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 // ─── Shared tab bar ───
