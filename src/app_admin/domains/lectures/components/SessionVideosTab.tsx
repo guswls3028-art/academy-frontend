@@ -9,6 +9,7 @@ import { canShowRetryButton } from "@/shared/api/contracts/videos";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoThumbnail from "@/shared/media/video/VideoThumbnail";
 import VideoStatusBadge from "@/shared/media/video/VideoStatusBadge";
+import { formatVideoTimeAgo, formatVideoViewCount } from "@/shared/media/video/videoFormat";
 import { useAsyncStatus, asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
@@ -21,31 +22,6 @@ import styles from "./SessionVideosTab.module.css";
 const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
 const VideoEditModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoEditModal"));
 const VideoReorderModal = lazy(() => import("@admin/domains/videos/components/VideoReorderModal"));
-
-/** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
-function formatTimeAgo(isoDate: string): string {
-  const date = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-  if (diffSec < 60) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay < 7) return `${diffDay}일 전`;
-  if (diffWeek < 4) return `${diffWeek}주 전`;
-  return `${Math.floor(diffDay / 30)}개월 전`;
-}
-
-/** 조회수 표기: 1234 → "1.2천 회", 10000+ → "1만 회" 등 */
-function formatViewCount(count: number): string {
-  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만 회`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천 회`;
-  return `${count}회`;
-}
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -221,10 +197,10 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     const videoTask = asyncTasks.find(
       (t) => t.meta?.jobType === "video_processing" && t.meta?.jobId === String(video.id)
     );
-    const timeAgo = video.created_at ? formatTimeAgo(video.created_at) : "";
+    const timeAgo = video.created_at ? formatVideoTimeAgo(video.created_at) : "";
     const viewCountLabel =
       video.view_count != null && Number.isFinite(video.view_count)
-        ? `조회수 ${formatViewCount(video.view_count)}`
+        ? `조회수 ${formatVideoViewCount(video.view_count, true)}`
         : null;
 
     return (

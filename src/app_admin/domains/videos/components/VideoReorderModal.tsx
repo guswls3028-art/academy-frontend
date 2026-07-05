@@ -8,7 +8,7 @@ import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
-import { formatRoundedVideoDuration } from "../utils/videoFormat";
+import { formatRoundedVideoDuration } from "@/shared/media/video/videoFormat";
 import "./VideoReorderModal.css";
 
 /** Minimal video shape — works with both Video (videos API) and MediaVideo (session tab) */

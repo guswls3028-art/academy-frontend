@@ -44,34 +44,15 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";
 import VideoEditModal from "./features/video-detail/modals/VideoEditModal";
 import VideoReorderModal from "./VideoReorderModal";
-import { formatRoundedVideoDuration } from "../utils/videoFormat";
+import {
+  formatRoundedVideoDuration,
+  formatVideoTimeAgo,
+  formatVideoViewCount,
+} from "@/shared/media/video/videoFormat";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./VideoExplorer.module.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
-
-function formatTimeAgo(isoDate: string): string {
-  const date = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-  if (diffSec < 60) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay < 7) return `${diffDay}일 전`;
-  if (diffWeek < 4) return `${diffWeek}주 전`;
-  return `${Math.floor(diffDay / 30)}개월 전`;
-}
-
-function formatViewCount(count: number): string {
-  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천`;
-  return `${count}`;
-}
 
 export default function VideoTreeView() {
   const navigate = useNavigate();
@@ -488,12 +469,12 @@ export default function VideoTreeView() {
                             <>
                               <span className={styles.viewCount}>
                                 <Eye className={styles.viewIcon} />
-                                조회수 {formatViewCount(v.view_count!)}회
+                                조회수 {formatVideoViewCount(v.view_count!)}회
                               </span>
                             </>
                           )}
                           {hasViewCount && v.created_at && <span className={styles.metaDot}>·</span>}
-                          {v.created_at && <span>{formatTimeAgo(v.created_at)}</span>}
+                          {v.created_at && <span>{formatVideoTimeAgo(v.created_at)}</span>}
                         </div>
                       </div>
 

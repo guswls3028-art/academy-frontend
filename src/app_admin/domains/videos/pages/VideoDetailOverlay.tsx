@@ -32,7 +32,7 @@ import VideoEngagementBar from "@admin/domains/videos/components/features/video-
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
-import { formatVideoBytes, formatVideoDuration } from "../utils/videoFormat";
+import { formatVideoBytes, formatVideoDuration } from "@/shared/media/video/videoFormat";
 import "./VideoDetailPage.css";
 
 /* ── Chevron icon for collapsible ── */
