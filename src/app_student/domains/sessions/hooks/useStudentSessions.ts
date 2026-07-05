@@ -5,10 +5,11 @@
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchMySessions, fetchSessionDetail } from "@student/domains/sessions/api/sessions.api";
+import { studentSessionQueryKeys } from "../queryKeys";
 
 export function useMySessions() {
   return useQuery({
-    queryKey: ["student-sessions"],
+    queryKey: studentSessionQueryKeys.root,
     queryFn: fetchMySessions,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
@@ -18,7 +19,7 @@ export function useMySessions() {
 export function useSessionDetail(sessionId?: number) {
   const safeId = Number(sessionId);
   return useQuery({
-    queryKey: ["student-session", safeId],
+    queryKey: studentSessionQueryKeys.detail(safeId),
     queryFn: () => fetchSessionDetail(safeId),
     enabled: Number.isFinite(safeId),
     staleTime: 60 * 1000,

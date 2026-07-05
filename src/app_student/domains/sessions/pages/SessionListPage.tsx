@@ -16,6 +16,7 @@ import {
   unhideMySession,
 } from "@student/domains/sessions/api/sessions.api";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import { studentSessionQueryKeys } from "../queryKeys";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { IconCalendar, IconClinic, IconChevronRight, IconTrash } from "@student/shared/ui/icons/Icons";
@@ -59,7 +60,7 @@ export default function SessionListPage() {
   const clearPastMutation = useMutation({
     mutationFn: clearMyPastSessions,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student-sessions"] });
+      qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
       setSelectedDate(null);
       studentToast.success("지난 일정을 모두 비웠어요.");
     },
@@ -75,15 +76,15 @@ export default function SessionListPage() {
   const hideMutation = useMutation({
     mutationFn: hideMySession,
     onMutate: async (id: number) => {
-      await qc.cancelQueries({ queryKey: ["student-sessions"] });
-      const prev = qc.getQueryData<StudentSession[]>(["student-sessions"]);
-      qc.setQueryData<StudentSession[]>(["student-sessions"], (cur) =>
+      await qc.cancelQueries({ queryKey: studentSessionQueryKeys.root });
+      const prev = qc.getQueryData<StudentSession[]>(studentSessionQueryKeys.root);
+      qc.setQueryData<StudentSession[]>(studentSessionQueryKeys.root, (cur) =>
         (cur ?? []).filter((s) => s.id !== id),
       );
       return { prev };
     },
     onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["student-sessions"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(studentSessionQueryKeys.root, ctx.prev);
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
@@ -96,7 +97,7 @@ export default function SessionListPage() {
   const unhideMutation = useMutation({
     mutationFn: unhideMySession,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student-sessions"] });
+      qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
       studentToast.error(

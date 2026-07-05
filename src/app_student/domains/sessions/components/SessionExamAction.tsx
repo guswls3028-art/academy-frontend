@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import styles from "./SessionExamAction.module.css";
 
 type SessionExamActionProps = {
@@ -70,10 +71,14 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
     [examIds],
   );
   const hasIds = examIdList.length > 0;
+  const examQueryParams = useMemo(
+    () => (sessionId ? { session_id: sessionId } : undefined),
+    [sessionId],
+  );
 
   // 차시별 시험 목록을 student API로 한 번에 가져와 요약 계산
   const { data } = useQuery({
-    queryKey: ["student-session-exams", sessionId ?? null],
+    queryKey: studentQueryKeys.examsList(examQueryParams),
     queryFn: () => fetchStudentExams({ session_id: sessionId! }),
     enabled: !!sessionId && hasIds,
     staleTime: 60 * 1000,
