@@ -6,6 +6,7 @@ import api from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import JsonViewerModal from "./JsonViewerModal";
 import "./VideoAnalyticsTabs.css";
 
@@ -115,11 +116,11 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
   const pageSize = 50;
 
   const listQueryKey = useMemo(
-    () => ["video", videoId, "events", range, page],
+    () => adminVideoQueryKeys.events(videoId, range, page),
     [videoId, range, page]
   );
   const riskQueryKey = useMemo(
-    () => ["video", videoId, "events-risk", range],
+    () => adminVideoQueryKeys.eventRisks(videoId, range),
     [videoId, range]
   );
 

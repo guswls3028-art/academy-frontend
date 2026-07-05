@@ -44,6 +44,7 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";
 import VideoEditModal from "./features/video-detail/modals/VideoEditModal";
 import VideoReorderModal from "./VideoReorderModal";
+import { adminVideoQueryKeys } from "../queryKeys";
 import {
   formatRoundedVideoDuration,
   formatVideoTimeAgo,
@@ -88,12 +89,12 @@ export default function VideoTreeView() {
   }, [setSearchParams]);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
-    queryKey: ["admin-videos-lectures"],
+    queryKey: adminVideoQueryKeys.lectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["lecture-sessions-all"],
+    queryKey: adminVideoQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
   });
@@ -117,7 +118,7 @@ export default function VideoTreeView() {
     isLoading: publicSessionLoading,
     isError: publicSessionError,
   } = useQuery({
-    queryKey: ["public-session"],
+    queryKey: adminVideoQueryKeys.publicSession,
     queryFn: fetchPublicSession,
     enabled: true,
     staleTime: 60_000,
@@ -135,7 +136,7 @@ export default function VideoTreeView() {
   }, [lecturesWithSessions, selectedFolderId]);
 
   const { data: publicFolders = [], isLoading: publicFoldersLoading } = useQuery({
-    queryKey: ["video-folders", publicSession?.session_id],
+    queryKey: adminVideoQueryKeys.foldersForSession(publicSession?.session_id),
     queryFn: () => fetchVideoFolders(publicSession!.session_id),
     enabled: !!publicSession?.session_id,
   });
@@ -150,13 +151,13 @@ export default function VideoTreeView() {
   const isPublicSelection = selectedFolderId === "public" || selectedPublicFolderId != null;
 
   const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
-    queryKey: ["session-videos", selectedFolderId],
+    queryKey: adminVideoQueryKeys.sessionVideosScoped(selectedFolderId),
     queryFn: () => fetchSessionVideos(selectedFolderId as number),
     enabled: typeof selectedFolderId === "number" && selectedFolderId > 0,
   });
 
   const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
-    queryKey: ["session-videos", publicSession?.session_id, selectedPublicFolderId],
+    queryKey: adminVideoQueryKeys.sessionVideosInFolder(publicSession?.session_id, selectedPublicFolderId),
     queryFn: () => {
       if (selectedPublicFolderId) {
         return fetchSessionVideos(publicSession!.session_id).then((videos) =>
@@ -268,7 +269,7 @@ export default function VideoTreeView() {
       const parentId =
         selectedPublicFolderId && selectedFolderId !== "public" ? selectedPublicFolderId : null;
       await createVideoFolder(publicSession.session_id, newFolderName.trim(), parentId);
-      queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession.session_id] });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.foldersForSession(publicSession.session_id) });
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
@@ -283,8 +284,8 @@ export default function VideoTreeView() {
       return payload;
     },
     onSuccess: (payload) => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.folders });
       asyncStatusStore.addWorkerJob(
         payload.title ? `${payload.title} 재시도` : `영상 ${payload.videoId} 재시도`,
         String(payload.videoId),
@@ -302,8 +303,8 @@ export default function VideoTreeView() {
   const deleteVideoMutation = useMutation({
     mutationFn: deleteVideo,
     onSuccess: (_data, videoId) => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.folders });
       asyncStatusStore.removeTask(String(videoId));
     },
     onError: (e) => {
@@ -676,7 +677,7 @@ export default function VideoTreeView() {
               : undefined
         }
         onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+          queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
         }}
       />
     </>
