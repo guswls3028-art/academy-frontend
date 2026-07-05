@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState, Tabs, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
 import {
@@ -162,7 +163,7 @@ export default function SubmissionsInboxPage() {
   >(null);
 
   const q = useQuery({
-    queryKey: ["admin-pending-submissions", filter],
+    queryKey: submissionsQueryKeys.adminPendingList(filter),
     queryFn: () => fetchPendingSubmissions(FILTER_PARAM[filter]),
     refetchInterval: 5_000,
   });
@@ -209,7 +210,7 @@ export default function SubmissionsInboxPage() {
   }
 
   function refetchAll() {
-    qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
+    qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminPending });
   }
 
   /* ── Mutations ── */

@@ -4,6 +4,7 @@
 
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { legalQueryKeys } from "@/shared/api/queryKeys/legal";
 import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
 import styles from "./LegalPage.module.css";
 
@@ -21,7 +22,7 @@ function V({ value, fallback }: { value: string; fallback?: string }) {
 
 export default function TermsPage() {
   const { data: lc } = useQuery<LegalConfig>({
-    queryKey: ["legal-config"],
+    queryKey: legalQueryKeys.config,
     queryFn: fetchLegalConfig,
     staleTime: 5 * 60_000,
     retry: 1,

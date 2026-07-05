@@ -27,6 +27,7 @@ import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import { Button, Badge, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { fetchMe, displayUsername, meToStaffRole, type MeStaffRole } from "@admin/domains/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
@@ -139,7 +140,7 @@ export default function Header() {
   const adminLayout = useAdminLayout();
   const isMobile = adminLayout != null;
   const { program } = useProgram();
-  const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const { data: me } = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const { clearAuth } = useAuth();
 
   const [openNotice, setOpenNotice] = useState(false);

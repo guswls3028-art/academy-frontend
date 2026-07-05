@@ -1,5 +1,7 @@
 // PATH: src/app_admin/domains/exams/queryKeys.ts
 
+import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
+
 export const adminExamsQueryKeys = {
   adminExamsLectures: ["admin-exams-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,
@@ -25,6 +27,6 @@ export const adminExamsQueryKeys = {
   lecturesForOmr: ["lectures-for-omr"] as const,
   sessionsForOmr: (lectureId: number) => ["sessions-for-omr", lectureId] as const,
 
-  adminSubmissions: ["admin-submissions"] as const,
-  adminPendingSubmissions: ["admin-pending-submissions"] as const,
+  adminSubmissions: submissionsQueryKeys.adminSubmissions,
+  adminPendingSubmissions: submissionsQueryKeys.adminPending,
 };
