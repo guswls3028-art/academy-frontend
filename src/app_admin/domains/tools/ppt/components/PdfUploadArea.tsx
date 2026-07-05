@@ -3,6 +3,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { pptBytesText } from "../pptFileSize";
 import styles from "./PdfUploadArea.module.css";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -11,12 +12,6 @@ interface PdfUploadAreaProps {
   file: File | null;
   onFileSelect: (file: File | null) => void;
   disabled?: boolean;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function isPdfFile(file: File): boolean {
@@ -44,7 +39,7 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
       }
       const tooLarge = arr.find((f) => f.size > MAX_FILE_SIZE);
       if (tooLarge) {
-        feedback.warning(`PDF가 100MB를 초과합니다. (${tooLarge.name} · ${formatBytes(tooLarge.size)})`);
+        feedback.warning(`PDF가 100MB를 초과합니다. (${tooLarge.name} · ${pptBytesText(tooLarge.size, { includeGb: false })})`);
       }
     },
     [onFileSelect],
@@ -90,7 +85,7 @@ export default function PdfUploadArea({ file, onFileSelect, disabled }: PdfUploa
             {file.name}
           </div>
           <div className={styles.selectedSize}>
-            {formatBytes(file.size)}
+            {pptBytesText(file.size, { includeGb: false })}
           </div>
         </div>
 

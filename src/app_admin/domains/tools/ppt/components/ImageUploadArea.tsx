@@ -3,6 +3,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { pptMegabytesText } from "../pptFileSize";
 import styles from "./ImageUploadArea.module.css";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/tiff"];
@@ -13,10 +14,6 @@ const MAX_TOTAL_SIZE_LABEL = "1GB";
 interface ImageUploadAreaProps {
   onFilesAdd: (files: File[]) => void;
   disabled?: boolean;
-}
-
-function formatMb(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAreaProps) {
@@ -34,7 +31,7 @@ export default function ImageUploadArea({ onFilesAdd, disabled }: ImageUploadAre
         continue;
       }
       if (f.size > MAX_FILE_SIZE) {
-        rejectedSize.push(`${f.name} (${formatMb(f.size)})`);
+        rejectedSize.push(`${f.name} (${pptMegabytesText(f.size)})`);
         continue;
       }
       valid.push(f);
