@@ -15,12 +15,13 @@ import {
 } from "../api/landingStats";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { adminResultsQueryKeys } from "../queryKeys";
 
 export default function ResultsExplorerPage() {
   const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["admin-results-landing-stats"],
+    queryKey: adminResultsQueryKeys.landingStats,
     queryFn: fetchResultsLandingStats,
     staleTime: 60_000,
   });

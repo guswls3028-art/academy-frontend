@@ -8,6 +8,7 @@ import {
   fetchWrongNotePDFStatus,
   WrongNotePDFCreateResponse,
 } from "../api/wrongNotes";
+import { adminResultsQueryKeys } from "../queryKeys";
 
 type Props = {
   enrollmentId: number;
@@ -16,7 +17,7 @@ type Props = {
 
 export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const { data } = useQuery({
-    queryKey: ["wrong-notes", enrollmentId, examId],
+    queryKey: adminResultsQueryKeys.wrongNotes(enrollmentId, examId),
     queryFn: () =>
       fetchWrongNotes({
         enrollment_id: enrollmentId,

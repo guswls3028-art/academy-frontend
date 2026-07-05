@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import AdminExamResultsTable from "../components/AdminExamResultsTable";
+import { adminResultsQueryKeys } from "../queryKeys";
 import StudentResultDrawer from "../components/StudentResultDrawer";
 
 import api from "@/shared/api/axios";
@@ -61,7 +62,7 @@ export default function ExamResultsPanel({ examId }: Props) {
   const { data: exam } = useAdminExam(examId);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["admin-exam-results", examId],
+    queryKey: adminResultsQueryKeys.adminExamResults(examId),
     queryFn: () => fetchAdminExamResults(examId),
     enabled: Number.isFinite(examId),
   });

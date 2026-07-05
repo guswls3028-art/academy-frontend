@@ -28,6 +28,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
+import { adminResultsQueryKeys } from "../../queryKeys";
 import {
   acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
@@ -168,7 +169,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
 
   // 리스트
   const { data: rows = [], isLoading: listLoading } = useQuery({
-    queryKey: ["omr-review-list", examId],
+    queryKey: adminResultsQueryKeys.omrReviewList(examId),
     queryFn: () => listOmrReviewRows(examId),
     enabled: open && Number.isFinite(examId),
     refetchInterval: open ? 8000 : false,
@@ -176,7 +177,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
 
   // 상세
   const { data: detail, isLoading: detailLoading } = useQuery({
-    queryKey: ["omr-review-detail", selectedId],
+    queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId),
     queryFn: () => fetchOmrReviewDetail(selectedId!),
     enabled: open && selectedId != null,
   });
@@ -389,7 +390,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             onImageLoadError={() => {
               // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
               if (selectedId != null) {
-                qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
+                qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
               }
             }}
           />
@@ -409,7 +410,7 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
               setEditDirty(false);
               const savedScore = scoreFromManualEditResult(result);
               if (selectedId != null) {
-                qc.setQueryData<OmrReviewRow[]>(["omr-review-list", examId], (prev) => {
+                qc.setQueryData<OmrReviewRow[]>(adminResultsQueryKeys.omrReviewList(examId), (prev) => {
                   if (!prev) return prev;
                   return prev.map((row) =>
                     row.id === selectedId
@@ -425,14 +426,14 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
                   );
                 });
               }
-              qc.invalidateQueries({ queryKey: ["omr-review-list", examId] });
-              qc.invalidateQueries({ queryKey: ["omr-review-detail", selectedId] });
-              qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
-              qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId] });
-              qc.invalidateQueries({ queryKey: ["admin-exam-summary", examId] });
-              qc.invalidateQueries({ queryKey: ["exam-question-stats", examId] });
-              qc.invalidateQueries({ queryKey: ["session-scores"] });
-              qc.invalidateQueries({ queryKey: ["clinic-targets"] });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
               feedback.success(
                 savedScore != null
                   ? `저장 + 재채점 완료: ${savedScore}점`

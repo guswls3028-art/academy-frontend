@@ -22,6 +22,7 @@ import WrongNotePanel from "./WrongNotePanel";
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { adminResultsQueryKeys } from "../queryKeys";
 import {
   deriveAchievement,
   achievementLabel,
@@ -98,19 +99,19 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const [scanExpanded, setScanExpanded] = useState(false);
 
   const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
-    queryKey: ["admin-exam-detail", examId, enrollmentId],
+    queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId),
     queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
 
   const { data: attemptData } = useQuery({
-    queryKey: ["attempt-history", "exam", examId, enrollmentId],
+    queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId),
     queryFn: () => fetchAttemptHistory({ enrollment_id: enrollmentId, exam_id: examId }),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
 
   const { data: examQuestions = [] } = useQuery({
-    queryKey: ["exam-questions", examId],
+    queryKey: adminResultsQueryKeys.examQuestions(examId),
     queryFn: async () => {
       const res = await (await import("@/shared/api/axios")).default.get(`/exams/${examId}/questions/`);
       return (res.data as ExamQuestionForDrawer[]).sort((a, b) => a.number - b.number);
@@ -197,8 +198,8 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   );
 
   const invalidateAll = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] });
-    qc.invalidateQueries({ queryKey: ["attempt-history", "exam", examId, enrollmentId] });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
   }, [qc, examId, enrollmentId]);
 

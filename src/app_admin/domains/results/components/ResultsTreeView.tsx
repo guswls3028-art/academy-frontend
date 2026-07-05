@@ -18,6 +18,7 @@ import {
   type Session,
 } from "@/shared/api/contracts/sessions";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { adminResultsQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./ResultsExplorer.module.css";
 
@@ -28,12 +29,12 @@ export default function ResultsTreeView() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
-    queryKey: ["admin-results-lectures"],
+    queryKey: adminResultsQueryKeys.lectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["lecture-sessions-all"],
+    queryKey: adminResultsQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
   });

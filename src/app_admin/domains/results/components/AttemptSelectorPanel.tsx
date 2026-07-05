@@ -21,6 +21,7 @@ import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { type ResultAttemptMeta } from "../types/results.types";
+import { adminResultsQueryKeys } from "../queryKeys";
 
 type Attempt = {
   id: number;
@@ -59,7 +60,7 @@ export default function AttemptSelectorPanel({ examId, enrollmentId, onChanged }
   const qc = useQueryClient();
 
   const q = useQuery({
-    queryKey: ["exam-attempts", examId, enrollmentId],
+    queryKey: adminResultsQueryKeys.examAttempts(examId, enrollmentId),
     queryFn: () => fetchAttempts(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
@@ -75,9 +76,9 @@ export default function AttemptSelectorPanel({ examId, enrollmentId, onChanged }
        * - 시험 리스트(final_score/passed/clinic_required)
        */
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["exam-attempts", examId, enrollmentId] }),
-        qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] }),
-        qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] }),
+        qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examAttempts(examId, enrollmentId) }),
+        qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId) }),
+        qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) }),
       ]);
 
       onChanged?.();

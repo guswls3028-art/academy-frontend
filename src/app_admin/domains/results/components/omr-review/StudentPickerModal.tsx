@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchExamCandidates, type CandidateRow } from "./omrReviewApi";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { adminResultsQueryKeys } from "../../queryKeys";
 import "./StudentPickerModal.css";
 
 type Props = {
@@ -72,7 +73,7 @@ export default function StudentPickerModal({
   const queryKeyId = fetchCandidates ? "custom" : String(examId ?? "");
 
   const { data: rows = [], isFetching } = useQuery({
-    queryKey: ["omr-candidates", queryKeyId, debouncedQ],
+    queryKey: adminResultsQueryKeys.omrCandidates(queryKeyId, debouncedQ),
     queryFn: () => fetcher ? fetcher(debouncedQ) : Promise.resolve([] as CandidateRow[]),
     enabled: open && !!fetcher,
     staleTime: 30_000,

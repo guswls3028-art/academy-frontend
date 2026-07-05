@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import OmrReviewWorkspace from "./OmrReviewWorkspace";
 import { listOmrReviewRows } from "./omrReviewApi";
+import { adminResultsQueryKeys } from "../../queryKeys";
 import "./OmrReviewEntry.css";
 
 type Props = {
@@ -29,7 +30,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [open, setOpen] = useState(false);
 
   const { data: rows = [] } = useQuery({
-    queryKey: ["omr-review-list", examId],
+    queryKey: adminResultsQueryKeys.omrReviewList(examId),
     queryFn: () => listOmrReviewRows(examId),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
