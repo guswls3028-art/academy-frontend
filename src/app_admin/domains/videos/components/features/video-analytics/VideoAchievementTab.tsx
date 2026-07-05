@@ -15,6 +15,7 @@ import {
   CartesianGrid,
   Cell,
 } from "recharts";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import "./VideoAnalyticsTabs.css";
 
 type Props = {
@@ -163,7 +164,7 @@ export default function VideoAchievementTab({
   const [sortKey, setSortKey] = useState<SortKey>("status");
 
   const { data, isFetching } = useQuery<AchievementResponse>({
-    queryKey: ["video", videoId, "achievement"],
+    queryKey: adminVideoQueryKeys.achievement(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/achievement/`);
       return res.data as AchievementResponse;

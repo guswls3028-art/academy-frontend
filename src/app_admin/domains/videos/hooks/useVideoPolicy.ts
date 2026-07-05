@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { adminVideoQueryKeys } from "../queryKeys";
 
 export interface VideoPolicy {
   allow_skip: boolean;
@@ -101,8 +102,8 @@ export function useVideoPolicy({ videoId, initial }: Options) {
     onSuccess: async () => {
       setDirty(false);
 
-      await qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
-      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
+      await qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
+      await qc.invalidateQueries({ queryKey: adminVideoQueryKeys.permissionStats(videoId) });
     },
   });
 

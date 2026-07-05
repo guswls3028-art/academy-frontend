@@ -19,6 +19,7 @@ import VideoDetailOverlay from "./VideoDetailOverlay";
 import DashboardWidget from "@admin/domains/dashboard/components/DashboardWidget";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { adminVideoQueryKeys } from "../queryKeys";
 import styles from "./VideoExplorerPage.module.css";
 
 export default function VideoExplorerPage() {
@@ -27,7 +28,7 @@ export default function VideoExplorerPage() {
   const confirm = useConfirm();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["admin-videos-landing-stats"],
+    queryKey: adminVideoQueryKeys.landingStats,
     queryFn: fetchVideosLandingStats,
     staleTime: 60_000,
     refetchInterval: (query) => {
@@ -51,7 +52,7 @@ export default function VideoExplorerPage() {
       return payload;
     },
     onSuccess: (payload) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-videos-landing-stats"] });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.landingStats });
       asyncStatusStore.addWorkerJob(
         payload.title ? `${payload.title} 재시도` : `영상 ${payload.videoId} 재시도`,
         String(payload.videoId),

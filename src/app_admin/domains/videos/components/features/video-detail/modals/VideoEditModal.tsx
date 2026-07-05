@@ -5,6 +5,7 @@ import { updateVideo } from "@admin/domains/videos/api/videos.api";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import "./VideoEditModal.css";
 
 interface VideoEditModalProps {
@@ -39,8 +40,8 @@ export default function VideoEditModal({
   const mutation = useMutation({
     mutationFn: () => updateVideo(videoId, { title: title.trim(), order: orderValue ?? initialOrderValue }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["session-videos"] });
-      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
       feedback.success("영상 정보를 수정했습니다.");
       onClose();
     },

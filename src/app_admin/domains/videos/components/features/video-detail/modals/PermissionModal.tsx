@@ -14,6 +14,7 @@ import VideoLogTab from "../../video-analytics/VideoLogTab";
 
 import type { AccessMode } from "@admin/domains/videos/types/access-mode";
 import type { PermissionModalProps, PermissionStudent, TabKey } from "../../video-permission/permission.types";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 
 import "../../video-permission/permission-modal.css";
 
@@ -66,7 +67,7 @@ export default function PermissionModal({
   /* ================= query ================= */
 
   const { data, isFetching } = useQuery<PermissionStatsResponse>({
-    queryKey: ["video", videoId, "stats"],
+    queryKey: adminVideoQueryKeys.permissionStats(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
       return res.data as PermissionStatsResponse;
@@ -131,7 +132,7 @@ export default function PermissionModal({
     },
     onSuccess: async () => {
       setSelected([]);
-      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
+      await qc.invalidateQueries({ queryKey: adminVideoQueryKeys.permissionStats(videoId) });
     },
   });
 

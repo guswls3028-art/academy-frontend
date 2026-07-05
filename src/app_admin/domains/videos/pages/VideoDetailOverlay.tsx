@@ -33,6 +33,7 @@ import AdminCommentSection from "@admin/domains/videos/components/features/video
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
 import { formatVideoBytes, formatVideoDuration } from "@/shared/media/video/videoFormat";
+import { adminVideoQueryKeys } from "../queryKeys";
 import "./VideoDetailPage.css";
 
 /* ── Chevron icon for collapsible ── */
@@ -101,8 +102,8 @@ export default function VideoDetailOverlay({
   const deleteMutation = useMutation({
     mutationFn: () => deleteVideo(videoId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["session-videos"] });
-      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
       asyncStatusStore.removeTask(String(videoId));
       onClose();
     },
@@ -121,8 +122,8 @@ export default function VideoDetailOverlay({
       await api.post(`/media/videos/${videoId}/retry/`);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
-      qc.invalidateQueries({ queryKey: ["session-videos"] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
       asyncStatusStore.addWorkerJob(
         `영상 ${videoId} 재시도`,
         String(videoId),
@@ -138,7 +139,7 @@ export default function VideoDetailOverlay({
   });
 
   const { data, isLoading } = useQuery<VideoStats>({
-    queryKey: ["video-stats", videoId],
+    queryKey: adminVideoQueryKeys.statsForVideo(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
       return res.data as VideoStats;

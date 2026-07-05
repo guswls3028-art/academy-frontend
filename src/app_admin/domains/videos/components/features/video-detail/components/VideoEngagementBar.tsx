@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { fetchVideoEngagement } from "@admin/domains/videos/api/videos.api";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import { cx } from "@/shared/utils/cx";
 import styles from "./VideoEngagementBar.module.css";
 
@@ -26,7 +27,7 @@ interface Props {
 
 export default function VideoEngagementBar({ videoId, fallbackViewCount }: Props) {
   const { data, isLoading } = useQuery({
-    queryKey: ["video-engagement", videoId],
+    queryKey: adminVideoQueryKeys.engagement(videoId),
     queryFn: () => fetchVideoEngagement(videoId),
     enabled: !!videoId,
     retry: 1,

@@ -9,6 +9,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import "./VideoUploadModal.css";
 
 const VIDEO_ACCEPT = "video/*";
@@ -184,7 +185,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
         });
 
         if (initResults.length > 0) {
-          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+          qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
         }
 
         // 성공한 파일은 슬롯에서 제거(빈 슬롯 1개 보장), 실패한 파일은 슬롯에 남겨 즉시 재시도 가능
@@ -228,7 +229,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우상단 작업박스에서 확인하세요.`
               : `${successCount}개 업로드 완료. 처리는 우상단 작업박스에서 이어서 진행됩니다.`
           );
-          qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+          qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
         }
         if (r2Errors.length > 0) {
           feedback.error(r2Errors.join(" / "));

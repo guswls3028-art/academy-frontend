@@ -10,6 +10,7 @@ import {
   deleteAdminVideoComment,
   type VideoCommentItem,
 } from "@admin/domains/videos/api/videos.api";
+import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { cx } from "@/shared/utils/cx";
@@ -85,8 +86,8 @@ function CommentRow({
   const editMut = useMutation({
     mutationFn: () => editAdminVideoComment(comment.id, editContent.trim()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-video-comments", videoId] });
-      qc.invalidateQueries({ queryKey: ["video-engagement", videoId] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.comments(videoId) });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.engagement(videoId) });
       setEditMode(false);
       feedback.success("댓글이 수정되었습니다.");
     },
@@ -96,8 +97,8 @@ function CommentRow({
   const deleteMut = useMutation({
     mutationFn: () => deleteAdminVideoComment(comment.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-video-comments", videoId] });
-      qc.invalidateQueries({ queryKey: ["video-engagement", videoId] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.comments(videoId) });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.engagement(videoId) });
       feedback.success("댓글이 삭제되었습니다.");
     },
     onError: () => feedback.error("댓글 삭제에 실패했습니다."),
@@ -287,7 +288,7 @@ export default function AdminCommentSection({
   const [replyTo, setReplyTo] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-video-comments", videoId],
+    queryKey: adminVideoQueryKeys.comments(videoId),
     queryFn: () => fetchAdminVideoComments(videoId),
     enabled: !!videoId,
     retry: 1,
@@ -302,8 +303,8 @@ export default function AdminCommentSection({
         replyTo ?? undefined
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-video-comments", videoId] });
-      qc.invalidateQueries({ queryKey: ["video-engagement", videoId] });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.comments(videoId) });
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.engagement(videoId) });
       setNewComment("");
       setReplyTo(null);
       feedback.success("댓글이 등록되었습니다.");

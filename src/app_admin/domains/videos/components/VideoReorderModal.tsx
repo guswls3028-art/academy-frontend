@@ -9,6 +9,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { formatRoundedVideoDuration } from "@/shared/media/video/videoFormat";
+import { adminVideoQueryKeys } from "../queryKeys";
 import "./VideoReorderModal.css";
 
 /** Minimal video shape — works with both Video (videos API) and MediaVideo (session tab) */
@@ -103,7 +104,7 @@ export default function VideoReorderModal({
       await Promise.all(updates);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
       feedback.success("영상 순서를 저장했습니다.");
       onSaved();
       onClose();
