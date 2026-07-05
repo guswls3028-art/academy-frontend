@@ -14,6 +14,7 @@ import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/B
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { fetchStudent, fetchStudentAccountNotifications, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
+import { teacherStudentsQueryKeys } from "../queryKeys";
 import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -53,25 +54,25 @@ export default function StudentDetailPage() {
   const [pwResetOpen, setPwResetOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({
-    queryKey: ["student", sid],
+    queryKey: teacherStudentsQueryKeys.student(sid),
     queryFn: () => fetchStudent(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: examResults } = useQuery({
-    queryKey: ["student-exams", sid],
+    queryKey: teacherStudentsQueryKeys.studentExams(sid),
     queryFn: () => fetchStudentExamResults(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: accountNotifications } = useQuery({
-    queryKey: ["student-account-notifications", sid],
+    queryKey: teacherStudentsQueryKeys.accountNotifications(sid),
     queryFn: () => fetchStudentAccountNotifications(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: clinicData } = useQuery({
-    queryKey: ["student-clinic", sid],
+    queryKey: teacherStudentsQueryKeys.clinic(sid),
     queryFn: async () => {
       const res = await api.get("/clinic/participants/", { params: { student: sid, page_size: 100 } });
       return listFromApiResponse<ClinicParticipantRow>(res.data);
@@ -80,7 +81,7 @@ export default function StudentDetailPage() {
   });
 
   const { data: questionsData } = useQuery({
-    queryKey: ["student-questions", sid],
+    queryKey: teacherStudentsQueryKeys.questions(sid),
     queryFn: async () => {
       const res = await api.get("/community/posts/", { params: { created_by: sid, page_size: 50, ordering: "-created_at" } });
       return listFromApiResponse<CommunityQuestionRow>(res.data);
@@ -437,7 +438,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
     mutationFn: () => updateStudentMemo(studentId, text),
     onSuccess: () => {
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["student", studentId] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) });
       teacherToast.success("메모가 저장되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "메모를 저장하지 못했습니다.")),
@@ -505,9 +506,9 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
       grade,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", studentId] });
-      qc.invalidateQueries({ queryKey: ["students-mobile"] });
-      qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.teacherStudents });
       teacherToast.success(`${name} 학생 정보가 수정되었습니다.`);
       onClose();
     },
@@ -517,9 +518,9 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
   const toggleMut = useMutation({
     mutationFn: () => toggleStudentActive(studentId, !isActive),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", studentId] });
-      qc.invalidateQueries({ queryKey: ["students-mobile"] });
-      qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.teacherStudents });
       teacherToast.success(isActive ? "학생이 비활성화되었습니다." : "학생이 활성화되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
@@ -608,20 +609,20 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
   const [newTagName, setNewTagName] = useState("");
 
   const { data: allTags } = useQuery({
-    queryKey: ["all-tags"],
+    queryKey: teacherStudentsQueryKeys.allTags,
     queryFn: fetchTags,
     enabled: open,
   });
 
   const attachMut = useMutation({
     mutationFn: (tagId: number) => attachTag(studentId, tagId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", studentId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) }),
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 추가하지 못했습니다.")),
   });
 
   const detachMut = useMutation({
     mutationFn: (tagId: number) => detachTag(studentId, tagId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", studentId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) }),
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 제거하지 못했습니다.")),
   });
 
@@ -629,7 +630,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
     mutationFn: () => createTag(newTagName.trim()),
     onSuccess: (tag) => {
       setNewTagName("");
-      qc.invalidateQueries({ queryKey: ["all-tags"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.allTags });
       attachMut.mutate(tag.id);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
@@ -763,7 +764,7 @@ function PasswordResetSheet({ open, onClose, student }: {
       if (ok > 0) {
         const notifyMsg = notify ? " 알림톡이 발송됩니다." : "";
         teacherToast.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}).${notifyMsg}`);
-        qc.invalidateQueries({ queryKey: ["student-account-notifications", student.id] });
+        qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.accountNotifications(student.id) });
         onClose();
       } else {
         teacherToast.error(`변경 실패${failReasons.length ? `: ${failReasons.join(", ")}` : ""}.`);

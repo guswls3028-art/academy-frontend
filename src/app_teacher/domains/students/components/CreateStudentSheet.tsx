@@ -8,6 +8,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { createStudent } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { teacherStudentsQueryKeys } from "../queryKeys";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-students"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.teacherStudents });
       teacherToast.success(`${name} 학생이 등록되었습니다.`);
       resetAndClose();
     },

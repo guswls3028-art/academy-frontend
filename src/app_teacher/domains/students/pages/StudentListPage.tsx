@@ -19,6 +19,7 @@ import {
 } from "../api";
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import CreateStudentSheet from "../components/CreateStudentSheet";
+import { teacherStudentsQueryKeys } from "../queryKeys";
 import { sendMessage } from "@teacher/domains/comms/api";
 import { useConfirm } from "@/shared/ui/confirm";
 
@@ -81,7 +82,7 @@ export default function StudentListPage() {
   }, [location.pathname, location.state, navigate]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["students-mobile", deferredSearch, filters],
+    queryKey: teacherStudentsQueryKeys.studentList(deferredSearch, filters),
     queryFn: () =>
       fetchStudents({
         search: deferredSearch.trim() || undefined,
@@ -117,7 +118,7 @@ export default function StudentListPage() {
   const deleteMut = useMutation({
     mutationFn: (ids: number[]) => bulkDeleteStudents(ids),
     onSuccess: (_, ids) => {
-      qc.invalidateQueries({ queryKey: ["students-mobile"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
       teacherToast.success(`${ids.length}명을 삭제했습니다. (30일 이내 복구 가능)`);
       exitSelectMode();
     },
@@ -360,7 +361,7 @@ export default function StudentListPage() {
         onClose={() => setExcelImportFile(null)}
         onDone={async (jobId) => {
           asyncStatusStore.addWorkerJob("학생 일괄 등록", jobId, "excel_parsing");
-          await qc.invalidateQueries({ queryKey: ["students-mobile"] });
+          await qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
         }}
       />
 
@@ -698,12 +699,12 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
   const qc = useQueryClient();
   const [newTagName, setNewTagName] = useState("");
 
-  const { data: tags } = useQuery({ queryKey: ["all-tags"], queryFn: fetchTags, enabled: open });
+  const { data: tags } = useQuery({ queryKey: teacherStudentsQueryKeys.allTags, queryFn: fetchTags, enabled: open });
 
   const attachMut = useMutation({
     mutationFn: (tagId: number) => bulkAttachTag(students.map((s) => s.id), tagId),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["students-mobile"] });
+      qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
       teacherToast.success(`태그 적용 ${res.ok}건${res.fail > 0 ? `, 실패 ${res.fail}건` : ""}`);
       onDone();
       onClose();
@@ -713,7 +714,7 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
 
   const createMut = useMutation({
     mutationFn: () => createTag(newTagName.trim()),
-    onSuccess: (tag) => { setNewTagName(""); qc.invalidateQueries({ queryKey: ["all-tags"] }); attachMut.mutate(tag.id); },
+    onSuccess: (tag) => { setNewTagName(""); qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.allTags }); attachMut.mutate(tag.id); },
     onError: (e) => teacherToast.error(extractApiError(e, "태그를 생성하지 못했습니다.")),
   });
 
