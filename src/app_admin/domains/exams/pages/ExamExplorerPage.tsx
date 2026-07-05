@@ -15,6 +15,7 @@ import { fetchAllSessions, fetchLectures, sortSessionsByDisplayOrder, type Lectu
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { fetchExams } from "../api/exams.api";
 import { buildAssessmentSearch } from "@/shared/lib/assessmentQueryParams";
+import { adminExamsQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ExamExplorer.module.css";
 
@@ -34,12 +35,12 @@ export default function ExamExplorerPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
-    queryKey: ["admin-exams-lectures"],
+    queryKey: adminExamsQueryKeys.adminExamsLectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["lecture-sessions-all"],
+    queryKey: adminExamsQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
   });
@@ -70,7 +71,7 @@ export default function ExamExplorerPage() {
   }, [lecturesWithSessions, selectedSessionId]);
 
   const { data: exams = [], isLoading: examsLoading } = useQuery({
-    queryKey: ["admin-exams", selectedSessionId],
+    queryKey: adminExamsQueryKeys.adminExamsForSession(selectedSessionId),
     queryFn: () => fetchExams({ session_id: selectedSessionId! }),
     enabled: Number.isFinite(selectedSessionId),
   });

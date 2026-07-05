@@ -3,13 +3,14 @@ import {
   fetchExamEnrollmentRows,
   updateExamEnrollmentRows,
 } from "../api/examEnrollments";
+import { adminExamsQueryKeys } from "../queryKeys";
 
 export function useExamEnrollmentRows(
   examId?: number,
   sessionId?: number
 ) {
   return useQuery({
-    queryKey: ["exam-enrollment", examId, sessionId],
+    queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId),
     queryFn: () =>
       fetchExamEnrollmentRows({
         examId: examId!,

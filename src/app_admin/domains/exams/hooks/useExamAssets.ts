@@ -10,6 +10,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchExamAssets, ExamAsset } from "../api/assets";
+import { adminExamsQueryKeys } from "../queryKeys";
 
 export type ExamAssetsList = ExamAsset[] & {
   /** convenience flags (non-authoritative, UI gate only) */
@@ -19,7 +20,7 @@ export type ExamAssetsList = ExamAsset[] & {
 
 export function useExamAssets(examId?: number) {
   return useQuery<ExamAssetsList>({
-    queryKey: ["exam-assets", examId],
+    queryKey: adminExamsQueryKeys.examAssets(examId),
     queryFn: async () => {
       const list = (await fetchExamAssets(examId as number)) as ExamAssetsList;
 

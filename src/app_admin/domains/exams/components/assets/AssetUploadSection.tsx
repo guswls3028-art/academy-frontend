@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { adminExamsQueryKeys } from "../../queryKeys";
 
 type Props = {
   examId: number;
@@ -82,7 +83,7 @@ export default function AssetUploadSection({
       setFile(null);
 
       // 즉시 반영
-      await qc.invalidateQueries({ queryKey: ["exam-assets", examId] });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
     } catch (e: unknown) {
       const status = getResponseStatus(e);
       setError(extractApiError(e, uploadErrorFallback(status)));

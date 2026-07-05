@@ -13,6 +13,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { fetchBundles, applyBundle } from "../../api/templateBundles";
+import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ApplyBundleModal.module.css";
 
 type Props = {
@@ -28,7 +29,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
   const [error, setError] = useState<string | null>(null);
 
   const { data: bundles = [], isLoading } = useQuery({
-    queryKey: ["template-bundles"],
+    queryKey: adminExamsQueryKeys.templateBundles,
     queryFn: fetchBundles,
     enabled: open,
   });

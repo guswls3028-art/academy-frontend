@@ -16,6 +16,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 import ExamPdfUploadModal from "../../components/ExamPdfUploadModal";
 import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
+import { adminExamsQueryKeys } from "../../queryKeys";
 
 export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }: { examId: number; lectureId?: number; sessionId?: number }) {
   const qc = useQueryClient();
@@ -33,12 +34,12 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
 
   // 강의명/차시명 조회 (OMR 기본값 주입용)
   const { data: lectureData } = useQuery({
-    queryKey: ["lectures-for-omr"],
+    queryKey: adminExamsQueryKeys.lecturesForOmr,
     queryFn: () => fetchLectures(),
     enabled: lectureId > 0,
   });
   const { data: sessionData } = useQuery({
-    queryKey: ["sessions-for-omr", lectureId],
+    queryKey: adminExamsQueryKeys.sessionsForOmr(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: lectureId > 0,
   });
@@ -64,7 +65,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
   const patchMut = useMutation({
     mutationFn: (data: { pass_score: number; max_score: number }) => updateAdminExam(examId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
       feedback.success("시험 정책이 저장되었습니다.");
     },
     onError: (e: unknown) => {
@@ -74,7 +75,7 @@ export default function ExamPolicyPanel({ examId, lectureId = 0, sessionId = 0 }
 
   // Questions + AnswerKey for OMR spec
   const { data: questions = [] } = useQuery({
-    queryKey: ["exam-questions", examId],
+    queryKey: adminExamsQueryKeys.examQuestions(examId),
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
     enabled: examId > 0,
   });

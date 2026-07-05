@@ -14,6 +14,7 @@ import {
   fetchTemplatesWithUsage,
   type TemplateWithUsage,
 } from "../api/templatesWithUsage";
+import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./TemplateManagementPanel.module.css";
 
 function formatDate(s: string | null | undefined): string {
@@ -33,7 +34,7 @@ export default function TemplateManagementPanel() {
   const navigate = useNavigate();
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ["templates-with-usage"],
+    queryKey: adminExamsQueryKeys.templatesWithUsage,
     queryFn: fetchTemplatesWithUsage,
   });
 

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { recalculateExam } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { adminExamsQueryKeys } from "../../queryKeys";
 
 type Props = {
   examId: number;
@@ -23,10 +24,10 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
     mutationFn: () => recalculateExam(examId),
     onSuccess: () => {
       feedback.success("재채점이 완료되었습니다.");
-      qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] });
-      qc.invalidateQueries({ queryKey: ["admin-submissions"] });
-      qc.invalidateQueries({ queryKey: ["admin-pending-submissions"] });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResults(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions });
     },
     onError: (error: unknown) => {
       feedback.error((error as Error)?.message ?? "재채점에 실패했습니다.");

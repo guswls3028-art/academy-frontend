@@ -21,6 +21,7 @@ import EnrollmentManageModal from "@/shared/ui/enrollment/EnrollmentManageModal"
 import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ExamEnrollmentPanel.module.css";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
@@ -78,7 +79,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
     await updateMut.mutateAsync({
       enrollment_ids: Array.from(selected),
     });
-    await qc.invalidateQueries({ queryKey: ["exam-enrollment", examId, sessionId] });
+    await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
     setOpen(false);
   };
 
@@ -174,7 +175,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 if (allIds.length === 0) return;
                 try {
                   await updateMut.mutateAsync({ enrollment_ids: allIds });
-                  await qc.invalidateQueries({ queryKey: ["exam-enrollment", examId, sessionId] });
+                  await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
                   feedback.success(`이 시험에 수강생 ${allIds.length}명 일괄배정 완료`);
                 } catch {
                   feedback.error("전체 등록에 실패했습니다.");

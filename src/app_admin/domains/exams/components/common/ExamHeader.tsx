@@ -6,6 +6,7 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { FiSave, FiChevronDown } from "react-icons/fi";
+import { adminExamsQueryKeys } from "../../queryKeys";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 /**
@@ -27,7 +28,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
       title: templateName.trim() || undefined,
     }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(exam.id) });
       setTemplateModalOpen(false);
       setTemplateName("");
       feedback.success("템플릿으로 저장했습니다.");

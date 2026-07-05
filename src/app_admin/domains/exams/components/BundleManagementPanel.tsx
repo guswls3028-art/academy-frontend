@@ -23,6 +23,7 @@ import {
 } from "../api/templateBundles";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "../api/templatesWithUsage";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "@admin/domains/homework/api/adminHomework";
+import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./BundleManagementPanel.module.css";
 
 export default function BundleManagementPanel() {
@@ -30,7 +31,7 @@ export default function BundleManagementPanel() {
   const confirm = useConfirm();
 
   const { data: bundles = [], isLoading } = useQuery({
-    queryKey: ["template-bundles"],
+    queryKey: adminExamsQueryKeys.templateBundles,
     queryFn: fetchBundles,
   });
 
@@ -49,7 +50,7 @@ export default function BundleManagementPanel() {
     if (!ok) return;
     try {
       await deleteBundle(bundle.id);
-      qc.invalidateQueries({ queryKey: ["template-bundles"] });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.templateBundles });
       feedback.success("묶음이 삭제되었습니다.");
     } catch {
       feedback.error("묶음 삭제에 실패했습니다.");
@@ -157,7 +158,7 @@ export default function BundleManagementPanel() {
         bundle={editModal.bundle}
         onClose={() => setEditModal({ open: false, bundle: null })}
         onSaved={() => {
-          qc.invalidateQueries({ queryKey: ["template-bundles"] });
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.templateBundles });
           setEditModal({ open: false, bundle: null });
         }}
       />

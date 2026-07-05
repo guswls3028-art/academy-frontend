@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { adminExamsQueryKeys } from "../queryKeys";
 
 export type ExamDetail = {
   id: number;
@@ -22,7 +23,7 @@ async function fetchExam(examId: number): Promise<ExamDetail> {
 
 export function useExam(examId: number | null | undefined) {
   return useQuery({
-    queryKey: ["exam-detail", examId],
+    queryKey: adminExamsQueryKeys.examDetail(examId),
     queryFn: () => fetchExam(Number(examId)),
 
     // ✅🔥 Production Fix (NaN 방지 핵심)

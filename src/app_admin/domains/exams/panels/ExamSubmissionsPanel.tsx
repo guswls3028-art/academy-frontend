@@ -21,6 +21,7 @@ import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
+import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamSubmissionsPanel.module.css";
 
 type Props = {
@@ -38,7 +39,7 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
     && Number.isFinite(sessionId) && Number(sessionId) > 0;
 
   const q = useQuery({
-    queryKey: ["exam-submissions", examId],
+    queryKey: adminExamsQueryKeys.examSubmissions(examId),
     queryFn: () => fetchExamSubmissions(examId),
     refetchInterval: 5000,
   });

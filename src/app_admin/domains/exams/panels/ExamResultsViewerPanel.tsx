@@ -15,6 +15,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamResultsViewerPanel.module.css";
 
 type Props = { examId: number };
@@ -71,17 +72,17 @@ function computeMedian(scores: number[]): number {
 export default function ExamResultsViewerPanel({ examId }: Props) {
   const { data: exam } = useAdminExam(examId);
   const summaryQ = useQuery({
-    queryKey: ["admin-exam-summary", examId],
+    queryKey: adminExamsQueryKeys.adminExamSummary(examId),
     queryFn: () => fetchSummary(examId),
     enabled: Number.isFinite(examId),
   });
   const resultsQ = useQuery({
-    queryKey: ["admin-exam-results", examId],
+    queryKey: adminExamsQueryKeys.adminExamResults(examId),
     queryFn: () => fetchResults(examId),
     enabled: Number.isFinite(examId),
   });
   const statsQ = useQuery({
-    queryKey: ["exam-question-stats", examId],
+    queryKey: adminExamsQueryKeys.examQuestionStats(examId),
     queryFn: () => fetchQuestionStats(examId),
     enabled: Number.isFinite(examId),
   });

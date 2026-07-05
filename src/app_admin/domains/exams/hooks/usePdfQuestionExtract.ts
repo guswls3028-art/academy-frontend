@@ -13,6 +13,7 @@ import { useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { adminExamsQueryKeys } from "../queryKeys";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
 export type PdfExtractStatus =
@@ -151,10 +152,10 @@ export function usePdfQuestionExtract(examId: number) {
             );
 
             // 캐시 무효화 → 문항 목록·자산 자동 갱신
-            qc.invalidateQueries({ queryKey: ["exam-assets", examId] });
-            qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-            qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-            qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
+            qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
+            qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
+            qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
+            qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) });
           } else if (
             data.status === "FAILED" ||
             data.status === "REJECTED_BAD_INPUT"

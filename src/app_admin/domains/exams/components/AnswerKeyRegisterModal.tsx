@@ -28,6 +28,7 @@ import {
   type QuestionExplanation as ExplanationData,
 } from "../api/explanation.api";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
+import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.css";
 
 type Props = {
@@ -252,11 +253,11 @@ export default function AnswerKeyRegisterModal({
   const ensureStructureMut = useMutation({
     mutationFn: ensureExamStructure,
     onSuccess: (nextExam) => {
-      qc.setQueryData(["admin-exam", examId], nextExam);
+      qc.setQueryData(adminExamsQueryKeys.adminExam(examId), nextExam);
       setEnsuredExamId(examId);
-      qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-      qc.invalidateQueries({ queryKey: ["answer-key", examId] });
-      qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) });
     },
     onError: (error: unknown) => {
       feedback.error(extractApiError(error, "시험 구조 준비 실패"));
@@ -285,14 +286,14 @@ export default function AnswerKeyRegisterModal({
   }, [open, needsStructureEnsure, ensuredExamId, ensureAttemptedExamId, examId, ensureStructureMut]);
 
   const { data: questionsData } = useQuery({
-    queryKey: ["exam-questions", examId],
+    queryKey: adminExamsQueryKeys.examQuestions(examId),
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
     enabled: open && Number.isFinite(examId) && structureReady,
   });
   const questions = questionsData ?? EMPTY_QUESTIONS;
 
   const { data: answerKeyList } = useQuery({
-    queryKey: ["answer-key", examId],
+    queryKey: adminExamsQueryKeys.answerKey(examId),
     queryFn: async () => {
       try {
         return await fetchAnswerKeyByExam(examId);
@@ -337,7 +338,7 @@ export default function AnswerKeyRegisterModal({
 
   /** 해설 데이터 로드 — AI 추출 결과 포함 */
   const { data: explanationsData } = useQuery({
-    queryKey: ["exam-explanations", examId],
+    queryKey: adminExamsQueryKeys.examExplanations(examId),
     queryFn: () => fetchExplanations(examId),
     enabled: open && Number.isFinite(examId) && structureReady && questions.length > 0,
   });
@@ -549,7 +550,7 @@ export default function AnswerKeyRegisterModal({
       appliedEc = Math.trunc(appliedEc);
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
-      qc.setQueryData(["exam-questions", examId], list);
+      qc.setQueryData(adminExamsQueryKeys.examQuestions(examId), list);
       const sorted = [...list].sort((a: ExamQuestion, b: ExamQuestion) => a.number - b.number);
       const choiceList = sorted.slice(0, appliedCc);
       const essayList = sorted.slice(appliedCc, appliedCc + appliedEc);
@@ -601,8 +602,8 @@ export default function AnswerKeyRegisterModal({
           }
         }
       }
-      await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
-      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
       feedback.success("적용되었습니다.");
     },
     onError: (error: unknown) => {
@@ -694,7 +695,7 @@ export default function AnswerKeyRegisterModal({
       } else {
         await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
       }
-      await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
       if (canEditQuestions) {
         const toPatch = sortedQuestions.filter(
           (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
@@ -703,7 +704,7 @@ export default function AnswerKeyRegisterModal({
           const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
           await patchQuestionScore({ questionId: q.id, score: nextScore });
         }
-        await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+        await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
       }
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
@@ -737,8 +738,8 @@ export default function AnswerKeyRegisterModal({
         return;
       }
       await saveExplanationsBulk(examId, items);
-      qc.invalidateQueries({ queryKey: ["exam-explanations", examId] });
-      qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
       feedback.success(`해설 ${items.length}건 저장 완료`);
     } catch (error: unknown) {
       feedback.error(extractApiError(error, "해설 저장 실패"));
