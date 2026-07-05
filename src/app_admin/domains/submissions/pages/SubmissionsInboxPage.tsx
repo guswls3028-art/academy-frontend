@@ -43,6 +43,7 @@ import {
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_TONE,
+  formatSubmissionDate,
 } from "@admin/domains/submissions/statusMaps";
 import {
   fetchPendingSubmissions,
@@ -105,12 +106,6 @@ function clientFilter(
 }
 
 /* ─── Helpers ─── */
-
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 function isTargetResolved(row: PendingSubmissionRow): boolean {
   return row.target_resolved;
@@ -697,7 +692,7 @@ function SubmissionRow({
       </Badge>
 
       <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">
-        {formatDate(row.created_at)}
+        {formatSubmissionDate(row.created_at)}
       </span>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">

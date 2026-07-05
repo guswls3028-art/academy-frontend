@@ -10,26 +10,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { fetchExamSubmissions } from "@admin/domains/submissions/api/adminSubmissions.api";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@admin/domains/submissions/statusMaps";
+import {
+  SUBMISSION_STATUS_LABEL,
+  SUBMISSION_STATUS_TONE,
+  formatSubmissionDate,
+  formatSubmissionFileSize,
+} from "@admin/domains/submissions/statusMaps";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import styles from "./ExamSubmissionsPanel.module.css";
-
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function formatFileSize(bytes?: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
 
 type Props = {
   examId: number;
@@ -144,7 +136,7 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
                   {/* 파일 정보 */}
                   {r.file_type && (
                     <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0">
-                      {r.file_type} {formatFileSize(r.file_size)}
+                      {r.file_type} {formatSubmissionFileSize(r.file_size)}
                     </span>
                   )}
 
@@ -164,7 +156,7 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
 
                   {/* 제출 시각 */}
                   <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0">
-                    {formatDate(r.created_at)}
+                    {formatSubmissionDate(r.created_at)}
                   </span>
 
                   {/* 파일 보기 버튼 */}

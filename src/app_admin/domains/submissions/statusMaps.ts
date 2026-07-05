@@ -47,3 +47,16 @@ export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus | "graded" | "pendi
   pending: "neutral",
   processing: "primary",
 };
+
+export function formatSubmissionDate(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+export function formatSubmissionFileSize(bytes?: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
