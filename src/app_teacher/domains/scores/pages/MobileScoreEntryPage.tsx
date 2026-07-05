@@ -24,6 +24,7 @@ import {
   getExamResultScore,
   invalidateTeacherExamResultQueries,
 } from "@teacher/domains/results/examResultContract";
+import { teacherScoresQueryKeys } from "../queryKeys";
 import styles from "./MobileScoreEntryPage.module.css";
 
 type Tone = "success" | "warning" | "danger" | "muted";
@@ -48,13 +49,13 @@ export default function MobileScoreEntryPage() {
   const sid = Number(sessionId);
 
   const { data: exams, isLoading: examsLoading } = useQuery({
-    queryKey: ["session-exams", sid],
+    queryKey: teacherScoresQueryKeys.sessionExams(sid),
     queryFn: () => fetchSessionExams(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["session-enrollments-for-scores", sid],
+    queryKey: teacherScoresQueryKeys.sessionEnrollments(sid),
     queryFn: () => fetchSessionEnrollments(sid),
     enabled: Number.isFinite(sid),
   });
@@ -151,7 +152,7 @@ function ScoreEntryList({
 }) {
   const qc = useQueryClient();
   const { data: rawResults, isLoading } = useQuery({
-    queryKey: ["exam-results", examId],
+    queryKey: teacherScoresQueryKeys.examResults(examId),
     queryFn: () => fetchExamResults(examId),
     enabled: Number.isFinite(examId),
   });
@@ -217,7 +218,7 @@ function ScoreEntryList({
     // 옵티미스틱 업데이트 — refetch 사이클(invalidate 후 서버 응답까지 ~300-500ms) 동안
     // 행이 옛 값으로 잠깐 표시되는 racing 차단. onError에서 롤백.
     onMutate: async (variables) => {
-      const qk = ["exam-results", examId] as const;
+      const qk = teacherScoresQueryKeys.examResults(examId);
       await qc.cancelQueries({ queryKey: qk });
       const previous = qc.getQueryData<TeacherExamResultRow[]>(qk);
       qc.setQueryData<TeacherExamResultRow[]>(qk, (prev) => {
@@ -275,7 +276,7 @@ function ScoreEntryList({
       feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
     },
     onError: (e, _vars, ctx?: { previous?: TeacherExamResultRow[] }) => {
-      qc.setQueryData(["exam-results", examId], ctx?.previous);
+      qc.setQueryData(teacherScoresQueryKeys.examResults(examId), ctx?.previous);
       feedback.error(extractApiError(e, "저장 실패"));
     },
     onSettled: (_data, _error, variables) => {
