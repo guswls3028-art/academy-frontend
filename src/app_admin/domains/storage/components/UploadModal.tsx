@@ -6,6 +6,7 @@ import { FileText, Image, File, Sparkles, X } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
+import { formatCompactFileSize as formatBytes } from "@/shared/utils/fileSize";
 import { compressImageToWebP } from "../utils/imageCompress";
 import styles from "./UploadModal.module.css";
 
@@ -34,12 +35,6 @@ type UploadModalProps = {
   onClose: () => void;
   onUpload: (payload: UploadPayload) => Promise<void>;
 };
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n}B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
-  return `${(n / 1024 / 1024).toFixed(1)}MB`;
-}
 
 function defaultDisplayName(name: string): string {
   return name.replace(/\.[^.]+$/, "") || name;
