@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherLectureQueryKeys } from "../queryKeys";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -45,8 +46,8 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
       return createSession(lectureId, title, date || undefined, regularOrder ? Number(regularOrder) : undefined);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
-      qc.invalidateQueries({ queryKey: ["lecture-detail"] });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSessions });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.legacyLectureDetail });
       teacherToast.success(isEdit ? `${title} 차시가 수정되었습니다.` : `${title} 차시가 추가되었습니다.`);
       onClose();
     },
@@ -56,8 +57,8 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
   const deleteMut = useMutation({
     mutationFn: () => deleteSession(editData?.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lecture-sessions"] });
-      qc.invalidateQueries({ queryKey: ["lecture-detail"] });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSessions });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.legacyLectureDetail });
       teacherToast.info(`${editData?.title || "차시"}가 삭제되었습니다.`);
       onClose();
     },

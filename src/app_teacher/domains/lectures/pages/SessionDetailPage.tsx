@@ -24,6 +24,7 @@ import { fetchVideos } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
 import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
 import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
+import { teacherLectureQueryKeys } from "../queryKeys";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
@@ -48,38 +49,38 @@ export default function SessionDetailPage() {
   const [tab, setTab] = useState<Tab>("students");
 
   const { data: session, isLoading } = useQuery({
-    queryKey: ["session-detail", sid],
+    queryKey: teacherLectureQueryKeys.sessionDetail(sid),
     queryFn: () => fetchSession(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: attendances } = useQuery({
-    queryKey: ["session-attendance", sid],
+    queryKey: teacherLectureQueryKeys.sessionAttendance(sid),
     queryFn: () => fetchSessionAttendance(sid),
     enabled: Number.isFinite(sid),
   });
 
   // 차시 학생 탭은 SessionEnrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
   const { data: sessionEnrollments } = useQuery({
-    queryKey: ["session-enrollments", sid],
+    queryKey: teacherLectureQueryKeys.sessionEnrollments(sid),
     queryFn: () => fetchSessionEnrollments(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: exams } = useQuery({
-    queryKey: ["session-exams-detail", sid],
+    queryKey: teacherLectureQueryKeys.sessionExamsDetail(sid),
     queryFn: () => fetchSessionExams(sid),
     enabled: Number.isFinite(sid) && (tab === "scores" || tab === "exams"),
   });
 
   const { data: homeworks } = useQuery({
-    queryKey: ["session-homeworks", sid],
+    queryKey: teacherLectureQueryKeys.sessionHomeworks(sid),
     queryFn: () => fetchHomeworks({ session_id: sid }),
     enabled: Number.isFinite(sid) && tab === "homeworks",
   });
 
   const { data: videos } = useQuery({
-    queryKey: ["session-videos", sid],
+    queryKey: teacherLectureQueryKeys.sessionVideos(sid),
     queryFn: () => fetchVideos({ session: sid }),
     enabled: Number.isFinite(sid) && tab === "videos",
   });
@@ -87,7 +88,7 @@ export default function SessionDetailPage() {
   // 차시 클리닉 탭 = ClinicLink (학생×차시 매핑) SSOT.
   // (이전: ClinicSession = 날짜의 클리닉 스케줄 — 차시 내 누가 클리닉 대상인지 못 봄)
   const { data: clinicLinks } = useQuery({
-    queryKey: ["session-clinic-links", sid],
+    queryKey: teacherLectureQueryKeys.sessionClinicLinks(sid),
     queryFn: () => fetchSessionClinicLinks(sid),
     enabled: Number.isFinite(sid) && tab === "clinic" && sectionMode,
   });
@@ -537,7 +538,7 @@ function ScoresTab({
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const { data: results } = useQuery({
-    queryKey: ["exam-results-session", selectedExam],
+    queryKey: teacherLectureQueryKeys.examResultsSession(selectedExam),
     queryFn: () => fetchExamResults(selectedExam!),
     enabled: selectedExam != null,
   });

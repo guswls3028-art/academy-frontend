@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check, Plus } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { teacherLectureQueryKeys } from "../queryKeys";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -24,7 +25,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
   const [selected, setSelected] = useState<number[]>([]);
 
   const { data } = useQuery({
-    queryKey: ["all-students-for-enroll", search],
+    queryKey: teacherLectureQueryKeys.allStudentsForEnroll(search),
     queryFn: () => fetchStudents({ search: search || undefined, page_size: 100 }),
     enabled: open,
   });
@@ -34,8 +35,8 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
   const mutation = useMutation({
     mutationFn: () => bulkCreateEnrollments(lectureId, selected),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lecture-enrollments"] });
-      qc.invalidateQueries({ queryKey: ["lecture-detail"] });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureEnrollments });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.legacyLectureDetail });
       teacherToast.success(`${selected.length}명이 수강 등록되었습니다.`);
       setSelected([]);
       onClose();

@@ -10,6 +10,7 @@ import { TabBar, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchLectures } from "../api";
 import LectureFormSheet from "../components/LectureFormSheet";
+import { teacherLectureQueryKeys } from "../queryKeys";
 import styles from "./LectureListPage.module.css";
 
 type Tab = "active" | "past";
@@ -20,12 +21,12 @@ export default function LectureListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: activeLectures, isLoading: loadingActive } = useQuery({
-    queryKey: ["lectures-mobile", true],
+    queryKey: teacherLectureQueryKeys.lectureList(true),
     queryFn: () => fetchLectures(true),
   });
 
   const { data: pastLectures, isLoading: loadingPast } = useQuery({
-    queryKey: ["lectures-mobile", false],
+    queryKey: teacherLectureQueryKeys.lectureList(false),
     queryFn: () => fetchLectures(false),
     enabled: tab === "past",
   });

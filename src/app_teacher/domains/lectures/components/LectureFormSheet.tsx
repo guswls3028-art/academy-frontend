@@ -10,6 +10,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
+import { teacherLectureQueryKeys } from "../queryKeys";
 
 const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -65,7 +66,7 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
       return isEdit ? updateLecture(editData.id, payload) : createLecture(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lectures-mobile"] });
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures });
       teacherToast.success(isEdit ? `${title} 강의가 수정되었습니다.` : `${title} 강의가 생성되었습니다.`);
       onClose();
     },

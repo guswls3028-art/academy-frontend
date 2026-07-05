@@ -1,0 +1,22 @@
+// PATH: src/app_teacher/domains/lectures/queryKeys.ts
+export const teacherLectureQueryKeys = {
+  lectures: ["lectures-mobile"] as const,
+  lectureList: (active: boolean) => ["lectures-mobile", active] as const,
+  lecture: (lectureId: number) => ["lecture", lectureId] as const,
+  legacyLectureDetail: ["lecture-detail"] as const,
+  lectureSessions: ["lecture-sessions"] as const,
+  lectureSessionsFor: (lectureId: number) => ["lecture-sessions", lectureId] as const,
+  lectureEnrollments: ["lecture-enrollments"] as const,
+  lectureEnrollmentsFor: (lectureId: number) => ["lecture-enrollments", lectureId] as const,
+  lectureSections: (lectureId: number) => ["lecture-sections", lectureId] as const,
+  allStudentsForEnroll: (search: string) => ["all-students-for-enroll", search] as const,
+  attendanceMatrix: (lectureId: number) => ["attendance-matrix", lectureId] as const,
+  sessionDetail: (sessionId: number) => ["session-detail", sessionId] as const,
+  sessionAttendance: (sessionId: number) => ["session-attendance", sessionId] as const,
+  sessionEnrollments: (sessionId: number) => ["session-enrollments", sessionId] as const,
+  sessionExamsDetail: (sessionId: number) => ["session-exams-detail", sessionId] as const,
+  sessionHomeworks: (sessionId: number) => ["session-homeworks", sessionId] as const,
+  sessionVideos: (sessionId: number) => ["session-videos", sessionId] as const,
+  sessionClinicLinks: (sessionId: number) => ["session-clinic-links", sessionId] as const,
+  examResultsSession: (examId: number | null) => ["exam-results-session", examId] as const,
+};

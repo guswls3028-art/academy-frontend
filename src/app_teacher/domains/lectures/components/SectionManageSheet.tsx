@@ -11,6 +11,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
+import { teacherLectureQueryKeys } from "../queryKeys";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -23,7 +24,7 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
   const [newLabel, setNewLabel] = useState("");
 
   const { data: sections } = useQuery({
-    queryKey: ["lecture-sections", lectureId],
+    queryKey: teacherLectureQueryKeys.lectureSections(lectureId),
     queryFn: async () => {
       const res = await api.get("/lectures/sections/", { params: { lecture: lectureId, page_size: 100 } });
       return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
@@ -33,13 +34,13 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
 
   const createSectionMut = useMutation({
     mutationFn: () => api.post("/lectures/sections/", { lecture: lectureId, label: newLabel, section_type: "CLASS" }),
-    onSuccess: () => { teacherToast.success(`${newLabel} 반이 생성되었습니다.`); setNewLabel(""); qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); },
+    onSuccess: () => { teacherToast.success(`${newLabel} 반이 생성되었습니다.`); setNewLabel(""); qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSections(lectureId) }); },
     onError: (e) => teacherToast.error(extractApiError(e, "반을 생성하지 못했습니다.")),
   });
 
   const deleteSectionMut = useMutation({
     mutationFn: (id: number) => api.delete(`/lectures/sections/${id}/`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lecture-sections", lectureId] }); teacherToast.info("반이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSections(lectureId) }); teacherToast.info("반이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "반을 삭제하지 못했습니다.")),
   });
 

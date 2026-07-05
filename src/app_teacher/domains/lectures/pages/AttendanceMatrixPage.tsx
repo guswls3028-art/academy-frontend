@@ -12,6 +12,7 @@ import type {
   AttendanceMatrixStudent,
 } from "@/shared/api/contracts/attendance";
 import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
+import { teacherLectureQueryKeys } from "../queryKeys";
 import styles from "./AttendanceMatrixPage.module.css";
 
 export default function AttendanceMatrixPage() {
@@ -21,7 +22,7 @@ export default function AttendanceMatrixPage() {
   const isValidLectureId = Number.isFinite(lid);
 
   const { data: matrix, isLoading } = useQuery({
-    queryKey: ["attendance-matrix", lid],
+    queryKey: teacherLectureQueryKeys.attendanceMatrix(lid),
     queryFn: () => fetchAttendanceMatrix(lid),
     enabled: isValidLectureId,
   });

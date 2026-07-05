@@ -18,6 +18,7 @@ import SessionFormSheet from "../components/SessionFormSheet";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
 import SectionManageSheet from "../components/SectionManageSheet";
 import { formatSessionLabel, getRegularOrder, isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
+import { teacherLectureQueryKeys } from "../queryKeys";
 
 type Tab = "sessions" | "students";
 
@@ -37,7 +38,7 @@ export default function LectureDetailPage() {
 
   const deleteLectureMut = useMutation({
     mutationFn: () => deleteLecture(lid),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lectures-mobile"] }); teacherToast.info("강의가 삭제되었습니다."); navigate(-1); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures }); teacherToast.info("강의가 삭제되었습니다."); navigate(-1); },
     onError: (e) => teacherToast.error(extractApiError(e, "강의를 삭제하지 못했습니다.")),
   });
 
@@ -48,20 +49,20 @@ export default function LectureDetailPage() {
   });
 
   const { data: lecture, isLoading } = useQuery({
-    queryKey: ["lecture", lid],
+    queryKey: teacherLectureQueryKeys.lecture(lid),
     queryFn: () => fetchLecture(lid),
     enabled: Number.isFinite(lid),
   });
 
   const { data: sessions, isLoading: sessLoading } = useQuery({
-    queryKey: ["lecture-sessions", lid],
+    queryKey: teacherLectureQueryKeys.lectureSessionsFor(lid),
     queryFn: () => fetchLectureSessions(lid),
     enabled: Number.isFinite(lid),
   });
 
   // 수강생 카운트가 탭 헤더에 표시되므로 탭 전환 전에도 fetch
   const { data: enrollments } = useQuery({
-    queryKey: ["lecture-enrollments", lid],
+    queryKey: teacherLectureQueryKeys.lectureEnrollmentsFor(lid),
     queryFn: () => fetchLectureEnrollments(lid),
     enabled: Number.isFinite(lid),
   });
