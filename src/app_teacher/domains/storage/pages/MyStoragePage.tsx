@@ -24,6 +24,7 @@ import {
   type InventoryFolder,
 } from "../api";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherStorageQueryKeys } from "../queryKeys";
 import { formatStorageBytes as formatBytes } from "../storageFormat";
 
 export default function MyStoragePage() {
@@ -39,12 +40,12 @@ export default function MyStoragePage() {
   const [uploadMeta, setUploadMeta] = useState<{ file: File; displayName: string; description: string } | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-storage-admin"],
+    queryKey: teacherStorageQueryKeys.adminInventory,
     queryFn: () => fetchInventoryList("admin"),
   });
 
   const { data: quota } = useQuery({
-    queryKey: ["teacher-storage-quota"],
+    queryKey: teacherStorageQueryKeys.quota,
     queryFn: fetchStorageQuota,
   });
 
@@ -70,8 +71,8 @@ export default function MyStoragePage() {
         file: u.file,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
-      qc.invalidateQueries({ queryKey: ["teacher-storage-quota"] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.adminInventory });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.quota });
       teacherToast.success("업로드 완료");
       setUploadMeta(null);
     },
@@ -81,8 +82,8 @@ export default function MyStoragePage() {
   const deleteFileMut = useMutation({
     mutationFn: (file: InventoryFile) => deleteFile("admin", file.id),
     onSuccess: (_data, file) => {
-      qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
-      qc.invalidateQueries({ queryKey: ["teacher-storage-quota"] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.adminInventory });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.quota });
       teacherToast.success(`'${file.displayName || file.name}' 파일을 삭제했습니다.`);
     },
     onError: () => teacherToast.error("삭제에 실패했습니다."),
@@ -91,7 +92,7 @@ export default function MyStoragePage() {
   const deleteFolderMut = useMutation({
     mutationFn: (folder: InventoryFolder) => deleteFolder("admin", folder.id),
     onSuccess: (_data, folder) => {
-      qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.adminInventory });
       teacherToast.success(`'${folder.name}' 폴더를 삭제했습니다.`);
     },
     onError: () => teacherToast.error("폴더 삭제에 실패했습니다. (내용이 있으면 먼저 비워 주세요)"),
@@ -100,7 +101,7 @@ export default function MyStoragePage() {
   const createFolderMut = useMutation({
     mutationFn: (name: string) => createFolder("admin", currentFolderId, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-storage-admin"] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.adminInventory });
       teacherToast.success("폴더 생성됨");
       setCreateFolderOpen(false);
       setFolderName("");

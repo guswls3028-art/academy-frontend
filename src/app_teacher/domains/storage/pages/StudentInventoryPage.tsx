@@ -18,6 +18,7 @@ import {
 import { fetchStudents } from "@teacher/domains/students/api";
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherStorageQueryKeys } from "../queryKeys";
 import { formatStorageBytes as formatBytes } from "../storageFormat";
 import styles from "./StudentInventoryPage.module.css";
 
@@ -31,14 +32,14 @@ export default function StudentInventoryPage() {
   const [uploadMeta, setUploadMeta] = useState<{ file: File; displayName: string } | null>(null);
 
   const { data: studentsData, isLoading: studentsLoading } = useQuery({
-    queryKey: ["teacher-students-for-inventory", search],
+    queryKey: teacherStorageQueryKeys.studentsForInventory(search),
     queryFn: () => fetchStudents({ search: search.trim() || undefined, page_size: 50 }),
   });
 
   const students = studentsData?.data ?? [];
 
   const { data: inventory, isLoading: invLoading } = useQuery({
-    queryKey: ["teacher-student-inventory", selected?.ps],
+    queryKey: teacherStorageQueryKeys.studentInventory(selected?.ps),
     queryFn: () => fetchInventoryList("student", selected!.ps),
     enabled: !!selected?.ps,
   });
@@ -57,7 +58,7 @@ export default function StudentInventoryPage() {
         studentPs: selected!.ps,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-student-inventory", selected?.ps] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.studentInventory(selected?.ps) });
       teacherToast.success("업로드 완료");
       setUploadMeta(null);
     },
@@ -67,7 +68,7 @@ export default function StudentInventoryPage() {
   const deleteMut = useMutation({
     mutationFn: (file: InventoryFile) => deleteFile("student", file.id, selected!.ps),
     onSuccess: (_data, file) => {
-      qc.invalidateQueries({ queryKey: ["teacher-student-inventory", selected?.ps] });
+      qc.invalidateQueries({ queryKey: teacherStorageQueryKeys.studentInventory(selected?.ps) });
       teacherToast.success(`'${file.displayName || file.name}' 파일을 삭제했습니다.`);
     },
     onError: () => teacherToast.error("삭제에 실패했습니다."),
