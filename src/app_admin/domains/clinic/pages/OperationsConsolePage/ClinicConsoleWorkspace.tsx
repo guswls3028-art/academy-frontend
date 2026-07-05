@@ -59,6 +59,7 @@ import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
@@ -80,11 +81,6 @@ const StudentsDetailOverlay = lazy(
 );
 
 /* ── helpers ── */
-
-function formatTime(s: string | undefined) {
-  if (!s) return "—";
-  return s.slice(0, 5) || "—";
-}
 
 function formatReasonLabel(reason: string | undefined): string {
   if (reason === "exam") return "시험 미통과";
@@ -292,7 +288,7 @@ export default function ClinicConsoleWorkspace({
     qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
   }, [qc]);
 
-  const timeLabel = session ? formatTime(session.start_time) : "—";
+  const timeLabel = hhmmText(session?.start_time, "—");
   const dateLabel = dayjs(selectedDate).format("M월 D일 (dd)");
   const changeNoticeStudentIds = useMemo(() => {
     const ids = new Set<number>();
@@ -721,7 +717,7 @@ export default function ClinicConsoleWorkspace({
                 type="button"
                 className="clinic-ops__action-btn clinic-ops__action-btn--danger"
                 onClick={() => {
-                  const label = `${formatTime(session.start_time)} ${session.location || ""}`.trim();
+                  const label = `${hhmmText(session.start_time, "—")} ${session.location || ""}`.trim();
                   onDeleteSession(session.id, label);
                 }}
                 title="클리닉 삭제"
@@ -1897,7 +1893,7 @@ export default function ClinicConsoleWorkspace({
                             body = body.replace(/#{학생이름}/g, studentName);
                             body = body.replace(/#{클리닉명}/g, session?.title || "");
                             body = body.replace(/#{클리닉날짜}/g, session?.date || selectedDate || "");
-                            body = body.replace(/#{클리닉시간}/g, formatTime(session?.start_time));
+                            body = body.replace(/#{클리닉시간}/g, hhmmText(session?.start_time, "—"));
                             body = body.replace(/#{클리닉장소}/g, session?.location || "");
                             body = body.replace(/#{장소}/g, session?.location || "");
                             // 남은 미치환 변수 제거

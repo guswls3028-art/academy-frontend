@@ -21,13 +21,10 @@ import {
   cancelClinicBookingRequest,
   changeClinicBooking,
 } from "../api/clinicBooking.api";
+import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import EmptyState from "@student/layout/EmptyState";
 import styles from "./ClinicPage.module.css";
-
-function formatTime(time: string): string {
-  return time.slice(0, 5);
-}
 
 export default function ClinicPage() {
   const qc = useQueryClient();

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { clinicQueryKeys } from "../../queryKeys";
 
@@ -22,10 +23,6 @@ type ClinicSession = {
 };
 
 type DayCell = { date: string; isCurrentMonth: boolean };
-
-function startTimeHHMM(v: string) {
-  return v ? v.slice(0, 5) : "";
-}
 
 function toReportSession(row: ClinicSessionDetail): ClinicSession {
   return {
@@ -102,7 +99,7 @@ export default function ClinicReportsPage() {
     });
     Object.keys(map).forEach((k) => {
       map[k].sort((a, b) =>
-        startTimeHHMM(a.start_time) > startTimeHHMM(b.start_time) ? 1 : -1
+        hhmmText(a.start_time) > hhmmText(b.start_time) ? 1 : -1
       );
     });
     return map;
@@ -213,7 +210,7 @@ export default function ClinicReportsPage() {
                           className="text-[11px] rounded-md px-2 py-1.5 font-medium border border-[color-mix(in_srgb,var(--color-brand-primary)_20%,var(--color-border-divider))] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] flex flex-wrap items-center gap-x-2 gap-y-0"
                         >
                           <span className="font-semibold shrink-0">
-                            {startTimeHHMM(s.start_time) || "—"}
+                            {hhmmText(s.start_time, "—")}
                           </span>
                           <span className="text-[var(--color-text-muted)] truncate min-w-0">
                             {s.location?.trim() || "장소 미지정"}

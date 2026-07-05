@@ -16,6 +16,7 @@ import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSetti
 import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
 import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
@@ -52,8 +53,8 @@ function groupBySession(rows: ClinicParticipant[]) {
   });
   const items = Array.from(map.entries()).map(([sessionId, rs]) => {
     const first = rs[0];
-    const time = (first?.session_start_time || "").slice(0, 5) || "-";
-    const end = first?.session_end_time ? first.session_end_time.slice(0, 5) : "";
+    const time = hhmmText(first?.session_start_time, "-");
+    const end = hhmmText(first?.session_end_time);
     const location = first?.session_location || "";
     const booked = rs.filter((x) => x.status === "booked").length;
     const attended = rs.filter((x) => x.status === "attended").length;
@@ -140,7 +141,7 @@ export default function ClinicHomePage() {
       const pg = pMap.get(s.id);
       return {
         sessionId: s.id,
-        time: (s.start_time || "").slice(0, 5) || "-",
+        time: hhmmText(s.start_time, "-"),
         end: "",
         location: s.location || "",
         total: pg?.total ?? s.booked_count ?? 0,

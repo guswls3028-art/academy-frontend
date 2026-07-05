@@ -11,3 +11,8 @@ export function format24To12Display(hhmm: string): string {
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${period} ${h12}:${String(m).padStart(2, "0")}`;
 }
+
+export function hhmmText(value: string | null | undefined, fallback = ""): string {
+  const time = value?.slice(0, 5) ?? "";
+  return time || fallback;
+}

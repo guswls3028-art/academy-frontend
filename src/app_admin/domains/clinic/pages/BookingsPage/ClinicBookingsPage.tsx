@@ -42,6 +42,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
+import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 
 /* ── Types ── */
@@ -97,7 +98,7 @@ function formatScoreDisplay(item: ClinicTarget): string {
 }
 
 function requestScheduleText(row: ClinicParticipant): string {
-  const time = row.session_start_time ? row.session_start_time.slice(0, 5) : "-";
+  const time = hhmmText(row.session_start_time, "-");
   const location = row.session_location ? ` · ${row.session_location}` : "";
   return `${row.session_date} ${time}${location}`;
 }
