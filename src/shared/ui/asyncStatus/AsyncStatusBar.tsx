@@ -17,6 +17,14 @@ import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { Badge, ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
+import {
+  invalidateExcelProgressCaches,
+  invalidateExcelSuccessCaches,
+  invalidateMatchupSuccessCaches,
+  invalidateVideoCollections,
+  invalidateVideoRetry,
+  invalidateVideoSuccessCaches,
+} from "./asyncStatusQueryInvalidations";
 import "@/styles/design-system/components/AsyncStatusBar.css";
 import "@/styles/design-system/ds/status.css";
 
@@ -259,9 +267,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     try {
       if (jobType === "video_processing") {
         await api.delete(`/media/videos/${task.meta.jobId}/`);
-        queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-        queryClient.invalidateQueries({ queryKey: ["video-folders"] });
-        queryClient.invalidateQueries({ queryKey: ["video-stats"] });
+        invalidateVideoCollections(queryClient);
         feedback.success("영상이 삭제되었습니다.");
       }
       asyncStatusStore.removeTask(task.id);
@@ -269,9 +275,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 404) {
         // 이미 삭제됨 (영상탭 등에서 먼저 삭제)
-        queryClient.invalidateQueries({ queryKey: ["session-videos"] });
-        queryClient.invalidateQueries({ queryKey: ["video-folders"] });
-        queryClient.invalidateQueries({ queryKey: ["video-stats"] });
+        invalidateVideoCollections(queryClient);
         asyncStatusStore.removeTask(task.id);
       } else {
         const msg =
@@ -294,8 +298,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       logRetryAttempt(videoId);
       await api.post(`/media/videos/${task.meta.jobId}/retry/`);
       asyncStatusStore.retryTask(task.id);
-      queryClient.invalidateQueries({ queryKey: ["video-stats", videoId] });
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+      invalidateVideoRetry(queryClient, videoId);
       feedback.success("재시도 요청을 보냈습니다.");
     } catch (e: unknown) {
       const msg = getRetryErrorMessage(e);
@@ -650,24 +653,16 @@ export default function AsyncStatusBar() {
 
   useWorkerJobPoller(tasks, {
     onExcelSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-matrix"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["lecture"] });
-      queryClient.invalidateQueries({ queryKey: ["students"] });
+      invalidateExcelSuccessCaches(queryClient);
     },
     onExcelProgress: () => {
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateExcelProgressCaches(queryClient);
     },
     onVideoSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+      invalidateVideoSuccessCaches(queryClient);
     },
     onMatchupSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["matchup-documents"] });
-      queryClient.invalidateQueries({ queryKey: ["matchup-problems"] });
-      queryClient.invalidateQueries({ queryKey: ["storage-inventory", "admin"] });
+      invalidateMatchupSuccessCaches(queryClient);
     },
     onPptSuccess: (taskId: string, downloadUrl: string, filename: string) => {
       const task = asyncStatusStore.getState().find((t) => t.id === taskId);
