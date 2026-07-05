@@ -18,3 +18,13 @@ export function formatLandingCompactDate(raw: string | null | undefined): string
     return "";
   }
 }
+
+export function formatLandingDateTime(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    const date = new Date(raw);
+    return `${date.getFullYear()}.${two(date.getMonth() + 1)}.${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`;
+  } catch {
+    return "";
+  }
+}
