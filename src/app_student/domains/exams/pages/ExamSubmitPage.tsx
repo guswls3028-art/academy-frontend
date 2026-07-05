@@ -15,6 +15,7 @@ import {
 } from "@student/domains/exams/api/exams.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { studentExamQueryKeys } from "../queryKeys";
 import styles from "./ExamSubmitPage.module.css";
 
 export default function ExamSubmitPage() {
@@ -30,7 +31,7 @@ export default function ExamSubmitPage() {
   // 학부모는 응시 불가 — hook은 모두 호출하되 fetch/draft 동작을 차단해 자녀 데이터 오염 방지.
   const examQ = useStudentExam(!isParent && Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
-    queryKey: ["student", "exams", "questions", tenantCode, safeId],
+    queryKey: studentExamQueryKeys.questions(tenantCode, safeId),
     queryFn: () => fetchStudentExamQuestions(safeId),
     enabled: !isParent && Number.isFinite(safeId),
   });
@@ -113,9 +114,9 @@ export default function ExamSubmitPage() {
     try {
       await submitStudentExamAnswers(safeId, payload);
       try { localStorage.removeItem(draftKey); } catch { /* non-critical */ }
-      qc.invalidateQueries({ queryKey: ["student", "exams"] });
-      qc.invalidateQueries({ queryKey: ["student", "grades"] });
-      qc.invalidateQueries({ queryKey: ["student-dashboard"] });
+      qc.invalidateQueries({ queryKey: studentExamQueryKeys.root });
+      qc.invalidateQueries({ queryKey: studentExamQueryKeys.gradesRoot });
+      qc.invalidateQueries({ queryKey: studentExamQueryKeys.dashboard });
       navigate(`/student/exams/${safeId}/result`, { replace: true });
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;

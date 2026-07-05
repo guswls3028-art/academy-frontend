@@ -5,12 +5,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchMyExamResultItems } from "@student/domains/exams/api/results";
+import { studentExamQueryKeys } from "../queryKeys";
 
 export function useMyExamResultItems(examId?: number) {
   const safeId = Number(examId);
 
   return useQuery({
-    queryKey: ["student", "exams", "result", "items", safeId],
+    queryKey: studentExamQueryKeys.resultItems(safeId),
     queryFn: () => fetchMyExamResultItems(safeId),
     enabled: Number.isFinite(safeId),
   });
