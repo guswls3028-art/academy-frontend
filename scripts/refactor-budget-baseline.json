@@ -11,7 +11,7 @@
     "inline_style_objects": 3835,
     "raw_badge_classes": 21,
     "api_response_type_defs": 102,
-    "direct_axios_calls": 12,
+    "direct_axios_calls": 0,
     "fetch_calls": 10,
     "local_storage_refs": 159,
     "session_storage_refs": 40,

@@ -15,6 +15,7 @@ const APP_ALIAS_TO_DIR = {
 };
 const TEXT_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 const LARGE_FILE_LINES = 1000;
+const DIRECT_AXIOS_ALLOWED_FILES = new Set(['src/shared/api/axios.ts']);
 const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
@@ -150,7 +151,9 @@ for (const file of srcFiles) {
   metrics.inline_style_objects += countMatches(metricText, /\bstyle\s*=\s*\{\s*\{/g);
   metrics.raw_badge_classes += countMatches(metricText, /\bclassName\s*=\s*["'][^"']*\bds-[^"']*badge\b[^"']*["']/g);
   metrics.api_response_type_defs += countMatches(metricText, /\b(?:interface|type)\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b/g);
-  metrics.direct_axios_calls += countMatches(metricText, /\baxios\s*\./g);
+  if (!DIRECT_AXIOS_ALLOWED_FILES.has(relative)) {
+    metrics.direct_axios_calls += countMatches(metricText, /\baxios\s*\./g);
+  }
   metrics.fetch_calls += countMatches(metricText, /\bfetch\s*\(/g);
   metrics.local_storage_refs += countMatches(metricText, /\blocalStorage\b/g);
   metrics.session_storage_refs += countMatches(metricText, /\bsessionStorage\b/g);
