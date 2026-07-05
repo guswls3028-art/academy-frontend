@@ -26,6 +26,27 @@
   border: 1px solid color-mix(in srgb, var(--badge-bg, var(--bg-surface-soft)) 78%, black 22%);
 }
 
+button.ds-badge {
+  appearance: none;
+  margin: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 160ms ease, transform 100ms ease;
+}
+
+button.ds-badge:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+button.ds-badge:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button.ds-badge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Size variants ────────────────────────────────────── */
 .ds-badge[data-size="xs"] {
   padding: var(--badge-pad-xs);

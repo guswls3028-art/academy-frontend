@@ -2,6 +2,7 @@
 // 한글자(short) = 두글자(label) 첫글자/약자로 통일, 역할별 순서·색상
 
 import { ATTENDANCE_STATUS_META, type AttendanceStatus } from "./attendanceStatus";
+import Badge, { type BadgeTone } from "../ds/components/Badge";
 
 export type { AttendanceStatus } from "./attendanceStatus";
 
@@ -21,16 +22,17 @@ export default function AttendanceStatusBadge({
   if (!meta) return null;
 
   const text = variant === "1ch" ? meta.short : meta.label;
-  const sizeClass = variant === "1ch" ? "ds-status-badge ds-status-badge--1ch" : "ds-status-badge";
-  const selectedClass = selected ? " attendance-status-badge--selected" : "";
+  const selectedClass = selected ? "attendance-status-badge--selected" : undefined;
 
   return (
-    <span
-      className={sizeClass + selectedClass}
-      data-tone={meta.tone}
+    <Badge
+      variant="solid"
+      tone={meta.tone as BadgeTone}
+      oneChar={variant === "1ch"}
+      className={selectedClass}
       title={meta.label}
     >
       {text}
-    </span>
+    </Badge>
   );
 }

@@ -324,10 +324,10 @@ export default function StudentsDetailOverlay({
                     />
                   </h1>
                   <div className="ds-overlay-header__pills">
-                    <Badge className="ds-overlay-header__badge-id" title="아이디">
+                    <Badge className="ds-overlay-header__pill-id" title="아이디">
                       {student.psNumber ?? "—"}
                     </Badge>
-                    <Badge className="ds-overlay-header__badge-code" title="시험 식별코드">
+                    <Badge className="ds-overlay-header__pill-code" title="시험 식별코드">
                       {formatOmrCode(student.omrCode)}
                     </Badge>
                   </div>
@@ -335,15 +335,16 @@ export default function StudentsDetailOverlay({
               </div>
               <div className="ds-overlay-header__right">
                 <div className="ds-overlay-header__actions">
-                  <button
-                    type="button"
+                  <Badge
+                    as="button"
+                    variant="solid"
+                    actionable
                     onClick={() => toggleActive.mutate(!student.active)}
                     disabled={toggleActive.isPending}
-                    className="ds-status-badge ds-status-badge--action"
-                    data-status={student.active ? "active" : "inactive"}
+                    status={student.active ? "active" : "inactive"}
                   >
                     {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
-                  </button>
+                  </Badge>
                   <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
                     수정
                   </Button>
@@ -1056,9 +1057,9 @@ function ScoreTab({ data, onNavigate }: { data: StudentExamGrade[]; onNavigate: 
                 </Badge>
               )}
               {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
-                <span className="ds-scores-pass-fail-badge" data-tone={exam.is_pass ? "success" : "danger"}>
+                <Badge variant="solid" size="sm" tone={exam.is_pass ? "success" : "danger"}>
                   {exam.is_pass ? "합" : "불"}
-                </span>
+                </Badge>
               )}
               {canNav && (
                 <ChevronIcon />

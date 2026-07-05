@@ -462,16 +462,17 @@ export function StaffHomeTable({
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {canManage ? (
-                  <button
-                    type="button"
-                    className="ds-status-badge ds-status-badge--action"
-                    data-status={r.is_manager ? "active" : "inactive"}
+                  <Badge
+                    as="button"
+                    variant="solid"
+                    actionable
+                    status={r.is_manager ? "active" : "inactive"}
                     disabled={pendingManager.has(r.id)}
                     onClick={() => patchManagerM.mutate({ staffId: r.id, is_manager: !r.is_manager })}
-                    aria-label={r.is_manager ? "관리자 해제" : "관리자 부여"}
+                    ariaLabel={r.is_manager ? "관리자 해제" : "관리자 부여"}
                   >
                     {pendingManager.has(r.id) ? "…" : r.is_manager ? "ON" : "OFF"}
-                  </button>
+                  </Badge>
                 ) : (
                   <Badge variant="solid" actionable status={r.is_manager ? "active" : "inactive"}>
                     {r.is_manager ? "ON" : "OFF"}
@@ -485,32 +486,34 @@ export function StaffHomeTable({
                   </Badge>
                 ) : (
                   <span className="inline-flex gap-1">
-                    <button
-                      type="button"
-                      className="ds-status-badge ds-status-badge--action"
-                      data-status={r.pay_type === "HOURLY" ? "active" : "inactive"}
+                    <Badge
+                      as="button"
+                      variant="solid"
+                      actionable
+                      status={r.pay_type === "HOURLY" ? "active" : "inactive"}
                       disabled={pendingPayType.has(r.id)}
                       onClick={() => {
                         if (r.pay_type === "HOURLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
                       }}
-                      aria-label={`${r.name} 시급`}
+                      ariaLabel={`${r.name} 시급`}
                     >
                       {pendingPayType.has(r.id) ? "…" : "시급"}
-                    </button>
-                    <button
-                      type="button"
-                      className="ds-status-badge ds-status-badge--action"
-                      data-status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
+                    </Badge>
+                    <Badge
+                      as="button"
+                      variant="solid"
+                      actionable
+                      status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
                       disabled={pendingPayType.has(r.id)}
                       onClick={() => {
                         if (r.pay_type === "MONTHLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
                       }}
-                      aria-label={`${r.name} 월급`}
+                      ariaLabel={`${r.name} 월급`}
                     >
                       {pendingPayType.has(r.id) ? "…" : "월급"}
-                    </button>
+                    </Badge>
                   </span>
                 )}
               </td>

@@ -51,16 +51,18 @@ function StaffManagerToggle({
     },
   });
   return (
-    <button
-      type="button"
-      className="ds-status-badge cursor-pointer"
-      data-status={isManager ? "active" : "inactive"}
+    <Badge
+      as="button"
+      variant="solid"
+      actionable
+      className="cursor-pointer"
+      status={isManager ? "active" : "inactive"}
       disabled={mutation.isPending}
       onClick={() => mutation.mutate({ is_manager: !isManager })}
-      aria-label={isManager ? "관리자 해제" : "관리자 부여"}
+      ariaLabel={isManager ? "관리자 해제" : "관리자 부여"}
     >
       {mutation.isPending ? "…" : isManager ? "ON" : "OFF"}
-    </button>
+    </Badge>
   );
 }
 
@@ -192,14 +194,14 @@ export default function StaffDetailOverlay() {
                   <div className="ds-overlay-header__pills">
                     {staff.user_is_staff && (
                       <Badge
-                        className="ds-overlay-header__badge-id"
+                        className="ds-overlay-header__pill-id"
                         title="직원 계정"
                       >
                         STAFF
                       </Badge>
                     )}
                     <Badge
-                      className="ds-overlay-header__badge-code"
+                      className="ds-overlay-header__pill-code"
                       title="계정"
                     >
                       {staff.user_username ?? "계정 없음"}
@@ -209,15 +211,13 @@ export default function StaffDetailOverlay() {
               </div>
               <div className="ds-overlay-header__right">
                 <div className="ds-overlay-header__actions">
-                  <button
-                    type="button"
-                    className="ds-status-badge"
-                    data-status={staff.is_active ? "active" : "inactive"}
-                    disabled
-                    aria-label="활성 상태"
+                  <Badge
+                    variant="solid"
+                    status={staff.is_active ? "active" : "inactive"}
+                    ariaLabel="활성 상태"
                   >
                     {staff.is_active ? "활성" : "비활성"}
-                  </button>
+                  </Badge>
                   {canManage && (
                     <Button
                       type="button"

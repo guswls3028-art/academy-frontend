@@ -36,7 +36,7 @@
   justify-content: center;
 }
 
-.ds-empty__badge {
+.ds-empty__icon-frame {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -49,11 +49,11 @@
   box-shadow: var(--elevation-1);
 }
 
-.ds-empty[data-tone="error"] .ds-empty__badge {
+.ds-empty[data-tone="error"] .ds-empty__icon-frame {
   color: var(--color-error);
 }
 
-.ds-empty[data-tone="loading"] .ds-empty__badge {
+.ds-empty[data-tone="loading"] .ds-empty__icon-frame {
   color: var(--color-text-muted);
 }
 

@@ -321,20 +321,20 @@
   flex-wrap: wrap;
 }
 
-.ds-overlay-header__badge-id.ds-badge,
-.ds-overlay-header__badge-code.ds-badge {
+.ds-overlay-header__pill-id.ds-badge,
+.ds-overlay-header__pill-code.ds-badge {
   font-size: 13px;
   padding: 5px 12px;
   font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
   letter-spacing: 0.02em;
 }
 
-.ds-overlay-header__badge-id.ds-badge {
+.ds-overlay-header__pill-id.ds-badge {
   --badge-bg: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
   --badge-text: var(--color-brand-primary);
 }
 
-.ds-overlay-header__badge-code.ds-badge {
+.ds-overlay-header__pill-code.ds-badge {
   --badge-bg: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
   --badge-text: var(--color-text-primary);
 }

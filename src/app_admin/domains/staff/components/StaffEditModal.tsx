@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { patchStaffDetail, type StaffDetail } from "../api/staff.detail.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -138,16 +138,16 @@ export default function StaffEditModal({
 
           <div className="modal-form-group modal-form-group--neutral">
             <label className="modal-section-label">활성 상태</label>
-            <button
-              type="button"
-              className="ds-status-badge"
-              data-status={form.is_active ? "active" : "inactive"}
-              aria-pressed={form.is_active}
+            <Badge
+              as="button"
+              variant="solid"
+              status={form.is_active ? "active" : "inactive"}
+              ariaPressed={form.is_active}
               onClick={() => setForm((p) => ({ ...p, is_active: !p.is_active }))}
               disabled={busy}
             >
               {form.is_active ? "활성" : "비활성"}
-            </button>
+            </Badge>
           </div>
         </div>
       </ModalBody>

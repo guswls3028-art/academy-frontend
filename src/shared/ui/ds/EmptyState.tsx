@@ -55,7 +55,7 @@ export default function EmptyState({
     >
       {showIcon && (
         <div className="ds-empty__icon-row">
-          <div className="ds-empty__badge">
+          <div className="ds-empty__icon-frame">
             <Icon tone={tone} />
           </div>
         </div>

@@ -22,10 +22,11 @@ import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import { getScoreBlockOmrReviewStatus, getSessionScoresTableVerdict, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
+import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Badge } from "@/shared/ui/ds";
+import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -42,6 +43,16 @@ const COL_NAME = 196;
 const COL_ATTENDANCE = 78;
 const COL_SCORE = 125;
 const COL_CLINIC_TARGET = 96;
+
+const CLINIC_VERDICT_BADGE_META: Record<
+  Exclude<SessionScoresTableVerdictKind, "dash">,
+  { label: string; tone: BadgeTone; title: string }
+> = {
+  clinic_target: { label: "대상", tone: "warning", title: "클리닉 미해소 대상" },
+  review: { label: "검토", tone: "warning", title: "OMR 검토가 필요한 답안지" },
+  fail: { label: "불합", tone: "danger", title: "커트라인 미만 항목 있음" },
+  pass: { label: "합격", tone: "success", title: "전 항목 커트라인 이상" },
+};
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -1081,7 +1092,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               ) : isEditMode && hasRetakes ? (
                                 <div className="ds-cell-attempt-info" title="재시험 이력이 있습니다. 학생을 클릭하여 드로어에서 편집하세요.">
                                   <span className="ds-cell-score-locked">{scoreText}</span>
-                                  <span className="ds-cell-retake-badge">{entry?.attempt_count}차 시도</span>
+                                  <Badge size="xs" tone="muted" shape="square">{entry?.attempt_count}차 시도</Badge>
                                 </div>
                               ) : (
                                 <span className={`font-medium ${omrReviewStatus === "review" || isExamNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>{scoreText}</span>
@@ -1553,35 +1564,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (verdict === "dash") {
                       return <span className="text-[var(--color-text-muted)]" title="시험·과제 없음">-</span>;
                     }
-                    let badge: React.ReactNode = null;
-                    if (verdict === "clinic_target") {
-                      badge = (
-                        <span className="ds-scores-pass-fail-badge" data-tone="warning" title="클리닉 미해소 대상">
-                          대상
-                        </span>
-                      );
-                    } else if (verdict === "review") {
-                      badge = (
-                        <span className="ds-scores-pass-fail-badge" data-tone="warning" title="OMR 검토가 필요한 답안지">
-                          검토
-                        </span>
-                      );
-                    } else if (verdict === "fail") {
-                      badge = (
-                        <span className="ds-scores-pass-fail-badge" data-tone="danger" title="커트라인 미만 항목 있음">
-                          불합
-                        </span>
-                      );
-                    } else {
-                      badge = (
-                        <span className="ds-scores-pass-fail-badge" data-tone="success" title="전 항목 커트라인 이상">
-                          합격
-                        </span>
-                      );
-                    }
+                    const badgeMeta = CLINIC_VERDICT_BADGE_META[verdict];
                     return (
                       <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
-                        {badge}
+                        <Badge variant="solid" size="sm" tone={badgeMeta.tone} title={badgeMeta.title}>
+                          {badgeMeta.label}
+                        </Badge>
                         {clinicReason && (
                           <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
                             {clinicReason}

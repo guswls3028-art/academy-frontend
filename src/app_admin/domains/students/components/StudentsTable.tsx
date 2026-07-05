@@ -249,19 +249,20 @@ export default function StudentsTable({
         );
       case "active":
         return onToggleActive ? (
-          <button
-            type="button"
-            className="ds-status-badge ds-status-badge--action"
-            data-status={s.active ? "active" : "inactive"}
+          <Badge
+            as="button"
+            variant="solid"
+            actionable
+            status={s.active ? "active" : "inactive"}
             disabled={togglingId === s.id}
             onClick={(e) => {
               e.stopPropagation();
               onToggleActive(s.id, !s.active);
             }}
-            aria-label={s.active ? "비활성으로 변경" : "활성으로 변경"}
+            ariaLabel={s.active ? "비활성으로 변경" : "활성으로 변경"}
           >
             {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
-          </button>
+          </Badge>
         ) : (
           <Badge variant="solid" status={s.active ? "active" : "inactive"}>
             {s.active ? "활성" : "비활성"}
