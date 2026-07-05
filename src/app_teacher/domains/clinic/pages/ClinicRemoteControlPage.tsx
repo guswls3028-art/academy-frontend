@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import type { ClinicColorTuple } from "../api";
 import { fetchClinicSettings, updateClinicSettings } from "../api";
+import { teacherClinicQueryKeys } from "../queryKeys";
 import styles from "./ClinicRemoteControlPage.module.css";
 
 type CssVariableStyle<TName extends string> = CSSProperties & Record<TName, string>;
@@ -64,7 +65,7 @@ export default function ClinicRemoteControlPage() {
   const colorDebounceRef = useRef<number | null>(null);
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: ["teacher-clinic-settings"],
+    queryKey: teacherClinicQueryKeys.settings,
     queryFn: fetchClinicSettings,
     // 폴링 가드: 탭 비가시 상태에서는 정지(default) + 에러 발생 시 backoff(2s→10s).
     // 색상 변경은 실시간성 강하지 않아 가시 상태에서만 충분.
@@ -85,7 +86,7 @@ export default function ClinicRemoteControlPage() {
   const updateMut = useMutation({
     mutationFn: (newColors: ClinicColorTuple) => updateClinicSettings({ colors: newColors }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-settings"] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.settings });
       teacherToast.success("배경색이 반영되었습니다.");
     },
     onError: () => teacherToast.error("변경에 실패했습니다."),

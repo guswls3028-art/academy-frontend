@@ -10,6 +10,7 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchClinicSessions } from "../api";
 import { formatLocalDate } from "@/shared/utils/localDate";
+import { teacherClinicQueryKeys } from "../queryKeys";
 
 function monthRange(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -28,7 +29,7 @@ export default function ClinicReportsPage() {
   const { from, to, lastDay } = monthRange(year, month);
 
   const { data: sessions, isLoading } = useQuery({
-    queryKey: ["teacher-clinic-report", year, month],
+    queryKey: teacherClinicQueryKeys.report(year, month),
     queryFn: () => fetchClinicSessions({ date_from: from, date_to: to }),
   });
 

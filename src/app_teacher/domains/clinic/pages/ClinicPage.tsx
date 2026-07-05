@@ -27,6 +27,7 @@ import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSe
 import { useConfirm } from "@/shared/ui/confirm";
 import { todayLocalISO as todayISO, addDaysLocal as addDays } from "@/shared/utils/localDate";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { teacherClinicQueryKeys } from "../queryKeys";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -52,7 +53,7 @@ export default function ClinicPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: sessions, isLoading } = useQuery({
-    queryKey: ["teacher-clinic-sessions", dateFrom, dateTo],
+    queryKey: teacherClinicQueryKeys.sessionsRange(dateFrom, dateTo),
     queryFn: () => fetchClinicSessions({ date_from: dateFrom, date_to: dateTo }),
     staleTime: 30_000,
   });
@@ -60,7 +61,7 @@ export default function ClinicPage() {
   const deleteMut = useMutation({
     mutationFn: deleteClinicSession,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       teacherToast.success("클리닉이 삭제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉을 삭제하지 못했습니다.")),
@@ -215,7 +216,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   const [addOpen, setAddOpen] = useState(false);
 
   const { data: participants, isLoading } = useQuery({
-    queryKey: ["teacher-clinic-participants", sessionId],
+    queryKey: teacherClinicQueryKeys.participants(sessionId),
     queryFn: () => fetchClinicParticipants(sessionId),
   });
 
@@ -227,8 +228,8 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       patchParticipantStatus(id, { status }),
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       if (variables.status === "attended" && participants) {
         const attendedCount =
           participants.filter((p: any) => p.status === "attended").length +
@@ -242,7 +243,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   const completeMut = useMutation({
     mutationFn: completeParticipant,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
       teacherToast.success("완료 처리되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
@@ -392,7 +393,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
 
   // 정규형 클리닉일 때만 CLINIC type section 목록 조회
   const sectionsQ = useQuery<Section[]>({
-    queryKey: ["teacher-clinic-sections-regular"],
+    queryKey: teacherClinicQueryKeys.sectionsRegular,
     queryFn: () => fetchAllSections({ section_type: "CLINIC" }),
     enabled: open && showSectionPicker,
     staleTime: 60_000,
@@ -419,7 +420,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       ...(showSectionPicker ? { section: sectionId } : {}),
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       teacherToast.success("클리닉이 만들어졌습니다.");
       setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10"); setSectionId(null);
       onClose();

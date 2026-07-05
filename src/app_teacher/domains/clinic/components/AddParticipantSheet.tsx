@@ -11,6 +11,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { Search, Check } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { teacherClinicQueryKeys } from "../queryKeys";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -24,7 +25,7 @@ export default function AddParticipantSheet({ open, onClose, sessionId, alreadyP
   const [selected, setSelected] = useState<number[]>([]);
 
   const { data } = useQuery({
-    queryKey: ["clinic-add-students", search],
+    queryKey: teacherClinicQueryKeys.addStudents(search),
     queryFn: () => fetchStudents({ search: search || undefined, page_size: 100 }),
     enabled: open,
   });
@@ -45,8 +46,8 @@ export default function AddParticipantSheet({ open, onClose, sessionId, alreadyP
       return { ok: selected.length - failed.length, failed: failed.length, firstError };
     },
     onSuccess: (r) => {
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-participants", sessionId] });
-      qc.invalidateQueries({ queryKey: ["teacher-clinic-sessions"] });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       if (r.failed > 0) {
         const detail = r.firstError ? extractApiError(r.firstError, "") : "";
         teacherToast.error(
