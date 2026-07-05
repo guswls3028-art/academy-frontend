@@ -14,6 +14,7 @@ import {
 } from "../api";
 import AttendanceCard from "../components/AttendanceCard";
 import StatusBottomSheet from "../components/StatusBottomSheet";
+import { teacherAttendanceQueryKeys } from "../queryKeys";
 import styles from "./SwipeAttendancePage.module.css";
 
 const EMPTY_RECORDS: AttendanceListItem[] = [];
@@ -31,7 +32,7 @@ export default function SwipeAttendancePage() {
   const sid = Number(sessionId);
 
   const { data: result, isLoading } = useQuery({
-    queryKey: ["attendance", sid],
+    queryKey: teacherAttendanceQueryKeys.attendance(sid),
     queryFn: () => fetchAttendance(sid, { page_size: 200 }),
     enabled: Number.isFinite(sid),
   });
@@ -46,8 +47,8 @@ export default function SwipeAttendancePage() {
     }) =>
       updateAttendance(id, { status, confirm_secession }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance", sid] });
-      qc.invalidateQueries({ queryKey: ["session-attendance", sid] });
+      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
+      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
     },
     onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
   });
@@ -55,8 +56,8 @@ export default function SwipeAttendancePage() {
   const bulkMut = useMutation({
     mutationFn: () => bulkSetPresent(sid),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["attendance", sid] });
-      qc.invalidateQueries({ queryKey: ["session-attendance", sid] });
+      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
+      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
       feedback.success(`${data.updated}명 출석 처리`);
     },
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),
