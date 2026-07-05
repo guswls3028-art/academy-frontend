@@ -12,6 +12,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { QUERY_KEYS } from "../../queryKeys";
 
 export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: number }) {
   const qc = useQueryClient();
@@ -39,7 +40,7 @@ export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: numb
       await api.patch(`/homeworks/${homeworkId}/`, { meta });
     },
     onSuccess: async (_, next) => {
-      await qc.invalidateQueries({ queryKey: ["admin-homework", homeworkId] });
+      await qc.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_HOMEWORK(homeworkId) });
       setSavedMaxScore(next);
       feedback.success(`만점이 ${next}점으로 저장되었습니다.`);
     },

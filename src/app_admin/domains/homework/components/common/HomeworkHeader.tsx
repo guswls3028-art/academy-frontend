@@ -11,6 +11,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { saveHomeworkAsTemplate } from "../../api/adminHomework";
 import { FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
+import { QUERY_KEYS } from "../../queryKeys";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 type Props = {
@@ -31,7 +32,7 @@ export default function HomeworkHeader({ homework }: Props) {
   const saveAsTemplateMut = useMutation({
     mutationFn: () => saveHomeworkAsTemplate(homework.id),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["admin-homework", homework.id] });
+      await qc.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_HOMEWORK(homework.id) });
       setTemplateModalOpen(false);
       feedback.success("템플릿으로 저장했습니다.");
     },

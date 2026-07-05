@@ -21,6 +21,7 @@ import { Button, EmptyState, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import api from "@/shared/api/axios";
+import { QUERY_KEYS } from "../queryKeys";
 
 function isMappedSubmissionStatus(status: string): status is keyof typeof SUBMISSION_STATUS_LABEL {
   return Object.prototype.hasOwnProperty.call(SUBMISSION_STATUS_LABEL, status);
@@ -56,7 +57,7 @@ export default function HomeworkSubmissionsPanel({
   const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
 
   const q = useQuery({
-    queryKey: ["homework-submissions", homeworkId],
+    queryKey: QUERY_KEYS.HOMEWORK_SUBMISSIONS(homeworkId),
     queryFn: () => fetchHomeworkSubmissions(homeworkId),
     refetchInterval: 5000,
   });

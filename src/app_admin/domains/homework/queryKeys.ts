@@ -11,6 +11,9 @@ export const QUERY_KEYS = {
   ADMIN_HOMEWORK: (homeworkId: number) =>
     ["admin-homework", homeworkId] as const,
 
+  HOMEWORK_SUBMISSIONS: (homeworkId: number) =>
+    ["homework-submissions", homeworkId] as const,
+
   HOMEWORK_POLICY: assessmentQueryKeys.homeworkPolicy,
 
   HOMEWORK_ASSIGNMENTS: (homeworkId: number) =>

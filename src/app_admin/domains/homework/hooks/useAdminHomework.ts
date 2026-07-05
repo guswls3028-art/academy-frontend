@@ -1,12 +1,13 @@
 // PATH: src/app_admin/domains/homework/hooks/useAdminHomework.ts
 import { useQuery } from "@tanstack/react-query";
 import { fetchAdminHomework } from "../api/adminHomework";
+import { QUERY_KEYS } from "../queryKeys";
 
 export function useAdminHomework(homeworkId?: number) {
   const id = Number(homeworkId);
 
   return useQuery({
-    queryKey: ["admin-homework", id],
+    queryKey: QUERY_KEYS.ADMIN_HOMEWORK(id),
     queryFn: () => fetchAdminHomework(id),
     enabled: Number.isFinite(id) && id > 0,
   });
