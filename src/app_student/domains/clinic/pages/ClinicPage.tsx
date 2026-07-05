@@ -24,6 +24,7 @@ import {
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import EmptyState from "@student/layout/EmptyState";
+import { studentClinicQueryKeys } from "../queryKeys";
 import styles from "./ClinicPage.module.css";
 
 export default function ClinicPage() {
@@ -36,13 +37,13 @@ export default function ClinicPage() {
 
   // 내 예약 신청 목록 조회 (알림·클리닉 공통 키로 캐시 공유)
   const { data: myRequests = [], isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useQuery({
-    queryKey: ["student", "clinic", "bookings"],
+    queryKey: studentClinicQueryKeys.bookings,
     queryFn: fetchMyClinicBookingRequests,
   });
 
   // 예약 가능한 세션 목록 조회
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError, refetch: refetchSessions } = useQuery({
-    queryKey: ["student", "clinic", "available-sessions"],
+    queryKey: studentClinicQueryKeys.availableSessions,
     queryFn: () => {
       const today = todayYmd();
       const from = new Date(today);
@@ -62,10 +63,10 @@ export default function ClinicPage() {
     onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.session);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
-      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
-      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.idcard });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setSelectedSessionId(null);
       setMemo("");
       const baseMessage = data.status === "booked" ? "예약이 확정되었습니다." : "예약 신청이 접수되었습니다.";
@@ -88,10 +89,10 @@ export default function ClinicPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) => cancelClinicBookingRequest(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
-      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
-      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.idcard });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       studentToast.success("예약 신청이 취소되었습니다.");
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
@@ -106,10 +107,10 @@ export default function ClinicPage() {
     onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.newSessionId);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
-      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
-      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
-      qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.idcard });
+      qc.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setSelectedSessionId(null);
       setMemo("");
       const baseMessage = data.status === "booked" ? "일정 변경이 확정되었습니다." : "일정 변경 신청이 접수되었습니다.";
