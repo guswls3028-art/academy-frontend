@@ -17,6 +17,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
+import { teacherCounselingQueryKeys } from "../queryKeys";
 
 interface CounselingPost {
   id: number;
@@ -44,7 +45,7 @@ export default function CounselingPage() {
   const [selectedPost, setSelectedPost] = useState<CounselingPost | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-counseling"],
+    queryKey: teacherCounselingQueryKeys.posts,
     queryFn: () => fetchCounselingPosts(),
     staleTime: 60_000,
   });
@@ -56,7 +57,7 @@ export default function CounselingPage() {
   const createMut = useMutation({
     mutationFn: createCounselingPost,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-counseling"] });
+      qc.invalidateQueries({ queryKey: teacherCounselingQueryKeys.posts });
       teacherToast.success("상담 메모가 저장되었습니다.");
       setShowCreate(false);
     },
@@ -66,7 +67,7 @@ export default function CounselingPage() {
   const deleteMut = useMutation({
     mutationFn: deleteCounselingPost,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-counseling"] });
+      qc.invalidateQueries({ queryKey: teacherCounselingQueryKeys.posts });
       teacherToast.info("상담 메모가 삭제되었습니다.");
       setSelectedPost(null);
     },
@@ -243,14 +244,14 @@ function DetailSheet({
   const [replyText, setReplyText] = useState("");
 
   const { data: replies } = useQuery({
-    queryKey: ["teacher-counseling-replies", post.id],
+    queryKey: teacherCounselingQueryKeys.replies(post.id),
     queryFn: () => fetchCounselingReplies(post.id),
   });
 
   const replyMut = useMutation({
     mutationFn: (content: string) => createCounselingReply(post.id, content),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-counseling-replies", post.id] });
+      qc.invalidateQueries({ queryKey: teacherCounselingQueryKeys.replies(post.id) });
       teacherToast.success("답글이 등록되었습니다.");
       setReplyText("");
     },
