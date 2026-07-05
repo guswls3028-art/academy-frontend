@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateVideo } from "../api";
+import { teacherVideoQueryKeys } from "../queryKeys";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -36,7 +37,7 @@ export default function VideoSettingsSheet({ open, onClose, video }: Props) {
       show_watermark: showWatermark,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-video", video.id] });
+      qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.detail(video.id) });
       teacherToast.success("영상 설정이 저장되었습니다.");
       onClose();
     },

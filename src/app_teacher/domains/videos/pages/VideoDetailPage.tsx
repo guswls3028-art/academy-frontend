@@ -8,13 +8,14 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";
 import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { fetchVideoComments, fetchVideoDetail, fetchVideoStats, renameVideo, updateVideo, deleteVideo, createVideoComment } from "../api";
+import { fetchVideoComments, fetchVideoDetail, fetchVideoStats, renameVideo, deleteVideo, createVideoComment } from "../api";
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { isVideoProgressComplete, videoProgressPercent } from "@/shared/api/contracts/videos";
+import { teacherVideoQueryKeys } from "../queryKeys";
 
 type Tab = "stats" | "comments";
 
@@ -32,29 +33,29 @@ export default function VideoDetailPage() {
 
   const renameMut = useMutation({
     mutationFn: () => renameVideo(vid, titleInput),
-    onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: ["teacher-video", vid] }); teacherToast.success("제목이 변경되었습니다."); },
+    onSuccess: () => { setEditingTitle(false); qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.detail(vid) }); teacherToast.success("제목이 변경되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "제목을 변경하지 못했습니다.")),
   });
   const deleteMut = useMutation({
     mutationFn: () => deleteVideo(vid),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); navigate(-1); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list }); teacherToast.info("영상이 삭제되었습니다."); navigate(-1); },
     onError: (e) => teacherToast.error(extractApiError(e, "영상을 삭제하지 못했습니다.")),
   });
 
   const { data: video, isLoading: loadingVideo } = useQuery({
-    queryKey: ["teacher-video", vid],
+    queryKey: teacherVideoQueryKeys.detail(vid),
     queryFn: () => fetchVideoDetail(vid),
     enabled: Number.isFinite(vid),
   });
 
   const { data: stats } = useQuery({
-    queryKey: ["teacher-video-stats", vid],
+    queryKey: teacherVideoQueryKeys.stats(vid),
     queryFn: () => fetchVideoStats(vid),
     enabled: Number.isFinite(vid),
   });
 
   const { data: comments } = useQuery({
-    queryKey: ["teacher-video-comments", vid],
+    queryKey: teacherVideoQueryKeys.comments(vid),
     queryFn: () => fetchVideoComments(vid),
     enabled: Number.isFinite(vid) && tab === "comments",
   });
@@ -203,7 +204,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
   const createMut = useMutation({
     mutationFn: (content: string) => createVideoComment(videoId, content),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-video-comments", videoId] });
+      qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.comments(videoId) });
       setText("");
       teacherToast.success("댓글이 등록되었습니다.");
     },

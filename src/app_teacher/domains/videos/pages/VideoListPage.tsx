@@ -10,6 +10,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
+import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
 
 type StatusFilter = "all" | VideoStatus;
@@ -71,20 +72,20 @@ export default function VideoListPage() {
   const [sortKey, setSortKey] = useState<SortKey>("recent");
 
   const { data: videos, isLoading } = useQuery({
-    queryKey: ["teacher-videos"],
+    queryKey: teacherVideoQueryKeys.list,
     queryFn: () => fetchVideos(),
     staleTime: 30_000,
   });
 
   const retryMut = useMutation({
     mutationFn: retryVideo,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.success("다시 시도 요청을 보냈습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list }); teacherToast.success("다시 시도 요청을 보냈습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "재시도 요청에 실패했습니다.")),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteVideo,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-videos"] }); teacherToast.info("영상이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list }); teacherToast.info("영상이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "영상을 삭제하지 못했습니다.")),
   });
 
@@ -99,7 +100,7 @@ export default function VideoListPage() {
       const put = await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
       if (!put.ok) throw new Error(`video_upload_put_failed_${put.status}`);
       await uploadComplete(init.id);
-      qc.invalidateQueries({ queryKey: ["teacher-videos"] });
+      qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list });
       teacherToast.success("업로드 완료. 처리는 잠시 후 시작됩니다.");
     } catch {
       teacherToast.error("업로드에 실패했습니다. 잠시 후 다시 시도해주세요.");
