@@ -8,6 +8,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
+import { teacherSharedQueryKeys } from "@teacher/shared/api/queryKeys";
 import {
   fetchTenantInfo,
   updateTenantInfo,
@@ -20,7 +21,7 @@ export default function OrganizationSettingsPage() {
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-tenant-info"],
+    queryKey: teacherSharedQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
   });
 
@@ -47,7 +48,7 @@ export default function OrganizationSettingsPage() {
   const saveMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateTenantInfo>[0]) => updateTenantInfo(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-tenant-info"] });
+      qc.invalidateQueries({ queryKey: teacherSharedQueryKeys.tenantInfo });
       teacherToast.success("저장됨");
     },
     onError: () => teacherToast.error("저장에 실패했습니다."),

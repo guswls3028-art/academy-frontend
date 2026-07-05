@@ -5,10 +5,11 @@ import { useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";
 import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
+import { teacherSharedQueryKeys } from "@teacher/shared/api/queryKeys";
 import {
   ChevronLeft, User, Lock, Palette, Bell, Smartphone,
   Eye, EyeOff, Check, Pencil, Save, X,
@@ -346,19 +347,25 @@ function Toast({ msg }: { msg: { type: "ok" | "err"; text: string } }) {
 
 /* ─── Organization Section (owner/admin) ─── */
 function OrgSection() {
+  const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [orgPhone, setOrgPhone] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
   const { data: info } = useQuery({
-    queryKey: ["tenant-info"],
+    queryKey: teacherSharedQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
   });
 
   const saveMut = useMutation({
     mutationFn: () => updateTenantInfo({ name: orgName, phone: orgPhone }),
-    onSuccess: () => { setEditing(false); setMsg("저장됨"); setTimeout(() => setMsg(null), 2000); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherSharedQueryKeys.tenantInfo });
+      setEditing(false);
+      setMsg("저장됨");
+      setTimeout(() => setMsg(null), 2000);
+    },
     onError: () => setMsg("저장 실패"),
   });
 
@@ -391,22 +398,26 @@ function OrgSection() {
 
 /* ─── Billing Section (owner) ─── */
 function BillingSection() {
+  const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const confirm = useConfirm();
 
   const { data: cards } = useQuery({
-    queryKey: ["billing-cards"],
+    queryKey: teacherSharedQueryKeys.billingCards,
     queryFn: async () => { const res = await api.get("/billing/cards/"); return Array.isArray(res.data) ? res.data : []; },
   });
 
   const { data: subscription } = useQuery({
-    queryKey: ["billing-subscription"],
+    queryKey: teacherSharedQueryKeys.subscription,
     queryFn: async () => { const res = await api.get("/core/subscription/"); return res.data; },
   });
 
   const deleteCardMut = useMutation({
     mutationFn: async (id: number) => { await api.delete(`/billing/cards/${id}/`); },
-    onSuccess: () => { setMsg("카드 삭제됨"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherSharedQueryKeys.billingCards });
+      setMsg("카드 삭제됨");
+    },
     onError: () => setMsg("카드 삭제 실패"),
   });
 
