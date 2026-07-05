@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 import CardManagementSection from "../components/CardManagementSection";
+import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BillingSettingsPage.module.css";
 
 type SubscriptionInfo = {
@@ -41,7 +42,7 @@ const BILLING_MODE_LABELS: Record<string, string> = {
 
 export default function BillingSettingsPage() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["subscription-info"],
+    queryKey: adminSettingsQueryKeys.subscriptionInfo,
     queryFn: fetchSubscription,
     staleTime: 30_000,
     retry: 1,

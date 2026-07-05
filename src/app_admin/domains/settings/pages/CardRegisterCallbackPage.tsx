@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { processCardCallback } from "../api/billing.api";
+import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./CardRegisterCallbackPage.module.css";
 
 type CallbackResult = {
@@ -24,7 +25,7 @@ export default function CardRegisterCallbackPage() {
   const callbackMut = useMutation({
     mutationFn: processCardCallback,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["billing-cards"] });
+      queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.billingCards });
     },
   });
 

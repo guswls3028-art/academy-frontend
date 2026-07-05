@@ -14,6 +14,7 @@ import {
   meToStaffRole,
 } from "@admin/domains/profile/api/profile.api";
 import useAuth from "@/auth/hooks/useAuth";
+import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -271,12 +272,12 @@ export default function ProfileSettingsPage() {
   const [editingUsername, setEditingUsername] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const meQ = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
 
   const updateMut = useMutation({
     mutationFn: (payload: { name?: string; phone?: string }) => updateProfile(payload),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: accountQueryKeys.me });
       feedback.success("저장되었습니다.");
       setEditingProfile(false);
     },
@@ -286,7 +287,7 @@ export default function ProfileSettingsPage() {
   const usernameMut = useMutation({
     mutationFn: (username: string) => updateProfile({ username }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: accountQueryKeys.me });
       feedback.success("아이디가 변경되었습니다.");
       setEditingUsername(false);
     },

@@ -11,6 +11,7 @@ import {
   type BillingCard,
 } from "../api/billing.api";
 import { requestBillingAuth } from "../api/toss.helper";
+import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./CardManagementSection.module.css";
 
 export default function CardManagementSection() {
@@ -24,7 +25,7 @@ export default function CardManagementSection() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["billing-cards"],
+    queryKey: adminSettingsQueryKeys.billingCards,
     queryFn: fetchCards,
     staleTime: 30_000,
     retry: 1,
@@ -34,7 +35,7 @@ export default function CardManagementSection() {
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteCard(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["billing-cards"] });
+      queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.billingCards });
     },
   });
 

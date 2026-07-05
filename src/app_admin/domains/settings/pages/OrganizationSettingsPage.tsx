@@ -9,14 +9,16 @@ import {
   fetchTenantInfo,
   updateTenantInfo,
   type AcademyEntry,
+  fetchMe,
 } from "@admin/domains/profile/api/profile.api";
-import { fetchMe } from "@admin/domains/profile/api/profile.api";
 import { fetchLegalConfig, updateLegalConfig, type LegalConfig } from "@admin/domains/legal/api/legal.api";
+import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useProgram } from "@/shared/program";
 
 import s from "../components/SettingsSection.module.css";
+import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./OrganizationSettingsPage.module.css";
 
 // ── 운영 모드 표시 (읽기 전용) — 학원 단위 설정 ─────────────────────────────
@@ -161,11 +163,11 @@ export default function OrganizationSettingsPage() {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
 
-  const meQ = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const isOwner = meQ.data?.tenantRole === "owner" || meQ.data?.is_superuser;
 
   const tenantQ = useQuery({
-    queryKey: ["tenant-info"],
+    queryKey: accountQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
     enabled: !!isOwner,
   });
@@ -174,7 +176,7 @@ export default function OrganizationSettingsPage() {
     mutationFn: (payload: { academies: AcademyEntry[] }) =>
       updateTenantInfo({ academies: payload.academies }),
     onSuccess: (data) => {
-      qc.setQueryData(["tenant-info"], data);
+      qc.setQueryData(accountQueryKeys.tenantInfo, data);
       feedback.success("저장되었습니다.");
       setEditingIndex(null);
       setAdding(false);
@@ -424,7 +426,7 @@ function OgPreviewSection({
         og_image_url: ogImageUrl.trim(),
       }),
     onSuccess: (data) => {
-      qc.setQueryData(["tenant-info"], data);
+      qc.setQueryData(accountQueryKeys.tenantInfo, data);
       feedback.success("카카오톡 미리보기가 저장되었습니다. 반영까지 최대 5분 소요됩니다.");
       setEditing(false);
     },
@@ -618,7 +620,7 @@ function PassFailLabelsSection({
         fail_label: fail.trim(),
       }),
     onSuccess: (data) => {
-      qc.setQueryData(["tenant-info"], data);
+      qc.setQueryData(accountQueryKeys.tenantInfo, data);
       feedback.success("합격/불합격 라벨이 저장되었습니다.");
       setEditing(false);
     },
@@ -745,7 +747,7 @@ function LegalInfoSection() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   const legalQ = useQuery({
-    queryKey: ["legal-config"],
+    queryKey: adminSettingsQueryKeys.legalConfig,
     queryFn: fetchLegalConfig,
   });
 
@@ -766,7 +768,7 @@ function LegalInfoSection() {
   const saveMut = useMutation({
     mutationFn: (payload: Partial<EditableLegalConfig>) => updateLegalConfig(payload),
     onSuccess: (data) => {
-      qc.setQueryData(["legal-config"], data);
+      qc.setQueryData(adminSettingsQueryKeys.legalConfig, data);
       feedback.success("법적 고지 정보가 저장되었습니다.");
       setEditing(false);
     },
