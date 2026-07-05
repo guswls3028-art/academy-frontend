@@ -310,8 +310,12 @@ export default function SessionAttendancePage({
             fetchSessionScores(sessionId),
           ]);
           // backend SSOT meta 1순위 → qc cache → ""
-          const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
-          const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+          const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+            adminLectureQueryKeys.lecture(lectureId),
+          );
+          const session = qc.getQueryData<{ title?: string }>(
+            adminLectureQueryKeys.sessionDetail(sessionId),
+          );
           lectureName = scoresData.meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
           sessionTitle = scoresData.meta?.session_title ?? session?.title ?? "";
 
@@ -345,8 +349,12 @@ export default function SessionAttendancePage({
           };
         } catch {
           // fallback: meta/scores fetch 실패 시 qc cache라도
-          const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", lectureId]);
-          const session = qc.getQueryData<{ title?: string }>(["session-detail", sessionId]);
+          const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+            adminLectureQueryKeys.lecture(lectureId),
+          );
+          const session = qc.getQueryData<{ title?: string }>(
+            adminLectureQueryKeys.sessionDetail(sessionId),
+          );
           lectureName = lecture?.title ?? lecture?.name ?? "";
           sessionTitle = session?.title ?? "";
           initialBody = buildGenericScoreTemplate({ lectureName, sessionTitle });

@@ -352,8 +352,12 @@ export default function SessionScoresEntryPage({
               const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
               const meta = data?.meta ?? null;
               // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
-              const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
-              const session = qc.getQueryData<{ title?: string }>(["session-detail", numericSessionId]);
+              const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+                adminLectureQueryKeys.lecture(numericLectureId),
+              );
+              const session = qc.getQueryData<{ title?: string }>(
+                adminLectureQueryKeys.sessionDetail(numericSessionId),
+              );
               const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
               const sessionTitle = meta?.session_title ?? session?.title ?? "";
               const reportOptions = { lectureName, sessionTitle };
