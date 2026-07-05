@@ -30,6 +30,7 @@ import {
   discardSubmissionsBatchApi,
   type PendingSubmissionRow,
 } from "@/shared/api/contracts/submissions";
+import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
@@ -113,7 +114,7 @@ export default function SubmissionsInboxPage() {
   const [filter, setFilter] = useState<FilterKey>("pending");
 
   const q = useQuery({
-    queryKey: ["teacher-pending-submissions", filter],
+    queryKey: teacherResultsQueryKeys.pendingSubmissionsList(filter),
     queryFn: () => fetchPendingSubmissions(FILTER_PARAM[filter]),
     refetchInterval: 5_000,
   });
@@ -127,7 +128,7 @@ export default function SubmissionsInboxPage() {
   }, [q.data, filter]);
 
   function refetchAll() {
-    qc.invalidateQueries({ queryKey: ["teacher-pending-submissions"] });
+    qc.invalidateQueries({ queryKey: teacherResultsQueryKeys.pendingSubmissions });
   }
 
   const retryMut = useMutation({

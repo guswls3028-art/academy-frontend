@@ -22,6 +22,7 @@ import {
   getExamResultScore,
 } from "@teacher/domains/results/examResultContract";
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
+import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import {
   BarChart,
   Bar,
@@ -66,37 +67,37 @@ export default function ResultsStatsTab() {
 
   /* ─── Data fetching ─── */
   const { data: lectures } = useQuery({
-    queryKey: ["tc-stats-lectures"],
+    queryKey: teacherResultsQueryKeys.statsLectures,
     queryFn: () => fetchLectures(true),
   });
 
   const { data: exams } = useQuery({
-    queryKey: ["tc-stats-exams", selectedLecture],
+    queryKey: teacherResultsQueryKeys.statsExams(selectedLecture),
     queryFn: () => fetchExams({ lecture_id: selectedLecture! }),
     enabled: selectedLecture != null,
   });
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["tc-exam-summary", selectedExam],
+    queryKey: teacherResultsQueryKeys.examSummary(selectedExam),
     queryFn: () => fetchExamSummary(selectedExam!),
     enabled: selectedExam != null,
   });
 
   const { data: questionStats } = useQuery({
-    queryKey: ["tc-question-stats", selectedExam],
+    queryKey: teacherResultsQueryKeys.questionStats(selectedExam),
     queryFn: () => fetchQuestionStats(selectedExam!),
     enabled: selectedExam != null,
   });
 
   const { data: results } = useQuery({
-    queryKey: ["tc-exam-results", selectedExam],
+    queryKey: teacherResultsQueryKeys.statsExamResults(selectedExam),
     queryFn: () => fetchExamResults(selectedExam!),
     enabled: selectedExam != null,
   });
 
   /* ─── 과제 데이터 ─── */
   const { data: hwScores } = useQuery({
-    queryKey: ["tc-hw-scores", selectedLecture],
+    queryKey: teacherResultsQueryKeys.homeworkScores(selectedLecture),
     queryFn: () => fetchHomeworkScores(selectedLecture!),
     enabled: selectedLecture != null,
   });

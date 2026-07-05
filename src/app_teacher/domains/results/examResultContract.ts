@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { teacherResultsQueryKeys } from "./queryKeys";
 
 type ExamResultScoreLike = {
   enrollment?: unknown;
@@ -40,10 +41,10 @@ export function invalidateTeacherExamResultQueries(
   examId: number,
 ): Promise<unknown[]> {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: ["exam-results", examId] }),
-    queryClient.invalidateQueries({ queryKey: ["teacher-exam-results", examId] }),
-    queryClient.invalidateQueries({ queryKey: ["results-detail", examId] }),
-    queryClient.invalidateQueries({ queryKey: ["tc-exam-results", examId] }),
-    queryClient.invalidateQueries({ queryKey: ["exam-results-session", examId] }),
+    queryClient.invalidateQueries({ queryKey: teacherResultsQueryKeys.scoreEntryResults(examId) }),
+    queryClient.invalidateQueries({ queryKey: teacherResultsQueryKeys.teacherExamResults(examId) }),
+    queryClient.invalidateQueries({ queryKey: teacherResultsQueryKeys.detail(examId) }),
+    queryClient.invalidateQueries({ queryKey: teacherResultsQueryKeys.statsExamResults(examId) }),
+    queryClient.invalidateQueries({ queryKey: teacherResultsQueryKeys.sessionExamResults(examId) }),
   ]);
 }

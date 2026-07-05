@@ -18,6 +18,7 @@ import {
 } from "@teacher/domains/results/examResultContract";
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
+import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import styles from "./ResultsPage.module.css";
 
 type Tab = "list" | "stats";
@@ -33,18 +34,18 @@ export default function ResultsPage() {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const { data: lectures } = useQuery({
-    queryKey: ["lectures-mobile", true],
+    queryKey: teacherResultsQueryKeys.activeLectures,
     queryFn: () => fetchLectures(true),
   });
 
   const { data: exams } = useQuery({
-    queryKey: ["results-exams", selectedLecture],
+    queryKey: teacherResultsQueryKeys.examsForLecture(selectedLecture),
     queryFn: async (): Promise<TeacherExamOption[]> => fetchExams({ lecture_id: selectedLecture! }),
     enabled: selectedLecture != null && tab === "list",
   });
 
   const { data: results } = useQuery({
-    queryKey: ["results-detail", selectedExam],
+    queryKey: teacherResultsQueryKeys.detail(selectedExam),
     queryFn: async (): Promise<TeacherExamResultRow[]> => fetchExamResults(selectedExam!),
     enabled: selectedExam != null && tab === "list",
   });
