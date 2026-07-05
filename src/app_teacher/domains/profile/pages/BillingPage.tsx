@@ -8,7 +8,7 @@ import { ChevronLeft, AlertCircle, CheckCircle, Award } from "@teacher/shared/ui
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import api from "@/shared/api/axios";
-import { formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
+import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 
 type SubscriptionInfo = {
   plan: string;
@@ -51,17 +51,6 @@ async function fetchCards(): Promise<BillingCard[]> {
     return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
   } catch {
     return [];
-  }
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
-  } catch {
-    return dateStr;
   }
 }
 

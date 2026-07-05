@@ -3,7 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
+import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 import CardManagementSection from "../components/CardManagementSection";
 import styles from "./BillingSettingsPage.module.css";
 
@@ -32,17 +32,6 @@ type SubscriptionInfo = {
 async function fetchSubscription(): Promise<SubscriptionInfo> {
   const res = await api.get<SubscriptionInfo>("/core/subscription/");
   return res.data;
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
-  } catch {
-    return dateStr;
-  }
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {

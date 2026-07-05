@@ -18,3 +18,14 @@ export function formatKRW(value: number | null | undefined, options: FormatKrwOp
 export function formatKRWNumber(value: number | null | undefined, fallback = "-"): string {
   return formatKRW(value, { fallback, round: true, unit: false });
 }
+
+export function formatBillingDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  try {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return dateStr;
+    return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}.`;
+  } catch {
+    return dateStr;
+  }
+}
