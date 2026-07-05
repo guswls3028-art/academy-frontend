@@ -6,6 +6,7 @@
 
 import { useRef, useCallback, useState, useEffect } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { cx } from "@/shared/utils/cx";
 
 type ResizableThProps = {
   columnKey: string;
@@ -26,10 +27,6 @@ type ResizableThProps = {
   /** th에 data-* 속성 부여 (data-col-type, data-group-start 등) */
   dataAttributes?: Record<string, string>;
 };
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 function getResizableThStyle(
   baseStyle: CSSProperties | undefined,

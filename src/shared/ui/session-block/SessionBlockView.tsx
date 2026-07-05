@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { cx } from "@/shared/utils/cx";
 
 import {
   SESSION_BLOCK_CLASS,
@@ -33,10 +34,6 @@ export interface SessionBlockViewProps {
   type?: "button" | "submit";
   /** Link용 — 외부에서 key 등 전달 */
   className?: string;
-}
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
 }
 
 export function SessionBlockView({

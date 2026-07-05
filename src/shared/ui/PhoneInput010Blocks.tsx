@@ -8,6 +8,7 @@
  * - 010 포함 11자리 / 하이픈 포함 전화번호 붙여넣기 지원
  */
 import { useRef, useCallback } from "react";
+import { cx } from "@/shared/utils/cx";
 import styles from "./PhoneInput010Blocks.module.css";
 
 type Props = {
@@ -41,10 +42,6 @@ function extractDigitsFromPaste(text: string): string {
     digits = digits.slice(3);
   }
   return digits.slice(0, 8);
-}
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
 }
 
 export function PhoneInput010Blocks({

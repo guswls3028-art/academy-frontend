@@ -1,5 +1,6 @@
 import { type CSSProperties, useMemo } from "react";
 import DOMPurify from "dompurify";
+import { cx } from "@/shared/utils/cx";
 import { isRichHtml } from "@/shared/utils/richHtml";
 import styles from "./RichHtmlContent.module.css";
 
@@ -12,10 +13,6 @@ type Props = {
   emptyText?: string;
   style?: CSSProperties;
 };
-
-function cx(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(" ");
-}
 
 export default function RichHtmlContent({
   html,

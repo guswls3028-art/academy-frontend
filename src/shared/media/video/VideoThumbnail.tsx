@@ -1,6 +1,7 @@
 // PATH: src/shared/media/video/VideoThumbnail.tsx
 
 import { useEffect, useState } from "react";
+import { cx } from "@/shared/utils/cx";
 import "@/styles/design-system/components/AsyncStatusBar.css";
 import styles from "./VideoThumbnail.module.css";
 
@@ -22,10 +23,6 @@ const PLACEHOLDER_FAILED =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect fill="#374151" width="320" height="180"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-size="14" font-family="sans-serif">실패</text></svg>'
   );
-
-function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 function clampPercent(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
