@@ -8,6 +8,7 @@ import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
+import { adminFeesQueryKeys } from "../queryKeys";
 import { FEES_STATUS_LABEL, type InvoiceStatus } from "../utils/feesStatus";
 import styles from "./FeesDashboardTab.module.css";
 
@@ -43,13 +44,13 @@ export default function FeesDashboardTab() {
   const goInvoices = () => navigate("/admin/fees/invoices");
 
   const { data: stats, isLoading, isError } = useQuery({
-    queryKey: ["fees", "dashboard", year, month],
+    queryKey: adminFeesQueryKeys.dashboard(year, month),
     queryFn: () => fetchDashboard({ year, month }),
     staleTime: 10_000,
   });
 
   const { data: overdueList } = useQuery({
-    queryKey: ["fees", "overdue"],
+    queryKey: adminFeesQueryKeys.overdue,
     queryFn: fetchOverdueInvoices,
     staleTime: 10_000,
   });

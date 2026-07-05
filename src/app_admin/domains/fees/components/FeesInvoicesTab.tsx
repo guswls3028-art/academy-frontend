@@ -24,6 +24,7 @@ import {
   type StudentInvoice,
   type PaymentMethod,
 } from "../api/fees.api";
+import { adminFeesQueryKeys } from "../queryKeys";
 
 export default function FeesInvoicesTab() {
   const qc = useQueryClient();
@@ -62,16 +63,17 @@ export default function FeesInvoicesTab() {
   if (lectureFilter) params.lecture = lectureFilter;
   if (search) params.search = search;
   if (unpaidFirst) params.ordering = "unpaid_first";
+  const invalidateFees = () => qc.invalidateQueries({ queryKey: adminFeesQueryKeys.root });
 
   // 강의 목록 (필터용)
   const { data: lectures } = useQuery({
-    queryKey: ["fees", "lecture-options"],
+    queryKey: adminFeesQueryKeys.lectureOptions,
     queryFn: fetchLectureOptions,
     staleTime: 60_000,
   });
 
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ["fees", "invoices", params],
+    queryKey: adminFeesQueryKeys.invoices(params),
     queryFn: () => fetchInvoices(params),
     staleTime: 5_000,
   });
@@ -81,7 +83,7 @@ export default function FeesInvoicesTab() {
     onSuccess: (r) => {
       feedback.success(`청구서 ${r.created}건 생성 (${r.skipped}건 skip)`);
       if (r.errors.length) feedback.warning(`오류: ${r.errors.join(", ")}`);
-      qc.invalidateQueries({ queryKey: ["fees"] });
+      invalidateFees();
       setGenerateOpen(false);
     },
     onError: () => feedback.error("청구서 생성 실패"),
@@ -91,7 +93,7 @@ export default function FeesInvoicesTab() {
     mutationFn: recordPayment,
     onSuccess: () => {
       feedback.success("수납이 기록되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees"] });
+      invalidateFees();
       setPaymentOpen(false);
       setDetailOpen(false);
       setPayAmount("");
@@ -104,7 +106,7 @@ export default function FeesInvoicesTab() {
     mutationFn: cancelInvoice,
     onSuccess: () => {
       feedback.success("청구서가 취소되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees"] });
+      invalidateFees();
       setDetailOpen(false);
     },
     onError: (e: unknown) => feedback.error(extractApiError(e, "취소 실패")),
@@ -114,7 +116,7 @@ export default function FeesInvoicesTab() {
     mutationFn: cancelPayment,
     onSuccess: () => {
       feedback.success("수납이 취소되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees"] });
+      invalidateFees();
       // reload detail
       if (selectedInvoice) openDetail(selectedInvoice.id);
     },

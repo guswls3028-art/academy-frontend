@@ -22,6 +22,7 @@ import {
   type FeeType,
   type BillingCycle,
 } from "../api/fees.api";
+import { adminFeesQueryKeys } from "../queryKeys";
 
 const FEE_TYPE_OPTIONS: { value: FeeType; label: string }[] = [
   { value: "TUITION", label: "수강료" },
@@ -69,13 +70,13 @@ export default function FeesTemplatesTab() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const { data: lectures } = useQuery({
-    queryKey: ["fees", "lecture-options"],
+    queryKey: adminFeesQueryKeys.lectureOptions,
     queryFn: fetchLectureOptions,
     staleTime: 60_000,
   });
 
   const { data: templates, isLoading } = useQuery({
-    queryKey: ["fees", "templates"],
+    queryKey: adminFeesQueryKeys.templates,
     queryFn: () => fetchFeeTemplates(),
     staleTime: 10_000,
   });
@@ -84,7 +85,7 @@ export default function FeesTemplatesTab() {
     mutationFn: createFeeTemplate,
     onSuccess: () => {
       feedback.success("비목이 생성되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees", "templates"] });
+      qc.invalidateQueries({ queryKey: adminFeesQueryKeys.templates });
       closeModal();
     },
     onError: (e: unknown) => feedback.error(extractApiError(e, "생성 실패")),
@@ -94,7 +95,7 @@ export default function FeesTemplatesTab() {
     mutationFn: ({ id, data }: { id: number; data: Partial<FeeTemplate> }) => updateFeeTemplate(id, data),
     onSuccess: () => {
       feedback.success("비목이 수정되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees", "templates"] });
+      qc.invalidateQueries({ queryKey: adminFeesQueryKeys.templates });
       closeModal();
     },
     onError: (e: unknown) => feedback.error(extractApiError(e, "수정 실패")),
@@ -104,7 +105,7 @@ export default function FeesTemplatesTab() {
     mutationFn: deleteFeeTemplate,
     onSuccess: () => {
       feedback.success("비목이 비활성화되었습니다");
-      qc.invalidateQueries({ queryKey: ["fees", "templates"] });
+      qc.invalidateQueries({ queryKey: adminFeesQueryKeys.templates });
     },
     onError: (e: unknown) => feedback.error(extractApiError(e, "삭제 실패")),
   });
