@@ -21,6 +21,7 @@ import {
   fetchWorkTypes,
   type WorkRecord,
 } from "../api";
+import { teacherStaffQueryKeys } from "../queryKeys";
 
 type Tab = "work" | "expense" | "payroll";
 
@@ -40,13 +41,13 @@ export default function StaffDetailPage() {
   const [editWork, setEditWork] = useState<WorkRecord | null>(null);
 
   const { data: staff, isLoading: staffLoading } = useQuery({
-    queryKey: ["teacher-staff-one", sid],
+    queryKey: teacherStaffQueryKeys.staffOne(sid),
     queryFn: () => fetchStaffOne(sid),
     enabled: Number.isFinite(sid),
   });
 
   const { data: locks } = useQuery({
-    queryKey: ["teacher-staff-locks", sid, month],
+    queryKey: teacherStaffQueryKeys.locks(sid, month),
     queryFn: () => fetchWorkMonthLocks({ staff: sid, month }),
     enabled: Number.isFinite(sid),
   });
@@ -108,7 +109,7 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
   const lockMut = useMutation({
     mutationFn: () => createWorkMonthLock({ staff: staffId, month }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff-locks", staffId, month] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.locks(staffId, month) });
       teacherToast.success("월이 마감되었습니다.");
     },
     onError: () => teacherToast.error("마감에 실패했습니다."),
@@ -116,7 +117,7 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
   const unlockMut = useMutation({
     mutationFn: () => lockId ? deleteWorkMonthLock(lockId) : Promise.reject(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff-locks", staffId, month] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.locks(staffId, month) });
       teacherToast.success("월 마감이 해제되었습니다.");
     },
     onError: () => teacherToast.error("해제에 실패했습니다."),
@@ -154,14 +155,14 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: records, isLoading } = useQuery({
-    queryKey: ["teacher-staff-work", staffId, month],
+    queryKey: teacherStaffQueryKeys.work(staffId, month),
     queryFn: () => fetchWorkRecords({ staff: staffId, month }),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteWorkRecord,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff-work", staffId, month] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.work(staffId, month) });
       teacherToast.success("근태 기록이 삭제되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "삭제에 실패했습니다.")),
@@ -244,14 +245,14 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-staff-expense", staffId, month],
+    queryKey: teacherStaffQueryKeys.expense(staffId, month),
     queryFn: () => fetchExpenseRecords({ staff: staffId, month }),
   });
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "approved" | "rejected" }) => updateExpenseStatus(id, status),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff-expense", staffId, month] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.expense(staffId, month) });
       teacherToast.success("처리되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "처리에 실패했습니다.")),
@@ -259,7 +260,7 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
 
   const deleteMut = useMutation({
     mutationFn: deleteExpenseRecord,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-staff-expense", staffId, month] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.expense(staffId, month) }),
     onError: (e) => teacherToast.error(extractApiError(e, "비용 기록을 삭제하지 못했습니다.")),
   });
 
@@ -334,7 +335,7 @@ function StatusBadge({ status }: { status?: string }) {
 function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
   const [year, m] = month.split("-").map(Number);
   const { data, isLoading } = useQuery({
-    queryKey: ["teacher-staff-payroll", staffId, year, m],
+    queryKey: teacherStaffQueryKeys.payroll(staffId, year, m),
     // 백엔드는 year / month 분리 파라미터
     queryFn: () => fetchPayrollSnapshots({ staff: staffId, year, month: m }),
   });
@@ -412,7 +413,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
   const [memo, setMemo] = useState(editData?.memo || "");
 
   const { data: workTypes } = useQuery({
-    queryKey: ["teacher-staff-work-types"],
+    queryKey: teacherStaffQueryKeys.workTypes,
     queryFn: fetchWorkTypes,
     enabled: open,
   });
@@ -439,7 +440,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
       return isEdit ? updateWorkRecord(editData!.id, payload) : createWorkRecord(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff-work", staffId, month] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.work(staffId, month) });
       teacherToast.success(isEdit ? "수정되었습니다." : "근태가 등록되었습니다.");
       onClose();
     },

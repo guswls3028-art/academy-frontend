@@ -13,6 +13,7 @@ import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { teacherStaffQueryKeys } from "../queryKeys";
 
 /* ─── API (복수형 /staffs/ — 백엔드 실제 엔드포인트) ─── */
 async function fetchStaff(search?: string) {
@@ -50,13 +51,13 @@ export default function StaffManagePage() {
   const [editTarget, setEditTarget] = useState<any>(null);
 
   const { data: staff, isLoading } = useQuery({
-    queryKey: ["teacher-staff", search],
+    queryKey: teacherStaffQueryKeys.staffList(search),
     queryFn: () => fetchStaff(search || undefined),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteStaff,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["teacher-staff"] }); teacherToast.info("직원이 삭제되었습니다."); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff }); teacherToast.info("직원이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "직원을 삭제하지 못했습니다.")),
   });
 
@@ -140,7 +141,7 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
       ? updateStaff(editData.id, { name, phone, role })
       : createStaff({ name, phone, username, password: password || "0000", role }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["teacher-staff"] });
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff });
       teacherToast.success(isEdit ? "직원 정보가 수정되었습니다." : `${name} 직원이 등록되었습니다.`);
       onClose();
     },
