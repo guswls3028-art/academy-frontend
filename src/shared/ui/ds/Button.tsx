@@ -1,5 +1,6 @@
 // PATH: src/shared/ui/ds/Button.tsx
 import React from "react";
+import { cx } from "@/shared/utils/cx";
 
 export type ButtonIntent = "primary" | "secondary" | "danger" | "ghost";
 export type ButtonSize = "sm" | "md" | "lg" | "xl";
@@ -15,10 +16,6 @@ type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> 
   loading?: boolean;
   className?: string;
 };
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function Button({
   intent = "secondary",

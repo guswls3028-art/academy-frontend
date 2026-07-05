@@ -1,6 +1,7 @@
 // PATH: src/shared/ui/ds/EmptyState.tsx
 import { AlertTriangle, FileText, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { cx } from "@/shared/utils/cx";
 
 export type EmptyStateTone = "empty" | "error" | "loading";
 export type EmptyStateScope = "page" | "panel" | "modal";
@@ -18,10 +19,6 @@ type EmptyStateProps = {
   showIcon?: boolean;
   className?: string;
 };
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 function Icon({ tone }: { tone: EmptyStateTone }) {
   if (tone === "loading") {

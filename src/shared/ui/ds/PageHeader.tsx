@@ -1,9 +1,6 @@
 // PATH: src/shared/ui/ds/PageHeader.tsx
 import React from "react";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+import { cx } from "@/shared/utils/cx";
 
 type PageHeaderProps = {
   title: React.ReactNode;

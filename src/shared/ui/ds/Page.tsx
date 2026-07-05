@@ -1,9 +1,6 @@
 // PATH: src/shared/ui/ds/Page.tsx
 import React from "react";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+import { cx } from "@/shared/utils/cx";
 
 export type PageDensity = "focus" | "browse" | "inspect";
 

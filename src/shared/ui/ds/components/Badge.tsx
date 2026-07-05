@@ -16,6 +16,7 @@
 // raw <span className="ds-badge ...">/<span style={{fontSize: 11}}> 금지.
 
 import type { CSSProperties, ReactNode, MouseEventHandler } from "react";
+import { cx } from "@/shared/utils/cx";
 
 export type BadgeTone =
   | "primary"
@@ -51,10 +52,6 @@ interface BadgeProps {
   status?: "active" | "inactive" | "archived";
   /** 접근성 라벨 */
   ariaLabel?: string;
-}
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
 }
 
 export default function Badge({
