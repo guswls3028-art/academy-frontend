@@ -7,6 +7,7 @@ import { useStaffs } from "../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { Button, Badge } from "@/shared/ui/ds";
+import { staffQueryKeys } from "../queryKeys";
 
 const TAX_RATE = 0.033;
 
@@ -35,7 +36,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const range = monthRange(year, month);
 
   const summaryQ = useQuery({
-    queryKey: ["staff-summary", staffId, range.from, range.to],
+    queryKey: staffQueryKeys.summaryRange(staffId, range.from, range.to),
     queryFn: () => fetchStaffSummaryByRange(staffId, range.from, range.to),
     enabled: !!staffId,
   });

@@ -7,6 +7,7 @@ import {
   NavIcon,
 } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
+import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
 import { useProgram } from "@/shared/program";
 import useAuth from "@/auth/hooks/useAuth";
 import styles from "./Sidebar.module.css";
@@ -42,7 +43,7 @@ function applySidebarLayout(collapsed: boolean) {
 export default function Sidebar() {
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
-  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const { program } = useProgram();
   const { user } = useAuth();
 

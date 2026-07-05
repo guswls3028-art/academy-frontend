@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchWorkMonthLocks } from "../../api/workMonthLocks.api";
 import { LockBadge } from "../../components/StatusBadge";
+import { staffQueryKeys } from "../../queryKeys";
 
 function ymLabel(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
@@ -15,7 +16,7 @@ export default function WorkMonthLockHistory({
   month: number;
 }) {
   const listQ = useQuery({
-    queryKey: ["work-month-lock-history", year, month],
+    queryKey: staffQueryKeys.workMonthLockHistory(year, month),
     queryFn: () => fetchWorkMonthLocks({ year, month }),
   });
 

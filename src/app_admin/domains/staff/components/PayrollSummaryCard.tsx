@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { useWorkMonth } from "../operations/context/workMonthHooks";
+import { staffQueryKeys } from "../queryKeys";
 import styles from "./PayrollSummaryCard.module.css";
 
 const TAX_RATE = 0.033;
@@ -39,7 +40,7 @@ export function PayrollSummaryCard() {
   const { staffId, range, year, month } = useWorkMonth();
 
   const summaryQ = useQuery({
-    queryKey: ["staff-summary", staffId, range.from, range.to],
+    queryKey: staffQueryKeys.summaryRange(staffId, range.from, range.to),
     queryFn: () => fetchStaffSummaryByRange(staffId, range.from, range.to),
     enabled: !!staffId && !!range.from && !!range.to,
   });

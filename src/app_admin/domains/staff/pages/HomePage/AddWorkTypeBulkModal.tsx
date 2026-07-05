@@ -12,6 +12,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
+import { staffQueryKeys } from "../../queryKeys";
 
 import { contrastTextColor } from "@/shared/ui/domain/constants";
 import styles from "./AddWorkTypeBulkModal.module.css";
@@ -25,7 +26,7 @@ type Props = {
 export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props) {
   const qc = useQueryClient();
   const workTypesQ = useQuery({
-    queryKey: ["staffs", "work-types"],
+    queryKey: staffQueryKeys.staffsWorkTypes,
     queryFn: () => fetchWorkTypes({ is_active: true }),
     enabled: open,
   });
@@ -46,8 +47,8 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
       return { added, failed };
     },
     onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
       if (result.failed === 0) {
         feedback.success(`선택한 직원 ${result.added}명에게 시급 태그를 추가했습니다.`);
       } else {

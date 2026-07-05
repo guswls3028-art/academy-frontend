@@ -17,6 +17,7 @@ import {
 } from "../../api/workMonthLocks.api";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { useDeleteStaff } from "../../hooks/useDeleteStaff";
+import { staffQueryKeys } from "../../queryKeys";
 
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
@@ -45,8 +46,8 @@ function StaffManagerToggle({
     mutationFn: (payload: { is_manager: boolean }) =>
       patchStaffDetail(staffId, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff", staffId] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
     },
   });
   return (
@@ -99,24 +100,24 @@ export default function StaffDetailOverlay() {
   const { y, m, from, to } = getThisMonthRange();
 
   const staffQ = useQuery({
-    queryKey: ["staff", sid],
+    queryKey: staffQueryKeys.staffDetail(sid),
     queryFn: () => fetchStaffDetail(sid),
     enabled: !!sid,
   });
 
   const meQ = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
 
   const summaryQ = useQuery({
-    queryKey: ["staff-summary", sid, from, to],
+    queryKey: staffQueryKeys.summaryRange(sid, from, to),
     queryFn: () => fetchStaffSummaryByRange(sid, from, to),
     enabled: !!sid,
   });
 
   const locksQ = useQuery({
-    queryKey: ["work-month-locks", sid, y, m],
+    queryKey: staffQueryKeys.workMonthLocksForMonth(sid, y, m),
     queryFn: () => fetchWorkMonthLocks({ staff: sid, year: y, month: m }),
     enabled: !!sid,
   });
@@ -370,8 +371,8 @@ export default function StaffDetailOverlay() {
             onClose={() => setEditOpen(false)}
             onSuccess={() => {
               setEditOpen(false);
-              qc.invalidateQueries({ queryKey: ["staff", sid] });
-              qc.invalidateQueries({ queryKey: ["staffs"] });
+              qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(sid) });
+              qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
             }}
           />,
           document.body

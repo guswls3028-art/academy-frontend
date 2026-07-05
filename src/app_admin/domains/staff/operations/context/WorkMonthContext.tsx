@@ -3,6 +3,7 @@ import { useWorkMonthLock } from "../../hooks/useWorkMonthLock";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { WorkMonthContext, type WorkMonthContextValue } from "./workMonthHooks";
+import { staffQueryKeys } from "../../queryKeys";
 
 function monthRange(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -22,7 +23,7 @@ export function WorkMonthProvider({
   const { locked, lockM } = useWorkMonthLock({ staff: staffId, year, month });
 
   const meQ = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
 

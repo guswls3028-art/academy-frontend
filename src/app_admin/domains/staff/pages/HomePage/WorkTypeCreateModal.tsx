@@ -22,6 +22,7 @@ import {
   deleteWorkType,
   type WorkType,
 } from "../../api/staffWorkType.api";
+import { staffQueryKeys } from "../../queryKeys";
 
 type FormData = {
   name: string;
@@ -68,16 +69,16 @@ export default function WorkTypeCreateModal({
 
   // --- queries ---
   const workTypesQ = useQuery({
-    queryKey: ["staffs", "work-types"],
+    queryKey: staffQueryKeys.staffsWorkTypes,
     queryFn: () => fetchWorkTypes(),
     enabled: open,
   });
   const workTypes = workTypesQ.data ?? [];
 
   const invalidate = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["work-types"] });
-    qc.invalidateQueries({ queryKey: ["staffs", "work-types"] });
-    qc.invalidateQueries({ queryKey: ["staffs"] });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.workTypes });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.staffsWorkTypes });
+    qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
   }, [qc]);
 
   // --- mutations ---

@@ -12,6 +12,7 @@ import {
 import { ActionButton } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { staffQueryKeys } from "../../queryKeys";
 import styles from "./StaffCreateModal.module.css";
 
 type Props = {
@@ -45,7 +46,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
       return res.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       feedback.success("직원이 생성되었습니다.");
       onClose();
       setForm({

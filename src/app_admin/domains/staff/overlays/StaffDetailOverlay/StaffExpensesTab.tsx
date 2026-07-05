@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useExpenses } from "../../hooks/useExpenses";
 import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
 import { fetchStaffMe } from "../../api/staffMe.api";
+import { staffQueryKeys } from "../../queryKeys";
 
 import ActionButton from "../../components/ActionButton";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
@@ -31,12 +32,12 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
   const expenses = useExpenses({ staff: staffId, date_from: from, date_to: to });
 
   const locksQ = useQuery({
-    queryKey: ["work-month-locks", staffId, y, m],
+    queryKey: staffQueryKeys.workMonthLocksForMonth(staffId, y, m),
     queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
   });
 
   const meQ = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
 

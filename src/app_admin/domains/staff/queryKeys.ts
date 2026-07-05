@@ -21,9 +21,9 @@ export const staffQueryKeys = {
   expensesForStaff: (staffId: number) => ["expenses", staffId] as const,
   payrollSnapshots: ["payroll-snapshots"] as const,
   payrollSnapshotsList: (params: object) => ["payroll-snapshots", params] as const,
-  payrollSnapshotMonth: (year: number, month: number, staffId?: number) =>
+  payrollSnapshotMonth: (year: number, month: number, staffId?: number | null) =>
     ["payroll-snapshots", year, month, staffId] as const,
-  payrollHistory: (staffId: number) => ["payroll-history", staffId] as const,
+  payrollHistory: (staffId?: number) => ["payroll-history", staffId] as const,
   currentlyWorking: ["work-currently-working"] as const,
   currentWork: (staffId?: number) => ["work-current", staffId] as const,
   staffWorkTypes: (staffId: number) => ["staff-work-types", staffId] as const,

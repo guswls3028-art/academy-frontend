@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DomainLayout } from "@/shared/ui/layout";
 import { StaffWorkspace } from "./components/StaffWorkspace";
 import { fetchStaffMe } from "./api/staffMe.api";
+import { staffQueryKeys } from "./queryKeys";
 
 const STAFF_MAIN_TABS = [
   { key: "home", label: "홈", path: "/admin/staff/home" },
@@ -34,7 +35,7 @@ function isPayrollRoute(pathname: string) {
 
 export default function StaffLayout() {
   const location = useLocation();
-  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const payroll = isPayrollRoute(location.pathname);
 
   if (staffMe && !staffMe.is_payroll_manager) {

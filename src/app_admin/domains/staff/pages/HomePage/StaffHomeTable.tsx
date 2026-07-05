@@ -11,6 +11,7 @@ import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
+import { staffQueryKeys } from "../../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import "./StaffHomeTable.css";
@@ -263,8 +264,8 @@ export function StaffHomeTable({
       return patchStaffDetail(staffId, { pay_type });
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
       setPendingPayType((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
     onError: (e: unknown, vars) => {
@@ -279,8 +280,8 @@ export function StaffHomeTable({
       return patchStaffDetail(staffId, { is_manager });
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
       setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
     onError: (e: unknown, vars) => {
@@ -290,7 +291,7 @@ export function StaffHomeTable({
   });
 
   const workTypesQ = useQuery({
-    queryKey: ["staffs", "work-types"],
+    queryKey: staffQueryKeys.staffsWorkTypes,
     queryFn: () => fetchWorkTypes({ is_active: true }),
   });
   const allWorkTypes = workTypesQ.data ?? [];
@@ -299,8 +300,8 @@ export function StaffHomeTable({
     mutationFn: ({ staffId, work_type_id }: { staffId: number; work_type_id: number }) =>
       createStaffWorkType(staffId, { work_type_id }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
       setOpenAddForStaffId(null);
     },
     onError: (e: unknown) => {

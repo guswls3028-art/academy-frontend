@@ -18,6 +18,7 @@ import { Dropdown } from "antd";
 import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import type { StaffRoleType } from "@/shared/ui/avatars";
+import { staffQueryKeys } from "../queryKeys";
 
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -119,58 +120,61 @@ function WorkingAvatar({ item }: { item: CurrentlyWorkingItem }) {
 
 export function HeaderCenterStaffClock() {
   const queryClient = useQueryClient();
-  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const staffId = staffMe?.staff_id;
   const defaultWorkTypeId = staffMe?.default_work_type_id;
 
   const { data: workingList = [] } = useQuery({
-    queryKey: ["work-currently-working"],
+    queryKey: staffQueryKeys.currentlyWorking,
     queryFn: fetchCurrentlyWorkingStaff,
     refetchInterval: 30_000,
   });
 
   const { data: current, isLoading: currentLoading } = useQuery({
-    queryKey: ["work-current", staffId],
+    queryKey: staffQueryKeys.currentWork(staffId),
     queryFn: () => fetchWorkCurrent(staffId!),
     enabled: !!staffId,
     refetchInterval: 30_000,
   });
 
+  const invalidateCurrentWork = () => {
+    queryClient.invalidateQueries({ queryKey: staffQueryKeys.currentWork(staffId) });
+    queryClient.invalidateQueries({ queryKey: staffQueryKeys.currentlyWorking });
+  };
+
+  const invalidateWorkTotals = () => {
+    queryClient.invalidateQueries({ queryKey: staffQueryKeys.summary });
+    if (staffId != null) queryClient.invalidateQueries({ queryKey: staffQueryKeys.summaryForStaff(staffId) });
+    queryClient.invalidateQueries({ queryKey: staffQueryKeys.workRecords });
+  };
+
   const startMutation = useMutation({
     mutationFn: () => startWork(staffId!, defaultWorkTypeId!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["work-current", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-currently-working"] });
-      queryClient.invalidateQueries({ queryKey: ["staff-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["staff-summary", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-records"] });
+      invalidateCurrentWork();
+      invalidateWorkTotals();
     },
   });
 
   const endMutation = useMutation({
     mutationFn: (recordId: number) => endWork(recordId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["work-current", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-currently-working"] });
-      queryClient.invalidateQueries({ queryKey: ["staff-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["staff-summary", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-records"] });
+      invalidateCurrentWork();
+      invalidateWorkTotals();
     },
   });
 
   const startBreakMutation = useMutation({
     mutationFn: (recordId: number) => startBreak(recordId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["work-current", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-currently-working"] });
+      invalidateCurrentWork();
     },
   });
 
   const endBreakMutation = useMutation({
     mutationFn: (recordId: number) => endBreak(recordId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["work-current", staffId] });
-      queryClient.invalidateQueries({ queryKey: ["work-currently-working"] });
+      invalidateCurrentWork();
     },
   });
 

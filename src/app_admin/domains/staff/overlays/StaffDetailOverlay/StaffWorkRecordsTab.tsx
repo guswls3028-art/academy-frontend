@@ -5,6 +5,7 @@ import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks
 import { useQuery } from "@tanstack/react-query";
 import { LockBadge } from "../../components/StatusBadge";
 import ActionButton from "../../components/ActionButton";
+import { staffQueryKeys } from "../../queryKeys";
 
 function getThisMonthRange() {
   const d = new Date();
@@ -21,7 +22,7 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
   const recordsQ = useWorkRecords({ staff: staffId, date_from: from, date_to: to });
 
   const locksQ = useQuery({
-    queryKey: ["work-month-locks", staffId, y, m],
+    queryKey: staffQueryKeys.workMonthLocksForMonth(staffId, y, m),
     queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
   });
 

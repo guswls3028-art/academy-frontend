@@ -9,6 +9,7 @@ import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { staffQueryKeys } from "../../queryKeys";
 
 export default function StaffSettingsTab() {
   const { staffId } = useParams();
@@ -18,14 +19,14 @@ export default function StaffSettingsTab() {
   const deleteMutation = useDeleteStaff();
 
   const meQ = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
   const detailQ = useQuery({
-    queryKey: ["staff", sid],
+    queryKey: staffQueryKeys.staffDetail(sid),
     queryFn: () => fetchStaffDetail(sid),
     enabled: !!sid,
   });
@@ -33,8 +34,8 @@ export default function StaffSettingsTab() {
   const patchM = useMutation({
     mutationFn: (payload: Partial<StaffDetail>) => patchStaffDetail(sid, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff", sid] });
-      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(sid) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       feedback.success("저장되었습니다.");
     },
     onError: (e: unknown) => {

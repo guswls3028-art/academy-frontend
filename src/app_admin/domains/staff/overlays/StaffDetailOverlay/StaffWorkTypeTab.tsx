@@ -11,6 +11,7 @@ import {
 import type { StaffWorkType } from "../../api/staffWorkType.api";
 
 import { isLightColor, contrastTextColor } from "@/shared/ui/domain/constants";
+import { staffQueryKeys } from "../../queryKeys";
 import styles from "./StaffWorkTypeTab.module.css";
 
 function WageBadge({
@@ -63,12 +64,12 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
   const qc = useQueryClient();
 
   const staffTypesQ = useQuery({
-    queryKey: ["staff-work-types", staffId],
+    queryKey: staffQueryKeys.staffWorkTypes(staffId),
     queryFn: () => fetchStaffWorkTypes(staffId),
   });
 
   const workTypesQ = useQuery({
-    queryKey: ["work-types"],
+    queryKey: staffQueryKeys.workTypes,
     queryFn: () => fetchWorkTypes({ is_active: true }),
   });
 
@@ -76,18 +77,18 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
     mutationFn: (payload: { work_type_id: number }) =>
       createStaffWorkType(staffId, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
-      qc.invalidateQueries({ queryKey: ["staff", staffId] });
-      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(staffId) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
     },
   });
 
   const deleteM = useMutation({
     mutationFn: deleteStaffWorkType,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
-      qc.invalidateQueries({ queryKey: ["staff", staffId] });
-      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(staffId) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
     },
   });
 

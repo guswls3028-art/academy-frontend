@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { deleteStaff } from "../api/staff.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { staffQueryKeys } from "../queryKeys";
 
 /**
  * 직원 삭제 공통 훅.
@@ -22,8 +23,8 @@ export function useDeleteStaff(opts?: {
     mutationFn: (staffId: number) => deleteStaff(staffId),
     onSuccess: () => {
       feedback.success("직원이 삭제되었습니다.");
-      qc.invalidateQueries({ queryKey: ["staffs"] });
-      qc.invalidateQueries({ queryKey: ["staff"] });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
       opts?.onSuccess?.();
       nav(navigateTo);
     },

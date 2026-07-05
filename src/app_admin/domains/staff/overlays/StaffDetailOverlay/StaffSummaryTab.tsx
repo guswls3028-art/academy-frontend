@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
 import { LockBadge } from "../../components/StatusBadge";
+import { staffQueryKeys } from "../../queryKeys";
 
 export default function StaffSummaryTab({ staffId }: { staffId: number }) {
   const now = new Date();
@@ -14,12 +15,12 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
   const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
 
   const summaryQ = useQuery({
-    queryKey: ["staff-summary", staffId, from, to],
+    queryKey: staffQueryKeys.summaryRange(staffId, from, to),
     queryFn: () => fetchStaffSummaryByRange(staffId, from, to),
   });
 
   const locksQ = useQuery({
-    queryKey: ["work-month-locks", staffId, y, m],
+    queryKey: staffQueryKeys.workMonthLocksForMonth(staffId, y, m),
     queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
   });
 

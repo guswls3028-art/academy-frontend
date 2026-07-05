@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
+import { staffQueryKeys } from "../../queryKeys";
 import styles from "./StaffReportTab.module.css";
 
 function todayISO() {
@@ -29,7 +30,7 @@ export default function StaffReportTab() {
   const monthLabel = useMemo(() => `${range.from} ~ ${range.to}`, [range.from, range.to]);
 
   const summaryQ = useQuery({
-    queryKey: ["staff-report-summary", sid, range.from, range.to],
+    queryKey: staffQueryKeys.reportSummary(sid, range.from, range.to),
     queryFn: () => fetchStaffSummaryByRange(sid, range.from, range.to),
     enabled: !!sid,
   });

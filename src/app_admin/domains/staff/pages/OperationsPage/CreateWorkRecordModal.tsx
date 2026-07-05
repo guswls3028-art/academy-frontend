@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
 import { fetchStaffWorkTypes } from "../../api/staffWorkType.api";
+import { staffQueryKeys } from "../../queryKeys";
 
 import {
   AdminModal,
@@ -30,7 +31,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
   });
 
   const workTypesQ = useQuery({
-    queryKey: ["staff-work-types", staffId],
+    queryKey: staffQueryKeys.staffWorkTypes(staffId),
     queryFn: () => fetchStaffWorkTypes(staffId),
     enabled: open,
   });

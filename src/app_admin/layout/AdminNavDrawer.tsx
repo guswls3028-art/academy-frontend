@@ -9,6 +9,7 @@ import { Smartphone } from "lucide-react";
 import { useAdminLayout } from "./useAdminLayout";
 import { ADMIN_NAV_GROUPS, NavIcon } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
+import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
 import { useProgram } from "@/shared/program";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import useAuth from "@/auth/hooks/useAuth";
@@ -20,7 +21,7 @@ export default function AdminNavDrawer() {
   const navigate = useNavigate();
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
-  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const { program } = useProgram();
   const { user } = useAuth();
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;

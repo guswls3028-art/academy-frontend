@@ -9,6 +9,7 @@ import {
   type PayrollSnapshot,
 } from "../../api/payrollSnapshots.api";
 import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
+import { staffQueryKeys } from "../../queryKeys";
 import { Button } from "@/shared/ui/ds";
 
 const TAX_RATE = 0.033;
@@ -31,7 +32,7 @@ export default function PayrollSnapshotPage() {
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const listQ = useQuery({
-    queryKey: ["payroll-snapshots", year, month, staffId],
+    queryKey: staffQueryKeys.payrollSnapshotMonth(year, month, staffId),
     queryFn: () => fetchPayrollSnapshots({ year, month, staff: staffId ?? undefined }),
     enabled: staffId != null,
   });

@@ -14,6 +14,7 @@ import { fetchStaffMe } from "../../api/staffMe.api";
 import { deleteStaff } from "../../api/staff.api";
 import { exportPayrollSnapshotExcel } from "../../api/payrollSnapshots.api";
 import { downloadStaffExcel } from "../../excel/staffExcel";
+import { staffQueryKeys } from "../../queryKeys";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -31,7 +32,7 @@ export default function HomePage() {
   const rawStaffs = staffData?.staffs;
   const staffs = useMemo(() => rawStaffs ?? [], [rawStaffs]);
   const meQ = useQuery({
-    queryKey: ["staff-me"],
+    queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
   /** 원장 행: 목록 API owner 우선, 없으면 /staffs/me 의 owner_display_name·owner_phone */
@@ -188,8 +189,8 @@ export default function HomePage() {
           const failCount = failNames.length;
 
           if (successCount > 0) {
-            qc.invalidateQueries({ queryKey: ["staffs"] });
-            qc.invalidateQueries({ queryKey: ["staff"] });
+            qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+            qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
             const deletedSet = new Set(successIds);
             setSelectedIds(selectedIds.filter((sid) => sid <= 0 || !deletedSet.has(sid)));
           }

@@ -9,6 +9,7 @@ import {
 } from "../../api/payrollSnapshots.api";
 import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import ActionButton from "../../components/ActionButton";
+import { staffQueryKeys } from "../../queryKeys";
 
 function ymLabel(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
@@ -20,7 +21,7 @@ export default function PayrollHistoryTable({ staffId: staffIdProp }: { staffId?
   const sid = staffIdProp ?? (paramId ? Number(paramId) : undefined);
 
   const listQ = useQuery({
-    queryKey: ["payroll-history", sid],
+    queryKey: staffQueryKeys.payrollHistory(sid),
     queryFn: () => fetchPayrollSnapshots({ staff: sid }),
     enabled: typeof sid === "number" && sid > 0,
   });
