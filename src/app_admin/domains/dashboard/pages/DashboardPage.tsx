@@ -24,6 +24,7 @@ import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo
 import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmissions";
 import { Button } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
+import { adminDashboardQueryKeys } from "../queryKeys";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import DashboardWidget from "../components/DashboardWidget";
 import styles from "./DashboardPage.module.css";
@@ -36,22 +37,22 @@ export default function DashboardPage() {
 
   const { data: messagingInfo } = useMessagingInfo();
   const { data: questions = [], isLoading: qLoading, isError: qError } = useQuery({
-    queryKey: ["dashboard-pending-questions"],
+    queryKey: adminDashboardQueryKeys.pendingQuestions,
     queryFn: () => fetchCommunityQuestions(null),
     staleTime: 60 * 1000,
   });
   const { data: lectures = [], isLoading: lLoading, isError: lError } = useQuery({
-    queryKey: ["dashboard-lectures"],
+    queryKey: adminDashboardQueryKeys.lectures,
     queryFn: () => fetchLectures({ is_active: true }),
     staleTime: 60 * 1000,
   });
   const { data: exams = [], isLoading: eLoading, isError: eError } = useQuery({
-    queryKey: ["dashboard-exams"],
+    queryKey: adminDashboardQueryKeys.exams,
     queryFn: () => fetchExams(),
     staleTime: 60 * 1000,
   });
   const { data: recentSubs = [], isLoading: sLoading, isError: sError } = useQuery({
-    queryKey: ["dashboard-recent-submissions"],
+    queryKey: adminDashboardQueryKeys.recentSubmissions,
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
