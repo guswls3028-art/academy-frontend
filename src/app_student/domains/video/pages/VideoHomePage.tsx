@@ -10,6 +10,7 @@ import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { fetchVideoMe } from "../api/video.api";
 import VideoHomeTab from "../components/VideoHomeTab";
 import VideoStatsTab from "../components/VideoStatsTab";
+import { studentVideoQueryKeys } from "../queryKeys";
 
 const TABS = [
   { key: "home", label: "강의" },
@@ -25,7 +26,7 @@ export default function VideoHomePage() {
   }, []);
 
   const { data: videoMe, isLoading } = useQuery({
-    queryKey: ["student-video-me"],
+    queryKey: studentVideoQueryKeys.me,
     queryFn: fetchVideoMe,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,

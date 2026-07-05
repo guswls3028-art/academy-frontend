@@ -24,6 +24,7 @@ import {
   studentVideoProgressPercent,
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
+import { studentVideoQueryKeys } from "../queryKeys";
 
 /* ─── localStorage 기반 이어보기 ─── */
 function getStoredPosition(videoId: number | null): number {
@@ -118,7 +119,7 @@ export default function VideoPlayerPage() {
 
   /* ─── Playback 데이터 (React Query) ─── */
   const playbackQuery = useQuery({
-    queryKey: ["student-video-playback", videoId, enrollmentId],
+    queryKey: studentVideoQueryKeys.playback(videoId, enrollmentId),
     queryFn: () => fetchStudentVideoPlayback(videoId!, enrollmentId ?? undefined),
     enabled: !!videoId,
     staleTime: 60_000,
@@ -213,7 +214,7 @@ export default function VideoPlayerPage() {
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
-    queryKey: ["student-session-videos", sessionId, effectiveEnrollmentId ?? null],
+    queryKey: studentVideoQueryKeys.sessionVideos(sessionId, effectiveEnrollmentId ?? null),
     queryFn: () => fetchStudentSessionVideos(sessionId!, effectiveEnrollmentId ?? undefined),
     enabled: !!sessionId && !!videoId,
     staleTime: 60_000,
@@ -236,7 +237,7 @@ export default function VideoPlayerPage() {
     },
     onSuccess: () => {
       if (sessionId == null) return;
-      const key = ["student-session-videos", sessionId, effectiveEnrollmentId ?? null] as const;
+      const key = studentVideoQueryKeys.sessionVideos(sessionId, effectiveEnrollmentId ?? null);
       setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });

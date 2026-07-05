@@ -19,6 +19,7 @@ import {
   studentVideoProgressPercent,
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
+import { studentVideoQueryKeys } from "../queryKeys";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -208,7 +209,7 @@ export default function SessionDetailPage() {
   }, [currentVideoStorageKey]);
 
   const { data: videosData, isLoading, isError, error: queryError } = useQuery({
-    queryKey: ["student-session-videos", sessionIdNum, enrollmentId],
+    queryKey: studentVideoQueryKeys.sessionVideos(sessionIdNum, enrollmentId),
     queryFn: () => fetchStudentSessionVideos(sessionIdNum!, enrollmentId),
     enabled: !!sessionIdNum,
     retry: false,
@@ -335,7 +336,7 @@ export default function SessionDetailPage() {
                   isCurrent={isCurrent}
                   onPrefetch={(vid) => {
                     qc.prefetchQuery({
-                      queryKey: ["student-video-playback", vid, enrollmentId],
+                      queryKey: studentVideoQueryKeys.playback(vid, enrollmentId),
                       queryFn: () => fetchStudentVideoPlayback(vid, enrollmentId ?? undefined),
                       staleTime: 60_000,
                     });

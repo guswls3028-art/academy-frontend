@@ -19,6 +19,7 @@ import {
   isStudentVideoBlocked,
   isStudentVideoComplete,
 } from "../utils/videoAccess";
+import { studentVideoQueryKeys } from "../queryKeys";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -171,7 +172,7 @@ export default function CourseDetailPage() {
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
   const { data: videoMe, isLoading, refetch } = useQuery({
-    queryKey: ["student-video-me"],
+    queryKey: studentVideoQueryKeys.me,
     queryFn: fetchVideoMe,
   });
 
@@ -196,7 +197,7 @@ export default function CourseDetailPage() {
   // 모든 세션의 영상을 한꺼번에 fetch (N+1 → 부모에서 일괄 관리)
   const sessionVideoQueries = useQueries({
     queries: sessionsForQuery.map((s) => ({
-      queryKey: ["student-session-videos", s.id, enrollmentIdForQuery],
+      queryKey: studentVideoQueryKeys.sessionVideos(s.id, enrollmentIdForQuery),
       queryFn: () => fetchStudentSessionVideos(s.id, enrollmentIdForQuery ?? undefined),
       enabled: !isLoading && !!s.id && s.id > 0,
       staleTime: 30_000,

@@ -16,6 +16,7 @@ import {
   type VideoCommentItem,
 } from "../api/video.api";
 import { timeAgo } from "../utils/timeAgo";
+import { studentVideoQueryKeys } from "../queryKeys";
 import styles from "./VideoCommentSection.module.css";
 
 type CommentAvatarProps = {
@@ -69,7 +70,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
   const { mutate: saveComment, isPending: isSaving } = useMutation({
     mutationFn: (content: string) => editVideoComment(comment.id, content),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
       setEditMode(false);
       studentToast.success("수정되었습니다.");
     },
@@ -81,7 +82,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
   const { mutate: removeComment, isPending: isDeleting } = useMutation({
     mutationFn: () => deleteVideoComment(comment.id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
       studentToast.success("삭제되었습니다.");
     },
     onError: () => {
@@ -229,7 +230,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const [replyTo, setReplyTo] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["video-comments", videoId],
+    queryKey: studentVideoQueryKeys.comments(videoId),
     queryFn: () => fetchVideoComments(videoId),
     enabled: videoId > 0,
   });
@@ -237,7 +238,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const { mutate: createComment, isPending: isCreating } = useMutation({
     mutationFn: ({ content, parentId }: CreateCommentInput) => createVideoComment(videoId, content, parentId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["video-comments", videoId] });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
       setNewComment("");
       setReplyTo(null);
     },
