@@ -18,6 +18,7 @@ import {
   type PatchNote,
   type NoteCategory,
 } from "@/shared/product/patchNotesData";
+import { teacherDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPages.module.css";
 
 const CATEGORY_LABEL: Record<NoteCategory, string> = {
@@ -196,7 +197,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
       previewUrlsRef.current = [];
       setImages([]);
       setPreviews([]);
-      qc.invalidateQueries({ queryKey: ["dev-posts"] });
+      qc.invalidateQueries({ queryKey: teacherDeveloperQueryKeys.posts });
     },
     onError: (e: Error) => teacherToast.error(e.message),
   });
