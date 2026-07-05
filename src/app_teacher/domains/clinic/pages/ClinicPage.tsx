@@ -1,7 +1,7 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
 // 클리닉 — 오늘의 세션 + 참가자 관리
-// R-11: 기존 인라인 style/any baseline. 이 파일 마이그레이션은 별도 백로그.
+// R-11: 기존 인라인 style baseline. 이 파일 UI 토큰 마이그레이션은 별도 백로그.
 //
 // sectionMode 가드 제거(2026-05-02): PC 어드민 ClinicHomePage는 sectionMode 무관하게
 // 동작하는데 모바일만 sectionMode=true 학원으로 가렸음. 림글리쉬(sectionMode=false)
@@ -18,6 +18,7 @@ import {
   completeParticipant,
   createClinicSession,
   deleteClinicSession,
+  type TeacherClinicSession,
 } from "../api";
 import AddParticipantSheet from "../components/AddParticipantSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -111,7 +112,7 @@ export default function ClinicPage() {
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : sessions && sessions.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {sessions.map((s: any) => (
+          {sessions.map((s) => (
             <SessionCard
               key={s.id}
               session={s}
@@ -140,7 +141,7 @@ function SessionCard({
   onToggle,
   onDelete,
 }: {
-  session: any;
+  session: TeacherClinicSession;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -221,8 +222,8 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   });
 
   const alreadyStudentIds = (participants ?? [])
-    .map((p: any) => p.student)
-    .filter((id: any): id is number => typeof id === "number");
+    .map((p) => p.student)
+    .filter((id): id is number => typeof id === "number");
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -232,7 +233,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       if (variables.status === "attended" && participants) {
         const attendedCount =
-          participants.filter((p: any) => p.status === "attended").length +
+          participants.filter((p) => p.status === "attended").length +
           (variables.status === "attended" ? 1 : 0);
         teacherToast.success(`출석 처리 완료 (현재 참석자 ${attendedCount}명)`);
       }
@@ -270,7 +271,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
         <div className="text-sm py-2" style={{ color: "var(--tc-text-muted)" }}>참가자가 없습니다</div>
       ) : (
       <div className="flex flex-col gap-1">
-        {participants.map((p: any) => {
+        {participants.map((p) => {
           const name = p.student_name ?? p.enrollment_name ?? "이름 없음";
           const st = p.status ?? "booked";
           return (

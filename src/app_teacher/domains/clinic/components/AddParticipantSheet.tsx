@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/clinic/components/AddParticipantSheet.tsx
 // 클리닉 세션 참가자 추가 — 학생 검색 + 다중 선택 + 일괄 등록
 // PC ClinicCreatePanel + ClinicTargetSelectModal 의 모바일 단순화 버전 (student 모드만).
@@ -31,7 +31,7 @@ export default function AddParticipantSheet({ open, onClose, sessionId, alreadyP
   });
 
   const students = (data?.data ?? []).filter(
-    (s: any) => !alreadyParticipantStudentIds.includes(s.id),
+    (s) => !alreadyParticipantStudentIds.includes(s.id),
   );
 
   const mutation = useMutation({
@@ -85,7 +85,7 @@ export default function AddParticipantSheet({ open, onClose, sessionId, alreadyP
               {search ? "검색 결과 없음" : "추가 가능한 학생이 없습니다"}
             </div>
           ) : (
-            students.map((s: any) => {
+            students.map((s) => {
               const checked = selected.includes(s.id);
               return (
                 <button key={s.id} onClick={() => toggle(s.id)}
