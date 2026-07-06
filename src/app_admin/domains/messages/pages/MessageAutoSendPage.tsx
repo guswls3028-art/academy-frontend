@@ -370,7 +370,7 @@ export default function MessageAutoSendPage() {
   const globalSummary = getAutoSendSummary(localConfigs);
   const globalEnabled = isAllToggleableEnabled(globalSummary);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
+  const pendingConfigsRef = useRef<Partial<AutoSendConfigItem>[]>([]);
   const hasPendingDebouncedSaveRef = useRef(false);
   const autoProvisionedRef = useRef(false);
   useEffect(() => {
@@ -439,7 +439,7 @@ export default function MessageAutoSendPage() {
           c.trigger === creatingForTrigger ? { ...c, template: created.id } : c,
         );
         setLocalConfigs(next);
-        updateMut.mutate(next);
+        updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
       feedback.success("템플릿이 생성되었습니다.");
@@ -467,23 +467,38 @@ export default function MessageAutoSendPage() {
     },
   });
 
+  const queuePatch = (patch: Partial<AutoSendConfigItem>) => {
+    if (!patch.trigger) return;
+    const existing = pendingConfigsRef.current.find((c) => c.trigger === patch.trigger);
+    pendingConfigsRef.current = [
+      ...pendingConfigsRef.current.filter((c) => c.trigger !== patch.trigger),
+      { ...existing, ...patch },
+    ];
+  };
+
+  const takeQueuedPatches = () => {
+    const patches = pendingConfigsRef.current;
+    pendingConfigsRef.current = [];
+    return patches;
+  };
+
   const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
     const next = localConfigs.map((c) =>
       c.trigger === updated.trigger ? { ...c, ...updated } : c
     );
     setLocalConfigs(next);
-    pendingConfigsRef.current = next;
+    queuePatch(updated);
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       hasPendingDebouncedSaveRef.current = true;
       debounceRef.current = setTimeout(() => {
         hasPendingDebouncedSaveRef.current = false;
-        updateMut.mutate(pendingConfigsRef.current);
+        updateMut.mutate(takeQueuedPatches());
       }, 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       hasPendingDebouncedSaveRef.current = false;
-      updateMut.mutate(next);
+      updateMut.mutate(takeQueuedPatches());
     }
   };
 
@@ -537,8 +552,11 @@ export default function MessageAutoSendPage() {
                 const next = localConfigs.map((c) => (
                   canBulkToggleAutoSendConfig(c) ? { ...c, enabled: checked } : c
                 ));
+                const patches = next
+                  .filter((c, index) => c.enabled !== localConfigs[index]?.enabled)
+                  .map((c) => ({ trigger: c.trigger, enabled: c.enabled }));
                 setLocalConfigs(next);
-                updateMut.mutate(next);
+                if (patches.length > 0) updateMut.mutate(patches);
               }}
               disabled={updateMut.isPending || globalSummary.toggleable === 0}
               size="small"

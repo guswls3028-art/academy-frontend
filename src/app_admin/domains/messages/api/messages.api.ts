@@ -608,10 +608,10 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
   const payload = configs.map((c) => {
     const item: Record<string, unknown> = {
       trigger: c.trigger,
-      template_id: c.template,
-      enabled: c.enabled,
-      message_mode: c.message_mode,
     };
+    if ("template" in c) item.template_id = c.template;
+    if ("enabled" in c) item.enabled = c.enabled;
+    if ("message_mode" in c) item.message_mode = c.message_mode;
     if ("minutes_before" in c) item.minutes_before = c.minutes_before ?? null;
     if ("delay_mode" in c) item.delay_mode = c.delay_mode ?? undefined;
     if ("delay_value" in c) item.delay_value = c.delay_value ?? null;

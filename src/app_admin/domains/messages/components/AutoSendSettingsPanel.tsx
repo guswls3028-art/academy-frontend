@@ -447,7 +447,7 @@ export default function AutoSendSettingsPanel({
   // ---- Local state (optimistic updates) ----
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingConfigsRef = useRef<AutoSendConfigItem[]>([]);
+  const pendingConfigsRef = useRef<Partial<AutoSendConfigItem>[]>([]);
   const hasPendingDebouncedSaveRef = useRef(false);
 
   useEffect(() => {
@@ -544,7 +544,7 @@ export default function AutoSendSettingsPanel({
             : c,
         );
         setLocalConfigs(next);
-        updateMut.mutate(next);
+        updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
       feedback.success("템플릿이 생성되었습니다.");
@@ -555,6 +555,21 @@ export default function AutoSendSettingsPanel({
   });
 
   // ---- Handlers ----
+  const queuePatch = (patch: Partial<AutoSendConfigItem>) => {
+    if (!patch.trigger) return;
+    const existing = pendingConfigsRef.current.find((c) => c.trigger === patch.trigger);
+    pendingConfigsRef.current = [
+      ...pendingConfigsRef.current.filter((c) => c.trigger !== patch.trigger),
+      { ...existing, ...patch },
+    ];
+  };
+
+  const takeQueuedPatches = () => {
+    const patches = pendingConfigsRef.current;
+    pendingConfigsRef.current = [];
+    return patches;
+  };
+
   const handleUpdate = (
     updated: Partial<AutoSendConfigItem>,
     debounce = false,
@@ -563,18 +578,18 @@ export default function AutoSendSettingsPanel({
       c.trigger === updated.trigger ? { ...c, ...updated } : c,
     );
     setLocalConfigs(next);
-    pendingConfigsRef.current = next;
+    queuePatch(updated);
     if (debounce) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       hasPendingDebouncedSaveRef.current = true;
       debounceRef.current = setTimeout(() => {
         hasPendingDebouncedSaveRef.current = false;
-        updateMut.mutate(pendingConfigsRef.current);
+        updateMut.mutate(takeQueuedPatches());
       }, 600);
     } else {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       hasPendingDebouncedSaveRef.current = false;
-      updateMut.mutate(next);
+      updateMut.mutate(takeQueuedPatches());
     }
   };
 
@@ -595,8 +610,16 @@ export default function AutoSendSettingsPanel({
       );
       return { ...c, message_mode, enabled };
     });
+    const patches = next.flatMap((c, index) => {
+      const prev = localConfigs[index];
+      if (!prev || !triggerKeys.includes(c.trigger)) return [];
+      const patch: Partial<AutoSendConfigItem> = { trigger: c.trigger };
+      if (c.enabled !== prev.enabled) patch.enabled = c.enabled;
+      if (c.message_mode !== prev.message_mode) patch.message_mode = c.message_mode;
+      return Object.keys(patch).length > 1 ? [patch] : [];
+    });
     setLocalConfigs(next);
-    updateMut.mutate(next);
+    if (patches.length > 0) updateMut.mutate(patches);
   };
 
   const handleEditTemplate = (trigger: string, templateId: number | null) => {
