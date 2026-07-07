@@ -14,6 +14,7 @@ import styles from "./TeacherRouter.module.css";
 
 /* === Domain pages (lazy) === */
 const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
+const TeacherGuidePage = lazy(() => import("@teacher/domains/guide/pages/TeacherGuidePage"));
 const LectureListPage = lazy(() => import("@teacher/domains/lectures/pages/LectureListPage"));
 const LectureDetailPage = lazy(() => import("@teacher/domains/lectures/pages/LectureDetailPage"));
 const SessionDetailPage = lazy(() => import("@teacher/domains/lectures/pages/SessionDetailPage"));
@@ -98,6 +99,7 @@ export default function TeacherRouter() {
       <Routes>
         <Route element={<TeacherLayout />}>
           <Route index element={<TodayPage />} />
+          <Route path="guide" element={<TeacherGuidePage />} />
 
           {/* 수업 */}
           <Route path="classes" element={<LectureListPage />} />

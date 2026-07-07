@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   submitRegistrationRequest,
   sendExistingCredentials,
@@ -47,6 +47,31 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [phoneCheck, setPhoneCheck] = useState<{ available: boolean; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const genderRef = useRef<HTMLDivElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLDivElement>(null);
+  const parentPhoneRef = useRef<HTMLDivElement>(null);
+  const elementarySchoolRef = useRef<HTMLInputElement>(null);
+  const middleSchoolRef = useRef<HTMLInputElement>(null);
+  const highSchoolRef = useRef<HTMLInputElement>(null);
+  const gradeRef = useRef<HTMLSelectElement>(null);
+  const originMiddleSchoolRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+
+  function focusInvalid(message: string, targetRef: { current: HTMLElement | null }) {
+    setError(message);
+    window.requestAnimationFrame(() => {
+      const target = targetRef.current;
+      if (!target) return;
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      const focusTarget = target.matches("input, select, button, textarea")
+        ? target
+        : target.querySelector<HTMLElement>("input, select, button, textarea");
+      focusTarget?.focus({ preventScroll: true });
+    });
+  }
 
   const handleClose = useCallback(() => {
     if (!pending) {
@@ -114,36 +139,36 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     if (pending) return;
     setError("");
 
-    if (!form.name.trim()) { setError("이름을 입력해 주세요."); return; }
-    if (!form.username.trim()) { setError("아이디를 입력해 주세요."); return; }
+    if (!form.name.trim()) { focusInvalid("이름을 입력해 주세요.", nameRef); return; }
+    if (!form.username.trim()) { focusInvalid("아이디를 입력해 주세요.", usernameRef); return; }
     if (!form.initialPassword.trim() || form.initialPassword.length < 4) {
-      setError("초기 비밀번호를 4자 이상 입력해 주세요."); return;
+      focusInvalid("초기 비밀번호를 4자 이상 입력해 주세요.", passwordRef); return;
     }
     const parentPhone = form.parentPhone.replace(/\D/g, "");
     if (parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
-      setError("학부모 전화번호를 010 뒤 8자리로 입력해 주세요."); return;
+      focusInvalid("학부모 전화번호를 010 뒤 8자리로 입력해 주세요.", parentPhoneRef); return;
     }
     const phone = form.phone.replace(/\D/g, "");
     if (phone.length !== 11 || !phone.startsWith("010")) {
-      setError("휴대전화를 010 뒤 8자리로 입력해 주세요."); return;
+      focusInvalid("휴대전화를 010 뒤 8자리로 입력해 주세요.", phoneRef); return;
     }
-    if (!form.gender.trim()) { setError("성별을 선택해 주세요."); return; }
+    if (!form.gender.trim()) { focusInvalid("성별을 선택해 주세요.", genderRef); return; }
     if (form.schoolType === "HIGH") {
-      if (!form.highSchool.trim()) { setError("고등학교명을 입력해 주세요."); return; }
+      if (!form.highSchool.trim()) { focusInvalid("고등학교명을 입력해 주세요.", highSchoolRef); return; }
       if (slm.showOriginMiddleSchool("HIGH") && !form.originMiddleSchool.trim()) {
-        setError("출신중학교를 입력해 주세요."); return;
+        focusInvalid("출신중학교를 입력해 주세요.", originMiddleSchoolRef); return;
       }
     } else if (form.schoolType === "MIDDLE") {
-      if (!form.middleSchool.trim()) { setError("중학교명을 입력해 주세요."); return; }
+      if (!form.middleSchool.trim()) { focusInvalid("중학교명을 입력해 주세요.", middleSchoolRef); return; }
     } else if (form.schoolType === "ELEMENTARY") {
-      if (!form.elementarySchool.trim()) { setError("초등학교명을 입력해 주세요."); return; }
+      if (!form.elementarySchool.trim()) { focusInvalid("초등학교명을 입력해 주세요.", elementarySchoolRef); return; }
     }
     const allowedGrades = slm.gradeRange(form.schoolType);
     const gradeNum = form.grade.trim() ? Number(form.grade) : NaN;
     if (!form.grade.trim() || isNaN(gradeNum) || !allowedGrades.includes(gradeNum)) {
-      setError(`학년을 입력해 주세요. (1~${allowedGrades[allowedGrades.length - 1]})`); return;
+      focusInvalid(`학년을 입력해 주세요. (1~${allowedGrades[allowedGrades.length - 1]})`, gradeRef); return;
     }
-    if (!form.address.trim()) { setError("주소를 입력해 주세요."); return; }
+    if (!form.address.trim()) { focusInvalid("주소를 입력해 주세요.", addressRef); return; }
 
     setPending(true);
     try {
@@ -314,6 +339,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </label>
                   <input
                     id="signup-name"
+                    ref={nameRef}
                     className={styles.signupInput}
                     placeholder="홍길동"
                     value={form.name}
@@ -323,7 +349,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 </div>
                 <div className={styles.signupInputRow}>
                   <span className={styles.signupInputLabel}>성별 <span className={styles.signupRequired}>*</span></span>
-                  <div className={styles.signupSegmentWrap} role="group" aria-label="성별">
+                  <div ref={genderRef} className={styles.signupSegmentWrap} role="group" aria-label="성별">
                     {[
                       { key: "M", label: "남" },
                       { key: "F", label: "여" },
@@ -347,6 +373,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 </label>
                 <input
                   id="signup-username"
+                  ref={usernameRef}
                   className={styles.signupInput}
                   placeholder="영문·숫자 조합"
                   value={form.username}
@@ -367,6 +394,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 </label>
                 <input
                   id="signup-pw"
+                  ref={passwordRef}
                   className={styles.signupInput}
                   type="password"
                   placeholder="4자리 이상"
@@ -381,7 +409,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             {/* 연락처 */}
             <section className={styles.signupSection} aria-labelledby="signup-contact">
               <h3 id="signup-contact" className={styles.signupSectionTitle}>연락처</h3>
-              <div className={styles.signupPhoneRow} onBlur={(e) => {
+              <div ref={phoneRef} className={styles.signupPhoneRow} onBlur={(e) => {
                 // 포커스가 이 row 밖으로 나갈 때만 검사
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) handleCheckPhone();
               }}>
@@ -400,7 +428,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   </span>
                 )}
               </div>
-              <div className={styles.signupPhoneRow}>
+              <div ref={parentPhoneRef} className={styles.signupPhoneRow}>
                 <span className={styles.signupInputLabel}>학부모 연락처 <span className={styles.signupRequired}>*</span></span>
                 <PhoneInput010Blocks
                   value={form.parentPhone}
@@ -433,12 +461,13 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 <div className={styles.signupGrid2}>
                   <div className={styles.signupGrid2Full}>
                     <label htmlFor="signup-elementary" className={styles.signupInputLabel}>초등학교명 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-elementary" className={styles.signupInput} placeholder="학교명 입력" value={form.elementarySchool} onChange={(e) => setForm((f) => ({ ...f, elementarySchool: e.target.value }))} />
+                    <input id="signup-elementary" ref={elementarySchoolRef} className={styles.signupInput} placeholder="학교명 입력" value={form.elementarySchool} onChange={(e) => setForm((f) => ({ ...f, elementarySchool: e.target.value }))} />
                   </div>
                   <div>
                     <label htmlFor="signup-grade-elem" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
                       id="signup-grade-elem"
+                      ref={gradeRef}
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
@@ -459,12 +488,13 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 <div className={styles.signupGrid2}>
                   <div className={styles.signupGrid2Full}>
                     <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-middle" className={styles.signupInput} placeholder="학교명 입력" value={form.middleSchool} onChange={(e) => setForm((f) => ({ ...f, middleSchool: e.target.value }))} />
+                    <input id="signup-middle" ref={middleSchoolRef} className={styles.signupInput} placeholder="학교명 입력" value={form.middleSchool} onChange={(e) => setForm((f) => ({ ...f, middleSchool: e.target.value }))} />
                   </div>
                   <div>
                     <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
                       id="signup-grade-middle"
+                      ref={gradeRef}
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
@@ -485,12 +515,13 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 <div className={styles.signupGrid2}>
                   <div className={styles.signupGrid2Full}>
                     <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명 <span className={styles.signupRequired}>*</span></label>
-                    <input id="signup-high" className={styles.signupInput} placeholder="학교명 입력" value={form.highSchool} onChange={(e) => setForm((f) => ({ ...f, highSchool: e.target.value }))} />
+                    <input id="signup-high" ref={highSchoolRef} className={styles.signupInput} placeholder="학교명 입력" value={form.highSchool} onChange={(e) => setForm((f) => ({ ...f, highSchool: e.target.value }))} />
                   </div>
                   <div>
                     <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                     <select
                       id="signup-grade"
+                      ref={gradeRef}
                       className={styles.signupInput}
                       value={form.grade}
                       onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}
@@ -521,12 +552,12 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               {slm.showOriginMiddleSchool(form.schoolType) && (
                 <div className={styles.signupInputRow}>
                   <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교 <span className={styles.signupRequired}>*</span></label>
-                  <input id="signup-origin" className={styles.signupInput} placeholder="선택" value={form.originMiddleSchool} onChange={(e) => setForm((f) => ({ ...f, originMiddleSchool: e.target.value }))} />
+                  <input id="signup-origin" ref={originMiddleSchoolRef} className={styles.signupInput} placeholder="선택" value={form.originMiddleSchool} onChange={(e) => setForm((f) => ({ ...f, originMiddleSchool: e.target.value }))} />
                 </div>
               )}
               <div className={styles.signupInputRow}>
                 <label htmlFor="signup-address" className={styles.signupInputLabel}>주소 <span className={styles.signupRequired}>*</span></label>
-                <input id="signup-address" className={styles.signupInput} placeholder="선택" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+                <input id="signup-address" ref={addressRef} className={styles.signupInput} placeholder="선택" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
             </section>
 

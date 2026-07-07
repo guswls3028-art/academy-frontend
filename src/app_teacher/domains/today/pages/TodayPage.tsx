@@ -9,7 +9,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { ChevronRight, Clock, MessageSquare, Send } from "@teacher/shared/ui/Icons";
+import { ChevronRight, Clock, Info, MessageSquare, Monitor, Send } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
@@ -68,6 +68,7 @@ export default function TodayPage() {
   const greetingName = userName ? `${userName} ${honorific}` : honorific;
   const pendingTotal = pendingCounts?.total ?? 0;
   const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
+  const showStartGuide = sessionCount === 0 && pendingTotal === 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -96,6 +97,13 @@ export default function TodayPage() {
           안녕하세요, {greetingName}
         </h1>
       </div>
+
+      {showStartGuide && (
+        <StartGuideCard
+          onGuide={() => navigate("/teacher/guide")}
+          onDesktopGuide={() => navigate("/teacher/desktop-only")}
+        />
+      )}
 
       {/* === KPI Grid === */}
       {/* "처리할 일" KPI는 아래 인박스와 중복이라 제거. KPI 2x1로 축소 — 오늘 흐름(수업/출결)만 유지. */}
@@ -295,6 +303,93 @@ export default function TodayPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function StartGuideCard({
+  onGuide,
+  onDesktopGuide,
+}: {
+  onGuide: () => void;
+  onDesktopGuide: () => void;
+}) {
+  return (
+    <Card
+      style={{
+        borderColor: "color-mix(in srgb, var(--tc-primary) 24%, var(--tc-border))",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--tc-primary) 7%, transparent), var(--tc-surface))",
+      }}
+    >
+      <div style={{ display: "flex", gap: "var(--tc-space-3)", alignItems: "flex-start" }}>
+        <span
+          aria-hidden
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "var(--tc-radius)",
+            background: "var(--tc-primary-bg)",
+            color: "var(--tc-primary)",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Info size={ICON.md} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div className="text-[14px] font-bold" style={{ color: "var(--tc-text)" }}>
+            처음 사용한다면 이 순서로 시작하세요
+          </div>
+          <div className="text-[12px] font-semibold" style={{ color: "var(--tc-text-muted)", marginTop: 3, lineHeight: 1.55 }}>
+            모바일에서는 오늘 수업과 학생 연락을 먼저 보고, 복잡한 설정은 PC 기능 안내에서 확인하세요.
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={onGuide}
+              className="cursor-pointer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                minHeight: 34,
+                padding: "7px 12px",
+                border: 0,
+                borderRadius: 999,
+                background: "var(--tc-primary)",
+                color: "var(--tc-primary-contrast)",
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              사용 가이드
+              <ChevronRight size={ICON.xs} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onDesktopGuide}
+              className="cursor-pointer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                minHeight: 34,
+                padding: "7px 12px",
+                border: "1px solid var(--tc-border)",
+                borderRadius: 999,
+                background: "var(--tc-surface)",
+                color: "var(--tc-text-secondary)",
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              <Monitor size={ICON.xs} aria-hidden />
+              PC 기능
+            </button>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

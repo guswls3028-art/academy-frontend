@@ -44,6 +44,11 @@ export default function TermsPage() {
   };
 
   const companyLabel = c.company_name || "회사";
+  const companyBodyLabel = c.company_name ? `${c.company_name}(이하 "회사")` : "본 학원";
+  const missingCore = !c.company_name || !c.business_number || !c.support_phone;
+  const supportContact = [c.support_email || FALLBACK_SUPPORT_EMAIL, c.support_phone || FALLBACK_SUPPORT_PHONE]
+    .filter(Boolean)
+    .join(" / ");
 
   return (
     <div className={styles.root}>
@@ -60,10 +65,20 @@ export default function TermsPage() {
           시행일: 2026년 3월 14일 | 버전 1.1
         </p>
 
+        {missingCore && (
+          <div
+            role="note"
+            className={styles.missingCoreNotice}
+          >
+            본 학원은 사업자 정보 일부를 등록하지 않았습니다. 정확한 회사 정보와 고객센터 연락처는
+            학원 관리자에게 문의해 주세요. 아래 표시되는 이메일은 플랫폼 운영사의 임시 안내처입니다.
+          </div>
+        )}
+
         <article className={styles.article}>
           <h2>제1조 (목적)</h2>
           <p>
-            본 약관은 <V value={c.company_name} />(이하 &quot;회사&quot;)가 제공하는
+            본 약관은 {companyBodyLabel}에서 제공하는
             학원 관리 서비스(이하 &quot;서비스&quot;)의 이용 조건 및 절차, 회사와 이용자 간의 권리·의무 및 책임 사항을
             규정함을 목적으로 합니다.
           </p>
@@ -152,11 +167,7 @@ export default function TermsPage() {
             <li>환불은 청약철회일로부터 <strong>3영업일 이내</strong>에 결제 수단과 동일한 방법으로 처리합니다.
               환급이 지연되는 경우 지연 기간에 대하여 연 15%의 지연이자를 가산합니다
               (전자상거래법 제18조).</li>
-            <li>환불 요청은 서비스 내 문의 또는 고객센터(
-              {c.support_email || FALLBACK_SUPPORT_EMAIL}
-              {" / "}
-              {c.support_phone || FALLBACK_SUPPORT_PHONE}
-              )를 통해 접수합니다.</li>
+            <li>환불 요청은 서비스 내 문의 또는 고객센터({supportContact})를 통해 접수합니다.</li>
             <li>다음 각 호에 해당하는 경우 환불이 제한됩니다:
               <ol>
                 <li>이용자의 귀책 사유로 서비스 이용이 제한된 경우</li>
@@ -309,7 +320,9 @@ export default function TermsPage() {
               주소: <V value={c.address} />
               <br />
               고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} />{" "}
-              / <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} />
+              {c.support_phone || FALLBACK_SUPPORT_PHONE ? (
+                <>/ <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} /></>
+              ) : null}
               <br />
               호스팅 서비스 제공자: Cloudflare, Inc. (웹), Amazon Web Services, Inc. (API 서버)
             </p>

@@ -1,0 +1,89 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-3);
+}
+
+.hero {
+  padding: var(--tc-space-2) var(--tc-space-1) var(--tc-space-1);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--tc-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--tc-text);
+  font-size: 22px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.description {
+  margin: 8px 0 0;
+  color: var(--tc-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tc-space-2);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: var(--tc-space-3);
+  align-items: start;
+}
+
+.itemIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary-bg);
+  color: var(--tc-primary);
+}
+
+.itemCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.itemCopy strong {
+  color: var(--tc-text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.itemCopy span {
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.itemAction {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  color: var(--tc-primary);
+  font-size: 12px;
+  font-weight: 800;
+}

@@ -238,7 +238,8 @@ export default function AccountRecoveryModal({ open, initialMode, onClose }: Acc
         ) : (
           <>
             <p id="account-recovery-description" className={styles.resetDescription}>
-              이메일은 사용하지 않습니다. 등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.
+              학생·학부모 계정만 찾을 수 있습니다. 등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.
+              선생님·조교 계정은 학원 대표에게 문의해 주세요.
             </p>
             <div className={`${styles.signupSegmentWrap} ${styles.resetTargetWrap}`} role="group" aria-label="복구 유형 선택">
               <button

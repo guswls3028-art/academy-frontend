@@ -45,6 +45,7 @@ export default function PrivacyPage() {
   };
 
   const companyLabel = c.company_name || "회사";
+  const companyBodyLabel = c.company_name ? `${c.company_name}(이하 "회사")` : "본 학원";
 
   // 핵심 필드 미입력 시 학부모에게 "이 학원은 아직 정보를 등록하지 않았다" 고지.
   // 운영사 fallback이 보이는 동안 학원 책임 경계가 흐려지지 않도록.
@@ -78,7 +79,7 @@ export default function PrivacyPage() {
 
         <article className={styles.article}>
           <p>
-            <V value={c.company_name} />(이하 &quot;회사&quot;)는 개인정보 보호법 등
+            본 방침은 {companyBodyLabel}의 개인정보 처리 기준을 안내하며, 개인정보 보호법 등
             관련 법령에 따라 정보주체의 개인정보를 보호하고, 이와 관련한 고충을 신속하고 원활하게 처리하기 위하여
             다음과 같이 개인정보 처리방침을 수립·공개합니다.
           </p>
@@ -417,7 +418,9 @@ export default function PrivacyPage() {
               주소: <V value={c.address} />
               <br />
               고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} />{" "}
-              / <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} />
+              {c.support_phone || FALLBACK_SUPPORT_PHONE ? (
+                <>/ <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} /></>
+              ) : null}
             </p>
           </div>
         </article>

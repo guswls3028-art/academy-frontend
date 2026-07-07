@@ -43,6 +43,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     title: "메인",
     items: [
       { to: `${ADMIN_NAV_BASE}/dashboard`, label: "대시보드", iconPath: "M3 11l9-7 9 7v9H3z" },
+      { to: `${ADMIN_NAV_BASE}/guide`, label: "가이드", iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" },
       { to: `${ADMIN_NAV_BASE}/students`, label: "학생", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" },
       { to: `${ADMIN_NAV_BASE}/lectures`, label: "강의", iconPath: "M4 4h16v12H4zM8 20h8" },
       { to: `${ADMIN_NAV_BASE}/clinic`, label: "클리닉", iconPath: "M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z" },

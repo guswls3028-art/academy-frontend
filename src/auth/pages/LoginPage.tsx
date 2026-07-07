@@ -153,16 +153,31 @@ export default function LoginPage() {
           <h1 className={styles.title}>{title}</h1>
         </div>
         <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-          <label htmlFor="login-username" className={styles.srOnly}>아이디</label>
+          <div id="login-username-help" className={styles.loginGuide} aria-label="처음 이용 안내">
+            <div className={styles.loginGuideRow}>
+              <span className={styles.loginGuideRole}>학생</span>
+              <span className={styles.loginGuideText}>학생 회원가입 신청 후 선생님 승인</span>
+            </div>
+            <div className={styles.loginGuideRow}>
+              <span className={styles.loginGuideRole}>학부모</span>
+              <span className={styles.loginGuideText}>학원에 등록된 휴대폰 번호로 로그인</span>
+            </div>
+            <div className={styles.loginGuideRow}>
+              <span className={styles.loginGuideRole}>대표·선생님</span>
+              <span className={styles.loginGuideText}>학원에서 받은 아이디로 로그인</span>
+            </div>
+          </div>
+          <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
           <input
             id="login-username"
             ref={usernameRef}
             className={styles.input}
-            placeholder="아이디"
+            placeholder="아이디 또는 학부모 휴대폰 번호"
             name="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
+            aria-describedby="login-username-help"
             data-testid="login-username"
           />
           <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
@@ -209,7 +224,7 @@ export default function LoginPage() {
               </>
             )}
             <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
-              회원가입
+              학생 회원가입
             </button>
             <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
               아이디 찾기

@@ -13,7 +13,7 @@ import {
   Home, Users, BookOpen, Activity,
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
-  Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar,
+  Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar, Info,
   RefreshCw, Bug,
 } from "@teacher/shared/ui/Icons";
 import styles from "./TeacherDrawer.module.css";
@@ -53,6 +53,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
         title: "메인",
         items: [
           { label: "대시보드", path: "/teacher", icon: <Home size={ICON.md} /> },
+          { label: "사용 가이드", path: "/teacher/guide", icon: <Info size={ICON.md} /> },
           { label: "학생", path: "/teacher/students", icon: <Users size={ICON.md} /> },
           { label: "강의", path: "/teacher/classes", icon: <BookOpen size={ICON.md} /> },
           { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={ICON.md} /> },
