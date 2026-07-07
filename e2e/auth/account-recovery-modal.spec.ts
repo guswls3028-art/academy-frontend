@@ -77,6 +77,12 @@ async function fillRecoveryForm(page: Page, name = "테스트학생") {
   await dialog.getByLabel("학생 또는 학부모 휴대폰 번호 뒤 4자리").fill("5678");
 }
 
+async function expectRecoveryScopeNotice(dialog: ReturnType<Page["getByRole"]>) {
+  await expect(dialog.getByText("학생·학부모 계정만 찾을 수 있습니다.")).toBeVisible();
+  await expect(dialog.getByText("등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.")).toBeVisible();
+  await expect(dialog.getByText("선생님·조교 계정은 학원 대표에게 문의해 주세요.")).toBeVisible();
+}
+
 test.describe("계정 복구 모달 UI 검증", () => {
   test.beforeEach(async ({ page }) => {
     await stubLoginBootstrap(page);
@@ -93,7 +99,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
   test("아이디 찾기 모달이 열리고 학생/학부모 대상 전환이 동작한다", async ({ page }) => {
     const dialog = await openRecovery(page, "username");
     await expect(dialog.getByRole("heading", { name: "아이디 찾기" })).toBeVisible();
-    await expect(dialog.getByText("이메일은 사용하지 않습니다. 등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.")).toBeVisible();
+    await expectRecoveryScopeNotice(dialog);
 
     const idModeBtn = dialog.getByRole("button", { name: "아이디", exact: true });
     const passwordModeBtn = dialog.getByRole("button", { name: "비밀번호", exact: true });
@@ -231,7 +237,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
     });
 
     const dialog = await openRecovery(page, "password", "limglish");
-    await expect(dialog.getByText("이메일은 사용하지 않습니다. 등록된 정보가 확인되면 카카오 알림톡으로 보내드립니다.")).toBeVisible();
+    await expectRecoveryScopeNotice(dialog);
 
     await fillRecoveryForm(page, "황연재");
     await dialog.getByRole("button", { name: "임시 비밀번호 받기" }).click();

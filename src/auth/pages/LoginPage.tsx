@@ -153,20 +153,14 @@ export default function LoginPage() {
           <h1 className={styles.title}>{title}</h1>
         </div>
         <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-          <div id="login-username-help" className={styles.loginGuide} aria-label="처음 이용 안내">
-            <div className={styles.loginGuideRow}>
-              <span className={styles.loginGuideRole}>학생</span>
-              <span className={styles.loginGuideText}>학생 회원가입 신청 후 선생님 승인</span>
+          <details id="login-username-help" className={styles.loginGuide}>
+            <summary>로그인 안내</summary>
+            <div className={styles.loginGuideBody}>
+              <span><strong>학생</strong> 회원가입 신청 후 선생님 승인</span>
+              <span><strong>학부모</strong> 등록된 휴대폰 번호</span>
+              <span><strong>대표·선생님</strong> 학원에서 받은 아이디</span>
             </div>
-            <div className={styles.loginGuideRow}>
-              <span className={styles.loginGuideRole}>학부모</span>
-              <span className={styles.loginGuideText}>학원에 등록된 휴대폰 번호로 로그인</span>
-            </div>
-            <div className={styles.loginGuideRow}>
-              <span className={styles.loginGuideRole}>대표·선생님</span>
-              <span className={styles.loginGuideText}>학원에서 받은 아이디로 로그인</span>
-            </div>
-          </div>
+          </details>
           <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
           <input
             id="login-username"
