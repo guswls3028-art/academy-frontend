@@ -6,7 +6,13 @@ import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 
 const STORAGE_TABS: DomainTab[] = [
-  { key: "matchup", label: "매치업", path: "/admin/storage/matchup" },
+  {
+    key: "matchup",
+    label: "매치업",
+    badge: "BETA",
+    badgeTitle: "매치업은 현재 베타 기능입니다.",
+    path: "/admin/storage/matchup",
+  },
   {
     key: "files",
     label: "저장소",

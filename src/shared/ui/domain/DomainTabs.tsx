@@ -1,9 +1,13 @@
 // PATH: src/shared/ui/domain/DomainTabs.tsx
 // Students 도메인 UI SSOT — ds-tabs 공통 컴포넌트
 
+import { Badge } from "@/shared/ui/ds";
+
 export type DomainTab = {
   key: string;
   label: string;
+  badge?: string;
+  badgeTitle?: string;
   path?: string;
   locked?: boolean;
   /** true면 path와 완전 일치할 때만 active */
@@ -36,8 +40,19 @@ export default function DomainTabs({
             disabled
             title="준비 중인 기능입니다"
             className={`ds-tab ${LOCKED_TAB_CLASS}`}
+            aria-label={tab.badge ? `${tab.label} ${tab.badge}` : undefined}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.badge != null && (
+              <Badge
+                tone="warning"
+                size="xs"
+                className="domain-tab__badge"
+                title={tab.badgeTitle}
+              >
+                {tab.badge}
+              </Badge>
+            )}
           </button>
         ) : (
           <button
@@ -58,8 +73,19 @@ export default function DomainTabs({
                 : ""
             }`}
             onClick={() => tab.path != null && onNavigate(tab.path)}
+            aria-label={tab.badge ? `${tab.label} ${tab.badge}` : undefined}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.badge != null && (
+              <Badge
+                tone="warning"
+                size="xs"
+                className="domain-tab__badge"
+                title={tab.badgeTitle}
+              >
+                {tab.badge}
+              </Badge>
+            )}
           </button>
         )
       )}
