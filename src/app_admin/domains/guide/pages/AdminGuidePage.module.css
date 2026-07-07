@@ -1,7 +1,259 @@
+.guidePage {
+  display: flex;
+  max-width: 960px;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.heroPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: end;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.kicker,
+.sectionKicker {
+  margin: 0 0 6px;
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.heroCopy h2,
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.heroCopy h2 {
+  font-size: 24px;
+  line-height: 1.28;
+}
+
+.heroCopy p {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.heroGoal {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.heroGoal span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.heroGoal strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeader h2 {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.sectionHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.startList,
+.findingList {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.startRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  gap: 14px;
+  padding: 15px 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.startRow {
+  cursor: pointer;
+}
+
+button.startRow:hover .startAction {
+  color: var(--color-brand-primary);
+}
+
+button.startRow:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 3px;
+}
+
+.startIndex {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.startCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.startCopy strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.startCopy span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.startAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.finding {
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.finding summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.finding summary::-webkit-details-marker {
+  display: none;
+}
+
+.finding summary:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 3px;
+}
+
+.finding summary > svg {
+  color: var(--color-text-muted);
+  transition: transform 180ms ease;
+}
+
+.finding[open] summary > svg {
+  transform: rotate(180deg);
+}
+
+.findingNumber {
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.findingSummary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.findingSummary strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.findingSummary span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.finding p {
+  display: flex;
+  gap: 8px;
+  margin: -2px 0 16px 40px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.finding p svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--color-success, #059669);
+}
+
 .card {
   overflow: hidden;
-  border: 1.5px solid var(--color-border-divider);
-  border-radius: 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
   background: var(--color-bg-surface);
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
@@ -37,7 +289,7 @@
   height: 42px;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
   color: var(--color-brand-primary);
 }
@@ -80,7 +332,7 @@
   flex-shrink: 0;
   gap: 4px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 12px;
 }
 
@@ -177,13 +429,57 @@
   gap: 6px;
   margin-top: 18px;
   padding: 8px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 13px;
 }
 
 .workflowList {
   display: flex;
-  max-width: 720px;
   flex-direction: column;
   gap: 10px;
+}
+
+@media (max-width: 760px) {
+  .guidePage {
+    gap: 24px;
+  }
+
+  .heroPanel {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .heroCopy h2 {
+    font-size: 21px;
+  }
+
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sectionHint {
+    text-align: left;
+  }
+
+  .startRow {
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .startAction {
+    grid-column: 2;
+  }
+
+  .cardHeader {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 15px;
+  }
+
+  .headerText {
+    flex-basis: calc(100% - 56px);
+  }
 }

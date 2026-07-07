@@ -6,17 +6,57 @@
   margin-bottom: var(--stu-space-5);
 }
 
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--stu-primary);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .pageTitle {
   margin: 0 0 var(--stu-space-2);
   color: var(--stu-text);
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1.28;
 }
 
 .pageDescription {
   margin: 0;
   color: var(--stu-text-muted);
   font-size: 14px;
+  line-height: 1.5;
+}
+
+.tipGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--stu-space-2);
+  margin-bottom: var(--stu-space-5);
+}
+
+.tipItem {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
+  border-radius: var(--stu-radius);
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface));
+}
+
+.tipItem strong {
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.tipItem span {
+  color: var(--stu-text-muted);
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -188,4 +228,10 @@
 
 .tourIcon {
   flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .tipGrid {
+    grid-template-columns: 1fr;
+  }
 }

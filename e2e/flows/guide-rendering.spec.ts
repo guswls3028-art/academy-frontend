@@ -17,10 +17,10 @@ test.describe("선생앱 가이드", () => {
 
     // 메인 영역에서 제목 확인 (사이드바와 구분)
     const main = page.locator("main");
-    await expect(main.locator("text=사용 가이드").first()).toBeVisible();
+    await expect(main.locator("text=공식 사용 가이드").first()).toBeVisible();
+    await expect(main.locator("text=계약 직후 체크리스트")).toBeVisible();
+    await expect(main.locator("text=처음 막히기 쉬운 지점")).toBeVisible();
 
-    // 워크플로우 카드 확인 (배포 후 활성화)
-    // 배포 전에는 이전 가이드 카드가 보임
     const hasNewGuide = await main.locator("text=학생 등록하기").isVisible().catch(() => false);
     if (hasNewGuide) {
       await expect(main.locator("text=강의 만들고 수업 관리하기")).toBeVisible();
@@ -45,6 +45,21 @@ test.describe("선생앱 가이드", () => {
   });
 });
 
+test.describe("선생 모바일 가이드", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginViaUI(page, "admin");
+  });
+
+  test("현장용 가이드가 렌더링된다", async ({ page }) => {
+    await gotoAndSettle(page, `${BASE}/teacher/guide`, { timeout: 20_000 });
+
+    await expect(page.locator("text=공식 선생님 가이드")).toBeVisible();
+    await expect(page.locator("text=현장에서 먼저 볼 순서")).toBeVisible();
+    await expect(page.locator("text=PC로 넘길 일")).toBeVisible();
+    await expect(page.locator("text=처음 막히기 쉬운 부분")).toBeVisible();
+  });
+});
+
 test.describe("학생앱 가이드", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "student");
@@ -53,10 +68,9 @@ test.describe("학생앱 가이드", () => {
   test("워크플로우 카드가 렌더링된다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/student/guide`, { timeout: 20_000 });
 
-    // 제목은 h1 또는 일반 div로 렌더링될 수 있음
-    await expect(page.locator("text=사용 가이드").first()).toBeVisible();
+    await expect(page.locator("text=공식 학생 가이드")).toBeVisible();
+    await expect(page.locator("text=처음 로그인했다면 이 순서로 확인하세요.")).toBeVisible();
 
-    // 배포 후 활성화: 새 워크플로우 카드 (이전 버전과 구분)
     const hasNewGuide = await page.locator("text=오늘 할 일 확인하기").isVisible().catch(() => false);
     if (hasNewGuide) {
       await expect(page.locator("text=성적 확인하기")).toBeVisible();

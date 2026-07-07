@@ -33,6 +33,43 @@
   line-height: 1.55;
 }
 
+.startBox {
+  display: flex;
+  gap: var(--tc-space-3);
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--tc-primary) 18%, var(--tc-border));
+  border-radius: var(--tc-radius);
+  background: color-mix(in srgb, var(--tc-primary) 5%, var(--tc-surface));
+  color: var(--tc-primary);
+}
+
+.startBox svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.startBox div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.startBox strong {
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.startBox span {
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -86,4 +123,40 @@
   color: var(--tc-primary);
   font-size: 12px;
   font-weight: 800;
+}
+
+.noteBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--tc-border);
+}
+
+.noteTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tc-text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.noteTitle svg {
+  color: var(--tc-primary);
+}
+
+.noteBox ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.noteBox li {
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.55;
 }

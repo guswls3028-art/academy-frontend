@@ -8,6 +8,21 @@ import type { GuideWorkflow } from "@/shared/ui/guide";
 import { STUDENT_WORKFLOWS } from "../data/studentWorkflows";
 import styles from "./GuidePage.module.css";
 
+const START_TIPS = [
+  {
+    title: "처음에는 홈 화면부터",
+    description: "오늘 수업, 공지, 과제, 시험이 한곳에 모입니다.",
+  },
+  {
+    title: "학부모는 휴대폰 번호로",
+    description: "학원에 등록된 학부모 휴대폰 번호가 로그인 기준입니다.",
+  },
+  {
+    title: "목록이 비어 있으면",
+    description: "선생님이 아직 강의나 과제를 배정하지 않은 상태일 수 있어요.",
+  },
+];
+
 /* ================================================================
    워크플로우 카드 (아코디언)
    ================================================================ */
@@ -166,13 +181,23 @@ export default function GuidePage() {
   return (
     <div className={styles.page}>
       <div className={styles.intro}>
+        <p className={styles.eyebrow}>공식 학생 가이드</p>
         <h1 className={styles.pageTitle}>
-          사용 가이드
+          처음 로그인했다면 이 순서로 확인하세요.
         </h1>
         <p className={styles.pageDescription}>
-          주요 기능을 단계별로 안내해요. 카드를 눌러 확인하고, '직접 해보기'로
-          실제 화면에서 따라해 보세요.
+          홈에서 오늘 할 일을 보고, 필요한 기능만 하나씩 열어 보면 됩니다.
+          카드를 누르면 자세한 단계가 펼쳐지고, '직접 해보기'로 실제 화면에서 따라해 볼 수 있어요.
         </p>
+      </div>
+
+      <div className={styles.tipGrid} aria-label="처음 이용 안내">
+        {START_TIPS.map((tip) => (
+          <div key={tip.title} className={styles.tipItem}>
+            <strong>{tip.title}</strong>
+            <span>{tip.description}</span>
+          </div>
+        ))}
       </div>
 
       <div className={styles.workflowList}>
