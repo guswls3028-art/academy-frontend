@@ -103,6 +103,16 @@ function extractVars(body: string): string[] {
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
 type SendTiming = "now" | "scheduled";
 const EMPTY_ID_LIST: number[] = [];
+const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: string; hint: string }> = [
+  { category: "attendance", label: "출석 안내", hint: "수업·일정" },
+  { category: "grades", label: "성적표", hint: "시험·과제 결과" },
+  { category: "clinic", label: "클리닉", hint: "보강·상담" },
+  { category: "exam", label: "시험/과제", hint: "안내·리마인드" },
+];
+
+function categoryHasSolapiEnvelope(category: TemplateCategory): boolean {
+  return Boolean(getAlimtalkTemplateTypeFromCategory(category));
+}
 
 function getVarStatuses(
   templateBody: string,
@@ -226,6 +236,7 @@ export default function SendMessageModal({
   const [showPickerModal, setShowPickerModal] = useState(false);
   /** 양식 없이 자유 입력 모드 */
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
+  const [manualEnvelopeCategory, setManualEnvelopeCategory] = useState<TemplateCategory>("attendance");
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
   // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
   const [showVarPalette, setShowVarPalette] = useState(false);
@@ -265,7 +276,9 @@ export default function SendMessageModal({
   }, [sendTiming, scheduledAt]);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
-  const providedPresets = useMemo(() => getTemplatePresetsForCategory(blockCategory), [blockCategory]);
+  const needsEnvelopeChoice = !categoryHasSolapiEnvelope(blockCategory);
+  const effectiveBlockCategory = needsEnvelopeChoice ? manualEnvelopeCategory : blockCategory;
+  const providedPresets = useMemo(() => getTemplatePresetsForCategory(effectiveBlockCategory), [effectiveBlockCategory]);
   const selectedPreset = providedPresets.find((p) => p.id === selectedPresetId) ?? null;
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
@@ -295,12 +308,12 @@ export default function SendMessageModal({
     return lintAlimtalkTemplateQuality({
       body,
       renderedBody: body,
-      blockCategory,
+      blockCategory: effectiveBlockCategory,
       templateCategory: selectedTemplate?.category ?? (selectedPreset ? toPersistedTemplateCategory(selectedPreset.category) : undefined),
       templateName: selectedTemplate?.name ?? selectedPreset?.name,
       extraVars: alimtalkExtraVars,
     });
-  }, [body, blockCategory, selectedTemplate, selectedPreset, alimtalkExtraVars]);
+  }, [body, effectiveBlockCategory, selectedTemplate, selectedPreset, alimtalkExtraVars]);
   const qualityBlockers = qualityIssues.filter((issue) => issue.severity === "blocker");
   const hasQualityBlockers = qualityBlockers.length > 0;
 
@@ -317,7 +330,7 @@ export default function SendMessageModal({
   const preflightKey = useMemo(() => JSON.stringify({
     alimtalkExtraVars,
     body,
-    blockCategory,
+    blockCategory: effectiveBlockCategory,
     scheduledSendAtIso,
     selectedTemplateId,
     sendTargetKey,
@@ -325,7 +338,7 @@ export default function SendMessageModal({
     subject,
   }), [
     alimtalkExtraVars,
-    blockCategory,
+    effectiveBlockCategory,
     body,
     scheduledSendAtIso,
     selectedTemplateId,
@@ -380,7 +393,7 @@ export default function SendMessageModal({
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
     payload.student_ids = studentIds;
     if (selectedTemplateId) payload.template_id = selectedTemplateId;
-    if (blockCategory) payload.block_category = blockCategory;
+    if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
     const currentBody = body.trim();
     payload.raw_body = currentBody;
     if (subject.trim()) payload.raw_subject = subject.trim();
@@ -396,8 +409,8 @@ export default function SendMessageModal({
   }, [
     alimtalkExtraVars,
     alimtalkExtraVarsPerStudent,
-    blockCategory,
     body,
+    effectiveBlockCategory,
     recomputePerStudentVarsRef,
     scheduledSendAtIso,
     selectedTemplateId,
@@ -405,7 +418,7 @@ export default function SendMessageModal({
     subject,
   ]);
 
-  const blocks = useMemo(() => getBlocksForCategory(blockCategory), [blockCategory]);
+  const blocks = useMemo(() => getBlocksForCategory(effectiveBlockCategory), [effectiveBlockCategory]);
 
   useEffect(() => {
     if (!open || !frontendReady || sendToTargets.length === 0) {
@@ -459,7 +472,7 @@ export default function SendMessageModal({
   // 그 외 단건 알림은 기존처럼 첫 수신자 기준 치환 미리보기를 유지한다.
   const previewLetterBody = useMemo(() => {
     if (!body) return "";
-    if (blockCategory === "grades") return body;
+    if (effectiveBlockCategory === "grades") return body;
     if (!recomputePerStudentVarsRef?.current) return body;
     try {
       const perStudent = recomputePerStudentVarsRef.current(body);
@@ -469,7 +482,7 @@ export default function SendMessageModal({
     } catch {
       return body;
     }
-  }, [body, blockCategory, recomputePerStudentVarsRef]);
+  }, [body, effectiveBlockCategory, recomputePerStudentVarsRef]);
   const previewSubject = subject
     ? renderPreviewWithActualData(subject, alimtalkExtraVars)
     : selectedTemplate
@@ -492,6 +505,7 @@ export default function SendMessageModal({
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowPickerModal(false);
+    setManualEnvelopeCategory(categoryHasSolapiEnvelope(blockCategory) ? blockCategory : "attendance");
     setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId && !initialLetterPresetId));
     setTemplateBodySnapshot(initialBody ?? null);
     setShowConfirm(false);
@@ -502,7 +516,7 @@ export default function SendMessageModal({
     setPreflightLoading(false);
     setPreflightError(null);
     sendingRef.current = false;
-  }, [open, initialBody, initialTemplateId, initialLetterPresetId]);
+  }, [open, blockCategory, initialBody, initialTemplateId, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
   // initialBody가 있어도 봉투(카카오 검수 통과 승인 양식)는 카테고리에 맞춰 자동 선택해야 함.
@@ -515,7 +529,7 @@ export default function SendMessageModal({
       if (cancelled) return;
       setTemplates(list);
       if (!selectedTemplateId && !selectedPresetId && !initialBody) {
-        const match = pickAutoSelectTemplate(list, blockCategory);
+        const match = pickAutoSelectTemplate(list, effectiveBlockCategory);
         if (match) {
           setSelectedTemplateId(match.id);
           setSelectedPresetId(null);
@@ -524,14 +538,14 @@ export default function SendMessageModal({
           setTemplateBodySnapshot(match.body);
           setAlimtalkFreeForm(false);
         } else {
-          const preset = getDefaultTemplatePreset(blockCategory);
+          const preset = getDefaultTemplatePreset(effectiveBlockCategory);
           if (preset) {
             setSelectedPresetId(preset.id);
             setBody(preset.body);
             setTemplateBodySnapshot(preset.body);
             setAlimtalkFreeForm(false);
           } else {
-            const systemMatch = pickAutoSelectTemplate(list, blockCategory, true);
+            const systemMatch = pickAutoSelectTemplate(list, effectiveBlockCategory, true);
             if (systemMatch) {
               setSelectedTemplateId(systemMatch.id);
               setSelectedPresetId(null);
@@ -544,7 +558,7 @@ export default function SendMessageModal({
       }
     }).catch(() => { if (!cancelled) setTemplates([]); });
     return () => { cancelled = true; };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, effectiveBlockCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 솔라피 동기화 후 picker가 부모에게 templates 재조회 요청
   const refreshTemplates = useCallback(async () => {
@@ -602,12 +616,31 @@ export default function SendMessageModal({
     setAlimtalkFreeForm(true);
   }, []);
 
+  const selectEnvelopeCategory = useCallback((category: TemplateCategory) => {
+    setManualEnvelopeCategory(category);
+    setSelectedTemplateId(null);
+    setSubject("");
+    const preset = getDefaultTemplatePreset(category);
+    if (preset) {
+      setSelectedPresetId(preset.id);
+      setBody(preset.body);
+      setTemplateBodySnapshot(preset.body);
+      setAlimtalkFreeForm(false);
+    } else {
+      setSelectedPresetId(null);
+      setBody("");
+      setTemplateBodySnapshot(null);
+      setAlimtalkFreeForm(true);
+    }
+    setShowSaveForm(false);
+  }, []);
+
   const handleSaveTemplate = async () => {
     if (!saveTemplateName.trim() || !body.trim() || savingTemplate) return;
     setSavingTemplate(true);
     try {
       const created = await createMessageTemplate({
-        category: toPersistedTemplateCategory(blockCategory),
+        category: toPersistedTemplateCategory(effectiveBlockCategory),
         name: saveTemplateName.trim(),
         subject: subject || "",
         body,
@@ -759,7 +792,7 @@ export default function SendMessageModal({
   const labelParts = rawLabel.split(" — ");
   const labelContext = labelParts.length > 1 ? labelParts[0] : null;
   const labelName = labelParts.length > 1 ? labelParts.slice(1).join(" — ") : rawLabel;
-  const domainLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
+  const domainLabel = TEMPLATE_CATEGORY_LABELS[effectiveBlockCategory] ?? "사용자";
 
   const sendButtonText = (() => {
     if (sending) return "발송 중…";
@@ -863,7 +896,7 @@ export default function SendMessageModal({
                     일괄 발송 · {recipientCount}명
                   </div>
                   <div className="send-modal__bulk-hint-desc">
-                    {blockCategory === "grades"
+                    {effectiveBlockCategory === "grades"
                       ? <>미리보기는 양식 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>
                       : <>미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>}
                   </div>
@@ -989,12 +1022,12 @@ export default function SendMessageModal({
                 카카오톡 미리보기
                 {hasRecipients && recipientCount > 1 && (
                   <span className="send-modal__card-sublabel">
-                    {blockCategory === "grades" ? " · 양식 기준 · 학생별 자동 치환" : " · 첫 학생 기준 · 학생별로 자동 치환됨"}
+                    {effectiveBlockCategory === "grades" ? " · 양식 기준 · 학생별 자동 치환" : " · 첫 학생 기준 · 학생별로 자동 치환됨"}
                   </span>
                 )}
               </div>
               {(() => {
-                const tplCategory = (selectedTemplate?.category as TemplateCategory | undefined) ?? blockCategory;
+                const tplCategory = (selectedTemplate?.category as TemplateCategory | undefined) ?? effectiveBlockCategory;
                 const alimtalkType = getAlimtalkTemplateTypeFromCategory(
                   tplCategory,
                   selectedTemplate?.name ?? selectedPreset?.name ?? "",
@@ -1083,6 +1116,32 @@ export default function SendMessageModal({
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
           <div className="send-modal__right">
+            {needsEnvelopeChoice && (
+              <div className="send-modal__envelope-selector">
+                <div className="send-modal__envelope-head">
+                  <span className="send-modal__envelope-label">알림톡 봉투</span>
+                  <span className="send-modal__envelope-current">
+                    {getAlimtalkTemplateLabel(getAlimtalkTemplateTypeFromCategory(effectiveBlockCategory))}
+                  </span>
+                </div>
+                <div className="send-modal__envelope-options" role="radiogroup" aria-label="알림톡 봉투">
+                  {EDITABLE_ENVELOPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.category}
+                      type="button"
+                      className="send-modal__envelope-option"
+                      data-active={manualEnvelopeCategory === option.category}
+                      onClick={() => selectEnvelopeCategory(option.category)}
+                      disabled={sending}
+                    >
+                      <span>{option.label}</span>
+                      <small>{option.hint}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── 양식 바 — 양식 정보 + 저장 액션 + 변경 액션 (학원장 호소 2026-05-13: 칸 효율 통합) ── */}
             <div className="send-modal__tpl-bar">
               {selectedTemplate && isSystemTpl(selectedTemplate) ? (
@@ -1106,9 +1165,9 @@ export default function SendMessageModal({
                     {presetBodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
                 ) : alimtalkFreeForm ? (
-                  <span className="send-modal__tpl-bar-freeform">직접 작성 모드</span>
+                  <span className="send-modal__tpl-bar-freeform">봉투에 직접 작성</span>
                 ) : (
-                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 직접 작성하세요</span>
+                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 봉투에 직접 작성하세요</span>
                 )}
               </div>
 
@@ -1197,7 +1256,7 @@ export default function SendMessageModal({
                     <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
                     <div className="send-modal__editor-empty-text">
                       <div>양식을 선택하거나</div>
-                      <div>직접 내용을 작성하세요</div>
+                      <div>봉투 안에 직접 작성하세요</div>
                     </div>
                     <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
                       양식 선택하기
@@ -1207,7 +1266,7 @@ export default function SendMessageModal({
                       onClick={() => setAlimtalkFreeForm(true)}
                       className="send-modal__editor-empty-link"
                     >
-                      직접 작성하기
+                      봉투에 직접 작성
                     </button>
                   </div>
                 )}
@@ -1236,7 +1295,7 @@ export default function SendMessageModal({
                   >✕</button>
                   <div className="send-modal__var-palette-title">변수 삽입</div>
                   <div className="send-modal__var-palette-desc">클릭하면 커서 위치에 추가됩니다</div>
-                  {blockCategory === "grades" ? (
+                  {effectiveBlockCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
                   ) : (
                     <div className="send-modal__var-palette-list">
@@ -1388,7 +1447,7 @@ export default function SendMessageModal({
       onClose={() => setShowPickerModal(false)}
       templates={templates}
       defaultPresets={providedPresets}
-      blockCategory={blockCategory}
+      blockCategory={effectiveBlockCategory}
       selectedTemplateId={selectedTemplateId}
       selectedPresetId={selectedPresetId}
       alimtalkExtraVars={alimtalkExtraVars}

@@ -386,8 +386,8 @@ export default function TemplatePickerModal({
               >
                 <Edit3 size={ICON.sm} className="tpl-picker__icon-primary" />
                 <div className="tpl-picker__freeform-text">
-                  <div className="tpl-picker__freeform-title">직접 작성하기</div>
-                  <div className="tpl-picker__freeform-desc">양식 없이 본문을 처음부터 작성합니다</div>
+                  <div className="tpl-picker__freeform-title">이 봉투에 직접 작성</div>
+                  <div className="tpl-picker__freeform-desc">선택한 봉투 안 편지를 처음부터 작성합니다</div>
                 </div>
               </button>
 

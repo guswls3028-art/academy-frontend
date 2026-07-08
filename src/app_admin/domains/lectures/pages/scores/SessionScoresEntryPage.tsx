@@ -27,7 +27,7 @@ import { DomainListToolbar } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@/shared/scoring/scoreReport";
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
@@ -406,14 +406,17 @@ export default function SessionScoresEntryPage({
                 const result: Record<number, Record<string, string>> = {};
                 for (const sRow of selectedRows) {
                   if (sRow.student_id == null) continue;
+                  const scoreVars = buildScoreVars(sRow, meta, reportOptions);
                   result[sRow.student_id] = {
-                    시험성적: buildScoreDetail(sRow, meta),
-                    학생이름: sRow.student_name || "",
+                    ...scoreVars,
                     _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
                   };
                 }
                 return result;
               };
+              const firstScoreVars = selectedRows[0]
+                ? buildScoreVars(selectedRows[0], meta, reportOptions)
+                : {};
 
               openSendMessageModal({
                 studentIds: selectedStudentIds,
@@ -422,7 +425,7 @@ export default function SessionScoresEntryPage({
                 initialBody,
                 initialTemplateId,
                 initialLetterPresetId,
-                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail },
+                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
                 recomputePerStudentVars,
               });
             }}

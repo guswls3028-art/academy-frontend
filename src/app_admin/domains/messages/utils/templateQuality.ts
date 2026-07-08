@@ -58,7 +58,6 @@ const SUPPORTED_FIXED_VARS = new Set([
   "상담유형",
   "내용",
   "선생님메모",
-  "선생님메모1",
   "직원명",
   "부서",
   "직급",

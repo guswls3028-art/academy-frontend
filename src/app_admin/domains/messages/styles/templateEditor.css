@@ -606,6 +606,86 @@
   gap: 12px;
 }
 
+.send-modal__envelope-selector {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  padding: 10px;
+}
+
+.send-modal__envelope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.send-modal__envelope-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.send-modal__envelope-current {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.send-modal__envelope-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.send-modal__envelope-option {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  padding: 8px;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.send-modal__envelope-option:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+}
+
+.send-modal__envelope-option[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-primary) 70%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 11%, var(--color-bg-surface));
+  color: var(--color-primary);
+}
+
+.send-modal__envelope-option span,
+.send-modal__envelope-option small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.send-modal__envelope-option span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.send-modal__envelope-option small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
 /* ── 좌측 공통 카드 ── */
 .send-modal__card {
   padding: 14px 16px;
@@ -1705,6 +1785,10 @@
 
   .send-modal__card {
     padding: var(--space-3);
+  }
+
+  .send-modal__envelope-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .send-modal__tpl-bar {

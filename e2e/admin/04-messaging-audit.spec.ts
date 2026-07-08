@@ -80,13 +80,13 @@ async function openFreeformBody(page: Page) {
     await templateSelectBtn.click();
     const picker = page.locator(".tpl-picker-modal");
     await expect(picker, "양식 선택 모달이 열려야 함").toBeVisible({ timeout: 5_000 });
-    const freeformBtn = picker.locator("button").filter({ hasText: "직접 작성하기" }).first();
-    await expect(freeformBtn, "양식 선택 모달의 '직접 작성하기' 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
+    const freeformBtn = picker.locator("button").filter({ hasText: /직접 작성|봉투에 직접 작성/ }).first();
+    await expect(freeformBtn, "양식 선택 모달의 직접 작성 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
     await freeformBtn.click();
     await expect(picker, "양식 선택 모달이 닫혀야 함").toBeHidden({ timeout: 5_000 });
   } else {
-    const freeformBtn = modal.locator("button").filter({ hasText: "직접 작성하기" }).first();
-    await expect(freeformBtn, "빈 본문 상태의 '직접 작성하기' 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
+    const freeformBtn = modal.locator("button").filter({ hasText: /직접 작성|봉투에 직접 작성/ }).first();
+    await expect(freeformBtn, "빈 본문 상태의 직접 작성 버튼이 보여야 함").toBeVisible({ timeout: 5_000 });
     await freeformBtn.click();
   }
   await expect(modal.locator("textarea").first(), "본문 textarea 가 보여야 함").toBeVisible({ timeout: 5_000 });

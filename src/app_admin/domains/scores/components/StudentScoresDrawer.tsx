@@ -19,7 +19,7 @@ import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attempt
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreDetail, substituteScoreVars } from "@/shared/scoring/scoreReport";
+import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars } from "@/shared/scoring/scoreReport";
 import { getSessionRowFailedItemTitles, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
@@ -183,10 +183,11 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
     // raw 변수 잔존 가능. substituteScoreVars 가 학생이름2/학생이름3/시험성적 까지 처리하니 callback 통과.
     const sid = row.student_id;
+    const scoreVars = buildScoreVars(row, meta, reportOptions);
     const recomputePerStudentVars = sid != null
       ? (currentBody: string) => ({
           [sid]: {
-            학생이름: row.student_name || "",
+            ...scoreVars,
             _body_subst: substituteScoreVars(currentBody, row, meta, reportOptions),
           },
         })
@@ -202,6 +203,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         강의명: lectureName,
         차시명: sessionTitle,
         시험성적: scoreDetail,
+        ...scoreVars,
       },
       recomputePerStudentVars,
     });

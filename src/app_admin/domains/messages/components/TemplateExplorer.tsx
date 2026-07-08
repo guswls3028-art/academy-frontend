@@ -9,7 +9,6 @@ import {
   FiCopy,
   FiEdit2,
   FiTrash2,
-  FiSend,
 } from "react-icons/fi";
 import { FilePlus, Shield } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -21,7 +20,6 @@ import {
   createMessageTemplate,
   updateMessageTemplate,
   deleteMessageTemplate,
-  submitMessageTemplateReview,
   provisionDefaultTemplates,
   type MessageTemplateItem,
   type MessageTemplatePayload,
@@ -171,7 +169,7 @@ function IconAction({
 
 const CATEGORY_DESCRIPTIONS: Record<MessageTemplateCategory, string> = {
   default:
-    "사용자가 직접 만든 커스텀 템플릿입니다. 수동 발송 시 자유롭게 사용할 수 있습니다.",
+    "사용자가 직접 만든 커스텀 템플릿입니다. 발송할 때 승인 봉투를 선택해 사용합니다.",
   signup:
     "가입/등록 관련 자동발송에 사용됩니다. 학생·학부모 ID·비밀번호 블록을 사용할 수 있습니다.",
   attendance:
@@ -206,7 +204,7 @@ export default function TemplateExplorer() {
     useState<MessageTemplateCategory>("default");
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "delete" | "review";
+    type: "delete";
     id: number;
   } | null>(null);
 
@@ -253,24 +251,6 @@ export default function TemplateExplorer() {
     onError: () => {
       setConfirmAction(null);
       feedback.error("삭제에 실패했습니다.");
-    },
-  });
-
-  const submitReviewMut = useMutation({
-    mutationFn: (id: number) => submitMessageTemplateReview(id),
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      setConfirmAction(null);
-      feedback.success(data.detail || "검수 신청이 완료되었습니다.");
-    },
-    onError: (err: unknown) => {
-      setConfirmAction(null);
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { detail?: string } } }).response
-              ?.data?.detail
-          : null;
-      feedback.error(msg || "검수 신청에 실패했습니다.");
     },
   });
 
@@ -414,19 +394,6 @@ export default function TemplateExplorer() {
                 onClick={() => handleDuplicate(t)}
                 disabled={createMut.isPending}
               />
-              {t.solapi_status !== "PENDING" &&
-                t.solapi_status !== "APPROVED" && (
-                  <IconAction
-                    icon={<FiSend size={16} />}
-                    label="검수 신청"
-                    onClick={() =>
-                      setConfirmAction({
-                        type: "review",
-                        id: t.id,
-                      })
-                    }
-                  />
-                )}
               {!t.is_system && (
                 <IconAction
                   icon={<FiTrash2 size={16} />}
@@ -458,41 +425,21 @@ export default function TemplateExplorer() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {confirmAction.type === "delete"
-                  ? "정말 삭제할까요?"
-                  : "검수 신청할까요?"}
+                정말 삭제할까요?
               </span>
               <Button
-                intent={
-                  confirmAction.type === "delete"
-                    ? "danger"
-                    : "primary"
-                }
+                intent="danger"
                 size="sm"
-                onClick={() => {
-                  if (confirmAction.type === "delete")
-                    deleteMut.mutate(t.id);
-                  else submitReviewMut.mutate(t.id);
-                }}
-                disabled={
-                  deleteMut.isPending ||
-                  submitReviewMut.isPending
-                }
+                onClick={() => deleteMut.mutate(t.id)}
+                disabled={deleteMut.isPending}
               >
-                {deleteMut.isPending || submitReviewMut.isPending
-                  ? "처리 중…"
-                  : confirmAction.type === "delete"
-                  ? "삭제"
-                  : "신청"}
+                {deleteMut.isPending ? "처리 중…" : "삭제"}
               </Button>
               <Button
                 intent="secondary"
                 size="sm"
                 onClick={() => setConfirmAction(null)}
-                disabled={
-                  deleteMut.isPending ||
-                  submitReviewMut.isPending
-                }
+                disabled={deleteMut.isPending}
               >
                 취소
               </Button>
