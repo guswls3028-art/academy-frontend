@@ -1,9 +1,9 @@
 /* PATH: src/shared/ui/editor/rich-editor.css */
 /* RichTextEditor — TipTap admin editor styles */
-/* Scoped under :is([data-app="admin"], [data-app="student"])*/
+/* Scoped under body so portal-based editors keep the same styling.*/
 
 /* ===== Wrapper ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor {
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface);
@@ -13,13 +13,13 @@
   position: relative;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor--readonly {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor--readonly {
   pointer-events: none;
   opacity: 0.7;
 }
 
 /* ===== Toolbar ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -33,7 +33,7 @@
 }
 
 /* ===== Toolbar Button ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -54,48 +54,48 @@
   flex-shrink: 0;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:hover {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn:hover {
   background: var(--color-bg-surface-active);
   color: var(--color-text-primary);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:active {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn:active {
   background: var(--color-bg-surface-active);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--active {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn--active {
   background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   color: var(--color-brand-primary);
   border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--active:hover {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn--active:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn:disabled {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--italic {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn--italic {
   font-style: italic;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--underline {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn--underline {
   text-decoration: underline;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-btn--strike {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-btn--strike {
   text-decoration: line-through;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__hidden-input {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__hidden-input {
   display: none;
 }
 
 /* ===== Color Picker Button ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-wrapper {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -105,25 +105,25 @@
   flex-shrink: 0;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-wrapper .rich-editor__toolbar-btn {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-wrapper .rich-editor__toolbar-btn {
   width: 100%;
   height: 100%;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-button-face {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-button-face {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-button-letter {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-button-letter {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-swatch {
   display: block;
   width: 14px;
   height: 3px;
@@ -132,7 +132,7 @@
   background: var(--rich-editor-current-color);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-input {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -144,7 +144,7 @@
 }
 
 /* ===== Toolbar Divider ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__toolbar-divider {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__toolbar-divider {
   width: 1px;
   height: 18px;
   background: var(--color-border-divider);
@@ -153,13 +153,13 @@
 }
 
 /* ===== Editor Content Area ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content {
   flex: 1;
   min-height: var(--rich-editor-min-height);
   overflow-y: auto;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror {
   padding: var(--space-3) var(--space-4);
   outline: none;
   font-family: var(--font-sans);
@@ -170,7 +170,7 @@
 }
 
 /* Placeholder */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: var(--color-text-muted);
@@ -179,7 +179,7 @@
 }
 
 /* Headings */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror h2 {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror h2 {
   font-size: 20px;
   font-weight: 700;
   line-height: 1.4;
@@ -187,7 +187,7 @@
   color: var(--color-text-primary);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror h3 {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror h3 {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
@@ -196,43 +196,43 @@
 }
 
 /* Paragraphs */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror p {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror p {
   margin: 0 0 6px;
 }
 
 /* Lists */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ul,
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ol {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror ul,
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror ol {
   padding-left: 24px;
   margin: 6px 0;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror li {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror li {
   margin: 2px 0;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ul {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror ul {
   list-style-type: disc;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror ol {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror ol {
   list-style-type: decimal;
 }
 
 /* Links */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror a {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror a {
   color: var(--color-text-link);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror a:hover {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror a:hover {
   color: var(--color-text-link-hover);
 }
 
 /* Images */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror img {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror img {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-sm);
@@ -241,19 +241,19 @@
 }
 
 /* Strikethrough */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror s {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror s {
   text-decoration: line-through;
 }
 
 /* Horizontal rule */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror hr {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--color-border-divider);
   margin: 16px 0;
 }
 
 /* Blockquote */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror blockquote {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror blockquote {
   border-left: 3px solid var(--color-border-divider-strong);
   padding-left: var(--space-3);
   margin: 8px 0;
@@ -261,7 +261,7 @@
 }
 
 /* Code */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror code {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror code {
   background: var(--color-bg-surface-hover);
   border-radius: 3px;
   padding: 1px 4px;
@@ -269,20 +269,20 @@
 }
 
 /* Text alignment */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-center {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror .has-text-align-center {
   text-align: center;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-right {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror .has-text-align-right {
   text-align: right;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__content .ProseMirror .has-text-align-left {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__content .ProseMirror .has-text-align-left {
   text-align: left;
 }
 
 /* ===== Attached Files List ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__files {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__files {
   border-top: 1px solid var(--color-border-divider);
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-surface-hover);
@@ -291,7 +291,7 @@
   gap: var(--space-1);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__files-title {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__files-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--color-text-muted);
@@ -300,7 +300,7 @@
   margin-bottom: var(--space-1);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__file-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -312,27 +312,27 @@
   color: var(--color-text-secondary);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item a {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__file-item a {
   color: var(--color-text-link);
   text-decoration: none;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__file-item a:hover {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__file-item a:hover {
   text-decoration: underline;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__file-icon {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__file-icon {
   flex-shrink: 0;
   font-size: 14px;
 }
 
 /* ===== Color Palette Popup ===== */
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-anchor {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-palette-anchor {
   position: relative;
   display: inline-flex;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-palette {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -347,7 +347,7 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-swatch-btn {
   width: 24px;
   height: 24px;
   background: var(--rich-editor-swatch-color);
@@ -358,17 +358,17 @@
   transition: border-color 120ms ease, transform 120ms ease;
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn:hover {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-swatch-btn:hover {
   transform: scale(1.15);
   border-color: rgba(0,0,0,0.2);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-swatch-btn--active {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-swatch-btn--active {
   border-color: var(--color-brand-primary, #0d47a1);
   box-shadow: 0 0 0 1px var(--color-brand-primary, #0d47a1);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-custom {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-palette-custom {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
@@ -380,7 +380,7 @@
   color: var(--color-text-muted, #888);
 }
 
-:is([data-app="admin"], [data-app="student"]) .rich-editor__color-palette-custom input[type="color"] {
+:is(body, [data-app="admin"], [data-app="student"], [data-app="teacher"]) .rich-editor__color-palette-custom input[type="color"] {
   width: 24px;
   height: 24px;
   border: 1px solid var(--color-border-divider, #e0e0e0);
