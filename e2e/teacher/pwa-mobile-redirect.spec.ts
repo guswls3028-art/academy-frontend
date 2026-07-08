@@ -73,6 +73,18 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     });
     expect(themeColor).toBe("#3b82f6");
 
+    const appleTitle = await page.evaluate(() => {
+      const meta = document.querySelector('meta[name="apple-mobile-web-app-title"][data-teacher]');
+      return meta?.getAttribute("content");
+    });
+    expect(appleTitle).toBe("박철 과학 선생님");
+
+    const appleIcon = await page.evaluate(() => {
+      const link = document.querySelector('link[rel="apple-touch-icon"][data-teacher]');
+      return link?.getAttribute("href");
+    });
+    expect(appleIcon).toBe("/tenants/tchul/icon.png");
+
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-02-home-with-manifest.png", fullPage: false });
   });
 
@@ -92,14 +104,16 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-03-profile-page.png", fullPage: true });
   });
 
-  test("SW 등록 + PWA 정적 파일 접근", async ({ page }) => {
+  test("SW 등록 + PWA manifest 접근", async ({ page }) => {
     // manifest.json 직접 접근 검증
     const manifestResp = await page.request.get(`${TCHUL}/teacher-manifest.json`);
     expect(manifestResp.status()).toBe(200);
     const manifest = await manifestResp.json();
-    expect(manifest.name).toBe("학원플러스 선생님");
+    expect(manifest.name).toBe("박철 과학 선생님");
+    expect(manifest.short_name).toBe("박철 과학");
     expect(manifest.start_url).toBe("/teacher");
     expect(manifest.display).toBe("standalone");
+    expect(manifest.icons?.[0]?.src).toBe("/tenants/tchul/icon.png");
 
     // SW 파일 직접 접근 검증
     const swResp = await page.request.get(`${TCHUL}/teacher-sw.js`);
@@ -108,7 +122,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     expect(swText).toContain("teacher-app-shell");
 
     // 아이콘 접근 검증
-    const iconResp = await page.request.get(`${TCHUL}/teacher-icons/icon-192.svg`);
+    const iconResp = await page.request.get(`${TCHUL}/tenants/tchul/icon.png`);
     expect(iconResp.status()).toBe(200);
   });
 });

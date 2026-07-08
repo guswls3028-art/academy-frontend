@@ -37,6 +37,35 @@ interface TenantMeta {
   imageHeight?: number;
 }
 
+interface TenantPwaMeta {
+  title: string;
+  icon: string;
+}
+
+interface WebManifestIcon {
+  src: string;
+  sizes: string;
+  type: string;
+  purpose: string;
+}
+
+interface TeacherWebManifest {
+  name: string;
+  short_name: string;
+  description: string;
+  id: string;
+  start_url: string;
+  scope: string;
+  display: string;
+  orientation: string;
+  theme_color: string;
+  background_color: string;
+  icons: WebManifestIcon[];
+  categories: string[];
+  lang: string;
+  dir: string;
+}
+
 /** 이미지 경로 정규화: 상대 경로는 /로 시작하도록, 절대 URL은 그대로 반환 */
 function normalizeImagePath(image: string): string {
   if (!image) return "";
@@ -152,6 +181,62 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
 };
+
+const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
+  "tchul.com":          { title: "박철 과학", icon: "/tenants/tchul/icon.png" },
+  "www.tchul.com":      { title: "박철 과학", icon: "/tenants/tchul/icon.png" },
+  "ymath.co.kr":        { title: "Y_math", icon: "/tenants/ymath/icon.png" },
+  "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/icon.png" },
+  "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
+  "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
+  "hakwonplus.com":     { title: "학원플러스", icon: "/teacher-icons/icon-192.svg" },
+  "www.hakwonplus.com": { title: "학원플러스", icon: "/teacher-icons/icon-192.svg" },
+  "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/icon.png" },
+  "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/icon.png" },
+  "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/logo.png" },
+  "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/logo.png" },
+};
+
+function iconContentType(icon: string): string {
+  if (/\.svg(\?.*)?$/i.test(icon)) return "image/svg+xml";
+  if (/\.webp(\?.*)?$/i.test(icon)) return "image/webp";
+  return "image/png";
+}
+
+function teacherPwaMetaForHost(host: string): TenantPwaMeta {
+  const fallback = FALLBACK_META[host];
+  return FALLBACK_TEACHER_PWA[host] ?? {
+    title: fallback?.title ?? "학원플러스",
+    icon: fallback?.favicon ?? "/teacher-icons/icon-192.svg",
+  };
+}
+
+function buildTeacherManifest(host: string): TeacherWebManifest {
+  const meta = teacherPwaMetaForHost(host);
+  const icon = normalizeImagePath(meta.icon);
+  const iconType = iconContentType(icon);
+  const name = `${meta.title} 선생님`;
+
+  return {
+    name,
+    short_name: meta.title,
+    description: `${meta.title} 선생님 전용 모바일 앱 - 출석, 성적, 학생 관리`,
+    id: "/teacher",
+    start_url: "/teacher",
+    scope: "/teacher",
+    display: "standalone",
+    orientation: "portrait",
+    theme_color: "#3b82f6",
+    background_color: "#f8fafc",
+    icons: [
+      { src: icon, sizes: "192x192", type: iconType, purpose: "any" },
+      { src: icon, sizes: "512x512", type: iconType, purpose: "any maskable" },
+    ],
+    categories: ["education", "productivity"],
+    lang: "ko",
+    dir: "ltr",
+  };
+}
 
 const API_BASE = "https://api.hakwonplus.com";
 const OG_CACHE_TTL = 300_000; // 5분
@@ -289,6 +374,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(generateRobots(host), {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+  }
+
+  if (pathname === "/teacher-manifest.json") {
+    return new Response(JSON.stringify(buildTeacherManifest(host), null, 2), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/manifest+json; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "Vary": "Host",
+      },
     });
   }
 

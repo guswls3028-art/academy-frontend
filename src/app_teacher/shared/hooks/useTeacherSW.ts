@@ -6,10 +6,42 @@
  * - manifest link도 동적 주입 (/teacher 경로에서만)
  */
 import { useEffect } from "react";
+import { getTenantDefByHostname } from "@/shared/tenant/tenants";
+
+const TEACHER_MANIFEST_HREF = "/teacher-manifest.json";
+const DEFAULT_TEACHER_APP_TITLE = "학원플러스 선생님";
+const DEFAULT_TEACHER_APP_ICON = "/teacher-icons/icon-192.svg";
+const TEACHER_THEME_COLOR = "#3b82f6";
+const DATA_TEACHER = "data-teacher";
+const DATA_TEACHER_CREATED = "data-teacher-created";
+const DATA_PREVIOUS_HREF = "data-teacher-previous-href";
+const DATA_PREVIOUS_CONTENT = "data-teacher-previous-content";
+
+const TEACHER_APP_ICON_BY_HOST: Record<string, string> = {
+  "tchul.com": "/tenants/tchul/icon.png",
+  "www.tchul.com": "/tenants/tchul/icon.png",
+  "ymath.co.kr": "/tenants/ymath/icon.png",
+  "www.ymath.co.kr": "/tenants/ymath/icon.png",
+  "limglish.kr": "/tenants/limglish/icon.png",
+  "www.limglish.kr": "/tenants/limglish/icon.png",
+  "hakwonplus.com": DEFAULT_TEACHER_APP_ICON,
+  "www.hakwonplus.com": DEFAULT_TEACHER_APP_ICON,
+  "sswe.co.kr": "/tenants/sswe/icon.png",
+  "www.sswe.co.kr": "/tenants/sswe/icon.png",
+  "dnbacademy.co.kr": "/tenants/dnb/logo.png",
+  "www.dnbacademy.co.kr": "/tenants/dnb/logo.png",
+};
+
+type TeacherInstallMeta = {
+  title: string;
+  iconHref: string;
+};
 
 export function useTeacherSW() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+
+    const installMeta = getTeacherInstallMeta();
 
     // manifest 동적 주입
     injectManifestLink();
@@ -18,7 +50,7 @@ export function useTeacherSW() {
     injectThemeColor();
 
     // apple-mobile-web-app 메타 태그 주입 (iOS PWA 지원)
-    injectAppleMeta();
+    injectAppleMeta(installMeta);
 
     // SW 등록
     navigator.serviceWorker
@@ -53,71 +85,150 @@ export function useTeacherSW() {
   }, []);
 }
 
+function getTeacherInstallMeta(): TeacherInstallMeta {
+  const hostname = window.location.hostname.toLowerCase();
+  const tenant = getTenantDefByHostname(hostname);
+  const brandTitle =
+    tenant?.branding.windowTitle ||
+    tenant?.branding.loginTitle ||
+    tenant?.name ||
+    "학원플러스";
+  const iconHref =
+    TEACHER_APP_ICON_BY_HOST[hostname] ||
+    tenant?.branding.headerLogoUrl ||
+    tenant?.branding.faviconUrl ||
+    tenant?.branding.logoUrl ||
+    DEFAULT_TEACHER_APP_ICON;
+
+  return {
+    title: `${brandTitle} 선생님`,
+    iconHref,
+  };
+}
+
 function injectManifestLink() {
-  if (document.querySelector('link[rel="manifest"][data-teacher]')) return;
-  const link = document.createElement("link");
-  link.rel = "manifest";
-  link.href = "/teacher-manifest.json";
-  link.setAttribute("data-teacher", "true");
-  document.head.appendChild(link);
+  let link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "manifest";
+    link.setAttribute(DATA_TEACHER_CREATED, "true");
+    document.head.appendChild(link);
+  } else if (!link.hasAttribute(DATA_PREVIOUS_HREF)) {
+    link.setAttribute(DATA_PREVIOUS_HREF, link.getAttribute("href") || "");
+  }
+
+  link.href = TEACHER_MANIFEST_HREF;
+  link.setAttribute(DATA_TEACHER, "true");
 }
 
 function removeManifestLink() {
   const link = document.querySelector('link[rel="manifest"][data-teacher]');
-  if (link) link.remove();
+  if (!link) return;
+  if (link.getAttribute(DATA_TEACHER_CREATED) === "true") {
+    link.remove();
+    return;
+  }
+
+  const previousHref = link.getAttribute(DATA_PREVIOUS_HREF);
+  if (previousHref != null) {
+    if (previousHref) link.setAttribute("href", previousHref);
+    else link.removeAttribute("href");
+  }
+  link.removeAttribute(DATA_TEACHER);
+  link.removeAttribute(DATA_TEACHER_CREATED);
+  link.removeAttribute(DATA_PREVIOUS_HREF);
 }
 
 function injectThemeColor() {
-  if (document.querySelector('meta[name="theme-color"][data-teacher]')) return;
-  const meta = document.createElement("meta");
-  meta.name = "theme-color";
-  meta.content = "#3b82f6";
-  meta.setAttribute("data-teacher", "true");
-  document.head.appendChild(meta);
+  upsertManagedMeta("theme-color", TEACHER_THEME_COLOR);
 }
 
 function removeThemeColor() {
-  const el = document.querySelector('meta[name="theme-color"][data-teacher]');
-  if (el) el.remove();
+  restoreManagedMeta("theme-color");
 }
 
 function removeAppleMeta() {
-  document
-    .querySelectorAll(
-      [
-        'meta[name="apple-mobile-web-app-capable"][data-teacher]',
-        'meta[name="apple-mobile-web-app-status-bar-style"][data-teacher]',
-        'link[rel="apple-touch-icon"][data-teacher]',
-      ].join(",")
-    )
-    .forEach((el) => el.remove());
+  restoreManagedMeta("apple-mobile-web-app-capable");
+  restoreManagedMeta("apple-mobile-web-app-status-bar-style");
+  restoreManagedMeta("apple-mobile-web-app-title");
+  restoreManagedLink('link[rel="apple-touch-icon"][data-teacher]');
 }
 
-function injectAppleMeta() {
+function injectAppleMeta(installMeta: TeacherInstallMeta) {
   // apple-mobile-web-app-capable
-  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
-    const capable = document.createElement("meta");
-    capable.name = "apple-mobile-web-app-capable";
-    capable.content = "yes";
-    capable.setAttribute("data-teacher", "true");
-    document.head.appendChild(capable);
-  }
+  upsertManagedMeta("apple-mobile-web-app-capable", "yes");
   // apple-mobile-web-app-status-bar-style
-  if (
-    !document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-  ) {
-    const statusBar = document.createElement("meta");
-    statusBar.name = "apple-mobile-web-app-status-bar-style";
-    statusBar.content = "default";
-    statusBar.setAttribute("data-teacher", "true");
-    document.head.appendChild(statusBar);
-  }
+  upsertManagedMeta("apple-mobile-web-app-status-bar-style", "default");
+  // apple-mobile-web-app-title
+  upsertManagedMeta(
+    "apple-mobile-web-app-title",
+    installMeta.title || DEFAULT_TEACHER_APP_TITLE
+  );
   // apple-touch-icon
-  if (!document.querySelector('link[rel="apple-touch-icon"][data-teacher]')) {
-    const icon = document.createElement("link");
-    icon.rel = "apple-touch-icon";
-    icon.href = "/teacher-icons/icon-192.svg";
-    icon.setAttribute("data-teacher", "true");
-    document.head.appendChild(icon);
+  upsertManagedLink("apple-touch-icon", installMeta.iconHref || DEFAULT_TEACHER_APP_ICON);
+}
+
+function upsertManagedMeta(name: string, content: string) {
+  let meta = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = name;
+    meta.setAttribute(DATA_TEACHER_CREATED, "true");
+    document.head.appendChild(meta);
+  } else if (!meta.hasAttribute(DATA_PREVIOUS_CONTENT)) {
+    meta.setAttribute(DATA_PREVIOUS_CONTENT, meta.getAttribute("content") || "");
   }
+
+  meta.content = content;
+  meta.setAttribute(DATA_TEACHER, "true");
+}
+
+function restoreManagedMeta(name: string) {
+  const meta = document.querySelector(`meta[name="${name}"][data-teacher]`) as HTMLMetaElement | null;
+  if (!meta) return;
+  if (meta.getAttribute(DATA_TEACHER_CREATED) === "true") {
+    meta.remove();
+    return;
+  }
+
+  const previousContent = meta.getAttribute(DATA_PREVIOUS_CONTENT);
+  if (previousContent != null) {
+    meta.content = previousContent;
+  }
+  meta.removeAttribute(DATA_TEACHER);
+  meta.removeAttribute(DATA_TEACHER_CREATED);
+  meta.removeAttribute(DATA_PREVIOUS_CONTENT);
+}
+
+function upsertManagedLink(rel: string, href: string) {
+  let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = rel;
+    link.setAttribute(DATA_TEACHER_CREATED, "true");
+    document.head.appendChild(link);
+  } else if (!link.hasAttribute(DATA_PREVIOUS_HREF)) {
+    link.setAttribute(DATA_PREVIOUS_HREF, link.getAttribute("href") || "");
+  }
+
+  link.href = href;
+  link.setAttribute(DATA_TEACHER, "true");
+}
+
+function restoreManagedLink(selector: string) {
+  const link = document.querySelector(selector) as HTMLLinkElement | null;
+  if (!link) return;
+  if (link.getAttribute(DATA_TEACHER_CREATED) === "true") {
+    link.remove();
+    return;
+  }
+
+  const previousHref = link.getAttribute(DATA_PREVIOUS_HREF);
+  if (previousHref != null) {
+    if (previousHref) link.setAttribute("href", previousHref);
+    else link.removeAttribute("href");
+  }
+  link.removeAttribute(DATA_TEACHER);
+  link.removeAttribute(DATA_TEACHER_CREATED);
+  link.removeAttribute(DATA_PREVIOUS_HREF);
 }
