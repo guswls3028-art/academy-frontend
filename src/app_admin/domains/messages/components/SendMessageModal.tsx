@@ -55,6 +55,7 @@ import {
 import GradesBlockPanel from "./GradesBlockPanel";
 import TemplatePickerModal from "./TemplatePickerModal";
 import {
+  getAlimtalkTemplateLabel,
   getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
@@ -504,7 +505,7 @@ export default function SendMessageModal({
   }, [open, initialBody, initialTemplateId, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
-  // initialBody가 있어도 봉투(카카오 검수 통과 4종)는 카테고리에 맞춰 자동 선택해야 함.
+  // initialBody가 있어도 봉투(카카오 검수 통과 승인 양식)는 카테고리에 맞춰 자동 선택해야 함.
   // 학원장 mental model: 봉투는 시스템이 매칭, #{선생님메모}만 학원장 자유 작성.
   // initialBody는 양식 body 대신 #{선생님메모} 자리에 들어가도록 body로 유지.
   useEffect(() => {
@@ -994,20 +995,18 @@ export default function SendMessageModal({
               </div>
               {(() => {
                 const tplCategory = (selectedTemplate?.category as TemplateCategory | undefined) ?? blockCategory;
-                const alimtalkType = getAlimtalkTemplateTypeFromCategory(tplCategory);
+                const alimtalkType = getAlimtalkTemplateTypeFromCategory(
+                  tplCategory,
+                  selectedTemplate?.name ?? selectedPreset?.name ?? "",
+                  alimtalkExtraVars,
+                );
                 // SSOT (2026-05-14): preview body는 학원장이 textarea에 친 body가 진실.
                 // 직전엔 selectedTemplate.body의 substituted ReactNode[]를 letterBody로 썼는데
                 // (a) renderAlimtalkFullPreview는 raw string body를 받아 자체 렌더, (b) 학원장 수정 반영 안 됨.
                 // 둘 다 해결 위해 body raw string 그대로 전달.
                 // 성적 발송은 callback 결과 대신 raw 양식을 표시해 다수 학생에게 공통 적용될 모양을 검수한다.
                 const letterBody = body && hasSelectedBodySource ? previewLetterBody : "";
-                const channelLabel = alimtalkType
-                  ? alimtalkType === "score" ? "성적표 안내"
-                    : alimtalkType === "attendance" ? "출석 안내"
-                    : alimtalkType === "clinic_info" ? "클리닉 안내"
-                    : alimtalkType === "clinic_change" ? "일정 변경 안내"
-                    : "알림톡"
-                  : "알림톡";
+                const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
                 if (alimtalkType) {
                   return (
                     <div className="template-preview-kakao">

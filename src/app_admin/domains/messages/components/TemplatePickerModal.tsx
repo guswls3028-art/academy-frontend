@@ -25,6 +25,11 @@ import { renderPreviewWithActualData, TEMPLATE_CATEGORY_LABELS } from "../consta
 import type { TemplateCategory } from "../constants/templateBlocks";
 import { syncSolapiTemplates, type MessageTemplateItem } from "../api/messages.api";
 import type { ProvidedTemplatePreset } from "../constants/templatePresets";
+import {
+  getAlimtalkTemplateLabel,
+  getAlimtalkTemplateTypeFromCategory,
+  renderAlimtalkFullPreview,
+} from "./AlimtalkTemplateInfoPanel";
 
 export type TemplatePickerModalProps = {
   open: boolean;
@@ -190,9 +195,21 @@ export default function TemplatePickerModal({
     [defaultPresets, previewKey],
   );
 
+  const previewSourceBody = (previewTpl?.body ?? previewPreset?.body) || "";
+  const previewSourceCategory = (previewTpl?.category ?? previewPreset?.category ?? blockCategory) as TemplateCategory;
+  const previewTemplateName = previewTpl?.name ?? previewPreset?.name ?? "";
+  const previewAlimtalkType = getAlimtalkTemplateTypeFromCategory(
+    previewSourceCategory,
+    previewTemplateName,
+    alimtalkExtraVars,
+  );
+  const previewDisplayBody = previewAlimtalkType
+    ? renderAlimtalkFullPreview(previewAlimtalkType, previewSourceBody)
+    : previewSourceBody;
   const previewBody = previewTpl || previewPreset
-    ? renderPreviewWithActualData((previewTpl?.body ?? previewPreset?.body) || "", alimtalkExtraVars)
+    ? renderPreviewWithActualData(previewDisplayBody, alimtalkExtraVars)
     : null;
+  const previewChannelLabel = getAlimtalkTemplateLabel(previewAlimtalkType);
 
   if (!open) return null;
 
@@ -431,6 +448,10 @@ export default function TemplatePickerModal({
                 </div>
 
                 <div className="tpl-picker__preview-card">
+                  <div className="template-preview-kakao__header">
+                    <span className="template-preview-kakao__header-label">알림톡 도착</span>
+                    <span className="template-preview-kakao__header-channel">{previewChannelLabel}</span>
+                  </div>
                   {previewTpl?.subject && (
                     <div className="template-preview-kakao__title">{previewTpl.subject}</div>
                   )}

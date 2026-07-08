@@ -545,6 +545,7 @@ export interface AutoSendConfigItem {
   effective_template_solapi_status?: string;
   effective_template_source?: "unified" | "tenant_template" | "missing" | string;
   effective_template_is_approved?: boolean;
+  effective_template_type?: string;
   enabled: boolean;
   message_mode: MessageMode;
   /** N분 전/후 발송 (null = 이벤트 시점). 사용자 설정 가능. */

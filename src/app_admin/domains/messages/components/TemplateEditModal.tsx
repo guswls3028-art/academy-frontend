@@ -16,7 +16,13 @@ import {
   type TemplateCategory,
 } from "../constants/templateBlocks";
 import GradesBlockPanel from "./GradesBlockPanel";
-import AlimtalkTemplateInfoPanel, { getAlimtalkTemplateType, getAlimtalkTemplateTypeFromCategory, getAutoFillBlockIds, renderAlimtalkFullPreview } from "./AlimtalkTemplateInfoPanel";
+import AlimtalkTemplateInfoPanel, {
+  getAlimtalkTemplateType,
+  getAlimtalkTemplateTypeFromCategory,
+  getAutoFillBlockIds,
+  isAlimtalkTemplateBodyEditable,
+  renderAlimtalkFullPreview,
+} from "./AlimtalkTemplateInfoPanel";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
 import "../styles/templateEditor.css";
@@ -55,7 +61,8 @@ export default function TemplateEditModal({
   const [body, setBody] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("alimtalk");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
-  const alimtalkType = getAlimtalkTemplateType(trigger) ?? getAlimtalkTemplateTypeFromCategory(selectedCategory);
+  const alimtalkType = getAlimtalkTemplateType(trigger) ?? getAlimtalkTemplateTypeFromCategory(selectedCategory, name);
+  const bodyEditableInEnvelope = isAlimtalkTemplateBodyEditable(alimtalkType);
   // Ant Design Input.TextArea ref는 래퍼 객체 — native textarea를 직접 찾는다
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const getNativeTextarea = useCallback(
@@ -248,11 +255,17 @@ export default function TemplateEditModal({
               <div ref={bodyWrapRef} className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
                   {alimtalkType && activeTab === "alimtalk"
-                    ? "안내 문구 (알림톡 #{내용} 영역)"
+                    ? bodyEditableInEnvelope
+                      ? "안내 문구 (알림톡 #{선생님메모} 영역)"
+                      : "본문 메모 (고정 알림톡에는 표시되지 않음)"
                     : "본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)"}
                 </label>
                 <Input.TextArea
-                  placeholder="내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                  placeholder={
+                    alimtalkType && !bodyEditableInEnvelope
+                      ? "이 알림톡 봉투는 카카오 승인 고정 본문으로 발송됩니다."
+                      : "내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                  }
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={14}
@@ -269,7 +282,9 @@ export default function TemplateEditModal({
                       <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
                       {(() => {
                         const autoIds = getAutoFillBlockIds(alimtalkType);
-                        const bodyBlocks = blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link");
+                        const bodyBlocks = bodyEditableInEnvelope
+                          ? blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link")
+                          : [];
                         if (!bodyBlocks.length) return null;
                         return (
                           <div style={{ marginTop: 12 }}>

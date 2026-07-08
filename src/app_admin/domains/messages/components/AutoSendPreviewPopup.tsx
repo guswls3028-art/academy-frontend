@@ -5,6 +5,11 @@
 import { useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
+import {
+  getAlimtalkTemplateLabel,
+  getAlimtalkTemplateType,
+  renderAlimtalkFullPreview,
+} from "./AlimtalkTemplateInfoPanel";
 import "../styles/templateEditor.css";
 import styles from "./AutoSendPreviewPopup.module.css";
 
@@ -94,9 +99,14 @@ export default function AutoSendPreviewPopup({
   const resolvedBody = body
     ? substituteVariables(body, previewContext)
     : "템플릿이 아직 설정되지 않았습니다.";
+  const alimtalkType = getAlimtalkTemplateType(trigger);
+  const previewBody = alimtalkType
+    ? renderAlimtalkFullPreview(alimtalkType, resolvedBody)
+    : resolvedBody;
 
   const triggerLabel =
     AUTO_SEND_TRIGGER_LABELS[trigger] ?? trigger;
+  const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
 
   return (
     <div
@@ -135,6 +145,10 @@ export default function AutoSendPreviewPopup({
         <div className={styles.content}>
           <div className={`template-preview-kakao ${styles.kakaoPreview}`}>
             <div className="template-preview-kakao__card">
+              <div className="template-preview-kakao__header">
+                <span className="template-preview-kakao__header-label">알림톡 도착</span>
+                <span className="template-preview-kakao__header-channel">{channelLabel}</span>
+              </div>
               {resolvedSubject && (
                 <div
                   className={`template-preview-kakao__title ${styles.previewText}`}
@@ -145,7 +159,7 @@ export default function AutoSendPreviewPopup({
               <div
                 className={`template-preview-kakao__body ${styles.previewText}`}
               >
-                {body ? renderBody(resolvedBody) : (
+                {body ? renderBody(previewBody) : (
                   <span className={styles.emptyText}>
                     템플릿이 아직 설정되지 않았습니다.
                   </span>

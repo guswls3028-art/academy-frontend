@@ -5,16 +5,31 @@
 /* eslint-disable react-refresh/only-export-components, no-restricted-syntax -- helper 함수 + 컴포넌트 한 파일 SSOT + 안내 패널 inline style (2026-05-14 baseline shift fix) */
 
 import { getBlockColor } from "../constants/templateBlocks";
+import {
+  getAlimtalkTemplateLabel,
+  getAlimtalkTemplateType,
+  getAlimtalkTemplateTypeFromCategory,
+  isAlimtalkTemplateBodyEditable,
+  type AlimtalkTemplateType,
+} from "../constants/alimtalkEnvelope";
+
+export {
+  getAlimtalkTemplateLabel,
+  getAlimtalkTemplateType,
+  getAlimtalkTemplateTypeFromCategory,
+  isAlimtalkTemplateBodyEditable,
+};
+export type { AlimtalkTemplateType };
 
 // ── 템플릿 타입별 자동 채움 변수 ──
-
-type AlimtalkTemplateType = "clinic_info" | "clinic_change" | "score" | "attendance" | null;
 
 const TEMPLATE_TYPE_LABELS: Record<string, string> = {
   clinic_info: "클리닉 안내",
   clinic_change: "클리닉 일정 변경",
   score: "성적 안내",
   attendance: "출석 안내",
+  notice_withdrawal: "퇴원 처리 안내",
+  notice_payment: "결제 완료 안내",
 };
 
 const TEMPLATE_TYPE_DESCRIPTIONS: Record<string, string> = {
@@ -22,6 +37,8 @@ const TEMPLATE_TYPE_DESCRIPTIONS: Record<string, string> = {
   clinic_change: "학원이름, 학생이름, 기존일정, 변동사항, 수정자가 자동으로 표시됩니다. 본문에 안내 문구를 작성하세요.",
   score: "학원이름, 학생이름, 강의명, 차시명이 자동으로 표시됩니다. 본문에 안내 문구를 작성하고, 필요 시 아래 변수를 삽입할 수 있습니다.",
   attendance: "학원이름, 학생이름, 강의명, 차시명, 날짜, 시간이 자동으로 표시됩니다. 본문에 안내 문구를 작성하세요.",
+  notice_withdrawal: "학원명과 학생 이름이 자동으로 표시되는 고정 안내입니다. 카카오 승인 본문에는 별도 안내 문구 영역이 없습니다.",
+  notice_payment: "학원명, 학생 이름, 사이트 링크가 자동으로 표시되는 고정 안내입니다. 카카오 승인 본문에는 별도 안내 문구 영역이 없습니다.",
 };
 
 type AutoVar = { label: string; example: string; color: string; bg: string; border: string };
@@ -55,6 +72,15 @@ const TEMPLATE_AUTO_VARS: Record<string, AutoVar[]> = {
     { label: "날짜", example: "2026-04-06", ...getBlockColor("date") },
     { label: "시간", example: "14:00", ...getBlockColor("time") },
   ],
+  notice_withdrawal: [
+    { label: "학원명", example: "학원플러스", ...getBlockColor("academy_name") },
+    { label: "학생이름", example: "길동", ...getBlockColor("student_name_2") },
+  ],
+  notice_payment: [
+    { label: "학원명", example: "학원플러스", ...getBlockColor("academy_name") },
+    { label: "학생이름", example: "길동", ...getBlockColor("student_name_2") },
+    { label: "사이트 링크", example: "https://academy.example", ...getBlockColor("site_link") },
+  ],
 };
 
 /** 알림톡 자동 채움 변수의 block ID 목록 — 본문 변수 삽입에서 중복 제거용 */
@@ -63,50 +89,18 @@ const AUTO_VAR_BLOCK_IDS: Record<string, Set<string>> = {
   clinic_change: new Set(["academy_name", "student_name", "clinic_old_sched", "clinic_changes", "clinic_modifier"]),
   score: new Set(["academy_name", "student_name", "lecture_name", "session_name"]),
   attendance: new Set(["academy_name", "student_name", "lecture_name", "session_name", "date", "time"]),
+  notice_withdrawal: new Set(["academy_name", "student_name_2"]),
+  notice_payment: new Set(["academy_name", "student_name_2", "site_link"]),
 };
 
-export function getAutoFillBlockIds(templateType: AlimtalkTemplateType): Set<string> {
+export function getAutoFillBlockIds(templateType: AlimtalkTemplateType | null): Set<string> {
   if (!templateType) return new Set();
   return AUTO_VAR_BLOCK_IDS[templateType] ?? new Set();
 }
 
-/** 카테고리명으로 알림톡 템플릿 타입 판별 (수동 템플릿 편집 시 사용)
- *  backend `alimtalk_content_builders.CATEGORY_TO_TEMPLATE_TYPE` 와 정합 유지.
- *  미매핑 카테고리는 null 반환 → 미리보기 표시하지 않음 (거짓 약속 방지). */
-export function getAlimtalkTemplateTypeFromCategory(category?: string): AlimtalkTemplateType {
-  if (!category) return null;
-  if (category === "grades") return "score";
-  if (category === "attendance" || category === "lecture") return "attendance";
-  if (category === "clinic") return "clinic_info";
-  return null;
-}
-
-/** 트리거명으로 알림톡 템플릿 타입 판별
- *  backend `alimtalk_content_builders.TRIGGER_TO_TEMPLATE_TYPE` 와 정합 유지.
- *  미매핑 트리거는 null 반환 → 미리보기 표시하지 않음 (거짓 약속 방지). */
-export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType {
-  if (!trigger) return null;
-  const CLINIC_INFO = [
-    "clinic_reservation_created", "clinic_reminder", "clinic_check_in",
-    "clinic_absent", "clinic_self_study_completed", "clinic_result_notification",
-    "counseling_reservation_created",
-  ];
-  const CLINIC_CHANGE = ["clinic_reservation_changed", "clinic_cancelled"];
-  const ATTENDANCE = ["check_in_complete", "absent_occurred", "lecture_session_reminder"];
-  const SCORE = [
-    "exam_score_published",
-    "monthly_report_generated",
-  ];
-  if (CLINIC_INFO.includes(trigger)) return "clinic_info";
-  if (CLINIC_CHANGE.includes(trigger)) return "clinic_change";
-  if (ATTENDANCE.includes(trigger)) return "attendance";
-  if (SCORE.includes(trigger)) return "score";
-  return null;
-}
-
 /** 알림톡 미리보기용 전체 메시지 렌더링 */
 export function renderAlimtalkFullPreview(
-  templateType: AlimtalkTemplateType,
+  templateType: AlimtalkTemplateType | null,
   contentBody: string,
   siteUrl?: string,
 ): string {
@@ -166,6 +160,22 @@ export function renderAlimtalkFullPreview(
       url
     );
   }
+  if (templateType === "notice_withdrawal") {
+    return (
+      `안녕하세요, 학원플러스입니다.\n\n` +
+      `길동학생님, 퇴원 처리가 완료되었습니다.\n\n` +
+      `그동안 학원을 이용해 주셔서 감사합니다.\n` +
+      `재등록을 원하시면 언제든 문의해 주세요.`
+    );
+  }
+  if (templateType === "notice_payment") {
+    return (
+      `안녕하세요, 학원플러스입니다.\n\n` +
+      `길동학생님, 결제가 완료되었습니다.\n\n` +
+      `수업·결제 내역은 아래 링크에서 확인하실 수 있습니다.\n` +
+      url
+    );
+  }
   return contentBody || "";
 }
 
@@ -180,7 +190,8 @@ export default function AlimtalkTemplateInfoPanel({
 
   const autoVars = TEMPLATE_AUTO_VARS[templateType] || [];
   const description = TEMPLATE_TYPE_DESCRIPTIONS[templateType] || "";
-  const typeLabel = TEMPLATE_TYPE_LABELS[templateType] || "";
+  const typeLabel = TEMPLATE_TYPE_LABELS[templateType] || getAlimtalkTemplateLabel(templateType);
+  const bodyEditable = isAlimtalkTemplateBodyEditable(templateType);
 
   return (
      
@@ -248,8 +259,17 @@ export default function AlimtalkTemplateInfoPanel({
         fontSize: 10, lineHeight: 1.5,
         color: "var(--color-status-info, #2563eb)",
       }}>
-        위 항목은 발송 시 자동으로 채워집니다.<br />
-        본문에 안내 문구를 작성하세요. (카카오톡에서 <strong>내용</strong> 영역에 표시됩니다)
+        {bodyEditable ? (
+          <>
+            위 항목은 발송 시 자동으로 채워집니다.<br />
+            본문에 안내 문구를 작성하세요. (카카오톡에서 <strong>내용</strong> 영역에 표시됩니다)
+          </>
+        ) : (
+          <>
+            위 항목만 발송 시 자동으로 채워집니다.<br />
+            이 봉투는 카카오 승인 본문이 고정되어 별도 본문 문구를 표시하지 않습니다.
+          </>
+        )}
       </div>
     </div>
   );
