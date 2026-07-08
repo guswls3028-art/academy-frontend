@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/sessions/components/SessionBlock.tsx
 // 차시 = 세션. 강의 홈 / 차시 상세에서 공용. 반 편성 모드일 때는 반별 row로 그룹.
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -11,7 +11,6 @@ import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, Layers, Users } 
 import { fetchSessions, type Session } from "@/shared/api/contracts/sessions";
 import { fetchSections, type Section as SectionType } from "@/shared/api/contracts/lectureSections";
 import { updateSession, deleteSession } from "@admin/domains/lectures/api/sessions";
-import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
 import { SessionBlockView, formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -19,6 +18,8 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
 import styles from "./SessionBlock.module.css";
+
+const SessionCreateModal = lazy(() => import("@admin/domains/lectures/components/SessionCreateModal"));
 
 interface Props {
   lectureId: number;
@@ -310,7 +311,11 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           )}
         </div>
 
-        {showCreate && <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />}
+        {showCreate && (
+          <Suspense fallback={null}>
+            <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />
+          </Suspense>
+        )}
       </>
     );
   }
@@ -339,7 +344,11 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           </>
         )}
       </div>
-      {showCreate && <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />}
+      {showCreate && (
+        <Suspense fallback={null}>
+          <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />
+        </Suspense>
+      )}
     </>
   );
 }

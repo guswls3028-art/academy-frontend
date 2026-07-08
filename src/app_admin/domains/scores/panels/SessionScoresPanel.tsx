@@ -129,18 +129,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
 
-  const { data: attendanceList } = useQuery({
-    queryKey: scoresQueryKeys.attendance(sessionId),
-    queryFn: () => fetchAttendance(sessionId, { page_size: 500 }),
-    enabled: Number.isFinite(sessionId) && sessionId > 0,
-  });
-
   const allRows = useMemo<SessionScoreRow[]>(() => {
     const raw = data?.rows ?? [];
     // 시험·과제 둘 다 대상 등록이 안 된 학생은 성적탭에서 제외
     return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0);
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
+  const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
+  const { data: attendanceList } = useQuery({
+    queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
+    queryFn: () => fetchAttendance(
+      sessionId,
+      attendancePageSize ? { page_size: attendancePageSize } : undefined,
+    ),
+    enabled: Number.isFinite(sessionId) && sessionId > 0 && allRows.length > 0,
+  });
 
   /** 2026-05-13 학원장 결정: 컬럼 순서 변경 = 드래그앤드롭으로 전환.
    *  기존 ◀▶ 버튼 + direction("up"|"down") 시그니처 → fromId→toId 스왑 시그니처. */

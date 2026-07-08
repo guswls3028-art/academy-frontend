@@ -1,6 +1,8 @@
 // PATH: src/shared/ui/feedback/feedback.ts
 // antd App context 사용 — Static message 대신 App.useApp() 인스턴스 사용으로 [antd: message] 경고 제거
 
+import { createElement } from "react";
+
 /** App 내부에서 주입되는 message API (FeedbackBridge가 설정) */
 const messageApiRef: { current: ReturnType<typeof import("antd")["App"]["useApp"]>["message"] | null } = {
   current: null,
@@ -56,17 +58,13 @@ export const feedback = {
     const noti = notificationApiRef.current;
     if (noti) {
       const key = `success-action-${Date.now()}`;
-      // React.createElement 로 btn 노드 생성 — feedback 모듈에서 직접 import.
-      // antd Button + 직접 onClick (학원장 결정 위임. 자동 navigate X).
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const React = require("react") as typeof import("react");
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const antd = require("antd") as typeof import("antd");
-      const btn = React.createElement(
-        antd.Button,
+      const btn = createElement(
+        "button",
         {
-          type: "primary",
-          size: "small",
+          type: "button",
+          className: "ds-button",
+          "data-intent": "primary",
+          "data-size": "sm",
           onClick: () => {
             try {
               opts.action.onClick();

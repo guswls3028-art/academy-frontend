@@ -8,7 +8,7 @@
  * 2026-05-12: 범용 발송 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
  */
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, MoreVertical, Plus, Printer, Users } from "lucide-react";
@@ -35,8 +35,6 @@ import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollmen
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import api from "@/shared/api/axios";
-import ScorePrintPreviewModal from "@admin/domains/scores/components/ScorePrintPreviewModal";
-import ClinicPrintPreviewModal from "@admin/domains/scores/components/ClinicPrintPreviewModal";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
@@ -48,6 +46,9 @@ type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
 };
+
+const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ScorePrintPreviewModal"));
+const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
 
 export default function SessionScoresEntryPage({
   onOpenCreateExam,
@@ -89,24 +90,25 @@ export default function SessionScoresEntryPage({
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const shouldLoadPrintData = showPrintPreview || showClinicPreview;
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
     queryKey: adminLectureQueryKeys.lecture(numericLectureId),
     queryFn: async () => (await api.get(`/lectures/lectures/${numericLectureId}/`)).data,
-    enabled: Number.isFinite(numericLectureId),
+    enabled: shouldLoadPrintData && Number.isFinite(numericLectureId),
   });
   /** 세션 정보 (PDF 제목용) */
   const { data: sessionData } = useQuery({
     queryKey: adminLectureQueryKeys.sessionDetail(numericSessionId),
     queryFn: async () => (await api.get(`/lectures/sessions/${numericSessionId}/`)).data,
-    enabled: Number.isFinite(numericSessionId),
+    enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });
   /** 출결 (PDF 출결 열 + 클리닉 현황용) */
   const { data: attendanceForPdf } = useQuery({
     queryKey: adminLectureQueryKeys.attendanceForPdf(numericSessionId),
     queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
-    enabled: Number.isFinite(numericSessionId),
+    enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });
 
   const attendanceMapForPdf = useMemo(() => {
@@ -962,28 +964,32 @@ export default function SessionScoresEntryPage({
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (
-        <ScorePrintPreviewModal
-          open={showPrintPreview}
-          onClose={() => setShowPrintPreview(false)}
-          rows={data.rows.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0)}
-          meta={data.meta}
-          sessionTitle={sessionTitle}
-          lectureTitle={lectureTitle}
-          attendanceMap={attendanceMapForPdf}
-        />
+        <Suspense fallback={null}>
+          <ScorePrintPreviewModal
+            open={showPrintPreview}
+            onClose={() => setShowPrintPreview(false)}
+            rows={data.rows.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0)}
+            meta={data.meta}
+            sessionTitle={sessionTitle}
+            lectureTitle={lectureTitle}
+            attendanceMap={attendanceMapForPdf}
+          />
+        </Suspense>
       )}
 
       {/* 클리닉 대상자 미리보기 */}
       {showClinicPreview && data?.meta && (
-        <ClinicPrintPreviewModal
-          open={showClinicPreview}
-          onClose={() => setShowClinicPreview(false)}
-          rows={data.rows}
-          meta={data.meta}
-          sessionTitle={sessionTitle}
-          lectureTitle={lectureTitle}
-          attendanceMap={attendanceMapForPdf}
-        />
+        <Suspense fallback={null}>
+          <ClinicPrintPreviewModal
+            open={showClinicPreview}
+            onClose={() => setShowClinicPreview(false)}
+            rows={data.rows}
+            meta={data.meta}
+            sessionTitle={sessionTitle}
+            lectureTitle={lectureTitle}
+            attendanceMap={attendanceMapForPdf}
+          />
+        </Suspense>
       )}
     </div>
   );

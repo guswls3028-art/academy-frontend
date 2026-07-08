@@ -19,7 +19,8 @@ import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import { DevErrorBoundary, DevErrorLogger } from "@/core/DevErrorLogger";
 import { hardReloadWithCacheBust, stripHardReloadParam } from "@/shared/utils/hardReload";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
-import { ModalWindowProvider, ModalTaskbar } from "@/shared/ui/modal";
+import { ModalWindowProvider } from "@/shared/ui/modal/ModalWindowContext";
+import ModalTaskbar from "@/shared/ui/modal/ModalTaskbar";
 
 import "./index.css";
 import "antd/dist/reset.css";

@@ -55,6 +55,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           const normalized = id.replace(/\\/g, "/");
+          if (normalized.endsWith(".css")) return undefined;
           if (id.includes("node_modules")) {
             // React + react-router는 반드시 같은 청크에 (createContext 등 의존)
             if (
@@ -92,9 +93,6 @@ export default defineConfig({
           // 테넌트 레지스트리: 앱 초기화 시 hostname→tenant 매핑 필수 — 메인 entry와 동일 청크
           if (normalized.includes("shared/tenant")) {
             return "index";
-          }
-          if (normalized.includes("/app_student/") && (normalized.includes("VideoPlayerPage") || normalized.includes("playback/player/"))) {
-            return "student-video-player";
           }
           return undefined;
         },
