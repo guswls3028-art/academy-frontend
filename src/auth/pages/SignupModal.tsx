@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { CircleHelp } from "lucide-react";
 import {
   submitRegistrationRequest,
   sendExistingCredentials,
@@ -47,6 +48,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [phoneCheck, setPhoneCheck] = useState<{ available: boolean; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const genderRef = useRef<HTMLDivElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
@@ -91,6 +93,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setCredentialsSent(false);
       setUsernameCheck(null);
       setPhoneCheck(null);
+      setShowGuide(false);
     }
   }, [open, slm.defaultSchoolType]);
 
@@ -255,10 +258,33 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
         >
           ✕
         </button>
-        <h2 id="signup-modal-title" className={styles.overlayTitle}>학생 회원가입</h2>
+        <div className={styles.signupTitleRow}>
+          <h2 id="signup-modal-title" className={styles.overlayTitle}>회원가입</h2>
+          <button
+            type="button"
+            className={styles.signupHelpButton}
+            aria-label="회원가입 안내 보기"
+            aria-expanded={showGuide}
+            aria-controls="signup-guide-panel"
+            title="회원가입 안내"
+            onClick={() => setShowGuide((v) => !v)}
+          >
+            <CircleHelp size={16} aria-hidden />
+          </button>
+        </div>
         <p className={styles.overlaySubtitle}>
           필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
         </p>
+        {showGuide && (
+          <div id="signup-guide-panel" className={styles.signupGuidePanel}>
+            <p className={styles.signupGuideLead}>학생이 직접 가입을 신청하는 화면입니다.</p>
+            <ul className={styles.signupGuideList}>
+              <li>학부모는 등록된 휴대폰 번호로 로그인합니다.</li>
+              <li>대표·선생님 계정은 학원에서 받은 아이디를 사용합니다.</li>
+              <li>신청 후 선생님 승인까지 기다려 주세요.</li>
+            </ul>
+          </div>
+        )}
         {duplicateInfo ? (
           <div className={styles.signupDuplicatePanel}>
             <p className={styles.signupDuplicateTitle}>

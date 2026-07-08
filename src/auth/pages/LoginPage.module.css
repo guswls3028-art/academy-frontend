@@ -101,76 +101,6 @@
   margin-top: 0.25rem;
 }
 
-.loginGuide {
-  margin: -0.75rem 0 0.875rem;
-  color: var(--auth-text-muted, #6b7280);
-  font-size: 0.8125rem;
-  text-align: center;
-}
-
-.loginGuide summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  list-style: none;
-  color: var(--auth-text-muted, #6b7280);
-  cursor: pointer;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.loginGuide summary::-webkit-details-marker {
-  display: none;
-}
-
-.loginGuide summary::after {
-  width: 0.375rem;
-  height: 0.375rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  content: "";
-  transform: translateY(-1px) rotate(45deg);
-  transition: transform 0.16s ease;
-}
-
-.loginGuide[open] summary::after {
-  transform: translateY(1px) rotate(225deg);
-}
-
-.loginGuide summary:hover {
-  color: var(--auth-accent, #0d47a1);
-}
-
-.loginGuide summary:focus-visible {
-  outline: 2px solid var(--auth-accent, #0d47a1);
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-
-.loginGuideBody {
-  display: grid;
-  gap: 0.25rem;
-  margin-top: 0.625rem;
-  padding-top: 0.625rem;
-  border-top: 1px solid var(--auth-border, #e5e7eb);
-  text-align: left;
-}
-
-.loginGuideBody span {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: var(--auth-text-muted, #6b7280);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.loginGuideBody strong {
-  flex: 0 0 auto;
-  color: var(--auth-accent, #0d47a1);
-  font-weight: 800;
-}
-
 /* 스크린리더 전용 라벨 */
 .srOnly {
   position: absolute;
@@ -399,6 +329,75 @@
   letter-spacing: 0;
   color: #6B7280;
   margin: 0 0 20px;
+}
+
+.signupTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 34px;
+  margin: 0 0 6px;
+}
+
+.signupTitleRow .overlayTitle {
+  margin: 0;
+}
+
+.signupHelpButton {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.signupHelpButton:hover,
+.signupHelpButton[aria-expanded="true"] {
+  color: var(--auth-accent, #0d47a1);
+  background: #FFFFFF;
+  border-color: var(--auth-border-hover, #D1D5DB);
+}
+
+.signupHelpButton:focus-visible {
+  outline: 2px solid var(--auth-accent, #0d47a1);
+  outline-offset: 2px;
+}
+
+.signupGuidePanel {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #FAFBFC;
+  color: #4B5563;
+  text-align: left;
+}
+
+.signupGuideLead {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.45;
+}
+
+.signupGuideList {
+  margin: 0;
+  padding-left: 18px;
+  color: #6B7280;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.signupGuideList li + li {
+  margin-top: 2px;
 }
 
 .resetSuccess {

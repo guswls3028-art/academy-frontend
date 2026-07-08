@@ -153,14 +153,6 @@ export default function LoginPage() {
           <h1 className={styles.title}>{title}</h1>
         </div>
         <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-          <details id="login-username-help" className={styles.loginGuide}>
-            <summary>로그인 안내</summary>
-            <div className={styles.loginGuideBody}>
-              <span><strong>학생</strong> 회원가입 신청 후 선생님 승인</span>
-              <span><strong>학부모</strong> 등록된 휴대폰 번호</span>
-              <span><strong>대표·선생님</strong> 학원에서 받은 아이디</span>
-            </div>
-          </details>
           <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
           <input
             id="login-username"
@@ -171,7 +163,6 @@ export default function LoginPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
-            aria-describedby="login-username-help"
             data-testid="login-username"
           />
           <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
@@ -218,7 +209,7 @@ export default function LoginPage() {
               </>
             )}
             <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
-              학생 회원가입
+              회원가입
             </button>
             <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
               아이디 찾기
