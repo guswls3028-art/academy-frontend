@@ -11,6 +11,10 @@
   max-width: 1120px;
 }
 
+.print-preview-modal__panel--billboard {
+  max-width: 980px;
+}
+
 .print-preview-modal__paper {
   transform-origin: top center;
 }
@@ -33,6 +37,12 @@
   transform: scale(0.56);
 }
 
+.print-preview-modal__paper--billboard {
+  width: 210mm;
+  min-height: 297mm;
+  transform: scale(0.78);
+}
+
 .print-preview-modal__iframe {
   width: 100%;
   border: 0;
@@ -48,4 +58,8 @@
 
 .print-preview-modal__iframe--a3-portrait {
   height: 420mm;
+}
+
+.print-preview-modal__iframe--billboard {
+  height: 297mm;
 }

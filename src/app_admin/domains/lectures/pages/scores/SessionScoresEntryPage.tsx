@@ -11,7 +11,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, MoreVertical, Plus, Printer, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, MoreVertical, Plus, Printer, Trophy, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -38,6 +38,7 @@ import api from "@/shared/api/axios";
 import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { useProgram } from "@/shared/program";
 import SessionOmrUploadAction from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import "./SessionScoresEntryPage.css";
@@ -49,6 +50,7 @@ type SessionScoresEntryPageProps = {
 
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ScorePrintPreviewModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
+const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/components/AnonymousBillboardPreviewModal"));
 
 export default function SessionScoresEntryPage({
   onOpenCreateExam,
@@ -60,6 +62,8 @@ export default function SessionScoresEntryPage({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const isMobile = useIsMobile();
+  const { program } = useProgram();
+  const isAnonymousBillboardMode = program?.feature_flags?.score_output_mode === "anonymous_billboard";
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -88,9 +92,10 @@ export default function SessionScoresEntryPage({
   const [enrollingAll, setEnrollingAll] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [showClinicPreview, setShowClinicPreview] = useState(false);
+  const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const shouldLoadPrintData = showPrintPreview || showClinicPreview;
+  const shouldLoadPrintData = showPrintPreview || showClinicPreview || showBillboardPreview;
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
@@ -673,10 +678,17 @@ export default function SessionScoresEntryPage({
               <Printer size={ICON_FOR_BUTTON.sm} />
               성적표 출력
             </button>
-            <button type="button" className="scores-more-menu__item" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
-              <HeartPulse size={ICON_FOR_BUTTON.sm} />
-              클리닉 대상 보기
-            </button>
+            {isAnonymousBillboardMode ? (
+              <button type="button" className="scores-more-menu__item" onClick={() => { setShowBillboardPreview(true); setShowMoreMenu(false); }}>
+                <Trophy size={ICON_FOR_BUTTON.sm} />
+                익명 빌보드 출력
+              </button>
+            ) : (
+              <button type="button" className="scores-more-menu__item" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
+                <HeartPulse size={ICON_FOR_BUTTON.sm} />
+                클리닉 대상 보기
+              </button>
+            )}
             {/* 2026-05-13 학원장 결정: 시험·과제 일괄 종료 메뉴 폐기. status UI SSOT 통합. */}
           </div>
         )}
@@ -983,6 +995,21 @@ export default function SessionScoresEntryPage({
           <ClinicPrintPreviewModal
             open={showClinicPreview}
             onClose={() => setShowClinicPreview(false)}
+            rows={data.rows}
+            meta={data.meta}
+            sessionTitle={sessionTitle}
+            lectureTitle={lectureTitle}
+            attendanceMap={attendanceMapForPdf}
+          />
+        </Suspense>
+      )}
+
+      {/* 익명 성적 빌보드 미리보기 */}
+      {showBillboardPreview && data?.meta && (
+        <Suspense fallback={null}>
+          <AnonymousBillboardPreviewModal
+            open={showBillboardPreview}
+            onClose={() => setShowBillboardPreview(false)}
             rows={data.rows}
             meta={data.meta}
             sessionTitle={sessionTitle}

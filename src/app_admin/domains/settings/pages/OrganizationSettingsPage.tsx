@@ -33,6 +33,7 @@ function AcademyModeSection() {
   const sectionMode = Boolean(ff.section_mode);
   const clinicMode = ff.clinic_mode === "regular" ? "regular" : "remediation";
   const schoolLevel = ff.school_level_mode === "elementary_middle" ? "elementary_middle" : "middle_high";
+  const scoreOutputMode = ff.score_output_mode === "anonymous_billboard" ? "anonymous_billboard" : "default";
 
   const badges: { label: string; value: string; tone: ModeBadgeTone }[] = [
     {
@@ -49,6 +50,11 @@ function AcademyModeSection() {
       label: "클리닉",
       value: clinicMode === "regular" ? "정규형 (필수 클리닉)" : "보충형 (불합격 관리)",
       tone: clinicMode === "regular" ? "success" : "muted",
+    },
+    {
+      label: "성적 출력",
+      value: scoreOutputMode === "anonymous_billboard" ? "익명 빌보드" : "기본 출력",
+      tone: scoreOutputMode === "anonymous_billboard" ? "primary" : "muted",
     },
   ];
 
