@@ -7,7 +7,10 @@
   color: var(--color-text-muted);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.45;
   white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .modeBadge[data-tone="primary"] {
