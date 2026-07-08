@@ -19,9 +19,12 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
+import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import "@student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null; onMenuClick?: () => void };
+
+const STUDENT_GUIDE_BOOK = getGuideBookPreset("student");
 
 function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_url?: string | null; displayName?: string | null; isParentReadOnly?: boolean } }) {
   const displayLabel = profile?.isParentReadOnly && profile?.displayName
@@ -191,16 +194,6 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         className="stu-topbar__profileDropdownItem"
         onClick={() => {
           setProfileOpen(false);
-          navigate("/student/guide");
-        }}
-      >
-        사용 가이드
-      </button>
-      <button
-        type="button"
-        className="stu-topbar__profileDropdownItem"
-        onClick={() => {
-          setProfileOpen(false);
           document.dispatchEvent(new Event("ui:bugreport:open"));
         }}
       >
@@ -337,57 +330,65 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-      {/* 알림 종 아이콘 (#65 P2, 2026-05-12) — community UserNotification unread 카운터.
-          학생/학부모 둘 다 같은 endpoint(/community/notifications/unread-count/) 사용. */}
-      <NotificationBell onClick={() => navigate("/student/notifications")} />
-      <div ref={profileRef} style={{ position: "relative" }}>
-        <button
-          type="button"
-          className="stu-topbar__profileBtn"
-          aria-label="프로필 메뉴"
-          onClick={() => setProfileOpen((v) => !v)}
-        >
-          {profile ? (
-            <StudentAvatar profile={profile} />
-          ) : (
-            <span className="stu-topbar__avatar-initial" style={{ width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-              ?
-            </span>
-          )}
-          {profile?.isParentReadOnly && profile?.displayName &&
-            (user?.linkedStudents?.length ?? 0) < 2 && (
-            /* 자녀가 2명 이상이면 헤더 하단 자녀 스위처가 같은 정보를 노출하므로 중복 노출 방지 */
-            <span
-              className="stu-topbar__name"
+        <GuideBookLauncher
+          preset={STUDENT_GUIDE_BOOK}
+          tone="student"
+          buttonClassName="stu-topbar__iconBtn stu-topbar__iconBtn--muted"
+          iconSize={20}
+          ariaLabel="가이드북"
+          onNavigate={navigate}
+        />
+        {/* 알림 종 아이콘 (#65 P2, 2026-05-12) — community UserNotification unread 카운터.
+            학생/학부모 둘 다 같은 endpoint(/community/notifications/unread-count/) 사용. */}
+        <NotificationBell onClick={() => navigate("/student/notifications")} />
+        <div ref={profileRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            className="stu-topbar__profileBtn"
+            aria-label="프로필 메뉴"
+            onClick={() => setProfileOpen((v) => !v)}
+          >
+            {profile ? (
+              <StudentAvatar profile={profile} />
+            ) : (
+              <span className="stu-topbar__avatar-initial" style={{ width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--stu-surface-soft)", color: "var(--stu-text-muted)", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                ?
+              </span>
+            )}
+            {profile?.isParentReadOnly && profile?.displayName &&
+              (user?.linkedStudents?.length ?? 0) < 2 && (
+              /* 자녀가 2명 이상이면 헤더 하단 자녀 스위처가 같은 정보를 노출하므로 중복 노출 방지 */
+              <span
+                className="stu-topbar__name"
+                style={{
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: "var(--stu-text-muted)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: 100,
+                  letterSpacing: 0,
+                }}
+              >
+                {profile.displayName}
+              </span>
+            )}
+          </button>
+          {profileOpen && (
+            <div
+              className="stu-topbar__profileDropdownOverlay"
               style={{
-                fontWeight: 600,
-                fontSize: 13,
-                color: "var(--stu-text-muted)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 100,
-                letterSpacing: 0,
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                right: 0,
+                zIndex: 1050,
               }}
             >
-              {profile.displayName}
-            </span>
+              {profileDropdownContent}
+            </div>
           )}
-        </button>
-        {profileOpen && (
-          <div
-            className="stu-topbar__profileDropdownOverlay"
-            style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              right: 0,
-              zIndex: 1050,
-            }}
-          >
-            {profileDropdownContent}
-          </div>
-        )}
-      </div>
+        </div>
       </div>
     </div>
   );

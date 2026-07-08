@@ -12,11 +12,14 @@
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
+import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
 interface Props {
   onMenuClick: () => void;
 }
+
+const TEACHER_GUIDE_BOOK = getGuideBookPreset("teacher");
 
 export default function TeacherTopBar({ onMenuClick }: Props) {
   const navigate = useNavigate();
@@ -141,47 +144,55 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
       {/* Right: 작업박스 영역 — 알림 벨(향후 검색·계정 등 추가 자리).
           학원 홈페이지 동선은 좌상단 홈 아이콘이 SSOT (2026-05-12 학원장 spec, 중복 제거). */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
-      <button
-        onClick={() => navigate("/teacher/notifications")}
-        aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
-        style={{
-          background: "none",
-          border: "none",
-          padding: 8,
-          cursor: "pointer",
-          borderRadius: "var(--tc-radius-full)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: badge > 0 ? "var(--tc-text)" : "var(--tc-text-secondary)",
-          position: "relative",
-          minWidth: "var(--tc-touch-min)",
-          minHeight: "var(--tc-touch-min)",
-        }}
-      >
-        {badge > 0 ? <BellRing size={ICON.lg} /> : <Bell size={ICON.lg} />}
-        {badge > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: 4,
-              right: 4,
-              minWidth: 16,
-              height: 16,
-              lineHeight: "16px",
-              fontSize: 9,
-              fontWeight: 700,
-              textAlign: "center",
-              borderRadius: 8,
-              padding: "0 4px",
-              background: "var(--tc-danger)",
-              color: "#fff",
-            }}
-          >
-            {badge > 99 ? "99+" : badge}
-          </span>
-        )}
-      </button>
+        <GuideBookLauncher
+          preset={TEACHER_GUIDE_BOOK}
+          tone="teacher"
+          buttonClassName="teacher-topbar__guideBtn"
+          iconSize={ICON.lg}
+          ariaLabel="가이드북"
+          onNavigate={navigate}
+        />
+        <button
+          onClick={() => navigate("/teacher/notifications")}
+          aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 8,
+            cursor: "pointer",
+            borderRadius: "var(--tc-radius-full)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: badge > 0 ? "var(--tc-text)" : "var(--tc-text-secondary)",
+            position: "relative",
+            minWidth: "var(--tc-touch-min)",
+            minHeight: "var(--tc-touch-min)",
+          }}
+        >
+          {badge > 0 ? <BellRing size={ICON.lg} /> : <Bell size={ICON.lg} />}
+          {badge > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                minWidth: 16,
+                height: 16,
+                lineHeight: "16px",
+                fontSize: 9,
+                fontWeight: 700,
+                textAlign: "center",
+                borderRadius: 8,
+                padding: "0 4px",
+                background: "var(--tc-danger)",
+                color: "#fff",
+              }}
+            >
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );

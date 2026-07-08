@@ -16,7 +16,6 @@ import {
   Menu as MenuIcon,
   Home as HomeIcon,
   Bell as BellIcon,
-  HelpCircle as HelpCircleIcon,
   Inbox as InboxIcon,
   Check as CheckIcon,
 } from "lucide-react";
@@ -39,8 +38,10 @@ import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { getThemeMeta } from "@/shared/theme/themes";
+import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 
 const NoticeOverlay = lazy(() => import("@admin/domains/notice/overlays/NoticeOverlay"));
+const ADMIN_GUIDE_BOOK = getGuideBookPreset("admin");
 
 /** 네이티브 프로필 드롭다운 — Ant Design Dropdown 대신 직접 구현 (모바일 터치 호환) */
 function ProfileDropdown({
@@ -145,7 +146,6 @@ export default function Header() {
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
-  const [helpDropdownOpen, setHelpDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const workbox = useWorkbox();
   const tasks = useAsyncStatus();
@@ -521,48 +521,18 @@ export default function Header() {
               />
           </ProfileDropdown>
 
-          <ProfileDropdown
-            open={helpDropdownOpen}
-            onToggle={() => setHelpDropdownOpen((v) => !v)}
-            onClose={() => setHelpDropdownOpen(false)}
-            ariaLabel="도움말"
-            content={
-              <div className="ds-header-dropdown app-header__profileDropdown" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="app-header__profileDropdownItem"
-                  onClick={() => {
-                    setHelpDropdownOpen(false);
-                    nav("/admin/guide");
-                  }}
-                >
-                  사용 가이드
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="app-header__profileDropdownItem"
-                  onClick={() => {
-                    setHelpDropdownOpen(false);
-                    nav("/admin/developer");
-                  }}
-                >
-                  개발자 문의
-                </button>
-              </div>
-            }
-          >
-            <Button
-              intent="secondary"
-              size="lg"
-              iconOnly
-              className="app-header__iconBtn"
-              aria-label="도움말"
-              title="도움말"
-              leftIcon={<HelpCircleIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
-            />
-          </ProfileDropdown>
+          <GuideBookLauncher
+            preset={ADMIN_GUIDE_BOOK}
+            tone="admin"
+            buttonClassName="app-header__iconBtn"
+            iconSize={ICON_FOR_BUTTON.lg}
+            ariaLabel="가이드북"
+            onNavigate={nav}
+            supportAction={{
+              label: "문제 신고",
+              onClick: () => document.dispatchEvent(new Event("ui:bugreport:open")),
+            }}
+          />
 
           <ProfileDropdown
             open={profileDropdownOpen}
