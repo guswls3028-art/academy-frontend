@@ -4,6 +4,79 @@ import api from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 
+export type EnterpriseAnalytics = {
+  tenant: { id: number; name: string; code: string };
+  date_range: { days: number; from: string | null; to: string | null };
+  summary: {
+    exam_result_count: number;
+    scored_count: number;
+    avg_score_pct: number | null;
+    median_score_pct: number | null;
+    p10_score_pct?: number | null;
+    p25_score_pct?: number | null;
+    p75_score_pct?: number | null;
+    p90_score_pct?: number | null;
+    std_score_pct?: number | null;
+    pass_rate_pct: number | null;
+    absent_count: number;
+    generated_at?: string;
+  };
+  usage: {
+    manual_score_events: number;
+    manual_active_days: number;
+    auto_grade_submissions: number;
+    auto_grade_done: number;
+    auto_grade_failed: number;
+    auto_grade_review: number;
+    auto_completion_rate_pct: number | null;
+    latest_activity_at: string | null;
+    activity_level: "none" | "light" | "regular" | "high" | string;
+    source_breakdown: Record<string, number>;
+  };
+  trends: Array<{
+    period: string;
+    scored_count: number;
+    avg_score_pct: number | null;
+    median_score_pct: number | null;
+    pass_rate_pct: number | null;
+    manual_score_events: number;
+    auto_grade_submissions: number;
+    auto_grade_done: number;
+    auto_completion_rate_pct: number | null;
+  }>;
+  top_exams: Array<{
+    exam_id: number;
+    title: string;
+    result_count: number;
+    scored_count: number;
+    absent_count: number;
+    avg_score_pct: number | null;
+    median_score_pct: number | null;
+    p10_score_pct: number | null;
+    p90_score_pct: number | null;
+    std_score_pct: number | null;
+    pass_rate_pct: number | null;
+  }>;
+  weak_questions: Array<{
+    exam_id: number;
+    question_number: number;
+    attempts: number;
+    accuracy_pct: number | null;
+    wrong_count: number;
+    avg_score_pct: number | null;
+  }>;
+  data_quality: {
+    tenant_exam_count: number;
+    clean_exam_count: number;
+    filtered_test_exam_count: number;
+    total_exam_results: number;
+    clean_exam_results: number;
+    filtered_test_exam_results: number;
+    no_enrollment_exam_results: number;
+    foreign_enrollment_exam_results: number;
+  };
+};
+
 /** 시험별 요약 (평균/최고/최저/합격률) */
 export async function fetchExamSummary(examId: number) {
   const res = await api.get(`/results/admin/exams/${examId}/summary/`);
@@ -85,4 +158,9 @@ export async function fetchHomeworkScores(lectureId: number) {
     passed: boolean;
     meta: { status?: string } | null;
   }>(res.data);
+}
+
+export async function fetchEnterpriseAnalytics(): Promise<EnterpriseAnalytics> {
+  const res = await api.get<EnterpriseAnalytics>("/results/admin/analytics/");
+  return res.data;
 }

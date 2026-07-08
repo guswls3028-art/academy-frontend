@@ -7,6 +7,7 @@ import { useState } from "react";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
 import { IconGrade } from "@student/shared/ui/icons/Icons";
+import { useMyGradesAnalytics } from "../hooks/useMyGradesAnalytics";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import GradesStatsTab from "../components/GradesStatsTab";
@@ -19,6 +20,11 @@ const TABS = [
 export default function GradesPage() {
   const [tab, setTab] = useState("home");
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    isError: analyticsError,
+  } = useMyGradesAnalytics({ enabled: tab === "stats" && !isLoading && !isError });
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
   const labels = data?.labels;
@@ -53,7 +59,13 @@ export default function GradesPage() {
       )}
 
       {!isLoading && !isError && tab === "stats" && (
-        <GradesStatsTab exams={exams} homeworks={homeworks} />
+        <GradesStatsTab
+          exams={exams}
+          homeworks={homeworks}
+          analytics={analytics}
+          analyticsLoading={analyticsLoading}
+          analyticsError={analyticsError}
+        />
       )}
     </DomainTabShell>
   );

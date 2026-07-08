@@ -6,7 +6,7 @@ import { useState, useMemo } from "react";
 import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
-import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
+import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
 import styles from "./GradesStatsTab.module.css";
 
 const ALL_FILTER = "__all__";
@@ -14,6 +14,9 @@ const ALL_FILTER = "__all__";
 type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+  analytics?: MyGradesAnalytics;
+  analyticsLoading?: boolean;
+  analyticsError?: boolean;
 };
 
 type TrendDatum = {
@@ -22,7 +25,7 @@ type TrendDatum = {
   전체평균?: number;
 };
 
-export default function GradesStatsTab({ exams, homeworks }: Props) {
+export default function GradesStatsTab({ exams, homeworks, analytics, analyticsLoading, analyticsError }: Props) {
   const [lectureFilter, setLectureFilter] = useState<string>(ALL_FILTER);
 
   const examStats = useMemo(() => {
@@ -138,6 +141,12 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
 
   return (
     <div className={styles.stack}>
+      <AnalyticsOverview
+        analytics={analytics}
+        loading={analyticsLoading}
+        error={analyticsError}
+      />
+
       {/* 시험 통계 요약 */}
       {examStats && (
         <div>
@@ -247,6 +256,137 @@ export default function GradesStatsTab({ exams, homeworks }: Props) {
       )}
     </div>
   );
+}
+
+function AnalyticsOverview({
+  analytics,
+  loading,
+  error,
+}: {
+  analytics?: MyGradesAnalytics;
+  loading?: boolean;
+  error?: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className={styles.analyticsPanel}>
+        <div className={styles.analyticsHeader}>
+          <span>전문 분석</span>
+          <span className={styles.analyticsMeta}>실제 성적 기준</span>
+        </div>
+        <div className={styles.analyticsSkeletonGrid}>
+          <div />
+          <div />
+          <div />
+        </div>
+      </div>
+    );
+  }
+  if (error || !analytics) {
+    return error ? (
+      <div className={styles.analyticsNotice}>전문 분석을 불러오지 못했습니다.</div>
+    ) : null;
+  }
+
+  const summary = analytics.summary;
+  const trendData = analytics.trends
+    .filter((row) => row.score_pct != null)
+    .slice(-8)
+    .map((row) => ({
+      name: row.title.length > 6 ? `${row.title.slice(0, 6)}…` : row.title,
+      득점률: Math.round(row.score_pct ?? 0),
+      전체평균: row.cohort_avg_pct != null ? Math.round(row.cohort_avg_pct) : undefined,
+    }));
+  const risk = riskLabel(summary.risk_level);
+  const highlight = analytics.highlights?.weakest_exam ?? analytics.highlights?.latest_exam;
+
+  return (
+    <section className={styles.analyticsPanel} aria-label="전문 성적 분석">
+      <div className={styles.analyticsHeader}>
+        <span>전문 분석</span>
+        <span className={styles.analyticsMeta}>최근 {analytics.date_range?.days ?? 365}일</span>
+      </div>
+
+      <div className={styles.analyticsGrid}>
+        <div className={styles.metricTile}>
+          <span className={styles.metricLabel}>평균 득점률</span>
+          <strong>{formatPct(summary.avg_score_pct)}</strong>
+          <span>중앙값 {formatPct(summary.median_score_pct)}</span>
+        </div>
+        <div className={styles.metricTile}>
+          <span className={styles.metricLabel}>통과율</span>
+          <strong>{formatPct(summary.pass_rate_pct)}</strong>
+          <span>분석 시험 {summary.scored_exam_count}건</span>
+        </div>
+        <div className={styles.metricTile}>
+          <span className={styles.metricLabel}>상태</span>
+          <strong className={styles[risk.className]}>{risk.label}</strong>
+          <span>미응시 {summary.not_submitted_count}건</span>
+        </div>
+      </div>
+
+      {trendData.length >= 2 && (
+        <div className={styles.analyticsChartBox}>
+          <TrendChart data={trendData} showAverage={trendData.some((row) => row.전체평균 != null)} />
+        </div>
+      )}
+
+      <div className={styles.analyticsSplit}>
+        {analytics.lecture_breakdown.length > 0 && (
+          <div className={styles.analyticsList}>
+            <span className={styles.metricLabel}>강좌별 평균</span>
+            {analytics.lecture_breakdown.slice(0, 4).map((row) => (
+              <div key={row.lecture_title} className={styles.barRow}>
+                <span>{row.lecture_title}</span>
+                <svg className={styles.barTrack} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+                  <rect className={styles.barTrackBg} width="100" height="8" rx="4" />
+                  <rect className={styles.barTrackFill} width={Math.max(0, Math.min(100, row.avg_score_pct ?? 0))} height="8" rx="4" />
+                </svg>
+                <strong>{formatPct(row.avg_score_pct)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(analytics.weak_questions.length > 0 || highlight) && (
+          <div className={styles.analyticsList}>
+            <span className={styles.metricLabel}>보완 우선순위</span>
+            {highlight && (
+              <div className={styles.priorityLine}>
+                {highlight.title} · {formatPct(highlight.score_pct)}
+              </div>
+            )}
+            {analytics.weak_questions.length > 0 && (
+              <div className={styles.questionChips}>
+                {analytics.weak_questions.slice(0, 6).map((row) => (
+                  <span key={row.question_number}>{row.question_number}번 · {row.wrong_count}회</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {analytics.insights.length > 0 && (
+        <div className={styles.insights}>
+          {analytics.insights.slice(0, 3).map((text) => (
+            <span key={text}>{text}</span>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatPct(value: number | null | undefined) {
+  return value == null ? "-" : `${Math.round(value)}%`;
+}
+
+function riskLabel(value: string) {
+  if (value === "attention") return { label: "집중 관리", className: "riskAttention" };
+  if (value === "watch") return { label: "관찰", className: "riskWatch" };
+  if (value === "stable") return { label: "안정", className: "riskStable" };
+  return { label: "데이터 적음", className: "riskNeutral" };
 }
 
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {

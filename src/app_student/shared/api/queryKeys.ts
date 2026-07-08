@@ -7,6 +7,7 @@ export const studentQueryKeys = {
   qnaQuestions: ["student", "qna", "questions"] as const,
   counselRequests: ["student", "counsel", "requests"] as const,
   gradesSummary: ["student", "grades", "summary"] as const,
+  gradesAnalytics: ["student", "grades", "analytics"] as const,
   gradesRoot: ["student", "grades"] as const,
   dashboard: ["student-dashboard"] as const,
   communityUnread: ["student", "community-unread"] as const,

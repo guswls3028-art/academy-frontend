@@ -17,11 +17,12 @@ import {
   getExamResultScore,
 } from "@teacher/domains/results/examResultContract";
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
+import EnterpriseAnalyticsTab from "@teacher/domains/results/components/EnterpriseAnalyticsTab";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import styles from "./ResultsPage.module.css";
 
-type Tab = "list" | "stats";
+type Tab = "list" | "stats" | "analytics";
 
 type TeacherExamOption = {
   id: number;
@@ -59,12 +60,14 @@ export default function ResultsPage() {
         tabs={[
           { key: "list", label: "조회" },
           { key: "stats", label: "통계" },
+          { key: "analytics", label: "운영 분석" },
         ]}
         value={tab}
         onChange={setTab}
       />
 
       {tab === "stats" && <ResultsStatsTab />}
+      {tab === "analytics" && <EnterpriseAnalyticsTab />}
 
       {tab === "list" && (
         <>

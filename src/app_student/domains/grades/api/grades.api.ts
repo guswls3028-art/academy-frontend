@@ -50,6 +50,58 @@ export type MyGradesSummary = {
   labels?: { pass?: string; fail?: string };
 };
 
+export type MyGradesAnalytics = {
+  student?: { id: number; name: string };
+  date_range?: { days: number; from: string | null; to: string | null };
+  summary: {
+    exam_count: number;
+    scored_exam_count: number;
+    avg_score_pct: number | null;
+    median_score_pct: number | null;
+    p25_score_pct?: number | null;
+    p75_score_pct?: number | null;
+    pass_rate_pct: number | null;
+    not_submitted_count: number;
+    risk_level: "insufficient" | "attention" | "watch" | "stable" | string;
+    generated_at?: string;
+  };
+  trends: Array<{
+    exam_id: number;
+    title: string;
+    lecture_title: string | null;
+    submitted_at: string | null;
+    score_pct: number | null;
+    cohort_avg_pct: number | null;
+    rank: number | null;
+    percentile: number | null;
+    cohort_size: number | null;
+  }>;
+  lecture_breakdown: Array<{
+    lecture_title: string;
+    exam_count: number;
+    avg_score_pct: number | null;
+  }>;
+  weak_questions: Array<{
+    question_number: number;
+    wrong_count: number;
+  }>;
+  homework: {
+    assigned_count: number;
+    graded_count: number;
+    avg_score_pct: number | null;
+    pass_rate_pct: number | null;
+  };
+  highlights: {
+    latest_exam: { exam_id: number; title: string; score_pct: number | null } | null;
+    best_exam: { exam_id: number; title: string; score_pct: number | null } | null;
+    weakest_exam: { exam_id: number; title: string; score_pct: number | null } | null;
+  };
+  insights: string[];
+  data_quality?: {
+    filtered_test_exam_count: number;
+  };
+};
+
 export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   const res = await api.get<Partial<MyGradesSummary>>("/student/grades/");
   const data = res.data ?? {};
@@ -57,5 +109,37 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
     exams: Array.isArray(data.exams) ? data.exams : [],
     homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],
     labels: data.labels ?? undefined,
+  };
+}
+
+export async function fetchMyGradesAnalytics(): Promise<MyGradesAnalytics> {
+  const res = await api.get<MyGradesAnalytics>("/student/grades/analytics/");
+  const data = res.data;
+  return {
+    ...data,
+    summary: data.summary ?? {
+      exam_count: 0,
+      scored_exam_count: 0,
+      avg_score_pct: null,
+      median_score_pct: null,
+      pass_rate_pct: null,
+      not_submitted_count: 0,
+      risk_level: "insufficient",
+    },
+    trends: Array.isArray(data.trends) ? data.trends : [],
+    lecture_breakdown: Array.isArray(data.lecture_breakdown) ? data.lecture_breakdown : [],
+    weak_questions: Array.isArray(data.weak_questions) ? data.weak_questions : [],
+    homework: data.homework ?? {
+      assigned_count: 0,
+      graded_count: 0,
+      avg_score_pct: null,
+      pass_rate_pct: null,
+    },
+    highlights: data.highlights ?? {
+      latest_exam: null,
+      best_exam: null,
+      weakest_exam: null,
+    },
+    insights: Array.isArray(data.insights) ? data.insights : [],
   };
 }

@@ -9,6 +9,7 @@ export const teacherResultsQueryKeys = {
   questionStats: (examId: number | null) => ["tc-question-stats", examId] as const,
   statsExamResults: (examId: number | null) => ["tc-exam-results", examId] as const,
   homeworkScores: (lectureId: number | null) => ["tc-hw-scores", lectureId] as const,
+  enterpriseAnalytics: ["tc-results-enterprise-analytics"] as const,
   pendingSubmissions: ["teacher-pending-submissions"] as const,
   pendingSubmissionsList: (filter: string) => ["teacher-pending-submissions", filter] as const,
   scoreEntryResults: (examId: number) => ["exam-results", examId] as const,
