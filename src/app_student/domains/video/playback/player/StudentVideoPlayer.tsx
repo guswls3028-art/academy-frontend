@@ -720,7 +720,7 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {ready && !playing && !reconnecting && !isYoutube && (
+              {ready && !playing && !reconnecting && (
                 <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
