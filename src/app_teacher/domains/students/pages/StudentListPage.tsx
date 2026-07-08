@@ -413,7 +413,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
         return;
       }
       await onDone(job_id);
-      teacherToast.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
+      teacherToast.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 우상단 작업박스에서 확인할 수 있습니다.");
       onClose();
     } catch (err) {
       teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다."));
@@ -465,6 +465,10 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
               outline: "none",
             }}
           />
+        </div>
+
+        <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
+          업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
         </div>
 
         <div className="flex items-center justify-between"

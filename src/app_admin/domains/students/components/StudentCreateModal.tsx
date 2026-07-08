@@ -345,7 +345,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         return;
       }
       asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
-      feedback.success("백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
+      feedback.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -693,7 +693,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
           <div className={`modal-hint ${styles.excelHint}`}>
             학생 아이디는 자동 부여됩니다.<br />
-            학부모 아이디는 학부모 전화번호이며, 신규 계정 초기 비밀번호는 전화번호 뒤 4자리입니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.
+            학부모 아이디는 학부모 전화번호이며, 신규 계정 초기 비밀번호는 전화번호 뒤 4자리입니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.<br />
+            업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
           </div>
         </div>
         )}

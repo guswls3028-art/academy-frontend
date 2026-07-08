@@ -117,6 +117,9 @@ export default function ForcePasswordChangeModal({
               <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 2 }}>
                 받은 임시 비밀번호를 새 비밀번호로 바꿔 주세요
               </div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 3 }}>
+                변경 후 로그인 화면이 보이면 새 비밀번호로 다시 로그인하세요
+              </div>
             </div>
           </div>
         </div>
