@@ -210,7 +210,11 @@ async function exerciseOmrIfAvailable(page: Page): Promise<"opened" | "not-rende
 }
 
 function assessmentSection(page: Page, label: "시험" | "과제"): Locator {
-  return page.locator("aside section").filter({ hasText: label }).first();
+  return assessmentRemote(page).locator("section").filter({ hasText: label }).first();
+}
+
+function assessmentRemote(page: Page): Locator {
+  return page.locator('[data-testid="session-assessment-remote"]').first();
 }
 
 test.describe("admin real-use session assessment flow", () => {
@@ -235,18 +239,21 @@ test.describe("admin real-use session assessment flow", () => {
     const addHomeworkFromScores = page.getByRole("button", { name: /^\+\s*과제$/ }).first();
     await expect(addExamFromScores, "scores tab +시험 button").toBeVisible({ timeout: 10_000 });
     await expect(addHomeworkFromScores, "scores tab +과제 button").toBeVisible({ timeout: 10_000 });
+    await expect(assessmentRemote(page), "성적 탭은 시험/과제 리모컨을 렌더하지 않는다").toHaveCount(0);
     await exerciseScoresMoreMenu(page);
     await exerciseOmrIfAvailable(page);
     await openCreateAssessmentModal(page, addExamFromScores, "시험");
     await openCreateAssessmentModal(page, addHomeworkFromScores, "과제");
 
     await clickSessionTab(page, "시험", "exams");
+    await expect(assessmentRemote(page), "시험 탭은 시험/과제 리모컨을 유지한다").toBeVisible({ timeout: 10_000 });
     const examSection = assessmentSection(page, "시험");
     await expect(examSection, "시험 side panel section").toBeVisible({ timeout: 10_000 });
     await expect(examSection.getByText("시험", { exact: true }).first()).toBeVisible();
     await openCreateAssessmentModal(page, examSection.getByRole("button", { name: /^시험 추가$/ }).first(), "시험");
 
     await clickSessionTab(page, "과제", "assignments");
+    await expect(assessmentRemote(page), "과제 탭은 시험/과제 리모컨을 유지한다").toBeVisible({ timeout: 10_000 });
     const homeworkSection = assessmentSection(page, "과제");
     await expect(homeworkSection, "과제 side panel section").toBeVisible({ timeout: 10_000 });
     await expect(homeworkSection.getByText("과제", { exact: true }).first()).toBeVisible();

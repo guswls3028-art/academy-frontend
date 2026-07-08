@@ -22,6 +22,7 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
+import SessionAssessmentCreateModals from "../components/SessionAssessmentCreateModals";
 import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
@@ -43,6 +44,13 @@ type SessionTab =
   | "assignments"
   | "videos"
   | "clinic";
+
+type SessionAssessmentRemoteKind = "exam" | "homework";
+
+const SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB: Partial<Record<SessionTab, SessionAssessmentRemoteKind>> = {
+  exams: "exam",
+  assignments: "homework",
+};
 
 async function fetchSession(id: number) {
   const res = await api.get(`/lectures/sessions/${id}/`);
@@ -125,14 +133,13 @@ export default function SessionDetailPage() {
     );
   }
 
-  const showAssessmentPanel =
-    activeTab === "scores" ||
-    activeTab === "exams" ||
-    activeTab === "assignments";
-  const moveAssessmentPanelAfterContentOnMobile =
-    activeTab === "scores" ||
-    (activeTab === "exams" && examId != null) ||
-    (activeTab === "assignments" && homeworkId != null);
+  const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
+  const selectedAssessmentId = assessmentRemoteKind === "exam"
+    ? examId
+    : assessmentRemoteKind === "homework"
+      ? homeworkId
+      : null;
+  const moveAssessmentPanelAfterContentOnMobile = selectedAssessmentId != null;
   const showSessionStrip =
     activeTab === "attendance" ||
     activeTab === "scores" ||
@@ -148,12 +155,12 @@ export default function SessionDetailPage() {
       )}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        {showAssessmentPanel && (
+        {assessmentRemoteKind != null && (
           <div className={moveAssessmentPanelAfterContentOnMobile ? "order-2 w-full lg:order-none lg:w-auto" : "w-full lg:w-auto"}>
             <SessionAssessmentSidePanel
               lectureId={lecId}
               sessionId={sId}
-              activeKind={activeTab === "assignments" ? "homework" : "exam"}
+              activeKind={assessmentRemoteKind}
               openCreateExam={openCreateExam}
               onCloseCreateExam={() => setOpenCreateExam(false)}
               onOpenCreateExam={() => setOpenCreateExam(true)}
@@ -236,6 +243,16 @@ export default function SessionDetailPage() {
           isOpen={showEnrollModal}
           onClose={() => setShowEnrollModal(false)}
           onSuccess={invalidateSession}
+        />
+      )}
+      {assessmentRemoteKind == null && (openCreateExam || openCreateHomework) && (
+        <SessionAssessmentCreateModals
+          lectureId={lecId}
+          sessionId={sId}
+          openCreateExam={openCreateExam}
+          onCloseCreateExam={() => setOpenCreateExam(false)}
+          openCreateHomework={openCreateHomework}
+          onCloseCreateHomework={() => setOpenCreateHomework(false)}
         />
       )}
     </Suspense>

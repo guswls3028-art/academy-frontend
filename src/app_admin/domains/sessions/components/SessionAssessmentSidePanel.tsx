@@ -2,7 +2,7 @@
 import { lazy, Suspense, useMemo, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, ClipboardList, FileText, Layers, Plus } from "lucide-react";
+import { ClipboardList, FileText, Layers, Plus } from "lucide-react";
 
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import {
@@ -23,9 +23,8 @@ import {
   readAssessmentItemId,
 } from "@/shared/lib/assessmentQueryParams";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import SessionAssessmentCreateModals from "./SessionAssessmentCreateModals";
 
-const CreateRegularExamModal = lazy(() => import("@admin/domains/exams/components/create/CreateRegularExamModal"));
-const CreateHomeworkModal = lazy(() => import("@admin/domains/homework/components/CreateHomeworkModal"));
 const ApplyBundleModal = lazy(() => import("@admin/domains/exams/components/create/ApplyBundleModal"));
 
 type Props = {
@@ -120,7 +119,7 @@ const S = {
 
   quickNav: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 6,
   } satisfies CSSProperties,
 
@@ -386,7 +385,6 @@ export default function SessionAssessmentSidePanel({
   const skipAutoSelect = shouldSkipAssessmentAutoSelect(location.state);
   const resolvedActiveKind: AssessmentKind =
     activeKind ?? (location.pathname.includes("/assignments") ? "homework" : "exam");
-  const scoresActive = location.pathname.startsWith(`${base}/scores`);
   const examsActive = location.pathname.startsWith(`${base}/exams`);
   const assignmentsActive = location.pathname.startsWith(`${base}/assignments`);
 
@@ -496,7 +494,11 @@ export default function SessionAssessmentSidePanel({
   };
 
   return (
-    <aside style={asideStyle}>
+    <aside
+      data-testid="session-assessment-remote"
+      aria-label="차시 시험/과제 리모컨"
+      style={asideStyle}
+    >
       <div style={S.asideHeader}>
         <div style={S.asideHeaderTop}>
           <div style={S.asideTitleStack}>
@@ -507,17 +509,7 @@ export default function SessionAssessmentSidePanel({
             시험 {examsLoading ? "-" : exams.length} · 과제 {hwLoading ? "-" : homeworks.length}
           </span>
         </div>
-        <div style={S.quickNav} aria-label="차시 평가 이동">
-          <button
-            type="button"
-            style={S.quickNavButton(scoresActive)}
-            aria-current={scoresActive ? "page" : undefined}
-            onClick={() => navigate(`${base}/scores`)}
-          >
-            <BarChart3 size={16} aria-hidden />
-            <span>성적</span>
-            <span style={S.quickNavCount}>{exams.length + homeworks.length}개</span>
-          </button>
+        <div style={S.quickNav} aria-label="시험/과제 이동">
           <button
             type="button"
             style={S.quickNavButton(examsActive)}
@@ -634,33 +626,15 @@ export default function SessionAssessmentSidePanel({
       </section>
 
       {/* ── Modals ── */}
+      <SessionAssessmentCreateModals
+        lectureId={lectureId}
+        sessionId={sessionId}
+        openCreateExam={openCreateExam}
+        onCloseCreateExam={handleCloseCreateExam}
+        openCreateHomework={openCreateHomework}
+        onCloseCreateHomework={handleCloseCreateHomework}
+      />
       <Suspense fallback={null}>
-        {openCreateExam && (
-          <CreateRegularExamModal
-            open={openCreateExam}
-            onClose={handleCloseCreateExam}
-            sessionId={sessionId}
-            lectureId={lectureId}
-            onCreated={async (id) => {
-              invalidateExams();
-              invalidateExamsSummary();
-              invalidateSessionScores();
-              onSelectExam(id);
-            }}
-          />
-        )}
-        {openCreateHomework && (
-          <CreateHomeworkModal
-            open={openCreateHomework}
-            onClose={handleCloseCreateHomework}
-            sessionId={sessionId}
-            onCreated={async (id) => {
-              invalidateHomeworks();
-              invalidateSessionScores();
-              onSelectHomework(id);
-            }}
-          />
-        )}
         {openApplyBundle && (
           <ApplyBundleModal
             open={openApplyBundle}
