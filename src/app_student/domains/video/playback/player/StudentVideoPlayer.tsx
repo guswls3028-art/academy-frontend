@@ -720,7 +720,7 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {ready && !playing && !reconnecting && (
+              {ready && !playing && !reconnecting && !isYoutube && (
                 <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
@@ -752,68 +752,70 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              <div className="svpControls">
-                <div className="svpProgressRow">
-                  <RangeSlider
-                    value={current}
-                    min={0}
-                    max={Math.max(0.1, duration || 0)}
-                    step={0.1}
-                    onChange={(v) => onScrub(v)}
-                    ariaLabel="진행 바"
-                  />
-                  <div className="svpTime">
-                    <span className="svpTimeCur">{formatClock(current)}</span>
-                    <span className="svpTimeSep">/</span>
-                    <span className="svpTimeDur">{formatClock(duration)}</span>
-                  </div>
-                </div>
-
-                <div className="svpControlRow">
-                  <div className="svpLeftControls">
-                    <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
-                    <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
-                    <IconButton icon="forward10" label="+10초" onClick={() => skip(10)} />
-                    <div className="svpVolume">
-                      <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
-                      <div className="svpVolumeSlider">
-                        <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
-                      </div>
+              {!isYoutube && (
+                <div className="svpControls">
+                  <div className="svpProgressRow">
+                    <RangeSlider
+                      value={current}
+                      min={0}
+                      max={Math.max(0.1, duration || 0)}
+                      step={0.1}
+                      onChange={(v) => onScrub(v)}
+                      ariaLabel="진행 바"
+                    />
+                    <div className="svpTime">
+                      <span className="svpTimeCur">{formatClock(current)}</span>
+                      <span className="svpTimeSep">/</span>
+                      <span className="svpTimeDur">{formatClock(duration)}</span>
                     </div>
                   </div>
-                  <div className="svpRightControls">
-                    <QualityButton
-                      current={currentQuality}
-                      qualities={qualities}
-                      onSelect={(idx) => controllerRef.current?.setQuality(idx)}
-                    />
-                    <SpeedButton
-                      rate={rate}
-                      speeds={rateMenu}
-                      disabled={speedLocked}
-                      onSelect={setPlaybackRate}
-                    />
-                    <IconButton
-                      className="svpFullscreenButton"
-                      icon={isFullscreen ? "shrink" : "fullscreen"}
-                      label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                      onPointerDown={() => requestFullscreen()}
-                    />
-                  </div>
-                </div>
 
-                {(!allowSeek || speedLocked) && (
-                  <div className="svpPolicyHint">
-                    {(!allowSeek || seekMode === "blocked") && (
-                      <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
-                    )}
-                    {allowSeek && seekMode !== "blocked" && boundedForward && (
-                      <span className="svpPolicyHintItem">• 앞으로 탐색이 제한됩니다</span>
-                    )}
-                    {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
+                  <div className="svpControlRow">
+                    <div className="svpLeftControls">
+                      <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
+                      <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
+                      <IconButton icon="forward10" label="+10초" onClick={() => skip(10)} />
+                      <div className="svpVolume">
+                        <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
+                        <div className="svpVolumeSlider">
+                          <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="svpRightControls">
+                      <QualityButton
+                        current={currentQuality}
+                        qualities={qualities}
+                        onSelect={(idx) => controllerRef.current?.setQuality(idx)}
+                      />
+                      <SpeedButton
+                        rate={rate}
+                        speeds={rateMenu}
+                        disabled={speedLocked}
+                        onSelect={setPlaybackRate}
+                      />
+                      <IconButton
+                        className="svpFullscreenButton"
+                        icon={isFullscreen ? "shrink" : "fullscreen"}
+                        label={isFullscreen ? "전체화면 종료" : "전체화면"}
+                        onPointerDown={() => requestFullscreen()}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {(!allowSeek || speedLocked) && (
+                    <div className="svpPolicyHint">
+                      {(!allowSeek || seekMode === "blocked") && (
+                        <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
+                      )}
+                      {allowSeek && seekMode !== "blocked" && boundedForward && (
+                        <span className="svpPolicyHintItem">• 앞으로 탐색이 제한됩니다</span>
+                      )}
+                      {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
