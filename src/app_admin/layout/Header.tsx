@@ -217,11 +217,6 @@ export default function Header() {
     ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
     : (tenantBranding?.headerLogoUrl ?? null);
 
-  // 학원 owner/admin만 "내 홈페이지 보기" 메뉴 노출.
-  // tenantRole은 backend TenantMembership.role SSOT.
-  const meRole = String((me as { tenantRole?: string | null } | undefined)?.tenantRole ?? "").toLowerCase();
-  const canViewOwnLanding = meRole === "owner" || meRole === "admin" || !!me?.is_superuser;
-
   const userMenu = {
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
@@ -284,12 +279,10 @@ export default function Header() {
         <SettingsIcon size={ICON.sm} aria-hidden />
         <span>학원/시스템 설정</span>
       </button>
-      {canViewOwnLanding && (
-        <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "landing" })}>
-          <GlobeIcon size={ICON.sm} aria-hidden />
-          <span>우리 학원 홈페이지</span>
-        </button>
-      )}
+      <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "landing" })}>
+        <GlobeIcon size={ICON.sm} aria-hidden />
+        <span>우리 학원 홈페이지</span>
+      </button>
       <div className="app-header__profileDropdownDivider" />
       <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "bugreport" })}>
         <Bug size={ICON.sm} aria-hidden />
@@ -329,15 +322,21 @@ export default function Header() {
               size="lg"
               iconOnly
               className="app-header__iconBtn"
-              aria-label="학원 홈페이지로 이동"
-              title="학원 홈페이지로 이동"
-              data-testid="app-header-go-home"
-              onClick={() => { window.location.assign("/landing"); }}
+              aria-label="대시보드로 이동"
+              title="대시보드로 이동"
+              data-testid="app-header-go-dashboard"
+              onClick={() => nav("/admin/dashboard")}
               leftIcon={<HomeIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
             />
           </div>
 
-          <div className="app-header__brand" title={academyName} aria-label={academyName}>
+          <button
+            type="button"
+            className="app-header__brand"
+            title={`${academyName} 대시보드`}
+            aria-label={`${academyName} 대시보드로 이동`}
+            onClick={() => nav("/admin/dashboard")}
+          >
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />
@@ -353,7 +352,7 @@ export default function Header() {
               )}
             </span>
             <span className="app-header__brandName">{academyName}</span>
-          </div>
+          </button>
         </div>
 
         {/* CENTER: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */}

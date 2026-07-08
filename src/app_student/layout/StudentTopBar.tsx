@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Globe } from "lucide-react";
 import { getStudentTenantBranding } from "@student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import api from "@/shared/api/axios";
@@ -151,7 +152,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
         onClick={() => setProfileOpen(false)}
       >
-        <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>🌐</span>
+        <Globe size={16} aria-hidden />
         학원 홈페이지
       </a>
       <button
@@ -249,19 +250,18 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             </svg>
           </button>
         )}
-        {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거와 동일 44x44 icon-only(시각 일관성) */}
-        <a
-          href="/landing"
-          aria-label="학원 홈페이지로 이동"
-          title="학원 홈페이지로 이동"
-          data-testid="stu-topbar-go-home"
+        <Link
+          to="/student/dashboard"
+          aria-label="학생 대시보드로 이동"
+          title="학생 대시보드로 이동"
+          data-testid="stu-topbar-go-dashboard"
           className="stu-topbar__iconBtn"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12L12 4l9 8" />
             <path d="M5 10v10h14V10" />
           </svg>
-        </a>
+        </Link>
       </div>
       <Link
         to="/student/dashboard"

@@ -1,9 +1,8 @@
 /**
  * PATH: src/app_teacher/layout/TeacherTopBar.tsx
- * 상단 바 — 좌: 햄버거 + 학원 홈 / 학원 로고 + 이름 / 우: 알림(작업박스)
+ * 상단 바 — 좌: 햄버거 + 선생님 홈 / 학원 로고 + 이름 / 우: 알림(작업박스)
  *
  * 2026-05-12 학원장 spec:
- *   - 좌상단 홈 아이콘 / 우상단 글로브 두 동선이 모두 /landing 으로 중복 — 우상단 글로브 제거.
  *   - 우상단은 알림/작업 영역. 글로브 제거 후 알림 종만 유지(향후 검색·계정 추가 자리).
  *   - 모바일에서 학원 로고가 안 박혀 있어서 브랜드 인지 약함 — program.logo_url 있으면 표시.
  *
@@ -61,27 +60,29 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
         >
           <Menu size={ICON.lg} />
         </button>
-        {/* 2026-05-12: 학원 홈페이지로 이동 — 햄버거와 동일 size icon-only(시각 일관성) */}
-        <a
-          href="/landing"
-          aria-label="학원 홈페이지로 이동"
-          title="학원 홈페이지로 이동"
-          data-testid="tc-topbar-go-home"
+        <button
+          type="button"
+          onClick={() => navigate("/teacher")}
+          aria-label="선생님 홈으로 이동"
+          title="선생님 홈으로 이동"
+          data-testid="tc-topbar-go-dashboard"
           style={{
+            background: "none",
+            border: "none",
             padding: 8,
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--tc-text-secondary)",
             borderRadius: "var(--tc-radius)",
             minWidth: "var(--tc-touch-min)",
             minHeight: "var(--tc-touch-min)",
-            textDecoration: "none",
+            cursor: "pointer",
           }}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12L12 4l9 8" />
             <path d="M5 10v10h14V10" />
           </svg>
-        </a>
+        </button>
         <button
           onClick={() => navigate("/teacher")}
           aria-label="홈으로"
