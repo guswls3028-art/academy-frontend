@@ -24,6 +24,13 @@ import {
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import {
+  TreeBranch,
+  TreeChildren,
+  TreeNav,
+  TreeRow,
+  TreeStaticRow,
+} from "@/shared/ui/domain";
 import styles from "./AutoSendSectionTree.module.css";
 
 export type AutoSendSectionId =
@@ -209,59 +216,47 @@ export default function AutoSendSectionTree({
         <span className={panelStyles.treeNavTitle}>구간</span>
       </div>
       <div className={panelStyles.treeScroll}>
-        <nav className={styles.tabs}>
+        <TreeNav ariaLabel="자동발송 구간">
           {AUTO_SEND_SECTIONS.map((section) => {
             const isActive = selectedSection === section.id;
             const isExpanded = expandedSection === section.id;
             const hasChildren = section.children && section.children.length > 0;
 
             return (
-              <div key={section.id} className={styles.branch}>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${isActive ? styles.tabActive : ""}`}
-                  onClick={() => onSelectSection(section.id)}
+              <TreeBranch key={section.id}>
+                <TreeRow
+                  label={section.label}
+                  icon={section.icon}
+                  expandable={hasChildren}
+                  expanded={isExpanded}
+                  active={isActive}
+                  selected={isActive}
+                  onClick={() => {
+                    onSelectSection(section.id);
+                    if (hasChildren) {
+                      setExpandedSection(isExpanded ? null : section.id);
+                    }
+                  }}
                   aria-expanded={hasChildren ? isExpanded : undefined}
                   aria-current={isActive ? "true" : undefined}
-                >
-                  <span className={styles.tabIcon}>{section.icon}</span>
-                  <span className={styles.tabLabel}>{section.label}</span>
-                  {hasChildren && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={styles.chevron}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setExpandedSection(isExpanded ? null : section.id);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setExpandedSection(isExpanded ? null : section.id);
-                        }
-                      }}
-                      aria-label={isExpanded ? "접기" : "펼치기"}
-                    >
-                      {isExpanded ? "▾" : "▸"}
-                    </span>
-                  )}
-                </button>
+                />
                 {hasChildren && isExpanded && (
-                  <div className={styles.children}>
+                  <TreeChildren>
                     {section.children!.map((child) => (
-                      <div key={child.trigger} className={styles.childItem}>
-                        <span className={styles.childIcon}>{child.icon}</span>
-                        <span className={styles.childLabel}>{child.label}</span>
-                      </div>
+                      <TreeStaticRow
+                        key={child.trigger}
+                        label={child.label}
+                        icon={child.icon}
+                        density="compact"
+                        tone="muted"
+                      />
                     ))}
-                  </div>
+                  </TreeChildren>
                 )}
-              </div>
+              </TreeBranch>
             );
           })}
-        </nav>
+        </TreeNav>
       </div>
     </div>
   );

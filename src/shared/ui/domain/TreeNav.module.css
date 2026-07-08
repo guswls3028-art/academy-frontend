@@ -1,0 +1,212 @@
+.root {
+  --tree-accent: var(--color-brand-primary, var(--color-primary));
+  --tree-hover-bg: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  --tree-selected-bg: color-mix(in srgb, var(--tree-accent) 12%, var(--color-bg-surface));
+  --tree-selected-border: color-mix(in srgb, var(--tree-accent) 34%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  font-size: 13px;
+}
+
+.branch {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.children {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 10px;
+  padding-left: 16px;
+  padding-bottom: 3px;
+}
+
+.children::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  bottom: 7px;
+  width: 1px;
+  background: color-mix(in srgb, var(--color-border-divider) 82%, transparent);
+}
+
+.row,
+.staticRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.row {
+  cursor: pointer;
+}
+
+.staticRow {
+  cursor: default;
+}
+
+.row[data-tone="primary"],
+.staticRow[data-tone="primary"] {
+  --tree-accent: var(--color-brand-primary, var(--color-primary));
+}
+
+.row[data-tone="accent"],
+.staticRow[data-tone="accent"] {
+  --tree-accent: var(--color-brand-complement, var(--color-primary));
+}
+
+.row[data-tone="muted"],
+.staticRow[data-tone="muted"] {
+  --tree-accent: var(--color-text-muted);
+}
+
+.row[data-density="compact"],
+.staticRow[data-density="compact"] {
+  grid-template-columns: 16px 18px minmax(0, 1fr) auto auto;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.row[data-variant="hero"],
+.staticRow[data-variant="hero"] {
+  min-height: 38px;
+  margin-bottom: var(--space-1);
+  border-color: color-mix(in srgb, var(--tree-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--tree-accent) 8%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--tree-accent) 88%, var(--color-text-primary));
+  font-weight: 800;
+}
+
+.row:hover {
+  border-color: color-mix(in srgb, var(--tree-accent) 14%, transparent);
+  background: var(--tree-hover-bg);
+  color: var(--color-text-primary);
+}
+
+.row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tree-accent) 36%, transparent);
+  outline-offset: 2px;
+}
+
+.rowActive,
+.rowSelected {
+  border-color: var(--tree-selected-border);
+  background: var(--tree-selected-bg);
+  color: var(--tree-accent);
+  box-shadow: inset 3px 0 0 var(--tree-accent);
+}
+
+.rowSelected {
+  box-shadow:
+    inset 3px 0 0 var(--tree-accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--tree-accent) 18%, transparent);
+}
+
+.rowActive:hover,
+.rowSelected:hover {
+  background: color-mix(in srgb, var(--tree-accent) 16%, var(--color-bg-surface));
+  color: var(--tree-accent);
+}
+
+.chevronSlot,
+.icon,
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: currentColor;
+}
+
+.chevronSlot {
+  width: 18px;
+  color: var(--color-text-muted);
+}
+
+.chevron {
+  transition: transform 140ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.icon {
+  width: 20px;
+  opacity: 0.9;
+}
+
+.rowActive .chevronSlot,
+.rowSelected .chevronSlot,
+.rowActive .icon,
+.rowSelected .icon {
+  color: var(--tree-accent);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.count {
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tree-accent) 10%, transparent);
+  color: var(--tree-accent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.rowActive .count,
+.rowSelected .count {
+  background: var(--tree-accent);
+  color: var(--color-bg-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .staticRow,
+  .chevron {
+    transition: none;
+  }
+}

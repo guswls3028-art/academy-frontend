@@ -2,9 +2,16 @@
 // Reusable tree navigation for community CMS pages (notices, board, materials)
 
 import { useState, useCallback, useMemo } from "react";
-import { ChevronRight, ClipboardList, Folder, FolderOpen } from "lucide-react";
+import { ClipboardList, Folder, FolderOpen } from "lucide-react";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ICON } from "@/shared/ui/ds";
+import {
+  TreeBranch,
+  TreeChildren,
+  TreeNav,
+  TreeRow,
+  TreeStaticRow,
+} from "@/shared/ui/domain";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 
@@ -83,142 +90,106 @@ export default function CmsTreeNav({
         <h2 className="notice-tree__nav-title">{title}</h2>
       </div>
 
-      <div className="notice-tree__tabs">
-        <button
-          type="button"
-          className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active notice-tree__tab--selected" : ""}`}
+      <TreeNav className="notice-tree__tree" ariaLabel={title}>
+        <TreeRow
+          label={allLabel}
+          icon={<ClipboardList size={ICON.sm} />}
+          count={counts.totalCount > 0 ? counts.totalCount : undefined}
+          active={scope === "all"}
+          selected={scope === "all"}
           onClick={onSelectAll}
           aria-selected={scope === "all"}
-        >
-          <ClipboardList size={ICON.sm} className="cms-tree__icon" aria-hidden />
-          <span className="notice-tree__tab-label">{allLabel}</span>
-          {counts.totalCount > 0 && (
-            <span className="notice-tree__count" aria-label={`${counts.totalCount}건`}>
-              {counts.totalCount}
-            </span>
-          )}
-          <span className="notice-tree__tab-chevron" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className={`notice-tree__tab ${expandedParent ? "notice-tree__tab--active" : ""}`}
+        />
+        <TreeRow
+          label="강의목록"
+          icon={expandedParent ? <FolderOpen size={ICON.sm} /> : <Folder size={ICON.sm} />}
+          count={counts.totalUnderScope > 0 ? counts.totalUnderScope : undefined}
+          expandable
+          expanded={expandedParent}
+          active={expandedParent}
           onClick={toggleParent}
           aria-expanded={expandedParent}
-        >
-          {expandedParent ? (
-            <FolderOpen size={ICON.sm} className="cms-tree__icon" aria-hidden />
-          ) : (
-            <Folder size={ICON.sm} className="cms-tree__icon" aria-hidden />
-          )}
-          <span className="notice-tree__tab-label">강의목록</span>
-          {counts.totalUnderScope > 0 && (
-            <span className="notice-tree__count" aria-label={`${counts.totalUnderScope}건`}>
-              {counts.totalUnderScope}
-            </span>
-          )}
-          <ChevronRight
-            size={ICON.xs}
-            className={`cms-tree__chevron ${expandedParent ? "cms-tree__chevron--open" : ""}`}
-            aria-hidden
-          />
-        </button>
-      </div>
+        />
 
-      <div className="notice-tree__sub">
-        {expandedParent &&
-          lectures.map((lec) => {
-            const isExpanded = expandedLectureId === lec.id;
-            const isSelected = scope === "lecture" && lectureId === lec.id;
-            return (
-              <div key={`lec-${lec.id}`} className="notice-tree__branch">
-                <button
-                  type="button"
-                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${isExpanded ? "notice-tree__sub-item--active" : ""} ${isSelected ? "notice-tree__sub-item--selected" : ""}`}
-                  onClick={() => {
-                    toggleLecture(lec.id);
-                    onSelectLecture(lec.id);
-                  }}
-                  aria-expanded={isExpanded}
-                  aria-selected={isSelected}
-                >
-                  <ChevronRight
-                    size={ICON.xs}
-                    className={`cms-tree__chevron ${isExpanded ? "cms-tree__chevron--open" : ""}`}
-                    aria-hidden
+        {expandedParent && (
+          <TreeChildren>
+            {lectures.map((lec) => {
+              const isExpanded = expandedLectureId === lec.id;
+              const isSelected = scope === "lecture" && lectureId === lec.id;
+              return (
+                <TreeBranch key={`lec-${lec.id}`}>
+                  <TreeRow
+                    label={lec.title || lec.name || `강의 ${lec.id}`}
+                    icon={
+                      <LectureChip
+                        lectureName={lec.title || lec.name || ""}
+                        color={lec.color ?? undefined}
+                        size={20}
+                        chipLabel={lec.chip_label}
+                      />
+                    }
+                    count={
+                      (counts.countByLecture[lec.id] ?? 0) > 0
+                        ? counts.countByLecture[lec.id]
+                        : undefined
+                    }
+                    expandable
+                    expanded={isExpanded}
+                    active={isExpanded || isSelected}
+                    selected={isSelected}
+                    onClick={() => {
+                      toggleLecture(lec.id);
+                      onSelectLecture(lec.id);
+                    }}
+                    aria-expanded={isExpanded}
+                    aria-selected={isSelected}
                   />
-                  <LectureChip
-                    lectureName={lec.title || lec.name || ""}
-                    color={lec.color ?? undefined}
-                    size={20}
-                    chipLabel={lec.chip_label}
-                  />
-                  <span className="notice-tree__sub-label">
-                    {lec.title || lec.name || `강의 ${lec.id}`}
-                  </span>
-                  {(counts.countByLecture[lec.id] ?? 0) > 0 && (
-                    <span
-                      className="notice-tree__count"
-                      aria-label={`${counts.countByLecture[lec.id]}건`}
-                    >
-                      {counts.countByLecture[lec.id]}
-                    </span>
+                  {isExpanded && (
+                    <TreeChildren>
+                      {sessionsLoading ? (
+                        <TreeStaticRow
+                          label="불러오는 중..."
+                          density="compact"
+                          tone="muted"
+                        />
+                      ) : (
+                        sortedSessionsOfLecture.map((s) => {
+                          const sessionNodeId = scopeNodes.find(
+                            (n) => n.lecture === lec.id && n.session === s.id
+                          )?.id;
+                          const sessionCount =
+                            sessionNodeId != null
+                              ? (counts.countByNodeId[sessionNodeId] ?? 0)
+                              : 0;
+                          const supplement = isSupplementSession(s);
+                          const isSessionSelected =
+                            scope === "session" &&
+                            lectureId === lec.id &&
+                            sessionId === s.id;
+                          return (
+                            <TreeRow
+                              key={s.id}
+                              label={formatSessionBlockLabel(s)}
+                              icon={<span aria-hidden>·</span>}
+                              count={sessionCount > 0 ? sessionCount : undefined}
+                              density="compact"
+                              tone={supplement ? "accent" : "primary"}
+                              active={isSessionSelected}
+                              selected={isSessionSelected}
+                              onClick={() => onSelectSession(lec.id, s.id)}
+                              aria-selected={isSessionSelected}
+                            />
+                          );
+                        })
+                      )}
+                    </TreeChildren>
                   )}
-                  <span className="notice-tree__sub-chevron-right" aria-hidden />
-                </button>
-                {isExpanded && (
-                  <div className="notice-tree__children">
-                    {sessionsLoading ? (
-                      <div
-                        className="notice-tree__sub-item notice-tree__sub-item--child notice-tree__sub-item--loading"
-                      >
-                        불러오는 중…
-                      </div>
-                    ) : (
-                      sortedSessionsOfLecture.map((s) => {
-                        const sessionNodeId = scopeNodes.find(
-                          (n) => n.lecture === lec.id && n.session === s.id
-                        )?.id;
-                        const sessionCount =
-                          sessionNodeId != null
-                            ? (counts.countByNodeId[sessionNodeId] ?? 0)
-                            : 0;
-                        const supplement = isSupplementSession(s);
-                        const isSessionSelected =
-                          scope === "session" &&
-                          lectureId === lec.id &&
-                          sessionId === s.id;
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${isSessionSelected ? "notice-tree__sub-item--active notice-tree__sub-item--selected" : ""}`}
-                            onClick={() => onSelectSession(lec.id, s.id)}
-                            aria-selected={isSessionSelected}
-                          >
-                            <span className="notice-tree__sub-item-child-icon" aria-hidden>
-                              ·
-                            </span>
-                            <span className="notice-tree__sub-label">
-                              {formatSessionBlockLabel(s)}
-                            </span>
-                            {sessionCount > 0 && (
-                              <span
-                                className="notice-tree__count"
-                                aria-label={`${sessionCount}건`}
-                              >
-                                {sessionCount}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-      </div>
+                </TreeBranch>
+              );
+            })}
+          </TreeChildren>
+        )}
+      </TreeNav>
     </nav>
   );
 }

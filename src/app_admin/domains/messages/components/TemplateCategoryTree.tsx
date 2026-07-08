@@ -19,6 +19,7 @@ import type { MessageTemplateCategory } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import { TreeBranch, TreeNav, TreeRow } from "@/shared/ui/domain";
 import styles from "./AutoSendSectionTree.module.css";
 
 const CATEGORY_DEFS: { id: TemplateCategory; icon: React.ReactNode }[] = [
@@ -53,32 +54,25 @@ export default function TemplateCategoryTree({
         <span className={panelStyles.treeNavTitle}>카테고리</span>
       </div>
       <div className={panelStyles.treeScroll}>
-        <nav className={styles.tabs}>
+        <TreeNav ariaLabel="템플릿 카테고리">
           {CATEGORY_DEFS.map((cat) => {
             const isActive = currentCategory === cat.id;
             const count = templateCounts?.[cat.id];
             return (
-              <div key={cat.id} className={styles.branch}>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${isActive ? styles.tabActive : ""}`}
+              <TreeBranch key={cat.id}>
+                <TreeRow
+                  label={TEMPLATE_CATEGORY_LABELS[cat.id]}
+                  icon={cat.icon}
+                  count={count !== undefined && count > 0 ? count : undefined}
+                  active={isActive}
+                  selected={isActive}
                   onClick={() => onSelect(cat.id as MessageTemplateCategory)}
                   aria-current={isActive ? "true" : undefined}
-                >
-                  <span className={styles.tabIcon}>{cat.icon}</span>
-                  <span className={styles.tabLabel}>
-                    {TEMPLATE_CATEGORY_LABELS[cat.id]}
-                  </span>
-                  {count !== undefined && count > 0 && (
-                    <span className={styles.tabCount}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              </div>
+                />
+              </TreeBranch>
             );
           })}
-        </nav>
+        </TreeNav>
       </div>
     </div>
   );

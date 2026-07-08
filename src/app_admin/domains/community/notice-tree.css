@@ -17,13 +17,17 @@
 }
 
 .notice-tree__nav {
-  width: 200px;
-  min-width: 180px;
-  max-width: 26%;
+  width: 250px;
+  min-width: 220px;
+  max-width: 30%;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-bg-surface-soft)) 0%,
+    var(--color-bg-surface-soft) 100%
+  );
 }
 
 .notice-tree__nav-header {
@@ -41,7 +45,13 @@
   font-weight: 800;
   color: var(--color-text-primary);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+}
+
+.notice-tree__tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 폴더형 탭 — 세로 목록 */

@@ -22,3 +22,10 @@ export { useTableColumnPrefs } from "./useTableColumnPrefs";
 export type { TableColumnDef } from "./useTableColumnPrefs";
 export { default as ResizableTh } from "./ResizableTh";
 export { default as TableColumnPicker } from "./TableColumnPicker";
+export {
+  TreeBranch,
+  TreeChildren,
+  TreeNav,
+  TreeRow,
+  TreeStaticRow,
+} from "./TreeNav";

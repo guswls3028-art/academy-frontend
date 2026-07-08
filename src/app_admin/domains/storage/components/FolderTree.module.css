@@ -1,9 +1,9 @@
 .root {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   font-size: 13px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .node {
@@ -14,7 +14,7 @@
   display: flex;
   align-items: stretch;
   position: relative;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .itemRow:hover {
@@ -24,14 +24,14 @@
 .toggleBtn {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 28px;
+  width: 22px;
+  height: 34px;
   flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 0;
   transition: background 100ms ease, color 100ms ease;
 }
@@ -42,17 +42,17 @@
 }
 
 .toggleSpacer {
-  width: 20px;
+  width: 22px;
   flex-shrink: 0;
 }
 
 .children {
   margin-left: 0;
-  padding-left: 22px;
+  padding-left: 26px;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 /* 들여쓰기 vertical guide line — 자식 그룹 좌측에 얇은 선으로 깊이 시각화. */
@@ -60,11 +60,10 @@
   content: "";
   position: absolute;
   left: 11px;
-  top: 0;
-  bottom: 4px;
+  top: 2px;
+  bottom: 7px;
   width: 1px;
-  background: var(--color-border-divider);
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--color-border-divider) 82%, transparent);
 }
 
 .item {
@@ -73,17 +72,22 @@
   gap: 8px;
   flex: 1;
   min-width: 0;
-  padding: 5px 8px 5px 6px;
-  border: none;
-  border-left: 2px solid transparent;
-  border-radius: 6px;
+  min-height: 34px;
+  padding: 0 9px 0 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
   text-align: left;
   font-size: 13px;
-  font-weight: 500;
-  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+  font-weight: 600;
+  letter-spacing: 0;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .icon {
@@ -111,6 +115,7 @@
 }
 
 .item:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   color: var(--color-text-primary);
 }
 
@@ -120,9 +125,10 @@
 
 .itemActive {
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
-  border-left-color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 34%, transparent);
   color: var(--color-brand-primary);
   font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--color-brand-primary);
 }
 
 .itemActive .icon {
