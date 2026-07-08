@@ -62,6 +62,43 @@ export function TreeChildren({
   );
 }
 
+type TreeToolbarProps = HTMLAttributes<HTMLDivElement> & {
+  meta?: ReactNode;
+  actions?: ReactNode;
+};
+
+export function TreeToolbar({
+  className,
+  meta,
+  actions,
+  children,
+  ...props
+}: TreeToolbarProps) {
+  return (
+    <div {...props} className={cx(styles.toolbar, className)}>
+      <div className={styles.toolbarMeta}>{meta ?? children}</div>
+      {actions != null && <div className={styles.toolbarActions}>{actions}</div>}
+    </div>
+  );
+}
+
+export function TreeIconButton({
+  className,
+  children,
+  type = "button",
+  ...buttonProps
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...buttonProps}
+      type={type}
+      className={cx(styles.toolbarButton, className)}
+    >
+      {children}
+    </button>
+  );
+}
+
 type SharedTreeRowProps = {
   label: ReactNode;
   icon?: ReactNode;
@@ -97,10 +134,12 @@ export function TreeRow({
   type = "button",
   ...buttonProps
 }: TreeRowProps) {
+  const title = buttonProps.title ?? (typeof label === "string" ? label : undefined);
   return (
     <button
       {...buttonProps}
       type={type}
+      title={title}
       aria-expanded={expandable ? expanded : buttonProps["aria-expanded"]}
       aria-current={buttonProps["aria-current"] ?? (selected ? "page" : undefined)}
       data-tone={tone}
@@ -151,9 +190,11 @@ export function TreeStaticRow({
   variant = "default",
   ...props
 }: TreeStaticRowProps) {
+  const title = props.title ?? (typeof label === "string" ? label : undefined);
   return (
     <div
       {...props}
+      title={title}
       data-tone={tone}
       data-density={density}
       data-variant={variant}

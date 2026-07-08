@@ -2,9 +2,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   color: var(--color-text-muted);
   font-size: 14px;
   font-weight: 600;
+  white-space: normal;
 }
 
 .modeBadge[data-tone="primary"] {
@@ -26,6 +29,10 @@
   border-radius: 999px;
   background: currentColor;
   opacity: 0.8;
+}
+
+.modeRow {
+  grid-template-columns: minmax(84px, 140px) minmax(0, 1fr);
 }
 
 .rowLabelTop {
@@ -223,4 +230,12 @@
   color: #92400e;
   font-size: 13px;
   line-height: 1.55;
+}
+
+@media (max-width: 640px) {
+  .modeRow {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 7px;
+  }
 }

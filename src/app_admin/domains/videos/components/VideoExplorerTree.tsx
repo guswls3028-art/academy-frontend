@@ -1,15 +1,17 @@
 // 좌측 폴더 트리 — 영상: 공개 영상(맨위) + 강의명 > 1~n차시
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FileVideo, Folder, FolderOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronsDownUp, ChevronsUpDown, FileVideo, Folder, FolderOpen } from "lucide-react";
 import type { Lecture, Session } from "@/shared/api/contracts/sessions";
 import type { VideoFolder } from "../api/videos.api";
 import { formatSessionTreeLabel } from "@/shared/ui/session-block";
 import {
   TreeBranch,
   TreeChildren,
+  TreeIconButton,
   TreeNav,
   TreeRow,
+  TreeToolbar,
 } from "@/shared/ui/domain";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
@@ -56,7 +58,7 @@ function FolderTreeNode({
         selected={isActive}
         onClick={() => {
           onSelectFolder(folderId);
-          if (hasChildren && isActive) {
+          if (hasChildren) {
             onToggleFolder(folder.id);
           }
         }}
@@ -92,6 +94,37 @@ export default function VideoExplorerTree({
   const knownFolderIdsRef = useRef<Set<number>>(new Set());
   const rootFolders = publicFolders.filter((f) => !f.parent_id);
   const isPublicBranch = currentFolderId === "public" || (typeof currentFolderId === "number" && currentFolderId < 0);
+  const expandableLectureIds = useMemo(
+    () => lectures.filter((lecture) => (lecture.sessions ?? []).length > 0).map((lecture) => lecture.id),
+    [lectures]
+  );
+  const totalSessionCount = useMemo(
+    () => lectures.reduce((sum, lecture) => sum + (lecture.sessions ?? []).length, 0),
+    [lectures]
+  );
+  const expandablePublicFolderIds = useMemo(() => {
+    const parentIds = new Set(publicFolders.map((folder) => folder.parent_id).filter(Boolean));
+    return publicFolders.filter((folder) => parentIds.has(folder.id)).map((folder) => folder.id);
+  }, [publicFolders]);
+  const selectedPublicFolderId =
+    typeof currentFolderId === "number" && currentFolderId < 0 ? -currentFolderId : null;
+  const selectedParentLectureId = useMemo(() => {
+    if (typeof currentFolderId !== "number" || currentFolderId <= 0) return null;
+    return lectures.find((lecture) =>
+      (lecture.sessions ?? []).some((session) => session.id === currentFolderId)
+    )?.id ?? null;
+  }, [currentFolderId, lectures]);
+  const selectedFolderPathIds = useMemo(() => {
+    if (selectedPublicFolderId == null) return [];
+    const byId = new Map(publicFolders.map((folder) => [folder.id, folder]));
+    const path: number[] = [];
+    let current = byId.get(selectedPublicFolderId);
+    while (current) {
+      path.unshift(current.id);
+      current = current.parent_id ? byId.get(current.parent_id) : undefined;
+    }
+    return path;
+  }, [publicFolders, selectedPublicFolderId]);
 
   useEffect(() => {
     const incomingIds = new Set(lectures.map((lecture) => lecture.id));
@@ -170,8 +203,54 @@ export default function VideoExplorerTree({
     });
   }, []);
 
+  const expandAll = useCallback(() => {
+    setExpandedLectureIds(new Set(expandableLectureIds));
+    setExpandedFolderIds(new Set(expandablePublicFolderIds));
+  }, [expandableLectureIds, expandablePublicFolderIds]);
+
+  const collapseToSelection = useCallback(() => {
+    setExpandedLectureIds(selectedParentLectureId == null ? new Set() : new Set([selectedParentLectureId]));
+    setExpandedFolderIds(new Set(selectedFolderPathIds));
+  }, [selectedFolderPathIds, selectedParentLectureId]);
+
+  const expandedLectureCount = expandableLectureIds.filter((id) => expandedLectureIds.has(id)).length;
+  const expandedPublicFolderCount = expandablePublicFolderIds.filter((id) => expandedFolderIds.has(id)).length;
+  const collapseTargetLectureCount = selectedParentLectureId == null ? 0 : 1;
+  const collapseTargetFolderCount = selectedFolderPathIds.filter((id) =>
+    expandablePublicFolderIds.includes(id)
+  ).length;
+  const allExpanded =
+    expandedLectureCount === expandableLectureIds.length &&
+    expandedPublicFolderCount === expandablePublicFolderIds.length;
+  const collapsedToSelection =
+    expandedLectureCount === collapseTargetLectureCount &&
+    expandedPublicFolderCount === collapseTargetFolderCount;
+
   return (
     <TreeNav ariaLabel="영상 폴더 트리">
+      <TreeToolbar
+        meta={`${publicFolders.length}개 폴더 · ${lectures.length}개 강의 · ${totalSessionCount}개 차시`}
+        actions={
+          <>
+            <TreeIconButton
+              aria-label="전체 펼치기"
+              title="전체 펼치기"
+              onClick={expandAll}
+              disabled={allExpanded}
+            >
+              <ChevronsUpDown size={15} aria-hidden />
+            </TreeIconButton>
+            <TreeIconButton
+              aria-label="선택만 남기고 접기"
+              title="선택만 남기고 접기"
+              onClick={collapseToSelection}
+              disabled={collapsedToSelection}
+            >
+              <ChevronsDownUp size={15} aria-hidden />
+            </TreeIconButton>
+          </>
+        }
+      />
       <TreeRow
         label="전체공개영상"
         icon={<FolderOpen size={18} />}

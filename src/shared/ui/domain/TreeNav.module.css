@@ -1,8 +1,8 @@
 .root {
   --tree-accent: var(--color-brand-primary, var(--color-primary));
-  --tree-hover-bg: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
-  --tree-selected-bg: color-mix(in srgb, var(--tree-accent) 12%, var(--color-bg-surface));
-  --tree-selected-border: color-mix(in srgb, var(--tree-accent) 34%, transparent);
+  --tree-hover-bg: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+  --tree-selected-bg: color-mix(in srgb, var(--tree-accent) 10%, var(--color-bg-surface));
+  --tree-selected-border: color-mix(in srgb, var(--tree-accent) 28%, transparent);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -37,6 +37,76 @@
   background: color-mix(in srgb, var(--color-border-divider) 82%, transparent);
 }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 30px;
+  margin: 0 0 var(--space-1);
+  padding: 0 2px 2px;
+}
+
+.toolbarMeta {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbarActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.toolbarButton {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.toolbarButton:hover {
+  border-color: color-mix(in srgb, var(--tree-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--tree-accent) 8%, transparent);
+  color: var(--tree-accent);
+}
+
+.toolbarButton:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.toolbarButton:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+}
+
+.toolbarButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tree-accent) 34%, transparent);
+  outline-offset: 2px;
+}
+
 .row,
 .staticRow {
   position: relative;
@@ -45,7 +115,7 @@
   align-items: center;
   column-gap: 8px;
   width: 100%;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 9px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -88,7 +158,7 @@
 .row[data-density="compact"],
 .staticRow[data-density="compact"] {
   grid-template-columns: 16px 18px minmax(0, 1fr) auto auto;
-  min-height: 30px;
+  min-height: 31px;
   padding: 0 8px;
   font-size: 12px;
   font-weight: 500;
@@ -96,16 +166,20 @@
 
 .row[data-variant="hero"],
 .staticRow[data-variant="hero"] {
-  min-height: 38px;
+  min-height: 40px;
   margin-bottom: var(--space-1);
-  border-color: color-mix(in srgb, var(--tree-accent) 20%, transparent);
-  background: color-mix(in srgb, var(--tree-accent) 8%, var(--color-bg-surface));
-  color: color-mix(in srgb, var(--tree-accent) 88%, var(--color-text-primary));
+  border-color: color-mix(in srgb, var(--tree-accent) 18%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tree-accent) 8%, var(--color-bg-surface)) 0%,
+    color-mix(in srgb, var(--tree-accent) 4%, var(--color-bg-surface)) 100%
+  );
+  color: color-mix(in srgb, var(--tree-accent) 78%, var(--color-text-primary));
   font-weight: 800;
 }
 
 .row:hover {
-  border-color: color-mix(in srgb, var(--tree-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--tree-accent) 16%, transparent);
   background: var(--tree-hover-bg);
   color: var(--color-text-primary);
 }
@@ -120,18 +194,21 @@
   border-color: var(--tree-selected-border);
   background: var(--tree-selected-bg);
   color: var(--tree-accent);
-  box-shadow: inset 3px 0 0 var(--tree-accent);
+  box-shadow:
+    inset 3px 0 0 var(--tree-accent),
+    0 1px 0 color-mix(in srgb, var(--color-bg-surface) 80%, transparent);
 }
 
 .rowSelected {
   box-shadow:
     inset 3px 0 0 var(--tree-accent),
-    inset 0 0 0 1px color-mix(in srgb, var(--tree-accent) 18%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--tree-accent) 14%, transparent),
+    0 1px 0 color-mix(in srgb, var(--color-bg-surface) 80%, transparent);
 }
 
 .rowActive:hover,
 .rowSelected:hover {
-  background: color-mix(in srgb, var(--tree-accent) 16%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--tree-accent) 13%, var(--color-bg-surface));
   color: var(--tree-accent);
 }
 
@@ -199,14 +276,15 @@
 
 .rowActive .count,
 .rowSelected .count {
-  background: var(--tree-accent);
-  color: var(--color-bg-surface);
+  background: color-mix(in srgb, var(--tree-accent) 88%, var(--color-text-primary));
+  color: #fff;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .row,
   .staticRow,
-  .chevron {
+  .chevron,
+  .toolbarButton {
     transition: none;
   }
 }

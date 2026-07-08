@@ -70,8 +70,8 @@
 
 /* ━━━ 좌측 트리 사이드바 ━━━ */
 .tree {
-  width: 250px;
-  min-width: 250px;
+  width: clamp(270px, 22vw, 320px);
+  min-width: 270px;
   border-right: 1px solid var(--color-border-divider);
   overflow: auto;
   background: linear-gradient(

@@ -66,7 +66,7 @@ function AcademyModeSection() {
       </div>
       <div className={s.rows}>
         {badges.map((b) => (
-          <div key={b.label} className={s.row}>
+          <div key={b.label} className={`${s.row} ${styles.modeRow}`}>
             <span className={s.rowLabel}>{b.label}</span>
             <span className={styles.modeBadge} data-tone={b.tone}>
               <span className={styles.modeDot} />

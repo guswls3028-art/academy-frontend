@@ -25,7 +25,9 @@ export { default as TableColumnPicker } from "./TableColumnPicker";
 export {
   TreeBranch,
   TreeChildren,
+  TreeIconButton,
   TreeNav,
   TreeRow,
   TreeStaticRow,
+  TreeToolbar,
 } from "./TreeNav";
