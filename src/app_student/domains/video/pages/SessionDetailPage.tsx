@@ -11,6 +11,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { isYouTubeSource } from "@/shared/media/video/youtube";
 import {
   canPlayStudentVideo,
   isStudentVideoBlocked,
@@ -19,6 +20,7 @@ import {
   studentVideoProgressPercent,
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
+import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys } from "../queryKeys";
 
 function progressWidthStyle(value: number): CSSProperties {
@@ -79,12 +81,14 @@ function VideoListItem({
   const progress = studentVideoProgressPercent(video);
   const duration = video.duration ?? 0;
   const isComplete = isStudentVideoComplete(video);
+  const isYoutube = isYouTubeSource(video.source_type);
 
   const href = isPlayable
     ? `/student/video/play?video=${video.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}${sessionId ? `&session=${sessionId}` : ""}`
     : undefined;
 
   const metaItems = [
+    isYoutube ? "YouTube 링크" : null,
     duration > 0 ? formatDurationDetailed(duration) : null,
     isComplete ? "완료" : progress > 0 ? `${progress}% 진행` : "새로 시작",
   ].filter(Boolean);
@@ -107,6 +111,9 @@ function VideoListItem({
 
         {duration > 0 && (
           <span className="video-thumb-badge">{formatDurationDetailed(duration)}</span>
+        )}
+        {isYoutube && (
+          <span className="video-thumb-source-badge">YouTube</span>
         )}
 
         {progress > 0 && (
@@ -215,12 +222,7 @@ export default function SessionDetailPage() {
     retry: false,
   });
 
-  const videos = [...(videosData?.items ?? [])].sort((a, b) => {
-    const orderDiff = (a.order ?? 1) - (b.order ?? 1);
-    if (orderDiff !== 0) return orderDiff;
-    const titleCmp = (a.title ?? "").localeCompare(b.title ?? "", "ko");
-    return titleCmp !== 0 ? titleCmp : (a.id ?? 0) - (b.id ?? 0);
-  });
+  const videos = sortStudentVideos(videosData?.items ?? []);
   const res = (queryError as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
   const serverMessage =

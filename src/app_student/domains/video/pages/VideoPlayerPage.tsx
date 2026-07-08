@@ -17,6 +17,7 @@ import { safeParseInt, formatClock } from "../playback/player/design/utils";
 import { timeAgo, formatViewCount } from "../utils/timeAgo";
 import VideoCommentSection from "../components/VideoCommentSection";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
+import { isYouTubeSource } from "@/shared/media/video/youtube";
 import {
   canPlayStudentVideo,
   isStudentVideoBlocked,
@@ -24,6 +25,7 @@ import {
   studentVideoProgressPercent,
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
+import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys } from "../queryKeys";
 
 /* ─── localStorage 기반 이어보기 ─── */
@@ -165,6 +167,9 @@ export default function VideoPlayerPage() {
       title: String(vd.title ?? "영상"),
       duration: vd.duration == null ? null : Number(vd.duration),
       status: String(vd.status ?? ""),
+      source_type: vd.source_type ?? "s3",
+      youtube_video_id: vd.youtube_video_id ?? null,
+      youtube_url: vd.youtube_url ?? null,
       thumbnail_url: vd.thumbnail_url ?? null,
       hls_url: playbackData.hls_url ?? null,
       session_id: Number.isFinite(sessionIdValue) ? sessionIdValue : null,
@@ -202,6 +207,8 @@ export default function VideoPlayerPage() {
       monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
       policy: playbackData.policy || {},
       play_url: playUrl,
+      source_type: vd.source_type ?? playbackData.policy?.source?.type ?? "s3",
+      youtube_video_id: vd.youtube_video_id ?? playbackData.policy?.source?.youtube_video_id ?? null,
     };
 
     return { video: v, boot: b, loadError: null };
@@ -221,6 +228,10 @@ export default function VideoPlayerPage() {
     retry: 1,
   });
   const sessionVideosData = sessionVideosQuery.data ?? null;
+  const playlistItems = useMemo(
+    () => sortStudentVideos(sessionVideosData?.items ?? []),
+    [sessionVideosData?.items]
+  );
 
   /* ─── 이어보기 위치 계산 ─── */
   const initialPosition = useMemo(() => {
@@ -247,17 +258,17 @@ export default function VideoPlayerPage() {
 
   /* ─── 다음 영상 ─── */
   const nextVideo = useMemo(() => {
-    if (!sessionVideosData?.items?.length || !videoId) return null;
-    const videos = sessionVideosData.items;
+    if (!playlistItems.length || !videoId) return null;
+    const videos = playlistItems;
     const currentIndex = videos.findIndex((v) => v.id === videoId);
     if (currentIndex < 0) return null;
     return videos.slice(currentIndex + 1).find(canPlayStudentVideo) ?? null;
-  }, [sessionVideosData, videoId]);
+  }, [playlistItems, videoId]);
 
   const currentIndex = useMemo(() => {
-    if (!sessionVideosData?.items?.length || !videoId) return -1;
-    return sessionVideosData.items.findIndex((v) => v.id === videoId);
-  }, [sessionVideosData, videoId]);
+    if (!playlistItems.length || !videoId) return -1;
+    return playlistItems.findIndex((v) => v.id === videoId);
+  }, [playlistItems, videoId]);
 
   // Defer comments to reduce bandwidth contention during player initialization
   const [showComments, setShowComments] = useState(false);
@@ -338,7 +349,7 @@ export default function VideoPlayerPage() {
   }, []);
 
   /* ─── Render ─── */
-  const items = sessionVideosData?.items ?? [];
+  const items = playlistItems;
   const hasPlaylist = items.length > 1;
   const [drawerOpen, setDrawerOpen] = useState(true);
 
@@ -465,6 +476,7 @@ export default function VideoPlayerPage() {
                   const isPlayable = canPlayStudentVideo(v);
                   const isBlocked = isStudentVideoBlocked(v);
                   const isComplete = isStudentVideoComplete(v);
+                  const isYoutube = isYouTubeSource(v.source_type);
                   const itemClass = `vpp-pl-item${isActive ? " vpp-pl-item--active" : ""}${isComplete ? " vpp-pl-item--done" : ""}${!isPlayable ? " vpp-pl-item--disabled" : ""}${isBlocked ? " vpp-pl-item--blocked" : ""}`;
                   const content = (
                     <>
@@ -479,6 +491,9 @@ export default function VideoPlayerPage() {
                         )}
                         {dur > 0 && (
                           <span className="vpp-pl-dur">{formatClock(dur)}</span>
+                        )}
+                        {isYoutube && (
+                          <span className="vpp-pl-source">YouTube</span>
                         )}
                         {progress > 0 && (
                           <div className="vpp-pl-progress">
@@ -497,6 +512,8 @@ export default function VideoPlayerPage() {
                           <span className="vpp-pl-badge-blocked">
                             {studentVideoUnavailableLabel(v.status, v.access_mode)}
                           </span>
+                        ) : isYoutube ? (
+                          <span className="vpp-pl-badge-source">YouTube 링크</span>
                         ) : null}
                       </div>
                     </>

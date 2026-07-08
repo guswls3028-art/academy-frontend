@@ -269,6 +269,11 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div className={styles.badges}>
+          {video.source_type === "youtube" && (
+            <Badge variant="solid" tone="neutral">
+              YouTube 링크
+            </Badge>
+          )}
           <Badge variant="solid" tone={video.show_watermark ? "info" : "neutral"}>
             {video.show_watermark ? "워터마크" : "워터마크 없음"}
           </Badge>

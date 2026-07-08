@@ -412,6 +412,21 @@
   height: 11px;
 }
 
+.video-thumb-source-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: rgba(239, 68, 68, 0.92);
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .video-progress-track {
   position: absolute;
   left: 0;

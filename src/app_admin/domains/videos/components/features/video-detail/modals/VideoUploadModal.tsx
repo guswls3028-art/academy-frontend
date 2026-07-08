@@ -3,16 +3,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronLeft, ChevronRight, Upload as UploadIcon } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Link2, Upload as UploadIcon, Youtube } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
+import { createYoutubeVideo } from "@admin/domains/videos/api/videos.api";
+import { extractYouTubeVideoId, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
 import "./VideoUploadModal.css";
 
 const VIDEO_ACCEPT = "video/*";
+type UploadMode = "file" | "youtube";
 type Props = {
   sessionId: number;
   folderId?: number | null;
@@ -25,10 +28,12 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const mountedRef = useRef(true);
 
+  const [uploadMode, setUploadMode] = useState<UploadMode>("file");
   const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<(File | null)[]>([null]);
   const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const [showWatermark, setShowWatermark] = useState(true);
@@ -47,10 +52,12 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
 
   useEffect(() => {
     if (!isOpen) return;
+    setUploadMode("file");
     setBaseTitle("");
     setDescription("");
     setFiles([null]);
     setDragoverIndex(null);
+    setYoutubeUrl("");
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
@@ -59,9 +66,15 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   }, [isOpen]);
 
   const filledCount = useMemo(() => files.filter(Boolean).length, [files]);
+  const youtubeVideoId = useMemo(() => extractYouTubeVideoId(youtubeUrl), [youtubeUrl]);
   const canSubmit = useMemo(
-    () => Number.isFinite(sessionId) && sessionId > 0 && filledCount > 0 && baseTitle.trim().length > 0,
-    [sessionId, filledCount, baseTitle]
+    () => {
+      if (!Number.isFinite(sessionId) || sessionId <= 0) return false;
+      if (baseTitle.trim().length === 0) return false;
+      if (uploadMode === "youtube") return !!youtubeVideoId;
+      return filledCount > 0;
+    },
+    [sessionId, filledCount, baseTitle, uploadMode, youtubeVideoId]
   );
 
   const setFileAt = useCallback((index: number, file: File | null) => {
@@ -114,7 +127,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     [setFileAt]
   );
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     setInitErrorMessages([]);
 
     // 슬롯 → 업로드 아이템 (실패한 파일을 모달에 남기기 위해 슬롯 인덱스도 추적)
@@ -240,29 +253,117 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
         setIsUploading(false);
       }
     }
-  };
+  }, [
+    allowSkip,
+    baseTitle,
+    description,
+    files,
+    folderId,
+    maxSpeed,
+    onClose,
+    qc,
+    sessionId,
+    showWatermark,
+  ]);
+
+  const handleYoutubeCreate = useCallback(async () => {
+    setInitErrorMessages([]);
+    const title = baseTitle.trim();
+    const url = youtubeUrl.trim();
+    const videoId = extractYouTubeVideoId(url);
+    if (!title || !videoId) {
+      feedback.error("YouTube 링크와 제목을 확인해 주세요.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await createYoutubeVideo({
+        session: sessionId,
+        title,
+        url,
+        ...(folderId ? { folder: folderId } : {}),
+        show_watermark: showWatermark,
+        allow_skip: allowSkip,
+        max_speed: maxSpeed,
+      });
+      feedback.success("YouTube 링크 영상을 추가했습니다.");
+      qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
+      onClose();
+    } catch (error) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "YouTube 링크 추가에 실패했습니다.");
+    } finally {
+      if (mountedRef.current) {
+        setIsUploading(false);
+      }
+    }
+  }, [
+    allowSkip,
+    baseTitle,
+    folderId,
+    maxSpeed,
+    onClose,
+    qc,
+    sessionId,
+    showWatermark,
+    youtubeUrl,
+  ]);
+
+  const handleSubmit = useCallback(() => {
+    if (uploadMode === "youtube") {
+      void handleYoutubeCreate();
+      return;
+    }
+    void handleUpload();
+  }, [uploadMode, handleUpload, handleYoutubeCreate]);
 
   const handleClose = useCallback(() => {
     if (isUploading) {
-      feedback.info("업로드는 작업박스에서 계속 진행됩니다.");
+      feedback.info(uploadMode === "youtube" ? "링크 추가가 진행 중입니다." : "업로드는 작업박스에서 계속 진행됩니다.");
     }
     onClose();
-  }, [isUploading, onClose]);
+  }, [isUploading, onClose, uploadMode]);
 
   if (!isOpen) return null;
 
   return (
-    <AdminModal open={isOpen} onClose={handleClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
+    <AdminModal open={isOpen} onClose={handleClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="영상 추가"
-        description="파일 업로드 및 재생 정책을 설정합니다. 파일을 추가하면 슬롯이 자동으로 늘어납니다."
+        description={uploadMode === "youtube" ? "YouTube 링크와 재생 정책을 설정합니다." : "파일 업로드 및 재생 정책을 설정합니다. 파일을 추가하면 슬롯이 자동으로 늘어납니다."}
       />
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
+          <div className="video-upload-modal__mode-tabs" role="tablist" aria-label="영상 추가 방식">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={uploadMode === "file"}
+              className="video-upload-modal__mode-tab"
+              onClick={() => setUploadMode("file")}
+              disabled={isUploading}
+            >
+              <UploadIcon size={16} aria-hidden />
+              <span>파일 업로드</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={uploadMode === "youtube"}
+              className="video-upload-modal__mode-tab"
+              onClick={() => setUploadMode("youtube")}
+              disabled={isUploading}
+            >
+              <Youtube size={17} aria-hidden />
+              <span>YouTube 링크</span>
+            </button>
+          </div>
+
           {/* 직전 시도에서 실패한 파일 사유 — 사용자가 슬롯 정리 후 다시 시도 가능 */}
-          {initErrorMessages.length > 0 && (
+          {uploadMode === "file" && initErrorMessages.length > 0 && (
             <div
               role="alert"
               className="video-upload-modal__error-banner"
@@ -281,7 +382,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <input
               className="ds-input"
-              placeholder="제목 (예: 언남고 1학기 중간 과학 1강) — 순서대로 - 1, - 2, … 가 붙습니다"
+              placeholder={uploadMode === "youtube" ? "제목 (예: 언남고 1학기 중간 과학 1강)" : "제목 (예: 언남고 1학기 중간 과학 1강) — 순서대로 - 1, - 2, … 가 붙습니다"}
               value={baseTitle}
               onChange={(e) => setBaseTitle(e.target.value)}
               autoFocus
@@ -289,6 +390,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
           </div>
 
           {/* 동적 슬롯 */}
+          {uploadMode === "file" ? (
           <div className="modal-form-group video-upload-modal__row">
             <span className="modal-section-label video-upload-modal__slots-label">
               파일: 클릭 또는 드래그 (mp4 등)
@@ -370,8 +472,45 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               })}
             </div>
           </div>
+          ) : (
+            <div className="modal-form-group video-upload-modal__row video-upload-modal__youtube-panel">
+              <div className="video-upload-modal__youtube-input-wrap">
+                <Link2 size={16} className="video-upload-modal__youtube-input-icon" aria-hidden />
+                <input
+                  className="ds-input video-upload-modal__youtube-input"
+                  placeholder="https://youtu.be/..."
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  disabled={isUploading}
+                />
+              </div>
+              {youtubeVideoId ? (
+                <div className="video-upload-modal__youtube-preview">
+                  <img
+                    src={youtubeThumbnailUrl(youtubeVideoId)}
+                    alt=""
+                    className="video-upload-modal__youtube-thumb"
+                    loading="lazy"
+                  />
+                  <div className="video-upload-modal__youtube-preview-body">
+                    <div className="video-upload-modal__youtube-preview-title">
+                      YouTube 영상
+                    </div>
+                    <div className="video-upload-modal__youtube-preview-id">
+                      {youtubeVideoId}
+                    </div>
+                  </div>
+                </div>
+              ) : youtubeUrl.trim() ? (
+                <div className="video-upload-modal__youtube-invalid" role="alert">
+                  올바른 YouTube 영상 링크를 입력해 주세요.
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* 설명 */}
+          {uploadMode === "file" && (
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row video-upload-modal__row--input-only video-upload-modal__desc-wrap">
             <textarea
               className="ds-textarea video-upload-modal__desc"
@@ -381,6 +520,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               rows={2}
             />
           </div>
+          )}
 
           {/* 재생 정책 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
@@ -442,7 +582,15 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               <span className="video-upload-modal__policy-hint-badge" aria-hidden>
                 <AttendanceStatusBadge status="ONLINE" variant="2ch" />
               </span>
-              출결 뱃지가 <strong>영상</strong>인 학생만 최초 1회 적용됩니다. 이후에는 제한 없이 시청할 수 있어요.
+              {uploadMode === "youtube" ? (
+                <>
+                  공개 또는 일부공개이며 퍼가기가 허용된 YouTube 영상만 학생앱에서 재생됩니다.
+                </>
+              ) : (
+                <>
+                  출결 뱃지가 <strong>영상</strong>인 학생만 최초 1회 적용됩니다. 이후에는 제한 없이 시청할 수 있어요.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -451,7 +599,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
       <ModalFooter
         left={
           <span className="modal-hint video-upload-modal__footer-hint">
-            업로드는 우상단 작업박스에서 진행되며, 이 창을 닫아도 이어집니다.
+            {uploadMode === "youtube" ? "링크 영상은 인코딩 없이 바로 시청 가능 상태로 추가됩니다." : "업로드는 우상단 작업박스에서 진행되며, 이 창을 닫아도 이어집니다."}
           </span>
         }
         right={
@@ -461,15 +609,19 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
             </Button>
             <Button
               intent="primary"
-              onClick={handleUpload}
+              onClick={handleSubmit}
               disabled={!canSubmit || isUploading}
               loading={isUploading}
             >
-              {isUploading
-                ? "업로드 중…"
-                : initErrorMessages.length > 0
-                  ? `다시 시도 (${filledCount}개)`
-                  : `업로드 (${filledCount}개)`}
+              {uploadMode === "youtube"
+                ? isUploading
+                  ? "추가 중…"
+                  : "링크 추가"
+                : isUploading
+                  ? "업로드 중…"
+                  : initErrorMessages.length > 0
+                    ? `다시 시도 (${filledCount}개)`
+                    : `업로드 (${filledCount}개)`}
             </Button>
           </>
         }

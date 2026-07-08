@@ -49,6 +49,20 @@ export interface UploadInitResponse {
   content_type: string;
 }
 
+export interface YoutubeVideoCreatePayload {
+  session: number;
+  title: string;
+  url: string;
+  folder?: number | null;
+  allow_skip?: boolean;
+  max_speed?: number;
+  show_watermark?: boolean;
+}
+
+export interface YoutubeVideoCreateResponse {
+  video: Video;
+}
+
 export type PolicyImpactRule = VideoRule; // Legacy type
 
 export interface PolicyImpactRow {
@@ -166,6 +180,17 @@ export async function uploadInit(payload: {
   const res = await api.post("/media/videos/upload/init/", payload);
   res.data.video = normalizeVideo(res.data.video);
   return res.data;
+}
+
+export async function createYoutubeVideo(
+  payload: YoutubeVideoCreatePayload
+): Promise<Video> {
+  const res = await api.post<YoutubeVideoCreateResponse | Video>(
+    "/media/videos/youtube/",
+    payload
+  );
+  const video = "video" in res.data ? res.data.video : res.data;
+  return normalizeVideo(video);
 }
 
 export async function uploadComplete(

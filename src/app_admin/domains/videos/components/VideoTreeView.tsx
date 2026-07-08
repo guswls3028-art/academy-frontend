@@ -466,6 +466,10 @@ export default function VideoTreeView() {
                           {v.title || "—"}
                         </span>
                         <div className={styles.cardMeta}>
+                          {v.source_type === "youtube" && (
+                            <span className={styles.sourceChip}>YouTube</span>
+                          )}
+                          {v.source_type === "youtube" && (hasViewCount || v.created_at) && <span className={styles.metaDot}>·</span>}
                           {hasViewCount && (
                             <>
                               <span className={styles.viewCount}>

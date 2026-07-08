@@ -155,7 +155,8 @@
   flex-direction: column !important;
 }
 
-.svpPlayerWrap--fullscreen .svpVideo {
+.svpPlayerWrap--fullscreen .svpVideo,
+.svpPlayerWrap--fullscreen .svpYoutubeFrame {
   flex: 1 !important;
   width: 100% !important;
   height: 100% !important;
@@ -181,17 +182,37 @@
   background: #000;
 }
 
+.svpYoutubeFrame {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.svpYoutubeFrame iframe {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 .svpTheater .svpPlayerWrap {
   border-radius: 0;
 }
 
-.svpTheater .svpVideo {
+.svpTheater .svpVideo,
+.svpTheater .svpYoutubeFrame {
   aspect-ratio: 21 / 9;
 }
 
 .svpOverlayCenter {
   position: absolute;
   inset: 0;
+  z-index: 18;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -216,6 +237,7 @@
   position: absolute;
   left: 12px;
   top: 12px;
+  z-index: 18;
   padding: 8px 10px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.55);
@@ -444,6 +466,7 @@
 .svpWatermark {
   position: absolute;
   inset: 0;
+  z-index: 18;
   pointer-events: none;
 }
 
@@ -1013,6 +1036,19 @@
   z-index: 2;
 }
 
+.vpp-pl-source {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.9);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  z-index: 2;
+}
+
 /* 프로그레스 바 (파란 바) */
 .vpp-pl-progress {
   position: absolute;
@@ -1078,6 +1114,17 @@
   font-weight: 700;
   background: rgba(239, 68, 68, 0.14);
   color: rgba(248, 113, 113, 0.96);
+}
+
+.vpp-pl-badge-source {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }
 
 /* ── 모바일 대응 ── */

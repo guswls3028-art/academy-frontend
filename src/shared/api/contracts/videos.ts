@@ -10,7 +10,7 @@ export type VideoStatus =
 
 export type AccessMode = "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
 export type VideoRule = "free" | "once" | "blocked";
-export type VideoSourceType = "s3" | "unknown";
+export type VideoSourceType = "s3" | "youtube" | "file" | "external" | "unknown";
 
 export const VIDEO_COMPLETION_THRESHOLD = 0.9;
 export const VIDEO_COMPLETION_PERCENT = VIDEO_COMPLETION_THRESHOLD * 100;
@@ -20,7 +20,10 @@ export interface Video {
   session_id: number;
   folder?: number | null;
   title: string;
+  source_type: VideoSourceType;
   file_key: string;
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
   file_size?: number | null;
   duration: number | null;
   order: number;
@@ -41,7 +44,6 @@ export interface Video {
   hls_url?: string | null;
   created_at: string;
   updated_at: string;
-  source_type: VideoSourceType;
   view_count?: number | null;
 }
 

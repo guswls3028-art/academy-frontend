@@ -23,17 +23,22 @@ import {
   StudentHlsController,
   type ControllerState,
 } from "./headless/StudentHlsController";
+import { StudentYoutubeController } from "./headless/StudentYoutubeController";
 import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
 
 import type { AccessMode } from "@/shared/api/contracts/videos";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { isYouTubeSource } from "@/shared/media/video/youtube";
 
 export type VideoMetaLite = {
   id: number;
   title: string;
   duration: number | null;
   status?: string;
+  source_type?: string | null;
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
   thumbnail_url?: string | null;
   hls_url?: string | null;
 };
@@ -46,6 +51,8 @@ export type PlaybackBootstrap = {
   monitoring_enabled: boolean;
   policy: Partial<Policy> | null | undefined;
   play_url: string;
+  source_type?: string | null;
+  youtube_video_id?: string | null;
 };
 
 export type LeaveProgressPayload = {
@@ -70,6 +77,7 @@ type Policy = {
   seek?: { mode?: string; grace_seconds?: number };
   playback_rate?: { max?: number; ui_control?: boolean };
   watermark?: { enabled?: boolean };
+  source?: { type?: string; provider?: string; youtube_video_id?: string | null };
 };
 
 function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
@@ -138,10 +146,12 @@ export default function StudentVideoPlayer({
   const speedLocked = !speedUi || maxRate <= 1.0001;
   const watermarkEnabled = !!policy.watermark?.enabled;
   const monitoringEnabled = policy.monitoring_enabled ?? false;
+  const isYoutube = isYouTubeSource(video.source_type || bootstrap.source_type || policy.source?.type);
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
+  const youtubeMountRef = useRef<HTMLDivElement | null>(null);
   const wrapElRef = useRef<HTMLDivElement | null>(null);
-  const controllerRef = useRef<StudentHlsController | null>(null);
+  const controllerRef = useRef<StudentHlsController | StudentYoutubeController | null>(null);
 
   const [ctrlState, setCtrlState] = useState<ControllerState>(initialControllerState);
   const [theater, setTheater] = useState(false);
@@ -155,15 +165,21 @@ export default function StudentVideoPlayer({
   const savedRateRef = useRef(1);
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
+  const currentRef = useRef(0);
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
 
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
+
 
   useEffect(() => {
-    const el = videoElRef.current;
-    if (!el || !video || !bootstrap) return;
+    if (!video || !bootstrap) return;
+    const attachTarget = isYoutube ? youtubeMountRef.current : videoElRef.current;
+    if (!attachTarget) return;
 
-    const ctrl = new StudentHlsController({
+    const commonOptions = {
       videoId: video.id,
       playUrl: bootstrap.play_url || video.hls_url || "",
       policy: bootstrap.policy,
@@ -172,9 +188,19 @@ export default function StudentVideoPlayer({
       initialPosition,
       onFatal,
       onLeaveProgress,
-    });
+    };
+    let ctrl: StudentHlsController | StudentYoutubeController;
+    if (isYoutube) {
+      ctrl = new StudentYoutubeController({
+        ...commonOptions,
+        youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
+      });
+      ctrl.attach(attachTarget as HTMLDivElement);
+    } else {
+      ctrl = new StudentHlsController(commonOptions);
+      ctrl.attach(attachTarget as HTMLVideoElement);
+    }
     controllerRef.current = ctrl;
-    ctrl.attach(el);
 
     const unsub = ctrl.subscribe(setCtrlState);
 
@@ -183,7 +209,7 @@ export default function StudentVideoPlayer({
       ctrl.dispose();
       controllerRef.current = null;
     };
-  }, [video, bootstrap, enrollmentId, initialPosition, onFatal, onLeaveProgress]);
+  }, [video, bootstrap, enrollmentId, initialPosition, onFatal, onLeaveProgress, isYoutube, policy.source?.youtube_video_id]);
 
   useEffect(() => {
     const ctrl = controllerRef.current;
@@ -282,11 +308,9 @@ export default function StudentVideoPlayer({
   const togglePlay = useCallback(() => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
-    const el = ctrl.getVideoEl();
-    if (!el) return;
-    if (el.paused) ctrl.play();
-    else ctrl.pause();
-  }, []);
+    if (playing) ctrl.pause();
+    else ctrl.play();
+  }, [playing]);
 
   const setTime = useCallback((t: number) => {
     const ctrl = controllerRef.current;
@@ -324,9 +348,7 @@ export default function StudentVideoPlayer({
   const skip = useCallback((delta: number) => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
-    const el = ctrl.getVideoEl();
-    if (!el) return;
-    const t = Number(el.currentTime || 0) + Number(delta || 0);
+    const t = Number(currentRef.current || 0) + Number(delta || 0);
     ctrl.seek(t);
   }, []);
 
@@ -463,13 +485,7 @@ export default function StudentVideoPlayer({
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    const el = controllerRef.current?.getVideoEl();
-    if (el && savedRateRef.current !== undefined) {
-      try {
-        el.playbackRate = savedRateRef.current;
-      } catch {
-        // Restoring playbackRate is best effort across native players.
-      }
+    if (savedRateRef.current !== undefined) {
       controllerRef.current?.setRate(savedRateRef.current);
     }
   }, []);
@@ -594,8 +610,9 @@ export default function StudentVideoPlayer({
     else if (boundedForward) pills.push({ text: "앞으로 탐색 제한", tone: "warn" });
     if (speedLocked) pills.push({ text: "배속 제한", tone: "warn" });
     if (watermarkEnabled) pills.push({ text: "워터마크", tone: "neutral" });
+    if (isYoutube) pills.push({ text: "YouTube", tone: "neutral" });
     return pills;
-  }, [policy.access_mode, monitoringEnabled, allowSeek, boundedForward, seekMode, speedLocked, watermarkEnabled]);
+  }, [policy.access_mode, monitoringEnabled, allowSeek, boundedForward, seekMode, speedLocked, watermarkEnabled, isYoutube]);
 
   const deviceId = useMemo(() => getOrCreateDeviceId(), []);
 
@@ -618,7 +635,7 @@ export default function StudentVideoPlayer({
       <div className="svpLayout">
         <div className="svpPlayerCol">
           <div
-            className={`svpPlayerWrap ${!showControls ? "svpPlayerWrap--controlsHidden" : ""} ${isFullscreen ? "svpPlayerWrap--fullscreen" : ""}`}
+            className={`svpPlayerWrap ${isYoutube ? "svpPlayerWrap--youtube" : ""} ${!showControls ? "svpPlayerWrap--controlsHidden" : ""} ${isFullscreen ? "svpPlayerWrap--fullscreen" : ""}`}
             ref={wrapElRef}
           >
             <div className="svpTopBar">
@@ -626,6 +643,12 @@ export default function StudentVideoPlayer({
                 <div className="svpTitle" title={video.title}>{video.title}</div>
                 <div className="svpMeta">
                   <span className="svpMetaItem">{policy.access_mode === "PROCTORED_CLASS" ? "수업 모드" : "복습 모드"}</span>
+                  {isYoutube && (
+                    <>
+                      <span className="svpDot">•</span>
+                      <span className="svpMetaItem">YouTube</span>
+                    </>
+                  )}
                   {video.duration != null && video.duration > 0 && (
                     <>
                       <span className="svpDot">•</span>
@@ -664,14 +687,18 @@ export default function StudentVideoPlayer({
             </div>
 
             <div className="svpVideoStage" role="presentation">
-              <video
-                ref={videoElRef}
-                className="svpVideo"
-                playsInline
-                controls={false}
-                preload="metadata"
-                poster={video.thumbnail_url || undefined}
-              />
+              {isYoutube ? (
+                <div ref={youtubeMountRef} className="svpYoutubeFrame" />
+              ) : (
+                <video
+                  ref={videoElRef}
+                  className="svpVideo"
+                  playsInline
+                  controls={false}
+                  preload="metadata"
+                  poster={video.thumbnail_url || undefined}
+                />
+              )}
               <div
                 ref={gestureLayerRef}
                 className="svpGestureLayer"

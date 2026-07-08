@@ -1,5 +1,5 @@
 import api from "@student/shared/api/student.api";
-import type { AccessMode } from "@/shared/api/contracts/videos";
+import type { AccessMode, VideoSourceType } from "@/shared/api/contracts/videos";
 
 /** GET /student/video/me/ 응답 — 영상 탭용 */
 export type StudentVideoMeSession = {
@@ -47,6 +47,9 @@ export type StudentVideoListItem = {
   enrollment_id?: number | null;
   title: string;
   status: string;
+  source_type?: VideoSourceType;
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
   thumbnail_url?: string | null;
   duration?: number | null;
   progress?: number; // 0-100
@@ -100,6 +103,11 @@ export type StudentVideoPlayback = {
       max_devices?: number;
     };
     access_mode?: AccessMode;
+    source?: {
+      type?: VideoSourceType;
+      provider?: "uploaded" | "youtube" | string;
+      youtube_video_id?: string | null;
+    };
   };
 };
 
