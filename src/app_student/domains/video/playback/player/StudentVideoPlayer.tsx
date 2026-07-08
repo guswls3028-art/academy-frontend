@@ -699,15 +699,17 @@ export default function StudentVideoPlayer({
                   poster={video.thumbnail_url || undefined}
                 />
               )}
-              <div
-                ref={gestureLayerRef}
-                className="svpGestureLayer"
-                aria-hidden
-                onPointerDown={onStagePointerDown}
-                onPointerMove={onStagePointerMove}
-                onPointerUp={onStagePointerUp}
-                onPointerCancel={onStagePointerCancel}
-              />
+              {!isYoutube && (
+                <div
+                  ref={gestureLayerRef}
+                  className="svpGestureLayer"
+                  aria-hidden
+                  onPointerDown={onStagePointerDown}
+                  onPointerMove={onStagePointerMove}
+                  onPointerUp={onStagePointerUp}
+                  onPointerCancel={onStagePointerCancel}
+                />
+              )}
 
               <SeekOverlay overlay={overlay} />
 
@@ -718,7 +720,7 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {ready && !playing && !reconnecting && (
+              {ready && !playing && !reconnecting && !isYoutube && (
                 <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
