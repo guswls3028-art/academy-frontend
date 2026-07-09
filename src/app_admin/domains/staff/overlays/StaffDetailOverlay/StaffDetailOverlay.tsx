@@ -279,7 +279,7 @@ export default function StaffDetailOverlay() {
                             : "조교"
                       }
                     />
-                    <div className="ds-overlay-info-row" title="직원 관리(시급·급여·비용) 접근 권한. 꺼도 출퇴근·근무기록 등 일반 기능은 정상 사용 가능합니다.">
+                    <div className="ds-overlay-info-row" title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다.">
                       <span className="ds-overlay-info-row__label">관리자</span>
                       <span className="ds-overlay-info-row__value">
                         {canManage ? (

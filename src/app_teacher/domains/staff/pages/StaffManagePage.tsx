@@ -154,11 +154,21 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
   const [username, setUsername] = useState(editData?.username || "");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(editData?.role || "ASSISTANT");
+  const canSubmit = isEdit
+    ? !!name.trim()
+    : !!name.trim() && !!username.trim() && password.trim().length >= 4;
+  const canResetPassword = isEdit && password.trim().length >= 4;
 
   const createMut = useMutation({
     mutationFn: () => isEdit
-      ? updateStaff(editData.id, { name, phone, role })
-      : createStaff({ name, phone, username, password: password || "0000", role }),
+      ? updateStaff(editData.id, { name: name.trim(), phone: phone.trim() || undefined })
+      : createStaff({
+          name: name.trim(),
+          phone: phone.trim() || undefined,
+          username: username.trim(),
+          password: password.trim(),
+          role,
+        }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff });
       teacherToast.success(isEdit ? "직원 정보가 수정되었습니다." : `${name} 직원이 등록되었습니다.`);
@@ -168,7 +178,7 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
   });
 
   const pwResetMut = useMutation({
-    mutationFn: () => resetStaffPassword(editData?.id, password),
+    mutationFn: () => resetStaffPassword(editData?.id, password.trim()),
     onSuccess: () => { setPassword(""); teacherToast.success("비밀번호가 변경되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "비밀번호를 변경하지 못했습니다.")),
   });
@@ -179,36 +189,50 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
         <Fld label="이름 *" value={name} onChange={setName} placeholder="직원 이름" />
         <Fld label="전화" value={phone} onChange={setPhone} type="tel" placeholder="010-" />
         {!isEdit && <Fld label="아이디 *" value={username} onChange={setUsername} placeholder="로그인 아이디" />}
-        <Fld label={isEdit ? "새 비밀번호" : "초기 비밀번호"} value={password} onChange={setPassword} placeholder={isEdit ? "변경 시 입력" : "0000"} />
+        <Fld
+          label={isEdit ? "새 비밀번호" : "초기 비밀번호 *"}
+          value={password}
+          onChange={setPassword}
+          type="password"
+          placeholder={isEdit ? "변경 시 4자 이상" : "4자 이상"}
+        />
 
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>역할</label>
-          <div className="flex gap-2">
-            {[["TEACHER", "강사"], ["ASSISTANT", "조교"]].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setRole(v)}
-                className="flex-1 text-[12px] font-semibold py-2 cursor-pointer text-center"
-                style={{
-                  borderRadius: "var(--tc-radius)",
-                  border: role === v ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-                  background: role === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                  color: role === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                }}>
-                {l}
-              </button>
-            ))}
-          </div>
+          {isEdit ? (
+            <div className="text-[12px] font-semibold"
+              style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
+              {role === "TEACHER" ? "강사" : role === "OWNER" || role === "owner" ? "원장" : "조교"}
+              <span className="ml-1" style={{ color: "var(--tc-text-muted)", fontWeight: 400 }}>생성 후 변경 불가</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {[["TEACHER", "강사"], ["ASSISTANT", "조교"]].map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setRole(v)}
+                  className="flex-1 text-[12px] font-semibold py-2 cursor-pointer text-center"
+                  style={{
+                    borderRadius: "var(--tc-radius)",
+                    border: role === v ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
+                    background: role === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                    color: role === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                  }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <button onClick={() => createMut.mutate()} disabled={!name.trim() || createMut.isPending}
+        <button onClick={() => createMut.mutate()} disabled={!canSubmit || createMut.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
           {createMut.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
         </button>
 
         {isEdit && password && (
-          <button onClick={() => pwResetMut.mutate()} disabled={pwResetMut.isPending}
+          <button onClick={() => pwResetMut.mutate()} disabled={!canResetPassword || pwResetMut.isPending}
             className="w-full text-sm font-semibold cursor-pointer"
-            style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-warn)", background: "none", color: "var(--tc-warn)" }}>
+            style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-warn)", background: "none", color: canResetPassword ? "var(--tc-warn)" : "var(--tc-text-muted)" }}>
             비밀번호 변경
           </button>
         )}

@@ -370,7 +370,7 @@ export function StaffHomeTable({
             <StaffHomeSortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-            <StaffHomeSortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="직원 관리(시급·급여·비용) 접근 권한. 꺼도 출퇴근·근무기록 등 일반 기능은 정상 사용 가능합니다." />
+            <StaffHomeSortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다." />
             <StaffHomeSortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           </tr>

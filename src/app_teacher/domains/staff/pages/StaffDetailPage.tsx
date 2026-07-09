@@ -18,8 +18,9 @@ import {
   fetchWorkRecords, createWorkRecord, updateWorkRecord, deleteWorkRecord,
   fetchExpenseRecords, updateExpenseStatus, deleteExpenseRecord,
   fetchPayrollSnapshots,
-  fetchWorkMonthLocks, createWorkMonthLock, deleteWorkMonthLock,
+  fetchWorkMonthLocks, createWorkMonthLock,
   fetchWorkTypes,
+  type ExpenseStatus,
   type WorkRecord,
 } from "../api";
 import { teacherStaffQueryKeys } from "../queryKeys";
@@ -52,8 +53,7 @@ export default function StaffDetailPage() {
     queryFn: () => fetchWorkMonthLocks({ staff: sid, month }),
     enabled: Number.isFinite(sid),
   });
-  const isLocked = (locks ?? []).length > 0;
-  const lockId = locks?.[0]?.id;
+  const isLocked = (locks ?? []).some((lock) => lock.is_locked !== false);
 
   if (staffLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!staff) return <EmptyState scope="panel" tone="error" title="직원 정보를 찾을 수 없습니다" />;
@@ -75,7 +75,7 @@ export default function StaffDetailPage() {
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
           className="text-sm flex-1"
           style={{ padding: "8px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }} />
-        <LockButton staffId={sid} month={month} isLocked={isLocked} lockId={lockId} />
+        <LockButton staffId={sid} month={month} isLocked={isLocked} />
       </div>
 
       {/* Tabs */}
@@ -94,7 +94,7 @@ export default function StaffDetailPage() {
           onAdd={() => { setEditWork(null); setWorkFormOpen(true); }}
           onEdit={(r) => { setEditWork(r); setWorkFormOpen(true); }} />
       )}
-      {tab === "expense" && <ExpenseTab staffId={sid} month={month} />}
+      {tab === "expense" && <ExpenseTab staffId={sid} month={month} isLocked={isLocked} />}
       {tab === "payroll" && <PayrollTab staffId={sid} month={month} isLocked={isLocked} />}
 
       <WorkFormSheet open={workFormOpen} onClose={() => { setWorkFormOpen(false); setEditWork(null); }}
@@ -104,7 +104,7 @@ export default function StaffDetailPage() {
 }
 
 /* ─── Lock Button ─── */
-function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; month: string; isLocked: boolean; lockId?: number }) {
+function LockButton({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const lockMut = useMutation({
@@ -115,21 +115,10 @@ function LockButton({ staffId, month, isLocked, lockId }: { staffId: number; mon
     },
     onError: () => teacherToast.error("마감에 실패했습니다."),
   });
-  const unlockMut = useMutation({
-    mutationFn: () => lockId ? deleteWorkMonthLock(lockId) : Promise.reject(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.locks(staffId, month) });
-      teacherToast.success("월 마감이 해제되었습니다.");
-    },
-    onError: () => teacherToast.error("해제에 실패했습니다."),
-  });
 
   if (isLocked) {
     return (
-      <button onClick={async () => {
-          const ok = await confirm({ title: "월 마감 해제", message: "월 마감을 해제하시겠습니까? 해제하면 내역을 다시 수정할 수 있습니다.", confirmText: "해제" });
-          if (ok) unlockMut.mutate();
-        }}
+      <button type="button" disabled aria-disabled
         className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
         style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-warn)", background: "var(--tc-warn-bg)", color: "var(--tc-warn)" }}>
         <Lock size={ICON.sm} /> 마감됨
@@ -252,7 +241,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
 }
 
 /* ─── Expense Tab ─── */
-function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
+function ExpenseTab({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data, isLoading } = useQuery({
@@ -261,7 +250,7 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
   });
 
   const statusMut = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "approved" | "rejected" }) => updateExpenseStatus(id, status),
+    mutationFn: ({ id, status }: { id: number; status: Extract<ExpenseStatus, "APPROVED" | "REJECTED"> }) => updateExpenseStatus(id, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.expense(staffId, month) });
       teacherToast.success("처리되었습니다.");
@@ -287,8 +276,8 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
     );
   }
 
-  const total = data.filter(e => e.status === "approved").reduce((s, e) => s + (e.amount ?? 0), 0);
-  const pending = data.filter(e => e.status === "pending").length;
+  const total = data.filter(e => e.status === "APPROVED").reduce((s, e) => s + (e.amount ?? 0), 0);
+  const pending = data.filter(e => e.status === "PENDING").length;
 
   return (
     <div className="flex flex-col gap-2">
@@ -316,14 +305,14 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
                 </div>
               </div>
             </div>
-            {e.status === "pending" && (
+            {e.status === "PENDING" && !isLocked && (
               <div className="flex gap-1.5 mt-2">
-                <button onClick={() => statusMut.mutate({ id: e.id, status: "approved" })}
+                <button onClick={() => statusMut.mutate({ id: e.id, status: "APPROVED" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-success-bg)", color: "var(--tc-success)" }}>
                   <Check size={ICON.sm} /> 승인
                 </button>
-                <button onClick={() => statusMut.mutate({ id: e.id, status: "rejected" })}
+                <button onClick={() => statusMut.mutate({ id: e.id, status: "REJECTED" })}
                   className="flex items-center justify-center gap-1 flex-1 text-xs font-bold cursor-pointer"
                   style={{ padding: "6px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>
                   <X size={ICON.sm} /> 반려
@@ -346,8 +335,8 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  if (status === "approved") return <Badge tone="success" size="xs">승인</Badge>;
-  if (status === "rejected") return <Badge tone="danger" size="xs">반려</Badge>;
+  if (status === "APPROVED") return <Badge tone="success" size="xs">승인</Badge>;
+  if (status === "REJECTED") return <Badge tone="danger" size="xs">반려</Badge>;
   return <Badge tone="warning" size="xs">대기</Badge>;
 }
 

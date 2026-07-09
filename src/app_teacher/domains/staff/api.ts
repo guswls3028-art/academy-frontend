@@ -3,6 +3,8 @@
 import api from "@/shared/api/axios";
 
 /* ─── Types ─── */
+export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 export interface StaffMember {
   id: number;
   name: string;
@@ -38,7 +40,7 @@ export interface ExpenseRecord {
   date: string;
   title: string;
   amount: number;
-  status?: "pending" | "approved" | "rejected";
+  status?: ExpenseStatus;
   memo?: string;
 }
 
@@ -60,8 +62,11 @@ export interface PayrollSnapshot {
 export interface WorkMonthLock {
   id: number;
   staff: number;
-  month: string;
+  year: number;
+  month: number;
+  is_locked: boolean;
   locked_at?: string;
+  created_at?: string;
 }
 
 export interface WorkType {
@@ -73,12 +78,38 @@ export interface WorkType {
   is_active?: boolean;
 }
 
+function monthRange(month: string) {
+  const [year, monthValue] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthValue, 0).getDate();
+  const mm = String(monthValue).padStart(2, "0");
+  return {
+    year,
+    month: monthValue,
+    date_from: `${year}-${mm}-01`,
+    date_to: `${year}-${mm}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+function normalizeExpenseStatus(status?: string): ExpenseStatus {
+  const upper = String(status || "PENDING").toUpperCase();
+  if (upper === "APPROVED" || upper === "REJECTED") return upper;
+  return "PENDING";
+}
+
+function normalizeExpenseRecord(record: ExpenseRecord): ExpenseRecord {
+  return { ...record, status: normalizeExpenseStatus(record.status) };
+}
+
 /* ─── Work Records ─── */
 export async function fetchWorkRecords(params: { staff: number; month: string }) {
-  // month "YYYY-MM" → date__year / date__month 분리 (Django filter 표준)
-  const [y, m] = params.month.split("-");
+  const range = monthRange(params.month);
   const res = await api.get("/staffs/work-records/", {
-    params: { staff: params.staff, date__year: y, date__month: m, page_size: 200 },
+    params: {
+      staff: params.staff,
+      date_from: range.date_from,
+      date_to: range.date_to,
+      page_size: 200,
+    },
   });
   const raw = res.data;
   const items: WorkRecord[] = Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
@@ -103,23 +134,24 @@ export async function deleteWorkRecord(id: number): Promise<void> {
 export async function fetchExpenseRecords(params: { staff?: number; month?: string }): Promise<ExpenseRecord[]> {
   const q: Record<string, unknown> = { staff: params.staff, page_size: 200 };
   if (params.month) {
-    const [y, m] = params.month.split("-");
-    q.date__year = y;
-    q.date__month = m;
+    const range = monthRange(params.month);
+    q.date_from = range.date_from;
+    q.date_to = range.date_to;
   }
   const res = await api.get("/staffs/expense-records/", { params: q });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  const items: ExpenseRecord[] = Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return items.map(normalizeExpenseRecord);
 }
 
-export async function updateExpenseStatus(id: number, status: "pending" | "approved" | "rejected"): Promise<ExpenseRecord> {
+export async function updateExpenseStatus(id: number, status: Extract<ExpenseStatus, "APPROVED" | "REJECTED">): Promise<ExpenseRecord> {
   const res = await api.patch(`/staffs/expense-records/${id}/`, { status });
-  return res.data;
+  return normalizeExpenseRecord(res.data);
 }
 
 export async function createExpenseRecord(payload: Partial<ExpenseRecord>): Promise<ExpenseRecord> {
   const res = await api.post("/staffs/expense-records/", payload);
-  return res.data;
+  return normalizeExpenseRecord(res.data);
 }
 
 export async function deleteExpenseRecord(id: number): Promise<void> {
@@ -136,19 +168,25 @@ export async function fetchPayrollSnapshots(params: { staff?: number; year?: num
 /* ─── Month Lock ─── */
 export async function fetchWorkMonthLocks(params: { staff?: number; month?: string }): Promise<WorkMonthLock[]> {
   const q: Record<string, unknown> = { staff: params.staff };
+  let range: ReturnType<typeof monthRange> | null = null;
   if (params.month) {
-    const [y, m] = params.month.split("-");
-    q.year = y;
-    q.month = m;
+    range = monthRange(params.month);
+    q.year = range.year;
+    q.month = range.month;
   }
   const res = await api.get("/staffs/work-month-locks/", { params: q });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  const items: WorkMonthLock[] = Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return items.filter((lock) => {
+    if (params.staff != null && Number(lock.staff) !== Number(params.staff)) return false;
+    if (range && (Number(lock.year) !== range.year || Number(lock.month) !== range.month)) return false;
+    return lock.is_locked !== false;
+  });
 }
 
 export async function createWorkMonthLock(payload: { staff: number; month: string }): Promise<WorkMonthLock> {
-  const [y, m] = payload.month.split("-");
-  const res = await api.post("/staffs/work-month-locks/", { staff: payload.staff, year: Number(y), month: Number(m) });
+  const range = monthRange(payload.month);
+  const res = await api.post("/staffs/work-month-locks/", { staff: payload.staff, year: range.year, month: range.month });
   return res.data;
 }
 
