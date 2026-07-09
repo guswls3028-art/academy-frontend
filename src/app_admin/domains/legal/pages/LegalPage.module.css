@@ -4,7 +4,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   background: #fafbfc;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--app-font-sans, var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif));
   -webkit-font-smoothing: antialiased;
   color: #1a1d21;
   line-height: 1.7;

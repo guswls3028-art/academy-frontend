@@ -11,7 +11,7 @@
   align-items: center;
   padding: var(--stu-space-8, 32px) var(--stu-space-4, 16px);
   padding-top: max(var(--stu-safe-top, 0px), 28px);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--stu-font-sans, var(--app-font-sans, var(--font-sans, system-ui, -apple-system, sans-serif)));
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--stu-primary, #3b82f6) 8%, transparent), transparent 54%),
     var(--stu-bg, #f8fafc);
@@ -314,7 +314,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: system-ui, sans-serif;
+  font-family: var(--stu-font-sans, var(--app-font-sans, var(--font-sans, system-ui, sans-serif)));
   color: #fff;
   animation: fadeIn 0.3s ease;
 }

@@ -1,11 +1,11 @@
 /* PATH: src/features/staff/styles/staff-area.css
  * Premium Korean academy SaaS — staff management area
- * Typography: Inter, Pretendard. Strong hierarchy, compact tables, professional chips.
+ * Typography: app font token. Strong hierarchy, compact tables, professional chips.
  */
 
 /* ---------- Typography (가시성 강화: 기본 크기 상향) ---------- */
 .staff-area {
-  font-family: "Inter", "Pretendard", system-ui, -apple-system, sans-serif;
+  font-family: var(--app-font-sans, var(--font-sans, "Pretendard", system-ui, -apple-system, sans-serif));
 }
 
 .staff-area .staff-page-title {

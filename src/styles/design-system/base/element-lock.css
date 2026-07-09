@@ -4,6 +4,26 @@
  * ============================================================================
  */
 
+:where(
+  button,
+  input,
+  textarea,
+  select,
+  optgroup,
+  [role="button"]
+) {
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+:where(input::file-selector-button) {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
 [data-app="admin"] :where(
   button,
   input,

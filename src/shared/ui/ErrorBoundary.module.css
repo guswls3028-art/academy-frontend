@@ -7,7 +7,7 @@
   gap: 12px;
   padding: 24px;
   color: #333;
-  font-family: sans-serif;
+  font-family: var(--app-font-sans, var(--font-sans, sans-serif));
   text-align: center;
 }
 

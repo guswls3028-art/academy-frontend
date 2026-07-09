@@ -22,8 +22,8 @@ import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider } from "@/shared/ui/modal/ModalWindowContext";
 import ModalTaskbar from "@/shared/ui/modal/ModalTaskbar";
 
-import "./index.css";
 import "antd/dist/reset.css";
+import "./index.css";
 
 stripHardReloadParam();
 
