@@ -7,6 +7,58 @@
   --color-error:   var(--scale-Error500);
   --color-info:    var(--scale-Info500);
 
+  /* Status aliases: legacy/domain CSS uses these names directly. */
+  --color-status-success: var(--color-success);
+  --color-status-warning: var(--color-warning);
+  --color-status-error:   var(--color-error);
+  --color-status-danger:  var(--color-error);
+  --color-status-info:    var(--color-info);
+
+  --color-status-success-bg: var(--scale-Success100);
+  --color-status-warning-bg: var(--scale-Warning100);
+  --color-status-error-bg:   var(--scale-Error100);
+  --color-status-danger-bg:  var(--scale-Error100);
+  --color-status-info-bg:    var(--scale-Info100);
+
+  --color-status-success-soft: var(--color-status-success-bg);
+  --color-status-warning-soft: var(--color-status-warning-bg);
+  --color-status-error-soft:   var(--color-status-error-bg);
+  --color-status-danger-soft:  var(--color-status-danger-bg);
+  --color-status-info-soft:    var(--color-status-info-bg);
+
+  /* Semantic aliases kept for migrated feature modules. */
+  --color-semantic-success: var(--color-success);
+  --color-semantic-warning: var(--color-warning);
+  --color-semantic-danger:  var(--color-error);
+  --color-semantic-error:   var(--color-error);
+  --color-semantic-info:    var(--color-info);
+
+  --color-success-bg: var(--scale-Success100);
+  --color-warning-bg: var(--scale-Warning100);
+  --color-error-bg:   var(--scale-Error100);
+  --color-danger-bg:  var(--scale-Error100);
+  --color-info-bg:    var(--scale-Info100);
+
+  --color-bg-success: var(--scale-Success100);
+  --color-bg-warning: var(--scale-Warning100);
+  --color-bg-error:   var(--scale-Error100);
+  --color-bg-info:    var(--scale-Info100);
+
+  --color-success-soft: var(--color-success-bg);
+  --color-warning-soft: var(--color-warning-bg);
+  --color-error-soft:   var(--color-error-bg);
+  --color-danger-soft:  var(--color-danger-bg);
+  --color-info-soft:    var(--color-info-bg);
+
+  --color-success-text: var(--scale-Success700);
+  --color-warning-text: var(--scale-Warning700);
+  --color-error-text:   var(--scale-Error700);
+  --color-danger-text:  var(--scale-Error700);
+  --color-info-text:    var(--scale-Info700);
+
+  --color-danger:       var(--color-error);
+  --color-danger-hover: var(--scale-Error700);
+
   /* 성별 — 파랑/분홍 (학생 등록 등에서 사용) */
   --color-gender-male:        var(--scale-Primary500, #2563eb);
   --color-gender-male-dark:   var(--scale-Primary700, #1e40af);

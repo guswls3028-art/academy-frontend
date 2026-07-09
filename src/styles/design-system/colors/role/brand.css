@@ -8,4 +8,21 @@
   --color-brand-primary-subtle: var(--scale-Primary100);
   /* 보강 등 보조 강조용 — scale Complement (테마별 보색), 하드코딩 없음 */
   --color-brand-complement:     var(--scale-Complement500);
+
+  /* Brand aliases kept stable for feature modules and Tailwind arbitrary values. */
+  --color-brand-primary-soft:     var(--color-brand-primary-subtle);
+  --color-brand-primary-bg:       var(--scale-Primary50);
+  --color-brand-primary-contrast: var(--scale-Neutral0);
+
+  --color-primary-50:    var(--scale-Primary50);
+  --color-primary-100:   var(--scale-Primary100);
+  --color-primary-300:   var(--scale-Primary300);
+  --color-primary-700:   var(--scale-Primary700);
+  --color-primary-bg:    var(--scale-Primary50);
+  --color-primary-light: var(--scale-Primary100);
+
+  --color-neutral-50:  var(--scale-Neutral50);
+  --color-neutral-300: var(--scale-Neutral300);
+  --color-neutral-600: var(--scale-Neutral600);
+  --color-neutral-700: var(--scale-Neutral700);
 }

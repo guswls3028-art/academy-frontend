@@ -2,6 +2,7 @@
 /* AntD Button — UI CONTROL SLOT WIRED (FINAL) */
 
 .ant-btn {
+  font-family: var(--app-font-sans) !important;
   border-radius: var(--radius-md);
 }
 

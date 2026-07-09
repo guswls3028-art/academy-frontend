@@ -5,6 +5,23 @@
 .ant-input-affix-wrapper,
 .ant-input-number,
 .ant-input-number-input,
+.ant-input-textarea textarea,
+.ant-checkbox-wrapper,
+.ant-checkbox-input,
+.ant-radio-wrapper,
+.ant-radio-input,
+.ant-select,
+.ant-select-selector,
+.ant-picker,
+.ant-picker-input > input,
+.ant-switch {
+  font-family: var(--app-font-sans) !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number-input,
 .ant-input-textarea textarea {
   border-radius: var(--radius-md) !important;
 

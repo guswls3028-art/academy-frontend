@@ -19,6 +19,24 @@
 
   --color-bg-surface-soft:  var(--color-bg-surface-hover);
 
+  /* App/surface aliases used by migrated modules. */
+  --color-bg-app:             var(--color-bg-canvas);
+  --color-bg-page:            var(--layout-page-bg, var(--color-bg-canvas));
+  --color-bg-elevated:        var(--color-bg-surface);
+  --color-bg-hover:           var(--color-bg-surface-hover);
+  --color-bg-active:          var(--color-bg-surface-active);
+  --color-bg-muted:           var(--color-bg-disabled);
+  --color-bg-secondary:       var(--color-bg-surface-soft);
+  --color-bg-subtle:          var(--scale-Neutral100);
+  --color-bg-surface-sunken:  var(--scale-Neutral100);
+  --color-bg-skeleton:        var(--scale-Neutral200);
+
+  --color-surface:            var(--color-bg-surface);
+  --color-surface-hover:      var(--color-bg-surface-hover);
+  --color-surface-secondary:  var(--color-bg-surface-soft);
+  --color-surface-subtle:     var(--color-bg-subtle);
+  --color-neutral-bg:         var(--color-bg-surface-soft);
+
   /* Modal: 라이트/브랜드=흰색, 다크=테마 surface (붕뜸 방지) */
   --color-modal-bg: var(--color-bg-surface);
 }

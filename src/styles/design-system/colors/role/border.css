@@ -12,4 +12,9 @@
   --color-border-divider:  var(--scale-Neutral200);
   --color-border-divider-strong: var(--scale-Neutral300);
   --color-border-selected: var(--scale-Primary500);
+
+  /* Compatibility aliases for domain CSS that predates role tokens. */
+  --color-border:        var(--color-border-default);
+  --color-border-input:  var(--color-border-default);
+  --color-border-accent: var(--color-border-focus);
 }

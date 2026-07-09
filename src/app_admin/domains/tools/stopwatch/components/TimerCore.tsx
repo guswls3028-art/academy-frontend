@@ -407,6 +407,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
             <div className={styles.customInput}>
               <input
                 className={styles.timeInput}
+                data-visual-font-intent="numeric"
                 type="number"
                 min="0"
                 max="999"
@@ -418,6 +419,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
               <span className={styles.timeInputSep}>:</span>
               <input
                 className={styles.timeInput}
+                data-visual-font-intent="numeric"
                 type="number"
                 min="0"
                 max="59"
@@ -443,6 +445,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
                   <button
                     key={f.label}
                     className={`${styles.fontBtn} ${FONT_CLASS_BY_KEY[f.value]} ${fontKey === f.value ? styles.fontBtnActive : ""}`}
+                    data-visual-font-intent="preview"
                     onClick={() => setFontKey(f.value)}
                     type="button"
                   >
