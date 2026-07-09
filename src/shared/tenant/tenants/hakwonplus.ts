@@ -11,9 +11,13 @@ export const hakwonplus: TenantDef = {
   branding: {
     loginTitle: "학원플러스",
     loginSubtitle: "hakwonplus.com",
+    logoUrl: "/tenants/hakwonplus/logo.png",
     windowTitle: "학원플러스",
+    faviconUrl: "/tenants/hakwonplus/favicon.png",
+    headerLogoUrl: "/tenants/hakwonplus/icon.png",
     ogDescription: "학원플러스 – 학원 관리·학생 학습 플랫폼",
+    ogImageUrl: "/tenants/hakwonplus/og-image.png",
   },
   dedicatedLoginPage: true,
-  hasCustomLogo: false,
+  hasCustomLogo: true,
 };

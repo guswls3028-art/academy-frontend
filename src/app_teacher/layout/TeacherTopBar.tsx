@@ -12,6 +12,7 @@
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
+import { getTenantBranding, getTenantIdFromCode, resolveTenantCode } from "@/shared/tenant";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
@@ -27,7 +28,10 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
   const { program } = useProgram();
   const { counts } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
-  const logoUrl = program?.ui_config?.logo_url?.trim() || "";
+  const tenantResult = resolveTenantCode();
+  const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
+  const tenantHeaderLogoUrl = tenantId === 1 ? (getTenantBranding(tenantId)?.headerLogoUrl ?? "") : "";
+  const logoUrl = program?.ui_config?.logo_url?.trim() || tenantHeaderLogoUrl;
   const badge = counts?.total ?? 0;
 
   return (
