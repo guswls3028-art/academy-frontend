@@ -40,6 +40,9 @@ interface TenantMeta {
 interface TenantPwaMeta {
   title: string;
   icon: string;
+  icon512?: string;
+  themeColor?: string;
+  backgroundColor?: string;
 }
 
 interface WebManifestIcon {
@@ -189,8 +192,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/icon.png" },
   "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
   "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
-  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png" },
-  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png" },
+  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png", icon512: "/tenants/hakwonplus/pwa-512.png", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
+  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png", icon512: "/tenants/hakwonplus/pwa-512.png", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
   "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/icon.png" },
   "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/icon.png" },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/logo.png" },
@@ -214,7 +217,9 @@ function teacherPwaMetaForHost(host: string): TenantPwaMeta {
 function buildTeacherManifest(host: string): TeacherWebManifest {
   const meta = teacherPwaMetaForHost(host);
   const icon = normalizeImagePath(meta.icon);
+  const icon512 = normalizeImagePath(meta.icon512 ?? meta.icon);
   const iconType = iconContentType(icon);
+  const icon512Type = iconContentType(icon512);
   const name = `${meta.title} 선생님`;
 
   return {
@@ -226,11 +231,11 @@ function buildTeacherManifest(host: string): TeacherWebManifest {
     scope: "/teacher",
     display: "standalone",
     orientation: "portrait",
-    theme_color: "#3b82f6",
-    background_color: "#f8fafc",
+    theme_color: meta.themeColor ?? "#3b82f6",
+    background_color: meta.backgroundColor ?? "#f8fafc",
     icons: [
       { src: icon, sizes: "192x192", type: iconType, purpose: "any" },
-      { src: icon, sizes: "512x512", type: iconType, purpose: "any maskable" },
+      { src: icon512, sizes: "512x512", type: icon512Type, purpose: "any maskable" },
     ],
     categories: ["education", "productivity"],
     lang: "ko",
