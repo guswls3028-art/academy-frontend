@@ -146,3 +146,41 @@
   display: flex;
   flex-direction: column;
 }
+
+@media (min-width: 1024px) {
+  .page {
+    gap: var(--tc-space-3);
+  }
+
+  .searchBar,
+  .tabBar {
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+    background: var(--tc-surface);
+  }
+
+  .searchBar {
+    min-height: 48px;
+    padding-inline: var(--tc-space-4);
+  }
+
+  .tabBar {
+    overflow: hidden;
+  }
+
+  .tabButton {
+    min-height: 42px;
+    padding: 0 var(--tc-space-4);
+  }
+
+  .content {
+    padding-top: 0;
+  }
+
+  .postList {
+    overflow: hidden;
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+    background: var(--tc-surface);
+  }
+}

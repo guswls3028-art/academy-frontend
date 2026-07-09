@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { cx } from "@/shared/utils/cx";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
@@ -106,7 +107,17 @@ export default function MobileScoreEntryPage() {
           )}
         </>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="이 차시에 연결된 시험이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="이 차시에 연결된 시험이 없습니다"
+          description="강의 차시에 시험을 추가하면 모바일에서 바로 점수를 입력할 수 있습니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+              차시로 돌아가기
+            </EmptyActionButton>
+          }
+        />
       )}
     </div>
   );
@@ -350,7 +361,14 @@ function ScoreEntryList({
   // 첫 진입 skeleton — 시험 칩만 보이고 행이 비는 시각 공백 해소
   if (isLoading || rosterLoading) return <ScoreEntrySkeleton />;
   if (!results?.length)
-    return <EmptyState scope="panel" tone="empty" title="이 시험에 등록된 학생이 없습니다" />;
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="이 시험에 등록된 학생이 없습니다"
+        description="차시에 수강생을 등록하거나 응시 대상을 선택하면 점수 입력 행이 표시됩니다."
+      />
+    );
 
   return (
     <div className="flex flex-col gap-2">

@@ -155,7 +155,12 @@ function AnalyticsBody({ data }: { data: EnterpriseAnalytics }) {
               </table>
             </div>
           ) : (
-            <EmptyState scope="panel" tone="empty" title="시험 성과 데이터가 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="시험 성과 데이터가 없습니다"
+              description="시험 응시와 성적 입력이 누적되면 상위 성과 표가 표시됩니다."
+            />
           )}
         </Card>
 
@@ -177,7 +182,12 @@ function AnalyticsBody({ data }: { data: EnterpriseAnalytics }) {
               ))}
             </div>
           ) : (
-            <EmptyState scope="panel" tone="empty" title="문항별 분석 데이터가 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="문항별 분석 데이터가 없습니다"
+              description="문항별 채점 데이터가 들어오면 취약 문항을 자동으로 보여줍니다."
+            />
           )}
         </Card>
       </div>

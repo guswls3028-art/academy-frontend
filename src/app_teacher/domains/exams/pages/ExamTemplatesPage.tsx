@@ -8,6 +8,7 @@ import { InlineHelp } from "@/shared/ui/guide";
 import { ChevronLeft, FileText } from "@teacher/shared/ui/Icons";
 import { TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { fetchTemplatesWithUsage, fetchHomeworkTemplatesWithUsage } from "../api";
 import type { TeacherTemplateWithUsage } from "../api";
@@ -70,7 +71,19 @@ export default function ExamTemplatesPage() {
               <TemplateCard key={template.id} template={template} kind={tab} />
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="템플릿이 없습니다" />}
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="템플릿이 없습니다"
+            description="시험·과제 템플릿은 강의의 차시에서 만들고 이 화면에서 적용 현황을 확인합니다."
+            actions={
+              <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+                강의에서 만들기
+              </EmptyActionButton>
+            }
+          />
+        )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Search, Filter, ChevronRight, Plus, Download, Upload, Check, X, Trash2, Tag, MessageSquare, Lock } from "@teacher/shared/ui/Icons";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
@@ -250,7 +251,7 @@ export default function StudentListPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : students.length > 0 ? (
-        <div className="flex flex-col gap-1.5" style={{ paddingBottom: selectMode ? 80 : 0 }}>
+        <div className="grid grid-cols-1 gap-1.5 lg:grid-cols-2 lg:gap-3" style={{ paddingBottom: selectMode ? 80 : 0 }}>
           {students.map((s) => {
             const name = s.name ?? s.displayName ?? "이름 없음";
             const enrollments = s.enrollments ?? [];
@@ -307,7 +308,23 @@ export default function StudentListPage() {
           })}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title={search ? `"${search}" 결과 없음` : "학생이 없습니다"} />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={search ? `"${search}" 결과 없음` : "학생이 없습니다"}
+          description={search ? "검색어를 줄이거나 필터를 초기화해 보세요." : "첫 학생을 등록하면 알림톡, 상담, 수강 이력이 한 화면으로 이어집니다."}
+          actions={
+            search || hasFilter ? (
+              <EmptyActionButton variant="secondary" onClick={() => { setSearch(""); setFilters({}); }}>
+                검색 초기화
+              </EmptyActionButton>
+            ) : (
+              <EmptyActionButton onClick={() => setCreateOpen(true)}>
+                학생 등록
+              </EmptyActionButton>
+            )
+          }
+        />
       )}
 
       {/* Bulk action bar — TabBar 위에 띄우기 (z-index 230, bottom = tabbar 높이 + safe-bottom) */}

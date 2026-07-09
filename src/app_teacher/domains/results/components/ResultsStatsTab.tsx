@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/results/components/ResultsStatsTab.tsx
 // 성적 통계 탭 — 강의 → 시험 선택 후 KPI + 차트 + 문항분석 + 학생 석차
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -8,6 +9,7 @@ import { cx } from "@/shared/utils/cx";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Card, SectionTitle, KpiCard } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams } from "@teacher/domains/exams/api";
 import {
@@ -62,6 +64,7 @@ type QuestionStat = {
 };
 
 export default function ResultsStatsTab() {
+  const navigate = useNavigate();
   const [selectedLecture, setSelectedLecture] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
@@ -203,7 +206,17 @@ export default function ResultsStatsTab() {
       </div>
 
       {selectedLecture == null && (
-        <EmptyState scope="panel" tone="empty" title="강의를 선택하세요" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="강의를 선택하세요"
+          description="강의를 선택하면 시험 통계와 과제 제출 현황이 함께 표시됩니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/classes")}>
+              강의 확인
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {/* ── 시험 선택 ── */}
@@ -226,7 +239,12 @@ export default function ResultsStatsTab() {
             </div>
 
             {selectedExam == null && (
-              <EmptyState scope="panel" tone="empty" title="시험을 선택하세요" />
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="시험을 선택하세요"
+                description="위 시험 칩을 선택하면 응시, 평균, 문항별 리스크를 바로 볼 수 있습니다."
+              />
             )}
 
             {/* ── 통계 본문 ── */}
@@ -241,9 +259,24 @@ export default function ResultsStatsTab() {
                   ))}
                 </div>
               ) : !summary ? (
-                <EmptyState scope="panel" tone="empty" title="통계 데이터가 없습니다" />
+                <EmptyState
+                  scope="panel"
+                  tone="empty"
+                  title="통계 데이터가 없습니다"
+                  description="성적 입력 또는 OMR 채점이 완료되면 이 화면에 운영 지표가 쌓입니다."
+                />
               ) : participantCount === 0 ? (
-                <EmptyState scope="panel" tone="empty" title="아직 응시한 학생이 없습니다" />
+                <EmptyState
+                  scope="panel"
+                  tone="empty"
+                  title="아직 응시한 학생이 없습니다"
+                  description="학생 점수를 입력하거나 OMR을 채점하면 통계가 생성됩니다."
+                  actions={
+                    <EmptyActionButton onClick={() => navigate("/teacher/exams")}>
+                      시험 관리
+                    </EmptyActionButton>
+                  }
+                />
               ) : (
                 <div className="flex flex-col gap-4">
                   {/* ─ KPI 카드 ─ */}
@@ -486,7 +519,17 @@ export default function ResultsStatsTab() {
             )}
           </>
         ) : (
-          <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="이 강의에 시험이 없습니다"
+            description="차시에 시험을 추가하면 강의별 성적 통계가 생성됩니다."
+            actions={
+              <EmptyActionButton onClick={() => navigate("/teacher/exams")}>
+                시험 관리
+              </EmptyActionButton>
+            }
+          />
         )
       )}
 

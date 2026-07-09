@@ -8,6 +8,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ChevronRight, Plus } from "@teacher/shared/ui/Icons";
 import { TabBar, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchLectures } from "../api";
 import LectureFormSheet from "../components/LectureFormSheet";
 import { teacherLectureQueryKeys } from "../queryKeys";
@@ -87,7 +88,21 @@ export default function LectureListPage() {
           })}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title={tab === "active" ? "강의가 없습니다" : "지난 강의가 없습니다"} />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={tab === "active" ? "강의가 없습니다" : "지난 강의가 없습니다"}
+          description={tab === "active" ? "강의를 만들면 차시, 출결, 성적 입력이 같은 흐름으로 연결됩니다." : "종료된 강의가 이곳에 모입니다."}
+          actions={tab === "active" ? (
+            <EmptyActionButton onClick={() => setCreateOpen(true)}>
+              강의 추가
+            </EmptyActionButton>
+          ) : (
+            <EmptyActionButton variant="secondary" onClick={() => setTab("active")}>
+              현재 강의 보기
+            </EmptyActionButton>
+          )}
+        />
       )}
 
       <LectureFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />

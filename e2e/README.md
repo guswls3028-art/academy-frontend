@@ -37,7 +37,8 @@ pnpm test:e2e:local    # _local/ 만
 
 `stability/all-menu-button-click-audit.spec.ts` 가 운영/로컬 프론트에서 관리자+개발자 데스크톱, 학생 모바일,
 선생님 모바일의 메뉴와 visible 클릭 후보를 순회하는 SSOT다. 선생앱 데스크탑 사이드바/하단 탭바 분기는
-`teacher/desktop-layout.spec.ts`가 별도로 검증한다. 빠른 route 전환 중 background XHR 이 abort 되면
+`teacher/desktop-layout.spec.ts`가 별도로 검증한다. 이 스펙은 데스크탑 고정 사이드바, 모바일 드로어, 오늘 업무형 대시보드,
+도움말 팝업, 핵심 빈 상태 액션을 함께 확인한다. 빠른 route 전환 중 background XHR 이 abort 되면
 브라우저가 CORS 형태의 `net::ERR_FAILED` 를 console error 로 남길 수 있으므로 전역 `strictTest` 대신 스펙 내부 guard 를
 사용한다. 5xx 응답, 로그인 튕김, 빈 화면, fatal text, 실제 클릭 실패는 defect 로 수집한다.
 

@@ -9,6 +9,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { ChevronRight, Search } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { formatBillingDate as formatDate, formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
 import {
   fetchInvoices,
@@ -121,7 +122,25 @@ export default function FeesInvoicesPage() {
           description={getFeesApiErrorMessage(error, "잠시 후 다시 시도해 주세요.")}
         />
       ) : invoices.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="청구서가 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={search.trim() || filter !== "ALL" ? "조건에 맞는 청구서가 없습니다" : "청구서가 없습니다"}
+          description={search.trim() || filter !== "ALL" ? "검색어나 상태 필터를 초기화하면 전체 청구서를 다시 확인할 수 있습니다." : "청구서가 발행되면 미납, 연체, 완납 상태별로 이곳에서 관리합니다."}
+          actions={
+            search.trim() || filter !== "ALL" ? (
+              <EmptyActionButton
+                variant="secondary"
+                onClick={() => {
+                  setSearch("");
+                  setFilter("ALL");
+                }}
+              >
+                조건 초기화
+              </EmptyActionButton>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="flex flex-col gap-1.5">
           {invoices.map((inv) => (

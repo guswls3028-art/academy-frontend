@@ -259,7 +259,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
           ✕
         </button>
         <div className={styles.signupTitleRow}>
-          <h2 id="signup-modal-title" className={styles.overlayTitle}>회원가입</h2>
+          <h2 id="signup-modal-title" className={styles.overlayTitle}>학생 회원가입</h2>
           <button
             type="button"
             className={styles.signupHelpButton}

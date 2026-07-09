@@ -8,6 +8,7 @@ import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Upload, Trash2, Download, Search } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import {
   fetchInventoryList,
   uploadFile,
@@ -130,7 +131,23 @@ export default function StudentInventoryPage() {
           {studentsLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : students.length === 0 ? (
-            <EmptyState scope="panel" tone="empty" title="학생이 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title={search.trim() ? "검색된 학생이 없습니다" : "학생이 없습니다"}
+              description={search.trim() ? "검색어를 지우면 전체 학생을 다시 확인할 수 있습니다." : "학생을 등록하면 개인별 자료를 선택해 배포할 수 있습니다."}
+              actions={
+                search.trim() ? (
+                  <EmptyActionButton variant="secondary" onClick={() => setSearch("")}>
+                    검색 초기화
+                  </EmptyActionButton>
+                ) : (
+                  <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/students")}>
+                    학생 관리
+                  </EmptyActionButton>
+                )
+              }
+            />
           ) : (
             <div className="flex flex-col gap-1.5">
               {students.map((s: ClientStudent) => {
@@ -166,7 +183,17 @@ export default function StudentInventoryPage() {
         <>
           {invLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
           {!invLoading && files.length === 0 && (
-            <EmptyState scope="panel" tone="empty" title="배포된 자료가 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="배포된 자료가 없습니다"
+              description="업로드하면 이 학생 전용 자료로 바로 보관됩니다."
+              actions={
+                <EmptyActionButton onClick={() => fileInputRef.current?.click()}>
+                  파일 업로드
+                </EmptyActionButton>
+              }
+            />
           )}
           {files.length > 0 && (
             <>

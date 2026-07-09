@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2 } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
@@ -111,7 +112,19 @@ export default function MyRecordsPage() {
               </Card>
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="근태 기록이 없습니다" />
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="근태 기록이 없습니다"
+            description="이번 달 근무 내역을 등록하면 월별 근태 확인에 반영됩니다."
+            actions={
+              <EmptyActionButton onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+                근태 등록
+              </EmptyActionButton>
+            }
+          />
+        )
       ) : (
         expenses?.length ? (
           <div className="flex flex-col gap-1.5">
@@ -133,7 +146,19 @@ export default function MyRecordsPage() {
               </Card>
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="지출 기록이 없습니다" />
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="지출 기록이 없습니다"
+            description="업무 지출을 등록하면 월별 비용 확인에 반영됩니다."
+            actions={
+              <EmptyActionButton onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+                지출 등록
+              </EmptyActionButton>
+            }
+          />
+        )
       )}
 
       {/* Form sheet */}

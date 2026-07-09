@@ -185,7 +185,12 @@ export default function VideoDetailPage() {
             })}
           </div>
         ) : (
-          <EmptyState scope="panel" tone="empty" title="시청 기록이 없습니다" />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="시청 기록이 없습니다"
+            description="학생이 영상을 시청하면 진행률과 완료 여부가 이곳에 표시됩니다."
+          />
         )
       )}
 
@@ -254,7 +259,12 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="댓글이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="댓글이 없습니다"
+          description="위 입력창에서 첫 댓글을 남기면 영상 피드백 이력으로 남습니다."
+        />
       )}
     </div>
   );

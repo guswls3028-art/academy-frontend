@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchHomework, fetchHomeworkSubmissions } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import {
@@ -141,7 +142,17 @@ export default function HomeworkDetailPage() {
       )}
 
       {submissionRows.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="제출 현황이 없습니다"
+          description="수강생이 과제를 제출하면 제출·미제출 현황이 자동으로 정리됩니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+              차시로 돌아가기
+            </EmptyActionButton>
+          }
+        />
       )}
     </div>
   );

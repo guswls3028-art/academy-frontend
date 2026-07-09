@@ -8,6 +8,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherSharedQueryKeys } from "@teacher/shared/api/queryKeys";
 import {
   fetchTenantInfo,
@@ -127,7 +128,17 @@ export default function OrganizationSettingsPage() {
           </SectionTitle>
 
           {academies.length === 0 ? (
-            <EmptyState scope="panel" tone="empty" title="등록된 학원이 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="등록된 학원이 없습니다"
+              description="지점 또는 캠퍼스가 있으면 추가해 학원 정보에 함께 노출하세요."
+              actions={
+                <EmptyActionButton onClick={addAcademy}>
+                  학원 추가
+                </EmptyActionButton>
+              }
+            />
           ) : (
             <div className={styles.academyList}>
               {academies.map((a, i) => (

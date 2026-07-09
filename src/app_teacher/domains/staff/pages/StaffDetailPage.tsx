@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, Lock } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -234,7 +235,17 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="근태 기록이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="근태 기록이 없습니다"
+          description={isLocked ? "월이 마감되어 새 근태를 추가할 수 없습니다." : "이번 달 근태를 추가하면 근무 시간과 예상 금액이 바로 계산됩니다."}
+          actions={!isLocked ? (
+            <EmptyActionButton onClick={onAdd}>
+              근태 추가
+            </EmptyActionButton>
+          ) : undefined}
+        />
       )}
     </div>
   );
@@ -265,7 +276,16 @@ function ExpenseTab({ staffId, month }: { staffId: number; month: string }) {
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!data || data.length === 0) return <EmptyState scope="panel" tone="empty" title="비용 기록이 없습니다" />;
+  if (!data || data.length === 0) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="비용 기록이 없습니다"
+        description="직원이 비용을 등록하면 승인 대기 항목으로 표시됩니다."
+      />
+    );
+  }
 
   const total = data.filter(e => e.status === "approved").reduce((s, e) => s + (e.amount ?? 0), 0);
   const pending = data.filter(e => e.status === "pending").length;
@@ -357,7 +377,16 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
   }
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!snap) return <EmptyState scope="panel" tone="empty" title="급여 데이터가 없습니다" />;
+  if (!snap) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="급여 데이터가 없습니다"
+        description="월 마감 후 급여 계산 데이터가 생성되면 확정 금액이 표시됩니다."
+      />
+    );
+  }
 
   return (
     <Card>

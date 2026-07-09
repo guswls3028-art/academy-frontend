@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Plus, ChevronLeft, ChevronRight } from "@teacher/shared/ui/Icons";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import {
   fetchClinicSessions,
   fetchClinicParticipants,
@@ -126,7 +127,17 @@ export default function ClinicPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title={isToday ? "오늘 예정된 클리닉이 없습니다" : "해당 기간에 클리닉이 없습니다"} />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={isToday ? "오늘 예정된 클리닉이 없습니다" : "해당 기간에 클리닉이 없습니다"}
+          description="클리닉 일정을 만들면 학생별 패스카드와 리포트 확인으로 이어집니다."
+          actions={
+            <EmptyActionButton onClick={() => setCreateOpen(true)}>
+              클리닉 추가
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {/* Create session sheet */}

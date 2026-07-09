@@ -66,6 +66,11 @@ test.describe("선생앱 반응형 레이아웃", () => {
     const sidebar = page.getByRole("navigation", { name: "선생님 메뉴" });
     await expect(sidebar).toBeVisible();
     await expect(sidebar.getByRole("button", { name: "대시보드" })).toBeVisible();
+    await expect(sidebar).toContainText("오늘 업무");
+    await expect(sidebar).toContainText("수업 운영");
+    await expect(sidebar).toContainText("자료·메시지");
+    await expect(sidebar).toContainText("관리자 전용");
+    await expect(sidebar).toContainText("지원");
     await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toBeHidden();
     await expect(page.getByRole("button", { name: "메뉴" })).toHaveCount(0);
 
@@ -100,6 +105,34 @@ test.describe("선생앱 반응형 레이아웃", () => {
       await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toBeHidden();
       await expect(page.locator("body")).not.toContainText(FATAL_TEXT);
     }
+  });
+
+  test("대시보드는 오늘 업무와 다음 액션을 먼저 보여준다", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await loginViaUI(page, "admin", { landingPath: "/teacher" });
+    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+
+    await expect(page.locator("main")).toContainText("안녕하세요");
+    await expect(page.locator("main")).toContainText("처리할 일");
+    await expect(page.locator("main")).toContainText("오늘 수업");
+    await expect(page.locator("main")).toContainText("출결 입력");
+    await expect(page.locator("main")).toContainText("다음 수업");
+    await expect(page.locator("main")).toContainText("바로 처리");
+    await expect(page.locator("main")).toContainText("처리 대기함");
+    await expect(page.locator("main")).toContainText("오늘의 수업");
+    await expect(page.getByRole("button", { name: /Q&A 처리|처리하러 가기|오늘 수업 보기|수업 열기|강의 확인/ })).toBeVisible();
+  });
+
+  test("빈 상태는 다음 액션을 제시한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await loginViaUI(page, "admin", { landingPath: "/teacher" });
+    await page.goto(`${BASE}/teacher/results`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+
+    await expect(page.locator("main")).toContainText("강의를 선택하세요");
+    await expect(page.locator("main")).toContainText("강의를 선택하면 연결된 시험과 학생별 성적을 바로 볼 수 있습니다.");
+    await expect(page.getByRole("button", { name: /첫 강의 선택|강의 확인/ })).toBeVisible();
   });
 
   test("상단 업무 안내는 도움말로 접혀 있고 문맥에 맞게 열린다", async ({ page }) => {

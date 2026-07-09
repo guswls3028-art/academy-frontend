@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   fetchAttendance,
@@ -167,6 +168,12 @@ export default function SwipeAttendancePage() {
           scope="panel"
           tone="empty"
           title="출석 데이터가 없습니다"
+          description="차시에 수강생이 등록되면 출석 체크 카드가 자동으로 표시됩니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+              차시로 돌아가기
+            </EmptyActionButton>
+          }
         />
       )}
 

@@ -21,6 +21,7 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
@@ -301,7 +302,21 @@ export default function SubmissionsInboxPage() {
 
       {/* Empty */}
       {!q.isLoading && !q.isError && rows.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title={emptyTitle} />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={emptyTitle}
+          description={filter === "pending" ? "학생 제출이 들어오면 자동 채점과 확인 대기 항목이 이곳에 쌓입니다." : "다른 상태의 제출을 보려면 대기 중 또는 전체 탭으로 전환하세요."}
+          actions={filter === "pending" ? (
+            <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+              차시 확인
+            </EmptyActionButton>
+          ) : (
+            <EmptyActionButton variant="secondary" onClick={() => setFilter("pending")}>
+              대기 중 보기
+            </EmptyActionButton>
+          )}
+        />
       )}
 
       {/* Rows */}

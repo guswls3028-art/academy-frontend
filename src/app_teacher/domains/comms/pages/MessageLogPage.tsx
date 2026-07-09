@@ -12,6 +12,7 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Check, X } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchMessageLog, type MessageLogItem } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
@@ -66,7 +67,17 @@ export default function MessageLogPage() {
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : items.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="발송 내역이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="발송 내역이 없습니다"
+          description="학생을 선택해 알림톡을 보내면 성공·실패 결과가 이곳에 기록됩니다."
+          actions={
+            <EmptyActionButton onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
+              학생 선택 발송
+            </EmptyActionButton>
+          }
+        />
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((item) => (

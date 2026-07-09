@@ -105,3 +105,30 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+@media (min-width: 1024px) {
+  .page {
+    gap: var(--tc-space-4);
+  }
+
+  .tabs {
+    max-width: 360px;
+    border-color: var(--tc-border-strong);
+  }
+
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tc-space-3);
+  }
+
+  .itemCard {
+    min-height: 94px;
+    border-color: var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+  }
+
+  .itemCard:hover {
+    background: color-mix(in srgb, var(--tc-primary) 4%, var(--tc-surface));
+  }
+}

@@ -1,12 +1,14 @@
 // PATH: src/app_teacher/domains/results/pages/ResultsPage.tsx
 // 성적 — 조회 + 통계 탭
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { SectionTitle, TabBar } from "@teacher/shared/ui/Card";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchLectures } from "@teacher/domains/lectures/api";
 import { fetchExams } from "@teacher/domains/exams/api";
 // 사이드바 성적은 admin endpoint schema(enrollment_id) 사용 — statsApi SSOT
@@ -30,6 +32,7 @@ type TeacherExamOption = {
 };
 
 export default function ResultsPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("list");
   const [selectedLecture, setSelectedLecture] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
@@ -94,7 +97,21 @@ export default function ResultsPage() {
           </div>
 
           {selectedLecture == null && (
-            <EmptyState scope="panel" tone="empty" title="강의를 선택하세요" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="강의를 선택하세요"
+              description="강의를 선택하면 연결된 시험과 학생별 성적을 바로 볼 수 있습니다."
+              actions={(lectures?.length ?? 0) > 0 ? (
+                <EmptyActionButton onClick={() => setSelectedLecture(lectures![0].id)}>
+                  첫 강의 선택
+                </EmptyActionButton>
+              ) : (
+                <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+                  강의 확인
+                </EmptyActionButton>
+              )}
+            />
           )}
 
           {selectedLecture != null && exams && (
@@ -150,16 +167,41 @@ export default function ResultsPage() {
                       })}
                     </div>
                   ) : (
-                    <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
+                    <EmptyState
+                      scope="panel"
+                      tone="empty"
+                      title="결과가 없습니다"
+                      description="성적 입력이 끝나면 학생별 점수와 성취도가 이곳에 표시됩니다."
+                      actions={
+                        <EmptyActionButton onClick={() => selectedLecture != null && navigate(`/teacher/classes/${selectedLecture}`)}>
+                          강의로 이동
+                        </EmptyActionButton>
+                      }
+                    />
                   )
                 )}
 
                 {selectedExam == null && (
-                  <EmptyState scope="panel" tone="empty" title="시험을 선택하세요" />
+                  <EmptyState
+                    scope="panel"
+                    tone="empty"
+                    title="시험을 선택하세요"
+                    description="조회할 시험을 고르면 학생별 결과가 표시됩니다."
+                  />
                 )}
               </>
             ) : (
-              <EmptyState scope="panel" tone="empty" title="이 강의에 시험이 없습니다" />
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="이 강의에 시험이 없습니다"
+                description="차시에 시험을 추가하면 성적 조회와 통계가 연결됩니다."
+                actions={
+                  <EmptyActionButton onClick={() => navigate(`/teacher/classes/${selectedLecture}`)}>
+                    차시 확인
+                  </EmptyActionButton>
+                }
+              />
             )
           )}
         </>

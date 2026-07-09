@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -239,6 +240,11 @@ export default function VideoListPage() {
           tone="empty"
           title="등록된 영상이 없습니다"
           description="우상단 '영상 업로드'를 눌러 첫 영상을 추가해 보세요."
+          actions={
+            <EmptyActionButton onClick={() => fileRef.current?.click()}>
+              영상 업로드
+            </EmptyActionButton>
+          }
         />
       ) : isFilteredEmpty ? (
         <EmptyState
@@ -246,6 +252,17 @@ export default function VideoListPage() {
           tone="empty"
           title="조건에 맞는 영상이 없습니다"
           description={query ? `'${query}' 검색 결과가 없어요. 검색어 또는 필터를 바꿔 보세요.` : "필터를 '전체'로 바꿔 보세요."}
+          actions={
+            <EmptyActionButton
+              variant="secondary"
+              onClick={() => {
+                setQuery("");
+                setStatusFilter("all");
+              }}
+            >
+              조건 초기화
+            </EmptyActionButton>
+          }
         />
       ) : (
         <div className="flex flex-col gap-2">

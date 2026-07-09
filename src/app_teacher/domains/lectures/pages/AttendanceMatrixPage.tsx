@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { downloadAttendanceExcel, fetchAttendanceMatrix } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -107,7 +108,17 @@ export default function AttendanceMatrixPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="출석 데이터가 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="출석 데이터가 없습니다"
+          description="강의에 수강생과 차시가 준비되면 출석 현황표가 채워집니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+              강의로 돌아가기
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {/* Summary */}

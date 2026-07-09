@@ -12,6 +12,7 @@ import {
 } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Badge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import {
   ChevronLeft,
   ChevronRight,
@@ -144,7 +145,17 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="새로운 알림이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="새로운 알림이 없습니다"
+          description="답변 대기, 제출 확인, 등록 요청이 생기면 이곳에서 한 번에 처리합니다."
+          actions={
+            <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher")}>
+              대시보드로 이동
+            </EmptyActionButton>
+          }
+        />
       )}
     </div>
   );

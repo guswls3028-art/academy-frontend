@@ -148,3 +148,19 @@
   background: var(--tc-primary);
   color: #fff;
 }
+
+@media (min-width: 1024px) {
+  .card {
+    border-color: var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+    box-shadow: none;
+  }
+
+  .bodyButton {
+    padding: var(--tc-space-4);
+  }
+
+  .actions {
+    padding-bottom: var(--tc-space-4);
+  }
+}

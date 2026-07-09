@@ -10,6 +10,7 @@ import { ChevronLeft, Plus, Pencil, Trash2, X, FolderPlus } from "@teacher/share
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -97,7 +98,19 @@ export default function ExamBundlesPage() {
               </Card>
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="묶음이 없습니다" />}
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="묶음이 없습니다"
+            description="자주 함께 쓰는 시험·과제 템플릿을 묶어두면 차시에 한 번에 적용할 수 있습니다."
+            actions={
+              <EmptyActionButton onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+                새 묶음 만들기
+              </EmptyActionButton>
+            }
+          />
+        )}
 
       <BundleFormSheet open={formOpen} onClose={() => { setFormOpen(false); setEditTarget(null); }} editData={editTarget} />
     </div>
@@ -254,7 +267,14 @@ function TemplatePickerSheet({ open, onClose, onPick }: {
               );
             })}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="템플릿이 없습니다" />}
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="템플릿이 없습니다"
+            description="시험 또는 과제 템플릿을 먼저 만들어두면 묶음에 추가할 수 있습니다."
+          />
+        )}
       </div>
     </BottomSheet>
   );

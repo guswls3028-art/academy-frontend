@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import {
   fetchCounselingPosts,
@@ -127,7 +128,17 @@ export default function CounselingPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="상담 기록이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="상담 기록이 없습니다"
+          description="학생 상담이나 학부모 통화 후 바로 메모를 남기면 다음 상담에서 맥락을 잃지 않습니다."
+          actions={
+            <EmptyActionButton onClick={() => setShowCreate(true)}>
+              새 메모 작성
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {/* Create sheet */}

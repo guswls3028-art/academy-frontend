@@ -224,7 +224,16 @@ export default function StudentDetailPage() {
 /* === Tabs === */
 
 function EnrollmentList({ enrollments }: { enrollments: ClientEnrollmentLite[] }) {
-  if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강 이력 없음" />;
+  if (!enrollments.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="수강 이력 없음"
+        description="강의에 학생을 등록하면 현재 수강 상태가 표시됩니다."
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
       {enrollments.map((e) => (
@@ -244,7 +253,16 @@ function EnrollmentList({ enrollments }: { enrollments: ClientEnrollmentLite[] }
 }
 
 function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
-  if (!results.length) return <EmptyState scope="panel" tone="empty" title="시험 성적 없음" />;
+  if (!results.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="시험 성적 없음"
+        description="시험 채점이 완료되면 이 학생의 성적 이력이 쌓입니다."
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
       {results.map((r) => (
@@ -269,7 +287,16 @@ function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
 }
 
 function HomeworkList({ results }: { results: TeacherStudentExamResult[] }) {
-  if (!results.length) return <EmptyState scope="panel" tone="empty" title="과제 이력 없음" />;
+  if (!results.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="과제 이력 없음"
+        description="과제 제출 또는 채점 결과가 생기면 이곳에서 확인할 수 있습니다."
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
       {results.map((r) => (
@@ -292,7 +319,16 @@ function HomeworkList({ results }: { results: TeacherStudentExamResult[] }) {
 }
 
 function ClinicList({ items }: { items: ClinicParticipantRow[] }) {
-  if (!items.length) return <EmptyState scope="panel" tone="empty" title="클리닉 이력 없음" />;
+  if (!items.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="클리닉 이력 없음"
+        description="클리닉 대상으로 지정되거나 참여하면 이력에 표시됩니다."
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
       {items.map((c) => (
@@ -314,7 +350,16 @@ function ClinicList({ items }: { items: ClinicParticipantRow[] }) {
 }
 
 function QuestionList({ items }: { items: CommunityQuestionRow[] }) {
-  if (!items.length) return <EmptyState scope="panel" tone="empty" title="질문 이력 없음" />;
+  if (!items.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="질문 이력 없음"
+        description="학생이 Q&A나 상담 글을 남기면 이곳에서 빠르게 추적할 수 있습니다."
+      />
+    );
+  }
   const typeLabel: Record<string, string> = { qna: "질문", board: "게시글", notice: "공지", counsel: "상담", materials: "자료" };
   return (
     <div className="flex flex-col gap-1.5">

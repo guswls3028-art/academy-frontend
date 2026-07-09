@@ -8,6 +8,7 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import {
   ChevronRight, Upload, Trash2, FolderPlus, Download, Search, Monitor,
@@ -245,7 +246,17 @@ export default function MyStoragePage() {
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
 
       {!isLoading && items.folders.length === 0 && items.files.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="자료가 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="자료가 없습니다"
+          description="수업 자료를 올리면 커뮤니티 자료실이나 학생 인벤토리로 이어서 배포할 수 있습니다."
+          actions={
+            <EmptyActionButton onClick={() => fileInputRef.current?.click()}>
+              파일 업로드
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {items.folders.length > 0 && (

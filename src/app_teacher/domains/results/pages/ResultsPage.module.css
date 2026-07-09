@@ -70,3 +70,32 @@
 .scoreText {
   font-weight: 700;
 }
+
+@media (min-width: 1024px) {
+  .page {
+    gap: var(--tc-space-4);
+  }
+
+  .selectorScroller {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .lectureChipButton,
+  .examChipButton {
+    min-height: 36px;
+    border-color: var(--tc-border-strong);
+    border-radius: var(--tc-radius);
+  }
+
+  .resultList {
+    overflow: hidden;
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+    background: var(--tc-surface);
+  }
+
+  .resultRow {
+    padding: 12px var(--tc-space-4);
+  }
+}

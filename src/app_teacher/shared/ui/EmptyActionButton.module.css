@@ -1,0 +1,17 @@
+.button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--tc-radius);
+  background: var(--tc-primary);
+  color: var(--tc-primary-contrast);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.secondary {
+  border: 1px solid var(--tc-border-strong);
+  background: var(--tc-surface);
+  color: var(--tc-text-secondary);
+}

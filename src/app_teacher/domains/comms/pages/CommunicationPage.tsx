@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
 import type { Post } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
@@ -213,7 +214,12 @@ export default function CommunicationPage() {
           ) : reqData && reqData.results.length > 0 ? (
             <RegistrationRequestList requests={reqData.results} />
           ) : (
-            <EmptyState scope="panel" tone="empty" title="대기 중인 등록요청이 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="대기 중인 등록요청이 없습니다"
+              description="신규 가입 신청이 들어오면 승인 또는 반려할 항목으로 표시됩니다."
+            />
           )
         ) : postsLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -230,7 +236,23 @@ export default function CommunicationPage() {
             ))}
           </div>
         ) : (
-          <EmptyState scope="panel" tone="empty" title={searchInput.trim() ? `"${searchInput.trim()}" 검색 결과가 없습니다` : emptyTitle(tab)} />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title={searchInput.trim() ? `"${searchInput.trim()}" 검색 결과가 없습니다` : emptyTitle(tab)}
+            description={searchInput.trim() ? "검색어를 줄이거나 다른 탭에서 찾아보세요." : emptyDescription(tab)}
+            actions={
+              searchInput.trim() ? (
+                <EmptyActionButton variant="secondary" onClick={() => setSearchInput("")}>
+                  검색 초기화
+                </EmptyActionButton>
+              ) : canWrite ? (
+                <EmptyActionButton onClick={() => setCreateOpen(true)}>
+                  {TAB_LABELS[tab]} 작성
+                </EmptyActionButton>
+              ) : undefined
+            }
+          />
         )}
       </div>
 
@@ -255,6 +277,18 @@ function emptyTitle(tab: Tab): string {
     requests: "가입 신청이 없습니다",
     board: "게시글이 없습니다",
     materials: "자료가 없습니다",
+  };
+  return map[tab];
+}
+
+function emptyDescription(tab: Tab): string {
+  const map: Record<Tab, string> = {
+    notices: "공지 작성 후 학생앱과 학부모 화면에서 같은 내용을 확인할 수 있습니다.",
+    qna: "학생 질문이 들어오면 답변 대기 항목으로 올라옵니다.",
+    counsel: "상담 신청이 들어오면 학생별 상담 기록으로 이어집니다.",
+    requests: "학생 가입 신청이 들어오면 승인 또는 반려할 수 있습니다.",
+    board: "게시글을 작성하면 커뮤니티의 첫 화면이 채워집니다.",
+    materials: "수업 자료를 올리면 학생이 필요한 파일을 바로 확인합니다.",
   };
   return map[tab];
 }

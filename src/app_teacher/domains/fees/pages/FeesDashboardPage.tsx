@@ -7,6 +7,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type FeeType, type StudentInvoice } from "../api";
 import {
@@ -164,7 +165,17 @@ export default function FeesDashboardPage() {
               ))}
             </div>
           ) : (
-            <EmptyState scope="panel" tone="empty" title="연체 청구서가 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="연체 청구서가 없습니다"
+              description="지금 처리해야 할 연체 건이 없습니다. 전체 청구서는 청구서 화면에서 확인할 수 있습니다."
+              actions={
+                <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/fees/invoices")}>
+                  청구서 보기
+                </EmptyActionButton>
+              }
+            />
           )}
         </>
       )}

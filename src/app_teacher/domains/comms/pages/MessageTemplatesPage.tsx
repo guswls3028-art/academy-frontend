@@ -9,6 +9,7 @@ import { ChevronLeft, Plus, Pencil, Trash2, Settings } from "@teacher/shared/ui/
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchAllTemplates, createTemplate, updateTemplate, deleteTemplate, fetchMessagingInfo, type MsgTemplate } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -156,7 +157,17 @@ export default function MessageTemplatesPage() {
           ))}
         </div>
       ) : (
-        <EmptyState scope="panel" tone="empty" title="등록된 템플릿이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="등록된 템플릿이 없습니다"
+          description="자주 보내는 안내 문구를 저장하면 학생 선택 발송에서 바로 재사용할 수 있습니다."
+          actions={
+            <EmptyActionButton onClick={() => setEditSheet({ open: true })}>
+              새 템플릿 만들기
+            </EmptyActionButton>
+          }
+        />
       )}
 
       {/* Create/Edit sheet */}

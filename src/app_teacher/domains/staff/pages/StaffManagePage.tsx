@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Search } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -118,7 +119,25 @@ export default function StaffManagePage() {
               </Card>
             ))}
           </div>
-        ) : <EmptyState scope="panel" tone="empty" title="등록된 직원이 없습니다" />}
+        ) : (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title={search.trim() ? "검색된 직원이 없습니다" : "등록된 직원이 없습니다"}
+            description={search.trim() ? "검색어를 지우면 전체 직원 목록을 다시 확인할 수 있습니다." : "직원을 추가하면 근태, 비용, 급여 관리를 한 화면에서 이어갈 수 있습니다."}
+            actions={
+              search.trim() ? (
+                <EmptyActionButton variant="secondary" onClick={() => setSearch("")}>
+                  검색 초기화
+                </EmptyActionButton>
+              ) : (
+                <EmptyActionButton onClick={() => setCreateOpen(true)}>
+                  직원 추가
+                </EmptyActionButton>
+              )
+            }
+          />
+        )}
 
       <StaffFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />
       {editTarget && <StaffFormSheet open={!!editTarget} onClose={() => setEditTarget(null)} editData={editTarget} />}

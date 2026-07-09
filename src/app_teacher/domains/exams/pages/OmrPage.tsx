@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -282,7 +283,17 @@ export default function OmrPage() {
             })}
           </div>
         ) : (
-          <EmptyState scope="panel" tone="empty" title="응시 학생이 없습니다" />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="응시 학생이 없습니다"
+            description="시험을 차시에 연결하고 응시 학생을 선택하면 OMR 스캔 대상이 표시됩니다."
+            actions={
+              <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+                시험으로 돌아가기
+              </EmptyActionButton>
+            }
+          />
         )}
       </Card>
 

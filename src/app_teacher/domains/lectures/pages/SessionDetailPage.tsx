@@ -10,6 +10,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchSession, fetchSessionAttendance } from "../api";
 import {
   fetchSessionEnrollments,
@@ -103,6 +104,7 @@ export default function SessionDetailPage() {
         chipLabel: session.lecture_chip_label,
       }
     : undefined;
+  const lecturePath = session?.lecture ? `/teacher/classes/${session.lecture}` : "/teacher/classes";
 
   return (
     <div className="flex flex-col gap-3">
@@ -196,12 +198,13 @@ export default function SessionDetailPage() {
           attendances={attendances ?? []}
           lectureInfo={sessionLectureInfo}
           navigate={navigate}
+          lecturePath={lecturePath}
         />
       )}
-      {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} lectureInfo={sessionLectureInfo} />}
-      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} />}
-      {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} />}
-      {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} />}
+      {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} />}
+      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} />}
+      {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} lecturePath={lecturePath} />}
+      {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} lecturePath={lecturePath} />}
       {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
       {tab === "clinic" && (
         <ClinicTab
@@ -216,8 +219,20 @@ export default function SessionDetailPage() {
 }
 
 /* === Exams tab === */
-function ExamsTab({ exams, navigate }: { exams: any[]; navigate: any }) {
-  if (!exams.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 시험이 없습니다" />;
+function ExamsTab({ exams, navigate, lecturePath }: { exams: any[]; navigate: any; lecturePath: string }) {
+  if (!exams.length) return (
+    <EmptyState
+      scope="panel"
+      tone="empty"
+      title="이 차시에 등록된 시험이 없습니다"
+      description="강의 차시에 시험을 추가하면 성적 입력과 결과 조회가 연결됩니다."
+      actions={
+        <EmptyActionButton onClick={() => navigate(lecturePath)}>
+          강의에서 추가
+        </EmptyActionButton>
+      }
+    />
+  );
   return (
     <div className="flex flex-col gap-1.5">
       {exams.map((e: any) => (
@@ -249,8 +264,20 @@ function ExamsTab({ exams, navigate }: { exams: any[]; navigate: any }) {
 }
 
 /* === Homeworks tab === */
-function HomeworksTab({ homeworks, navigate }: { homeworks: any[]; navigate: any }) {
-  if (!homeworks.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 과제가 없습니다" />;
+function HomeworksTab({ homeworks, navigate, lecturePath }: { homeworks: any[]; navigate: any; lecturePath: string }) {
+  if (!homeworks.length) return (
+    <EmptyState
+      scope="panel"
+      tone="empty"
+      title="이 차시에 등록된 과제가 없습니다"
+      description="과제를 추가하면 제출 현황과 미제출 안내를 바로 확인할 수 있습니다."
+      actions={
+        <EmptyActionButton onClick={() => navigate(lecturePath)}>
+          강의에서 추가
+        </EmptyActionButton>
+      }
+    />
+  );
   return (
     <div className="flex flex-col gap-1.5">
       {homeworks.map((h: any) => {
@@ -327,10 +354,29 @@ function ClinicTab({
   navigate: any;
 }) {
   if (!enabled) {
-    return <EmptyState scope="panel" tone="empty" title="이 학원은 클리닉 기능을 사용하지 않습니다" />;
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="이 학원은 클리닉 기능을 사용하지 않습니다"
+        description="클리닉 운영을 사용하려면 관리자 설정에서 기능을 활성화해야 합니다."
+      />
+    );
   }
   if (!links.length) {
-    return <EmptyState scope="panel" tone="empty" title="이 차시에서 클리닉 대상 학생이 없습니다" />;
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="이 차시에서 클리닉 대상 학생이 없습니다"
+        description="미통과 또는 수동 추천 학생이 생기면 클리닉 대상자로 표시됩니다."
+        actions={
+          <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/clinic")}>
+            클리닉 확인
+          </EmptyActionButton>
+        }
+      />
+    );
   }
 
   // 미해소 먼저, 그 안에서 cycle 큰 순(최근 이월), 그 다음 해소된 항목
@@ -420,8 +466,23 @@ function StudentsTab({
   attendances,
   lectureInfo,
   navigate,
-}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any }) {
-  if (!enrollments.length) return <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />;
+  lecturePath,
+}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
+  if (!enrollments.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="수강생이 없습니다"
+        description="강의에 수강생을 등록하면 차시별 출석과 성적 입력 대상이 표시됩니다."
+        actions={
+          <EmptyActionButton variant="secondary" onClick={() => navigate(lecturePath)}>
+            강의로 돌아가기
+          </EmptyActionButton>
+        }
+      />
+    );
+  }
 
   // enrollment_id → attendance row 매핑
   const attendanceByEnrollment = new Map<number, any>();
@@ -475,8 +536,22 @@ function StudentsTab({
 }
 
 /* === Attendance tab === */
-function AttendanceTab({ attendances, lectureInfo }: { attendances: any[]; lectureInfo?: LectureInfo }) {
-  if (!attendances.length) return <EmptyState scope="panel" tone="empty" title="출석 데이터가 없습니다" />;
+function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { attendances: any[]; lectureInfo?: LectureInfo; navigate: any; sessionId: number }) {
+  if (!attendances.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="출석 데이터가 없습니다"
+        description="출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다."
+        actions={
+          <EmptyActionButton onClick={() => navigate(`/teacher/attendance/${sessionId}`)}>
+            출석 체크
+          </EmptyActionButton>
+        }
+      />
+    );
+  }
 
   const counts = attendances.reduce<Record<string, number>>((acc, a) => {
     const s = a.status ?? "UNKNOWN";
@@ -534,7 +609,8 @@ function ScoresTab({
   sessionId,
   lectureInfo,
   navigate,
-}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any }) {
+  lecturePath,
+}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const { data: results } = useQuery({
@@ -543,7 +619,21 @@ function ScoresTab({
     enabled: selectedExam != null,
   });
 
-  if (!exams.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 시험이 없습니다" />;
+  if (!exams.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="이 차시에 시험이 없습니다"
+        description="강의 차시에 시험을 추가하면 성적 입력 버튼이 활성화됩니다."
+        actions={
+          <EmptyActionButton variant="secondary" onClick={() => navigate(lecturePath)}>
+            강의에서 추가
+          </EmptyActionButton>
+        }
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -625,7 +715,17 @@ function ScoresTab({
             </button>
           </>
         ) : (
-          <EmptyState scope="panel" tone="empty" title="결과가 없습니다" />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="결과가 없습니다"
+            description="아직 입력된 점수가 없습니다. 점수 입력 화면에서 학생별 점수를 저장하세요."
+            actions={
+              <EmptyActionButton onClick={() => navigate(`/teacher/scores/${sessionId}`)}>
+                점수 입력
+              </EmptyActionButton>
+            }
+          />
         )
       ) : (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -636,7 +736,21 @@ function ScoresTab({
 
 /* === Videos tab === */
 function VideosTab({ videos, navigate }: { videos: any[]; navigate: any }) {
-  if (!videos.length) return <EmptyState scope="panel" tone="empty" title="이 차시에 영상이 없습니다" />;
+  if (!videos.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="이 차시에 영상이 없습니다"
+        description="영상을 업로드하고 차시에 연결하면 시청 현황을 추적할 수 있습니다."
+        actions={
+          <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/videos")}>
+            영상 관리
+          </EmptyActionButton>
+        }
+      />
+    );
+  }
 
   // backend Video.Status SSOT (uppercase). 과거 소문자 enum 으로 lookup 실패하던 버그 fix.
   const STATUS_MAP: Record<string, { label: string; color: string }> = {

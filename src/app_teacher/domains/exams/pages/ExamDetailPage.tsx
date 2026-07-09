@@ -7,6 +7,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
@@ -169,7 +170,17 @@ export default function ExamDetailPage() {
       )}
 
       {merged.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="이 시험에 연결된 학생이 없습니다" />
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="이 시험에 연결된 학생이 없습니다"
+          description="차시의 시험 설정에서 응시 학생을 선택하면 채점과 OMR 대상이 표시됩니다."
+          actions={
+            <EmptyActionButton onClick={() => setManageOpen(true)}>
+              시험 설정 열기
+            </EmptyActionButton>
+          }
+        />
       )}
 
       <ExamManageSheet open={manageOpen} onClose={() => setManageOpen(false)} exam={exam} onDeleted={() => navigate(-1)} />

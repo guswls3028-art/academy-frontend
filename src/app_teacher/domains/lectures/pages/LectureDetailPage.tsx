@@ -9,6 +9,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { MoreVertical, Pencil, Trash2, Plus, Download } from "@teacher/shared/ui/Icons";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchLecture, fetchLectureSessions, fetchLectureEnrollments, deleteLecture, downloadAttendanceExcel } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -235,7 +236,17 @@ export default function LectureDetailPage() {
             })}
           </div>
         ) : (
-          <EmptyState scope="panel" tone="empty" title="차시가 없습니다" />
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="차시가 없습니다"
+            description="차시를 만들면 출결, 시험, 과제, 영상 연결을 같은 흐름에서 처리할 수 있습니다."
+            actions={
+              <EmptyActionButton onClick={() => { setEditSession(null); setSessionFormOpen(true); }}>
+                차시 추가
+              </EmptyActionButton>
+            }
+          />
         )}
         </>
       )}
@@ -301,7 +312,17 @@ export default function LectureDetailPage() {
               })}
             </div>
           ) : (
-            <EmptyState scope="panel" tone="empty" title="수강생이 없습니다" />
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="수강생이 없습니다"
+              description="수강생을 등록하면 출결, 성적, 상담 기록이 강의 기준으로 모입니다."
+              actions={
+                <EmptyActionButton onClick={() => setEnrollOpen(true)}>
+                  수강생 등록
+                </EmptyActionButton>
+              }
+            />
           )
         ) : (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
