@@ -189,17 +189,19 @@
   outline-offset: 2px;
 }
 
-.rowActive,
-.rowSelected {
-  border-color: var(--tree-selected-border);
-  background: var(--tree-selected-bg);
-  color: var(--tree-accent);
+.rowActive {
+  border-color: color-mix(in srgb, var(--tree-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--tree-accent) 7%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--tree-accent) 82%, var(--color-text-primary));
   box-shadow:
-    inset 3px 0 0 var(--tree-accent),
+    inset 3px 0 0 color-mix(in srgb, var(--tree-accent) 62%, transparent),
     0 1px 0 color-mix(in srgb, var(--color-bg-surface) 80%, transparent);
 }
 
 .rowSelected {
+  border-color: var(--tree-selected-border);
+  background: var(--tree-selected-bg);
+  color: var(--tree-accent);
   box-shadow:
     inset 3px 0 0 var(--tree-accent),
     inset 0 0 0 1px color-mix(in srgb, var(--tree-accent) 14%, transparent),
@@ -266,12 +268,17 @@
   min-width: 22px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tree-accent) 10%, transparent);
-  color: var(--tree-accent);
+  background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+  color: color-mix(in srgb, var(--color-text-secondary) 78%, var(--color-text-muted));
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
+}
+
+.row:hover .count {
+  background: color-mix(in srgb, var(--tree-accent) 9%, transparent);
+  color: var(--tree-accent);
 }
 
 .rowActive .count,
