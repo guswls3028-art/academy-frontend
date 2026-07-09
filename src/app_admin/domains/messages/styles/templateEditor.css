@@ -137,10 +137,11 @@
   max-width: 340px;
   margin: 0 auto;
   background: #b2c7d9; /* 카카오톡 채팅창 배경색 */
+  border: 1px solid #92aabd;
   border-radius: 14px;
   padding: 14px 12px;
   min-height: 200px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 18px rgba(42, 58, 74, 0.16);
 }
 
 /* 미리보기 위 보조 안내 (말풍선 밖) */
@@ -157,9 +158,10 @@
 
 .template-preview-kakao__card {
   background: #fff;
+  border: 1px solid rgba(60, 30, 30, 0.08);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(42, 58, 74, 0.14);
 }
 
 /* 카카오톡 알림톡 노란 헤더 — 채널 식별 */
@@ -174,12 +176,19 @@
   color: #3c1e1e;
   letter-spacing: -0.2px;
 }
-.template-preview-kakao__header::before {
-  content: "💬";
-  font-size: 12px;
-}
 .template-preview-kakao__header-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: 1;
+}
+
+.template-preview-kakao__header-label::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #3c1e1e;
+  content: "";
 }
 .template-preview-kakao__header-channel {
   font-size: 10px;

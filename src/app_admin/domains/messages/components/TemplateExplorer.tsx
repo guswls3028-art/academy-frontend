@@ -15,6 +15,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TemplateCategoryTree from "./TemplateCategoryTree";
 import TemplateEditModal from "./TemplateEditModal";
+import { AlimtalkEnvelopeGuide } from "./AlimtalkEnvelopeGuide";
 import {
   fetchMessageTemplates,
   createMessageTemplate,
@@ -482,7 +483,7 @@ export default function TemplateExplorer() {
           <div>
             <h2 className={panelStyles.headerTitle}>템플릿 저장</h2>
             <p className={panelStyles.headerDesc}>
-              알림톡 발송 시 사용할 메시지 템플릿을 카테고리별로 관리합니다.
+              카카오 승인 봉투의 #{`{선생님메모}`} 영역에 들어갈 프로그램 템플릿을 관리합니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -505,6 +506,7 @@ export default function TemplateExplorer() {
             </Button>
           </div>
         </div>
+        <AlimtalkEnvelopeGuide variant="full" />
       </div>
 
       {/* 본문: 좌측 트리 + 우측 카드 */}

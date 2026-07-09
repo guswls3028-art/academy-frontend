@@ -23,6 +23,10 @@
   min-width: 0;
 }
 
+.triggerHeaderInfo > div:last-child {
+  min-width: 0;
+}
+
 .triggerIcon {
   display: flex;
   width: 36px;
@@ -275,10 +279,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
+}
+
+.sectionHeaderRow > div:first-child {
+  min-width: 0;
 }
 
 .masterToggle {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   flex-shrink: 0;
   align-items: center;
   gap: 10px;
@@ -297,6 +308,9 @@
 }
 
 .masterToggleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 700;
@@ -470,10 +484,28 @@
 
   .cardActions {
     flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .savingBadge {
     width: 100%;
     margin-left: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .triggerTitle {
+    white-space: normal;
+  }
+
+  .templateDisplay {
+    height: auto;
+    min-height: 36px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+  }
+
+  .statusBadge {
+    max-width: 100%;
   }
 }

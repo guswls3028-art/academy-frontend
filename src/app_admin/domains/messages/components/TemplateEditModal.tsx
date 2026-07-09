@@ -169,7 +169,13 @@ export default function TemplateEditModal({
                   {alimtalkType ? (
                     <>
                       <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                        예시 데이터로 표시됩니다. 실제 발송 시 학원/학생 정보가 자동으로 채워집니다.
+                        카카오 승인 봉투 + #{`{선생님메모}`} 예시입니다.
+                      </div>
+                      <div className="template-preview-kakao__header">
+                        <span className="template-preview-kakao__header-label">알림톡 도착</span>
+                        <span className="template-preview-kakao__header-channel">
+                          {TEMPLATE_CATEGORY_LABELS[selectedCategory]}
+                        </span>
                       </div>
                       <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
                         {renderAlimtalkFullPreview(alimtalkType, body, undefined)}

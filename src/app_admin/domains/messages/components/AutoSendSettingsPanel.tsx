@@ -25,6 +25,8 @@ import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
 import TemplateEditModal from "./TemplateEditModal";
 import AutoSendPreviewPopup from "./AutoSendPreviewPopup";
 import AutoSendTimingControl from "./AutoSendTimingControl";
+import { AlimtalkEnvelopeGuide, AlimtalkTriggerEnvelope } from "./AlimtalkEnvelopeGuide";
+import { getAlimtalkTemplateType } from "../constants/alimtalkEnvelope";
 import {
   canUseDelayTiming,
   isReminderTrigger,
@@ -205,6 +207,7 @@ function TriggerCard({
   const controlsLayout = channelMode
     ? hasTimingControl ? "channel-reminder" : "channel"
     : hasTimingControl ? "unified-reminder" : "unified";
+  const envelopeType = config.effective_template_type || getAlimtalkTemplateType(config.trigger);
 
   return (
     <div
@@ -267,6 +270,12 @@ function TriggerCard({
       </div>
 
       {/* Controls area */}
+      <AlimtalkTriggerEnvelope
+        templateType={envelopeType}
+        fallbackTrigger={AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
+        body={config.template_body}
+        templateName={config.template_name}
+      />
       <div
         className={styles.controls}
         data-layout={controlsLayout}
@@ -274,7 +283,7 @@ function TriggerCard({
         {/* Template — click to open edit modal */}
         <div>
           <div className={styles.fieldLabel}>
-            템플릿
+            프로그램 템플릿
           </div>
           <button
             type="button"
@@ -724,6 +733,7 @@ export default function AutoSendSettingsPanel({
               </span>
             </div>
           </div>
+          <AlimtalkEnvelopeGuide variant="compact" />
         </div>
 
         {/* Trigger cards */}

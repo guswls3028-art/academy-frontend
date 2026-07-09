@@ -29,6 +29,8 @@ import AutoSendSectionTree, {
 import TemplateEditModal from "../components/TemplateEditModal";
 import AutoSendPreviewPopup from "../components/AutoSendPreviewPopup";
 import AutoSendTimingControl from "../components/AutoSendTimingControl";
+import { AlimtalkEnvelopeGuide, AlimtalkTriggerEnvelope } from "../components/AlimtalkEnvelopeGuide";
+import { getAlimtalkTemplateType } from "../constants/alimtalkEnvelope";
 import {
   canUseDelayTiming,
   isReminderTrigger,
@@ -193,6 +195,7 @@ function TriggerCard({
   const isActive = isSystem || (config.enabled && !isUnimplemented);
   const cardState = isDisabled ? "disabled" : isActive ? "active" : "inactive";
   const hasTimingControl = isReminderTrigger(config.trigger) || canUseDelayTiming(config);
+  const envelopeType = config.effective_template_type || getAlimtalkTemplateType(config.trigger);
 
   return (
     <div
@@ -265,69 +268,77 @@ function TriggerCard({
         };
 
         return (
-          <div className={styles.controls} data-has-timing={hasTimingControl ? "true" : "false"}>
-            {/* 템플릿 — 읽기 전용 */}
-            <div>
-              <div className={styles.fieldLabel}>
-                템플릿
-              </div>
-              <div className={styles.templateDisplay}>
-                <span className={styles.templateName}>
-                  {config.template_name || "(템플릿 없음)"}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleEditClick}
-                  className={styles.templateEditButton}
-                  title="템플릿 편집"
-                  aria-label="템플릿 편집"
-                >
-                  <FiEdit3 size={14} />
-                </button>
-                {hasTemplate && status && (
-                  <span
-                    className={styles.statusBadge}
-                    data-status={status}
-                    title={
-                      config.effective_template_source === "unified"
-                        ? "공용 승인 템플릿으로 실제 발송됩니다."
-                        : undefined
-                    }
-                  >
-                    {statusLabel}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {hasTimingControl && (
+          <>
+            <AlimtalkTriggerEnvelope
+              templateType={envelopeType}
+              fallbackTrigger={AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
+              body={config.template_body}
+              templateName={config.template_name}
+            />
+            <div className={styles.controls} data-has-timing={hasTimingControl ? "true" : "false"}>
+              {/* 템플릿 — 읽기 전용 */}
               <div>
                 <div className={styles.fieldLabel}>
-                  발송 시점
+                  프로그램 템플릿
                 </div>
-                <AutoSendTimingControl
-                  config={config}
-                  onUpdate={onUpdate}
-                  disabled={saving || isUnimplemented}
-                />
+                <div className={styles.templateDisplay}>
+                  <span className={styles.templateName}>
+                    {config.template_name || "(템플릿 없음)"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleEditClick}
+                    className={styles.templateEditButton}
+                    title="템플릿 편집"
+                    aria-label="템플릿 편집"
+                  >
+                    <FiEdit3 size={14} />
+                  </button>
+                  {hasTemplate && status && (
+                    <span
+                      className={styles.statusBadge}
+                      data-status={status}
+                      title={
+                        config.effective_template_source === "unified"
+                          ? "공용 승인 템플릿으로 실제 발송됩니다."
+                          : undefined
+                      }
+                    >
+                      {statusLabel}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
 
-            {/* 발송 방식 */}
-            <div>
-              <div className={styles.fieldLabel}>
-                발송 채널
+              {hasTimingControl && (
+                <div>
+                  <div className={styles.fieldLabel}>
+                    발송 시점
+                  </div>
+                  <AutoSendTimingControl
+                    config={config}
+                    onUpdate={onUpdate}
+                    disabled={saving || isUnimplemented}
+                  />
+                </div>
+              )}
+
+              {/* 발송 방식 */}
+              <div>
+                <div className={styles.fieldLabel}>
+                  발송 채널
+                </div>
+                <select
+                  className={`ds-select ${styles.channelSelect}`}
+                  value="alimtalk"
+                  onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
+                  disabled={saving || isUnimplemented}
+                >
+                  <option value="alimtalk">알림톡</option>
+                </select>
               </div>
-              <select
-                className={`ds-select ${styles.channelSelect}`}
-                value="alimtalk"
-                onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
-                disabled={saving || isUnimplemented}
-              >
-                <option value="alimtalk">알림톡</option>
-              </select>
             </div>
-          </div>
+          </>
         );
       })()}
       <AutoSendPreviewPopup
@@ -566,6 +577,7 @@ export default function MessageAutoSendPage() {
             </span>
           </div>
         </div>
+        <AlimtalkEnvelopeGuide variant="full" />
       </div>
 
       <div className={panelStyles.body}>
