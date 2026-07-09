@@ -130,7 +130,7 @@ export default function OmrSheetBuilder({
 
   const setClampedEssayCount = (raw: string) => {
     const parsed = Number(raw);
-    if (parsed > MAX_ESSAY_COUNT) feedback.warning(`서술형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
+    if (parsed > MAX_ESSAY_COUNT) feedback.warning(`단답형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
     setEssayCount(clampInt(parsed || 0, 0, MAX_ESSAY_COUNT));
   };
 
@@ -190,7 +190,7 @@ export default function OmrSheetBuilder({
                 />
               </label>
               <label className={styles.field}>
-                <span>서술형</span>
+                <span>단답형</span>
                 <input
                   type="number"
                   min={0}
@@ -205,7 +205,7 @@ export default function OmrSheetBuilder({
             <div className={styles.summary}>
               {mcCount > 0 && <span>객관식 {mcCount}문항</span>}
               {mcCount > 0 && essayCount > 0 && <span> · </span>}
-              {essayCount > 0 && <span>서술형 {essayCount}문항</span>}
+              {essayCount > 0 && <span>단답형 {essayCount}문항</span>}
               {totalCount === 0 && <span>문항 없음</span>}
               <span> · 총 {totalCount}문항</span>
             </div>

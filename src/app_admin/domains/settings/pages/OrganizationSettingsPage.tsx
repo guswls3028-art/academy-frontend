@@ -53,7 +53,7 @@ function AcademyModeSection() {
     },
     {
       label: "성적 출력",
-      value: scoreOutputMode === "anonymous_billboard" ? "익명 빌보드" : "기본 출력",
+      value: scoreOutputMode === "anonymous_billboard" ? "익명 순위표" : "기본 출력",
       tone: scoreOutputMode === "anonymous_billboard" ? "primary" : "muted",
     },
   ];

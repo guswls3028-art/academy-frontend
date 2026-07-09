@@ -1,4 +1,4 @@
-// 익명 성적 빌보드 미리보기 + PDF 다운로드 모달
+// 익명 성적 순위표 미리보기 + PDF 다운로드 모달
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Trophy } from "lucide-react";
@@ -57,7 +57,7 @@ export default function AnonymousBillboardPreviewModal({
     setDownloading(true);
     try {
       const downloaded = await downloadAnonymousBillboardPdf(params);
-      if (downloaded) feedback.success("익명 빌보드 PDF가 다운로드되었습니다.");
+      if (downloaded) feedback.success("익명 순위표 PDF가 다운로드되었습니다.");
     } catch (e: unknown) {
       feedback.error(e instanceof Error ? e.message : "PDF 생성에 실패했습니다.");
     } finally {
@@ -80,7 +80,7 @@ export default function AnonymousBillboardPreviewModal({
           <div className="flex items-center gap-3">
             <Trophy size={ICON.md} strokeWidth={2} className="text-[var(--color-text-muted)]" aria-hidden />
             <h2 id="anonymous-billboard-preview-title" className="text-base font-semibold text-[var(--color-text-primary)]">
-              익명 빌보드 미리보기
+              익명 순위표 미리보기
             </h2>
             <span className="text-xs text-[var(--color-text-muted)]">
               {BILLBOARD_PRINT_PAGE.label}
@@ -110,7 +110,7 @@ export default function AnonymousBillboardPreviewModal({
           <div className="print-preview-modal__paper print-preview-modal__paper--billboard mx-auto bg-white shadow-lg">
             <iframe
               ref={iframeRef}
-              title="익명 빌보드 미리보기"
+              title="익명 순위표 미리보기"
               className="print-preview-modal__iframe print-preview-modal__iframe--billboard"
             />
           </div>

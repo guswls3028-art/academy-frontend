@@ -26,11 +26,13 @@ export {
   Phone,
   Mail,
   ExternalLink,
+  Link2,
 
   // Content
   FileText,
   ClipboardList,
   Video,
+  Youtube,
   Image,
   Calendar,
   Clock,

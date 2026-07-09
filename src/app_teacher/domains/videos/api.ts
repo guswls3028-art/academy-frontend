@@ -7,6 +7,10 @@ export type TeacherVideo = {
   id: number;
   title: string;
   status?: string | null;
+  source_type?: string | null;
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
+  thumbnail_url?: string | null;
   duration_display?: string | null;
   created_at?: string | null;
   view_count?: number | null;
@@ -109,6 +113,25 @@ export async function uploadInit(payload: {
 
 export async function uploadComplete(videoId: number) {
   await api.post(`/media/videos/${videoId}/upload/complete/`);
+}
+
+export async function createYoutubeVideo(payload: {
+  session: number;
+  title: string;
+  url: string;
+  allow_skip?: boolean;
+  max_speed?: number;
+  show_watermark?: boolean;
+}): Promise<TeacherVideo> {
+  const res = await api.post<{ video?: TeacherVideo } | TeacherVideo>(
+    "/media/videos/youtube/",
+    payload,
+  );
+  const data = res.data;
+  if (data && typeof data === "object" && "video" in data && data.video) {
+    return data.video;
+  }
+  return data as TeacherVideo;
 }
 
 export async function renameVideo(videoId: number, title: string): Promise<TeacherVideo> {

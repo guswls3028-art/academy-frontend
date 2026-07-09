@@ -235,7 +235,7 @@ export default function SessionScoresEntryPage({
   };
   const handleSelectSubjective = async () => {
     if (!hasSubjectiveExam) {
-      feedback.info("이 차시의 시험에는 채점 대상 서술형 문항이 없습니다. OMR 서술형 공간은 점수 입력 대상이 아닙니다.");
+      feedback.info("이 차시의 시험에는 채점 대상 단답형 문항이 없습니다. OMR 단답형 공간은 점수 입력 대상이 아닙니다.");
       return;
     }
     if (examEditSubjective) {
@@ -684,7 +684,7 @@ export default function SessionScoresEntryPage({
             {isAnonymousBillboardMode ? (
               <button type="button" className="scores-more-menu__item" onClick={() => { setShowBillboardPreview(true); setShowMoreMenu(false); }}>
                 <Trophy size={ICON_FOR_BUTTON.sm} />
-                익명 빌보드 출력
+                익명 순위표 출력
               </button>
             ) : (
               <button type="button" className="scores-more-menu__item" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
@@ -1007,7 +1007,7 @@ export default function SessionScoresEntryPage({
         </Suspense>
       )}
 
-      {/* 익명 성적 빌보드 미리보기 */}
+      {/* 익명 성적 순위표 미리보기 */}
       {showBillboardPreview && data?.meta && (
         <Suspense fallback={null}>
           <AnonymousBillboardPreviewModal

@@ -5,12 +5,13 @@ import { useState, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { Upload, Trash2 } from "@teacher/shared/ui/Icons";
+import { Link2, Upload, Trash2, Youtube } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession } from "../api";
+import { extractYouTubeVideoId, isYouTubeSource, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
+import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession, createYoutubeVideo } from "../api";
 import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
 
@@ -63,6 +64,9 @@ export default function VideoListPage() {
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [youtubeOpen, setYoutubeOpen] = useState(false);
+  const [youtubeTitle, setYoutubeTitle] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [searchParams] = useSearchParams();
 
   const [query, setQuery] = useState("");
@@ -88,6 +92,34 @@ export default function VideoListPage() {
     mutationFn: deleteVideo,
     onSuccess: () => { qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list }); teacherToast.info("영상이 삭제되었습니다."); },
     onError: (e) => teacherToast.error(extractApiError(e, "영상을 삭제하지 못했습니다.")),
+  });
+
+  const youtubeMut = useMutation({
+    mutationFn: async () => {
+      const title = youtubeTitle.trim();
+      const url = youtubeUrl.trim();
+      if (!title || !extractYouTubeVideoId(url)) {
+        throw new Error("YouTube 링크와 제목을 확인해 주세요.");
+      }
+      const pub = await fetchPublicSession();
+      if (!pub) throw new Error("링크를 등록할 기본 영상 세션을 찾을 수 없습니다.");
+      return createYoutubeVideo({
+        session: pub.session_id,
+        title,
+        url,
+        allow_skip: false,
+        max_speed: 1,
+        show_watermark: true,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list });
+      setYoutubeOpen(false);
+      setYoutubeTitle("");
+      setYoutubeUrl("");
+      teacherToast.success("YouTube 링크 영상을 추가했습니다.");
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "YouTube 링크 추가에 실패했습니다.")),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,13 +186,24 @@ export default function VideoListPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-[17px] font-bold py-1" style={{ color: "var(--tc-text)" }}>영상</h2>
-        <button onClick={() => fileRef.current?.click()} disabled={uploading}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
-          <Upload size={ICON.xs} /> {uploading ? "업로드 중…" : "영상 업로드"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setYoutubeOpen(true)}
+            disabled={youtubeMut.isPending}
+            className="flex items-center gap-1 text-xs font-bold cursor-pointer whitespace-nowrap"
+            style={{ padding: "8px 11px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)", opacity: youtubeMut.isPending ? 0.5 : 1, minHeight: 36 }}
+          >
+            <Youtube size={ICON.xs} /> 링크 추가
+          </button>
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1 text-xs font-bold cursor-pointer whitespace-nowrap"
+            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
+            <Upload size={ICON.xs} /> {uploading ? "업로드 중…" : "영상 업로드"}
+          </button>
+        </div>
         <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: "none" }} />
       </div>
 
@@ -239,11 +282,16 @@ export default function VideoListPage() {
           scope="panel"
           tone="empty"
           title="등록된 영상이 없습니다"
-          description="우상단 '영상 업로드'를 눌러 첫 영상을 추가해 보세요."
+          description="YouTube 링크를 붙이거나 파일을 업로드해 첫 영상을 추가하세요."
           actions={
-            <EmptyActionButton onClick={() => fileRef.current?.click()}>
-              영상 업로드
-            </EmptyActionButton>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <EmptyActionButton onClick={() => setYoutubeOpen(true)}>
+                링크 추가
+              </EmptyActionButton>
+              <EmptyActionButton variant="secondary" onClick={() => fileRef.current?.click()}>
+                영상 업로드
+              </EmptyActionButton>
+            </div>
           }
         />
       ) : isFilteredEmpty ? (
@@ -270,6 +318,8 @@ export default function VideoListPage() {
             const rawStatus = (v.status ?? "PENDING") as string;
             const status: VideoStatus = (VIDEO_STATUS_LABEL[rawStatus as VideoStatus] ? rawStatus : "PENDING") as VideoStatus;
             const st = { label: VIDEO_STATUS_LABEL[status], ...STATUS_COLOR[status] };
+            const isYoutube = isYouTubeSource(v.source_type);
+            const youtubeId = v.youtube_video_id || extractYouTubeVideoId(v.youtube_url);
             return (
               <div
                 key={v.id}
@@ -288,9 +338,14 @@ export default function VideoListPage() {
                     height: 48,
                     background: "var(--tc-surface-soft)",
                     border: "1px solid var(--tc-border)",
+                    overflow: "hidden",
                   }}
                 >
-                  <VideoIcon />
+                  {isYoutube && youtubeId ? (
+                    <img src={youtubeThumbnailUrl(youtubeId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <VideoIcon />
+                  )}
                 </div>
 
                 {/* Info */}
@@ -308,6 +363,7 @@ export default function VideoListPage() {
                     {v.title}
                   </button>
                   <div className="flex items-center gap-2 text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {isYoutube && <span>YouTube 링크</span>}
                     {v.duration_display && <span>{v.duration_display}</span>}
                     {v.created_at && (
                       <span>{new Date(v.created_at).toLocaleDateString("ko-KR")}</span>
@@ -359,6 +415,128 @@ export default function VideoListPage() {
           })}
         </div>
       )}
+      <YoutubeLinkSheet
+        open={youtubeOpen}
+        title={youtubeTitle}
+        url={youtubeUrl}
+        submitting={youtubeMut.isPending}
+        onTitleChange={setYoutubeTitle}
+        onUrlChange={setYoutubeUrl}
+        onClose={() => {
+          if (!youtubeMut.isPending) setYoutubeOpen(false);
+        }}
+        onSubmit={() => youtubeMut.mutate()}
+      />
+    </div>
+  );
+}
+
+function YoutubeLinkSheet({
+  open,
+  title,
+  url,
+  submitting,
+  onTitleChange,
+  onUrlChange,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  title: string;
+  url: string;
+  submitting: boolean;
+  onTitleChange: (value: string) => void;
+  onUrlChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const youtubeId = useMemo(() => extractYouTubeVideoId(url), [url]);
+  const canSubmit = title.trim().length > 0 && !!youtubeId && !submitting;
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center" style={{ background: "rgba(15,23,42,0.42)" }} onClick={onClose}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="teacher-youtube-link-title"
+        className="w-full"
+        style={{ maxWidth: 520, background: "var(--tc-surface)", borderRadius: "18px 18px 0 0", border: "1px solid var(--tc-border)", padding: 18, boxShadow: "0 -14px 40px rgba(15,23,42,0.2)" }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSubmit) onSubmit();
+        }}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Youtube size={ICON.sm} />
+          <div id="teacher-youtube-link-title" className="text-[16px] font-bold" style={{ color: "var(--tc-text)" }}>
+            YouTube 링크 추가
+          </div>
+        </div>
+
+        <label className="block mb-3">
+          <span className="block text-[12px] font-semibold mb-1" style={{ color: "var(--tc-text-muted)" }}>영상 제목</span>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="예: 오늘 수업 해설 영상"
+            className="w-full text-sm"
+            style={{ padding: "10px 12px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }}
+            autoFocus
+          />
+        </label>
+
+        <label className="block mb-3">
+          <span className="block text-[12px] font-semibold mb-1" style={{ color: "var(--tc-text-muted)" }}>YouTube URL</span>
+          <div className="flex items-center gap-2" style={{ padding: "0 10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)" }}>
+            <Link2 size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => onUrlChange(e.target.value)}
+              placeholder="https://youtu.be/..."
+              className="flex-1 text-sm"
+              style={{ padding: "10px 0", border: "none", outline: "none", background: "transparent", color: "var(--tc-text)" }}
+            />
+          </div>
+        </label>
+
+        {youtubeId ? (
+          <div className="flex items-center gap-3 mb-4 rounded-lg" style={{ padding: 10, background: "var(--tc-surface-soft)", border: "1px solid var(--tc-border)" }}>
+            <img src={youtubeThumbnailUrl(youtubeId)} alt="" style={{ width: 92, height: 52, objectFit: "cover", borderRadius: 8 }} />
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>링크 확인됨</div>
+              <div className="text-[11px] truncate" style={{ color: "var(--tc-text-muted)" }}>{youtubeId}</div>
+            </div>
+          </div>
+        ) : url.trim() ? (
+          <div className="text-[12px] mb-4" style={{ color: "var(--tc-danger)" }}>
+            올바른 YouTube 영상 링크를 입력해 주세요.
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="text-sm font-semibold cursor-pointer"
+            style={{ padding: "9px 13px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-muted)", minHeight: 38 }}
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="text-sm font-bold cursor-pointer"
+            style={{ padding: "9px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: canSubmit ? 1 : 0.5, minHeight: 38 }}
+          >
+            {submitting ? "추가 중…" : "링크 추가"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

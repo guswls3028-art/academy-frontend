@@ -204,7 +204,7 @@ export default function OmrPage() {
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
             <Fld label="객관식 문항 수" value={mcCount} onChange={setMcCount} min={0} max={MAX_MC_COUNT} />
-            <Fld label="주관식 문항 수" value={essayCount} onChange={setEssayCount} min={0} max={MAX_ESSAY_COUNT} />
+            <Fld label="단답형 문항 수" value={essayCount} onChange={setEssayCount} min={0} max={MAX_ESSAY_COUNT} />
           </div>
           <Fld label="객관식 선택지 수" value={nChoices} onChange={setNChoices} min={5} max={5} />
         </div>
