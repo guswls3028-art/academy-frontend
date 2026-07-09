@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/legal/api/legal.api.ts
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api from "@/shared/api/axios";
 
 export type LegalConfig = {
   company_name: string;
@@ -16,11 +16,9 @@ export type LegalConfig = {
   effective_date: string;
 };
 
-/** GET /core/legal-config/ — public, no auth needed */
+/** GET /core/legal-config/ — tenant-editable legal profile for organization settings */
 export async function fetchLegalConfig(): Promise<LegalConfig> {
-  const { data } = await api.get<LegalConfig>("/core/legal-config/", {
-    skipAuth: true,
-  } as ApiRequestConfig);
+  const { data } = await api.get<LegalConfig>("/core/legal-config/");
   return data;
 }
 

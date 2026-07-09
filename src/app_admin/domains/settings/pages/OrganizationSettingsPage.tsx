@@ -721,7 +721,7 @@ function PassFailLabelsSection({
 
 
 /* ------------------------------------------------------------------ */
-/*  법적 고지 정보 설정 섹션 (이용약관/개인정보처리방침 표시용)              */
+/*  학원별 사업자 프로필 설정 섹션                                       */
 /* ------------------------------------------------------------------ */
 
 const LEGAL_FIELDS: { key: LegalFieldKey; label: string; placeholder: string; maxLen: number }[] = [
@@ -736,17 +736,6 @@ const LEGAL_FIELDS: { key: LegalFieldKey; label: string; placeholder: string; ma
   { key: "privacy_officer_contact", label: "보호책임자 연락처", placeholder: "예: privacy@example.com 또는 02-1234-5678", maxLen: 200 },
 ];
 
-// 학부모/학생이 보는 법적 고지 페이지에서 가장 먼저 누락되면 안 되는 필드.
-// 미입력 시 운영사 default fallback이 노출되어 학원장 책임 경계가 흐려진다.
-const LEGAL_REQUIRED_KEYS: LegalFieldKey[] = [
-  "company_name",
-  "representative",
-  "business_number",
-  "support_phone",
-  "privacy_officer_name",
-  "privacy_officer_contact",
-];
-
 function LegalInfoSection() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -756,10 +745,6 @@ function LegalInfoSection() {
     queryKey: adminSettingsQueryKeys.legalConfig,
     queryFn: fetchLegalConfig,
   });
-
-  const missingRequired = LEGAL_REQUIRED_KEYS.filter(
-    (key) => !(legalQ.data?.[key] || "").trim(),
-  );
 
   useEffect(() => {
     if (legalQ.data) {
@@ -810,21 +795,9 @@ function LegalInfoSection() {
           법적 고지 정보
         </h2>
         <p className={s.sectionDescription}>
-          이용약관, 개인정보처리방침 페이지에 표시되는 사업자 정보입니다. 미입력 항목은 &quot;정보 미등록&quot;으로 표시됩니다.
+          학원별 프로필에 저장되는 사업자 정보입니다. 필요할 때만 채울 수 있으며, 공개 약관의 운영사 정보와는 분리됩니다.
         </p>
       </div>
-
-      {!legalQ.isLoading && missingRequired.length > 0 && (
-        <div
-          role="alert"
-          className={styles.legalAlert}
-        >
-          <strong>법적 고지 필수 정보가 비어 있습니다 ({missingRequired.length}개 항목).</strong>
-          <br />
-          학원 정보가 미입력이면 학부모가 보는 개인정보처리방침/이용약관에 운영사 연락처가 임시로 표시됩니다.
-          유료 운영 전에 반드시 채워주세요.
-        </div>
-      )}
 
       <section className={s.section}>
         {legalQ.isLoading ? (

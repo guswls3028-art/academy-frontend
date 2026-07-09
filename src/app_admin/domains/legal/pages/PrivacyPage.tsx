@@ -3,53 +3,19 @@
 // 법적 근거: 개인정보 보호법 제30조, 시행령 제31조, PIPC 작성지침 2025.4
 
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { legalQueryKeys } from "@/shared/api/queryKeys/legal";
-import { fetchLegalConfig, type LegalConfig } from "../api/legal.api";
+import { PLATFORM_LEGAL_CONFIG } from "../config/platformLegalConfig";
 import styles from "./LegalPage.module.css";
 
-// 테넌트가 법적 고지 정보를 채우지 않았을 때 노출될 플랫폼 운영사 연락처 fallback.
-// 고객센터·고충처리·개인정보 보호책임자 연락처에 한해 적용한다. (상호/사업자번호 등은 fallback 없음)
-const FALLBACK_SUPPORT_PHONE = "";
-const FALLBACK_SUPPORT_EMAIL = "devhyun7466@gmail.com";
-const FALLBACK_PRIVACY_OFFICER_CONTACT = "devhyun7466@gmail.com";
-
-/** Show value, fallback, or "정보 미등록" muted text */
-function V({ value, fallback }: { value: string; fallback?: string }) {
+/** Show value or "정보 미등록" muted text */
+function V({ value }: { value: string }) {
   if (value) return <>{value}</>;
-  if (fallback) return <>{fallback}</>;
   return <span className={styles.unregistered}>정보 미등록</span>;
 }
 
 export default function PrivacyPage() {
-  const { data: lc } = useQuery<LegalConfig>({
-    queryKey: legalQueryKeys.config,
-    queryFn: fetchLegalConfig,
-    staleTime: 5 * 60_000,
-    retry: 1,
-  });
-
-  const c = lc ?? {
-    company_name: "",
-    representative: "",
-    business_number: "",
-    ecommerce_number: "",
-    address: "",
-    support_email: "",
-    support_phone: "",
-    privacy_officer_name: "",
-    privacy_officer_contact: "",
-    terms_version: "1.0",
-    privacy_version: "1.0",
-    effective_date: "2026-03-14",
-  };
-
-  const companyLabel = c.company_name || "회사";
-  const companyBodyLabel = c.company_name ? `${c.company_name}(이하 "회사")` : "본 학원";
-
-  // 핵심 필드 미입력 시 학부모에게 "이 학원은 아직 정보를 등록하지 않았다" 고지.
-  // 운영사 fallback이 보이는 동안 학원 책임 경계가 흐려지지 않도록.
-  const missingCore = !c.company_name || !c.business_number || !c.privacy_officer_contact;
+  const c = PLATFORM_LEGAL_CONFIG;
+  const companyLabel = c.company_name;
+  const companyBodyLabel = `${c.company_name}(이하 "회사")`;
 
   return (
     <div className={styles.root}>
@@ -65,17 +31,6 @@ export default function PrivacyPage() {
         <p className={styles.meta}>
           시행일: 2026년 3월 14일 | 버전 1.1
         </p>
-
-        {missingCore && (
-          <div
-            role="note"
-            className={styles.missingCoreNotice}
-          >
-            본 학원은 사업자 정보 일부를 등록하지 않았습니다. 정확한 회사 정보 및
-            개인정보 보호책임자 연락처는 학원 관리자에게 문의해 주세요. 아래 표시되는
-            연락처는 플랫폼 운영사의 임시 안내처입니다.
-          </div>
-        )}
 
         <article className={styles.article}>
           <p>
@@ -363,12 +318,12 @@ export default function PrivacyPage() {
           <h3>개인정보 보호책임자</h3>
           <ul>
             <li>성명: <V value={c.privacy_officer_name} /></li>
-            <li>연락처: <V value={c.privacy_officer_contact} fallback={FALLBACK_PRIVACY_OFFICER_CONTACT} /></li>
+            <li>연락처: <V value={c.privacy_officer_contact} /></li>
           </ul>
           <h3>고충처리</h3>
           <ul>
-            <li>고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} /></li>
-            <li>전화: <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} /></li>
+            <li>고객센터: <V value={c.support_email} /></li>
+            {c.support_phone && <li>전화: <V value={c.support_phone} /></li>}
           </ul>
           <p>
             정보주체는 서비스 이용 중 발생한 모든 개인정보 보호 관련 문의, 불만, 피해 구제 등에 관한 사항을
@@ -417,9 +372,9 @@ export default function PrivacyPage() {
               <br />
               주소: <V value={c.address} />
               <br />
-              고객센터: <V value={c.support_email} fallback={FALLBACK_SUPPORT_EMAIL} />{" "}
-              {c.support_phone || FALLBACK_SUPPORT_PHONE ? (
-                <>/ <V value={c.support_phone} fallback={FALLBACK_SUPPORT_PHONE} /></>
+              고객센터: <V value={c.support_email} />{" "}
+              {c.support_phone ? (
+                <>/ <V value={c.support_phone} /></>
               ) : null}
             </p>
           </div>
