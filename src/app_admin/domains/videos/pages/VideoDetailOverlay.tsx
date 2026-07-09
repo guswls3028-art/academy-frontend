@@ -194,6 +194,8 @@ export default function VideoDetailOverlay({
                     <VideoPreviewSection
                       hlsSrc={video.hls_url ?? null}
                       status={video.status}
+                      sourceType={video.source_type ?? null}
+                      youtubeVideoId={video.youtube_video_id ?? null}
                       progressPercent={video.encoding_progress ?? null}
                       errorReason={video.error_reason ?? null}
                       onRetry={

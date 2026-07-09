@@ -2,7 +2,19 @@
  * 영상 댓글 섹션 - 댓글 목록 + 작성 + 대댓글 + 수정/삭제
  */
 import { useCallback, useState } from "react";
+import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CornerDownRight,
+  MessageCircle,
+  Pencil,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { useConfirm } from "@/shared/ui/confirm";
 import { cx } from "@/shared/utils/cx";
@@ -40,14 +52,16 @@ function CommentAvatar({ name, photoUrl, compact = false }: CommentAvatarProps) 
 }
 
 type CommentActionButtonProps = {
-  children: string;
+  children: ReactNode;
   disabled?: boolean;
+  icon?: ReactNode;
   onClick: () => void;
 };
 
-function CommentActionButton({ children, disabled = false, onClick }: CommentActionButtonProps) {
+function CommentActionButton({ children, disabled = false, icon, onClick }: CommentActionButtonProps) {
   return (
     <button type="button" className={styles.actionButton} disabled={disabled} onClick={onClick}>
+      {icon}
       {children}
     </button>
   );
@@ -138,31 +152,39 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
 
         {editMode ? (
           <div className={styles.editRow}>
-            <input
+            <textarea
               className={styles.editInput}
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               autoFocus
+              rows={2}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSave();
+                }
                 if (e.key === "Escape") handleCancelEdit();
               }}
             />
-            <button
-              type="button"
-              className={cx(styles.editButton, styles.saveButton)}
-              onClick={handleSave}
-              disabled={!canSave}
-            >
-              저장
-            </button>
-            <button
-              type="button"
-              className={cx(styles.editButton, styles.cancelButton)}
-              onClick={handleCancelEdit}
-            >
-              취소
-            </button>
+            <div className={styles.editActions}>
+              <button
+                type="button"
+                className={cx(styles.editButton, styles.saveButton)}
+                onClick={handleSave}
+                disabled={!canSave}
+              >
+                <Check size={14} aria-hidden />
+                저장
+              </button>
+              <button
+                type="button"
+                className={cx(styles.editButton, styles.cancelButton)}
+                onClick={handleCancelEdit}
+              >
+                <X size={14} aria-hidden />
+                취소
+              </button>
+            </div>
           </div>
         ) : (
           <div className={styles.commentContent}>{comment.content}</div>
@@ -172,6 +194,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
           <div className={styles.actionRow}>
             {!isReply && onReply && (
               <CommentActionButton
+                icon={<CornerDownRight size={13} aria-hidden />}
                 onClick={() => {
                   onReply(comment.id);
                   setShowReplies(true);
@@ -183,6 +206,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
             {comment.is_mine && (
               <>
                 <CommentActionButton
+                  icon={<Pencil size={13} aria-hidden />}
                   onClick={() => {
                     setEditContent(comment.content);
                     setEditMode(true);
@@ -190,7 +214,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
                 >
                   수정
                 </CommentActionButton>
-                <CommentActionButton disabled={isDeleting} onClick={handleDelete}>
+                <CommentActionButton icon={<Trash2 size={13} aria-hidden />} disabled={isDeleting} onClick={handleDelete}>
                   삭제
                 </CommentActionButton>
               </>
@@ -206,7 +230,8 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
               aria-expanded={showReplies}
               onClick={() => setShowReplies((visible) => !visible)}
             >
-              {showReplies ? "▲ 답글 숨기기" : `▼ 답글 ${replyCount}개`}
+              {showReplies ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+              {showReplies ? "답글 숨기기" : `답글 ${replyCount}개`}
             </button>
           </div>
         )}
@@ -258,41 +283,64 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
 
   return (
     <div className={styles.section}>
-      <h3 className={styles.title}>댓글 {data?.total ?? 0}</h3>
+      <div className={styles.header}>
+        <div className={styles.headerTitleGroup}>
+          <span className={styles.headerIcon} aria-hidden>
+            <MessageCircle size={18} />
+          </span>
+          <h3 className={styles.title}>댓글</h3>
+          <span className={styles.countBadge}>{data?.total ?? 0}</span>
+        </div>
+      </div>
 
       <div className={styles.composer}>
-        <textarea
-          className={styles.textarea}
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder={replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."}
-          rows={2}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && canSubmit) {
-              e.preventDefault();
-              handleSubmit();
-            }
-          }}
-        />
         {replyTo && (
-          <button type="button" className={styles.composerCancelButton} onClick={() => setReplyTo(null)}>
-            취소
-          </button>
+          <div className={styles.replyBanner}>
+            <CornerDownRight size={14} aria-hidden />
+            <span>답글 작성 중</span>
+            <button type="button" className={styles.replyCancelButton} onClick={() => setReplyTo(null)} aria-label="답글 작성 취소">
+              <X size={14} aria-hidden />
+            </button>
+          </div>
         )}
-        <button
-          type="button"
-          className={cx(styles.submitButton, canSubmit && styles.submitButtonReady)}
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-        >
-          {isCreating ? "..." : "등록"}
-        </button>
+        <div className={styles.composerBody}>
+          <div className={styles.composerAvatar} aria-hidden>나</div>
+          <div className={styles.inputShell}>
+            <textarea
+              className={styles.textarea}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder={replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."}
+              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && canSubmit) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+            />
+            <div className={styles.composerFooter}>
+              <button
+                type="button"
+                className={cx(styles.submitButton, canSubmit && styles.submitButtonReady)}
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+              >
+                <Send size={14} aria-hidden />
+                {isCreating ? "등록 중" : "등록"}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {isLoading ? (
         <div className={styles.loading}>불러오는 중...</div>
       ) : comments.length === 0 ? (
-        <div className={styles.empty}>아직 댓글이 없습니다. 첫 댓글을 남겨보세요!</div>
+        <div className={styles.empty}>
+          <MessageCircle className={styles.emptyIcon} size={28} aria-hidden />
+          <span>아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</span>
+        </div>
       ) : (
         <div className={styles.commentList}>
           {comments.map((comment) => (

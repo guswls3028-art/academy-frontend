@@ -619,7 +619,7 @@
 .vpp-root {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 10px var(--stu-space-4) var(--stu-space-8);
+  padding: 16px var(--stu-space-4) var(--stu-space-8);
   min-height: 100vh;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 4%, transparent), transparent 180px),
@@ -720,7 +720,7 @@
 .vpp-info {
   position: relative;
   margin-top: 12px;
-  padding: 16px;
+  padding: 18px 20px;
   border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
   border-radius: 16px;
   background:
@@ -745,7 +745,7 @@
 .vpp-title {
   position: relative;
   z-index: 1;
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 900;
   color: var(--stu-text);
   margin: 0 0 var(--stu-space-2) 0;
@@ -759,12 +759,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
 .vpp-meta-item {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 760;
   color: var(--stu-text-muted);
 }
@@ -1155,7 +1155,7 @@
   }
 
   .vpp-title {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .vpp-pl-thumb {
