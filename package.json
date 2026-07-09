@@ -14,7 +14,7 @@
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/ensure-spa-mode.js",
-    "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs",
+    "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs && node scripts/guard-staff-mobile-contract.mjs",
     "verify:student-routes": "node scripts/verify-student-routes.mjs",
     "verify:teacher-routes": "node scripts/verify-teacher-routes.mjs",
     "verify:landing-routes": "node scripts/verify-landing-routes.mjs",
