@@ -75,6 +75,22 @@ async function gotoCommitted(page: Page, url: string, timeout: number): Promise<
   }
 }
 
+async function recoverEmptySpaRoot(page: Page): Promise<void> {
+  const rootState = await page.locator("#root").evaluate((root) => ({
+    exists: true,
+    childCount: root.childElementCount,
+    textLength: (root.textContent || "").trim().length,
+  })).catch(() => ({ exists: false, childCount: 0, textLength: 0 }));
+
+  if (!rootState.exists || rootState.childCount > 0 || rootState.textLength > 0) return;
+
+  const url = new URL(page.url());
+  url.searchParams.set("__hplus_reload", String(Date.now()));
+  await gotoCommitted(page, url.toString(), 45_000);
+  await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+}
+
 /* ── Credentials ── */
 const CREDS: Record<TenantRole, { base: string; code: string; userEnv: string; passEnv: string }> = {
   "admin":          { base: BASE,     code: "hakwonplus", userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
@@ -201,6 +217,7 @@ export async function loginViaUI(
 
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await recoverEmptySpaRoot(page);
 }
 
 /**

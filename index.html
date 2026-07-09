@@ -106,6 +106,81 @@
         }
       })();
     </script>
+    <script>
+      (function () {
+        var RELOAD_PARAM = "__hplus_reload";
+        var STORAGE_KEY = "hplus:entry_asset_reload_ts";
+        var COOLDOWN_MS = 10000;
+
+        function now() {
+          return Date.now ? Date.now() : new Date().getTime();
+        }
+
+        function sameOriginAsset(url) {
+          try {
+            var parsed = new URL(url, location.href);
+            return parsed.origin === location.origin && parsed.pathname.indexOf("/assets/") === 0;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function isEntryAssetTarget(target) {
+          if (!target || !target.tagName) return false;
+          var tag = String(target.tagName).toLowerCase();
+          if (tag !== "script" && tag !== "link") return false;
+          var src = target.getAttribute("src") || target.getAttribute("href") || "";
+          return src && sameOriginAsset(src);
+        }
+
+        function canReload() {
+          try {
+            var previous = Number(sessionStorage.getItem(STORAGE_KEY) || "0");
+            if (Number.isFinite(previous) && now() - previous < COOLDOWN_MS) return false;
+            sessionStorage.setItem(STORAGE_KEY, String(now()));
+            return true;
+          } catch (e) {
+            return true;
+          }
+        }
+
+        function showRecoveryMessage() {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML =
+            '<div style="max-width:420px;margin:80px auto;padding:28px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;text-align:center;border:1px solid #d9e2ef;border-radius:12px;background:#fff;color:#111827">' +
+            '<h1 style="margin:0 0 12px;font-size:20px;line-height:1.35">새 버전을 불러오고 있어요</h1>' +
+            '<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#4b5563">배포 직후 브라우저가 이전 파일을 잡고 있으면 화면이 비어 보일 수 있습니다. 아래 버튼으로 최신 화면을 다시 불러오세요.</p>' +
+            '<button type="button" onclick="location.reload()" style="border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:14px;padding:12px 20px;cursor:pointer">다시 불러오기</button>' +
+            '</div>';
+        }
+
+        function reloadWithCacheBust() {
+          if (!canReload()) {
+            showRecoveryMessage();
+            return;
+          }
+          try {
+            var url = new URL(location.href);
+            url.searchParams.set(RELOAD_PARAM, String(now()));
+            location.replace(url.toString());
+          } catch (e) {
+            location.reload();
+          }
+        }
+
+        window.addEventListener("error", function (event) {
+          if (isEntryAssetTarget(event.target)) reloadWithCacheBust();
+        }, true);
+
+        window.addEventListener("load", function () {
+          window.setTimeout(function () {
+            var root = document.getElementById("root");
+            if (root && root.childElementCount === 0) showRecoveryMessage();
+          }, 2500);
+        });
+      })();
+    </script>
   </head>
   <body>
     <script>
