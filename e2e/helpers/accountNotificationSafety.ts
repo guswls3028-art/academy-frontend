@@ -2,7 +2,7 @@ import type { APIRequestContext } from "@playwright/test";
 
 const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const PRODUCTION_API_HOST = "api.hakwonplus.com";
-const CONTROLLED_PHONE = "01031217466";
+const CONTROLLED_PHONE = normalizePhone(process.env.E2E_REAL_ALIMTALK_CONTROLLED_PHONE) || "01031217466";
 const GUARD_INSTALLED = Symbol.for("academy.e2e.accountNotificationGuardInstalled");
 const controlledStudentUsernames = new Set<string>();
 
