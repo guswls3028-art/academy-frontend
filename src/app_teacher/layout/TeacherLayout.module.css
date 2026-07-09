@@ -39,3 +39,29 @@
   margin: 0 auto;
   padding: var(--tc-space-3);
 }
+
+@media (min-width: 1024px) {
+  .shell {
+    min-height: 100dvh;
+    padding-top: 0;
+    background:
+      linear-gradient(90deg, rgb(15 23 42 / 0.025), transparent 34%),
+      var(--tc-bg);
+  }
+
+  .header {
+    padding-left: var(--tc-sidebar-w);
+    border-bottom-color: var(--tc-border-strong);
+    background: color-mix(in srgb, var(--tc-header-bg) 94%, var(--tc-bg));
+  }
+
+  .main {
+    padding-left: var(--tc-sidebar-w);
+    padding-bottom: 0;
+  }
+
+  .content {
+    max-width: var(--tc-page-max-w);
+    padding: var(--tc-space-6) var(--tc-space-6) var(--tc-space-8);
+  }
+}

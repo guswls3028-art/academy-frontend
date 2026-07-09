@@ -1,12 +1,13 @@
 /**
  * PATH: src/app_teacher/layout/TeacherLayout.tsx
- * 선생님 전용 모바일 레이아웃 — 100dvh 고정, 탭바 + 드로어
+ * 선생님 전용 레이아웃 — 모바일 탭바, 데스크탑 고정 사이드바
  */
 import { useState, useCallback, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useTeacherSW } from "../shared/hooks/useTeacherSW";
 import TeacherTopBar from "./TeacherTopBar";
 import TeacherTabBar from "./TeacherTabBar";
@@ -24,6 +25,7 @@ function TeacherRouteFallback() {
 
 export default function TeacherLayout() {
   const tenantCode = getTenantCodeForApiRequest();
+  const isMobile = useIsMobile();
   useFavicon();
   useDocumentTitle();
   useTeacherSW();
@@ -40,7 +42,7 @@ export default function TeacherLayout() {
     >
       {/* Header */}
       <header className={styles.header}>
-        <TeacherTopBar onMenuClick={openDrawer} />
+        <TeacherTopBar onMenuClick={openDrawer} showMenuButton={isMobile} />
       </header>
 
       {/* Main content */}
@@ -56,7 +58,7 @@ export default function TeacherLayout() {
       <TeacherTabBar />
 
       {/* Drawer (More menu) */}
-      <TeacherDrawer open={drawerOpen} onClose={closeDrawer} />
+      <TeacherDrawer open={drawerOpen} onClose={closeDrawer} persistent={!isMobile} />
     </div>
   );
 }

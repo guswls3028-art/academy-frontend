@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
+import { InlineHelp } from "@/shared/ui/guide";
 import { ChevronLeft, Plus, Pencil, Trash2, X, FolderPlus } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -48,15 +49,20 @@ export default function ExamBundlesPage() {
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>시험 묶음</h1>
+        <InlineHelp
+          title="시험 묶음 안내"
+          tone="teacher"
+          align="right"
+          ariaLabel="시험 묶음 도움말"
+          iconSize={15}
+        >
+          <p>여러 시험·과제 템플릿을 한 번에 묶어 차시에 일괄 적용할 때 사용합니다.</p>
+        </InlineHelp>
         <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           <Plus size={ICON.xs} /> 새 묶음
         </button>
-      </div>
-
-      <div className="text-[11px] px-1" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
-        시험 묶음은 여러 시험·과제 템플릿을 한 번에 묶어 차시에 일괄 적용할 때 사용합니다.
       </div>
 
       {isLoading ? <EmptyState scope="panel" tone="loading" title="불러오는 중…" /> :

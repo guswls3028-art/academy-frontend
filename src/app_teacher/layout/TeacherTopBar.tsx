@@ -17,11 +17,12 @@ import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPending
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
 interface Props {
   onMenuClick: () => void;
+  showMenuButton?: boolean;
 }
 
 const TEACHER_GUIDE_BOOK = getGuideBookPreset("teacher");
 
-export default function TeacherTopBar({ onMenuClick }: Props) {
+export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
   const { counts } = useTeacherPendingCounts();
@@ -44,25 +45,27 @@ export default function TeacherTopBar({ onMenuClick }: Props) {
     >
       {/* Left: Hamburger + Tenant name */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 auto", minWidth: 0, overflow: "hidden" }}>
-        <button
-          onClick={onMenuClick}
-          aria-label="메뉴"
-          style={{
-            background: "none",
-            border: "none",
-            padding: 8,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--tc-text-secondary)",
-            borderRadius: "var(--tc-radius)",
-            minWidth: "var(--tc-touch-min)",
-            minHeight: "var(--tc-touch-min)",
-          }}
-        >
-          <Menu size={ICON.lg} />
-        </button>
+        {showMenuButton && (
+          <button
+            onClick={onMenuClick}
+            aria-label="메뉴"
+            style={{
+              background: "none",
+              border: "none",
+              padding: 8,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--tc-text-secondary)",
+              borderRadius: "var(--tc-radius)",
+              minWidth: "var(--tc-touch-min)",
+              minHeight: "var(--tc-touch-min)",
+            }}
+          >
+            <Menu size={ICON.lg} />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => navigate("/teacher")}

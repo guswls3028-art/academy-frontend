@@ -15,7 +15,7 @@
 |------|------|-----|------|
 | **개발자 앱** | `src/app_dev/` | `/dev/*` | 개발자용 — 테넌트·브랜딩·운영 설정 |
 | **관리자 앱** | `src/app_admin/`, `src/shared/`, `src/styles/` | `/`, `/admin/*` 등 | 학원 관리자·운영자용 |
-| **선생님 앱** | `src/app_teacher/` | `/teacher/*` | 모바일 중심 선생님 업무용 |
+| **선생님 앱** | `src/app_teacher/` | `/teacher/*` | 모바일 우선, 데스크탑 고정 사이드바를 쓰는 선생님 업무용 |
 | **학생 앱** | `src/app_student/` | `/student/*` | 학생용 — 자체 도메인 구조 |
 | **공개/프로모션** | `src/landing/`, `src/app_promo/` | 공개 도메인 | 랜딩·공개 리포트·프로모션 |
 
@@ -27,7 +27,7 @@
 src/
 ├── app_admin/     # 관리자 도메인
 ├── app_dev/       # 개발자·운영 설정
-├── app_teacher/   # 선생님 모바일 앱
+├── app_teacher/   # 선생님 업무 앱 (모바일 탭바 + 데스크탑 사이드바)
 ├── app_student/   # 학생 앱
 ├── landing/       # 공개 랜딩·공개 리포트
 ├── app_promo/     # 프로모션 앱

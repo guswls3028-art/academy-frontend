@@ -28,6 +28,16 @@
   transform: translateX(0);
 }
 
+.panelPersistent {
+  top: var(--tc-header-h);
+  width: var(--tc-sidebar-w);
+  padding-top: 0;
+  border-right: 1px solid var(--tc-border-strong);
+  background: color-mix(in srgb, var(--tc-surface) 96%, var(--tc-bg));
+  box-shadow: none;
+  transform: translateX(0);
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -54,6 +64,10 @@
   background: none;
   color: var(--tc-text-muted);
   cursor: pointer;
+}
+
+.closeButtonPersistent {
+  display: none;
 }
 
 .menuScroll {
@@ -157,4 +171,56 @@
 .logoutAction {
   color: var(--tc-danger);
   font-weight: 600;
+}
+
+@media (min-width: 1024px) {
+  .header {
+    min-height: 56px;
+    padding: 0 var(--tc-space-5);
+  }
+
+  .title {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .menuScroll {
+    padding: var(--tc-space-3) var(--tc-space-2);
+  }
+
+  .groupTitle {
+    padding: var(--tc-space-4) var(--tc-space-3) var(--tc-space-1);
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  .menuItem {
+    min-height: 38px;
+    margin: 2px 0;
+    padding: 8px var(--tc-space-3);
+    border-left: 0;
+    border-radius: var(--tc-radius);
+    font-size: 13px;
+  }
+
+  .menuItemActive {
+    border-left-color: transparent;
+    background: color-mix(in srgb, var(--tc-primary) 11%, var(--tc-surface));
+    box-shadow: inset 3px 0 0 var(--tc-primary);
+  }
+
+  .divider {
+    margin: var(--tc-space-3) var(--tc-space-3) var(--tc-space-2);
+  }
+
+  .actions {
+    padding: var(--tc-space-3) var(--tc-space-2);
+  }
+
+  .actionButton {
+    min-height: 38px;
+    padding: 8px var(--tc-space-3);
+    border-radius: var(--tc-radius);
+    font-size: 13px;
+  }
 }

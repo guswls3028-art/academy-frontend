@@ -28,13 +28,6 @@
   font-weight: 700;
 }
 
-.description {
-  padding: 0 var(--tc-space-1);
-  color: var(--tc-text-muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .preview {
   height: 180px;
   overflow: hidden;

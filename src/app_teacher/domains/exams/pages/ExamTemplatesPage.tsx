@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
+import { InlineHelp } from "@/shared/ui/guide";
 import { ChevronLeft, FileText } from "@teacher/shared/ui/Icons";
 import { TabBar } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -41,6 +42,16 @@ export default function ExamTemplatesPage() {
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className={styles.title}>템플릿 관리</h1>
+        <InlineHelp
+          title="템플릿 관리 안내"
+          tone="teacher"
+          align="right"
+          ariaLabel="템플릿 관리 도움말"
+          iconSize={15}
+        >
+          <p>템플릿의 수정·생성은 강의 → 차시에서 진행합니다.</p>
+          <p>이 화면에서는 전체 템플릿과 적용 강의를 조회합니다.</p>
+        </InlineHelp>
       </div>
 
       <TabBar
@@ -51,10 +62,6 @@ export default function ExamTemplatesPage() {
         value={tab}
         onChange={setTab}
       />
-
-      <div className={styles.description}>
-        템플릿의 수정·생성은 <span className={styles.descriptionStrong}>강의 → 차시</span>에서 진행합니다. 이 페이지는 전체 템플릿과 적용 강의를 조회할 수 있습니다.
-      </div>
 
       {loading ? <EmptyState scope="panel" tone="loading" title="불러오는 중…" /> :
         items && items.length > 0 ? (

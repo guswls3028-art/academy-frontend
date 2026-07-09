@@ -138,3 +138,51 @@
   color: var(--tc-text-secondary);
   cursor: pointer;
 }
+
+@media (min-width: 1024px) {
+  .card,
+  .kpiCard,
+  .listItem {
+    border-color: var(--tc-border-strong);
+    border-radius: var(--tc-radius-xl);
+    box-shadow: none;
+  }
+
+  .card {
+    padding: var(--tc-space-5);
+  }
+
+  .sectionTitle {
+    padding-block: var(--tc-space-2);
+  }
+
+  .sectionHeading {
+    font-size: 15px;
+  }
+
+  .kpiCard {
+    min-height: 92px;
+    align-items: flex-start;
+    padding: var(--tc-space-4);
+  }
+
+  .kpiValue {
+    font-size: 24px;
+    line-height: 1.15;
+  }
+
+  .kpiLabel {
+    font-size: 12px;
+  }
+
+  .tabBar {
+    border-color: var(--tc-border-strong);
+    border-radius: var(--tc-radius);
+  }
+
+  .tabButton {
+    min-height: 38px;
+    padding: 0 var(--tc-space-4);
+    font-size: 13px;
+  }
+}

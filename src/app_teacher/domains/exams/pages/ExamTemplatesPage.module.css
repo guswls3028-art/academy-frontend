@@ -28,17 +28,6 @@
   font-weight: 700;
 }
 
-.description {
-  padding: 0 var(--tc-space-1);
-  color: var(--tc-text-muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.descriptionStrong {
-  font-weight: 600;
-}
-
 .templateList {
   display: flex;
   flex-direction: column;

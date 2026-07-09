@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
+import { InlineHelp } from "@/shared/ui/guide";
 import { ChevronLeft, RefreshCw } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -138,10 +139,16 @@ export default function ClinicRemoteControlPage() {
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className={styles.title}>클리닉 리모컨</h1>
-      </div>
-
-      <div className={styles.description}>
-        학생 클리닉 패스카드에 표시되는 3색 배경을 실시간으로 변경합니다. 2초마다 자동 갱신됩니다.
+        <InlineHelp
+          title="클리닉 리모컨 안내"
+          tone="teacher"
+          align="right"
+          ariaLabel="클리닉 리모컨 도움말"
+          iconSize={15}
+        >
+          <p>학생 클리닉 패스카드에 표시되는 3색 배경을 실시간으로 변경합니다.</p>
+          <p>학생 화면은 2초마다 자동으로 갱신됩니다.</p>
+        </InlineHelp>
       </div>
 
       {/* Live preview */}

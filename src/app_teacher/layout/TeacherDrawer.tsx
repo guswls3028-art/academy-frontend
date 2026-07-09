@@ -21,6 +21,7 @@ import styles from "./TeacherDrawer.module.css";
 interface Props {
   open: boolean;
   onClose: () => void;
+  persistent?: boolean;
 }
 
 /* PC 사이드바 4그룹 구조 */
@@ -36,7 +37,7 @@ type MenuGroup = {
   items: MenuItem[];
 };
 
-export default function TeacherDrawer({ open, onClose }: Props) {
+export default function TeacherDrawer({ open, onClose, persistent = false }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -115,17 +116,17 @@ export default function TeacherDrawer({ open, onClose }: Props) {
 
   // Body scroll lock
   useEffect(() => {
-    if (open) {
+    if (open && !persistent) {
       document.body.style.overflow = "hidden";
       return () => { document.body.style.overflow = ""; };
     }
-  }, [open]);
+  }, [open, persistent]);
 
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
 
-    if (open) {
+    if (open || persistent) {
       panel.inert = false;
       panel.removeAttribute("inert");
     } else {
@@ -135,7 +136,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
       panel.inert = true;
       panel.setAttribute("inert", "");
     }
-  }, [open]);
+  }, [open, persistent]);
 
   const handleNav = (path: string) => {
     onClose();
@@ -167,17 +168,21 @@ export default function TeacherDrawer({ open, onClose }: Props) {
   return (
     <>
       {/* Backdrop */}
-      {open && (
+      {open && !persistent && (
         <div onClick={onClose} className={styles.backdrop} />
       )}
 
       {/* Drawer panel — PC 사이드바 스타일 */}
       <div
         ref={panelRef}
-        className={open ? `${styles.panel} ${styles.panelOpen}` : styles.panel}
+        className={[
+          styles.panel,
+          open ? styles.panelOpen : "",
+          persistent ? styles.panelPersistent : "",
+        ].filter(Boolean).join(" ")}
         role="navigation"
         aria-label="선생님 메뉴"
-        aria-hidden={!open}
+        aria-hidden={!open && !persistent}
       >
         {/* Header — 사이드바 로고 영역 대응 */}
         <div className={styles.header}>
@@ -185,7 +190,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className={styles.closeButton}
+            className={persistent ? `${styles.closeButton} ${styles.closeButtonPersistent}` : styles.closeButton}
             aria-label="닫기"
           >
             <X size={ICON.md} />
@@ -241,7 +246,7 @@ export default function TeacherDrawer({ open, onClose }: Props) {
             className={`${styles.actionButton} ${styles.primaryAction}`}
           >
             <Monitor size={ICON.md} />
-            데스크톱 버전
+            관리자 화면
           </button>
 
           {/* Bug report */}

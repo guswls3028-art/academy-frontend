@@ -55,6 +55,7 @@
   --tc-header-h: 52px;
   --tc-tabbar-h: 56px;
   --tc-page-max-w: 100%;
+  --tc-sidebar-w: 284px;
   --tc-safe-top: env(safe-area-inset-top, 0px);
   --tc-safe-bottom: env(safe-area-inset-bottom, 0px);
 
@@ -94,4 +95,20 @@
 
   /* ===== Touch ===== */
   --tc-touch-min: 44px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --tc-bg: color-mix(in srgb, var(--color-bg-surface, #f8fafc) 86%, #eef2f7);
+    --tc-header-h: 60px;
+    --tc-tabbar-h: 0px;
+    --tc-page-max-w: 1180px;
+    --tc-space-3: 14px;
+    --tc-space-4: 18px;
+    --tc-space-5: 22px;
+    --tc-space-6: 28px;
+    --tc-radius-lg: 8px;
+    --tc-radius-xl: 8px;
+    --tc-touch-min: 40px;
+  }
 }
