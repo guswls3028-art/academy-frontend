@@ -5,6 +5,7 @@
  */
 import { type ReactNode, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { InlineHelp } from "@/shared/ui/guide";
 
 export type DomainTab = {
   key: string;
@@ -15,6 +16,9 @@ type DomainTabShellProps = {
   title: string;
   eyebrow?: string;
   description?: string;
+  descriptionMode?: "help" | "visible";
+  help?: ReactNode;
+  helpTitle?: ReactNode;
   icon?: ReactNode;
   variant?: "default" | "plain";
   tabs: DomainTab[];
@@ -30,6 +34,9 @@ export default function DomainTabShell({
   title,
   eyebrow,
   description,
+  descriptionMode = "help",
+  help,
+  helpTitle,
   icon,
   variant = "default",
   tabs,
@@ -43,6 +50,8 @@ export default function DomainTabShell({
   const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label ?? tabs[0]?.label ?? "";
   const fallbackInitial = title.trim().slice(0, 1) || "?";
   const showMark = variant !== "plain" || icon != null;
+  const helpContent = help ?? (descriptionMode === "help" ? description : null);
+  const showVisibleDescription = Boolean(description && descriptionMode === "visible");
 
   // ?tab= searchParam → 초기 탭 동기화
   useEffect(() => {
@@ -85,8 +94,21 @@ export default function DomainTabShell({
 
         <div className="domain-tab-shell__copy">
           {eyebrow && <div className="domain-tab-shell__eyebrow">{eyebrow}</div>}
-          <h1 className="domain-tab-shell__title">{title}</h1>
-          {description && <p className="domain-tab-shell__description">{description}</p>}
+          <div className="domain-tab-shell__title-line">
+            <h1 className="domain-tab-shell__title">{title}</h1>
+            {helpContent && (
+              <InlineHelp
+                title={helpTitle ?? `${title} 안내`}
+                tone="student"
+                align="left"
+                ariaLabel={`${title} 도움말`}
+                className="domain-tab-shell__help"
+              >
+                {typeof helpContent === "string" ? <p>{helpContent}</p> : helpContent}
+              </InlineHelp>
+            )}
+          </div>
+          {showVisibleDescription && <p className="domain-tab-shell__description">{description}</p>}
         </div>
 
         {actions && <div className="domain-tab-shell__actions">{actions}</div>}

@@ -227,6 +227,13 @@ html:has([data-app="student"]) {
   margin-bottom: var(--stu-space-3);
 }
 
+.student-page-shell__title-line {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--stu-space-2);
+}
+
 .student-page-shell__title {
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
@@ -244,6 +251,10 @@ html:has([data-app="student"]) {
   margin-top: 6px;
   border-radius: 999px;
   background: var(--stu-primary);
+}
+
+.student-page-shell__help {
+  margin-top: 0;
 }
 
 .student-page-shell__description {
@@ -1204,7 +1215,7 @@ button.media-tile--course {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.64) inset,
     0 8px 20px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .domain-tab-shell__header::after {
@@ -1255,6 +1266,17 @@ button.media-tile--course {
   line-height: 1.22;
   font-weight: 900;
   letter-spacing: 0;
+}
+
+.domain-tab-shell__title-line {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--stu-space-2);
+}
+
+.domain-tab-shell__help {
+  margin-top: 0;
 }
 
 .domain-tab-shell__description {

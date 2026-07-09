@@ -88,7 +88,7 @@ export default function AttendancePage() {
   const hasAny = summary.total > 0;
 
   return (
-    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다.">
+    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다." descriptionMode="help">
       {!hasAny ? (
         <EmptyState
           title="출결 기록이 없습니다"

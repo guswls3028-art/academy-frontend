@@ -142,6 +142,7 @@ export default function SubmitAssignmentPage() {
     <StudentPageShell
       title="과제 제출"
       description="미완료 과제는 파일로, 시험은 온라인 답안으로 제출하세요."
+      descriptionMode="help"
       onBack={() => window.history.back()}
     >
       <div className={`stu-section stu-section--nested ${styles.section}`}>

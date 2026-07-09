@@ -216,7 +216,7 @@ export default function SessionListPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="일정" description="내 차시 일정">
+      <StudentPageShell title="일정" description="내 차시 일정" descriptionMode="help">
         <div className="stu-skel" style={{ height: 48, borderRadius: "var(--stu-radius-md)", marginBottom: 8 }} />
         <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-md)", marginBottom: 8 }} />
         <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-md)" }} />
@@ -250,6 +250,7 @@ export default function SessionListPage() {
     <StudentPageShell
       title="일정"
       description="날짜를 누르면 해당 날의 일정을 볼 수 있어요."
+      descriptionMode="help"
       actions={clearPastButton}
     >
       <div className={styles.pageStack}>

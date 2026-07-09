@@ -3,10 +3,14 @@
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconChevronRight } from "../icons/Icons";
+import { InlineHelp } from "@/shared/ui/guide";
 
 export default function StudentPageShell({
   title,
   description,
+  descriptionMode = "visible",
+  help,
+  helpTitle,
   actions,
   children,
   onBack,
@@ -15,13 +19,18 @@ export default function StudentPageShell({
 }: {
   title: string;
   description?: string;
+  descriptionMode?: "visible" | "help";
+  help?: ReactNode;
+  helpTitle?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   onBack?: () => void;
   noSectionFrame?: boolean;
 }) {
   const navigate = useNavigate();
-  const hasHeader = Boolean(title || description || actions || onBack);
+  const helpContent = help ?? (descriptionMode === "help" ? description : null);
+  const showVisibleDescription = Boolean(description && descriptionMode === "visible");
+  const hasHeader = Boolean(title || description || help || actions || onBack);
 
   const handleBack = () => {
     if (onBack) {
@@ -46,8 +55,23 @@ export default function StudentPageShell({
                 <span>뒤로</span>
               </button>
             )}
-            {title && <h1 className="student-page-shell__title">{title}</h1>}
-            {description && (
+            {title && (
+              <div className="student-page-shell__title-line">
+                <h1 className="student-page-shell__title">{title}</h1>
+                {helpContent && (
+                  <InlineHelp
+                    title={helpTitle ?? `${title} 안내`}
+                    tone="student"
+                    align="left"
+                    ariaLabel={`${title} 도움말`}
+                    className="student-page-shell__help"
+                  >
+                    {typeof helpContent === "string" ? <p>{helpContent}</p> : helpContent}
+                  </InlineHelp>
+                )}
+              </div>
+            )}
+            {showVisibleDescription && (
               <p className="student-page-shell__description">
                 {description}
               </p>

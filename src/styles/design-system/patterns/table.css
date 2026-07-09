@@ -888,83 +888,15 @@ table.ds-table {
   box-shadow: none;
 }
 
-/* ── Score Edit Help Bar ── */
-.score-help-kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  font-size: 11px;
-  font-family: inherit;
-  line-height: 1.4;
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-bg-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 84%, transparent);
-  border-radius: 4px;
-  box-shadow: none;
+.scores-context-help {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 30px;
 }
 
-/* ── Score Edit Help Banner (편집 모드 진입 시 상단 안내) ──
- * 2026-05-13 SSOT 복구: 인라인 style {background, border, color} drift → 클래스로 단일화.
- * brand-primary 6% tint + 15% border + secondary text. accent dot = brand-primary. */
-.scores-edit-help-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
+.scores-context-help--edit {
   margin-bottom: var(--space-2);
-  border-radius: var(--radius-md);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface)) 0%, var(--color-bg-surface) 72%);
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 86%, var(--color-brand-primary) 8%);
-  color: var(--color-text-secondary);
-  font-size: var(--text-meta, 12px);
-}
-.scores-edit-help-banner__accent {
-  color: var(--color-text-primary);
-  font-weight: 750;
-}
-.scores-edit-help-banner__sep {
-  color: var(--color-border-divider);
-  user-select: none;
-}
-.scores-edit-help-banner__muted {
-  color: var(--color-text-muted);
-}
-
-/* ── Score Read-mode Help Strip (학생 행 클릭 ⓵⓶⓷⓸ 안내) ──
- * 2026-05-13 SSOT 복구: SessionScoresPanel.tsx 인라인 색·텍스트 색 → 클래스 단일화. */
-.scores-read-help-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-3);
-  padding: 7px var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 86%, transparent);
-  background: color-mix(in srgb, var(--color-text-primary) 2.2%, var(--color-bg-surface));
-  color: var(--color-text-secondary);
-  font-size: var(--text-meta, 12px);
-}
-.scores-read-help-strip__key {
-  color: var(--color-text-primary);
-  font-weight: 650;
-}
-.scores-read-help-strip__sep {
-  color: var(--color-border-divider);
-  user-select: none;
-}
-.scores-read-help-strip__close {
-  margin-left: auto;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
-}
-.scores-read-help-strip__close:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-surface-hover);
 }
 
 /* ═══ 차수별 편집 셀 UI (편집모드) ═══ */

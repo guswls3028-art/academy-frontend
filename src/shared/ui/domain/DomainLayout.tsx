@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 import DomainTabs, { type DomainTab } from "./DomainTabs";
 import DomainPanel from "./DomainPanel";
+import { InlineHelp } from "@/shared/ui/guide";
 import "./DomainLayout.css";
 
 export type { DomainTab } from "./DomainTabs";
@@ -16,6 +17,11 @@ export type DomainCrumb = { label: string; to?: string };
 type DomainLayoutProps = {
   title: string;
   description?: string;
+  /** 상시 사용 안내는 기본적으로 제목 옆 ? 팝업으로 접는다. 데이터 맥락/오류는 visible 사용. */
+  descriptionMode?: "help" | "visible";
+  /** description 외에 별도 도움말 본문이 필요할 때 사용 */
+  help?: ReactNode;
+  helpTitle?: ReactNode;
   /** 도메인 헤더 상단 브레드크럼 (예: 강의 › 박철의 생명과학) */
   breadcrumbs?: DomainCrumb[];
   tabs?: DomainTab[];
@@ -31,6 +37,9 @@ type DomainLayoutProps = {
 export default function DomainLayout({
   title,
   description,
+  descriptionMode,
+  help,
+  helpTitle,
   breadcrumbs,
   tabs,
   density = "default",
@@ -42,6 +51,11 @@ export default function DomainLayout({
   const location = useLocation();
   const isCompact = density === "compact";
   const hasTabs = tabs != null && tabs.length > 0;
+  const resolvedDescriptionMode =
+    descriptionMode ?? (breadcrumbs != null && breadcrumbs.length > 0 ? "visible" : "help");
+  const helpContent = help ?? (description != null && resolvedDescriptionMode === "help" ? description : null);
+  const showVisibleDescription = description != null && resolvedDescriptionMode === "visible";
+  const resolvedHelpTitle = helpTitle ?? `${title} 안내`;
 
   return (
     <div
@@ -61,37 +75,54 @@ export default function DomainLayout({
           <div className="domain-layout__title-area">
             <div className="domain-layout__accent" aria-hidden />
             <div className="domain-layout__title-stack">
-              {breadcrumbs != null && breadcrumbs.length > 0 ? (
-                <div className="domain-layout__breadcrumbs">
-                  {breadcrumbs.map((c, idx) => (
-                    <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
-                      {c.to ? (
-                        <span
-                          className="domain-layout__breadcrumb-link"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigate(c.to!)}
-                          onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
-                        >
-                          {c.label}
-                        </span>
-                      ) : (
-                        <span>{c.label}</span>
-                      )}
-                      {idx < breadcrumbs.length - 1 && (
-                        <span className="domain-layout__breadcrumb-separator">
-                          ›
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="domain-layout__title">
-                  {title}
-                </div>
-              )}
-              {description != null && (
+              <div className="domain-layout__heading-line">
+                {breadcrumbs != null && breadcrumbs.length > 0 ? (
+                  <div className="domain-layout__breadcrumbs">
+                    {breadcrumbs.map((c, idx) => (
+                      <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
+                        {c.to ? (
+                          <span
+                            className="domain-layout__breadcrumb-link"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => navigate(c.to!)}
+                            onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
+                          >
+                            {c.label}
+                          </span>
+                        ) : (
+                          <span>{c.label}</span>
+                        )}
+                        {idx < breadcrumbs.length - 1 && (
+                          <span className="domain-layout__breadcrumb-separator">
+                            ›
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="domain-layout__title">
+                    {title}
+                  </div>
+                )}
+                {helpContent != null && (
+                  <InlineHelp
+                    title={resolvedHelpTitle}
+                    tone="admin"
+                    align="left"
+                    ariaLabel={`${title} 도움말`}
+                    className="domain-layout__help"
+                  >
+                    {typeof helpContent === "string" ? (
+                      <p>{helpContent}</p>
+                    ) : (
+                      helpContent
+                    )}
+                  </InlineHelp>
+                )}
+              </div>
+              {showVisibleDescription && (
                 <div className="domain-layout__description">
                   {description}
                 </div>

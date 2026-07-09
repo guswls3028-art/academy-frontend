@@ -31,6 +31,7 @@ import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domai
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { InlineHelp } from "@/shared/ui/guide";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
@@ -576,22 +577,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   return (
     <div>
-      {/* 편집 모드 안내 배너 — SSOT 클래스(2026-05-13 3차).
-          인라인 style + raw text-xs 제거. table.css 의 .scores-edit-help-banner 단일 소스. */}
       {isEditMode && (
-        <div className="scores-edit-help-banner" role="note">
-          <span className="scores-edit-help-banner__accent">편집 모드</span>
-          <span className="scores-edit-help-banner__sep">|</span>
-          <span>점수 입력 후 <kbd className="score-help-kbd">Enter</kbd> 다음 셀</span>
-          <span className="scores-edit-help-banner__sep">·</span>
-          <span>
-            <kbd className="score-help-kbd">/</kbd> 입력 후 <kbd className="score-help-kbd">Enter</kbd>
-            <span className="scores-edit-help-banner__muted"> = 미응시/미제출 처리</span>
-          </span>
-          <span className="scores-edit-help-banner__sep">·</span>
-          <span className="scores-edit-help-banner__muted">
-            <kbd className="score-help-kbd">Tab</kbd> 다음 셀 <kbd className="score-help-kbd">Esc</kbd> 취소 · 상단 저장하기로 반영
-          </span>
+        <div className="scores-context-help scores-context-help--edit">
+          <InlineHelp title="편집 모드 안내" ariaLabel="편집 모드 도움말" tone="admin" align="left">
+            <ul>
+              <li>점수 입력 후 <kbd>Enter</kbd>를 누르면 다음 셀로 이동합니다.</li>
+              <li><kbd>/</kbd> 입력 후 <kbd>Enter</kbd>를 누르면 미응시/미제출로 처리합니다.</li>
+              <li><kbd>Tab</kbd>은 다음 셀, <kbd>Esc</kbd>는 현재 입력 취소입니다.</li>
+              <li>변경 내용은 상단 저장하기 버튼을 눌러 반영합니다.</li>
+            </ul>
+          </InlineHelp>
         </div>
       )}
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.

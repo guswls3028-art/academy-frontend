@@ -97,6 +97,13 @@ app_{name}/domains/{domain-name}/
   - `@dev/` = `src/app_dev/` — 개발자앱: `@dev/domains/agent/...`
   - `@promo/` = `src/app_promo/` — 프로모앱: `@promo/domains/landing/...`
 
+## UI 안내 문구
+
+- 항상 보이는 페이지/섹션 사용법, 조작 팁, 워크플로우 설명은 `@/shared/ui/guide`의 `InlineHelp`를 제목이나 해당 컨트롤 근처 `?` 버튼으로 배치한다.
+- 공통 레이아웃의 `description`은 기본적으로 도움말로 접는다. 관리자 도메인은 `DomainLayout`, 학생 화면은 `StudentPageShell`/`DomainTabShell`, 대시보드 섹션은 `DashboardWidget`의 `descriptionMode`를 우선 사용한다.
+- 상태 자체를 설명하는 문구는 계속 화면에 노출한다. 예: 오류, 빈 상태, 권한 차단, 로딩, 저장 전 확인, 위험/차단 경고, 현재 선택된 학생·강의·차시 같은 동적 컨텍스트.
+- 긴 안내 배너나 닫기 가능한 localStorage 기반 팁을 새로 만들지 않는다. 필요한 경우 같은 내용을 `InlineHelp` 본문으로 옮기고 E2E에서 버튼과 팝업을 검증한다.
+
 ## 확장자
 
 - `.tsx` — JSX를 포함하는 파일 (컴포넌트, 페이지)

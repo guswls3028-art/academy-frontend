@@ -71,6 +71,18 @@ test.describe("성적 탭 UX 개선 검증", () => {
     expect(await omrButton.locator("svg").count()).toBeGreaterThanOrEqual(1);
     console.log("[OMR] 상단 주 동선 버튼 확인됨");
 
+    await expect(page.locator(".scores-read-help-strip")).toHaveCount(0);
+    const readHelpButton = page.getByRole("button", { name: "성적표 도움말" });
+    await expect(readHelpButton).toBeVisible({ timeout: 5000 });
+    await readHelpButton.click();
+    const readHelpDialog = page.getByRole("dialog", { name: "성적표 보기 안내" });
+    await expect(readHelpDialog).toBeVisible({ timeout: 5000 });
+    await expect(readHelpDialog).toContainText("학생 행");
+    await expect(readHelpDialog).toContainText("커트라인");
+    await page.keyboard.press("Escape");
+    await expect(readHelpDialog).toBeHidden({ timeout: 3000 });
+    console.log("[도움말] 성적표 보기 안내 팝업 확인됨");
+
     // "수강생 일괄배정"은 초보 사용자 화면을 덜 복잡하게 하기 위해 더보기 안으로 이동.
     const enrollBtn = page.locator("button").filter({ hasText: "수강생 일괄배정" });
     await expect(enrollBtn).toHaveCount(0);
@@ -129,15 +141,21 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(editBtn).toBeVisible({ timeout: 5000 });
     await editBtn.click();
 
-    // 키보드 힌트: 현재 note 영역에 Enter/Tab/Esc 조작 안내가 표시된다.
-    const hint = page.getByRole("note").filter({ hasText: "편집 모드" });
+    // 키보드 힌트: 편집 모드에서는 긴 안내 배너 대신 도움말 팝업으로 제공된다.
+    await expect(page.locator(".scores-edit-help-banner")).toHaveCount(0);
+    const editHelpButton = page.getByRole("button", { name: "편집 모드 도움말" });
+    await expect(editHelpButton).toBeVisible({ timeout: 5000 });
+    await editHelpButton.click();
+    const hint = page.getByRole("dialog", { name: "편집 모드 안내" });
     await expect(hint).toBeVisible({ timeout: 5000 });
     await expect(hint).toContainText("Enter");
     await expect(hint).toContainText("Tab");
     await expect(hint).toContainText("Esc");
-    await expect(hint).toContainText("상단 저장하기로 반영");
+    await expect(hint).toContainText("저장하기");
     await snap(page, "02-edit-mode");
-    console.log("[키보드 힌트] 표시 확인됨");
+    await page.keyboard.press("Escape");
+    await expect(hint).toBeHidden({ timeout: 3000 });
+    console.log("[키보드 힌트] 도움말 팝업 확인됨");
 
     const firstStudentCheckbox = page.locator('input[type="checkbox"][aria-label]:not([aria-label="전체 선택"])').first();
     await firstStudentCheckbox.check({ force: true });
@@ -167,8 +185,8 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const saveBtn = page.locator("button").filter({ hasText: "저장하기" }).first();
     await expect(saveBtn).toBeVisible({ timeout: 3000 });
     await saveBtn.click();
-    await expect(hint).toBeHidden({ timeout: 10_000 });
-    console.log("[키보드 힌트] 종료 후 숨김 확인됨");
+    await expect(editHelpButton).toBeHidden({ timeout: 10_000 });
+    console.log("[키보드 힌트] 편집 종료 후 도움말 버튼 숨김 확인됨");
   });
 
   /**

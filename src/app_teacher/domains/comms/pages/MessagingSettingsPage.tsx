@@ -17,6 +17,7 @@ import {
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { useConfirm } from "@/shared/ui/confirm";
+import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import styles from "./MessagingSettingsPage.module.css";
 
@@ -434,13 +435,23 @@ function SectionHeader({ icon, title, desc, badge }: { icon: React.ReactNode; ti
       <div className="flex items-center gap-1.5">
         <span className={styles.sectionIcon}>{icon}</span>
         <span className={`${styles.sectionTitle} text-[14px] font-bold`}>{title}</span>
+        {desc && (
+          <InlineHelp
+            title={`${title} 안내`}
+            ariaLabel={`${title} 도움말`}
+            tone="teacher"
+            align="left"
+            iconSize={14}
+          >
+            <p>{desc}</p>
+          </InlineHelp>
+        )}
         {badge && (
           <span className={`${styles.sectionBadge} text-[10px] font-semibold`}>
             {badge}
           </span>
         )}
       </div>
-      {desc && <p className={`${styles.sectionDesc} text-[11px] mt-1 m-0`}>{desc}</p>}
     </div>
   );
 }

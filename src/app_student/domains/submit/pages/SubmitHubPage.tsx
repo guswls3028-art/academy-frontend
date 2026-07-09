@@ -38,6 +38,7 @@ export default function SubmitHubPage() {
     <StudentPageShell
       title="제출"
       description="성적표 또는 과제(동영상·사진)를 제출하면 선생님 인벤토리에 저장됩니다."
+      descriptionMode="help"
     >
       <div className={styles.stack}>
         {submitLinks.map(({ to, title, description, badge, tone, Icon }) => (

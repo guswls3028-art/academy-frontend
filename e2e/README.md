@@ -53,6 +53,16 @@ E2E_BASE_URL=http://127.0.0.1:5174 pnpm exec playwright test e2e/stability/all-m
 실사용 데이터 보호를 위해 저장/삭제/발송/결제/업로드/승인/로그아웃 등 mutation 또는 외부 부작용 버튼은
 감사 리포트에 skip reason 으로 기록하고 클릭하지 않는다. 안전한 조회/필터/탭/메뉴/상세/닫기/취소 계열은 실제 클릭한다.
 
+### 컨텍스트 도움말 감사
+
+`flows/contextual-inline-help.spec.ts` 는 페이지/섹션 사용법 문구가 화면에 긴 설명으로 상시 노출되지 않고,
+제목 근처 `?` 도움말 버튼으로 열리는지 확인한다. 대표 관리자/학생 화면을 Tenant 1 데이터로 열고,
+`InlineHelp` dialog 접근성 이름과 본문을 함께 검증한다.
+
+```sh
+pnpm exec playwright test e2e/flows/contextual-inline-help.spec.ts --project=chromium --reporter=list --retries=0
+```
+
 ### Fixture 기반 파괴/상태변경 버튼 감사
 
 `stability/destructive-fixture-button-audit.spec.ts` 는 전 메뉴 클릭 감사에서 의도적으로 제외한 저장/삭제/발송/업로드/승인/로그아웃 계열을

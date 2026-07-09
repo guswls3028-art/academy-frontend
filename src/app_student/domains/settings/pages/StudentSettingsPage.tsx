@@ -48,7 +48,7 @@ export default function StudentSettingsPage() {
   const { mode, setMode } = useStudentTheme();
 
   return (
-    <StudentPageShell title="설정" description="계정 및 앱 설정">
+    <StudentPageShell title="설정" description="계정 및 앱 설정" descriptionMode="help">
       <div className="student-settings-stack">
         {/* 내 정보 */}
         <Link to="/student/profile" className="student-settings-link">

@@ -3,6 +3,7 @@ export { GuideTourProvider } from "./GuideTourContext";
 export { useGuideTour } from "./useGuideTour";
 export { GuideTourOverlay } from "./GuideTourOverlay";
 export { GuideBookLauncher } from "./GuideBookLauncher";
+export { InlineHelp } from "./InlineHelp";
 export { getGuideBookPreset } from "./GuideBookPresets";
 export type {
   GuideBookItem,

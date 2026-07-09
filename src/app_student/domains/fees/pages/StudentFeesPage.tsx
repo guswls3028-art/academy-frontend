@@ -82,7 +82,7 @@ export default function StudentFeesPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역" descriptionMode="help">
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.loadingCard}`} />
           <div className={`stu-skel ${styles.loadingTitle}`} />
@@ -95,7 +95,7 @@ export default function StudentFeesPage() {
 
   if (isError) {
     return (
-      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+      <StudentPageShell title="수납/결제" description="청구서 및 납부 내역" descriptionMode="help">
         <EmptyState
           title="청구서를 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 다시 시도해 주세요."
@@ -106,7 +106,7 @@ export default function StudentFeesPage() {
   }
 
   return (
-    <StudentPageShell title="수납/결제" description="청구서 및 납부 내역">
+    <StudentPageShell title="수납/결제" description="청구서 및 납부 내역" descriptionMode="help">
       <div className={styles.pageStack}>
         {/* Current Month Card */}
         {current && (

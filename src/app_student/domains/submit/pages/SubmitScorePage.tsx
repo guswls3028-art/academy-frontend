@@ -110,6 +110,7 @@ export default function SubmitScorePage() {
     <StudentPageShell
       title="성적표 제출"
       description="성적표 이미지 또는 PDF를 올리면 인벤토리에 저장됩니다."
+      descriptionMode="help"
       onBack={() => window.history.back()}
     >
       <div className={`stu-section stu-section--nested ${styles.sectionStack}`}>

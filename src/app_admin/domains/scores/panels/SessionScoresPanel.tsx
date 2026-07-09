@@ -19,10 +19,9 @@ import StudentResultDrawer from "@admin/domains/results/components/StudentResult
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { InlineHelp } from "@/shared/ui/guide";
 import { reorderSession } from "../api/reorderSession";
 
-/** P0-5 (2026-05-13): 도움 안내 카드 dismiss 키. 학원장(브라우저)별 영속. */
-const HELP_DISMISS_KEY = "scores-tab-help-dismissed-v1";
 const HANGUL_SYLLABLE_START = 0xac00;
 const HANGUL_SYLLABLE_END = 0xd7a3;
 const HANGUL_INITIALS = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
@@ -112,17 +111,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
-  /** 도움 안내 dismiss 상태 (localStorage 영속).
-   *  2026-05-13: default 를 dismissed(=collapsed) 로 변경 — 매번 strip 노출하던 시각 노이즈 해소.
-   *  학원장이 "? 도움말" 버튼 클릭하면 펼쳐짐. 이전 "0" 또는 unset 인 사용자도 collapsed 시작. */
-  const [helpDismissed, setHelpDismissed] = useState<boolean>(() => {
-    try {
-      const v = localStorage.getItem(HELP_DISMISS_KEY);
-      // "1" 명시 dismiss / "0" 명시 expanded / null = default-dismissed
-      return v !== "0";
-    } catch { return true; }
-  });
-
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
@@ -431,49 +419,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 도움 안내 — 읽기 모드 only, dismissible.
-          P0-5 (2026-05-13): 매번 노출되던 ⓵⓶⓷⓸ 카드를 localStorage dismiss로 전환.
-          한 번 보고 닫으면 같은 학원장 (브라우저)에서는 ?로 다시 펼치기 전까진 안 보임.
-          편집 모드 안내는 ScoresTable 의 단일 안내로 통합 (P0-4). */}
-      {!isEditMode && !helpDismissed && (
-        <div className="scores-read-help-strip" role="note">
-          <span className="scores-read-help-strip__key">⓵ 학생 행 클릭</span>
-          <span>→ 상세 드로어</span>
-          <span className="scores-read-help-strip__sep">|</span>
-          <span className="scores-read-help-strip__key">⓶ 시험명 옆 ⚙</span>
-          <span>→ 만점/커트라인 수정</span>
-          <span className="scores-read-help-strip__sep">|</span>
-          <span className="scores-read-help-strip__key">⓷ 헤더 드래그</span>
-          <span>→ 컬럼 순서 변경</span>
-          <span className="scores-read-help-strip__sep">|</span>
-          <span className="scores-read-help-strip__key">⓸ 회색 "-"</span>
-          <span>= 미등록 (수강생 일괄배정 필요)</span>
-          <button
-            type="button"
-            className="scores-read-help-strip__close"
-            onClick={() => {
-              try { localStorage.setItem(HELP_DISMISS_KEY, "1"); } catch { /* ignore */ }
-              setHelpDismissed(true);
-            }}
-            aria-label="도움말 닫기"
-            title="다시 안 보기"
-          >
-            ✕
-          </button>
+      {!isEditMode && (
+        <div className="scores-context-help">
+          <InlineHelp title="성적표 보기 안내" ariaLabel="성적표 도움말" tone="admin" align="left">
+            <ul>
+              <li>학생 행을 누르면 상세 드로어가 열립니다.</li>
+              <li>시험명 옆 설정 아이콘에서 만점과 커트라인을 수정합니다.</li>
+              <li>헤더를 드래그해 시험과 과제 컬럼 순서를 바꿉니다.</li>
+              <li>회색 "-"는 아직 시험·과제가 배정되지 않은 상태입니다.</li>
+            </ul>
+          </InlineHelp>
         </div>
-      )}
-      {!isEditMode && helpDismissed && (
-        <button
-          type="button"
-          className="self-start text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-surface-hover)]"
-          onClick={() => {
-            try { localStorage.setItem(HELP_DISMISS_KEY, "0"); } catch { /* ignore */ }
-            setHelpDismissed(false);
-          }}
-          title="도움말 보기"
-        >
-          ? 도움말
-        </button>
       )}
       <div
         tabIndex={0}
