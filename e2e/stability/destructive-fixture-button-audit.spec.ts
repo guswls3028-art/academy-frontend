@@ -218,8 +218,7 @@ async function createStudentApi(
     grade: 1,
     gender: "M",
     initial_password: ORIGINAL_PW,
-    send_welcome_message: false,
-    memo: `${RUN} fixture student. External welcome notification disabled.`,
+    memo: `${RUN} fixture student. Account notice follows the mandatory delivery path.`,
   });
   created.studentIds.add(Number(student.id));
   return student;

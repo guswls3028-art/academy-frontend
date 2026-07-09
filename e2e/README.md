@@ -114,6 +114,16 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 | `E2E_TEST_*` | 0317테스트학생 시리즈 | TEST_RECIPIENT (test-fixtures.ts) |
 | `E2E_CLINIC_STUDENT_ID` | (동적 fallback) | 12번 자동 setup 학생 |
 | `E2E_STRICT` | `report` (.env.e2e) / `strict` (quality-gate) | strictTest 모드 |
+| `E2E_REAL_ALIMTALK_CONTROLLED_PHONE` | `01031217466` | 실발송 canary 표시용. 운영 계정 안내 가드는 항상 `01031217466`만 허용 |
+
+## 계정 안내 알림톡 안전 가드
+
+학생 생성/비밀번호 변경의 계정 안내 알림톡은 제품 정책상 필수 발송이다. E2E에서 `send_welcome_message=false`나
+`skip_notify=true`로 발송을 끄는 방식은 더 이상 유효하지 않다.
+
+`fixtures/strictTest.ts`와 `helpers/api.ts`는 운영 API(`api.hakwonplus.com`) 대상의 학생 생성, 학생 계정 수정,
+비밀번호 변경 요청을 검사한다. 통제 번호 `01031217466` 외의 `parent_phone`/`phone`/`student_phone`으로 계정 안내가
+나갈 수 있으면 spec을 즉시 실패시킨다. 운영 fixture를 새로 만들 때는 통제 번호를 쓰거나 로컬/preview API에서 실행한다.
 
 ## strictTest 모드
 

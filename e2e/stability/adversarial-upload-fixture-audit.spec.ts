@@ -178,7 +178,6 @@ async function createStudentApi(
     grade: 1,
     gender: "M",
     initial_password: ORIGINAL_PW,
-    send_welcome_message: false,
     memo: `${RUN} adversarial fixture`,
   });
   created.studentIds.add(Number(student.id));

@@ -161,8 +161,7 @@ async function createStudent(
     school_type: "HIGH",
     grade: 1,
     initial_password: STUDENT_PASS,
-    send_welcome_message: false,
-    memo: "E2E score report canary. 알림톡 발송 없이 학생 성적 리포트 실사용 검증용.",
+    memo: "E2E score report canary. 계정 안내 필수 발송 정책과 함께 학생 성적 리포트 실사용 검증용.",
   });
   return Number(student.id);
 }

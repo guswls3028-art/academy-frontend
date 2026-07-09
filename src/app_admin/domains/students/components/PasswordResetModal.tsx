@@ -1,8 +1,7 @@
 // PATH: src/app_admin/domains/students/components/PasswordResetModal.tsx
-// 선택한 학생에게 임시 비밀번호 일괄 설정 (학생/학부모/둘 다 + 알림톡 발송 토글)
+// 선택한 학생에게 임시 비밀번호 일괄 설정 (학생/학부모/둘 다)
 
 import { useState, useEffect } from "react";
-import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
 import type { ClientStudent } from "../api/students.api";
 import { sendPasswordReset } from "../api/students.api";
@@ -31,19 +30,11 @@ function normalizePhone(v: string | null | undefined): string {
   return d.length === 11 && d.startsWith("010") ? d : d.length === 10 && d.startsWith("10") ? "0" + d : d;
 }
 
-/* ── 알림톡 발송 토글 (StudentCreateModal과 동일 디자인) ── */
+/* ── 알림톡 발송 고정 안내 ── */
 
-function NotifyToggle({
-  checked,
-  onChange,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled: boolean;
-}) {
+function NotifyNotice() {
   return (
-    <div className={`${styles.notifyToggle} ${checked ? styles.notifyToggleChecked : ""}`}>
+    <div className={`${styles.notifyToggle} ${styles.notifyToggleChecked}`}>
       <div className={styles.notifyIcon}>
         <FiMessageSquare size={15} aria-hidden />
       </div>
@@ -52,17 +43,9 @@ function NotifyToggle({
           임시 비밀번호 알림톡 발송
         </span>
         <div className={styles.notifyDescription}>
-          {checked
-            ? "변경된 비밀번호를 학생·학부모에게 알림톡으로 보냅니다"
-            : "켜면 임시 비밀번호를 알림톡으로 발송합니다"}
+          변경된 비밀번호 안내는 계정 보호를 위해 자동 발송됩니다.
         </div>
       </div>
-      <Switch
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        size="small"
-      />
     </div>
   );
 }
@@ -78,13 +61,11 @@ export default function PasswordResetModal({
   setResetting,
 }: PasswordResetModalProps) {
   const [tempPassword, setTempPassword] = useState("");
-  const [sendNotify, setSendNotify] = useState(true);
 
   // 모달 열릴 때 상태 초기화
   useEffect(() => {
     if (open) {
       setTempPassword("");
-      setSendNotify(true);
     }
   }, [open]);
 
@@ -92,10 +73,6 @@ export default function PasswordResetModal({
     const password = tempPassword.trim();
     if (selectedStudents.length === 0) {
       feedback.info("선택한 학생이 없습니다.");
-      return;
-    }
-    if (!sendNotify && !password) {
-      feedback.error("알림톡을 보내지 않으려면 임시 비밀번호를 직접 입력해 주세요.");
       return;
     }
     setResetting(true);
@@ -123,7 +100,6 @@ export default function PasswordResetModal({
                 ...(s.psNumber?.trim() ? { student_ps_number: s.psNumber.trim() } : {}),
                 ...(studentPhone.length === 11 ? { student_phone: studentPhone } : {}),
                 ...(password ? { temp_password: password } : {}),
-                ...(!sendNotify ? { skip_notify: true } : {}),
               });
             } else {
               const phone = normalizePhone(s.parentPhone);
@@ -137,7 +113,6 @@ export default function PasswordResetModal({
                 student_name: s.name,
                 parent_phone: phone,
                 ...(password ? { temp_password: password } : {}),
-                ...(!sendNotify ? { skip_notify: true } : {}),
               });
             }
             ok++;
@@ -148,8 +123,7 @@ export default function PasswordResetModal({
         }
       }
       if (ok > 0) {
-        const notifyMsg = sendNotify ? " 알림톡이 발송됩니다." : "";
-        feedback.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}).${notifyMsg}`);
+        feedback.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}). 알림톡이 발송됩니다.`);
       }
       if (fail > 0 && ok === 0) {
         feedback.error(`변경 실패: ${failNames.join(", ")}`);
@@ -219,8 +193,8 @@ export default function PasswordResetModal({
             </p>
           </div>
 
-          {/* 알림톡 발송 토글 */}
-          <NotifyToggle checked={sendNotify} onChange={setSendNotify} disabled={resetting} />
+          {/* 알림톡 발송 안내 */}
+          <NotifyNotice />
         </div>
       </ModalBody>
       <ModalFooter

@@ -163,7 +163,7 @@ test.describe("DNB 학생앱 전체 E2E", () => {
           useExistingStudent = true;
           console.log(`Using existing student: ${existingStudent.name} (${createdPsNumber})`);
 
-          // Reset password via password_reset_send (admin + temp_password + skip_notify)
+          // Reset password via password_reset_send (admin + temp_password)
           const pwResetResp = await page.request.post(`${API}/api/v1/students/password_reset_send/`, {
             headers: apiHeaders(adminToken),
             data: {
@@ -171,7 +171,6 @@ test.describe("DNB 학생앱 전체 E2E", () => {
               student_name: existingStudent.name,
               student_ps_number: existingStudent.ps_number,
               temp_password: TEST_PASSWORD,
-              skip_notify: true,
             },
           });
           console.log(`Password reset via admin: ${pwResetResp.status()}`);

@@ -278,8 +278,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       school_type: "HIGH",
       grade: 1,
       initial_password: STUDENT_PASS,
-      send_welcome_message: false,
-      memo: "E2E OMR canary. 알림톡 발송 없이 OMR 업로드/검토 검증용.",
+      memo: "E2E OMR canary. 계정 안내 필수 발송 정책과 함께 OMR 업로드/검토 검증용.",
     });
     created.studentId = Number(student.id);
 

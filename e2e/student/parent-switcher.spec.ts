@@ -10,7 +10,8 @@
  *   2) 칩 클릭 → 활성 표시 전환 + 캐시 격리
  *   3) 풀페이지 스크린샷
  */
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -111,7 +112,6 @@ async function createStudent(request: APIRequestContext, adminAccess: string, st
       gender: suffix === "A" ? "M" : "F",
       high_school: "E2E High",
       memo: `[E2E-${stamp}] parent switcher fixture`,
-      send_welcome_message: false,
     },
     headers: {
       Authorization: `Bearer ${adminAccess}`,

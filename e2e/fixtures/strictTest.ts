@@ -3,10 +3,15 @@
  * 스펙 파일은 `@playwright/test` 대신 여기서 `test`, `expect` 를 import 할 것.
  */
 import { test as base, expect } from "@playwright/test";
+import { installAccountNotificationGuard } from "../helpers/accountNotificationSafety";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 
 export const test = base.extend({
+  request: async ({ request }, continueWithFixture) => {
+    await continueWithFixture(installAccountNotificationGuard(request));
+  },
   page: async ({ page }, continueWithFixture) => {
+    installAccountNotificationGuard(page.request);
     const strict = attachStrictBrowserGuards(page);
     await continueWithFixture(page);
     strict.assertZeroDefects();

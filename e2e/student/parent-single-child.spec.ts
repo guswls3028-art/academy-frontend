@@ -2,7 +2,8 @@
  * 자녀 1명 학부모 — 자녀 스위처 미노출 + TopBar displayName 노출 확인.
  * 테스트 중 자녀 1명 fixture를 만들고 삭제한다.
  */
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
@@ -66,7 +67,6 @@ async function createStudent(request: APIRequestContext, adminAccess: string, st
       gender: "M",
       high_school: "E2E High",
       memo: `[E2E-${stamp}] parent single child fixture`,
-      send_welcome_message: false,
     },
     headers: {
       Authorization: `Bearer ${adminAccess}`,

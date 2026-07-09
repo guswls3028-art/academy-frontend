@@ -6,6 +6,7 @@
  *   (긴 polling 테스트 — matchup OCR 5분, clinic trigger 폴링 등 — 에서 access 만료 silent 401 방지)
  */
 import { type Page } from "@playwright/test";
+import { assertAccountNotificationRequestSafe } from "./accountNotificationSafety";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
@@ -35,6 +36,7 @@ export async function apiCall<TBody = unknown>(
   );
   const tenantCode = auth.tenantCode || getTenantCodeFromHost(auth.host);
   const url = path.startsWith("http") ? path : `${API_BASE}/api/v1${path}`;
+  assertAccountNotificationRequestSafe(url, method, data);
 
   const buildHeaders = (access: string): Record<string, string> => ({
     Authorization: `Bearer ${access}`,

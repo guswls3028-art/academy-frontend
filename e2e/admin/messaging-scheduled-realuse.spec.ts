@@ -140,7 +140,6 @@ test.describe.serial("[E2E] 알림톡 예약 발송 실사용 검증", () => {
       school_type: "HIGH",
       grade: 1,
       initial_password: "test1234",
-      send_welcome_message: false,
       memo: "E2E scheduled messaging canary. 실제 발송 전 취소.",
     });
     created.studentId = Number(student.id);

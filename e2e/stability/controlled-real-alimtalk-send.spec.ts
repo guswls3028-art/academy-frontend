@@ -153,8 +153,7 @@ async function createControlledStudent(request: APIRequestContext, token: string
     grade: 1,
     gender: "M",
     initial_password: "test1234",
-    send_welcome_message: false,
-    memo: `${RUN} controlled real Alimtalk fixture. Welcome notification disabled.`,
+    memo: `${RUN} controlled real Alimtalk fixture. Account notice follows the mandatory delivery path.`,
   });
   created.studentId = Number(student.id);
   return student;

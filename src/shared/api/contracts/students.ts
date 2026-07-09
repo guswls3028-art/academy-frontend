@@ -106,7 +106,6 @@ export type StudentFormInput = {
   memo?: string | null;
   active?: boolean;
   noPhone?: boolean;
-  sendWelcomeMessage?: boolean;
 };
 
 export interface BulkRestoreSkippedStudent {
@@ -411,7 +410,7 @@ export async function createStudent(form: StudentFormInput) {
     address: form?.address?.trim() || null,
     origin_middle_school: schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
     is_managed: !!form?.active,
-    send_welcome_message: !!form?.sendWelcomeMessage,
+    send_welcome_message: true,
     no_phone: noPhone,
   };
 
@@ -442,7 +441,7 @@ export async function bulkCreateStudents(
     major?: string | null;
     memo?: string | null;
   }>,
-  sendWelcomeMessage = false
+  sendWelcomeMessage = true
 ) {
   const payload = {
     initial_password: initialPassword,
@@ -590,7 +589,7 @@ export async function bulkResolveConflicts(
     action: "restore" | "delete";
     student_data: Record<string, unknown>;
   }>,
-  sendWelcomeMessage = false
+  sendWelcomeMessage = true
 ) {
   const res = await api.post("/students/bulk_resolve_conflicts/", {
     initial_password: password,
@@ -824,9 +823,8 @@ export async function sendPasswordReset(params: {
   student_ps_number?: string;
   parent_phone?: string;
   temp_password?: string;
-  skip_notify?: boolean;
 }): Promise<{ message: string }> {
-  const { target, student_name, student_phone, student_ps_number, parent_phone, temp_password, skip_notify } = params;
+  const { target, student_name, student_phone, student_ps_number, parent_phone, temp_password } = params;
   const body: Record<string, string | boolean> = {
     target,
     student_name: student_name.trim(),
@@ -842,9 +840,6 @@ export async function sendPasswordReset(params: {
   }
   if (temp_password?.trim()) {
     body.temp_password = temp_password.trim();
-  }
-  if (skip_notify) {
-    body.skip_notify = true;
   }
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
   return res.data;

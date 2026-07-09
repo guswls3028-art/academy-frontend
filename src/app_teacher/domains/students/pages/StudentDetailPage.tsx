@@ -746,12 +746,11 @@ function PasswordResetSheet({ open, onClose, student }: {
   const qc = useQueryClient();
   const [target, setTarget] = useState<PwTarget>("student");
   const [tempPassword, setTempPassword] = useState("");
-  const [notify, setNotify] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Reset form when opened
   useEffect(() => {
-    if (open) { setTempPassword(""); setNotify(true); setTarget("student"); }
+    if (open) { setTempPassword(""); setTarget("student"); }
   }, [open]);
 
   const name = student?.name ?? student?.displayName ?? "";
@@ -762,10 +761,6 @@ function PasswordResetSheet({ open, onClose, student }: {
   const hasParent = !!parentPhone;
 
   const handleSubmit = async () => {
-    if (!notify && !tempPassword.trim()) {
-      teacherToast.error("알림톡을 끄려면 임시 비밀번호를 입력해 주세요.");
-      return;
-    }
     if (target === "student" && !hasStudentAccount) {
       teacherToast.error("학생 계정 정보가 없어 변경할 수 없습니다.");
       return;
@@ -789,7 +784,6 @@ function PasswordResetSheet({ open, onClose, student }: {
               ...(psNumber ? { student_ps_number: psNumber } : {}),
               ...(studentPhone ? { student_phone: studentPhone } : {}),
               ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
-              ...(!notify ? { skip_notify: true } : {}),
             });
           } else {
             if (!hasParent) { fail++; failReasons.push("학부모 번호 없음"); continue; }
@@ -798,7 +792,6 @@ function PasswordResetSheet({ open, onClose, student }: {
               student_name: name,
               parent_phone: parentPhone,
               ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
-              ...(!notify ? { skip_notify: true } : {}),
             });
           }
           ok++;
@@ -807,8 +800,7 @@ function PasswordResetSheet({ open, onClose, student }: {
         }
       }
       if (ok > 0) {
-        const notifyMsg = notify ? " 알림톡이 발송됩니다." : "";
-        teacherToast.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}).${notifyMsg}`);
+        teacherToast.success(`비밀번호 변경 완료 (${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}). 알림톡이 발송됩니다.`);
         qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.accountNotifications(student.id) });
         onClose();
       } else {
@@ -869,26 +861,18 @@ function PasswordResetSheet({ open, onClose, student }: {
           </p>
         </div>
 
-        {/* 알림톡 발송 토글 */}
+        {/* 알림톡 발송 안내 */}
         <div className="flex items-center justify-between py-1.5"
-          style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: notify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)" }}>
+          style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: "var(--tc-primary-bg)" }}>
           <div className="flex items-center gap-2">
-            <MessageSquare size={ICON.xs} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
             <div>
-              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡 발송</div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡 자동 발송</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                {notify ? "변경된 비밀번호를 알림톡으로 전달합니다" : "켜면 임시 비밀번호를 알림톡으로 발송합니다"}
+                변경된 비밀번호 안내는 계정 보호를 위해 자동 발송됩니다.
               </div>
             </div>
           </div>
-          <button onClick={() => setNotify(!notify)} type="button" className="cursor-pointer shrink-0"
-            style={{ background: "none", border: "none", padding: 0 }}>
-            <div className="w-10 h-5 rounded-full relative"
-              style={{ background: notify ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
-              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
-                style={{ left: notify ? 20 : 2, transition: "left 150ms" }} />
-            </div>
-          </button>
         </div>
 
         {/* Submit */}

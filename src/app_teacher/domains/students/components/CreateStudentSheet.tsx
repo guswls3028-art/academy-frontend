@@ -5,6 +5,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { MessageSquare } from "@teacher/shared/ui/Icons";
+import { ICON } from "@/shared/ui/ds";
 import { createStudent } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -66,7 +68,6 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         grade: grade.trim(),
         gender: gender || undefined,
         active: true,
-        sendWelcomeMessage: false,
       });
     },
     onSuccess: () => {
@@ -91,6 +92,22 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         <div className="flex gap-2">
           <Field label="학생 전화" value={phone} onChange={setPhone} placeholder="010-" type="tel" />
           <Field label="학부모 전화" value={parentPhone} onChange={setParentPhone} placeholder="010-" type="tel" />
+        </div>
+        <div
+          className="flex items-center gap-2"
+          style={{
+            padding: "10px 12px",
+            borderRadius: "var(--tc-radius-sm)",
+            border: "1px solid var(--tc-border-subtle)",
+            background: "var(--tc-primary-bg)",
+          }}>
+          <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
+          <div>
+            <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡 자동 발송</div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+              학생·학부모 로그인 정보 안내는 계정 보호를 위해 자동 발송됩니다.
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
           <Field label="학교" value={school} onChange={setSchool} placeholder="학교명" />

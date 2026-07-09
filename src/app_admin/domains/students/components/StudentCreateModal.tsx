@@ -2,7 +2,6 @@
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
 import { useEffect, useState } from "react";
-import { Switch } from "antd";
 import { FiMessageSquare } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -74,47 +73,31 @@ function createInitialForm(defaultSchoolType: SchoolType): StudentCreateForm {
   };
 }
 
-/* ── 가입 안내 알림톡 토글 (단순 on/off) ── */
+/* ── 가입 안내 알림톡 고정 안내 ── */
 
-function WelcomeMessageToggle({
-  checked,
-  onChange,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled: boolean;
-}) {
+function WelcomeMessageNotice() {
   return (
     <div
       className={styles.welcomeToggle}
-      data-checked={checked ? "true" : "false"}
+      data-checked="true"
     >
       <div
         className={styles.welcomeIcon}
-        data-checked={checked ? "true" : "false"}
+        data-checked="true"
       >
         <FiMessageSquare size={15} aria-hidden />
       </div>
       <div className={styles.welcomeContent}>
         <span
           className={styles.welcomeTitle}
-          data-checked={checked ? "true" : "false"}
+          data-checked="true"
         >
-          가입 안내 알림톡 발송
+          가입 안내 알림톡 자동 발송
         </span>
         <div className={styles.welcomeDescription}>
-          {checked
-            ? "학생·학부모에게 로그인 정보를 알림톡으로 보냅니다"
-            : "켜면 학생·학부모에게 알림톡이 발송됩니다"}
+          학생·학부모 로그인 정보 안내는 계정 보호를 위해 자동 발송됩니다.
         </div>
       </div>
-      <Switch
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        size="small"
-      />
     </div>
   );
 }
@@ -141,7 +124,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm } | null>(null);
 
-  const [sendWelcomeMessage, setSendWelcomeMessage] = useState(true);
   const [form, setForm] = useState<StudentCreateForm>(() =>
     createInitialForm(slm.defaultSchoolType)
   );
@@ -153,7 +135,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     onBulkProgress?.(null);
     setExcelBulkPassword("");
     setSelectedExcelFile(null);
-    setSendWelcomeMessage(true);
     setForm(createInitialForm(slm.defaultSchoolType));
   }, [open, onBulkProgress, slm.defaultSchoolType]);
 
@@ -205,7 +186,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       const student = await createStudent({
         ...form,
         noPhone: !String(form.studentPhone || "").trim() || String(form.studentPhone || "").trim().length < 11,
-        sendWelcomeMessage,
       });
       const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
       const parentPhone = String(form.parentPhone || "").trim();
@@ -287,7 +267,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       const student = await createStudent({
         ...deletedStudentConflict.formData,
         noPhone: !String(deletedStudentConflict.formData.studentPhone || "").trim(),
-        sendWelcomeMessage,
       });
       const loginId = (student?.psNumber ?? deletedStudentConflict.formData.psNumber?.trim()) || "(자동 부여됨)";
       const parentPhone = String(deletedStudentConflict.formData.parentPhone || "").trim();
@@ -338,7 +317,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       const { job_id } = await uploadStudentBulkFromExcel(
         selectedExcelFile,
         pwd,
-        sendWelcomeMessage,
       );
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
@@ -469,9 +447,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
-          {/* 알림톡 토글 */}
+          {/* 알림톡 발송 안내 */}
           <div className={styles.sectionSpacing}>
-            <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
+            <WelcomeMessageNotice />
           </div>
 
           {/* 첫 블록: 이름(우측에 성별) · 로그인 아이디 · 초기 비밀번호 · 학부모 전화 */}
@@ -651,9 +629,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </button>
           </div>
 
-          {/* 알림톡 토글 */}
+          {/* 알림톡 발송 안내 */}
           <div className={styles.sectionSpacing}>
-            <WelcomeMessageToggle checked={sendWelcomeMessage} onChange={setSendWelcomeMessage} disabled={busy} />
+            <WelcomeMessageNotice />
           </div>
 
           <div className={`modal-form-row modal-form-row--1-auto ${styles.excelPasswordRow}`}>

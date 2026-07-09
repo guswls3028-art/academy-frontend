@@ -54,7 +54,6 @@ export type SendPasswordResetParams = {
   student_ps_number?: string;
   parent_phone?: string;
   temp_password?: string;
-  skip_notify?: boolean;
 };
 
 /** 학생 목록 (페이지네이션) */
@@ -256,7 +255,6 @@ export async function sendPasswordReset(params: SendPasswordResetParams): Promis
     body.parent_phone = normalizePhone(params.parent_phone);
   }
   if (params.temp_password?.trim()) body.temp_password = params.temp_password.trim();
-  if (params.skip_notify) body.skip_notify = true;
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
   return res.data;
 }

@@ -53,7 +53,6 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
       parent_phone: TEST_RECIPIENT.parentPhone,
       initial_password: TEST_RECIPIENT.studentPassword,
       school_type: "HIGH",
-      send_welcome_message: false,
     });
     if (stuResp.status === 201) {
       console.log(`  학생 생성: id=${stuResp.body.id}, ps=${stuResp.body.ps_number}`);

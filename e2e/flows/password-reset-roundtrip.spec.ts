@@ -28,8 +28,7 @@ async function ensurePasswordTestAccount(page: Page): Promise<void> {
     school_type: "HIGH",
     grade: 1,
     initial_password: ORIGINAL_PW,
-    send_welcome_message: false,
-    memo: "E2E password reset fixture. 알림톡 발송 없이 비밀번호 변경 라운드트립 검증용.",
+    memo: "E2E password reset fixture. 계정 안내 필수 발송 정책과 함께 비밀번호 변경 라운드트립 검증용.",
   });
 
   if (resp.status === 201) return;
@@ -57,7 +56,6 @@ test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
       student_name: PW_TEST_NAME,
       student_ps_number: PW_TEST_USER,
       temp_password: TEMP_PW,
-      skip_notify: true,
     });
     expect(resp.status).toBe(200);
   });
@@ -76,7 +74,6 @@ test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
       student_name: PW_TEST_NAME,
       parent_phone: PARENT_PHONE,
       temp_password: TEMP_PW,
-      skip_notify: true,
     });
     expect(resp.status).toBe(200);
   });
@@ -88,7 +85,6 @@ test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
       student_name: PW_TEST_NAME,
       student_ps_number: PW_TEST_USER,
       temp_password: ORIGINAL_PW,
-      skip_notify: true,
     });
     expect(resp.status).toBe(200);
 
@@ -109,7 +105,6 @@ test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
           student_name: PW_TEST_NAME,
           student_ps_number: PW_TEST_USER,
           temp_password: ORIGINAL_PW,
-          skip_notify: true,
         });
       }
     } catch { /* 복원 실패해도 전용 계정이라 다른 테스트 무관 */ }

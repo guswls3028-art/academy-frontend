@@ -154,7 +154,6 @@ async function createStudent(request: APIRequestContext, token: string): Promise
     school_type: "HIGH",
     grade: 1,
     initial_password: STUDENT_PASS,
-    send_welcome_message: false,
     memo: isProductionApi()
       ? "E2E clinic remediation canary. 알림 경로는 통제 번호로만 제한."
       : "E2E clinic remediation canary.",

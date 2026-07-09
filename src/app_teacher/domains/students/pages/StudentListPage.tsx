@@ -400,13 +400,11 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   open: boolean; file: File | null; onClose: () => void; onDone: (jobId: string) => Promise<void>;
 }) {
   const [password, setPassword] = useState("0000");
-  const [sendWelcome, setSendWelcome] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open || !file) return;
     setPassword("0000");
-    setSendWelcome(true);
   }, [file, open]);
 
   if (!file) return null;
@@ -424,7 +422,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     }
     setSubmitting(true);
     try {
-      const { job_id } = await uploadStudentBulkExcel(file, initialPassword, sendWelcome);
+      const { job_id } = await uploadStudentBulkExcel(file, initialPassword, true);
       if (!job_id) {
         teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
@@ -493,29 +491,17 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
             padding: "10px 12px",
             borderRadius: "var(--tc-radius-sm)",
             border: "1px solid var(--tc-border-subtle)",
-            background: sendWelcome ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+            background: "var(--tc-primary-bg)",
           }}>
           <div className="flex items-center gap-2">
-            <MessageSquare size={ICON.xs} style={{ color: sendWelcome ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
             <div>
-              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡</div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡 자동 발송</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                {sendWelcome ? "등록된 학생과 학부모에게 발송" : "발송 안 함"}
+                학생·학부모 로그인 정보 안내는 계정 보호를 위해 자동 발송됩니다.
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setSendWelcome((v) => !v)}
-            type="button"
-            aria-pressed={sendWelcome}
-            className="cursor-pointer shrink-0"
-            style={{ background: "none", border: "none", padding: 0 }}>
-            <div className="w-10 h-5 rounded-full relative"
-              style={{ background: sendWelcome ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
-              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
-                style={{ left: sendWelcome ? 20 : 2, transition: "left 150ms" }} />
-            </div>
-          </button>
         </div>
 
         <button
@@ -780,14 +766,9 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
 }) {
   const [target, setTarget] = useState<"student" | "parent" | "both">("student");
   const [tempPw, setTempPw] = useState("");
-  const [notify, setNotify] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!notify && !tempPw.trim()) {
-      teacherToast.error("알림톡을 끄려면 임시 비밀번호를 입력해 주세요.");
-      return;
-    }
     setSubmitting(true);
     const targets: ("student" | "parent")[] = target === "both" ? ["student", "parent"] : [target];
     let ok = 0; let fail = 0;
@@ -798,7 +779,6 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
             const baseParams = {
               student_name: s.name ?? s.displayName ?? "",
               ...(tempPw.trim() ? { temp_password: tempPw.trim() } : {}),
-              ...(!notify ? { skip_notify: true } : {}),
             };
             if (t === "student") {
               if (!s.psNumber && !s.studentPhone) { fail++; continue; }
@@ -821,8 +801,7 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
           } catch { fail++; }
         }
       }
-      const notifyMsg = notify ? " 알림톡 발송됩니다." : "";
-      teacherToast.success(`비밀번호 변경 ${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}.${notifyMsg}`);
+      teacherToast.success(`비밀번호 변경 ${ok}건${fail > 0 ? `, 실패 ${fail}건` : ""}. 알림톡이 발송됩니다.`);
       onDone(); onClose();
     } finally {
       setSubmitting(false);
@@ -859,24 +838,16 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
           <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>입력하면 모든 대상에 동일 비밀번호가 설정됩니다.</p>
         </div>
         <div className="flex items-center justify-between"
-          style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: notify ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)" }}>
+          style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: "var(--tc-primary-bg)" }}>
           <div className="flex items-center gap-2">
-            <MessageSquare size={ICON.xs} style={{ color: notify ? "var(--tc-primary)" : "var(--tc-text-muted)" }} />
+            <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
             <div>
-              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡</div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 알림톡 자동 발송</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                {notify ? "변경된 비밀번호를 알림톡으로 전달합니다" : "알림톡 발송 안 함"}
+                변경된 비밀번호 안내는 계정 보호를 위해 자동 발송됩니다.
               </div>
             </div>
           </div>
-          <button onClick={() => setNotify(!notify)} type="button" className="cursor-pointer shrink-0"
-            style={{ background: "none", border: "none", padding: 0 }}>
-            <div className="w-10 h-5 rounded-full relative"
-              style={{ background: notify ? "var(--tc-primary)" : "var(--tc-border-strong)", transition: "background 150ms" }}>
-              <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
-                style={{ left: notify ? 20 : 2, transition: "left 150ms" }} />
-            </div>
-          </button>
         </div>
         <button onClick={handleSubmit} disabled={submitting}
           className="w-full text-sm font-bold cursor-pointer mt-1"

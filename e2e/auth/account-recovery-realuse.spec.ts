@@ -160,7 +160,6 @@ async function createStudent(request: APIRequestContext, token: string): Promise
     school_type: "HIGH",
     grade: 1,
     initial_password: ORIGINAL_PW,
-    send_welcome_message: false,
     memo: isProductionApi()
       ? "E2E account recovery canary. 알림톡은 통제 번호로만 발송."
       : "E2E account recovery canary.",
@@ -240,7 +239,6 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       student_name: STUDENT_NAME,
       student_ps_number: STUDENT_USER,
       temp_password: ORIGINAL_PW,
-      skip_notify: true,
     });
     await safe("POST", "/students/bulk_delete/", { ids: [created.studentId] });
     await safe("POST", "/students/bulk_permanent_delete/", { ids: [created.studentId] });
@@ -292,7 +290,6 @@ test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 �
         student_name: STUDENT_NAME,
         student_ps_number: STUDENT_USER,
         temp_password: STAFF_TEMP_PW,
-        skip_notify: true,
       },
     );
     expect(staffReset.message).toContain("비밀번호가 변경되었습니다");
@@ -309,7 +306,6 @@ test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 �
         student_name: STUDENT_NAME,
         student_ps_number: STUDENT_USER,
         temp_password: ORIGINAL_PW,
-        skip_notify: true,
       },
     );
     expect(restore.message).toContain("비밀번호가 변경되었습니다");

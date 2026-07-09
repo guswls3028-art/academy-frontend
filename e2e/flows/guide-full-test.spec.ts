@@ -90,7 +90,6 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
       school_type: "HIGH",
       grade: 2,
       gender: "M",
-      send_welcome_message: false,
     });
     expect([201, 409]).toContain(resp.status);
 
