@@ -75,6 +75,7 @@ export default function ExamDetailPage() {
     <StudentPageShell
       title={exam.title}
       description="제출 / 결과 조회"
+      descriptionMode="help"
       actions={
         <Link to="/student/exams" className="stu-cta-link">
           목록

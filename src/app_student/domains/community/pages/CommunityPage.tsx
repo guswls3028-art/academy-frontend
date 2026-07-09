@@ -576,6 +576,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     <StudentPageShell
       title="질문 보내기"
       description="궁금한 점을 적어 보내면 선생님이 확인해 주세요."
+      descriptionMode="help"
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">
@@ -914,6 +915,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     <StudentPageShell
       title="상담 신청"
       description="상담받고 싶은 내용을 적어 보내면 선생님이 확인해 드립니다."
+      descriptionMode="help"
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">

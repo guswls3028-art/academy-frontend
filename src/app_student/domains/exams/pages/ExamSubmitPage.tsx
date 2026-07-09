@@ -218,6 +218,7 @@ export default function ExamSubmitPage() {
     <StudentPageShell
       title={exam.title}
       description="문항별 답을 입력한 뒤 제출하세요."
+      descriptionMode="help"
       actions={
         <Link
           to={`/student/exams/${safeId}`}
