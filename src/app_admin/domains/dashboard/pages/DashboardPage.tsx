@@ -127,7 +127,7 @@ export default function DashboardPage() {
         {alimtalkDisconnected && (
           <DashboardWidget
             title="알림톡 발송 미연동"
-            description="현재 알림톡 발송 준비가 완료되지 않았습니다. 승인 템플릿과 공용 채널 상태를 확인해 주세요."
+            description="현재 알림톡 발송 준비가 완료되지 않았습니다. 발송 설정 상태를 확인해 주세요."
           >
             <div className="flex flex-wrap items-center gap-4">
               <Button size="sm" intent="primary" onClick={() => navigate("/admin/message/settings")}>

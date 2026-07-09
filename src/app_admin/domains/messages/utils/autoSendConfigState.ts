@@ -28,10 +28,10 @@ function hasEffectiveTemplate(config: AutoSendConfigItem): boolean {
 export function getEffectiveTemplateStatusLabel(config: AutoSendConfigItem): string {
   const status = getEffectiveTemplateStatus(config);
   if (status === "APPROVED") {
-    return config.effective_template_source === "unified" ? "승인(공용)" : "승인";
+    return "사용 가능";
   }
-  if (status === "PENDING") return "검수대기";
-  if (status === "REJECTED") return "반려";
+  if (status === "PENDING") return "확인 중";
+  if (status === "REJECTED") return "확인 필요";
   return status;
 }
 

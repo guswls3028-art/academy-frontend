@@ -109,7 +109,7 @@ export default function GradesBlockPanel({
           type="button"
           onClick={handleAddExam}
           disabled={disabled || !canAddExam}
-          title={canAddExam ? "다음 시험 변수 추가" : `시험은 최대 ${SCORE_TEMPLATE_SLOT_LIMIT}개까지 추가할 수 있습니다`}
+          title={canAddExam ? "다음 시험 정보 추가" : `시험은 최대 ${SCORE_TEMPLATE_SLOT_LIMIT}개까지 추가할 수 있습니다`}
           className="grades-block-panel__add-btn"
         >
           + 시험 추가
@@ -118,14 +118,14 @@ export default function GradesBlockPanel({
           type="button"
           onClick={handleAddHomework}
           disabled={disabled || !canAddHomework}
-          title={canAddHomework ? "다음 과제 변수 추가" : `과제는 최대 ${SCORE_TEMPLATE_SLOT_LIMIT}개까지 추가할 수 있습니다`}
+          title={canAddHomework ? "다음 과제 정보 추가" : `과제는 최대 ${SCORE_TEMPLATE_SLOT_LIMIT}개까지 추가할 수 있습니다`}
           className="grades-block-panel__add-btn"
         >
           + 과제 추가
         </button>
       </div>
       <div className="grades-block-panel__hint">
-        클릭하면 다음 번호의 시험/과제 변수가 본문에 추가됩니다. 최대 {SCORE_TEMPLATE_SLOT_LIMIT}개까지 지원하며 미사용 번호는 발송 시 자동 제거.
+        시험·과제 정보를 필요한 만큼 본문에 넣을 수 있습니다.
       </div>
 
       {/* 요약 */}
@@ -135,13 +135,13 @@ export default function GradesBlockPanel({
         {etcBlocks.map(renderTag)}
       </div>
 
-      {/* 개별 변수 (접이식 — 고급) */}
+      {/* 개별 정보 (접이식 — 고급) */}
       <button
         type="button"
         onClick={() => setShowIndividual(!showIndividual)}
         className="grades-block-panel__toggle"
       >
-        {showIndividual ? "▾" : "▸"} 개별 변수 전체 보기
+        {showIndividual ? "▾" : "▸"} 개별 정보 전체 보기
       </button>
       {showIndividual && (
         <div className="grades-block-panel__individual">

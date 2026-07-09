@@ -201,7 +201,7 @@ function TriggerCard({
   const unimplementedHint = implStatus === "disabled"
     ? "정책상 비활성 — 발송되지 않습니다"
     : implStatus === "manual_only"
-      ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
+      ? "직접 발송에서만 사용할 수 있습니다"
       : "";
   const hasTimingControl = isReminder || canUseDelayTiming(config);
   const controlsLayout = channelMode
@@ -283,7 +283,7 @@ function TriggerCard({
         {/* Template — click to open edit modal */}
         <div>
           <div className={styles.fieldLabel}>
-            사용할 템플릿
+            보낼 내용
           </div>
           <button
             type="button"
@@ -305,7 +305,7 @@ function TriggerCard({
                 data-status={status}
                 title={
                   config.effective_template_source === "unified"
-                    ? "현재 알림톡 형식으로 실제 발송됩니다."
+                    ? "현재 설정으로 발송됩니다."
                     : undefined
                 }
               >
@@ -409,13 +409,13 @@ function AutoSendSummaryStrip({
       </span>
       {summary.reviewWaiting > 0 && (
         <span className={styles.summaryItem} data-tone="warning">
-          <span className={styles.summaryLabel}>검수 확인</span>
+          <span className={styles.summaryLabel}>확인 필요</span>
           <strong>{summary.reviewWaiting}</strong>
         </span>
       )}
       {summary.templateMissing > 0 && (
         <span className={styles.summaryItem} data-tone="warning">
-          <span className={styles.summaryLabel}>템플릿 없음</span>
+          <span className={styles.summaryLabel}>내용 없음</span>
           <strong>{summary.templateMissing}</strong>
         </span>
       )}
@@ -519,12 +519,10 @@ export default function AutoSendSettingsPanel({
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
-      feedback.success(
-        "템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.",
-      );
+      feedback.success("보낼 내용이 수정되었습니다.");
     },
     onError: () => {
-      feedback.error("템플릿 수정에 실패했습니다.");
+      feedback.error("내용 수정에 실패했습니다.");
     },
   });
 
@@ -534,7 +532,7 @@ export default function AutoSendSettingsPanel({
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
-      feedback.success("템플릿이 삭제되었습니다.");
+      feedback.success("보낼 내용이 삭제되었습니다.");
     },
     onError: () => {
       feedback.error("삭제에 실패했습니다.");
@@ -556,10 +554,10 @@ export default function AutoSendSettingsPanel({
         updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
-      feedback.success("템플릿이 생성되었습니다.");
+      feedback.success("보낼 내용이 생성되었습니다.");
     },
     onError: () => {
-      feedback.error("템플릿 생성에 실패했습니다.");
+      feedback.error("내용 생성에 실패했습니다.");
     },
   });
 
@@ -643,7 +641,7 @@ export default function AutoSendSettingsPanel({
     } else {
       fetchMessageTemplate(templateId)
         .then((tpl) => setEditingTemplate(tpl))
-        .catch(() => feedback.error("템플릿 정보를 불러올 수 없습니다."));
+        .catch(() => feedback.error("내용을 불러올 수 없습니다."));
     }
   };
 
@@ -683,7 +681,7 @@ export default function AutoSendSettingsPanel({
             자동발송 설정이 아직 구성되지 않았습니다
           </p>
           <p className={panelStyles.placeholderDesc}>
-            메시지 &gt; 자동발송 페이지에서 기본 템플릿을 먼저 생성해 주세요.
+            메시지 &gt; 자동발송 페이지에서 기본 내용을 먼저 생성해 주세요.
           </p>
           <div className={panelStyles.placeholderAction}>
             <Button

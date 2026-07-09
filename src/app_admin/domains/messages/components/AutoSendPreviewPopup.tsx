@@ -98,7 +98,7 @@ export default function AutoSendPreviewPopup({
     : "";
   const resolvedBody = body
     ? substituteVariables(body, previewContext)
-    : "템플릿이 아직 설정되지 않았습니다.";
+    : "보낼 내용이 아직 없습니다.";
   const alimtalkType = getAlimtalkTemplateType(trigger);
   const previewBody = alimtalkType
     ? renderAlimtalkFullPreview(alimtalkType, resolvedBody)
@@ -161,14 +161,14 @@ export default function AutoSendPreviewPopup({
               >
                 {body ? renderBody(previewBody) : (
                   <span className={styles.emptyText}>
-                    템플릿이 아직 설정되지 않았습니다.
+                    보낼 내용이 아직 없습니다.
                   </span>
                 )}
               </div>
             </div>
           </div>
           <p className={styles.footerNote}>
-            카카오톡 알림톡 예시 (치환 변수는 샘플 값)
+            카카오톡 알림톡 예시입니다.
           </p>
         </div>
       </div>

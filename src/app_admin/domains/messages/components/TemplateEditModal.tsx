@@ -133,7 +133,7 @@ export default function TemplateEditModal({
 
   if (!open) return null;
 
-  const title = isSystem ? "기본 템플릿 보기" : initial ? "템플릿 수정" : "템플릿 추가";
+  const title = isSystem ? "기본 문구 보기" : initial ? "문구 수정" : "문구 추가";
   const fieldsDisabled = isPending || isSystem;
 
   return (
@@ -200,7 +200,7 @@ export default function TemplateEditModal({
                 </div>
               </div>
               <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
-                카카오톡 알림톡 예시 (치환 변수는 샘플 값)
+                카카오톡 알림톡 예시입니다.
               </p>
             </section>
           </div>
@@ -217,7 +217,7 @@ export default function TemplateEditModal({
                 fontSize: 13, color: "var(--color-status-info, #2563eb)", fontWeight: 600,
               }}>
                 <FiAlertCircle size={14} style={{ flexShrink: 0 }} />
-                기본 템플릿은 수정할 수 없습니다. 복제하여 사용해 주세요.
+                기본 문구는 수정할 수 없습니다. 복제하여 사용해 주세요.
               </div>
             )}
             {/* 메시지/알림톡 탭 */}
@@ -230,7 +230,7 @@ export default function TemplateEditModal({
             </div>
 
             <div>
-              <label className="template-editor__editor-title block mb-1">템플릿 이름</label>
+              <label className="template-editor__editor-title block mb-1">문구 이름</label>
               <Input
                 placeholder="예: 출석 안내, 시험 일정 공지"
                 value={name}
@@ -274,7 +274,7 @@ export default function TemplateEditModal({
                   placeholder={
                     alimtalkType && !bodyEditableInEnvelope
                       ? "이 알림톡은 정해진 안내문으로 발송됩니다."
-                      : "내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                      : "내용을 입력하세요. 오른쪽에서 필요한 정보를 넣을 수 있습니다."
                   }
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
@@ -285,7 +285,7 @@ export default function TemplateEditModal({
                 />
               </div>
               <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 240 }}>
-                <div className="template-editor__blocks-title mb-2">변수 삽입</div>
+                <div className="template-editor__blocks-title mb-2">정보 넣기</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
                   {alimtalkType && activeTab === "alimtalk" ? (
                     <>
@@ -304,7 +304,7 @@ export default function TemplateEditModal({
                               letterSpacing: "0.3px",
                               marginBottom: 6,
                             }}>
-                              본문에 삽입 가능한 변수
+                              본문에 넣을 수 있는 정보
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {bodyBlocks.map((block) => {

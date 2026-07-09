@@ -227,7 +227,7 @@ export default function AlimtalkTemplateInfoPanel({
         letterSpacing: "0.3px",
         marginTop: 4,
       }}>
-        자동 채움 항목
+        자동으로 들어가는 정보
       </div>
       { }
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -261,13 +261,11 @@ export default function AlimtalkTemplateInfoPanel({
       }}>
         {bodyEditable ? (
           <>
-            위 항목은 발송 시 자동으로 채워집니다.<br />
-            아래 본문에 작성한 안내문이 실제 알림톡에 표시됩니다.
+            아래 본문에 안내문만 작성하면 됩니다.
           </>
         ) : (
           <>
-            위 항목만 발송 시 자동으로 채워집니다.<br />
-            정해진 안내문으로 발송되어 별도 본문 작성은 필요하지 않습니다.
+            정해진 안내문으로 발송됩니다.
           </>
         )}
       </div>

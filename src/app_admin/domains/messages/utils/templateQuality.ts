@@ -133,7 +133,7 @@ export function lintAlimtalkTemplateQuality(input: LintInput): TemplateQualityIs
     push({
       id: "unknown-vars",
       severity: "blocker",
-      title: "지원하지 않는 변수가 있습니다",
+      title: "확인할 정보가 있습니다",
       detail: unknownVars.map((v) => `#{${v}}`).join(", "),
     });
   }
@@ -162,7 +162,7 @@ export function lintAlimtalkTemplateQuality(input: LintInput): TemplateQualityIs
       id: "hardcoded-score",
       severity: "warning",
       title: "점수가 정적으로 입력된 것 같습니다",
-      detail: "성적 발송은 #{시험목록}, #{시험성적}, #{시험1}/#{시험1만점} 같은 변수를 쓰는 편이 안전합니다.",
+      detail: "성적 발송은 오른쪽의 시험·성적 정보를 넣는 편이 안전합니다.",
     });
   }
 
@@ -171,7 +171,7 @@ export function lintAlimtalkTemplateQuality(input: LintInput): TemplateQualityIs
       id: "hardcoded-date",
       severity: "warning",
       title: "날짜가 정적으로 입력된 것 같습니다",
-      detail: "차시가 바뀌어도 남을 수 있으니 #{날짜}, #{강의날짜}, #{클리닉날짜} 변수 사용을 확인하세요.",
+      detail: "차시가 바뀌어도 남을 수 있으니 오른쪽의 날짜 정보를 확인하세요.",
     });
   }
 
@@ -187,7 +187,7 @@ export function lintAlimtalkTemplateQuality(input: LintInput): TemplateQualityIs
       id: "lecture-name-mismatch",
       severity: "warning",
       title: "강의명이 정적으로 적혀 있을 수 있습니다",
-      detail: `현재 강의명 "${lectureName}" 이 본문에 없고 #{강의명} 변수도 없습니다.`,
+      detail: `현재 강의명 "${lectureName}" 이 본문에 없습니다.`,
     });
   }
 
@@ -197,8 +197,8 @@ export function lintAlimtalkTemplateQuality(input: LintInput): TemplateQualityIs
       push({
         id: "category-mismatch",
         severity: "warning",
-        title: "진입 도메인과 양식 카테고리가 다릅니다",
-        detail: `${input.blockCategory} 화면에서 ${input.templateCategory} 양식을 사용 중입니다${input.templateName ? `: ${input.templateName}` : ""}.`,
+        title: "현재 화면과 문구 종류가 다릅니다",
+        detail: `${input.blockCategory} 화면에서 ${input.templateCategory} 문구를 사용 중입니다${input.templateName ? `: ${input.templateName}` : ""}.`,
       });
     }
   }

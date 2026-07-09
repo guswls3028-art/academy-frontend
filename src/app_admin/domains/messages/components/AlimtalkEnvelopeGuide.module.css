@@ -1,6 +1,6 @@
 .guide {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
@@ -10,7 +10,6 @@
 }
 
 .panel,
-.routePanel,
 .triggerEnvelope {
   border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border-divider));
   border-radius: var(--radius-lg, 12px);
@@ -20,7 +19,7 @@
 }
 
 .panel,
-.routePanel {
+.panel {
   padding: 14px;
 }
 
@@ -66,29 +65,44 @@
   word-break: keep-all;
 }
 
-.flow {
+.actionGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
 
-.flowStep {
+.actionTile {
+  display: flex;
   min-width: 0;
+  gap: 8px;
+  align-items: flex-start;
   padding: 9px 10px;
   border: 1px solid var(--color-border-divider);
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
 }
 
-.flowStep strong {
+.actionIcon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: color-mix(in srgb, #fee500 42%, var(--color-bg-surface));
+  color: #3c1e1e;
+}
+
+.actionTile strong {
   display: block;
   color: var(--color-text-primary);
   font-size: 12px;
   line-height: 1.3;
 }
 
-.flowStep span {
+.actionTile span {
   display: block;
   margin-top: 3px;
   color: var(--color-text-muted);
@@ -96,42 +110,11 @@
   line-height: 1.4;
 }
 
-.envelopeGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.envelopeCard {
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-}
-
-.envelopeCardHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.envelopeName {
-  overflow: hidden;
-  color: var(--color-text-primary);
-  font-size: 12px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.prefix {
+.templateBadge {
   flex: 0 0 auto;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #fee500;
+  background: color-mix(in srgb, #fee500 58%, var(--color-bg-surface));
   color: #3c1e1e;
   font-size: 10px;
   font-weight: 800;
@@ -156,47 +139,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.memoSlot {
-  margin-top: 8px;
-  padding: 7px 8px;
-  border: 1px dashed color-mix(in srgb, var(--color-status-success, #16a34a) 36%, var(--color-border-divider));
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--color-status-success, #16a34a) 7%, var(--color-bg-surface));
-  color: var(--color-status-success, #16a34a);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.routeList {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.routeItem {
-  display: grid;
-  grid-template-columns: minmax(74px, 0.42fr) minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border-divider) 72%, transparent);
-}
-
-.routeLabel {
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.routeValue {
-  color: var(--color-text-primary);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.35;
 }
 
 .triggerEnvelope {
@@ -275,18 +217,12 @@
   }
 
   .panel,
-  .routePanel,
   .triggerEnvelope {
     padding: 12px;
     border-radius: 10px;
   }
 
-  .flow,
-  .envelopeGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .routeItem {
+  .actionGrid {
     grid-template-columns: 1fr;
   }
 }

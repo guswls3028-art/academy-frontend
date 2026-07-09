@@ -450,7 +450,7 @@ export default function SendMessageModal({
           : null;
         setPreflightResults([]);
         setPreflightResultKey("");
-        setPreflightError(detail || "발송 전 검수에 실패했습니다.");
+        setPreflightError(detail || "발송 전 확인에 실패했습니다.");
       } finally {
         if (!cancelled) setPreflightLoading(false);
       }
@@ -655,11 +655,11 @@ export default function SendMessageModal({
       setSelectedTemplateId(created.id);
       setSelectedPresetId(null);
       setTemplateBodySnapshot(created.body);
-      feedback.success(`"${created.name}" 양식이 저장되었습니다.`);
+      feedback.success(`"${created.name}" 문구가 저장되었습니다.`);
       setShowSaveForm(false);
       setSaveTemplateName("");
     } catch {
-      feedback.error("양식 저장에 실패했습니다.");
+      feedback.error("문구 저장에 실패했습니다.");
     } finally {
       setSavingTemplate(false);
     }
@@ -671,9 +671,9 @@ export default function SendMessageModal({
       const updated = await updateMessageTemplate(selectedTemplate.id, { body, subject });
       setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
       setTemplateBodySnapshot(updated.body);
-      feedback.success(`"${updated.name}" 양식이 업데이트되었습니다.`);
+      feedback.success(`"${updated.name}" 문구가 업데이트되었습니다.`);
     } catch {
-      feedback.error("양식 업데이트에 실패했습니다.");
+      feedback.error("문구 업데이트에 실패했습니다.");
     }
   };
 
@@ -687,9 +687,9 @@ export default function SendMessageModal({
         }
         return t;
       }));
-      feedback.success(updated.is_user_default ? `"${updated.name}" 을(를) 기본 양식으로 지정했습니다.` : "기본 양식 지정을 해제했습니다.");
+      feedback.success(updated.is_user_default ? `"${updated.name}" 을(를) 기본 문구로 지정했습니다.` : "기본 문구 지정을 해제했습니다.");
     } catch {
-      feedback.error("기본 양식 지정에 실패했습니다.");
+      feedback.error("기본 문구 지정에 실패했습니다.");
     }
   };
 
@@ -697,9 +697,9 @@ export default function SendMessageModal({
     try {
       const dup = await duplicateMessageTemplate(id);
       setTemplates((prev) => [dup, ...prev]);
-      feedback.success(`"${dup.name}" 양식이 복제되었습니다.`);
+      feedback.success(`"${dup.name}" 문구가 복제되었습니다.`);
     } catch {
-      feedback.error("양식 복제에 실패했습니다.");
+      feedback.error("문구 복제에 실패했습니다.");
     }
   };
 
@@ -707,8 +707,8 @@ export default function SendMessageModal({
     const target = templates.find((t) => t.id === id);
     if (!target) return;
     const ok = await confirm({
-      title: "양식 삭제",
-      message: `"${target.name}" 양식을 삭제할까요? 삭제하면 복구할 수 없습니다.`,
+      title: "문구 삭제",
+      message: `"${target.name}" 문구를 삭제할까요? 삭제하면 복구할 수 없습니다.`,
       confirmText: "삭제",
       cancelText: "취소",
       danger: true,
@@ -721,9 +721,9 @@ export default function SendMessageModal({
         setSelectedTemplateId(null);
         setTemplateBodySnapshot(null);
       }
-      feedback.success("양식이 삭제되었습니다.");
+      feedback.success("문구가 삭제되었습니다.");
     } catch {
-      feedback.error("양식 삭제에 실패했습니다.");
+      feedback.error("문구 삭제에 실패했습니다.");
     }
   };
 
@@ -813,17 +813,17 @@ export default function SendMessageModal({
   const disableReason = (() => {
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
-    if (!hasSelectedBodySource) return "양식을 선택하거나 직접 작성해 주세요";
+    if (!hasSelectedBodySource) return "문구를 선택하거나 직접 작성해 주세요";
     if (!body.trim()) return "본문을 입력해 주세요";
     if (scheduleError) return scheduleError;
     if (hasMissingVars) {
       const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
-      return `미입력 변수: ${list} — 본문/변수 팔레트에서 채워 주세요`;
+      return `빠진 정보: ${list} — 본문에서 채워 주세요`;
     }
-    if (hasQualityBlockers) return qualityBlockers[0]?.title ?? "양식 품질 확인 필요";
-    if (preflightChecking) return "발송 전 검수 중입니다";
+    if (hasQualityBlockers) return qualityBlockers[0]?.title ?? "문구 확인이 필요합니다";
+    if (preflightChecking) return "발송 전 확인 중입니다";
     if (preflightError) return preflightError;
-    if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 전 검수 필요";
+    if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 전 확인 필요";
     return null;
   })();
 
@@ -842,8 +842,8 @@ export default function SendMessageModal({
         description={
           hasRecipients
             ? (recipientCount > 1
-                ? "양식이 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요. 학생별 점수는 자동 치환됩니다."
-                : "양식이 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요.")
+                ? "문구가 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요. 학생별 점수는 자동으로 들어갑니다."
+                : "문구가 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요.")
             : "왼쪽에서 수신자를 먼저 선택해 주세요."
         }
       />
@@ -903,8 +903,8 @@ export default function SendMessageModal({
                   </div>
                   <div className="send-modal__bulk-hint-desc">
                     {effectiveBlockCategory === "grades"
-                      ? <>미리보기는 양식 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>
-                      : <>미리보기는 첫 번째 학생 기준입니다. <strong>{`#{학생이름}`}</strong>, <strong>{`#{시험성적}`}</strong> 등 변수는 학생별로 자동 치환됩니다.</>}
+                      ? "학생마다 이름과 성적은 자동으로 맞춰 들어갑니다."
+                      : "학생마다 이름과 필요한 정보는 자동으로 맞춰 들어갑니다."}
                   </div>
                 </div>
               )}
@@ -973,15 +973,15 @@ export default function SendMessageModal({
                       : "ok"
               }
             >
-              <div className="send-modal__card-label">발송 전 검수</div>
+              <div className="send-modal__card-label">발송 전 확인</div>
               {!frontendReady ? (
                 <div className="send-modal__preflight-muted">
-                  수신자·본문·예약 시각이 준비되면 자동으로 검수합니다.
+                  수신자·본문·예약 시각이 준비되면 자동으로 확인합니다.
                 </div>
               ) : preflightChecking ? (
                 <div className="send-modal__preflight-state">
                   <span className="send-modal__preflight-spinner" />
-                  검수 중…
+                  확인 중…
                 </div>
               ) : preflightError ? (
                 <div className="send-modal__preflight-issue" data-tone="error">
@@ -1001,7 +1001,7 @@ export default function SendMessageModal({
                   <div className="send-modal__preflight-grid">
                     <span>대상</span>
                     <strong>{sendToTargets.map(formatSendTargetLabel).join(" + ")}</strong>
-                    <span>템플릿</span>
+                    <span>문구</span>
                     <strong>{preflightResults[0]?.template.name || selectedTemplate?.name || selectedPreset?.name || "직접 작성"}</strong>
                   </div>
                   {preflightBlockers.map((issue, index) => (
@@ -1028,7 +1028,7 @@ export default function SendMessageModal({
                 카카오톡 미리보기
                 {hasRecipients && recipientCount > 1 && (
                   <span className="send-modal__card-sublabel">
-                    {effectiveBlockCategory === "grades" ? " · 양식 기준 · 학생별 자동 치환" : " · 첫 학생 기준 · 학생별로 자동 치환됨"}
+                    {effectiveBlockCategory === "grades" ? " · 학생별 점수 자동 입력" : " · 첫 학생 기준"}
                   </span>
                 )}
               </div>
@@ -1060,7 +1060,7 @@ export default function SendMessageModal({
                         <div className="template-preview-kakao__body">
                           {letterBody
                             ? renderAlimtalkFullPreview(alimtalkType, letterBody)
-                            : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                            : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "문구를 선택하세요"}</span>}
                         </div>
                       </div>
                     </div>
@@ -1079,7 +1079,7 @@ export default function SendMessageModal({
                       <div className="template-preview-kakao__body">
                         {letterBody
                           ? previewBody
-                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "양식을 선택하세요"}</span>}
+                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "문구를 선택하세요"}</span>}
                       </div>
                     </div>
                   </div>
@@ -1125,12 +1125,12 @@ export default function SendMessageModal({
             {needsEnvelopeChoice && (
               <div className="send-modal__envelope-selector">
                 <div className="send-modal__envelope-head">
-                  <span className="send-modal__envelope-label">알림톡 형식</span>
+                  <span className="send-modal__envelope-label">알림톡 종류</span>
                   <span className="send-modal__envelope-current">
                     {getAlimtalkTemplateLabel(getAlimtalkTemplateTypeFromCategory(effectiveBlockCategory))}
                   </span>
                 </div>
-                <div className="send-modal__envelope-options" role="radiogroup" aria-label="알림톡 형식">
+                <div className="send-modal__envelope-options" role="radiogroup" aria-label="알림톡 종류">
                   {EDITABLE_ENVELOPE_OPTIONS.map((option) => (
                     <button
                       key={option.category}
@@ -1159,7 +1159,7 @@ export default function SendMessageModal({
                 {selectedTemplate ? (
                   <div className="send-modal__tpl-bar-name-row">
                     <span className="send-modal__tpl-bar-name">{selectedTemplate.name}</span>
-                    {selectedTemplate.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+                    {selectedTemplate.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
                     {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                     {bodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
@@ -1173,7 +1173,7 @@ export default function SendMessageModal({
                 ) : alimtalkFreeForm ? (
                   <span className="send-modal__tpl-bar-freeform">직접 작성</span>
                 ) : (
-                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 직접 작성하세요</span>
+                  <span className="send-modal__tpl-bar-empty">문구를 선택하거나 직접 작성하세요</span>
                 )}
               </div>
 
@@ -1183,7 +1183,7 @@ export default function SendMessageModal({
                   {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
                     <>
                       <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
-                        양식 덮어쓰기
+                        문구 덮어쓰기
                       </Button>
                       <button
                         type="button"
@@ -1201,7 +1201,7 @@ export default function SendMessageModal({
                       disabled={sending}
                       className="send-modal__save-bar-link"
                     >
-                      내 양식으로 저장
+                      내 문구로 저장
                     </button>
                   )}
                 </div>
@@ -1213,18 +1213,18 @@ export default function SendMessageModal({
                 onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {hasSelectedBodySource ? "양식 변경" : "양식 선택"}
+                {hasSelectedBodySource ? "문구 변경" : "문구 선택"}
               </Button>
             </div>
 
             {/* ── 양식 이름 입력 form — 저장 액션 클릭 시에만 노출 ── */}
             {showSaveForm && (
               <div className="send-modal__save-form">
-                <div className="send-modal__save-form-label">새 양식 이름을 입력하세요</div>
+                <div className="send-modal__save-form-label">새 문구 이름을 입력하세요</div>
                 <div className="send-modal__save-form-row">
                   <Input
                     size="small"
-                    placeholder="예: 출결 알림, 성적표 양식"
+                    placeholder="예: 출결 알림, 성적표 안내"
                     value={saveTemplateName}
                     onChange={(e) => setSaveTemplateName(e.target.value)}
                     onPressEnter={handleSaveTemplate}
@@ -1244,7 +1244,7 @@ export default function SendMessageModal({
               <span className="send-modal__editor-label-title">안내문</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
-                  학원장님 작성한 그대로 학생 {recipientCount}명 전원에게 발송 · <strong>{`#{학생이름}`}</strong>·<strong>{`#{시험성적}`}</strong> 등 변수는 학생별 자동 치환
+                  학생 {recipientCount}명에게 같은 안내문을 보내고, 이름·성적은 학생별로 맞춰 넣습니다
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
@@ -1261,11 +1261,11 @@ export default function SendMessageModal({
                   <div className="send-modal__editor-empty">
                     <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
                     <div className="send-modal__editor-empty-text">
-                      <div>양식을 선택하거나</div>
+                      <div>문구를 선택하거나</div>
                       <div>안내문을 직접 작성하세요</div>
                     </div>
                     <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
-                      양식 선택하기
+                      문구 선택하기
                     </Button>
                     <button
                       type="button"
@@ -1296,10 +1296,10 @@ export default function SendMessageModal({
                     type="button"
                     onClick={() => setShowVarPalette(false)}
                     className="send-modal__var-palette-close"
-                    title="변수 팔레트 접기"
-                    aria-label="변수 팔레트 접기"
+                    title="정보 넣기 닫기"
+                    aria-label="정보 넣기 닫기"
                   >✕</button>
-                  <div className="send-modal__var-palette-title">변수 삽입</div>
+                  <div className="send-modal__var-palette-title">정보 넣기</div>
                   <div className="send-modal__var-palette-desc">클릭하면 커서 위치에 추가됩니다</div>
                   {effectiveBlockCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
@@ -1333,10 +1333,10 @@ export default function SendMessageModal({
                   type="button"
                   onClick={() => setShowVarPalette(true)}
                   className="send-modal__var-palette-toggle"
-                  title="변수 팔레트 열기"
+                  title="정보 넣기 열기"
                 >
                   <Tag size={ICON.xs} />
-                  변수 삽입
+                  정보 넣기
                 </button>
               )}
             </div>
@@ -1378,7 +1378,7 @@ export default function SendMessageModal({
               </div>
               {hasSelectedBodySource && (
                 <div className="send-modal__confirm-row">
-                  <span className="send-modal__confirm-key">템플릿</span>
+                  <span className="send-modal__confirm-key">문구</span>
                   <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
                     {selectedTemplate?.name ?? selectedPreset?.name ?? "직접 작성"}
                   </span>
@@ -1386,7 +1386,7 @@ export default function SendMessageModal({
               )}
               {preflightResults.length > 0 && (
                 <div className="send-modal__confirm-row">
-                  <span className="send-modal__confirm-key">검수</span>
+                  <span className="send-modal__confirm-key">확인</span>
                   <span className="send-modal__confirm-val">
                     {preflightRecipientStats.validPhone.toLocaleString()}건 가능
                   </span>

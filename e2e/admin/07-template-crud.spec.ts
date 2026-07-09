@@ -87,8 +87,8 @@ test.describe("템플릿 CRUD 전체 플로우", () => {
     await goToTemplates(page);
     await snap(page, "01-list-before-create");
 
-    // "새 템플릿" 버튼 클릭
-    const newBtn = page.locator("button").filter({ hasText: "새 템플릿" }).first();
+    // "새 문구" 버튼 클릭
+    const newBtn = page.locator("button").filter({ hasText: /새 (문구|템플릿)/ }).first();
     await expect(newBtn).toBeVisible({ timeout: 10000 });
     await newBtn.click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
@@ -99,7 +99,7 @@ test.describe("템플릿 CRUD 전체 플로우", () => {
     await snap(page, "01-modal-open");
 
     // 이름 입력
-    const nameInput = modal.locator('input[placeholder*="템플릿 이름"], input[placeholder*="출석 안내"]').first();
+    const nameInput = modal.locator('input[placeholder*="문구 이름"], input[placeholder*="템플릿 이름"], input[placeholder*="출석 안내"]').first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
     await nameInput.fill(TEMPLATE_NAME);
 

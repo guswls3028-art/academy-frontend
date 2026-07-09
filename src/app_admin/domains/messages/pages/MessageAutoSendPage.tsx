@@ -92,13 +92,13 @@ function AutoSendSummaryStrip({
       )}
       {summary.reviewWaiting > 0 && (
         <span className={styles.summaryItem} data-tone="warning">
-          <span className={styles.summaryLabel}>검수 확인</span>
+          <span className={styles.summaryLabel}>확인 필요</span>
           <strong>{summary.reviewWaiting}</strong>
         </span>
       )}
       {summary.templateMissing > 0 && (
         <span className={styles.summaryItem} data-tone="warning">
-          <span className={styles.summaryLabel}>템플릿 없음</span>
+          <span className={styles.summaryLabel}>내용 없음</span>
           <strong>{summary.templateMissing}</strong>
         </span>
       )}
@@ -156,7 +156,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
-  default: "사용자가 직접 만든 커스텀 알림톡 템플릿입니다. 모든 블록을 자유롭게 사용할 수 있습니다.",
+  default: "직접 만든 알림톡 문구를 관리합니다.",
   signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
   attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
   lecture: "영상 인코딩 완료, 매치업 보고서 제출 등 강의·차시 관련 알림을 설정합니다.",
@@ -190,7 +190,7 @@ function TriggerCard({
   const unimplementedHint = implStatus === "disabled"
     ? "정책상 비활성 — 발송되지 않습니다"
     : implStatus === "manual_only"
-      ? "자동 발화 미구현 — 수동 발송 모달에서만 사용 가능"
+      ? "직접 발송에서만 사용할 수 있습니다"
       : "";
   const isActive = isSystem || (config.enabled && !isUnimplemented);
   const cardState = isDisabled ? "disabled" : isActive ? "active" : "inactive";
@@ -279,18 +279,18 @@ function TriggerCard({
               {/* 템플릿 — 읽기 전용 */}
               <div>
                 <div className={styles.fieldLabel}>
-                  사용할 템플릿
+                  보낼 내용
                 </div>
                 <div className={styles.templateDisplay}>
                   <span className={styles.templateName}>
-                    {config.template_name || "(템플릿 없음)"}
+                    {config.template_name || "(내용 없음)"}
                   </span>
                   <button
                     type="button"
                     onClick={handleEditClick}
                     className={styles.templateEditButton}
-                    title="템플릿 편집"
-                    aria-label="템플릿 편집"
+                    title="내용 수정"
+                    aria-label="내용 수정"
                   >
                     <FiEdit3 size={14} />
                   </button>
@@ -300,7 +300,7 @@ function TriggerCard({
                       data-status={status}
                       title={
                         config.effective_template_source === "unified"
-                          ? "현재 알림톡 형식으로 실제 발송됩니다."
+                          ? "현재 설정으로 발송됩니다."
                           : undefined
                       }
                     >
@@ -434,10 +434,10 @@ export default function MessageAutoSendPage() {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setEditingTemplate(null);
-      feedback.success("템플릿이 수정되었습니다. 알림톡은 재검수가 필요할 수 있습니다.");
+      feedback.success("보낼 내용이 수정되었습니다.");
     },
     onError: () => {
-      feedback.error("템플릿 수정에 실패했습니다.");
+      feedback.error("내용 수정에 실패했습니다.");
     },
   });
 
@@ -453,10 +453,10 @@ export default function MessageAutoSendPage() {
         updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
-      feedback.success("템플릿이 생성되었습니다.");
+      feedback.success("보낼 내용이 생성되었습니다.");
     },
     onError: () => {
-      feedback.error("템플릿 생성에 실패했습니다.");
+      feedback.error("내용 생성에 실패했습니다.");
     },
   });
 
@@ -466,7 +466,7 @@ export default function MessageAutoSendPage() {
       qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       const parts: string[] = [];
-      if (result.created_templates > 0) parts.push(`템플릿 ${result.created_templates}개 생성`);
+      if (result.created_templates > 0) parts.push(`내용 ${result.created_templates}개 생성`);
       if (result.reset_templates > 0) parts.push(`${result.reset_templates}개 기본값 복원`);
       if (result.created_configs > 0) parts.push(`자동발송 ${result.created_configs}개 설정`);
       if (result.linked > 0) parts.push(`${result.linked}개 연결`);
@@ -474,7 +474,7 @@ export default function MessageAutoSendPage() {
       feedback.success(parts.join(", "));
     },
     onError: () => {
-      feedback.error("기본 템플릿 생성에 실패했습니다.");
+      feedback.error("기본 내용 생성에 실패했습니다.");
     },
   });
 
@@ -551,8 +551,7 @@ export default function MessageAutoSendPage() {
           <div>
             <h2 className={panelStyles.headerTitle}>자동발송</h2>
             <p className={panelStyles.headerDesc}>
-              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티 등) 발생 시 알림톡을 자동 발송합니다.
-              좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
+              필요한 알림톡만 켜고, 보낼 시점과 내용을 정하세요.
             </p>
           </div>
           {/* 전체 자동발송 ON/OFF 토글 */}
@@ -608,7 +607,7 @@ export default function MessageAutoSendPage() {
                         <div className={styles.customTemplateText}>
                           <span className={styles.customTemplateTitle}>{t.name}</span>
                           <div className={styles.customTemplateDescription}>
-                            {t.subject ? `${t.subject} · ` : ""}커스텀 템플릿
+                            {t.subject ? `${t.subject} · ` : ""}직접 만든 문구
                           </div>
                         </div>
                       </div>
@@ -623,7 +622,7 @@ export default function MessageAutoSendPage() {
                   onClick={() => setCreatingForTrigger("custom_default")}
                   className={styles.addTemplateButton}
                 >
-                  + 새 커스텀 템플릿 추가
+                  + 새 문구 추가
                 </button>
               </>
             ) : hasNoDefaults ? (
@@ -631,11 +630,10 @@ export default function MessageAutoSendPage() {
                 <FiZap size={36} className={styles.emptyIcon} />
                 <div>
                   <p className={styles.emptyTitle}>
-                    자동발송 템플릿이 아직 설정되지 않았습니다
+                    자동발송 내용이 아직 설정되지 않았습니다
                   </p>
                   <p className={styles.emptyDescription}>
-                    기본 템플릿을 생성하면 자동발송 트리거에 대한<br />
-                    알림톡 템플릿과 발송 설정이 자동으로 구성됩니다.
+                    기본 내용을 생성하면 자동발송 설정이 준비됩니다.
                   </p>
                 </div>
                 <Button
@@ -643,7 +641,7 @@ export default function MessageAutoSendPage() {
                   onClick={() => provisionMut.mutate()}
                   disabled={provisionMut.isPending}
                 >
-                  {provisionMut.isPending ? "생성 중…" : "기본 템플릿 생성하기"}
+                  {provisionMut.isPending ? "생성 중…" : "기본 내용 생성하기"}
                 </Button>
               </div>
             ) : section && (
@@ -673,7 +671,7 @@ export default function MessageAutoSendPage() {
                       } else {
                         fetchMessageTemplate(templateId)
                           .then((tpl) => setEditingTemplate(tpl))
-                          .catch(() => feedback.error("템플릿 정보를 불러올 수 없습니다."));
+                          .catch(() => feedback.error("내용을 불러올 수 없습니다."));
                       }
                     }}
                   />

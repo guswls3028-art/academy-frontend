@@ -8,7 +8,7 @@ import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo
 import styles from "./MessageLayout.module.css";
 
 const MESSAGE_TABS: DomainTab[] = [
-  { key: "templates", label: "템플릿 저장", path: "/admin/message/templates" },
+  { key: "templates", label: "문구 저장", path: "/admin/message/templates" },
   { key: "auto-send", label: "자동발송", path: "/admin/message/auto-send" },
   { key: "log", label: "발송 내역", path: "/admin/message/log" },
   { key: "settings", label: "설정", path: "/admin/message/settings" },
@@ -21,7 +21,7 @@ export default function MessageLayout() {
   return (
     <DomainLayout
       title="메시지"
-      description="알림톡 템플릿 · 자동발송 · 발송 내역 · 설정"
+      description="알림톡 문구 · 자동발송 · 발송 내역 · 설정"
       tabs={MESSAGE_TABS}
     >
       {!alimtalkAvailable && info && (
