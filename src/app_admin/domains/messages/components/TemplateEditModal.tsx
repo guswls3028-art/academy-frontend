@@ -15,6 +15,10 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   type TemplateCategory,
 } from "../constants/templateBlocks";
+import {
+  hideInternalAlimtalkMemoToken,
+  stripInternalAlimtalkMemoToken,
+} from "../constants/alimtalkEnvelope";
 import GradesBlockPanel from "./GradesBlockPanel";
 import AlimtalkTemplateInfoPanel, {
   getAlimtalkTemplateType,
@@ -77,7 +81,7 @@ export default function TemplateEditModal({
     if (open) {
       setName(initial?.name ?? "");
       setSubject(initial?.subject ?? "");
-      setBody(initial?.body ?? "");
+      setBody(stripInternalAlimtalkMemoToken(initial?.body ?? ""));
       setActiveTab("alimtalk");
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
@@ -109,7 +113,7 @@ export default function TemplateEditModal({
 
   const handleSubmit = () => {
     const n = name.trim();
-    const b = body.trim();
+    const b = stripInternalAlimtalkMemoToken(body);
     if (!n || !b) return;
     onSubmit({
       category: selectedCategory as import("../api/messages.api").MessageTemplateCategory,
@@ -119,7 +123,7 @@ export default function TemplateEditModal({
     });
   };
 
-  const badgeBody = renderPreviewBadges(body);
+  const badgeBody = renderPreviewBadges(hideInternalAlimtalkMemoToken(body));
   const badgeSubject = renderPreviewBadges(subject);
   const showSubject = true;
 
@@ -169,7 +173,7 @@ export default function TemplateEditModal({
                   {alimtalkType ? (
                     <>
                       <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                        카카오 승인 봉투 + #{`{선생님메모}`} 예시입니다.
+                        실제 알림톡에 가까운 예시입니다.
                       </div>
                       <div className="template-preview-kakao__header">
                         <span className="template-preview-kakao__header-label">알림톡 도착</span>
@@ -178,7 +182,7 @@ export default function TemplateEditModal({
                         </span>
                       </div>
                       <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
-                        {renderAlimtalkFullPreview(alimtalkType, body, undefined)}
+                        {renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined)}
                       </div>
                     </>
                   ) : (
@@ -262,14 +266,14 @@ export default function TemplateEditModal({
                 <label className="template-editor__editor-title block mb-1">
                   {alimtalkType && activeTab === "alimtalk"
                     ? bodyEditableInEnvelope
-                      ? "안내 문구 (알림톡 #{선생님메모} 영역)"
-                      : "본문 메모 (고정 알림톡에는 표시되지 않음)"
+                      ? "안내 문구"
+                      : "메모 (이 알림톡에는 표시되지 않음)"
                     : "본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)"}
                 </label>
                 <Input.TextArea
                   placeholder={
                     alimtalkType && !bodyEditableInEnvelope
-                      ? "이 알림톡 봉투는 카카오 승인 고정 본문으로 발송됩니다."
+                      ? "이 알림톡은 정해진 안내문으로 발송됩니다."
                       : "내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
                   }
                   value={body}

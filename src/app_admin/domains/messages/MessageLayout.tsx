@@ -26,7 +26,7 @@ export default function MessageLayout() {
     >
       {!alimtalkAvailable && info && (
         <div className={styles.alimtalkNotice}>
-          <span>알림톡 발송 설정 확인 필요 — 채널 또는 승인 템플릿을 확인해 주세요</span>
+          <span>알림톡 발송 준비 상태를 확인해 주세요</span>
           <Link
             to="/admin/message/settings"
             className={styles.alimtalkNoticeLink}

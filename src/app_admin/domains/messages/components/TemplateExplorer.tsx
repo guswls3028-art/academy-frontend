@@ -30,6 +30,7 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   renderPreviewBadges,
 } from "../constants/templateBlocks";
+import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
 import { koreanDateText } from "@/shared/utils/displayText";
 import { messageQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -170,22 +171,22 @@ function IconAction({
 
 const CATEGORY_DESCRIPTIONS: Record<MessageTemplateCategory, string> = {
   default:
-    "사용자가 직접 만든 커스텀 템플릿입니다. 발송할 때 승인 봉투를 선택해 사용합니다.",
+    "사용자가 직접 만든 커스텀 템플릿입니다. 발송할 때 알림톡 형식에 맞춰 사용합니다.",
   signup:
     "가입/등록 관련 자동발송에 사용됩니다. 학생·학부모 ID·비밀번호 블록을 사용할 수 있습니다.",
   attendance:
     "출결 관련 자동발송에 사용됩니다. 강의명·차시명 블록을 사용할 수 있습니다.",
   lecture:
-    "강의 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 봉투에 담깁니다.",
-  exam: "시험 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 봉투에 담깁니다.",
+    "강의 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
+  exam: "시험 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
   assignment:
-    "과제 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 봉투에 담깁니다.",
+    "과제 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
   grades:
     "성적 관련 자동발송에 사용됩니다. 시험·과제 성적 블록을 사용할 수 있습니다.",
   clinic:
     "클리닉/상담 관련 자동발송에 사용됩니다. 클리닉명·장소 블록을 사용할 수 있습니다.",
   payment:
-    "결제 관련 안내에 사용됩니다. 실제 발송은 결제 완료 고정 알림톡 봉투에 담깁니다.",
+    "결제 관련 안내에 사용됩니다. 실제 발송은 결제 완료 알림톡 형식으로 나갑니다.",
   notice:
     "운영공지 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
   community:
@@ -462,7 +463,7 @@ export default function TemplateExplorer() {
               WebkitBoxOrient: "vertical",
             }}
           >
-            {renderPreviewBadges(t.body)}
+            {renderPreviewBadges(hideInternalAlimtalkMemoToken(t.body))}
           </div>
         )}
       </div>
@@ -483,7 +484,7 @@ export default function TemplateExplorer() {
           <div>
             <h2 className={panelStyles.headerTitle}>템플릿 저장</h2>
             <p className={panelStyles.headerDesc}>
-              카카오 승인 봉투의 #{`{선생님메모}`} 영역에 들어갈 프로그램 템플릿을 관리합니다.
+              자동발송에 사용할 템플릿을 관리합니다. 저장한 문구는 실제 알림톡 미리보기에서 바로 확인할 수 있습니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

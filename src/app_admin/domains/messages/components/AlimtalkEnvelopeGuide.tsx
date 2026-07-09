@@ -27,7 +27,7 @@ function EnvelopeCard({ type }: { type: AlimtalkTemplateType }) {
           <span key={slot} className={styles.slot}>{slot}</span>
         ))}
       </div>
-      <div className={styles.memoSlot}>편지 영역 #{`{선생님메모}`}</div>
+      <div className={styles.memoSlot}>내 안내문이 들어가는 곳</div>
     </div>
   );
 }
@@ -35,17 +35,17 @@ function EnvelopeCard({ type }: { type: AlimtalkTemplateType }) {
 export function AlimtalkEnvelopeGuide({ variant = "full" }: GuideProps) {
   return (
     <div className={styles.guide} data-variant={variant}>
-      <section className={styles.panel} aria-label="알림톡 봉투 구조">
+      <section className={styles.panel} aria-label="알림톡 자동발송 안내">
         <div className={styles.labelRow}>
           <span className={styles.labelIcon}><MessageSquareText size={18} /></span>
           <div>
-            <div className={styles.eyebrow}>알림톡 발송 구조</div>
-            <div className={styles.title}>카카오 승인 봉투 안에 프로그램 템플릿을 넣어 보냅니다</div>
+            <div className={styles.eyebrow}>알림톡 자동발송</div>
+            <div className={styles.title}>상황별로 어떤 안내문이 나가는지 확인하세요</div>
           </div>
         </div>
         <p className={styles.bodyText}>
-          카카오가 고정한 제목·목록 항목은 봉투이고, 여기서 저장하는 본문은 발송 때
-          #{`{선생님메모}`} 한 칸에 들어갑니다.
+          출결·성적·클리닉처럼 자주 쓰는 상황은 정해진 알림톡 형식으로 발송됩니다.
+          선생님은 필요한 안내문만 고르고 수정하면 됩니다.
         </p>
         <div className={styles.flow}>
           <div className={styles.flowStep}>
@@ -53,16 +53,16 @@ export function AlimtalkEnvelopeGuide({ variant = "full" }: GuideProps) {
             <span>가입·출결·성적·클리닉</span>
           </div>
           <div className={styles.flowStep}>
-            <strong>봉투</strong>
-            <span>성적표·출석·클리닉</span>
+            <strong>알림톡</strong>
+            <span>상황에 맞는 형식 자동 선택</span>
           </div>
           <div className={styles.flowStep}>
-            <strong>편지</strong>
-            <span>저장한 본문 → #{`{선생님메모}`}</span>
+            <strong>안내문</strong>
+            <span>저장한 문구 사용</span>
           </div>
           <div className={styles.flowStep}>
             <strong>발송</strong>
-            <span>공용 승인 알림톡</span>
+            <span>학생·학부모에게 전송</span>
           </div>
         </div>
         {variant === "full" && (
@@ -75,30 +75,30 @@ export function AlimtalkEnvelopeGuide({ variant = "full" }: GuideProps) {
       </section>
 
       {variant === "full" && (
-        <section className={styles.routePanel} aria-label="알림톡 봉투 매칭">
+        <section className={styles.routePanel} aria-label="알림톡 자동발송 매칭">
           <div className={styles.labelRow}>
             <span className={styles.labelIcon}><Boxes size={18} /></span>
             <div>
-              <div className={styles.eyebrow}>상황별 봉투 매칭</div>
-              <div className={styles.title}>사용자는 편지를 고치고, 시스템은 맞는 봉투를 고릅니다</div>
+              <div className={styles.eyebrow}>상황별 발송 안내</div>
+              <div className={styles.title}>어떤 상황에서 어떤 안내문이 나가는지 보여줍니다</div>
             </div>
           </div>
           <div className={styles.routeList}>
             <div className={styles.routeItem}>
               <span className={styles.routeLabel}>성적</span>
-              <span className={styles.routeValue}>성적표 안내 봉투 + #{`{선생님메모}`}</span>
+              <span className={styles.routeValue}>성적표 안내 알림톡</span>
             </div>
             <div className={styles.routeItem}>
               <span className={styles.routeLabel}>출결·시험·과제</span>
-              <span className={styles.routeValue}>출석 안내 봉투 + #{`{선생님메모}`}</span>
+              <span className={styles.routeValue}>출석 안내 알림톡</span>
             </div>
             <div className={styles.routeItem}>
               <span className={styles.routeLabel}>클리닉</span>
-              <span className={styles.routeValue}>클리닉 안내/일정 변경 봉투 + #{`{선생님메모}`}</span>
+              <span className={styles.routeValue}>클리닉 안내 또는 일정 변경 알림톡</span>
             </div>
             <div className={styles.routeItem}>
               <span className={styles.routeLabel}>퇴원·결제</span>
-              <span className={styles.routeValue}>카카오 승인 고정 안내 봉투</span>
+              <span className={styles.routeValue}>정해진 안내문으로 발송</span>
             </div>
           </div>
         </section>
@@ -130,15 +130,15 @@ export function AlimtalkTriggerEnvelope({
         <div>
           <div className={styles.triggerTitle}>
             <ShieldCheck size={14} />
-            공용 승인 봉투 연결 없음
+            자동발송 준비 중
           </div>
           <div className={styles.triggerMeta}>
-            {fallbackTrigger || templateName || "이 항목"}은 같은 상황의 카카오 승인 봉투가 있을 때만 발송됩니다.
+            {fallbackTrigger || templateName || "이 항목"}은 사용할 알림톡 형식이 준비되면 발송할 수 있습니다.
           </div>
         </div>
         <div className={styles.memoPreview}>
-          <div className={styles.memoPreviewLabel}>발송 결과</div>
-          <div className={`${styles.memoPreviewBody} ${styles.fixedMemo}`}>승인 봉투가 없으면 발송하지 않음</div>
+          <div className={styles.memoPreviewLabel}>발송 상태</div>
+          <div className={`${styles.memoPreviewBody} ${styles.fixedMemo}`}>아직 자동 발송하지 않음</div>
         </div>
       </div>
     );
@@ -149,7 +149,7 @@ export function AlimtalkTriggerEnvelope({
       <div>
         <div className={styles.triggerTitle}>
           <Send size={14} />
-          봉투 {getAlimtalkTemplateLabel(normalized)}
+          알림톡 형식 {getAlimtalkTemplateLabel(normalized)}
           <span className={styles.prefix}>{spec.prefix}</span>
         </div>
         <div className={styles.slotList}>
@@ -159,16 +159,16 @@ export function AlimtalkTriggerEnvelope({
         </div>
         <div className={styles.triggerMeta}>
           {editable
-            ? `저장한 템플릿 본문이 #{선생님메모}에 들어갑니다.`
-            : "카카오 승인 고정 본문으로 발송되어 별도 편지 영역이 없습니다."}
+            ? "저장한 안내문이 실제 알림톡 본문에 표시됩니다."
+            : "정해진 안내문으로 발송됩니다."}
         </div>
       </div>
       <div className={styles.memoPreview}>
         <div className={styles.memoPreviewLabel}>
-          {editable ? "편지 #{선생님메모}" : "고정 안내"}
+          {editable ? "저장된 안내문" : "고정 안내"}
         </div>
         <div className={`${styles.memoPreviewBody} ${editable ? "" : styles.fixedMemo}`}>
-          {editable ? body?.trim() || "저장된 안내 문구가 여기에 들어갑니다." : "카카오 승인 본문 그대로 발송"}
+          {editable ? body?.trim() || "저장한 안내문이 여기에 보입니다." : "정해진 본문으로 발송"}
         </div>
       </div>
     </div>

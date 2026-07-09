@@ -59,6 +59,7 @@ import {
   getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
+import { stripInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
 import { lintAlimtalkTemplateQuality } from "../utils/templateQuality";
 import "../styles/templateEditor.css";
 
@@ -97,7 +98,7 @@ function isApprovedTpl(t: MessageTemplateItem): boolean {
 
 function extractVars(body: string): string[] {
   const matches = body.match(/#\{([^}]+)\}/g) ?? [];
-  return [...new Set(matches.map((m) => m.slice(2, -1)))];
+  return [...new Set(matches.map((m) => m.slice(2, -1)).filter((name) => name !== "선생님메모"))];
 }
 
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
@@ -290,7 +291,7 @@ export default function SendMessageModal({
   // (학원장 limglish 보고). 양식 변수는 backend가 학생별 자동 치환 → frontend가 차단할 이유 없음.
   // body 수정 path 의도(학원장이 양식 변수 일부 제거해도 발송 가능)는 양식 자체 편집 UI로 따로 해결.
   const varStatuses = useMemo(() => {
-    const sourceBody = selectedTemplate?.body ?? selectedPreset?.body ?? "";
+    const sourceBody = stripInternalAlimtalkMemoToken(selectedTemplate?.body ?? selectedPreset?.body ?? "");
     if (!sourceBody) return [];
     return getVarStatuses(sourceBody, alimtalkExtraVars, freeContent);
   }, [selectedTemplate, selectedPreset, alimtalkExtraVars, freeContent]);
@@ -496,8 +497,9 @@ export default function SendMessageModal({
     const justOpened = open && !prevOpenRef.current;
     prevOpenRef.current = open;
     if (!justOpened) return;
+    const initialDisplayBody = stripInternalAlimtalkMemoToken(initialBody ?? "");
     setSubject("");
-    setBody(initialBody ?? "");
+    setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
     setSelectedPresetId(initialLetterPresetId ?? null);
     setSendToParent(true);
@@ -507,7 +509,7 @@ export default function SendMessageModal({
     setShowPickerModal(false);
     setManualEnvelopeCategory(categoryHasSolapiEnvelope(blockCategory) ? blockCategory : "attendance");
     setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId && !initialLetterPresetId));
-    setTemplateBodySnapshot(initialBody ?? null);
+    setTemplateBodySnapshot(initialBody ? initialDisplayBody : null);
     setShowConfirm(false);
     setSendTiming("now");
     setScheduledAt(defaultScheduledLocalValue());
@@ -531,11 +533,12 @@ export default function SendMessageModal({
       if (!selectedTemplateId && !selectedPresetId && !initialBody) {
         const match = pickAutoSelectTemplate(list, effectiveBlockCategory);
         if (match) {
+          const nextBody = stripInternalAlimtalkMemoToken(match.body);
           setSelectedTemplateId(match.id);
           setSelectedPresetId(null);
-          setBody(match.body);
+          setBody(nextBody);
           // initialBody가 있으면 학원장 작성 본문이 곧 발송 본문 → snapshot 동기화로 "수정됨" 오인 방지
-          setTemplateBodySnapshot(match.body);
+          setTemplateBodySnapshot(nextBody);
           setAlimtalkFreeForm(false);
         } else {
           const preset = getDefaultTemplatePreset(effectiveBlockCategory);
@@ -547,10 +550,11 @@ export default function SendMessageModal({
           } else {
             const systemMatch = pickAutoSelectTemplate(list, effectiveBlockCategory, true);
             if (systemMatch) {
+              const nextBody = stripInternalAlimtalkMemoToken(systemMatch.body);
               setSelectedTemplateId(systemMatch.id);
               setSelectedPresetId(null);
-              setBody(systemMatch.body);
-              setTemplateBodySnapshot(systemMatch.body);
+              setBody(nextBody);
+              setTemplateBodySnapshot(nextBody);
               setAlimtalkFreeForm(false);
             }
           }
@@ -568,9 +572,10 @@ export default function SendMessageModal({
       // 현재 적용 중인 양식이 sync 후에도 유지되도록 body/snapshot 갱신
       if (selectedTemplateId) {
         const fresh = list.find((t) => t.id === selectedTemplateId);
-        if (fresh && fresh.body !== templateBodySnapshot) {
-          setBody(fresh.body);
-          setTemplateBodySnapshot(fresh.body);
+        const nextBody = fresh ? stripInternalAlimtalkMemoToken(fresh.body) : "";
+        if (fresh && nextBody !== templateBodySnapshot) {
+          setBody(nextBody);
+          setTemplateBodySnapshot(nextBody);
         }
       }
     } catch {
@@ -590,11 +595,12 @@ export default function SendMessageModal({
   }, [getNativeTextarea]);
 
   const selectTemplate = useCallback((t: MessageTemplateItem) => {
+    const nextBody = stripInternalAlimtalkMemoToken(t.body ?? "");
     setSelectedTemplateId(t.id);
     setSelectedPresetId(null);
     setSubject(t.subject ?? "");
-    setBody(t.body ?? "");
-    setTemplateBodySnapshot(t.body ?? "");
+    setBody(nextBody);
+    setTemplateBodySnapshot(nextBody);
     setAlimtalkFreeForm(false);
   }, []);
 
@@ -762,10 +768,10 @@ export default function SendMessageModal({
         asyncStatusStore.completeTask(taskId, "success");
       } else {
         const hint = totalSkipped > 0
-          ? `${sendToLabel} 대상 중 전화번호가 없어 큐에 등록된 건이 0건입니다.`
-          : `${sendToLabel} 알림톡 발송이 큐에 등록되지 않았습니다. 알림톡 연동·승인 템플릿·수신 번호를 확인해 주세요.`;
+          ? `${sendToLabel} 대상 중 전화번호가 없어 발송할 수 있는 건이 없습니다.`
+          : `${sendToLabel} 알림톡 발송 요청이 접수되지 않았습니다. 알림톡 연동과 수신 번호를 확인해 주세요.`;
         feedback.warning(hint);
-        asyncStatusStore.completeTask(taskId, "error", "발송 큐 0건");
+        asyncStatusStore.completeTask(taskId, "error", "발송 접수 0건");
       }
       queryClient.invalidateQueries({ queryKey: messageQueryKeys.info });
       queryClient.invalidateQueries({ queryKey: messageQueryKeys.log });
@@ -1044,7 +1050,7 @@ export default function SendMessageModal({
                   return (
                     <div className="template-preview-kakao">
                       <div className="template-preview-kakao__helper">
-                        봉투(카카오 자동 채움) + 학원장님 편지 — 학생별 변수 자동 치환
+                        기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다
                       </div>
                       <div className="template-preview-kakao__card">
                         <div className="template-preview-kakao__header">
@@ -1119,12 +1125,12 @@ export default function SendMessageModal({
             {needsEnvelopeChoice && (
               <div className="send-modal__envelope-selector">
                 <div className="send-modal__envelope-head">
-                  <span className="send-modal__envelope-label">알림톡 봉투</span>
+                  <span className="send-modal__envelope-label">알림톡 형식</span>
                   <span className="send-modal__envelope-current">
                     {getAlimtalkTemplateLabel(getAlimtalkTemplateTypeFromCategory(effectiveBlockCategory))}
                   </span>
                 </div>
-                <div className="send-modal__envelope-options" role="radiogroup" aria-label="알림톡 봉투">
+                <div className="send-modal__envelope-options" role="radiogroup" aria-label="알림톡 형식">
                   {EDITABLE_ENVELOPE_OPTIONS.map((option) => (
                     <button
                       key={option.category}
@@ -1165,9 +1171,9 @@ export default function SendMessageModal({
                     {presetBodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
                 ) : alimtalkFreeForm ? (
-                  <span className="send-modal__tpl-bar-freeform">봉투에 직접 작성</span>
+                  <span className="send-modal__tpl-bar-freeform">직접 작성</span>
                 ) : (
-                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 봉투에 직접 작성하세요</span>
+                  <span className="send-modal__tpl-bar-empty">양식을 선택하거나 직접 작성하세요</span>
                 )}
               </div>
 
@@ -1235,14 +1241,14 @@ export default function SendMessageModal({
 
             {/* ── 본문 영역 라벨 — 일괄 발송 의도 명시 ── */}
             <div className="send-modal__editor-label">
-              <span className="send-modal__editor-label-title">봉투 안 편지 (학원장 자유 편집)</span>
+              <span className="send-modal__editor-label-title">안내문</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
                   학원장님 작성한 그대로 학생 {recipientCount}명 전원에게 발송 · <strong>{`#{학생이름}`}</strong>·<strong>{`#{시험성적}`}</strong> 등 변수는 학생별 자동 치환
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
-                  카카오 양식의 <strong>봉투 장식</strong>(학원명/학생명/강의명 등)은 자동 채움. 여기에는 <strong>학원장님 메시지만</strong> 자유롭게 작성하세요.
+                  학원명·학생명·강의명 등 기본 정보는 자동으로 채워집니다. 여기에는 <strong>학원장님 메시지만</strong> 작성하세요.
                 </span>
               )}
             </div>
@@ -1256,7 +1262,7 @@ export default function SendMessageModal({
                     <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
                     <div className="send-modal__editor-empty-text">
                       <div>양식을 선택하거나</div>
-                      <div>봉투 안에 직접 작성하세요</div>
+                      <div>안내문을 직접 작성하세요</div>
                     </div>
                     <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
                       양식 선택하기
@@ -1266,7 +1272,7 @@ export default function SendMessageModal({
                       onClick={() => setAlimtalkFreeForm(true)}
                       className="send-modal__editor-empty-link"
                     >
-                      봉투에 직접 작성
+                      직접 작성
                     </button>
                   </div>
                 )}
@@ -1275,7 +1281,7 @@ export default function SendMessageModal({
                   onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
                   disabled={sending}
                   className="message-domain-input send-modal__editor-textarea"
-                  placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요. (봉투 장식은 카카오에서 자동으로 더해집니다)"
+                  placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요."
                   // 빈 상태 오버레이가 위에 떠 있을 때 textarea 클릭이 통과되지 않도록 동적 차단.
                   // eslint-disable-next-line no-restricted-syntax
                   style={{

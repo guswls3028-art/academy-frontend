@@ -30,6 +30,7 @@ import {
   getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
+import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
 
 export type TemplatePickerModalProps = {
   open: boolean;
@@ -195,7 +196,7 @@ export default function TemplatePickerModal({
     [defaultPresets, previewKey],
   );
 
-  const previewSourceBody = (previewTpl?.body ?? previewPreset?.body) || "";
+  const previewSourceBody = hideInternalAlimtalkMemoToken((previewTpl?.body ?? previewPreset?.body) || "");
   const previewSourceCategory = (previewTpl?.category ?? previewPreset?.category ?? blockCategory) as TemplateCategory;
   const previewTemplateName = previewTpl?.name ?? previewPreset?.name ?? "";
   const previewAlimtalkType = getAlimtalkTemplateTypeFromCategory(
@@ -242,7 +243,7 @@ export default function TemplatePickerModal({
             {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
           </div>
           <div className="tpl-picker__card-preview">
-            {t.body.replace(/#\{[^}]+\}/g, "•").slice(0, 90)}
+            {hideInternalAlimtalkMemoToken(t.body).replace(/#\{[^}]+\}/g, "•").slice(0, 90)}
           </div>
           <div className="tpl-picker__card-meta">
             <Tag size={ICON.xs} className="tpl-picker__icon-muted" />
@@ -328,7 +329,7 @@ export default function TemplatePickerModal({
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="발송할 알림톡 편지지를 선택하세요. 기본 제공 양식은 바로 수정·발송할 수 있고, 마음에 들면 내 양식으로 저장할 수 있습니다."
+        description="발송할 알림톡 양식을 선택하세요. 기본 제공 양식은 바로 수정·발송할 수 있고, 마음에 들면 내 양식으로 저장할 수 있습니다."
       />
 
       <ModalBody>
@@ -339,7 +340,7 @@ export default function TemplatePickerModal({
             <div className="tpl-picker__sync-bar">
               <div className="tpl-picker__sync-text">
                 <div className="tpl-picker__sync-title">검수 상태 동기화</div>
-                <div className="tpl-picker__sync-desc">솔라피 콘솔의 카카오 검수 결과(APPROVED/REJECTED)를 가져옵니다. 본문은 학원장 영역이라 절대 덮어쓰지 않습니다.</div>
+                <div className="tpl-picker__sync-desc">솔라피 콘솔의 카카오 검수 결과를 가져옵니다. 저장한 본문은 덮어쓰지 않습니다.</div>
               </div>
               <Button
                 size="sm"
@@ -386,8 +387,8 @@ export default function TemplatePickerModal({
               >
                 <Edit3 size={ICON.sm} className="tpl-picker__icon-primary" />
                 <div className="tpl-picker__freeform-text">
-                  <div className="tpl-picker__freeform-title">이 봉투에 직접 작성</div>
-                  <div className="tpl-picker__freeform-desc">선택한 봉투 안 편지를 처음부터 작성합니다</div>
+                  <div className="tpl-picker__freeform-title">직접 작성</div>
+                  <div className="tpl-picker__freeform-desc">보낼 안내문을 처음부터 작성합니다</div>
                 </div>
               </button>
 

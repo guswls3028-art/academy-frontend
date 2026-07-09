@@ -279,7 +279,7 @@ function TriggerCard({
               {/* 템플릿 — 읽기 전용 */}
               <div>
                 <div className={styles.fieldLabel}>
-                  프로그램 템플릿
+                  사용할 템플릿
                 </div>
                 <div className={styles.templateDisplay}>
                   <span className={styles.templateName}>
@@ -300,7 +300,7 @@ function TriggerCard({
                       data-status={status}
                       title={
                         config.effective_template_source === "unified"
-                          ? "공용 승인 템플릿으로 실제 발송됩니다."
+                          ? "현재 알림톡 형식으로 실제 발송됩니다."
                           : undefined
                       }
                     >

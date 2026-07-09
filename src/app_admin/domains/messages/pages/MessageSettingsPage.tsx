@@ -87,7 +87,7 @@ export default function MessageSettingsPage() {
 
   const channelSourceLabel = "공용 채널";
   const alimtalkAvailable = Boolean(info?.alimtalk_available);
-  const setupSteps = [{ done: alimtalkAvailable, label: "공용 알림톡 채널/승인 템플릿" }];
+  const setupSteps = [{ done: alimtalkAvailable, label: "알림톡 발송 준비" }];
   const allSetupDone = setupSteps.every((s) => s.done);
 
   return (
@@ -138,7 +138,7 @@ export default function MessageSettingsPage() {
       <Card accent="primary">
         <SectionTitle icon={<FiShield size={15} />}>공용 알림톡 정책</SectionTitle>
         <Desc>
-          학생·학부모 안내는 공용 카카오 알림톡 채널과 검수 승인 템플릿으로만 발송됩니다.
+          학생·학부모 안내는 공용 카카오 알림톡 채널로 발송됩니다.
           테넌트별 공급자/API 키 직접 연동과 문자 발송은 사용하지 않습니다.
         </Desc>
       </Card>
@@ -157,7 +157,7 @@ export default function MessageSettingsPage() {
 
       <Card accent="success">
         <SectionTitle icon={<FiCheckCircle size={15} />}>연동 테스트</SectionTitle>
-        <Desc>공용 알림톡 채널, 발신번호, 승인 템플릿 상태를 확인합니다.</Desc>
+        <Desc>공용 알림톡 채널, 발신번호, 발송 준비 상태를 확인합니다.</Desc>
         <div className={styles.testActions}>
           <Button
             intent="primary"

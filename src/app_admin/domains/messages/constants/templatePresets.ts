@@ -88,7 +88,7 @@ const PRESETS: ProvidedTemplatePreset[] = [
     id: "exam.schedule-basic",
     category: "exam",
     name: "시험 안내 기본형",
-    description: "출석 안내 봉투 안에 시험명과 수업 정보를 함께 담습니다.",
+    description: "출석 안내 알림톡에 시험명과 수업 정보를 함께 담습니다.",
     recommended: true,
     tags: ["시험", "일정"],
     body: [
@@ -104,7 +104,7 @@ const PRESETS: ProvidedTemplatePreset[] = [
     id: "assignment.due-basic",
     category: "assignment",
     name: "과제 안내 기본형",
-    description: "출석 안내 봉투 안에 과제명과 제출 안내를 담습니다.",
+    description: "출석 안내 알림톡에 과제명과 제출 안내를 담습니다.",
     recommended: true,
     tags: ["과제", "마감"],
     body: [
