@@ -179,6 +179,8 @@ const SAMPLE_CARDS = [
   { title: "모집 안내형", body: "기간 모집과 커리큘럼 중심", color: "rose" },
 ];
 
+const HAKWONPLUS_ICON = "/tenants/hakwonplus/icon.png";
+
 function Hero() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -216,7 +218,10 @@ function Hero() {
 
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
-          <span className={styles.heroEyebrow}>{current.eyebrow}</span>
+          <span className={styles.heroEyebrow}>
+            <img src={HAKWONPLUS_ICON} alt="" aria-hidden="true" />
+            {current.eyebrow}
+          </span>
           <h1 id="promo-hero-title" className={styles.heroTitle}>
             {current.title}
           </h1>

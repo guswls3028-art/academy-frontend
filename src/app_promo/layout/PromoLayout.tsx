@@ -33,6 +33,8 @@ const ACTIVE_ALIASES: Record<string, string[]> = {
   "/promo/contact": ["/promo/demo"],
 };
 
+const HAKWONPLUS_ICON = "/tenants/hakwonplus/icon.png";
+
 function isActive(pathname: string, path: string) {
   if (path === "/promo") return pathname === "/promo";
   const direct = pathname === path || pathname.startsWith(`${path}/`);
@@ -84,7 +86,9 @@ function Header() {
       <header data-promo-header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
         <div className={styles.headerInner}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
-            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandMark} aria-hidden="true">
+              <img src={HAKWONPLUS_ICON} alt="" />
+            </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
               <small>수업 운영</small>
@@ -167,7 +171,9 @@ function Header() {
       >
         <div className={styles.sidebarHead}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
-            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandMark} aria-hidden="true">
+              <img src={HAKWONPLUS_ICON} alt="" />
+            </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
               <small>수업 운영</small>
@@ -263,7 +269,9 @@ function Footer() {
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
           <Link to="/promo" className={styles.brand}>
-            <span className={styles.brandMark} aria-hidden="true">H</span>
+            <span className={styles.brandMark} aria-hidden="true">
+              <img src={HAKWONPLUS_ICON} alt="" />
+            </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
               <small>수업 운영</small>

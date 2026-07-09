@@ -2,8 +2,34 @@
   position: relative;
   min-height: clamp(680px, 84vh, 860px);
   overflow: hidden;
+  isolation: isolate;
   color: #f8fafc;
-  background: #081018;
+  background: #07111f;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 96px;
+  right: max(-120px, -7vw);
+  z-index: 1;
+  width: min(560px, 68vw);
+  aspect-ratio: 1;
+  pointer-events: none;
+  background: url("/tenants/hakwonplus/logo.png") center / contain no-repeat;
+  filter: saturate(1.1) contrast(1.08);
+  opacity: 0.2;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(55, 214, 242, 0.72), transparent);
 }
 
 .heroMedia,
@@ -14,6 +40,10 @@
   inset: 0;
 }
 
+.heroMedia {
+  z-index: 0;
+}
+
 .heroImage {
   width: 100%;
   height: 100%;
@@ -22,7 +52,7 @@
   opacity: 0;
   transform: scale(1.045);
   transition: opacity 720ms ease, transform 2200ms ease;
-  filter: saturate(1.08) contrast(1.04);
+  filter: saturate(1.08) contrast(1.06) brightness(0.92);
 }
 
 .heroImageActive {
@@ -32,22 +62,22 @@
 
 .heroVeil {
   background:
-    linear-gradient(90deg, rgba(5, 12, 18, 0.94) 0%, rgba(5, 12, 18, 0.66) 42%, rgba(5, 12, 18, 0.16) 100%),
-    linear-gradient(180deg, rgba(5, 12, 18, 0.74) 0%, rgba(5, 12, 18, 0.04) 45%, rgba(5, 12, 18, 0.86) 100%);
+    linear-gradient(90deg, rgba(4, 10, 18, 0.96) 0%, rgba(5, 15, 27, 0.74) 44%, rgba(5, 15, 27, 0.18) 100%),
+    linear-gradient(180deg, rgba(3, 10, 18, 0.78) 0%, rgba(5, 17, 29, 0.16) 46%, rgba(7, 17, 31, 0.94) 100%);
 }
 
 .heroGrid {
-  opacity: 0.12;
+  opacity: 0.16;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(55, 214, 242, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234, 251, 255, 0.08) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: linear-gradient(90deg, #000 0%, transparent 72%);
 }
 
 .heroInner {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) 320px;
   align-items: end;
@@ -73,10 +103,28 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #7dd3fc;
+  color: #37d6f2;
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0;
+}
+
+.heroEyebrow {
+  width: fit-content;
+  border: 1px solid rgba(55, 214, 242, 0.28);
+  border-radius: 999px;
+  padding: 6px 11px 6px 7px;
+  color: #eafbff;
+  background: rgba(7, 17, 31, 0.52);
+  box-shadow: inset 0 0 18px rgba(55, 214, 242, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.heroEyebrow img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .heroTitle {
@@ -89,6 +137,7 @@
   letter-spacing: 0;
   word-break: keep-all;
   text-wrap: balance;
+  text-shadow: 0 0 34px rgba(55, 214, 242, 0.16);
 }
 
 .heroBody {
@@ -127,16 +176,16 @@
 }
 
 .buttonPrimary {
-  border: 1px solid rgba(125, 211, 252, 0.55);
-  background: #13a8d8;
-  color: #06131b;
-  box-shadow: 0 18px 44px rgba(19, 168, 216, 0.28);
+  border: 1px solid rgba(55, 214, 242, 0.68);
+  background: #37d6f2;
+  color: #04131b;
+  box-shadow: 0 18px 44px rgba(55, 214, 242, 0.25);
 }
 
 .buttonPhone {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.94);
-  color: #081018;
+  color: #07111f;
   box-shadow: 0 18px 48px rgba(2, 6, 23, 0.22);
 }
 
@@ -153,8 +202,8 @@
 
 .buttonDark {
   width: fit-content;
-  border: 1px solid #0f172a;
-  background: #0f172a;
+  border: 1px solid #07111f;
+  background: #07111f;
   color: #fff;
 }
 
@@ -179,11 +228,11 @@
 }
 
 .heroRail {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(55, 214, 242, 0.24);
   border-radius: 8px;
   padding: 18px;
-  background: rgba(5, 12, 18, 0.52);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
+  background: rgba(5, 15, 27, 0.58);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28), inset 0 0 34px rgba(55, 214, 242, 0.06);
   backdrop-filter: blur(18px);
 }
 
@@ -198,7 +247,7 @@
 }
 
 .heroRailHead strong {
-  color: #fbbf24;
+  color: #37d6f2;
   font-size: 22px;
 }
 
@@ -250,7 +299,7 @@
 
 .heroControls button:hover,
 .heroControls button:focus-visible {
-  background: rgba(125, 211, 252, 0.16);
+  background: rgba(55, 214, 242, 0.16);
   outline: none;
 }
 
@@ -276,7 +325,7 @@
 }
 
 .heroTabs button span {
-  color: rgba(125, 211, 252, 0.82);
+  color: rgba(55, 214, 242, 0.88);
   font-size: 11px;
   font-weight: 850;
 }
@@ -286,9 +335,9 @@
 }
 
 .heroTabs button.isActive {
-  border-color: rgba(125, 211, 252, 0.52);
+  border-color: rgba(55, 214, 242, 0.56);
   color: #fff;
-  background: rgba(125, 211, 252, 0.11);
+  background: rgba(55, 214, 242, 0.13);
 }
 
 .sectionWrap {
@@ -300,7 +349,7 @@
   position: relative;
   z-index: 2;
   padding: 0 0 78px;
-  background: #f7fafb;
+  background: #f4fbfd;
 }
 
 .valueGrid {
@@ -311,20 +360,22 @@
 }
 
 .valueCard {
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 24px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  background:
+    linear-gradient(180deg, rgba(234, 251, 255, 0.72), rgba(255, 255, 255, 0.96) 42%),
+    #fff;
+  box-shadow: 0 12px 32px rgba(7, 17, 31, 0.06);
 }
 
 .valueCard svg {
-  color: #0ea5a8;
+  color: #109bb0;
 }
 
 .valueCard h2 {
   margin: 18px 0 8px;
-  color: #0f172a;
+  color: #07111f;
   font-size: 18px;
   font-weight: 900;
 }
@@ -353,7 +404,7 @@
 }
 
 .trustCopy > span {
-  color: #0ea5a8;
+  color: #109bb0;
 }
 
 .trustActions {
@@ -368,19 +419,20 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #0f766e;
+  color: #087f93;
   font-size: 14px;
   font-weight: 900;
   text-decoration: none;
 }
 
 .trustBoard {
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 22px;
   background:
-    linear-gradient(180deg, rgba(240, 253, 250, 0.68), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 18px 52px rgba(15, 23, 42, 0.08);
+    linear-gradient(180deg, rgba(230, 251, 255, 0.82), rgba(255, 255, 255, 0.98)),
+    url("/tenants/hakwonplus/icon.png") right 18px top 18px / 86px 86px no-repeat;
+  box-shadow: 0 18px 52px rgba(7, 17, 31, 0.08);
 }
 
 .trustBoardHead {
@@ -388,14 +440,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(7, 17, 31, 0.08);
   padding-bottom: 18px;
 }
 
 .trustBoardHead span,
 .trustMetricGrid span {
   display: block;
-  color: #0f766e;
+  color: #087f93;
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0;
@@ -404,7 +456,7 @@
 .trustBoardHead strong {
   display: block;
   margin-top: 7px;
-  color: #101923;
+  color: #07111f;
   font-size: 22px;
   font-weight: 940;
   line-height: 1.18;
@@ -413,13 +465,13 @@
 
 .trustBoardHead small {
   flex: 0 0 auto;
-  border: 1px solid rgba(14, 165, 168, 0.2);
+  border: 1px solid rgba(55, 214, 242, 0.28);
   border-radius: 999px;
   padding: 7px 10px;
-  color: #0f766e;
+  color: #087f93;
   font-size: 11px;
   font-weight: 900;
-  background: #e4fbf7;
+  background: #e6fbff;
 }
 
 .trustMetricGrid {
@@ -431,7 +483,7 @@
 
 .trustMetricGrid article {
   min-height: 132px;
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(7, 17, 31, 0.07);
   border-radius: 8px;
   padding: 15px;
   background: #fff;
@@ -440,7 +492,7 @@
 .trustMetricGrid strong {
   display: block;
   margin-top: 20px;
-  color: #0f172a;
+  color: #07111f;
   font-size: 28px;
   font-weight: 950;
   line-height: 1;
@@ -468,7 +520,7 @@
   grid-template-columns: 42px 1fr;
   gap: 12px;
   align-items: start;
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(7, 17, 31, 0.07);
   border-radius: 8px;
   padding: 14px;
   background: rgba(255, 255, 255, 0.84);
@@ -479,13 +531,13 @@
   height: 42px;
   border-radius: 8px;
   padding: 11px;
-  color: #06313b;
-  background: #c8f4ec;
+  color: #05212b;
+  background: #c8f7ff;
 }
 
 .trustTimeline strong {
   display: block;
-  color: #101923;
+  color: #07111f;
   font-size: 14px;
   font-weight: 930;
 }
@@ -502,7 +554,7 @@
 .workflowSection,
 .samplesSection {
   padding: 80px 0;
-  background: #f7fafb;
+  background: #f4fbfd;
 }
 
 .sectionHead {
@@ -516,7 +568,7 @@
 .samplesCopy h2,
 .finalCtaInner h2 {
   margin: 10px 0 0;
-  color: #101923;
+  color: #07111f;
   font-size: 46px;
   font-weight: 920;
   line-height: 1.04;
@@ -547,7 +599,7 @@
   display: grid;
   align-content: start;
   gap: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 10px;
   background: #fff;
@@ -568,14 +620,14 @@
 
 .hubSidebar button:hover,
 .hubSidebar button:focus-visible {
-  color: #0f172a;
-  background: #eff6ff;
+  color: #07111f;
+  background: #e7fbff;
   outline: none;
 }
 
 .hubSidebar button.isActive {
-  color: #06202a;
-  background: #dff7f4;
+  color: #05212b;
+  background: #d8f8ff;
 }
 
 .hubPanel {
@@ -583,31 +635,31 @@
   grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1fr);
   gap: 24px;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 26px;
   background: #fff;
-  box-shadow: 0 14px 42px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 42px rgba(7, 17, 31, 0.06);
 }
 
 .hubPanel[data-accent="mint"] {
-  --accent: #0ea5a8;
-  --accent-bg: #e0f7f3;
+  --accent: #109bb0;
+  --accent-bg: #e2faff;
 }
 
 .hubPanel[data-accent="amber"] {
-  --accent: #b7791f;
-  --accent-bg: #fff2cc;
+  --accent: #b77b25;
+  --accent-bg: #fff3d5;
 }
 
 .hubPanel[data-accent="rose"] {
-  --accent: #d9486e;
-  --accent-bg: #ffe6ef;
+  --accent: #b85d82;
+  --accent-bg: #ffe9f1;
 }
 
 .hubPanel[data-accent="blue"] {
-  --accent: #2563eb;
-  --accent-bg: #dbeafe;
+  --accent: #147ecf;
+  --accent-bg: #e0f2ff;
 }
 
 .hubCopy {
@@ -627,7 +679,7 @@
 
 .hubCopy h3 {
   margin: 22px 0 12px;
-  color: #101923;
+  color: #07111f;
   font-size: 36px;
   font-weight: 920;
   line-height: 1.08;
@@ -677,9 +729,9 @@
 .hubVisual {
   min-height: 430px;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
-  background: #eef3f8;
+  background: #eaf6fb;
 }
 
 .hubVisual img {
@@ -694,8 +746,10 @@
   padding: 82px 0;
   color: #f8fafc;
   background:
-    linear-gradient(135deg, rgba(7, 18, 28, 0.94), rgba(18, 42, 46, 0.9)),
+    linear-gradient(135deg, rgba(5, 12, 22, 0.96), rgba(9, 31, 40, 0.9)),
+    url("/tenants/hakwonplus/logo.png") right 8% center / min(520px, 54vw) no-repeat,
     url("/promo/admin-lectures.png") center / cover;
+  background-blend-mode: normal, screen, normal;
 }
 
 .studentProofGrid {
@@ -710,7 +764,7 @@
 }
 
 .studentProofCopy > span {
-  color: #fbbf24;
+  color: #c9f6ff;
 }
 
 .studentProofCopy h2 {
@@ -747,8 +801,8 @@
   height: 42px;
   border-radius: 8px;
   padding: 10px;
-  color: #08202a;
-  background: #9ee8df;
+  color: #05212b;
+  background: #b9f5ff;
 }
 
 .studentProofList strong {
@@ -848,10 +902,12 @@
 .workflow li {
   position: relative;
   min-height: 210px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 20px;
-  background: #f7fafb;
+  background:
+    linear-gradient(180deg, rgba(234, 251, 255, 0.64), rgba(255, 255, 255, 0.94) 52%),
+    #fff;
 }
 
 .workflow li::after {
@@ -877,13 +933,13 @@
 
 .workflow svg {
   margin-top: 30px;
-  color: #0ea5a8;
+  color: #109bb0;
 }
 
 .workflow strong {
   display: block;
   margin-top: 12px;
-  color: #111827;
+  color: #07111f;
   font-size: 18px;
   font-weight: 900;
 }
@@ -908,7 +964,7 @@
 }
 
 .samplesCopy span {
-  color: #0ea5a8;
+  color: #109bb0;
 }
 
 .samplesGrid {
@@ -919,19 +975,19 @@
 
 .sampleCard {
   min-height: 170px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(7, 17, 31, 0.08);
   border-radius: 8px;
   padding: 18px;
-  color: #0f172a;
+  color: #07111f;
   text-decoration: none;
   background: #fff;
-  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 34px rgba(7, 17, 31, 0.06);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .sampleCard:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 44px rgba(7, 17, 31, 0.08);
 }
 
 .sampleCard span {
@@ -945,19 +1001,19 @@
 }
 
 .sampleCard[data-color="blue"] {
-  --sample-color: #2563eb;
+  --sample-color: #147ecf;
 }
 
 .sampleCard[data-color="ink"] {
-  --sample-color: #24313f;
+  --sample-color: #07111f;
 }
 
 .sampleCard[data-color="mint"] {
-  --sample-color: #0ea5a8;
+  --sample-color: #109bb0;
 }
 
 .sampleCard[data-color="rose"] {
-  --sample-color: #d9486e;
+  --sample-color: #b85d82;
 }
 
 .sampleCard strong {
@@ -977,8 +1033,10 @@
   padding: 82px 0;
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(9, 19, 28, 0.92), rgba(16, 34, 39, 0.88)),
+    linear-gradient(135deg, rgba(5, 12, 22, 0.94), rgba(9, 31, 40, 0.88)),
+    url("/tenants/hakwonplus/logo.png") right 8% center / min(460px, 52vw) no-repeat,
     url("/promo/admin-home.png") center / cover;
+  background-blend-mode: normal, screen, normal;
 }
 
 .finalCtaInner {
@@ -986,7 +1044,7 @@
 }
 
 .finalCtaInner > span {
-  color: #fbbf24;
+  color: #c9f6ff;
 }
 
 .finalCtaInner h2,
