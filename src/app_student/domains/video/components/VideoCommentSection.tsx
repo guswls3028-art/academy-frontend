@@ -18,6 +18,7 @@ import {
 
 import { useConfirm } from "@/shared/ui/confirm";
 import { cx } from "@/shared/utils/cx";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 
 import {
@@ -187,7 +188,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
             </div>
           </div>
         ) : (
-          <div className={styles.commentContent}>{comment.content}</div>
+          <div className={styles.commentContent}>{richHtmlToPlainText(comment.content)}</div>
         )}
 
         {!editMode && (
