@@ -6,6 +6,7 @@
  */
 import type { Page } from "@playwright/test";
 import { apiCall } from "./api";
+import { PRODUCTION_CONTROLLED_PHONE } from "./safety";
 
 export interface LectureSession {
   lectureId: number;
@@ -64,32 +65,47 @@ export async function getTodayClinicSession(page: Page): Promise<ClinicSessionIn
 
 export interface EnsuredClinicSession {
   session: ClinicSessionInfo;
-  /** beforeAll 이 새로 만든 세션이면 cleanup 대상 */
-  ownedSessionId: number | null;
-  /** beforeAll 이 새로 추가한 참가자 (cascade 로 세션 삭제 시 같이 삭제됨, 보고용) */
-  ownedParticipantId: number | null;
+  /** 테스트가 만든 세션. cleanup 대상. */
+  ownedSessionId: number;
+  /** 테스트가 만든 참가자. 세션 삭제 시 cascade. */
+  ownedParticipantId: number;
+  /** 테스트가 만든 통제번호 학생. 세션 삭제 후 cleanup 대상. */
+  ownedStudentId: number;
 }
 
 /**
  * 트리거 검증 (12-clinic-trigger-real 등) 을 위해 **오늘 세션 + 참가자** 를 보장.
  *
- * 동작:
- *  1. 오늘 참가자 있는 세션 있으면 그대로 사용 (cleanup 불필요, ownedSessionId=null)
- *  2. 없으면 자동 생성 — `[E2E-{ts}]` 태그 세션 + 학생 1명 추가
- *     - 학생 ID 우선순위: env `E2E_CLINIC_STUDENT_ID` > 첫 학생 (admin/students/?page_size=1)
+ * 운영 데이터는 재사용하지 않는다. `[E2E-{ts}]` 학생·세션·참가자를 모두
+ * 새로 만들며 학생 연락처는 통제번호로 고정한다.
  *
  * cleanupEnsuredClinicSession() 으로 짝맞게 정리 필수.
  */
 export async function ensureClinicSessionForTrigger(page: Page): Promise<EnsuredClinicSession> {
-  const existing = await getTodayClinicSession(page);
-  if (existing) {
-    return { session: existing, ownedSessionId: null, ownedParticipantId: null };
-  }
-
-  // ── 세션 생성 ──
   const today = todayISO();
   const ts = Date.now();
   const startTime = "12:00:00";
+  const studentName = `[E2E-${ts}] clinic trigger student`;
+  const createStudent = await apiCall<{ id?: number }>(page, "POST", "/students/", {
+    name: studentName,
+    ps_number: `e2eclinic${String(ts).slice(-8)}`,
+    parent_phone: PRODUCTION_CONTROLLED_PHONE,
+    no_phone: true,
+    school_type: "HIGH",
+    high_school: "E2E고",
+    grade: 1,
+    gender: "M",
+    initial_password: "test1234",
+    memo: `[E2E-${ts}] clinic trigger fixture`,
+  });
+  if (createStudent.status !== 201 || !createStudent.body?.id) {
+    throw new Error(
+      `클리닉 테스트 학생 생성 실패: status=${createStudent.status} body=${JSON.stringify(createStudent.body)}`,
+    );
+  }
+  const studentId = createStudent.body.id;
+
+  // ── 세션 생성 ──
   const createSess = await apiCall(page, "POST", "/clinic/sessions/", {
     title: `[E2E-${ts}] auto trigger setup`,
     date: today,
@@ -100,26 +116,15 @@ export async function ensureClinicSessionForTrigger(page: Page): Promise<Ensured
     target_lecture_ids: [],
   });
   if (createSess.status !== 201) {
+    await cleanupClinicTriggerStudent(page, studentId, true);
     throw new Error(
       `클리닉 세션 자동 생성 실패: status=${createSess.status} body=${JSON.stringify(createSess.body)}`,
     );
   }
-  const newSessionId = createSess.body.id as number;
-
-  // ── 학생 ID 결정 ──
-  const envStudentId = Number.parseInt(process.env.E2E_CLINIC_STUDENT_ID || "0", 10);
-  let studentId: number | null = envStudentId > 0 ? envStudentId : null;
-
-  if (studentId === null) {
-    const studRes = await apiCall(page, "GET", "/students/?page_size=1");
-    const arr = (studRes.body?.results ?? studRes.body ?? []) as Array<{ id: number }>;
-    if (arr.length > 0) studentId = arr[0].id;
-  }
-
-  if (studentId === null) {
-    // 세션은 만들었으니 정리 후 throw
-    await apiCall(page, "DELETE", `/clinic/sessions/${newSessionId}/`).catch(() => {});
-    throw new Error("학생을 찾을 수 없어 클리닉 setup 실패 (E2E_CLINIC_STUDENT_ID 미설정 + 학생 0명)");
+  const newSessionId = Number((createSess.body as { id?: number })?.id);
+  if (!Number.isFinite(newSessionId) || newSessionId <= 0) {
+    await cleanupClinicTriggerStudent(page, studentId, true);
+    throw new Error(`클리닉 세션 생성 응답에 id가 없습니다: ${JSON.stringify(createSess.body)}`);
   }
 
   // ── 참가자 추가 ──
@@ -129,9 +134,17 @@ export async function ensureClinicSessionForTrigger(page: Page): Promise<Ensured
   });
   if (createPart.status !== 201) {
     await apiCall(page, "DELETE", `/clinic/sessions/${newSessionId}/`).catch(() => {});
+    await cleanupClinicTriggerStudent(page, studentId, true);
     throw new Error(
       `클리닉 참가자 자동 추가 실패: status=${createPart.status} body=${JSON.stringify(createPart.body)}`,
     );
+  }
+
+  const participantId = Number((createPart.body as { id?: number })?.id);
+  if (!Number.isFinite(participantId) || participantId <= 0) {
+    await apiCall(page, "DELETE", `/clinic/sessions/${newSessionId}/`).catch(() => {});
+    await cleanupClinicTriggerStudent(page, studentId, true);
+    throw new Error(`클리닉 참가자 생성 응답에 id가 없습니다: ${JSON.stringify(createPart.body)}`);
   }
 
   return {
@@ -144,20 +157,42 @@ export async function ensureClinicSessionForTrigger(page: Page): Promise<Ensured
       participantCount: 1,
     },
     ownedSessionId: newSessionId,
-    ownedParticipantId: createPart.body.id ?? null,
+    ownedParticipantId: participantId,
+    ownedStudentId: studentId,
   };
 }
 
+async function cleanupClinicTriggerStudent(
+  page: Page,
+  studentId: number,
+  bestEffort = false,
+): Promise<void> {
+  for (const path of ["/students/bulk_delete/", "/students/bulk_permanent_delete/"]) {
+    try {
+      const response = await apiCall(page, "POST", path, { ids: [studentId] });
+      if (![200, 204, 404].includes(response.status)) {
+        throw new Error(`${path} -> ${response.status} ${JSON.stringify(response.body)}`);
+      }
+    } catch (error) {
+      if (!bestEffort) throw error;
+    }
+  }
+}
+
 /**
- * ensureClinicSessionForTrigger 가 만든 세션이면 삭제. 외부 세션이면 noop.
- * 세션 삭제 시 참가자는 cascade.
+ * 테스트 세션과 통제번호 학생을 순서대로 정리한다.
  */
 export async function cleanupEnsuredClinicSession(
   page: Page,
   ensured: EnsuredClinicSession,
 ): Promise<void> {
-  if (ensured.ownedSessionId === null) return;
-  await apiCall(page, "DELETE", `/clinic/sessions/${ensured.ownedSessionId}/`);
+  const sessionDelete = await apiCall(page, "DELETE", `/clinic/sessions/${ensured.ownedSessionId}/`);
+  if (![200, 204, 404].includes(sessionDelete.status)) {
+    throw new Error(
+      `클리닉 fixture 세션 정리 실패: ${sessionDelete.status} ${JSON.stringify(sessionDelete.body)}`,
+    );
+  }
+  await cleanupClinicTriggerStudent(page, ensured.ownedStudentId);
 }
 
 /**

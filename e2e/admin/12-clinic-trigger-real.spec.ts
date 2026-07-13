@@ -2,9 +2,9 @@
  * 클리닉 실전 트리거 — 오늘 세션에서 출석/결석/완료 클릭 → 알림톡 발송 검증
  *
  * 데이터 보장:
- *  - 오늘 클리닉 세션이 이미 있으면 그대로 사용 (실 데이터 검증)
- *  - 없으면 ensureClinicSessionForTrigger 가 자동으로 세션+참가자 생성 → afterAll 에서 정리
- *  - 즉, "오늘 클리닉 없음" 으로 인한 silent skip 은 더 이상 발생하지 않음
+ *  - 기존 운영 학생·세션은 절대 재사용하지 않음
+ *  - ensureClinicSessionForTrigger 가 통제번호 학생+세션+참가자를 생성
+ *  - afterAll 에서 생성한 fixture 전체 정리
  *
  * 이전 하드코드(Session 461, Participants 648/649) 는 모두 제거.
  */
@@ -17,6 +17,7 @@ import {
   cleanupEnsuredClinicSession,
   type EnsuredClinicSession,
 } from "../helpers/data";
+import { productionTriggerMutationSkipReason } from "../helpers/safety";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";
@@ -34,12 +35,14 @@ async function dismissOverlays(page: Page) {
 
 test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
   test.setTimeout(180_000);
+  const skipReason = productionTriggerMutationSkipReason(API);
+  test.skip(Boolean(skipReason), skipReason ?? "");
 
   // 모듈 스코프 — 워커 1, fullyParallel false 전제이므로 동시 실행 충돌 없음.
   let ensured: EnsuredClinicSession | null = null;
 
   test.afterAll(async ({ browser }) => {
-    if (!ensured || ensured.ownedSessionId === null) return;
+    if (!ensured) return;
     // 새 컨텍스트로 cleanup — test 본체의 page 가 이미 닫혔을 수 있음
     const ctx = await browser.newContext();
     const cleanupPage = await ctx.newPage();
@@ -161,30 +164,16 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
       console.log(`  id=${l.id} | ${l.sent_at?.slice(11, 19)} | ${l.message_mode} | success=${l.success}`);
     }
 
-    if (ensured.ownedSessionId === null) {
-      // 실 데이터 시나리오 — parent_phone 있는 학생 가정. 발송 hard check.
-      expect(
-        recentLogs.length,
-        "출석/결석/완료 트리거 중 최소 1건은 2분 내 발송 로그에 반영되어야 함",
-      ).toBeGreaterThan(0);
+    expect(
+      recentLogs.length,
+      "통제 fixture 출석/결석/완료 트리거 중 최소 1건은 2분 내 발송 로그에 반영되어야 함",
+    ).toBeGreaterThan(0);
 
-      const earliest = recentLogs[recentLogs.length - 1];
-      expect(
-        new Date(earliest.sent_at).getTime(),
-        "가장 이른 최근 발송이 테스트 시작 이후(±60s)여야 함",
-      ).toBeGreaterThanOrEqual(sendStart - 60_000);
-    } else {
-      // auto-setup 시나리오 — 학생 parent_phone 없을 수 있어 발송 시도가 안 될 수 있음.
-      // 트리거 클릭이 페이지 깨짐 없이 완료되었으면 회귀 보장 충분으로 간주, 발송은 soft.
-      if (recentLogs.length === 0) {
-        test.info().annotations.push({
-          type: "clinic-trigger-no-send",
-          description:
-            "auto-setup 학생에 parent_phone 이 없어 발송 record 없음. " +
-            "실 발송 검증을 강제하려면 E2E_CLINIC_STUDENT_ID 에 parent_phone 보유 학생 ID 지정.",
-        });
-      }
-    }
+    const earliest = recentLogs[recentLogs.length - 1];
+    expect(
+      new Date(earliest.sent_at).getTime(),
+      "가장 이른 최근 발송이 테스트 시작 이후(±60s)여야 함",
+    ).toBeGreaterThanOrEqual(sendStart - 60_000);
 
     await snap(page, "05-final");
   });

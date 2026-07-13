@@ -4,6 +4,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import type { APIRequestContext } from "@playwright/test";
+import { nonPrimaryTenantWriteSkipReason } from "../helpers/safety";
 
 const API_BASE = getApiBaseUrl();
 const DNB_CODE = "dnb";
@@ -25,12 +26,29 @@ async function getToken(request: APIRequestContext): Promise<string> {
   return body.access;
 }
 
+async function cleanupCreatedLecture(request: APIRequestContext): Promise<void> {
+  if (!createdLectureId) return;
+  const token = await getToken(request);
+  const id = createdLectureId;
+  const resp = await request.delete(`${API_BASE}/api/v1/lectures/lectures/${id}/`, {
+    headers: headers(token),
+  });
+  expect([204, 404], `cleanup lecture ${id}`).toContain(resp.status());
+  createdLectureId = null;
+}
+
 function headers(token: string) {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Tenant-Code": DNB_CODE };
 }
 
 test.describe.serial("DNB 강의 CRUD (API)", () => {
+  const productionWriteBlock = nonPrimaryTenantWriteSkipReason(DNB_CODE, API_BASE);
+  test.skip(Boolean(productionWriteBlock), productionWriteBlock ?? "");
   test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
+  test.afterAll(async ({ request }) => {
+    await cleanupCreatedLecture(request);
+  });
 
   test("1. 강의 생성 (POST)", async ({ request }) => {
     const token = await getToken(request);
@@ -120,12 +138,6 @@ test.describe.serial("DNB 강의 CRUD (API)", () => {
   });
 
   test("8. 강의 삭제 (cleanup)", async ({ request }) => {
-    if (!createdLectureId) return;
-    const token = await getToken(request);
-    const resp = await request.delete(`${API_BASE}/api/v1/lectures/lectures/${createdLectureId}/`, {
-      headers: headers(token),
-    });
-    expect(resp.status()).toBe(204);
-    console.log(`강의 ${createdLectureId} 삭제 완료`);
+    await cleanupCreatedLecture(request);
   });
 });

@@ -17,9 +17,8 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # 활성 80 spec × workers:1 (fullyParallel:false) × retries:1 기준 90~110분.
-    # 4-29: 90분에 99%(539/544) 진행 후 cancelled — 5건 남기고 timeout 도달.
-    # 120분으로 상향. retries:1 (playwright.config.ts) 로 flake 흡수.
+    # 활성 spec은 계속 증가하므로 정적 개수 대신 Playwright discovery를 SSOT로 사용한다.
+    # workers:1, fullyParallel:false, retries:1 기준 최대 120분.
     timeout-minutes: 120
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
@@ -38,6 +37,9 @@ jobs:
 
       - name: Install Playwright
         run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
 
       - name: Create .env.e2e
         run: |
@@ -64,6 +66,8 @@ jobs:
           # CORS multi-tenant 8+, TypeError lazyWithRetry 5, AxiosTimeout 4, ERR_FAILED 16.
           # 잔여 fix 후 strict 플립 재시도. 본 일자에는 report 유지로 CI signal 보호.
           E2E_STRICT=report
+          # PR/전체 suite는 provider 실발송 금지. 전용 수동 canary만 1로 실행한다.
+          E2E_ALLOW_REAL_ALIMTALK=0
           EOF
 
       - name: Run E2E tests

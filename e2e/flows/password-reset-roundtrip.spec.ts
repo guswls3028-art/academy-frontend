@@ -7,6 +7,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { productionMultiNoticeFlowSkipReason } from "../helpers/safety";
 
 const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const TS = Date.now();
@@ -52,6 +53,9 @@ async function cleanupPasswordTestAccount(page: Page): Promise<void> {
 }
 
 test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
+  const productionBlock = productionMultiNoticeFlowSkipReason(API_BASE);
+  test.skip(Boolean(productionBlock), productionBlock ?? "");
+
   let browser: Browser;
   let adminPage: Page;
 

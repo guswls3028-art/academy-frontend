@@ -11,8 +11,10 @@ import type { Page, Browser } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 import { TEST_RECIPIENT } from "../helpers/test-fixtures";
+import { productionUnisolatedScenarioSkipReason } from "../helpers/safety";
 
 const BASE = getBaseUrl("admin");
+const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 
 type ApiListBody<T> = { results?: T[] };
 type LectureSummary = { id: number; title?: string | null };
@@ -25,6 +27,9 @@ function resultsOf<T>(body: unknown): T[] {
 }
 
 test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
+  const productionBlock = productionUnisolatedScenarioSkipReason(API_BASE);
+  test.skip(Boolean(productionBlock), productionBlock ?? "");
+
   let browser: Browser;
   let teacherPage: Page;
   let studentPage: Page;
@@ -169,7 +174,6 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     console.log(`  학생 아이디: ${psNumber}`);
 
     // API 기반 로그인 (loginViaUI와 동일 방식)
-    const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
     const tokenResp = await studentPage.request.post(`${API_BASE}/api/v1/token/`, {
       data: { username: psNumber, password: "0000" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },

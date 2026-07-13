@@ -8,7 +8,11 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
-import type { Page } from "@playwright/test";
+import {
+  nonPrimaryTenantWriteSkipReason,
+  PRODUCTION_CONTROLLED_PHONE,
+} from "../helpers/safety";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 const DNB_BASE = getBaseUrl("dnb-admin");
 const API = getApiBaseUrl();
@@ -17,25 +21,41 @@ const ADMIN_USER = process.env.DNB_ADMIN_USER ?? "";
 const ADMIN_PASS = process.env.DNB_ADMIN_PASS ?? "";
 
 const TS = Date.now();
-const PHONE_SUFFIX = String(TS).slice(-8);
 const TEST_STUDENT_NAME = `[E2E-${TS}]`;
 const TEST_PASSWORD = "test1234";
 
 // Store created student ID for cleanup
 let createdStudentId: number | null = null;
 let createdPsNumber: string | null = null;
-let useExistingStudent = false;
 let adminToken: string | null = null;
 
 /** Admin API login -- returns access token */
-async function getAdminToken(page: Page): Promise<string> {
-  const resp = await page.request.post(`${API}/api/v1/token/`, {
+async function getAdminToken(request: APIRequestContext): Promise<string> {
+  const resp = await request.post(`${API}/api/v1/token/`, {
     data: { username: ADMIN_USER, password: ADMIN_PASS, tenant_code: CODE },
     headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
   });
   expect(resp.status()).toBe(200);
   const tokens = (await resp.json()) as { access: string; refresh: string };
   return tokens.access;
+}
+
+async function cleanupCreatedStudent(request: APIRequestContext): Promise<void> {
+  if (!createdStudentId) return;
+  const token = await getAdminToken(request);
+  const id = createdStudentId;
+  const soft = await request.post(`${API}/api/v1/students/bulk_delete/`, {
+    headers: apiHeaders(token),
+    data: { ids: [id] },
+  });
+  expect([200, 204, 404], `cleanup student ${id} soft delete`).toContain(soft.status());
+  const permanent = await request.post(`${API}/api/v1/students/bulk_permanent_delete/`, {
+    headers: apiHeaders(token),
+    data: { ids: [id] },
+  });
+  expect([200, 204, 404], `cleanup student ${id} permanent delete`).toContain(permanent.status());
+  createdStudentId = null;
+  createdPsNumber = null;
 }
 
 /** Login as student via localStorage injection */
@@ -93,23 +113,26 @@ async function collectPageErrors(page: Page): Promise<{ consoleErrors: string[];
 }
 
 test.describe("DNB 학생앱 전체 E2E", () => {
+  const productionWriteBlock = nonPrimaryTenantWriteSkipReason(CODE, API);
+  test.skip(Boolean(productionWriteBlock), productionWriteBlock ?? "");
   test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
+  test.afterAll(async ({ request }) => {
+    await cleanupCreatedStudent(request);
+  });
 
   test.setTimeout(180_000); // 3 minutes for the full suite
 
   test("0. Setup -- 테스트 학생 생성", async ({ page }) => {
-    adminToken = await getAdminToken(page);
+    adminToken = await getAdminToken(page.request);
 
-    // Try to create a test student via the students API (unique phone to avoid 409)
-    const phone = `010${PHONE_SUFFIX}`;
-    const parentPhone = `011${PHONE_SUFFIX}`;
     const createResp = await page.request.post(`${API}/api/v1/students/`, {
       headers: apiHeaders(adminToken),
       data: {
         name: TEST_STUDENT_NAME,
         initial_password: TEST_PASSWORD,
-        parent_phone: parentPhone,
-        phone,
+        parent_phone: PRODUCTION_CONTROLLED_PHONE,
+        no_phone: true,
         school_type: "MIDDLE",
         grade: 2,
         gender: "M",
@@ -124,64 +147,7 @@ test.describe("DNB 학생앱 전체 E2E", () => {
       console.log(`Created test student ID: ${createdStudentId}, ps_number: ${createdPsNumber}`);
     } else {
       const body = await createResp.text();
-      console.log(`Student creation response: ${body}`);
-
-      // 409 with deleted_student_exists: recover the student
-      if (createResp.status() === 409) {
-        try {
-          const parsed = JSON.parse(body);
-          if (parsed.code === "deleted_student_exists" && parsed.deleted_student?.id) {
-            const recoverId = parsed.deleted_student.id;
-            const recoverResp = await page.request.post(`${API}/api/v1/students/${recoverId}/recover/`, {
-              headers: apiHeaders(adminToken),
-              data: { initial_password: TEST_PASSWORD },
-            });
-            if (recoverResp.status() === 200 || recoverResp.status() === 201) {
-              const recoverData = (await recoverResp.json()) as { id?: number; ps_number?: string };
-              createdStudentId = recoverData.id ?? recoverId;
-              createdPsNumber = recoverData.ps_number ?? parsed.deleted_student.ps_number;
-              console.log(`Recovered deleted student: ${createdStudentId}, ps_number: ${createdPsNumber}`);
-            } else {
-              console.log(`Recovery failed: ${recoverResp.status()}`);
-            }
-          }
-        } catch { /* ignore parse error */ }
-      }
-
-      // Fallback: use an existing student with admin password reset
-      if (!createdStudentId) {
-        const listResp = await page.request.get(`${API}/api/v1/students/?page_size=5`, {
-          headers: apiHeaders(adminToken),
-        });
-        expect(listResp.status()).toBe(200);
-        const listData = (await listResp.json()) as { results?: Array<{ id: number; ps_number: string; name: string; phone?: string }> };
-        console.log(`Found ${listData.results?.length ?? 0} students`);
-        if (listData.results && listData.results.length > 0) {
-          const existingStudent = listData.results[0];
-          createdStudentId = existingStudent.id;
-          createdPsNumber = existingStudent.ps_number;
-          useExistingStudent = true;
-          console.log(`Using existing student: ${existingStudent.name} (${createdPsNumber})`);
-
-          // Reset password via password_reset_send (admin + temp_password)
-          const pwResetResp = await page.request.post(`${API}/api/v1/students/password_reset_send/`, {
-            headers: apiHeaders(adminToken),
-            data: {
-              target: "student",
-              student_name: existingStudent.name,
-              student_ps_number: existingStudent.ps_number,
-              temp_password: TEST_PASSWORD,
-            },
-          });
-          console.log(`Password reset via admin: ${pwResetResp.status()}`);
-          if (pwResetResp.status() !== 200) {
-            const pwBody = await pwResetResp.text();
-            console.log(`Password reset error: ${pwBody}`);
-          }
-        } else {
-          expect(createResp.status(), `Student creation failed: ${body}`).toBeLessThan(400);
-        }
-      }
+      expect(createResp.status(), `fixture student creation failed: ${body}`).toBe(201);
     }
 
     expect(createdStudentId).not.toBeNull();
@@ -294,22 +260,7 @@ test.describe("DNB 학생앱 전체 E2E", () => {
   });
 
   test("99. Cleanup -- 테스트 학생 삭제", async ({ page }) => {
-    if (!createdStudentId || useExistingStudent) {
-      console.log("No student to clean up (existing student used or none created)");
-      return;
-    }
-
-    // Get fresh admin token
-    const token = await getAdminToken(page);
-
-    const delResp = await page.request.delete(`${API}/api/v1/students/${createdStudentId}/`, {
-      headers: apiHeaders(token),
-    });
-
-    console.log(`Delete student ${createdStudentId}: ${delResp.status()}`);
-    // Accept 204 (deleted) or 404 (already gone)
-    expect([204, 200, 404]).toContain(delResp.status());
-
+    await cleanupCreatedStudent(page.request);
     await page.screenshot({ path: "e2e/screenshots/dnb-student-99-cleanup.png" });
   });
 });

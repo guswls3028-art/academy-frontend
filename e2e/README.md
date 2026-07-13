@@ -26,7 +26,7 @@ e2e/
 ## 실행
 
 ```sh
-pnpm test:e2e          # 전체 (활성 127 spec)
+pnpm test:e2e          # 활성 spec 전체 (개수는 `pnpm exec playwright test --list`가 SSOT)
 pnpm test:e2e:gate     # 빠른 게이트 (login admin+student, 계정복구, 수동 검증용)
 pnpm test:e2e:headed   # headed 모드
 pnpm test:e2e:ui       # UI 모드 (대화형)
@@ -81,13 +81,14 @@ pnpm exec playwright test e2e/stability/destructive-fixture-button-audit.spec.ts
 ### 결제 제외 잔여 리스크 감사
 
 `stability/controlled-real-alimtalk-send.spec.ts` 는 통제 번호 `01031217466` fixture 학생 1명에게 실제 즉시 알림톡을 1건 발송하고,
-발송 로그의 `sent` 상태와 provider message id를 확인한다. 운영 API에서 통제 번호가 아니면 즉시 실패한다.
+발송 로그의 `sent` 상태와 provider message id를 확인한다. 기본 전체 suite에서는 skip되며
+`E2E_ALLOW_REAL_ALIMTALK=1`을 명시한 전용 수동 canary에서만 실행된다. 운영 수신번호는 환경변수로 바꿀 수 없다.
 
 `stability/adversarial-upload-fixture-audit.spec.ts` 는 빠른 중복 클릭, 세션 만료 중 저장, 한글/공백 파일명 및 1MB급 PDF 첨부 업로드/삭제를
 `[E2E-ADV-*]` fixture로 검증한다.
 
 ```sh
-pnpm exec playwright test e2e/stability/controlled-real-alimtalk-send.spec.ts --project=chromium --reporter=list --retries=0
+E2E_ALLOW_REAL_ALIMTALK=1 pnpm exec playwright test e2e/stability/controlled-real-alimtalk-send.spec.ts --project=chromium --reporter=list --retries=0
 pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts --project=chromium --reporter=list --retries=0
 ```
 
@@ -112,9 +113,9 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 | `E2E_LECTURE_ID` / `E2E_SESSION_ID` | 113 / 153 | 메시징 발송용 강의/차시 |
 | `E2E_LECTURE_ID_ALT` / `E2E_SESSION_ID_ALT` | 96 / 158 | 성적 검증용 |
 | `E2E_TEST_*` | 0317테스트학생 시리즈 | TEST_RECIPIENT (test-fixtures.ts) |
-| `E2E_CLINIC_STUDENT_ID` | (동적 fallback) | 12번 자동 setup 학생 |
 | `E2E_STRICT` | `report` (.env.e2e) / `strict` (quality-gate) | strictTest 모드 |
 | `E2E_REAL_ALIMTALK_CONTROLLED_PHONE` | `01031217466` | 실발송 canary 표시용. 운영 계정 안내 가드는 항상 `01031217466`만 허용 |
+| `E2E_ALLOW_REAL_ALIMTALK` | `0` | `1`일 때만 통제번호 1건 실발송 canary 허용 |
 
 ## 계정 안내 알림톡 안전 가드
 
@@ -173,13 +174,15 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 
 prod 데이터 변경 시 `.env.e2e` 의 `E2E_TEST_*` 로 override (코드 수정 불필요).
 
-## 12번 (clinic-trigger) 자동 setup
+## 12번 (clinic-trigger) 격리 setup
 
-오늘 클리닉 세션 + 참가자가 없으면 `helpers/data.ts::ensureClinicSessionForTrigger` 가 자동 생성.
-afterAll 에서 cleanup. silent skip 없이 항상 돌도록 보장.
+`helpers/data.ts::ensureClinicSessionForTrigger`는 기존 학생·세션을 재사용하지 않고 `[E2E-*]` 통제번호 학생,
+오늘 세션, 참가자를 모두 생성한 뒤 `afterAll`에서 정리한다. 운영 API에서는 상태 변경과 중복 provider 발송을 막기 위해
+spec 전체가 skip되며, 격리된 비운영 API에서만 트리거 회귀를 실행한다. 운영 provider 경로는 위 1건 canary가 담당한다.
 
-자동 생성 학생에 `parent_phone` 이 없으면 발송 record 가 없을 수 있어 `recentLogs > 0` 검증은 soft annotation.
-실 발송 검증을 강제하려면 `.env.e2e` 의 `E2E_CLINIC_STUDENT_ID=<parent_phone 보유 학생 ID>` 지정.
+`flows/password-reset-roundtrip.spec.ts`처럼 계정 안내를 여러 번 발생시키는 flow와 cleanup 소유권이 불완전한
+`flows/real-scenario.spec.ts`도 운영 API에서는 강제로 skip된다. 이들은 격리 API에서만 실행하며, routine main 배포는
+provider 비용/수신 노이즈가 없는 왕복 계약 테스트만 사용한다.
 
 ## 알려진 미해결
 

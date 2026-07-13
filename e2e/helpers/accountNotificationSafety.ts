@@ -1,8 +1,12 @@
 import type { APIRequestContext } from "@playwright/test";
+import {
+  controlledPhoneForApiUrl,
+  normalizeE2EPhone,
+} from "./safety";
 
 const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const PRODUCTION_API_HOST = "api.hakwonplus.com";
-const CONTROLLED_PHONE = normalizePhone(process.env.E2E_REAL_ALIMTALK_CONTROLLED_PHONE) || "01031217466";
+const CONFIGURED_CONTROLLED_PHONE = process.env.E2E_REAL_ALIMTALK_CONTROLLED_PHONE;
 const GUARD_INSTALLED = Symbol.for("academy.e2e.accountNotificationGuardInstalled");
 const controlledStudentUsernames = new Set<string>();
 
@@ -12,10 +16,6 @@ type RequestOptions = {
   data?: unknown;
   method?: string;
 };
-
-function normalizePhone(value: unknown): string {
-  return String(value ?? "").replace(/\D/g, "");
-}
 
 function isProductionRequest(url: string): boolean {
   try {
@@ -50,23 +50,28 @@ function assertNoLegacyOptOut(payload: JsonPayload, endpoint: string): void {
   }
 }
 
-function assertControlledPhone(payload: JsonPayload, key: string, endpoint: string): void {
-  const phone = normalizePhone(payload[key]);
+function assertControlledPhone(
+  payload: JsonPayload,
+  key: string,
+  endpoint: string,
+  controlledPhone: string,
+): void {
+  const phone = normalizeE2EPhone(payload[key]);
   if (!phone) return;
-  if (phone !== CONTROLLED_PHONE) {
-    reject(`${endpoint} would send an account notice to ${key}=${phone}. Use controlled phone ${CONTROLLED_PHONE}.`);
+  if (phone !== controlledPhone) {
+    reject(`${endpoint} would send an account notice to ${key}=${phone}. Use controlled phone ${controlledPhone}.`);
   }
 }
 
-function markControlledStudent(payload: JsonPayload): void {
+function markControlledStudent(payload: JsonPayload, controlledPhone: string): void {
   const psNumber = String(payload.ps_number ?? payload.student_ps_number ?? "").trim();
   if (!psNumber) return;
   const phones = [
-    normalizePhone(payload.parent_phone),
-    normalizePhone(payload.phone),
-    normalizePhone(payload.student_phone),
+    normalizeE2EPhone(payload.parent_phone),
+    normalizeE2EPhone(payload.phone),
+    normalizeE2EPhone(payload.student_phone),
   ].filter(Boolean);
-  if (phones.length > 0 && phones.every((phone) => phone === CONTROLLED_PHONE)) {
+  if (phones.length > 0 && phones.every((phone) => phone === controlledPhone)) {
     controlledStudentUsernames.add(psNumber);
   }
 }
@@ -95,29 +100,30 @@ export function assertAccountNotificationRequestSafe(
   if (!isStudentCreate && !isPasswordReset && !isStudentUpdate) return;
 
   assertNoLegacyOptOut(data, `${upperMethod} ${path}`);
+  const controlledPhone = controlledPhoneForApiUrl(url, CONFIGURED_CONTROLLED_PHONE);
   if (!isProductionRequest(url)) {
-    if (isStudentCreate) markControlledStudent(data);
+    if (isStudentCreate) markControlledStudent(data, controlledPhone);
     return;
   }
 
   if (isStudentCreate) {
-    assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`);
-    assertControlledPhone(data, "phone", `${upperMethod} ${path}`);
-    assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`);
-    markControlledStudent(data);
+    assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`, controlledPhone);
+    assertControlledPhone(data, "phone", `${upperMethod} ${path}`, controlledPhone);
+    assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`, controlledPhone);
+    markControlledStudent(data, controlledPhone);
     return;
   }
 
   if (isPasswordReset) {
-    assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`);
-    assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`);
+    assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`, controlledPhone);
+    assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`, controlledPhone);
     assertKnownControlledStudent(data, `${upperMethod} ${path}`);
     return;
   }
 
-  assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`);
-  assertControlledPhone(data, "phone", `${upperMethod} ${path}`);
-  assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`);
+  assertControlledPhone(data, "parent_phone", `${upperMethod} ${path}`, controlledPhone);
+  assertControlledPhone(data, "phone", `${upperMethod} ${path}`, controlledPhone);
+  assertControlledPhone(data, "student_phone", `${upperMethod} ${path}`, controlledPhone);
 }
 
 export function installAccountNotificationGuard(request: APIRequestContext): APIRequestContext {

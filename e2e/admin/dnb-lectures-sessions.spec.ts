@@ -6,6 +6,10 @@
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl, getApiBaseUrl, hasRoleCredentials } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
+import {
+  nonPrimaryTenantWriteSkipReason,
+  PRODUCTION_CONTROLLED_PHONE,
+} from "../helpers/safety";
 import type { Page, APIRequestContext } from "@playwright/test";
 
 test.setTimeout(120000);
@@ -47,6 +51,42 @@ async function dnbLogin(page: Page): Promise<string> {
   return await page.evaluate(() => localStorage.getItem("access") || "");
 }
 
+async function cleanupCreatedRecords(request: APIRequestContext): Promise<void> {
+  if (![createdEnrollmentId, createdSessionId, createdLectureId, createdStudentId].some(Boolean)) return;
+  const token = await getToken(request);
+  const requestDelete = async (path: string): Promise<void> => {
+    const response = await request.delete(`${API}/api/v1${path}`, { headers: apiH(token) });
+    expect([200, 204, 404], `cleanup DELETE ${path}`).toContain(response.status());
+  };
+
+  if (createdEnrollmentId) {
+    await requestDelete(`/enrollments/${createdEnrollmentId}/`);
+    createdEnrollmentId = null;
+  }
+  if (createdSessionId) {
+    await requestDelete(`/lectures/sessions/${createdSessionId}/`);
+    createdSessionId = null;
+  }
+  if (createdLectureId) {
+    await requestDelete(`/lectures/lectures/${createdLectureId}/`);
+    createdLectureId = null;
+  }
+  if (createdStudentId) {
+    const id = createdStudentId;
+    const soft = await request.post(`${API}/api/v1/students/bulk_delete/`, {
+      data: { ids: [id] },
+      headers: apiH(token),
+    });
+    expect([200, 204, 404], `cleanup student ${id} soft delete`).toContain(soft.status());
+    const permanent = await request.post(`${API}/api/v1/students/bulk_permanent_delete/`, {
+      data: { ids: [id] },
+      headers: apiH(token),
+    });
+    expect([200, 204, 404], `cleanup student ${id} permanent delete`).toContain(permanent.status());
+    createdStudentId = null;
+  }
+}
+
 async function screenshotAs(page: Page, name: string) {
   await page.screenshot({ path: `e2e/screenshots/dnb-lectures-${name}.png`, fullPage: true });
 }
@@ -54,7 +94,13 @@ async function screenshotAs(page: Page, name: string) {
 /* ───── tests ───── */
 
 test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
+  const productionWriteBlock = nonPrimaryTenantWriteSkipReason(CODE, API);
+  test.skip(Boolean(productionWriteBlock), productionWriteBlock ?? "");
   test.skip(!hasRoleCredentials("dnb-admin"), "DNB_ADMIN_USER/PASS not configured in .env.e2e");
+
+  test.afterAll(async ({ request }) => {
+    await cleanupCreatedRecords(request);
+  });
 
   /* 1. Lecture list via sidebar navigation */
   test("1. Sidebar > Lectures list renders with tabs", async ({ page }) => {
@@ -194,13 +240,11 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdLectureId).not.toBeNull();
     accessToken = await getToken(request);
 
-    const studentPhone = `010${TS.toString().slice(-8)}`;
-    const parentPhone = `0109${TS.toString().slice(-7)}`;
     const studentResp = await request.post(`${API}/api/v1/students/`, {
       data: {
         name: STUDENT_NAME,
-        phone: studentPhone,
-        parent_phone: parentPhone,
+        parent_phone: PRODUCTION_CONTROLLED_PHONE,
+        no_phone: true,
         school_type: "MIDDLE",
         grade: 2,
         initial_password: "1234",
@@ -214,7 +258,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
       const retry = await request.post(`${API}/api/v1/students/`, {
         data: {
           name: STUDENT_NAME,
-          parent_phone: parentPhone,
+          parent_phone: PRODUCTION_CONTROLLED_PHONE,
           school_type: "MIDDLE",
           grade: 2,
           no_phone: true,
@@ -370,58 +414,6 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
 
   /* 8. Cleanup — delete test data */
   test("8. Cleanup: delete test lecture + student", async ({ request }) => {
-    accessToken = await getToken(request);
-
-    if (createdEnrollmentId) {
-      await request.delete(`${API}/api/v1/enrollments/${createdEnrollmentId}/`, {
-        headers: apiH(accessToken),
-      });
-    }
-    if (createdSessionId) {
-      await request.delete(`${API}/api/v1/lectures/sessions/${createdSessionId}/`, {
-        headers: apiH(accessToken),
-      });
-    }
-    if (createdLectureId) {
-      await request.delete(`${API}/api/v1/lectures/lectures/${createdLectureId}/`, {
-        headers: apiH(accessToken),
-      });
-    }
-    if (createdStudentId) {
-      await request.delete(`${API}/api/v1/students/${createdStudentId}/`, {
-        headers: apiH(accessToken),
-      });
-    }
-
-    // Sweep [E2E-*] residue
-    const lecturesResp = await request.get(`${API}/api/v1/lectures/lectures/`, {
-      headers: apiH(accessToken),
-    });
-    if (lecturesResp.status() === 200) {
-      const data = await lecturesResp.json();
-      const results = data.results ?? data;
-      for (const l of results) {
-        if (l.title?.startsWith("[E2E-")) {
-          await request.delete(`${API}/api/v1/lectures/lectures/${l.id}/`, {
-            headers: apiH(accessToken),
-          });
-        }
-      }
-    }
-
-    const studentsResp = await request.get(`${API}/api/v1/students/`, {
-      headers: apiH(accessToken),
-    });
-    if (studentsResp.status() === 200) {
-      const data = await studentsResp.json();
-      const results = data.results ?? data;
-      for (const s of results) {
-        if (s.name?.startsWith("[E2E-")) {
-          await request.delete(`${API}/api/v1/students/${s.id}/`, {
-            headers: apiH(accessToken),
-          });
-        }
-      }
-    }
+    await cleanupCreatedRecords(request);
   });
 });

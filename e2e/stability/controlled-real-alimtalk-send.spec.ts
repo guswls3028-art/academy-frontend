@@ -10,6 +10,7 @@
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
+import { realMessagingSkipReason } from "../helpers/safety";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(420_000);
@@ -265,6 +266,9 @@ async function waitForRealSendLog(
 }
 
 test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => {
+  const skipReason = realMessagingSkipReason(API, CONTROLLED_PHONE);
+  test.skip(Boolean(skipReason), skipReason ?? "");
+
   test.afterAll(async ({ request }) => {
     await cleanup(request);
   });
