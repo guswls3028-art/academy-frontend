@@ -1,7 +1,7 @@
 import { type CSSProperties, useMemo } from "react";
 import DOMPurify from "dompurify";
 import { cx } from "@/shared/utils/cx";
-import { isRichHtml } from "@/shared/utils/richHtml";
+import { isRichHtml, normalizeRichHtmlInput } from "@/shared/utils/richHtml";
 import styles from "./RichHtmlContent.module.css";
 
 type Props = {
@@ -23,7 +23,7 @@ export default function RichHtmlContent({
   emptyText = "내용이 없습니다.",
   style,
 }: Props) {
-  const content = html ?? "";
+  const content = normalizeRichHtmlInput(html);
   const hasContent = content.trim().length > 0;
   const shouldRenderHtml = hasContent && isRichHtml(content);
   const safeHtml = useMemo(

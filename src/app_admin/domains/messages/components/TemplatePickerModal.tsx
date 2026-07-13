@@ -93,12 +93,12 @@ export default function TemplatePickerModal({
       await onRefreshTemplates();
       if (res.updated > 0 || res.orphan_cleaned_count > 0 || res.solapi_only_count > 0) {
         const parts: string[] = [];
-        if (res.updated > 0) parts.push(`검수 상태 ${res.updated}건 갱신`);
-        if (res.orphan_cleaned_count > 0) parts.push(`검수 누락 ${res.orphan_cleaned_count}건 정리`);
-        if (res.solapi_only_count > 0) parts.push(`솔라피에만 있는 양식 ${res.solapi_only_count}건`);
+        if (res.updated > 0) parts.push(`상태 ${res.updated}건 갱신`);
+        if (res.orphan_cleaned_count > 0) parts.push(`확인 누락 ${res.orphan_cleaned_count}건 정리`);
+        if (res.solapi_only_count > 0) parts.push(`연결되지 않은 문구 ${res.solapi_only_count}건`);
         feedback.success(`동기화 — ${parts.join(", ")}`);
       } else {
-        feedback.success(`동기화 완료 — 모든 양식의 검수 상태가 최신입니다 (${res.unchanged}건 확인).`);
+        feedback.success(`동기화 완료 — 모든 문구 상태가 최신입니다 (${res.unchanged}건 확인).`);
       }
       if (res.errors && res.errors.length > 0) {
         feedback.warning(`동기화 중 ${res.errors.length}건 오류가 있었습니다. 자세한 내용은 관리자에게 문의해 주세요.`);
@@ -239,7 +239,7 @@ export default function TemplatePickerModal({
             {isSys && <Shield size={ICON.xs} className="tpl-picker__icon-sys" />}
             <span className="tpl-picker__card-name">{t.name}</span>
             {t.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
-            {t.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+            {t.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
             {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
           </div>
           <div className="tpl-picker__card-preview">
@@ -268,7 +268,7 @@ export default function TemplatePickerModal({
               </button>
               <button type="button" onClick={() => { onDuplicate(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
                 <Copy size={ICON.xs} className="tpl-picker__icon-muted" />
-                {isSys ? "복제해서 내 양식으로" : "다른 이름으로 복제"}
+                {isSys ? "복제해서 내 문구로" : "다른 이름으로 복제"}
               </button>
               {!isSys && (
                 <button type="button" onClick={() => { onDelete(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item tpl-picker__card-menu-item--danger">
@@ -325,11 +325,11 @@ export default function TemplatePickerModal({
         noIcon
         title={
           <div className="tpl-picker__title">
-            <span>양식 선택</span>
+            <span>문구 선택</span>
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="발송할 알림톡 양식을 선택하세요. 기본 제공 양식은 바로 수정·발송할 수 있고, 마음에 들면 내 양식으로 저장할 수 있습니다."
+        description="보낼 알림톡 문구를 선택하세요. 기본 제공 문구도 바로 수정해서 보낼 수 있습니다."
       />
 
       <ModalBody>
@@ -339,8 +339,8 @@ export default function TemplatePickerModal({
           <div className="tpl-picker__left">
             <div className="tpl-picker__sync-bar">
               <div className="tpl-picker__sync-text">
-                <div className="tpl-picker__sync-title">검수 상태 동기화</div>
-                <div className="tpl-picker__sync-desc">솔라피 콘솔의 카카오 검수 결과를 가져옵니다. 저장한 본문은 덮어쓰지 않습니다.</div>
+                <div className="tpl-picker__sync-title">상태 새로고침</div>
+                <div className="tpl-picker__sync-desc">문구 사용 가능 상태를 새로 가져옵니다. 저장한 본문은 덮어쓰지 않습니다.</div>
               </div>
               <Button
                 size="sm"
@@ -357,7 +357,7 @@ export default function TemplatePickerModal({
               <Search size={ICON.sm} className="tpl-picker__search-icon" />
               <Input
                 size="middle"
-                placeholder="양식 이름·본문 검색…"
+                placeholder="문구 이름·본문 검색…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="tpl-picker__search-input"
@@ -394,21 +394,21 @@ export default function TemplatePickerModal({
 
               {grouped.presets.length > 0 && (
                 <>
-                  <div className="tpl-picker__group-label">기본 제공 양식 · {grouped.presets.length}</div>
+                  <div className="tpl-picker__group-label">기본 제공 문구 · {grouped.presets.length}</div>
                   {grouped.presets.map(renderPresetCard)}
                 </>
               )}
 
               {grouped.my.length > 0 && (
                 <>
-                  <div className="tpl-picker__group-label">내 양식 · {grouped.my.length}</div>
+                  <div className="tpl-picker__group-label">내 문구 · {grouped.my.length}</div>
                   {grouped.my.map(renderCard)}
                 </>
               )}
 
               {grouped.sys.length > 0 && (
                 <>
-                  <div className="tpl-picker__group-label">시스템 기본 양식 · {grouped.sys.length}</div>
+                  <div className="tpl-picker__group-label">기본 문구 · {grouped.sys.length}</div>
                   {grouped.sys.map(renderCard)}
                 </>
               )}
@@ -418,8 +418,8 @@ export default function TemplatePickerModal({
                   {search
                     ? "검색 결과가 없습니다."
                     : showAllCategories
-                    ? "저장된 양식이 없습니다."
-                    : `'${blockLabel}' 카테고리에 등록된 양식이 없습니다. 위 '전체 카테고리 보기'를 켜면 다른 카테고리 양식도 볼 수 있습니다.`}
+                    ? "저장된 문구가 없습니다."
+                    : `'${blockLabel}' 카테고리에 등록된 문구가 없습니다. 위 '전체 카테고리 보기'를 켜면 다른 카테고리 문구도 볼 수 있습니다.`}
                 </div>
               )}
             </div>
@@ -443,7 +443,7 @@ export default function TemplatePickerModal({
                     </span>
                     {previewPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
                     {previewPreset?.recommended && <Badge tone="success" size="xs">추천</Badge>}
-                    {previewTpl?.solapi_status === "APPROVED" && <Badge tone="success" size="xs">승인</Badge>}
+                    {previewTpl?.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
                     {previewTpl && isSystemTpl(previewTpl) && <Badge tone="info" size="xs">시스템</Badge>}
                   </div>
                 </div>
@@ -471,7 +471,7 @@ export default function TemplatePickerModal({
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />
-                    이 양식 적용
+                    이 문구 적용
                   </Button>
                 </div>
               </>
@@ -479,7 +479,7 @@ export default function TemplatePickerModal({
               <div className="tpl-picker__preview-empty">
                 <Tag size={ICON.xl} className="tpl-picker__icon-empty" />
                 <div className="tpl-picker__preview-empty-text">
-                  좌측에서 양식을 선택하면<br />여기에 미리보기가 표시됩니다
+                  좌측에서 문구를 선택하면<br />여기에 미리보기가 표시됩니다
                 </div>
               </div>
             )}

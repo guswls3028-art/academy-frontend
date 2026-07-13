@@ -26,6 +26,7 @@ import {
   IconChevronRight,
 } from "@student/shared/ui/icons/Icons";
 import { bytesText, monthDayTimeText } from "@/shared/utils/displayText";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./InventoryHomeTab.module.css";
 
 const MAX_SIZE_MB = 100;
@@ -250,7 +251,7 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.displayName || file.name}</div>
                 <div style={{ fontSize: 12, color: "var(--stu-text-muted)", marginTop: 2 }}>
-                  {bytesText(file.sizeBytes)}{file.createdAt && <> · {monthDayTimeText(file.createdAt)}</>}{file.description && <> · {file.description}</>}
+                  {bytesText(file.sizeBytes)}{file.createdAt && <> · {monthDayTimeText(file.createdAt)}</>}{file.description && <> · {richHtmlToPlainText(file.description)}</>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>

@@ -304,7 +304,7 @@ function LogDetailModal({
           <DetailRow label="수신자">
             {item.recipient_summary || "—"}
           </DetailRow>
-          <DetailRow label="템플릿">
+          <DetailRow label="문구">
             {item.template_summary || "—"}
           </DetailRow>
           <DetailRow label="발송 방식">

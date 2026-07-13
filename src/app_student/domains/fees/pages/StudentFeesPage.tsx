@@ -9,6 +9,7 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./StudentFeesPage.module.css";
 
 type InvoiceStatus = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
@@ -168,7 +169,7 @@ export default function StudentFeesPage() {
                           key={item.id}
                           className={styles.invoiceItem}
                         >
-                          <span className={styles.invoiceItemDesc}>{item.description}</span>
+                          <span className={styles.invoiceItemDesc}>{richHtmlToPlainText(item.description)}</span>
                           <span className={styles.invoiceItemAmount}>{formatKRW(item.amount)}</span>
                         </div>
                       ))}

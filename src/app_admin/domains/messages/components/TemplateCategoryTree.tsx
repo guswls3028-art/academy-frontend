@@ -54,7 +54,7 @@ export default function TemplateCategoryTree({
         <span className={panelStyles.treeNavTitle}>카테고리</span>
       </div>
       <div className={panelStyles.treeScroll}>
-        <TreeNav ariaLabel="템플릿 카테고리">
+        <TreeNav ariaLabel="문구 카테고리">
           {CATEGORY_DEFS.map((cat) => {
             const isActive = currentCategory === cat.id;
             const count = templateCounts?.[cat.id];

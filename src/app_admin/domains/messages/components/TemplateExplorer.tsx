@@ -45,17 +45,17 @@ function SolapiStatusBadge({ status }: { status?: string }) {
   if (!status) return null;
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
     APPROVED: {
-      label: "승인",
+      label: "사용 가능",
       color: "var(--color-success)",
       bg: "color-mix(in srgb, var(--color-success) 12%, transparent)",
     },
     PENDING: {
-      label: "검수 대기",
+      label: "확인 중",
       color: "var(--color-primary)",
       bg: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
     },
     REJECTED: {
-      label: "반려",
+      label: "확인 필요",
       color: "var(--color-error)",
       bg: "color-mix(in srgb, var(--color-error) 12%, transparent)",
     },
@@ -171,28 +171,28 @@ function IconAction({
 
 const CATEGORY_DESCRIPTIONS: Record<MessageTemplateCategory, string> = {
   default:
-    "사용자가 직접 만든 커스텀 템플릿입니다. 발송할 때 알림톡 형식에 맞춰 사용합니다.",
+    "직접 만든 알림톡 문구입니다.",
   signup:
-    "가입/등록 관련 자동발송에 사용됩니다. 학생·학부모 ID·비밀번호 블록을 사용할 수 있습니다.",
+    "가입/등록 알림에 쓰는 문구입니다.",
   attendance:
-    "출결 관련 자동발송에 사용됩니다. 강의명·차시명 블록을 사용할 수 있습니다.",
+    "출결 알림에 쓰는 문구입니다.",
   lecture:
-    "강의 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
-  exam: "시험 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
+    "강의 안내에 쓰는 문구입니다.",
+  exam: "시험 안내에 쓰는 문구입니다.",
   assignment:
-    "과제 관련 안내에 사용됩니다. 실제 발송은 출석 안내 알림톡 형식으로 나갑니다.",
+    "과제 안내에 쓰는 문구입니다.",
   grades:
-    "성적 관련 자동발송에 사용됩니다. 시험·과제 성적 블록을 사용할 수 있습니다.",
+    "성적 안내에 쓰는 문구입니다.",
   clinic:
-    "클리닉/상담 관련 자동발송에 사용됩니다. 클리닉명·장소 블록을 사용할 수 있습니다.",
+    "클리닉/상담 알림에 쓰는 문구입니다.",
   payment:
-    "결제 관련 안내에 사용됩니다. 실제 발송은 결제 완료 알림톡 형식으로 나갑니다.",
+    "결제 안내에 쓰는 문구입니다.",
   notice:
-    "운영공지 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
+    "운영 공지에 쓰는 문구입니다.",
   community:
-    "커뮤니티(Q&A, 상담) 관련 자동발송에 사용됩니다. 기본 블록을 사용할 수 있습니다.",
+    "Q&A·상담 알림에 쓰는 문구입니다.",
   staff:
-    "직원 관련 자동발송에 사용됩니다. 출결 요약·급여·정산 블록을 사용할 수 있습니다.",
+    "직원 알림에 쓰는 문구입니다.",
 };
 
 export type ModalOpenState =
@@ -222,7 +222,7 @@ export default function TemplateExplorer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setModalOpen(null);
-      feedback.success("템플릿이 저장되었습니다.");
+      feedback.success("문구가 저장되었습니다.");
     },
     onError: () => feedback.error("저장에 실패했습니다."),
   });
@@ -238,7 +238,7 @@ export default function TemplateExplorer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setModalOpen(null);
-      feedback.success("템플릿이 수정되었습니다.");
+      feedback.success("문구가 수정되었습니다.");
     },
     onError: () => feedback.error("수정에 실패했습니다."),
   });
@@ -248,7 +248,7 @@ export default function TemplateExplorer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setConfirmAction(null);
-      feedback.success("템플릿이 삭제되었습니다.");
+      feedback.success("문구가 삭제되었습니다.");
     },
     onError: () => {
       setConfirmAction(null);
@@ -267,7 +267,7 @@ export default function TemplateExplorer() {
       feedback.success(parts.join(", "));
     },
     onError: () => {
-      feedback.error("기본 템플릿 생성에 실패했습니다.");
+      feedback.error("기본 문구 생성에 실패했습니다.");
     },
   });
 
@@ -278,7 +278,7 @@ export default function TemplateExplorer() {
       subject: t.subject ?? "",
       body: t.body,
     });
-    feedback.info("템플릿을 복제합니다…");
+    feedback.info("문구를 복제합니다…");
   };
 
   const isCreate = modalOpen === "create";
@@ -482,9 +482,9 @@ export default function TemplateExplorer() {
           }}
         >
           <div>
-            <h2 className={panelStyles.headerTitle}>템플릿 저장</h2>
+            <h2 className={panelStyles.headerTitle}>문구 저장</h2>
             <p className={panelStyles.headerDesc}>
-              자동발송에 사용할 템플릿을 관리합니다. 저장한 문구는 실제 알림톡 미리보기에서 바로 확인할 수 있습니다.
+              알림톡에 넣을 문구를 저장하고 수정합니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -493,7 +493,7 @@ export default function TemplateExplorer() {
               size="sm"
               onClick={() => provisionMut.mutate()}
               disabled={provisionMut.isPending}
-              title="삭제·변경된 기본 템플릿을 일괄로 다시 채워 넣습니다"
+              title="삭제·변경된 기본 문구를 일괄로 다시 채워 넣습니다"
             >
               {provisionMut.isPending ? "복원 중…" : "기본 세트 복원"}
             </Button>
@@ -503,7 +503,7 @@ export default function TemplateExplorer() {
               onClick={() => setModalOpen("create")}
               leftIcon={<FilePlus size={16} />}
             >
-              새 템플릿
+              새 문구
             </Button>
           </div>
         </div>
@@ -532,7 +532,7 @@ export default function TemplateExplorer() {
                 scope="panel"
                 tone="empty"
                 mode="embedded"
-                title="저장된 템플릿이 없습니다"
+                title="저장된 문구가 없습니다"
                 description={CATEGORY_DESCRIPTIONS[activeCategory]}
                 actions={
                   <Button
@@ -540,7 +540,7 @@ export default function TemplateExplorer() {
                     size="sm"
                     onClick={() => setModalOpen("create")}
                   >
-                    + 새 템플릿 추가
+                    + 새 문구 추가
                   </Button>
                 }
               />
@@ -554,7 +554,7 @@ export default function TemplateExplorer() {
 
               {templates.map(renderTemplateCard)}
 
-              {/* + 새 템플릿 추가 버튼 */}
+              {/* + 새 문구 추가 버튼 */}
               <button
                 type="button"
                 onClick={() => setModalOpen("create")}
@@ -586,7 +586,7 @@ export default function TemplateExplorer() {
                 }}
               >
                 <FilePlus size={16} />
-                새 템플릿 추가
+                새 문구 추가
               </button>
             </div>
           )}
