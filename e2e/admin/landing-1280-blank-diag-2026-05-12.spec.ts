@@ -4,7 +4,7 @@
  * 시각 캡처 1280-06-landing-page.png 가 완전 흰 화면. 1366/1920 정상.
  * 학원장 노트북/태블릿 환경 깨짐. read-only diag — 추측 없이 evaluate 로 dump.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 
 test.describe("landing 1280 빈 화면 진단", () => {
   test.use({ viewport: { width: 1280, height: 720 } });

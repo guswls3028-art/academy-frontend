@@ -14,7 +14,7 @@
 //
 // 주의: prod DB에 problem이 추가됨 → 반드시 삭제로 cleanup. 실패 시 수동 정리.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { pickUnusedCropProblemNumber, selectStableDoneMatchupDocument } from "../helpers/matchup";
 

@@ -3,7 +3,7 @@
  * In headless Playwright, navigator.clipboard requires permissions grant.
  * We grant clipboard-write permission and verify toast fires.
  */
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "./fixtures/strictTest";
 import path from "path";
 import fs from "fs";
 

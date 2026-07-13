@@ -5,7 +5,7 @@
  * 학교 시험지 (305 26-1m 단대부고 내지) 의 page-as-problem 텍스트 보면
  * 왜 anchor splitter 가 문제 번호를 못 잡는지 즉시 알 수 있음.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import { loginViaUI } from "../helpers/auth";
 

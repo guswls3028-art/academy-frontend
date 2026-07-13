@@ -441,7 +441,6 @@ api.interceptors.response.use(
         err.config?.method || "unknown",
         err.config?.url || "unknown",
         errStatus,
-        err.response?.data,
       );
     }
 

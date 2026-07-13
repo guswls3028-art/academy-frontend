@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
-import { getRetryErrorMessage, updateVideo } from "@admin/domains/videos/api/videos.api";
+import { getRetryErrorMessage, reorderVideos } from "@admin/domains/videos/api/videos.api";
 import { canShowRetryButton } from "@/shared/api/contracts/videos";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoThumbnail from "@/shared/media/video/VideoThumbnail";
@@ -151,24 +151,30 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
 
   /** Swap order of two videos (optimistic) */
   const reorderMutation = useMutation({
-    mutationFn: async ({ videoA, videoB }: { videoA: MediaVideo; videoB: MediaVideo }) => {
-      const orderA = videoA.order ?? 1;
-      const orderB = videoB.order ?? 1;
-      await Promise.all([
-        updateVideo(videoA.id, { order: orderB }),
-        updateVideo(videoB.id, { order: orderA }),
+    mutationFn: async ({
+      videoA,
+      videoB,
+      nextOrderA,
+      nextOrderB,
+    }: {
+      videoA: MediaVideo;
+      videoB: MediaVideo;
+      nextOrderA: number;
+      nextOrderB: number;
+    }) => {
+      await reorderVideos([
+        { id: videoA.id, order: nextOrderA },
+        { id: videoB.id, order: nextOrderB },
       ]);
     },
-    onMutate: async ({ videoA, videoB }) => {
+    onMutate: async ({ videoA, videoB, nextOrderA, nextOrderB }) => {
       await qc.cancelQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
       const prev = qc.getQueryData<MediaVideo[]>(adminLectureQueryKeys.sessionVideos(sessionId));
       if (prev) {
-        const orderA = videoA.order ?? 1;
-        const orderB = videoB.order ?? 1;
         qc.setQueryData<MediaVideo[]>(["session-videos", sessionId], (old) =>
           (old ?? []).map((v) => {
-            if (v.id === videoA.id) return { ...v, order: orderB };
-            if (v.id === videoB.id) return { ...v, order: orderA };
+            if (v.id === videoA.id) return { ...v, order: nextOrderA };
+            if (v.id === videoB.id) return { ...v, order: nextOrderB };
             return v;
           })
         );
@@ -186,12 +192,22 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
 
   const handleMoveUp = (index: number) => {
     if (index <= 0 || reorderMutation.isPending) return;
-    reorderMutation.mutate({ videoA: videos[index], videoB: videos[index - 1] });
+    reorderMutation.mutate({
+      videoA: videos[index],
+      videoB: videos[index - 1],
+      nextOrderA: index,
+      nextOrderB: index + 1,
+    });
   };
 
   const handleMoveDown = (index: number) => {
     if (index >= videos.length - 1 || reorderMutation.isPending) return;
-    reorderMutation.mutate({ videoA: videos[index], videoB: videos[index + 1] });
+    reorderMutation.mutate({
+      videoA: videos[index],
+      videoB: videos[index + 1],
+      nextOrderA: index + 2,
+      nextOrderB: index + 1,
+    });
   };
 
   const renderVideoCard = (video: MediaVideo, globalIndex?: number) => {

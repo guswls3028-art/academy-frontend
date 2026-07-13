@@ -5,7 +5,7 @@
  *  - sidebar-scroll 컨테이너 overflow 발생 시 자체 스크롤
  *  - 마지막 nav-item이 scrollIntoView 후 viewport 안에 위치
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 // 짧은 화면 시뮬레이션: 1366 x 520 (≈ 노트북 1366x768에서 150% 배율)

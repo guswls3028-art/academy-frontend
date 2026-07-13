@@ -1,10 +1,21 @@
 // PATH: src/app_admin/domains/messages/context/SendMessageModalContext.tsx
 // 알림톡 발송 모달 — 명시적인 학생/학부모 알림톡 경로에서만 호출
 
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
-import SendMessageModal from "../components/SendMessageModal";
+import {
+  createContext,
+  lazy,
+  Suspense,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  ReactNode,
+} from "react";
 
 import type { TemplateCategory } from "../constants/templateBlocks";
+import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+
+const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
 
 export type OpenSendMessageOptions = {
   studentIds?: number[];
@@ -93,19 +104,34 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   return (
     <SendMessageModalContext.Provider value={{ openSendMessageModal }}>
       {children}
-      <SendMessageModal
-        open={open}
-        onClose={close}
-        initialStudentIds={studentIds}
-        recipientLabel={recipientLabel}
-        blockCategory={blockCategory}
-        initialBody={initialBody}
-        initialTemplateId={initialTemplateId}
-        initialLetterPresetId={initialLetterPresetId}
-        alimtalkExtraVars={alimtalkExtraVars}
-        alimtalkExtraVarsPerStudent={alimtalkExtraVarsPerStudent}
-        recomputePerStudentVarsRef={recomputePerStudentVarsRef}
-      />
+      {open ? (
+        <Suspense
+          fallback={
+            <AdminModal open onClose={close} width={MODAL_WIDTH.sm}>
+              <ModalHeader title="알림톡 준비 중" />
+              <ModalBody>
+                <div role="status" aria-live="polite" className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+                  발송 화면을 불러오고 있습니다…
+                </div>
+              </ModalBody>
+            </AdminModal>
+          }
+        >
+          <SendMessageModal
+            open
+            onClose={close}
+            initialStudentIds={studentIds}
+            recipientLabel={recipientLabel}
+            blockCategory={blockCategory}
+            initialBody={initialBody}
+            initialTemplateId={initialTemplateId}
+            initialLetterPresetId={initialLetterPresetId}
+            alimtalkExtraVars={alimtalkExtraVars}
+            alimtalkExtraVarsPerStudent={alimtalkExtraVarsPerStudent}
+            recomputePerStudentVarsRef={recomputePerStudentVarsRef}
+          />
+        </Suspense>
+      ) : null}
     </SendMessageModalContext.Provider>
   );
 }

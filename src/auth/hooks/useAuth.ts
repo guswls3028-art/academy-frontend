@@ -2,12 +2,13 @@
 import { useAuthContext } from "@/auth/context/AuthContext";
 
 export default function useAuth() {
-  const { user, isLoading, refreshMe, clearAuth } = useAuthContext();
+  const { user, isLoading, authUnavailable, refreshMe, clearAuth } = useAuthContext();
 
   return {
     user,
     isAuthenticated: !!user,
     isLoading,
+    authUnavailable,
     refreshMe,
     clearAuth,
   };

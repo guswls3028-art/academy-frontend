@@ -19,3 +19,4 @@ export const test = base.extend({
 });
 
 export { expect };
+export type * from "@playwright/test";

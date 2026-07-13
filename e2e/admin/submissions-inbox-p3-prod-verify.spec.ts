@@ -9,7 +9,7 @@
  * - 실패/폐기 탭에 sub-filter 노출 (실패 / 폐기됨)
  * - 폐기된 row 는 폐기 사유 라벨 + neutral tone
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, loginTokenViaRequest, loginViaUI } from "../helpers/auth";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";

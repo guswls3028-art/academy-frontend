@@ -13,7 +13,7 @@
  *
  * viewport: 1280 / 1366 / 1920 (메모리 feedback_ui_fix_narrow_viewport_capture).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const TCHUL = "https://tchul.com";

@@ -2,7 +2,7 @@
 // done doc 선택 시 "AI가 문제를 찾아가고 있습니다..." spinner 가
 // 회귀인지 fetch latency 인지 판별 — 5s/10s 캡처 비교.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";

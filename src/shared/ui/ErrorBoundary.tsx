@@ -2,6 +2,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
+import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 import styles from "./ErrorBoundary.module.css";
 
 interface Props {
@@ -64,7 +65,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    const url = typeof window !== "undefined" ? window.location.href : "";
+    const url = typeof window !== "undefined" ? sanitizeObservabilityPath(window.location.href) : "";
     const tenantCode = safeGet("tenantCode");
     const isChunk = isChunkLoadError(error, info);
 

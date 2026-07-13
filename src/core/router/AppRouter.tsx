@@ -16,6 +16,7 @@ import { TermsPage, PrivacyPage } from "@admin/domains/legal";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
+import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 
 const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
@@ -45,14 +46,14 @@ function PromoGuard() {
 }
 
 function RootRedirect() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, authUnavailable, refreshMe } = useAuth();
   const { program, isLoading: programLoading } = useProgram();
   const navigate = useNavigate();
 
   const redirectedRef = useRef(false);
 
   useEffect(() => {
-    if (programLoading || !program || isLoading) return;
+    if (programLoading || !program || isLoading || (authUnavailable && !user)) return;
     if (redirectedRef.current) return;
 
     redirectedRef.current = true;
@@ -94,12 +95,16 @@ function RootRedirect() {
     }
 
     navigate("/login", { replace: true });
-  }, [programLoading, program, isLoading, user, navigate]);
+  }, [programLoading, program, isLoading, authUnavailable, user, navigate]);
 
   if (programLoading) return null;
 
   if (!program) {
     return <Navigate to="/error/tenant-required" replace />;
+  }
+
+  if (authUnavailable && !user) {
+    return <AuthUnavailableState retry={refreshMe} />;
   }
 
   return null;

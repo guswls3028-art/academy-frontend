@@ -3,7 +3,7 @@
 // 자동 추천 뱃지 + filename 휴리스틱 시각 검증.
 // 파일 추가 시 sourceTypeReason 노출 + 뱃지 가시.
 
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { openMatchupUploadModal } from "../helpers/matchup";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";

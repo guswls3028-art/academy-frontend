@@ -1,7 +1,7 @@
 /**
  * V3 reports 페이지 오류 진단 — 콘솔 에러 캡처
  */
-import { test } from "@playwright/test";
+import { test } from "./fixtures/strictTest";
 
 const TCHUL = "https://tchul.com";
 const SS = (name: string) =>

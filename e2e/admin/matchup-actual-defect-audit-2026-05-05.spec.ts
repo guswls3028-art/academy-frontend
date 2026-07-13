@@ -10,7 +10,7 @@
  *   M2. 무작위 problem 30건의 similar API top-K 매칭 분포 + 0건 비율
  *   M3. 박철T가 만든 8 hit-report 의 exam_count 대비 자동 후보 추출률
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import { loginViaUI } from "../helpers/auth";
 

@@ -5,7 +5,8 @@ import * as Sentry from "@sentry/react";
 
 /**
  * 로그인 성공 시 Sentry에 사용자 컨텍스트 설정.
- * Sentry 대시보드에서 "이 에러를 겪은 유저가 누구인지" 바로 확인 가능.
+ * PII 없이 내부 ID와 역할만 기록한다. username/name은 휴대폰 번호나 학생명을
+ * 포함할 수 있으므로 observability 외부 경계로 보내지 않는다.
  */
 export function setSentryUser(user: {
   id: number;
@@ -15,12 +16,10 @@ export function setSentryUser(user: {
 }) {
   Sentry.setUser({
     id: String(user.id),
-    username: user.username,
     // Sentry의 segment 필드를 role로 활용
     segment: user.tenantRole || "unknown",
   });
   Sentry.setTag("user.role", user.tenantRole || "unknown");
-  Sentry.setTag("user.name", user.name || "unknown");
 }
 
 /** 로그아웃 시 Sentry 사용자 컨텍스트 제거 */
@@ -36,28 +35,21 @@ export function captureApiError(
   method: string,
   url: string,
   status: number,
-  responseData?: unknown,
 ) {
+  const safeUrl = sanitizeObservabilityPath(url);
   // 401/403은 인증 흐름에서 정상 처리되므로 별도 이벤트 불필요 (breadcrumb만)
   if (status === 401 || status === 403) {
     Sentry.addBreadcrumb({
       category: "api",
-      message: `${method.toUpperCase()} ${url} → ${status}`,
+      message: `${method.toUpperCase()} ${safeUrl} → ${status}`,
       level: "warning",
       data: { status },
     });
     return;
   }
 
-  // 4xx/5xx → Sentry 이벤트 전송
-  const detail =
-    typeof responseData === "object" && responseData !== null
-      ? (responseData as Record<string, unknown>).detail ||
-        (responseData as Record<string, unknown>).message ||
-        JSON.stringify(responseData).slice(0, 500)
-      : String(responseData || "");
-
-  Sentry.captureMessage(`API ${status}: ${method.toUpperCase()} ${url}`, {
+  // 응답 본문에는 이름·전화번호·점수 등이 포함될 수 있어 외부 observability로 전송하지 않는다.
+  Sentry.captureMessage(`API ${status}: ${method.toUpperCase()} ${safeUrl}`, {
     level: status >= 500 ? "error" : "warning",
     tags: {
       "api.method": method.toUpperCase(),
@@ -65,13 +57,23 @@ export function captureApiError(
     },
     contexts: {
       api: {
-        url,
+        url: safeUrl,
         method: method.toUpperCase(),
         status,
-        response_detail: String(detail).slice(0, 1000),
       },
     },
   });
+}
+
+export function sanitizeObservabilityPath(url: string): string {
+  try {
+    const pathname = new URL(url, window.location.origin).pathname;
+    return pathname
+      .replace(/\b\d+\b/g, ":id")
+      .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ":uuid");
+  } catch {
+    return String(url || "unknown").split("?", 1)[0].slice(0, 200);
+  }
 }
 
 /**

@@ -8,7 +8,7 @@
  *
  * 운영 데이터 변경 없이 endpoint 응답 + UI 동작만 검증.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginTokenViaRequest } from "../helpers/auth";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";

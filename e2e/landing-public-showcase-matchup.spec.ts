@@ -15,7 +15,7 @@
  * 작성 흐름은 API smoke로 분리 가능. 본 spec 은 read-only DOM 검증.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "./helpers/auth";
 

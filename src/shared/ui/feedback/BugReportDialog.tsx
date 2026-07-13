@@ -7,6 +7,7 @@ import { Modal, Input, Typography } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import * as Sentry from "@sentry/react";
 import { feedback } from "./feedback";
+import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -20,9 +21,10 @@ type BugReportDialogProps = {
  * 현재 브라우저 환경 정보 수집 (자동 첨부용)
  */
 function collectContext(pathname: string) {
+  const route = sanitizeObservabilityPath(pathname);
   return {
-    url: window.location.href,
-    route: pathname,
+    url: `${window.location.origin}${route}`,
+    route,
     userAgent: navigator.userAgent,
     screenSize: `${window.innerWidth}x${window.innerHeight}`,
     timestamp: new Date().toISOString(),

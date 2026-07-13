@@ -10,7 +10,7 @@
 // E2E 정책 (memory feedback_no_e2e_on_real_tenants.md):
 //   T1 only. read-only — approve/reject 클릭 X.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 // narrow viewport layout 분기 (2026-05-10 옵션 1) 적용 후 1100 복구.

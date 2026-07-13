@@ -45,6 +45,7 @@ export interface User {
 type AuthState = {
   user: User | null;
   isLoading: boolean;
+  authUnavailable: boolean;
   refreshMe: () => Promise<void>;
   clearAuth: () => void;
 };
@@ -74,6 +75,7 @@ function shouldClearAuthForStatus(status: number | undefined): boolean {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authUnavailable, setAuthUnavailable] = useState(false);
   const queryClient = useQueryClient();
 
   const clearAuth = useCallback(() => {
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)
     queryClient.clear();
     setUser(null);
+    setAuthUnavailable(false);
 
     // 세션 만료 시 로그인 페이지로 이동 — axios interceptor가 이미 리다이렉트 중이면 스킵
     if (isSessionEnding) return;
@@ -99,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const access = getAccessToken();
     if (!access) {
       setUser(null);
+      setAuthUnavailable(false);
       return;
     }
 
@@ -106,10 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.get<User>("/core/me/");
       const u = res.data ?? null;
       setUser(u);
+      setAuthUnavailable(false);
       if (u) setSentryUser(u);
     } catch (err: unknown) {
       if (shouldClearAuthForStatus(getResponseStatus(err))) {
         clearAuth();
+      } else {
+        setAuthUnavailable(true);
       }
       // 네트워크 오류(일시적 끊김 등)는 인증 상태를 유지 — axios 인터셉터의 refresh 메커니즘에 위임
       throw err;
@@ -122,16 +129,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const access = getAccessToken();
         if (!access) {
           setUser(null);
+          setAuthUnavailable(false);
           return;
         }
 
         const res = await api.get<User>("/core/me/");
         const u = res.data ?? null;
         setUser(u);
+        setAuthUnavailable(false);
         if (u) setSentryUser(u);
       } catch (err: unknown) {
         if (shouldClearAuthForStatus(getResponseStatus(err))) {
           clearAuth();
+        } else {
+          setAuthUnavailable(true);
         }
         // 네트워크 오류(일시적 끊김)는 인증 상태 유지 — 로그아웃하지 않음
       } finally {
@@ -148,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           queryClient.clear();
           setParentStudentId(null);
           setUser(null);
+          setAuthUnavailable(false);
         }
       }
     };
@@ -164,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 이전에 로그인 상태였으면 세션 만료 → 로그인으로
         if (user) {
           setUser(null);
+          setAuthUnavailable(false);
           feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
           saveReturnPath();
           window.location.href = "/login";
@@ -173,23 +186,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.get<User>("/core/me/").then(
         (res) => {
           const newUser = res.data ?? null;
-          setUser((prev) => {
-            if (
-              prev && newUser &&
-              prev.id === newUser.id &&
-              prev.tenantRole === newUser.tenantRole &&
-              prev.name === newUser.name &&
-              prev.is_staff === newUser.is_staff &&
-              prev.is_superuser === newUser.is_superuser
-            ) {
-              return prev; // Same user data, skip re-render
-            }
-            return newUser;
-          });
+          setUser(newUser);
+          setAuthUnavailable(false);
+          if (newUser) setSentryUser(newUser);
         },
         (err: unknown) => {
           if (shouldClearAuthForStatus(getResponseStatus(err))) {
             clearAuth();
+          } else {
+            setAuthUnavailable(true);
           }
           // 네트워크 오류는 인증 상태 유지
         }
@@ -203,10 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       isLoading,
+      authUnavailable,
       refreshMe,
       clearAuth,
     }),
-    [user, isLoading, refreshMe, clearAuth]
+    [user, isLoading, authUnavailable, refreshMe, clearAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

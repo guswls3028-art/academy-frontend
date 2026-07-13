@@ -7,7 +7,7 @@
  * 실행: npx playwright test e2e/landing-navbar-visual.spec.ts
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { getBaseUrl, loginViaUI } from "./helpers/auth";
 

@@ -4,7 +4,7 @@
 // 목적: 학원장 시야로 자연스러운지 + 결함 잡아내기.
 // 다양한 paper_type doc + 업로드 모달 단계별 + 모바일 + 적중보고서.
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../fixtures/strictTest";
 import { openMatchupUploadModal } from "../helpers/matchup";
 
 const BASE = "https://hakwonplus.com";

@@ -13,6 +13,7 @@ import { ProgramProvider } from "@/shared/program";
 import { ThemeProvider } from "@/shared/contexts/ThemeContext";
 // 테넌트 레지스트리를 엔트리에서 직접 사용 — Vite 메인 번들에 포함 강제
 import { TENANTS } from "@/shared/tenant/tenants/index";
+import { resolveTenantCodeString } from "@/shared/tenant";
 // side-effect guard: Rollup이 tree-shake하지 않도록 런타임 참조
 if (!TENANTS.length) throw new Error("Tenant registry empty");
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
@@ -21,9 +22,12 @@ import { hardReloadWithCacheBust, stripHardReloadParam } from "@/shared/utils/ha
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider } from "@/shared/ui/modal/ModalWindowContext";
 import ModalTaskbar from "@/shared/ui/modal/ModalTaskbar";
+import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 
 import "antd/dist/reset.css";
 import "./index.css";
+
+(window as Window & { __HPLUS_APP_BOOTSTRAPPED__?: boolean }).__HPLUS_APP_BOOTSTRAPPED__ = true;
 
 stripHardReloadParam();
 
@@ -71,16 +75,6 @@ installChunkReloadHandler();
 // ── Sentry 초기화 (production only) ──
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 
-function resolveTenantCode(): string {
-  const host = window.location.hostname.toLowerCase();
-  const map: Record<string, string> = {
-    "tchul.com": "tchul", "hakwonplus.com": "hakwonplus",
-    "limglish.kr": "limglish", "ymath.co.kr": "ymath", "sswe.co.kr": "sswe",
-    "dnbacademy.co.kr": "dnb",
-  };
-  return map[host] || host;
-}
-
 if (SENTRY_DSN && import.meta.env.PROD) {
   Sentry.init({
     dsn: SENTRY_DSN,
@@ -89,10 +83,10 @@ if (SENTRY_DSN && import.meta.env.PROD) {
     integrations: [
       // Session Replay — 에러 발생 시 세션 녹화 자동 캡처
       Sentry.replayIntegration({
-        // 민감 정보 마스킹 (비밀번호, 전화번호 등)
-        maskAllText: false,
+        // 학생·학부모 이름과 학습 데이터까지 포함되므로 화면 전체를 비식별화한다.
+        maskAllText: true,
         maskAllInputs: true,
-        blockAllMedia: false,
+        blockAllMedia: true,
       }),
     ],
     // 성능 모니터링 — 10% 샘플링 (비용 절감)
@@ -107,11 +101,22 @@ if (SENTRY_DSN && import.meta.env.PROD) {
       if (msg.includes("chrome-extension://") || msg.includes("moz-extension://")) return null;
       // ResizeObserver 루프 에러 무시 (무해)
       if (msg.includes("ResizeObserver loop")) return null;
+      if (event.request?.url) {
+        event.request.url = sanitizeObservabilityPath(event.request.url);
+      }
+      event.breadcrumbs = event.breadcrumbs?.map((breadcrumb) => {
+        if (!breadcrumb.data) return breadcrumb;
+        const data = { ...breadcrumb.data };
+        for (const key of ["url", "from", "to"]) {
+          if (typeof data[key] === "string") data[key] = sanitizeObservabilityPath(data[key]);
+        }
+        return { ...breadcrumb, data };
+      });
       return event;
     },
     // 사용자 컨텍스트: tenant code 추가
     initialScope: {
-      tags: { tenant: resolveTenantCode() },
+      tags: { tenant: resolveTenantCodeString() },
     },
   });
 }

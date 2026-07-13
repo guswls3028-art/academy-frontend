@@ -6,7 +6,7 @@
  *
  * read-only — 새 doc 업로드/삭제/edit/submit 없음. PDF/ZIP은 다운로드만, 발송 없음.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { loginViaUI } from "../helpers/auth";

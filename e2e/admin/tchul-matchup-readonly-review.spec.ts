@@ -6,7 +6,7 @@
  *
  * 주의: read-only — 새 doc 업로드/삭제/edit 등 mutation 없음. screenshot만.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 

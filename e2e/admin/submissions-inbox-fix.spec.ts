@@ -12,7 +12,7 @@
  *
  * 데이터 의존: 미식별/orphan row 가 있을 때만 의미. 데이터 없으면 skip.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 test("미식별 제출 인박스 — 가드 + 액션 분기 + confirm 다이얼로그", async ({ page }) => {

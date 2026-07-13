@@ -13,7 +13,7 @@
  *   - 직접 goto = 초기 진입에만, 그 후 sidebar/btn navigate 우선
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { getBaseUrl, loginViaUI } from "./helpers/auth";
 

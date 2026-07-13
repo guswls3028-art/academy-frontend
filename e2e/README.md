@@ -122,6 +122,10 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 학생 생성/비밀번호 변경의 계정 안내 알림톡은 제품 정책상 필수 발송이다. E2E에서 `send_welcome_message=false`나
 `skip_notify=true`로 발송을 끄는 방식은 더 이상 유효하지 않다.
 
+`pnpm guard:e2e-safety`는 production mutation guard와 strict fixture import guard를 함께 실행한다. 활성 spec은
+`@playwright/test`에서 직접 runtime `test`를 가져오지 않고 `fixtures/strictTest.ts`를 사용해야 한다. 의도적으로
+엄격 브라우저 검사를 적용할 수 없는 spec은 `E2E_STRICT_IMPORT_EXCEPTION` marker가 있는 명시적 allowlist만 허용한다.
+
 `fixtures/strictTest.ts`와 `helpers/api.ts`는 운영 API(`api.hakwonplus.com`) 대상의 학생 생성, 학생 계정 수정,
 비밀번호 변경 요청을 검사한다. 통제 번호 `01031217466` 외의 `parent_phone`/`phone`/`student_phone`으로 계정 안내가
 나갈 수 있으면 spec을 즉시 실패시킨다. 운영 fixture를 새로 만들 때는 통제 번호를 쓰거나 로컬/preview API에서 실행한다.
@@ -133,14 +137,14 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 | `E2E_STRICT` | 동작 |
 |--------------|------|
 | `strict` (또는 미설정/`1`) | defect 발견 시 spec fail |
-| `report` (또는 `warn`)    | defect 을 `console.warn` + test annotation, fail 없음 |
+| `report` (또는 `warn`)    | 로컬 진단 전용: defect 을 `console.warn` + test annotation, fail 없음 |
 | `off` (또는 `0`)          | 리스너 미부착 |
 
 `DEFAULT_IGNORE` (`helpers/strictBrowser.ts`): chrome-extension, ResizeObserver, `Failed to load resource`, React DevTools, cf-nel.
 
 ### 새 strict baseline 만들기
 
-전수 마이그레이션 직후엔 숨은 defect 이 있을 수 있어 **report → strict 점진 전환** 추천:
+새로운 대규모 spec 묶음을 진단할 때만 로컬에서 **report → strict** 순서로 확인한다. CI는 항상 strict다.
 
 1. 첫 PR/run 에서 `E2E_STRICT=report` (현재 기본값) 로 정상 통과 확인.
 2. `playwright-report/` artifact 의 각 spec annotation `strict-browser-defect` 수집:
@@ -148,11 +152,12 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
    pnpm exec playwright show-report
    ```
 3. annotation 의 console.error/pageerror 메시지를 spec 별로 분류:
-   - 의도적 음성 시나리오 (404/네트워크 차단) → `baseTest` dual-import 패턴 적용
+   - 의도적 음성 시나리오 (404/네트워크 차단) → 해당 spec의 좁은 ignore 또는 명시적 exception marker 검토
    - 진짜 버그 → 코드 수정
    - 환경 노이즈 (favicon/sentry/analytics) → `attachStrictBrowserGuards` 의 `extraIgnore` 추가
-4. 모든 spec 이 깨끗해지면 `.env.e2e` 의 `E2E_STRICT=strict` 로 플립 + PR 1회 dry-run 으로 확인.
-5. `quality-gate.yml` 의 e2e-roundtrip 잡은 이미 `E2E_STRICT=strict` — 배포 후 회귀 5개는 엄격.
+4. 모든 spec 이 깨끗해지면 `E2E_STRICT=strict` 로 재실행한다.
+5. `e2e.yml`과 `quality-gate.yml`은 모두 `E2E_STRICT=strict`다. PR workflow는 checkout frontend를
+   localhost에서 실행하고 API만 E2E backend로 proxy하므로 배포 전 코드가 실제 검증 대상이다.
 
 ### 현재 알려진 baseline 후보
 

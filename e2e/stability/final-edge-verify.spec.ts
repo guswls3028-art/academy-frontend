@@ -6,6 +6,7 @@ import { test, expect } from "../fixtures/strictTest";
 // 의도적 dual import: 아래 "클리닉 네트워크 차단 에러 UI" 는 의도적으로 API 요청을
 // 차단해 net::ERR_FAILED 를 유발하는 음성 시나리오라 console.error 가 당연히 발생.
 // strictTest 의 zero-defect guard 를 우회하기 위해 baseTest/baseExpect 를 별도 사용.
+// E2E_STRICT_IMPORT_EXCEPTION: only the explicit network-failure case uses baseTest.
 import { test as baseTest, expect as baseExpect } from "@playwright/test";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";

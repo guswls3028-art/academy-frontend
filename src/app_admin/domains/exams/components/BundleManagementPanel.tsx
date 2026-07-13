@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Package, Plus, Pencil, Trash2 } from "lucide-react";
-import { Badge, Button } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -30,7 +30,7 @@ export default function BundleManagementPanel() {
   const qc = useQueryClient();
   const confirm = useConfirm();
 
-  const { data: bundles = [], isLoading } = useQuery({
+  const { data: bundles = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminExamsQueryKeys.templateBundles,
     queryFn: fetchBundles,
   });
@@ -64,6 +64,18 @@ export default function BundleManagementPanel() {
           <div key={i} className="h-24 rounded-lg bg-[var(--color-bg-skeleton)] animate-pulse" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="템플릿 묶음을 불러올 수 없습니다"
+        description="서버 연결 상태를 확인한 뒤 다시 시도해 주세요."
+        actions={<Button intent="secondary" onClick={() => refetch()}>다시 시도</Button>}
+      />
     );
   }
 
@@ -190,6 +202,8 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
   const [examTemplates, setExamTemplates] = useState<TemplateWithUsage[]>([]);
   const [hwTemplates, setHwTemplates] = useState<HomeworkTemplateWithUsage[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateLoadError, setTemplateLoadError] = useState(false);
+  const [templateReloadKey, setTemplateReloadKey] = useState(0);
 
   const [keyword, setKeyword] = useState("");
   const [addTab, setAddTab] = useState<"exam" | "homework">("exam");
@@ -215,17 +229,24 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
     // Load templates
     let cancelled = false;
     setLoadingTemplates(true);
+    setTemplateLoadError(false);
     Promise.all([
-      fetchTemplatesWithUsage().catch(() => []),
-      fetchHomeworkTemplatesWithUsage().catch(() => []),
+      fetchTemplatesWithUsage(),
+      fetchHomeworkTemplatesWithUsage(),
     ]).then(([exams, hws]) => {
       if (cancelled) return;
       setExamTemplates(exams ?? []);
       setHwTemplates(hws ?? []);
-      setLoadingTemplates(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setExamTemplates([]);
+      setHwTemplates([]);
+      setTemplateLoadError(true);
+    }).finally(() => {
+      if (!cancelled) setLoadingTemplates(false);
     });
     return () => { cancelled = true; };
-  }, [open, bundle]);
+  }, [open, bundle, templateReloadKey]);
 
   const selectedExamIds = useMemo(
     () => new Set(items.filter((i) => i.item_type === "exam").map((i) => i.exam_template_id)),
@@ -473,7 +494,16 @@ function BundleEditModal({ open, bundle, onClose, onSaved }: EditProps) {
 
                 {loadingTemplates && <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>}
 
-                {!loadingTemplates && (
+                {!loadingTemplates && templateLoadError && (
+                  <div className="flex items-center justify-between gap-3 rounded border border-[var(--color-error)] p-3 text-sm text-[var(--color-error)]">
+                    <span>시험·과제 템플릿을 불러오지 못했습니다.</span>
+                    <Button intent="secondary" size="sm" onClick={() => setTemplateReloadKey((value) => value + 1)}>
+                      다시 시도
+                    </Button>
+                  </div>
+                )}
+
+                {!loadingTemplates && !templateLoadError && (
                   <div className={`grid gap-1.5 ${styles.templateList}`}>
                     {addTab === "exam" && filteredExamTemplates.map((t) => {
                       const checked = selectedExamIds.has(t.id);

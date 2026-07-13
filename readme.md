@@ -48,6 +48,7 @@ pnpm dev
 
 - Node.js 18+, pnpm 8+
 - **배포**: frontend 레포 `main` push → Cloudflare Pages 자동 배포. 로컬 확인은 `pnpm run build` → `dist/`.
+- `pnpm run build`는 route/vendor JavaScript의 raw·gzip 용량 예산도 검사해 번들 회귀를 차단합니다.
 
 ---
 

@@ -1,0 +1,48 @@
+.root {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-bg-page, #f8fafc);
+}
+
+.card {
+  width: min(100%, 380px);
+  padding: 28px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 14px;
+  background: var(--color-surface, #fff);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 4%);
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 8px;
+  color: var(--color-text-primary, #111827);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.description {
+  margin: 0 0 16px;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.retry {
+  padding: 9px 22px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-brand-primary, #2563eb);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.retry:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

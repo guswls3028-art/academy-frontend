@@ -9,7 +9,7 @@
  *
  * 산출물: C:\academy\_artifacts\sessions\visual-review-2026-05-12\*.png
  */
-import { test } from "@playwright/test";
+import { test } from "./fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { loginViaUI, getBaseUrl } from "./helpers/auth";
 

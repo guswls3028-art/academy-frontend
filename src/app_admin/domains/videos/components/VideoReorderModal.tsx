@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateVideo } from "../api/videos.api";
+import { reorderVideos } from "../api/videos.api";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -92,16 +92,15 @@ export default function VideoReorderModal({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Only update videos whose order actually changed
-      const updates: Promise<unknown>[] = [];
+      const updates: Array<{ id: number; order: number }> = [];
       for (let i = 0; i < orderedVideos.length; i++) {
         const video = orderedVideos[i];
         const newOrder = i + 1;
         if ((video.order ?? 1) !== newOrder) {
-          updates.push(updateVideo(video.id, { order: newOrder }));
+          updates.push({ id: video.id, order: newOrder });
         }
       }
-      await Promise.all(updates);
+      await reorderVideos(updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });

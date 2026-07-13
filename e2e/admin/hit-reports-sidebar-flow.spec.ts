@@ -8,7 +8,7 @@
  *
  * Read-only — mutation 없음 (카드 click + editor 진입만, 저장/제출 X).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const BASE = "https://tchul.com";

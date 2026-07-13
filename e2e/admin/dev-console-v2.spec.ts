@@ -1,7 +1,7 @@
 // PATH: e2e/admin/dev-console-v2.spec.ts
 // /dev 운영 콘솔 V2 — 대시보드/테넌트/Cmd+K/임퍼소네이션 라이브 검증.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const ADMIN_BASE = getBaseUrl("admin"); // hakwonplus

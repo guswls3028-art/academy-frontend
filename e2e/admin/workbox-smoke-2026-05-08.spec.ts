@@ -6,7 +6,7 @@
 //
 // destructive 동작(실 task 삭제) 절대 X — UI 노출 + DOM 존재만 확인.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";

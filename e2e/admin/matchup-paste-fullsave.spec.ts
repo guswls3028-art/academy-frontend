@@ -9,7 +9,7 @@
 //   5) modal problem 목록에 추가 + 수동 라벨
 //   6) cleanup (삭제)
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import { pickUnusedCropProblemNumber, selectStableDoneMatchupDocument } from "../helpers/matchup";

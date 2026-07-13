@@ -3,7 +3,7 @@
  * - 미식별 row 가 있을 때만 의미. 데이터 없으면 skip.
  * - 모달은 열어서 검증만, 실제 폐기는 수행하지 않음 (cancel).
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 test("inbox 일괄 선택 + 폐기 사유 모달 + cancel", async ({ page }) => {

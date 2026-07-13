@@ -4,7 +4,7 @@
 // CF Pages auto deploy 후 운영 URL 에서 직접 시각 검수.
 // T1 admin 만 사용 (memory: feedback_no_e2e_on_real_tenants).
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";

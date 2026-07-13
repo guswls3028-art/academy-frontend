@@ -7,7 +7,7 @@
  *       본 spec은 write/mutation 없는 read-only 시각 검수이며 사용자 명시 요청에 따라 실행.
  *       데이터 변경 없음 — 캡처만.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures/strictTest";
 import { loginViaUI } from "./helpers/auth";
 
 const TCHUL = "https://tchul.com";

@@ -15,7 +15,7 @@
 // criticalErrors 필터링 로직(L185~) 으로 콘솔 결함을 직접 검증한다.
 // strictTest 로 마이그레이션하면 attachStrictBrowserGuards 와 자체 수집 로직이
 // 동일 채널을 이중 구독해 false positive 와 noise 가 늘어난다.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 

@@ -5,7 +5,7 @@
 // 작업박스 (진행률 / 삭제 / 자동이동) 자연 검증.
 // 실데이터 read-only 검증 위주 — 신규 업로드는 별도 스펙에서.
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../fixtures/strictTest";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";

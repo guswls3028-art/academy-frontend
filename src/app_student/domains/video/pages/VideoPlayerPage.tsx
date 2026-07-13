@@ -4,7 +4,14 @@ import type { CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import EmptyState from "../../../layout/EmptyState";
-import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress, toggleVideoLike } from "../api/video.api";
+import {
+  fetchStudentVideoPlayback,
+  fetchStudentSessionVideos,
+  updateVideoProgress,
+  toggleVideoLike,
+  type StudentSessionVideosResponse,
+  type StudentVideoPlayback,
+} from "../api/video.api";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
@@ -61,11 +68,25 @@ function useQueryParams() {
 }
 
 /* ─── 좋아요 버튼 ─── */
-function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; initialLiked: boolean; initialCount: number }) {
+type ConfirmedLikeState = { liked: boolean; like_count: number };
+
+function LikeButton({
+  videoId,
+  initialLiked,
+  initialCount,
+  onConfirmed,
+}: {
+  videoId: number;
+  initialLiked: boolean;
+  initialCount: number;
+  onConfirmed: (state: ConfirmedLikeState) => void;
+}) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const likedRef = useRef(liked);
+  const countRef = useRef(count);
   likedRef.current = liked;
+  countRef.current = count;
 
   useEffect(() => {
     setLiked(initialLiked);
@@ -75,13 +96,20 @@ function LikeButton({ videoId, initialLiked, initialCount }: { videoId: number; 
   const mutation = useMutation({
     mutationFn: () => toggleVideoLike(videoId),
     onMutate: () => {
-      const wasLiked = likedRef.current;
+      const previous = { liked: likedRef.current, count: countRef.current };
       setLiked((prev) => !prev);
-      setCount((prev) => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+      setCount((prev) => previous.liked ? Math.max(0, prev - 1) : prev + 1);
+      return previous;
     },
-    onError: () => {
-      setLiked(initialLiked);
-      setCount(initialCount);
+    onError: (_error, _variables, previous) => {
+      if (!previous) return;
+      setLiked(previous.liked);
+      setCount(previous.count);
+    },
+    onSuccess: (confirmed) => {
+      setLiked(confirmed.liked);
+      setCount(confirmed.like_count);
+      onConfirmed(confirmed);
     },
   });
 
@@ -232,6 +260,32 @@ export default function VideoPlayerPage() {
     () => sortStudentVideos(sessionVideosData?.items ?? []),
     [sessionVideosData?.items]
   );
+
+  const onLikeConfirmed = useCallback((confirmed: ConfirmedLikeState) => {
+    if (!videoId) return;
+    queryClient.setQueryData<StudentVideoPlayback>(
+      studentVideoQueryKeys.playback(videoId, enrollmentId),
+      (current) => current ? {
+        ...current,
+        video: {
+          ...current.video,
+          is_liked: confirmed.liked,
+          like_count: confirmed.like_count,
+        },
+      } : current,
+    );
+    queryClient.setQueriesData<StudentSessionVideosResponse>(
+      { queryKey: ["student-session-videos"] },
+      (current) => current ? {
+        ...current,
+        items: current.items.map((item) => item.id === videoId ? {
+          ...item,
+          is_liked: confirmed.liked,
+          like_count: confirmed.like_count,
+        } : item),
+      } : current,
+    );
+  }, [enrollmentId, queryClient, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
   const initialPosition = useMemo(() => {
@@ -408,7 +462,12 @@ export default function VideoPlayerPage() {
                   <IconChevronRight className="vpp-icon-back-sm" aria-hidden="true" />
                   <span>목록으로</span>
                 </button>
-                <LikeButton videoId={videoId!} initialLiked={video.is_liked ?? false} initialCount={video.like_count ?? 0} />
+                <LikeButton
+                  videoId={videoId!}
+                  initialLiked={video.is_liked ?? false}
+                  initialCount={video.like_count ?? 0}
+                  onConfirmed={onLikeConfirmed}
+                />
               </div>
               <div className="vpp-info-actions">
                 {hasPlaylist && (

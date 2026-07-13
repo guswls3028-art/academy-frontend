@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures/strictTest";
 import { loginViaUI } from "./helpers/auth";
 import path from "path";
 import fs from "fs";

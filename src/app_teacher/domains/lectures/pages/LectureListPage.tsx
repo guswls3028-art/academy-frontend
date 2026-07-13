@@ -12,6 +12,7 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchLectures } from "../api";
 import LectureFormSheet from "../components/LectureFormSheet";
 import { teacherLectureQueryKeys } from "../queryKeys";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import styles from "./LectureListPage.module.css";
 
 type Tab = "active" | "past";
@@ -21,19 +22,23 @@ export default function LectureListPage() {
   const [tab, setTab] = useState<Tab>("active");
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: activeLectures, isLoading: loadingActive } = useQuery({
+  const activeQuery = useQuery({
     queryKey: teacherLectureQueryKeys.lectureList(true),
     queryFn: () => fetchLectures(true),
   });
 
-  const { data: pastLectures, isLoading: loadingPast } = useQuery({
+  const pastQuery = useQuery({
     queryKey: teacherLectureQueryKeys.lectureList(false),
     queryFn: () => fetchLectures(false),
     enabled: tab === "past",
   });
 
+  const activeLectures = activeQuery.data;
+  const pastLectures = pastQuery.data;
+
   const lectures = tab === "active" ? activeLectures : pastLectures;
-  const isLoading = tab === "active" ? loadingActive : loadingPast;
+  const selectedQuery = tab === "active" ? activeQuery : pastQuery;
+  const isLoading = selectedQuery.isLoading;
 
   return (
     <div className={styles.page}>
@@ -55,6 +60,18 @@ export default function LectureListPage() {
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : selectedQuery.isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="강의 목록을 불러오지 못했습니다"
+          description={extractApiError(selectedQuery.error, "연결 상태를 확인한 뒤 다시 시도해 주세요.")}
+          actions={
+            <EmptyActionButton onClick={() => void selectedQuery.refetch()}>
+              다시 시도
+            </EmptyActionButton>
+          }
+        />
       ) : lectures && lectures.length > 0 ? (
         <div className={styles.list}>
           {lectures.map((l) => {

@@ -4,7 +4,7 @@
 // 업로드 모달에 자료 유형 라디오/뱃지/안내 모두 시각 노출 0.
 // hidden div 의 sourceType 자동 추천만 backend 로 전송 확인.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { waitForCondition } from "../helpers/wait";
 
 const BASE = "https://hakwonplus.com";

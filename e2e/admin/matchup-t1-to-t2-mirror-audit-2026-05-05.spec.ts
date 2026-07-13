@@ -17,7 +17,7 @@
  *
  * 주의: read-only — 새 doc 업로드/삭제/edit 등 mutation 없음. screenshot + DOM assertion만.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import * as fs from "node:fs";
 

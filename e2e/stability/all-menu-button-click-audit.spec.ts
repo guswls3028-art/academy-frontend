@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+// E2E_STRICT_IMPORT_EXCEPTION: rapid route aborts are classified by this spec's stricter HTTP/fatal collector.
 import { test, expect } from "@playwright/test";
 import { getBaseUrl, loginViaUI, type TenantRole } from "../helpers/auth";
 

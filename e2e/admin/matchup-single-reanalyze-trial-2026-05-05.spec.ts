@@ -12,7 +12,7 @@
  *
  * 안전: 1건만, 다른 doc 영향 없음. 학원장 manual crop 보존(meta__manual=True).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import { loginViaUI } from "../helpers/auth";
 

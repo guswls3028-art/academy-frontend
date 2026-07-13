@@ -739,10 +739,12 @@ export default function SendMessageModal({
     setShowConfirm(false);
     const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약 접수" : "알림톡 발송 접수", taskId, "messaging");
+    let totalEnqueued = 0;
+    let totalScheduled = 0;
+    let totalSkipped = 0;
+    let totalEnqueueFailed = 0;
+    const completedTargetLabels: string[] = [];
     try {
-      let totalEnqueued = 0;
-      let totalScheduled = 0;
-      let totalSkipped = 0;
       let completedCalls = 0;
       const totalCalls = sendToTargets.length;
 
@@ -752,12 +754,21 @@ export default function SendMessageModal({
         totalEnqueued += res.enqueued ?? 0;
         totalScheduled += res.scheduled ?? 0;
         totalSkipped += res.skipped_no_phone ?? 0;
+        totalEnqueueFailed += res.enqueue_failed ?? 0;
+        completedTargetLabels.push(formatSendTargetLabel(sendTo));
         completedCalls++;
         asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
       }
 
       const sendToLabel = sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const accepted = totalEnqueued + totalScheduled;
+      if (totalEnqueueFailed > 0) {
+        feedback.warning(
+          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 큐 등록에 실패했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
+        );
+        asyncStatusStore.completeTask(taskId, "error", `부분 실패 ${totalEnqueueFailed}건`);
+        return;
+      }
       if (accepted > 0) {
         const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
         const actionLabel = sendTiming === "scheduled"
@@ -773,18 +784,26 @@ export default function SendMessageModal({
         feedback.warning(hint);
         asyncStatusStore.completeTask(taskId, "error", "발송 접수 0건");
       }
-      queryClient.invalidateQueries({ queryKey: messageQueryKeys.info });
-      queryClient.invalidateQueries({ queryKey: messageQueryKeys.log });
-      queryClient.invalidateQueries({ queryKey: messageQueryKeys.scheduled });
-      queryClient.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       onClose();
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "response" in e
         ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail : null;
       const errMsg = (msg && typeof msg === "string" ? msg : "발송 요청에 실패했습니다.") as string;
       asyncStatusStore.completeTask(taskId, "error", errMsg);
-      feedback.error(errMsg);
+      const accepted = totalEnqueued + totalScheduled;
+      if (accepted > 0) {
+        const completed = completedTargetLabels.join("·");
+        feedback.warning(
+          `${completed || "일부 대상"} ${accepted}건 접수 후 다음 요청이 실패했습니다. 중복 발송을 막기 위해 발송 내역을 확인하세요. (${errMsg})`,
+        );
+      } else {
+        feedback.error(errMsg);
+      }
     } finally {
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.info });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.log });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.scheduled });
+      queryClient.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       sendingRef.current = false;
       setSending(false);
     }

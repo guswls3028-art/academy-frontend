@@ -16,7 +16,7 @@
  *
  * 출력: 폴백 원인 카테고리 분포 — 본질 fix 우선순위 결정용.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import { loginViaUI } from "../helpers/auth";
 

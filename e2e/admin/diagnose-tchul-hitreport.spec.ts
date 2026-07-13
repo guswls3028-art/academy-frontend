@@ -2,7 +2,7 @@
  * 박철T 학원장 자격으로 보고서 13(개포고)/27(단대부고) 화면을 직접 떠서
  * dangling 미리보기 상태를 캡처. read-only 진단 — 데이터 mutate 없음.
  */
-import { test } from "@playwright/test";
+import { test } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 
 const BASE = getBaseUrl("tchul-admin");

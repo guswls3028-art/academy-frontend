@@ -5,6 +5,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
+import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 
 export type Role =
   | "owner"
@@ -18,7 +19,7 @@ const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
-  const { user, isLoading, refreshMe } = useAuth();
+  const { user, isLoading, authUnavailable, refreshMe } = useAuth();
   const { program, isLoading: programLoading, error: programError, refetch: refetchProgram } = useProgram();
   const [retrying, setRetrying] = useState(false);
 
@@ -64,6 +65,10 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
         </div>
       </div>
     );
+  }
+
+  if (authUnavailable && !user) {
+    return <AuthUnavailableState retry={refreshMe} />;
   }
 
   const loginRedirect = <Navigate to="/login" replace />;

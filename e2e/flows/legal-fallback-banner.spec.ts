@@ -5,7 +5,7 @@
  * 1. 학원 정보 페이지 > 법적 정보 섹션이 정상 로드되는지 (관리자)
  * 2. 비로그인 PrivacyPage 가 200 으로 렌더링되고 플랫폼 운영사 정보가 표시되는지
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 

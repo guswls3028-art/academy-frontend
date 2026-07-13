@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures/strictTest";
 import { mkdir, readFile } from "fs/promises";
 import path from "path";
 import { getBaseUrl, loginViaUI } from "./helpers/auth";

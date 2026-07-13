@@ -176,7 +176,13 @@
         window.addEventListener("load", function () {
           window.setTimeout(function () {
             var root = document.getElementById("root");
-            if (root && root.childElementCount === 0) showRecoveryMessage();
+            // The entry module can be healthy while its first API bootstrap is still
+            // pending. In that case React owns the empty root and will render the
+            // product-level loading/error state; injecting fallback HTML would leave
+            // duplicate screens once React commits.
+            if (!window.__HPLUS_APP_BOOTSTRAPPED__ && root && root.childElementCount === 0) {
+              showRecoveryMessage();
+            }
           }, 2500);
         });
       })();

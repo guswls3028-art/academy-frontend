@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import { getBaseUrl, loginViaUI } from "../helpers/auth";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");

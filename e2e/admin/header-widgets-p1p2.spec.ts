@@ -8,7 +8,7 @@
  *  - Help:     button "도움말"
  *  - Profile:  button "프로필 메뉴"
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 import path from "path";
 

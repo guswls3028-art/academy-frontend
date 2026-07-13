@@ -1,7 +1,7 @@
 /**
  * doc 321 reanalyze 결과 측정 — list endpoint 으로 doc detail + problems.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import * as fs from "node:fs";
 import { loginViaUI } from "../helpers/auth";
 

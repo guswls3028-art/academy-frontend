@@ -2,7 +2,7 @@
  * 학생 대시보드 다크 모드 — 운영 시각 검증.
  * localStorage에 다크 모드 prefer 주입 후 진입.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const STORAGE_KEY = "hakwonplus:student-theme-mode";

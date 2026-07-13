@@ -34,12 +34,22 @@ export default function ExamExplorerPage() {
   const navigate = useNavigate();
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
-  const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
+  const {
+    data: lectures = [],
+    isLoading: lecturesLoading,
+    isError: lecturesError,
+    refetch: refetchLectures,
+  } = useQuery({
     queryKey: adminExamsQueryKeys.adminExamsLectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+  const {
+    data: allSessions = [],
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery({
     queryKey: adminExamsQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
@@ -70,7 +80,12 @@ export default function ExamExplorerPage() {
     }
   }, [lecturesWithSessions, selectedSessionId]);
 
-  const { data: exams = [], isLoading: examsLoading } = useQuery({
+  const {
+    data: exams = [],
+    isLoading: examsLoading,
+    isError: examsError,
+    refetch: refetchExams,
+  } = useQuery({
     queryKey: adminExamsQueryKeys.adminExamsForSession(selectedSessionId),
     queryFn: () => fetchExams({ session_id: selectedSessionId! }),
     enabled: Number.isFinite(selectedSessionId),
@@ -136,6 +151,21 @@ export default function ExamExplorerPage() {
               <div className={panelStyles.placeholder}>
                 <p className={panelStyles.placeholderTitle}>불러오는 중…</p>
               </div>
+            ) : lecturesError || sessionsError ? (
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="강의·차시를 불러올 수 없습니다"
+                actions={
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => void Promise.all([refetchLectures(), refetchSessions()])}
+                  >
+                    다시 시도
+                  </Button>
+                }
+              />
             ) : lecturesWithSessions.length === 0 ? (
               <div className={panelStyles.placeholder}>
                 <p className={panelStyles.placeholderTitle}>강의가 없습니다</p>
@@ -181,6 +211,15 @@ export default function ExamExplorerPage() {
           ) : examsLoading ? (
             <div className={panelStyles.placeholder}>
               <p className={panelStyles.placeholderTitle}>시험 목록 불러오는 중…</p>
+            </div>
+          ) : examsError ? (
+            <div className="flex min-h-[200px] items-center justify-center">
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="시험 목록을 불러올 수 없습니다"
+                actions={<Button intent="secondary" size="sm" onClick={() => refetchExams()}>다시 시도</Button>}
+              />
             </div>
           ) : exams.length === 0 ? (
             <div className="flex min-h-[200px] items-center justify-center">
@@ -230,12 +269,21 @@ export default function ExamExplorerPage() {
                     <div
                       key={e.id}
                       className={styles.listItem}
+                      role="button"
+                      tabIndex={0}
                       onClick={() =>
                         selectedSession &&
                         navigate(
                           `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
                         )
                       }
+                      onKeyDown={(event) => {
+                        if (!selectedSession || (event.key !== "Enter" && event.key !== " ")) return;
+                        event.preventDefault();
+                        navigate(
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
+                        );
+                      }}
                     >
                       <div className={styles.listItemIcon} data-tone="primary">
                         <FileCheck size={20} />
@@ -263,11 +311,20 @@ export default function ExamExplorerPage() {
                   <div
                     data-guide="exams-add"
                     className={styles.listItemAdd}
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
                       navigate(
                         `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                       )
                     }
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      navigate(
+                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                      );
+                    }}
                   >
                     <FilePlus size={18} />
                     <span>시험 추가</span>

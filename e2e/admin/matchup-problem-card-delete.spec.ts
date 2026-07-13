@@ -6,7 +6,7 @@
 // E2E 정책 (memory feedback_no_e2e_on_real_tenants.md):
 //   T1 (admin97/koreaseoul97) only. read-only — confirm 모달 cancel 로 닫기. 실제 삭제 X.
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 // 1100 viewport 는 narrow viewport layout 분기 (옵션 1 — 본문 상하 stack)

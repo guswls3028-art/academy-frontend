@@ -13,7 +13,7 @@
  *   - LectureCreateModal: 실제 등록 → 리스트 검증 → 만든 강의 cleanup
  *   - 나머지: 시각 검증 + 스크린샷 (저장 X, 모달 취소로 닫음)
  */
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "./fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "./helpers/auth";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");

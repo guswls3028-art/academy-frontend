@@ -1,7 +1,7 @@
 // 매치업 적중보고서 복구 시각 검증 — 학원장(tchul) 화면 vs DB 비교
 // 목적: DB는 복구됐으나 학원장이 "복구 안 됐다" 보고. 화면 표시 결함 진단.
 // read-only spec — DB mutation 없음.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const TCHUL_BASE = process.env.TCHUL_BASE_URL || "https://tchul.com";

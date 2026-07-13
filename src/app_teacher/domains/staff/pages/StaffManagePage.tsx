@@ -51,7 +51,7 @@ export default function StaffManagePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any>(null);
 
-  const { data: staff, isLoading } = useQuery({
+  const { data: staff, isLoading, isError, error, refetch } = useQuery({
     queryKey: teacherStaffQueryKeys.staffList(search),
     queryFn: () => fetchStaff(search || undefined),
   });
@@ -65,7 +65,7 @@ export default function StaffManagePage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
+        <button type="button" aria-label="이전 화면" onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
           style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={ICON.lg} />
         </button>
@@ -87,13 +87,31 @@ export default function StaffManagePage() {
 
       {/* List */}
       {isLoading ? <EmptyState scope="panel" tone="loading" title="불러오는 중..." /> :
+        isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="직원 목록을 불러오지 못했습니다"
+            description={extractApiError(error, "연결 상태를 확인한 뒤 다시 시도해 주세요.")}
+            actions={
+              <EmptyActionButton onClick={() => void refetch()}>
+                다시 시도
+              </EmptyActionButton>
+            }
+          />
+        ) :
         staff && staff.length > 0 ? (
           <div className="flex flex-col gap-2">
             {staff.map((s: any) => (
               <Card key={s.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
                 <div className="flex items-center gap-3">
-                  <div onClick={() => navigate(`/teacher/staff/${s.id}`)}
-                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                  <button
+                    type="button"
+                    aria-label={`${s.name || s.username} 직원 상세`}
+                    onClick={() => navigate(`/teacher/staff/${s.id}`)}
+                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
+                    style={{ padding: 0, border: "none", background: "none" }}
+                  >
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                       style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
                       {(s.name || "?")[0]}
@@ -105,11 +123,11 @@ export default function StaffManagePage() {
                       </div>
                       {s.phone && <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{s.phone}</div>}
                     </div>
-                  </div>
+                  </button>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
+                    <button type="button" aria-label={`${s.name || s.username} 직원 수정`} onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
-                    <button onClick={async () => {
+                    <button type="button" aria-label={`${s.name || s.username} 직원 삭제`} onClick={async () => {
                         const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
                         if (ok) deleteMut.mutate(s.id);
                       }}

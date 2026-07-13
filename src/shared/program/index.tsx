@@ -2,6 +2,7 @@
 // PATH: src/shared/program/index.tsx
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { getTenantBranding, getTenantIdFromCode, resolveTenantCode } from "@/shared/tenant";
 
 export type Program = {
   tenantCode: string;
@@ -29,6 +30,28 @@ const DEV_FALLBACK_PROGRAM: Program = {
   feature_flags: {},
   is_active: true,
 };
+
+function getDevFallbackProgram(): Program {
+  const resolved = resolveTenantCode();
+  const tenantCode = resolved.ok ? resolved.code : DEV_FALLBACK_PROGRAM.tenantCode;
+  const tenantId = getTenantIdFromCode(tenantCode);
+  const branding = tenantId ? getTenantBranding(tenantId) : null;
+
+  return {
+    ...DEV_FALLBACK_PROGRAM,
+    tenantCode,
+    isPlatformAdmin: tenantCode === "9999",
+    display_name: branding?.loginTitle || DEV_FALLBACK_PROGRAM.display_name,
+    ui_config: branding
+      ? {
+          login_title: branding.loginTitle,
+          login_subtitle: branding.loginSubtitle,
+          logo_url: branding.logoUrl,
+          window_title: branding.windowTitle,
+        }
+      : DEV_FALLBACK_PROGRAM.ui_config,
+  };
+}
 
 type ProgramState = {
   program: Program | null;
@@ -60,14 +83,25 @@ function fetchProgramBootstrap(): Promise<Program | null> {
         return res.data ?? null;
       } catch (e: unknown) {
         if (import.meta.env.DEV) {
-          const err = e as { code?: string; message?: string };
-          if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+          const err = e as {
+            code?: string;
+            message?: string;
+            response?: { status?: number; data?: unknown };
+          };
+          const status = err?.response?.status;
+          const responseData = err?.response?.data;
+          const localBackendUnavailable =
+            err?.code === "ERR_NETWORK" ||
+            err?.message?.includes("Network Error") ||
+            // Vite's refused proxy connection is surfaced to Axios as an empty 500.
+            (status === 500 && (responseData === "" || responseData == null));
+          if (localBackendUnavailable) {
             console.warn(
               "[로컬 개발] 백엔드에 연결할 수 없습니다. Django 서버를 실행해 주세요.\n" +
                 "  예: academy 폴더에서 'Academy Local Dev.bat' 실행 또는\n" +
                 "  python manage.py runserver 0.0.0.0:8000"
             );
-            return DEV_FALLBACK_PROGRAM;
+            return getDevFallbackProgram();
           }
         }
         if (attempt < 2 && isRetryableProgramError(e)) {

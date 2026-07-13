@@ -13,7 +13,7 @@
  *
  * 메모리 정책: feedback_no_e2e_on_real_tenants — Tenant 1 만, 박철T 등 실사용 X.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
 
 const SCREENSHOT_DIR = "e2e/_artifacts/matchup-submit-portal-2026-05-11";

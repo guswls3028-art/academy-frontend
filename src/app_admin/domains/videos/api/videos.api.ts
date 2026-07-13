@@ -250,6 +250,10 @@ export async function updateVideo(
   return normalizeVideo(res.data);
 }
 
+export async function reorderVideos(items: Array<{ id: number; order: number }>): Promise<void> {
+  await api.post("/media/videos/reorder/", { items });
+}
+
 export async function deleteVideo(videoId: number): Promise<void> {
   try {
     await api.delete(`/media/videos/${videoId}/`);

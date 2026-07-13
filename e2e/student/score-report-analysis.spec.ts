@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures/strictTest";
 
 const BASE = process.env.E2E_BASE_URL || process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_LOCAL_BASE_URL || "http://localhost:5173";
 

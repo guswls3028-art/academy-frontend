@@ -3,7 +3,7 @@
  * 4 pages × 3 viewports = 12 screenshots
  * Dir: e2e/screenshots/mobile-narrow-viewport-20260512/
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/strictTest";
 import { loginViaUI } from "./helpers/auth";
 import { fileURLToPath } from "url";
 import * as path from "path";

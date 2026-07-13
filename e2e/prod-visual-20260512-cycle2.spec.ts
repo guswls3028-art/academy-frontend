@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "./fixtures/strictTest";
 import path from "path";
 import { gotoAndSettle } from "./helpers/wait";
 
