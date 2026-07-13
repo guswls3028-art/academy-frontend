@@ -16,6 +16,7 @@ import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { TenantSubscriptionDto, InvoiceDto } from "@dev/domains/billing/api/billing.api";
 import { dottedDateText, wonText } from "@/shared/utils/displayText";
 import { formatLocalDate } from "@/shared/utils/localDate";
+import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import s from "@dev/layout/DevLayout.module.css";
 import b from "./BillingPage.module.css";
 
@@ -99,8 +100,9 @@ function statusKey(status: string): string {
 }
 
 function getPlanPreviewPrice(plan: string, tenant: TenantSubscriptionDto | null): number | null {
-  if (tenant?.plan === plan) return tenant.monthly_price;
-  return PLAN_STANDARD_PRICES[plan] ?? null;
+  if (tenant?.plan === plan) return resolveBillingAmounts(tenant).totalAmount;
+  const supplyAmount = PLAN_STANDARD_PRICES[plan];
+  return supplyAmount === undefined ? null : supplyAmount + Math.floor(supplyAmount * 0.1);
 }
 
 // ── Main Component ──
@@ -234,7 +236,7 @@ export default function BillingPage() {
         {/* ── Dashboard Summary ── */}
         {dashboard && (
           <div className={b.summaryGrid}>
-            <SummaryCard label="월 반복 매출" value={wonText(dashboard.mrr)} />
+            <SummaryCard label="MRR (VAT 별도)" value={wonText(dashboard.mrr_supply_amount ?? dashboard.mrr)} />
             <SummaryCard label="전체 테넌트" value={String(dashboard.total_tenants)} />
             <SummaryCard label="7일 내 만료" value={String(dashboard.expiring_soon)} warn={dashboard.expiring_soon > 0} />
             <SummaryCard label="연체 인보이스" value={String(dashboard.overdue_invoices)} warn={dashboard.overdue_invoices > 0} />
@@ -298,7 +300,7 @@ export default function BillingPage() {
                         <th>잔여</th>
                         <th>다음 결제</th>
                         <th>방식</th>
-                        <th>월 금액</th>
+                        <th>월 결제 총액 (VAT 포함)</th>
                         <th>조작</th>
                       </tr>
                     </thead>
@@ -330,7 +332,7 @@ export default function BillingPage() {
                             {BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode}
                           </td>
                           <td className={b.numericCell}>
-                            {wonText(t.monthly_price)}
+                            {wonText(resolveBillingAmounts(t).totalAmount)}
                           </td>
                           <td>
                             <div className={b.rowActions}>
@@ -389,7 +391,7 @@ export default function BillingPage() {
                       <Metric label="잔여" value={t.days_remaining === null ? "제한 없음" : `${t.days_remaining}일`} tone={t.days_remaining !== null && t.days_remaining <= 7 ? "warn" : undefined} />
                       <Metric label="다음 결제" value={dottedDateText(t.next_billing_at)} />
                       <Metric label="방식" value={BILLING_MODE_LABELS[t.billing_mode] || t.billing_mode} />
-                      <Metric label="월 금액" value={wonText(t.monthly_price)} />
+                      <Metric label="월 결제 총액 (VAT 포함)" value={wonText(resolveBillingAmounts(t).totalAmount)} />
                     </div>
                     <div className={b.mobileActions}>
                       <button className={`${s.btn} ${s.btnPrimary}`}
@@ -466,7 +468,7 @@ export default function BillingPage() {
                             {inv.paid_at ? inv.paid_at.split("T")[0] : "-"}
                           </td>
                           <td>
-                            {["PENDING", "OVERDUE", "FAILED"].includes(inv.status) && (
+                            {(inv.can_mark_paid ?? ["PENDING", "OVERDUE", "FAILED"].includes(inv.status)) && (
                               <button
                                 className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`}
                                 onClick={() => handleMarkPaid(inv)}
@@ -570,7 +572,7 @@ export default function BillingPage() {
                 {" "}<TenantTypeBadge exempt={isExempt(planModal.tenant_id)} />
                 <br />
                 <span className={b.modalMeta}>
-                  현재 {planModal.plan_display} ({wonText(planModal.monthly_price)})
+                  현재 {planModal.plan_display} ({wonText(resolveBillingAmounts(planModal).totalAmount)}, VAT 포함)
                 </span>
               </p>
               {!isExempt(planModal.tenant_id) && <LiveWarning action="change plan" />}
@@ -590,7 +592,7 @@ export default function BillingPage() {
                     >
                       <span>{plan.label}</span>
                       <strong>{price === null ? "금액 확인 필요" : wonText(price)}</strong>
-                      <small>{isCurrentPlan ? "현재 적용 금액" : `${plan.caption} 정가`}</small>
+                      <small>{isCurrentPlan ? "현재 적용 총액 (VAT 포함)" : `${plan.caption} 정가 (VAT 포함)`}</small>
                     </button>
                   );
                 })}
@@ -598,7 +600,7 @@ export default function BillingPage() {
               <div className={b.previewBox}>
                 <div>
                   <span>현재</span>
-                  <strong>{planModal.plan_display} · {wonText(planModal.monthly_price)}</strong>
+                  <strong>{planModal.plan_display} · {wonText(resolveBillingAmounts(planModal).totalAmount)} (VAT 포함)</strong>
                 </div>
                 <div>
                   <span>변경 후</span>

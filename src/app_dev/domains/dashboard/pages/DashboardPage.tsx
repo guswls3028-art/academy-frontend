@@ -71,7 +71,7 @@ function KpiGrid({ summary, isLoading }: { summary: DashboardSummary | undefined
   const a = summary?.audit;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
-      <Kpi label="MRR" value={b ? fmtMoney(b.mrr) : "—"} loading={isLoading} accent="var(--dev-primary)" />
+      <Kpi label="MRR (VAT 별도)" value={b ? fmtMoney(b.mrr_supply_amount ?? b.mrr) : "—"} loading={isLoading} accent="var(--dev-primary)" />
       <Kpi label="만료 7일 이내" value={b ? fmt(b.expiring_7d) : "—"} loading={isLoading} accent={b && b.expiring_7d > 0 ? "var(--dev-warning)" : undefined} />
       <Kpi label="연체 인보이스" value={b ? fmt(b.overdue_invoices) : "—"} loading={isLoading} accent={b && b.overdue_invoices > 0 ? "var(--dev-danger)" : undefined} />
       <Kpi label="30일 결제액" value={b ? fmtMoney(b.paid_30d) : "—"} loading={isLoading} />

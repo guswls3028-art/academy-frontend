@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
+import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import CardManagementSection from "../components/CardManagementSection";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BillingSettingsPage.module.css";
@@ -12,13 +13,22 @@ type SubscriptionInfo = {
   plan: string;
   plan_display: string;
   monthly_price: number;
+  monthly_supply_amount?: number;
+  monthly_tax_amount?: number;
+  monthly_total_amount?: number;
+  monthly_price_includes_tax?: boolean;
+  vat_rate_percent?: number;
   original_price: number;
+  list_monthly_total_amount?: number;
   is_promo: boolean;
   discount_rate: number;
   subscription_status: string;
   subscription_status_display: string;
   subscription_started_at: string | null;
   subscription_expires_at: string | null;
+  service_access_expires_at?: string | null;
+  grace_period_days?: number;
+  grace_expires_at?: string | null;
   is_subscription_active: boolean;
   days_remaining: number | null;
   billing_email: string;
@@ -65,6 +75,10 @@ export default function BillingSettingsPage() {
   }
 
   const isExpired = !data.is_subscription_active;
+  const isGrace = data.subscription_status === "grace";
+  const amounts = resolveBillingAmounts(data);
+  const listTotalAmount = data.list_monthly_total_amount
+    ?? resolveBillingAmounts({ monthly_price: data.original_price }).totalAmount;
 
   return (
     <div className={styles.root}>
@@ -80,23 +94,38 @@ export default function BillingSettingsPage() {
           {data.is_promo ? (
             <>
               <span className={styles.originalPrice}>
-                월 {formatPrice(data.original_price)}
+                월 {formatPrice(listTotalAmount)}
               </span>
               <span className={styles.discountedPrice}>
-                월 {formatPrice(data.monthly_price)}
+                월 {formatPrice(amounts.totalAmount)}
               </span>
               <span className={styles.discountBadge}>
                 {data.discount_rate}% 할인
               </span>
             </>
           ) : (
-            <>월 {formatPrice(data.monthly_price)}</>
+            <>월 {formatPrice(amounts.totalAmount)}</>
           )}
         </span>
       </div>
 
       {/* Status Card */}
       <div className={styles.card}>
+        <div className={styles.cardRow}>
+          <span className={styles.cardLabel}>월 공급가</span>
+          <span className={styles.cardValue}>{formatPrice(amounts.supplyAmount)}</span>
+        </div>
+
+        <div className={styles.cardRow}>
+          <span className={styles.cardLabel}>부가가치세 ({amounts.vatRatePercent}%)</span>
+          <span className={styles.cardValue}>{formatPrice(amounts.taxAmount)}</span>
+        </div>
+
+        <div className={styles.cardRow}>
+          <span className={styles.cardLabel}>월 결제 총액 (VAT 포함)</span>
+          <strong className={styles.cardValue}>{formatPrice(amounts.totalAmount)}</strong>
+        </div>
+
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>구독 상태</span>
           <span
@@ -123,9 +152,20 @@ export default function BillingSettingsPage() {
         </div>
 
         <div className={styles.cardRow}>
-          <span className={styles.cardLabel}>만료일</span>
+          <span className={styles.cardLabel}>구독 만료일</span>
           <span className={styles.cardValue}>{formatDate(data.subscription_expires_at)}</span>
         </div>
+
+        {isGrace && (
+          <div className={styles.cardRow}>
+            <span className={styles.cardLabel}>
+              유예 이용 종료일{data.grace_period_days != null ? ` (${data.grace_period_days}일)` : ""}
+            </span>
+            <span className={styles.cardValue}>
+              {formatDate(data.grace_expires_at ?? data.service_access_expires_at ?? data.subscription_expires_at)}
+            </span>
+          </div>
+        )}
 
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>남은 이용일</span>

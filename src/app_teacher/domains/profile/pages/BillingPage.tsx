@@ -9,19 +9,29 @@ import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
+import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import { teacherProfileQueryKeys } from "../queryKeys";
 
 type SubscriptionInfo = {
   plan: string;
   plan_display: string;
   monthly_price: number;
+  monthly_supply_amount?: number;
+  monthly_tax_amount?: number;
+  monthly_total_amount?: number;
+  monthly_price_includes_tax?: boolean;
+  vat_rate_percent?: number;
   original_price: number;
+  list_monthly_total_amount?: number;
   is_promo: boolean;
   discount_rate: number;
   subscription_status: string;
   subscription_status_display: string;
   subscription_started_at: string | null;
   subscription_expires_at: string | null;
+  service_access_expires_at?: string | null;
+  grace_period_days?: number;
+  grace_expires_at?: string | null;
   is_subscription_active: boolean;
   days_remaining: number | null;
   billing_email: string;
@@ -80,6 +90,10 @@ export default function BillingPage() {
   if (isError || !data) return <EmptyState scope="panel" tone="error" title="구독 정보를 불러오지 못했습니다." />;
 
   const isExpired = !data.is_subscription_active;
+  const isGrace = data.subscription_status === "grace";
+  const amounts = resolveBillingAmounts(data);
+  const listTotalAmount = data.list_monthly_total_amount
+    ?? resolveBillingAmounts({ monthly_price: data.original_price }).totalAmount;
   const daysLeft = data.days_remaining;
   const statusTone: "success" | "warning" | "danger" =
     data.subscription_status === "active" ? "success" :
@@ -137,24 +151,34 @@ export default function BillingPage() {
           {data.is_promo ? (
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-[13px]" style={{ color: "var(--tc-text-muted)", textDecoration: "line-through" }}>
-                월 {formatPrice(data.original_price)}
+                월 {formatPrice(listTotalAmount)}
               </span>
               <span className="text-[20px] font-bold" style={{ color: "var(--tc-text)" }}>
-                월 {formatPrice(data.monthly_price)}
+                월 {formatPrice(amounts.totalAmount)}
               </span>
               <Badge tone="danger" size="xs">{data.discount_rate}% 할인</Badge>
             </div>
           ) : (
             <span className="text-[20px] font-bold" style={{ color: "var(--tc-text)" }}>
-              월 {formatPrice(data.monthly_price)}
+              월 {formatPrice(amounts.totalAmount)}
             </span>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5" style={{ borderTop: "1px solid var(--tc-border-subtle)", paddingTop: 10 }}>
+          <Row label="월 공급가" value={formatPrice(amounts.supplyAmount)} />
+          <Row label={`부가가치세 (${amounts.vatRatePercent}%)`} value={formatPrice(amounts.taxAmount)} />
+          <Row label="월 결제 총액 (VAT 포함)" value={formatPrice(amounts.totalAmount)} />
           <Row label="구독 시작" value={formatDate(data.subscription_started_at)} />
-          <Row label="만료일" value={formatDate(data.subscription_expires_at)}
+          <Row label="구독 만료일" value={formatDate(data.subscription_expires_at)}
             valueColor={isExpired ? "var(--tc-danger)" : undefined} />
+          {isGrace && (
+            <Row
+              label={`유예 이용 종료일${data.grace_period_days != null ? ` (${data.grace_period_days}일)` : ""}`}
+              value={formatDate(data.grace_expires_at ?? data.service_access_expires_at ?? data.subscription_expires_at)}
+              valueColor="var(--tc-warn)"
+            />
+          )}
           {daysLeft != null && (
             <Row
               label="남은 일수"

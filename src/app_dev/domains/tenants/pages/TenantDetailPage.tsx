@@ -7,6 +7,7 @@ import {
 } from "@dev/domains/tenants/hooks/useTenants";
 import { useTenantBranding, useUploadLogo, usePatchBranding } from "@dev/domains/tenants/hooks/useBranding";
 import { getTenantBranding as getStaticBranding, getTenantIdFromCode } from "@/shared/tenant/config";
+import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import type { TenantDetailDto, TenantActivityEntry } from "@dev/domains/tenants/api/tenants.api";
 import { abortImpersonation, beginImpersonation } from "@dev/shared/components/impersonationSession";
 import { useDevToast } from "@dev/shared/components/useDevToast";
@@ -633,6 +634,7 @@ function UsageTab({ tenantId }: { tenantId: number }) {
   const { data, isLoading } = useTenantUsage(tenantId);
   if (isLoading) return <div className={`${s.skeleton} ${styles.skeletonPanel}`} />;
   if (!data) return <div className={s.empty}><div className={s.emptyText}>사용량 데이터 없음</div></div>;
+  const billingAmounts = data.billing ? resolveBillingAmounts(data.billing) : null;
 
   return (
     <>
@@ -655,12 +657,16 @@ function UsageTab({ tenantId }: { tenantId: number }) {
             <h3 className={s.cardTitle}>결제</h3>
           </div>
           <div className={s.cardBody}>
-            {data.billing ? (
+            {data.billing && billingAmounts ? (
               <div className={s.infoGrid}>
                 <div className={s.infoLabel}>플랜</div>
                 <div className={s.infoValue}>{data.billing.plan_display}</div>
-                <div className={s.infoLabel}>월 결제액</div>
-                <div className={s.infoValue}>{data.billing.monthly_price.toLocaleString("ko-KR")}원</div>
+                <div className={s.infoLabel}>월 공급가</div>
+                <div className={s.infoValue}>{billingAmounts.supplyAmount.toLocaleString("ko-KR")}원</div>
+                <div className={s.infoLabel}>VAT ({billingAmounts.vatRatePercent}%)</div>
+                <div className={s.infoValue}>{billingAmounts.taxAmount.toLocaleString("ko-KR")}원</div>
+                <div className={s.infoLabel}>월 결제 총액</div>
+                <div className={s.infoValue}>{billingAmounts.totalAmount.toLocaleString("ko-KR")}원 (VAT 포함)</div>
                 <div className={s.infoLabel}>상태</div>
                 <div className={s.infoValue}>{data.billing.subscription_status_display}</div>
                 <div className={s.infoLabel}>만료일</div>

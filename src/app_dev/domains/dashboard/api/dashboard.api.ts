@@ -24,6 +24,11 @@ export type DashboardSummary = {
   };
   billing: {
     mrr: number;
+    mrr_supply_amount?: number;
+    mrr_tax_amount?: number;
+    mrr_total_amount?: number;
+    mrr_includes_tax?: boolean;
+    vat_rate_percent?: number;
     expiring_7d: number;
     overdue_invoices: number;
     paid_30d: number;

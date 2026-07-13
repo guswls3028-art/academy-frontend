@@ -13,9 +13,19 @@ export type TenantSubscriptionDto = {
   plan: string;
   plan_display: string;
   monthly_price: number;
+  monthly_supply_amount?: number;
+  monthly_tax_amount?: number;
+  monthly_total_amount?: number;
+  monthly_price_includes_tax?: boolean;
+  vat_rate_percent?: number;
+  billing_price_policy?: string;
+  is_contract_price?: boolean;
   subscription_status: string;
   subscription_status_display: string;
   subscription_expires_at: string | null;
+  service_access_expires_at?: string | null;
+  grace_period_days?: number;
+  grace_expires_at?: string | null;
   days_remaining: number | null;
   billing_mode: string;
   cancel_at_period_end: boolean;
@@ -36,6 +46,10 @@ export type InvoiceDto = {
   period_end: string;
   due_date: string;
   status: string;
+  status_display?: string;
+  is_terminal?: boolean;
+  can_mark_paid?: boolean;
+  payment_blocked_reason?: string;
   paid_at: string | null;
   failed_at: string | null;
   attempt_count: number;
@@ -44,6 +58,11 @@ export type InvoiceDto = {
 
 export type DashboardDto = {
   mrr: number;
+  mrr_supply_amount?: number;
+  mrr_tax_amount?: number;
+  mrr_total_amount?: number;
+  mrr_includes_tax?: boolean;
+  vat_rate_percent?: number;
   status_counts: Record<string, number>;
   expiring_soon: number;
   overdue_invoices: number;
@@ -69,7 +88,19 @@ export async function extendSubscription(
 export async function changePlan(
   programId: number,
   plan: string,
-): Promise<{ tenant_code: string; plan: string; plan_display: string; monthly_price: number }> {
+): Promise<{
+  tenant_code: string;
+  plan: string;
+  plan_display: string;
+  monthly_price: number;
+  monthly_supply_amount: number;
+  monthly_tax_amount: number;
+  monthly_total_amount: number;
+  monthly_price_includes_tax: boolean;
+  vat_rate_percent: number;
+  billing_price_policy: string;
+  is_contract_price: boolean;
+}> {
   const res = await api.post(`/billing/admin/tenants/${programId}/change-plan/`, { plan });
   return res.data;
 }

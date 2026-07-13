@@ -20,7 +20,7 @@ test.describe("Production smoke: billing", () => {
 
   test("PROD-1. /dev/billing renders dashboard", async ({ page }) => {
     await gotoProd(page, "/dev/billing");
-    await expect(page.locator("text=월 반복 매출")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("MRR (VAT 별도)", { exact: true })).toBeVisible({ timeout: 15000 });
     await expect(page.locator("text=전체 테넌트")).toBeVisible({ timeout: 15000 });
     await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: "e2e/screenshots/prod-01-dashboard.png" });
@@ -48,6 +48,7 @@ test.describe("Production smoke: billing", () => {
   test("PROD-4. /admin/settings/billing renders with card section", async ({ page }) => {
     await gotoProd(page, "/admin/settings/billing");
     await expect(page.locator("h2").filter({ hasText: "결제 / 구독" })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("월 결제 총액 (VAT 포함)", { exact: true })).toBeVisible({ timeout: 10000 });
     await expect(page.locator("text=결제 카드")).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: "e2e/screenshots/prod-04-billing-settings.png" });
   });
