@@ -1,7 +1,6 @@
 import { BellRing, PencilLine, Send, Settings, ShieldCheck } from "lucide-react";
 import {
   getAlimtalkEnvelopeSpec,
-  getAlimtalkTemplateLabel,
   isAlimtalkTemplateBodyEditable,
   normalizeAlimtalkTemplateType,
 } from "../constants/alimtalkEnvelope";
@@ -121,18 +120,20 @@ export function AlimtalkTriggerEnvelope({
 
   return (
     <div className={styles.triggerEnvelope}>
-      <div>
-        <div className={styles.triggerTitle}>
-          <Send size={14} />
-          {editable ? "수정 가능한 알림톡" : "정해진 알림톡"}
-          <span className={styles.templateBadge}>{getAlimtalkTemplateLabel(normalized)}</span>
+        <div>
+          <div className={styles.triggerTitle}>
+            <Send size={14} />
+            {editable ? "수정 가능한 알림톡" : "정해진 알림톡"}
+            <span className={styles.templateBadge}>
+              {editable ? "카카오 승인 공용 양식" : "카카오 승인 전용 양식"}
+            </span>
+          </div>
+          <div className={styles.triggerMeta}>
+            {editable
+              ? `${fallbackTrigger || "이 알림"} 문구를 카카오 승인 공용 양식으로 보냅니다.`
+              : `${fallbackTrigger || "이 알림"} 전용으로 승인된 내용이며 켜고 끄기만 할 수 있습니다.`}
+          </div>
         </div>
-        <div className={styles.triggerMeta}>
-          {editable
-            ? "문구를 바꾸면 이 자동발송에 사용됩니다."
-            : "내용이 정해져 있어 켜고 끄기만 가능합니다."}
-        </div>
-      </div>
       <div className={styles.memoPreview}>
         <div className={styles.memoPreviewLabel}>
           {editable ? "현재 문구" : "발송 내용"}
