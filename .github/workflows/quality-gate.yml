@@ -172,6 +172,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      - name: Download deployed bundle metadata
+        uses: actions/download-artifact@v8
+        with:
+          name: deploy-bundle
+          path: .deploy-bundle
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -183,6 +188,46 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium
+
+      - name: Wait for current Cloudflare build to propagate
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('.deploy-bundle/dist/version.json', 'utf8')).version")
+          mapfile -t PROBE_ASSETS < <(find .deploy-bundle/dist/assets -maxdepth 1 -type f \( -name 'NoticesPage-*.js' -o -name 'EmptyState-*.js' \) -printf '%f\n')
+          if [ "${#PROBE_ASSETS[@]}" -lt 2 ]; then
+            echo "::error::Required lazy-route probe assets are missing from deploy bundle"
+            exit 1
+          fi
+
+          CONSECUTIVE=0
+          for ATTEMPT in $(seq 1 30); do
+            ACTUAL_VERSION=$(curl -fsS "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}" \
+              | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" \
+              || true)
+            READY=true
+            if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
+              READY=false
+            fi
+            for ASSET in "${PROBE_ASSETS[@]}"; do
+              if ! curl -fsS -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+                READY=false
+              fi
+            done
+
+            if [ "$READY" = true ]; then
+              CONSECUTIVE=$((CONSECUTIVE + 1))
+              echo "Cloudflare propagation check ${ATTEMPT}: ready (${CONSECUTIVE}/3 consecutive)"
+              if [ "$CONSECUTIVE" -ge 3 ]; then
+                exit 0
+              fi
+            else
+              CONSECUTIVE=0
+              echo "Cloudflare propagation check ${ATTEMPT}: waiting"
+            fi
+            sleep 5
+          done
+          echo "::error::Current Cloudflare build did not stabilize within 150s"
+          exit 1
 
       - name: Run production canary (login smoke)
         run: pnpm test:e2e:canary

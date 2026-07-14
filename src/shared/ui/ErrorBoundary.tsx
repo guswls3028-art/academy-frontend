@@ -12,6 +12,7 @@ interface Props {
 interface State {
   hasError: boolean;
   recurred: boolean;
+  recovering: boolean;
   errorMessage: string;
 }
 
@@ -22,6 +23,10 @@ interface State {
 const CHUNK_RELOAD_COOLDOWN_MS = 10_000;
 const GENERIC_RELOAD_COOLDOWN_MS = 30_000;
 const CHUNK_RELOAD_KEY = "chunk_reload_ts";
+const CHUNK_RETRY_COUNT_KEY = "chunk_reload_retry_count";
+const CHUNK_RETRY_WINDOW_KEY = "chunk_reload_retry_window_ts";
+const CHUNK_RETRY_WINDOW_MS = 2 * 60_000;
+const MAX_CHUNK_AUTO_RETRIES = 6;
 const GENERIC_RELOAD_KEY = "eb_reload_ts";
 
 function safeGet(key: string): string | null {
@@ -32,9 +37,38 @@ function safeGet(key: string): string | null {
   }
 }
 
+function safeSet(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
 function hasRecentReload(key: string, cooldownMs: number): boolean {
   const lastReload = Number(safeGet(key) || "0");
   return Number.isFinite(lastReload) && Date.now() - lastReload < cooldownMs;
+}
+
+function scheduleChunkRecovery(): boolean {
+  const now = Date.now();
+  const lastReload = Number(safeGet(CHUNK_RELOAD_KEY) || "0");
+  let windowStartedAt = Number(safeGet(CHUNK_RETRY_WINDOW_KEY) || "0");
+  let retryCount = Number(safeGet(CHUNK_RETRY_COUNT_KEY) || "0");
+
+  if (!Number.isFinite(windowStartedAt) || now - windowStartedAt >= CHUNK_RETRY_WINDOW_MS) {
+    windowStartedAt = now;
+    retryCount = 0;
+    safeSet(CHUNK_RETRY_WINDOW_KEY, String(windowStartedAt));
+  }
+  if (!Number.isFinite(retryCount) || retryCount >= MAX_CHUNK_AUTO_RETRIES) return false;
+
+  safeSet(CHUNK_RETRY_COUNT_KEY, String(retryCount + 1));
+  const delay = Math.max(750, CHUNK_RELOAD_COOLDOWN_MS - (now - lastReload) + 250);
+  window.setTimeout(() => {
+    hardReloadWithCacheBust({ key: CHUNK_RELOAD_KEY, cooldownMs: CHUNK_RELOAD_COOLDOWN_MS });
+  }, delay);
+  return true;
 }
 
 function isChunkLoadError(error: Error, info?: ErrorInfo): boolean {
@@ -57,11 +91,11 @@ function isChunkLoadError(error: Error, info?: ErrorInfo): boolean {
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, recurred: false, errorMessage: "" };
+    this.state = { hasError: false, recurred: false, recovering: false, errorMessage: "" };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, recurred: false, errorMessage: error?.message || "" };
+    return { hasError: true, recurred: false, recovering: false, errorMessage: error?.message || "" };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -75,7 +109,10 @@ export default class ErrorBoundary extends Component<Props, State> {
       return;
     }
     if (isChunk && hasRecentReload(CHUNK_RELOAD_KEY, CHUNK_RELOAD_COOLDOWN_MS)) {
-      return;
+      if (scheduleChunkRecovery()) {
+        this.setState({ recovering: true });
+        return;
+      }
     }
 
     console.error(
@@ -99,11 +136,13 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      const { recurred, errorMessage } = this.state;
+      const { recurred, recovering, errorMessage } = this.state;
       return (
         <div className={styles.root}>
           <p className={styles.message}>
-            오류가 발생했습니다. 페이지를 새로고침해 주세요.
+            {recovering
+              ? "새 버전을 반영 중입니다. 잠시 후 자동으로 다시 불러옵니다."
+              : "오류가 발생했습니다. 페이지를 새로고침해 주세요."}
           </p>
           {recurred && (
             <p className={styles.hint}>
