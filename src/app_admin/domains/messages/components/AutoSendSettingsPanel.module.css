@@ -192,6 +192,11 @@
   color: var(--color-status-warning, #d97706);
 }
 
+.statusBadge[data-status="MISSING"] {
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent);
+  color: var(--color-status-warning, #d97706);
+}
+
 .reminderInputGroup {
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@ import {
   FiMessageSquare,
   FiCopy,
   FiEdit2,
+  FiEye,
   FiTrash2,
 } from "react-icons/fi";
 import { FilePlus, Shield } from "lucide-react";
@@ -30,7 +31,11 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   renderPreviewBadges,
 } from "../constants/templateBlocks";
-import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
+import {
+  getAlimtalkTemplateLabel,
+  hideInternalAlimtalkMemoToken,
+  normalizeAlimtalkTemplateType,
+} from "../constants/alimtalkEnvelope";
 import { koreanDateText } from "@/shared/utils/displayText";
 import { messageQueryKeys } from "../queryKeys";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -41,26 +46,30 @@ function isDefaultTemplate(t: MessageTemplateItem): boolean {
   return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
 }
 
-function SolapiStatusBadge({ status }: { status?: string }) {
-  if (!status) return null;
+function AlimtalkReadinessBadge({ template }: { template: MessageTemplateItem }) {
+  const readiness = template.alimtalk_readiness;
+  if (!readiness || readiness === "system_managed") return null;
+  const envelopeLabel = getAlimtalkTemplateLabel(
+    normalizeAlimtalkTemplateType(template.alimtalk_envelope_type),
+  );
   const cfg: Record<string, { label: string; color: string; bg: string }> = {
-    APPROVED: {
-      label: "사용 가능",
+    ready: {
+      label: envelopeLabel || "알림톡 준비됨",
       color: "var(--color-success)",
       bg: "color-mix(in srgb, var(--color-success) 12%, transparent)",
     },
-    PENDING: {
-      label: "확인 중",
-      color: "var(--color-primary)",
-      bg: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+    provider_template_missing: {
+      label: "발송 준비 필요",
+      color: "var(--color-status-warning, #d97706)",
+      bg: "color-mix(in srgb, var(--color-status-warning, #d97706) 12%, transparent)",
     },
-    REJECTED: {
-      label: "확인 필요",
-      color: "var(--color-error)",
-      bg: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+    envelope_selection_required: {
+      label: "발송 시 유형 선택",
+      color: "var(--color-status-info, #2563eb)",
+      bg: "color-mix(in srgb, var(--color-status-info, #2563eb) 10%, transparent)",
     },
   };
-  const c = cfg[status];
+  const c = cfg[readiness];
   if (!c) return null;
   return (
     <span
@@ -210,7 +219,7 @@ export default function TemplateExplorer() {
     id: number;
   } | null>(null);
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading, isError, refetch } = useQuery({
     queryKey: messageQueryKeys.templatesByCategory(activeCategory),
     queryFn: () => fetchMessageTemplates(activeCategory),
     staleTime: 30 * 1000,
@@ -305,7 +314,7 @@ export default function TemplateExplorer() {
         }}
         onClick={() =>
           !isConfirming &&
-          setModalOpen({ template: t, mode: "edit" })
+          setModalOpen({ template: t, mode: isDef ? "view" : "edit" })
         }
       >
         {/* 카드 헤더 */}
@@ -358,7 +367,7 @@ export default function TemplateExplorer() {
                   {t.name}
                 </span>
                 {isDef && <DefaultBadge />}
-                <SolapiStatusBadge status={t.solapi_status} />
+                <AlimtalkReadinessBadge template={t} />
               </div>
               <div
                 style={{
@@ -384,10 +393,10 @@ export default function TemplateExplorer() {
               }}
             >
               <IconAction
-                icon={<FiEdit2 size={16} />}
-                label="수정"
+                icon={isDef ? <FiEye size={16} /> : <FiEdit2 size={16} />}
+                label={isDef ? "보기" : "수정"}
                 onClick={() =>
-                  setModalOpen({ template: t, mode: "edit" })
+                  setModalOpen({ template: t, mode: isDef ? "view" : "edit" })
                 }
               />
               <IconAction
@@ -525,6 +534,21 @@ export default function TemplateExplorer() {
               {[1, 2, 3].map((i) => (
                 <div key={i} className={panelStyles.skeletonCard} />
               ))}
+            </div>
+          ) : isError ? (
+            <div style={{ padding: "var(--space-6)" }}>
+              <EmptyState
+                scope="panel"
+                tone="error"
+                mode="embedded"
+                title="문구를 불러오지 못했습니다"
+                description="연결 상태를 확인한 뒤 다시 시도해 주세요."
+                actions={
+                  <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+                    다시 시도
+                  </Button>
+                }
+              />
             </div>
           ) : templates.length === 0 ? (
             <div style={{ padding: "var(--space-6)" }}>

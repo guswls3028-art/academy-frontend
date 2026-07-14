@@ -1,6 +1,6 @@
 /**
  * 최종 엣지케이스 실검증 — 미확인 항목 전수 검증
- * Tenant 1 (hakwonplus) admin97/koreaseoul97, student 3333/test1234
+ * Tenant 1 (hakwonplus) admin97/__MISSING_E2E_ADMIN_PASS__, student 3333/test1234
  */
 import { test, expect } from "../fixtures/strictTest";
 // 의도적 dual import: 아래 "클리닉 네트워크 차단 에러 UI" 는 의도적으로 API 요청을

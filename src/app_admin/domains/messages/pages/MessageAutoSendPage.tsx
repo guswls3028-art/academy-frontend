@@ -73,18 +73,26 @@ function getMasterToggleLabel(summary: AutoSendSummary): string {
 function AutoSendSummaryStrip({
   summary,
   saving,
+  operationalDisabled,
 }: {
   summary: AutoSendSummary;
   saving: boolean;
+  operationalDisabled: boolean;
 }) {
   return (
     <div className={styles.summaryStrip}>
+      {operationalDisabled && (
+        <span className={styles.summaryItem} data-tone="warning">
+          <span className={styles.summaryLabel}>운영 상태</span>
+          <strong>발송 중지</strong>
+        </span>
+      )}
       <span className={styles.summaryItem}>
         <span className={styles.summaryLabel}>활성</span>
-        <strong>{summary.enabledToggleable}</strong>
+        <strong>{operationalDisabled ? 0 : summary.enabledToggleable}</strong>
         <span>/ {summary.toggleable}</span>
       </span>
-      {summary.systemAuto > 0 && (
+      {!operationalDisabled && summary.systemAuto > 0 && (
         <span className={styles.summaryItem}>
           <span className={styles.summaryLabel}>항상 활성</span>
           <strong>{summary.systemAuto}</strong>
@@ -174,11 +182,13 @@ function TriggerCard({
   onUpdate,
   saving,
   onEditTemplate,
+  operationalDisabled,
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
+  operationalDisabled: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
@@ -187,12 +197,13 @@ function TriggerCard({
   const isDisabled = policy === "DISABLED";
   const implStatus = config.implementation_status;
   const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
+  const deliveryReady = !operationalDisabled && Boolean(config.effective_template_is_approved);
   const unimplementedHint = implStatus === "disabled"
     ? "정책상 비활성 — 발송되지 않습니다"
     : implStatus === "manual_only"
       ? "직접 발송에서만 사용할 수 있습니다"
       : "";
-  const isActive = isSystem || (config.enabled && !isUnimplemented);
+  const isActive = deliveryReady && (isSystem || (config.enabled && !isUnimplemented));
   const cardState = isDisabled ? "disabled" : isActive ? "active" : "inactive";
   const hasTimingControl = isReminderTrigger(config.trigger) || canUseDelayTiming(config);
   const envelopeType = config.effective_template_type || getAlimtalkTemplateType(config.trigger);
@@ -231,16 +242,29 @@ function TriggerCard({
         {/* 활성화 토글 — SYSTEM_AUTO는 항상 켜짐, 토글 비활성화 */}
         <div className={styles.cardActions}>
           <Switch
-            checked={isSystem ? true : isUnimplemented ? false : config.enabled}
+            checked={isSystem ? deliveryReady : isUnimplemented ? false : config.enabled}
             onChange={(checked) => onUpdate({ ...config, enabled: checked })}
-            disabled={saving || isSystem || isDisabled || isUnimplemented}
+            disabled={operationalDisabled || saving || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
+            aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
           <span
             className={styles.triggerState}
             data-active={isActive && !isDisabled}
           >
-            {isDisabled ? "정책상 비활성" : isSystem ? "항상 활성" : isUnimplemented ? "수동 발송 전용" : config.enabled ? "활성화" : "비활성화"}
+            {operationalDisabled
+              ? "운영 중지"
+              : isDisabled
+              ? "정책상 비활성"
+              : !deliveryReady
+                ? "발송 준비 필요"
+                : isSystem
+                  ? "항상 활성"
+                  : isUnimplemented
+                    ? "수동 발송 전용"
+                    : config.enabled
+                      ? "활성화"
+                      : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -274,6 +298,8 @@ function TriggerCard({
               fallbackTrigger={AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
               body={config.template_body}
               templateName={config.template_name}
+              templateReady={deliveryReady}
+              templateSource={config.effective_template_source}
             />
             <div className={styles.controls} data-has-timing={hasTimingControl ? "true" : "false"}>
               {/* 템플릿 — 읽기 전용 */}
@@ -289,10 +315,10 @@ function TriggerCard({
                     type="button"
                     onClick={handleEditClick}
                     className={styles.templateEditButton}
-                    title="내용 수정"
-                    aria-label="내용 수정"
+                    title={config.template_is_system ? "내용 보기" : "내용 수정"}
+                    aria-label={config.template_is_system ? "내용 보기" : "내용 수정"}
                   >
-                    <FiEdit3 size={14} />
+                    {config.template_is_system ? <Eye size={14} /> : <FiEdit3 size={14} />}
                   </button>
                   {hasTemplate && status && (
                     <span
@@ -301,6 +327,8 @@ function TriggerCard({
                       title={
                         config.effective_template_source === "unified"
                           ? "현재 설정으로 발송됩니다."
+                          : status === "MISSING"
+                            ? "승인된 알림톡 양식이 연결되어야 발송할 수 있습니다."
                           : undefined
                       }
                     >
@@ -359,19 +387,20 @@ export default function MessageAutoSendPage() {
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
-  useMessagingInfo();
+  const { data: messagingInfo } = useMessagingInfo();
+  const operationalDisabled = Boolean(messagingInfo?.messaging_disabled);
 
-  const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
+  const { data: configs = EMPTY_CONFIGS, isLoading, isError: configsError, refetch: refetchConfigs } = useQuery({
     queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30 * 1000,
   });
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [], isError: templatesError, refetch: refetchTemplates } = useQuery({
     queryKey: messageQueryKeys.templates,
     queryFn: () => fetchMessageTemplates(),
     staleTime: 30 * 1000,
   });
-  const { data: customTemplates = [] } = useQuery({
+  const { data: customTemplates = [], isError: customTemplatesError, refetch: refetchCustomTemplates } = useQuery({
     queryKey: messageQueryKeys.customDefaultTemplate,
     queryFn: () => fetchMessageTemplates("default"),
     staleTime: 30 * 1000,
@@ -417,6 +446,10 @@ export default function MessageAutoSendPage() {
       feedback.success("자동발송 설정이 저장되었습니다.");
     },
     onError: (err: unknown) => {
+      pendingConfigsRef.current = [];
+      hasPendingDebouncedSaveRef.current = false;
+      setLocalConfigs(configs);
+      void qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       const msg =
         err && typeof err === "object" && "response" in err
           ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
@@ -538,6 +571,23 @@ export default function MessageAutoSendPage() {
     );
   }
 
+  if (configsError || templatesError || customTemplatesError) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>자동발송</h2>
+          <p className={panelStyles.headerDesc}>자동발송 설정을 불러오지 못했습니다.</p>
+          <Button
+            intent="secondary"
+            onClick={() => void Promise.all([refetchConfigs(), refetchTemplates(), refetchCustomTemplates()])}
+          >
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const hasNoDefaults = localConfigs.length === 0 || localConfigs.every((c) => !c.template);
   const section = AUTO_SEND_SECTIONS.find((s) => s.id === selectedSection);
   const sectionTriggers = section?.triggers ?? [];
@@ -553,6 +603,11 @@ export default function MessageAutoSendPage() {
             <p className={panelStyles.headerDesc}>
               필요한 알림톡만 켜고, 보낼 시점과 내용을 정하세요.
             </p>
+            {operationalDisabled && (
+              <p className={styles.unimplementedHint} role="status">
+                {messagingInfo?.messaging_disabled_reason || "현재 알림톡 발송이 운영 중지되어 있습니다."}
+              </p>
+            )}
           </div>
           {/* 전체 자동발송 ON/OFF 토글 */}
           <div className={styles.masterToggle} data-enabled={globalEnabled}>
@@ -568,11 +623,12 @@ export default function MessageAutoSendPage() {
                 setLocalConfigs(next);
                 if (patches.length > 0) updateMut.mutate(patches);
               }}
-              disabled={updateMut.isPending || globalSummary.toggleable === 0}
+              disabled={operationalDisabled || updateMut.isPending || globalSummary.toggleable === 0}
+              aria-label="전체 자동 발송"
               size="small"
             />
             <span className={styles.masterToggleText} data-enabled={globalEnabled}>
-              {getMasterToggleLabel(globalSummary)}
+              {operationalDisabled ? "운영 중지" : getMasterToggleLabel(globalSummary)}
             </span>
           </div>
         </div>
@@ -652,6 +708,7 @@ export default function MessageAutoSendPage() {
                 <AutoSendSummaryStrip
                   summary={getAutoSendSummary(configsInSection)}
                   saving={updateMut.isPending}
+                  operationalDisabled={operationalDisabled}
                 />
                 {configsInSection.map((config) => (
                   <TriggerCard
@@ -659,6 +716,7 @@ export default function MessageAutoSendPage() {
                     config={config}
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
+                    operationalDisabled={operationalDisabled}
                     onEditTemplate={(trigger, templateId) => {
                       if (!templateId) {
                         setCreatingForTrigger(trigger);

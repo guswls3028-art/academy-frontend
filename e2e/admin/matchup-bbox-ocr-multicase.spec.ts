@@ -373,7 +373,7 @@ test.describe.serial("Case A: 실제 문제지 이미지 PDF 앞쪽", () => {
   test.afterAll(async ({ request }) => {
     if (!docId) return;
     const tr = await request.post(`${API}/api/v1/token/`, {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     if (tr.ok()) {
@@ -492,7 +492,7 @@ test.describe.serial("Case B: 실제 문제지 이미지 PDF 뒤쪽", () => {
   test.afterAll(async ({ request }) => {
     if (!docId) return;
     const tr = await request.post(`${API}/api/v1/token/`, {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     if (tr.ok()) {
@@ -628,7 +628,7 @@ test.describe.serial("Case C: 실제 문제지 텍스트PDF 전체본", () => {
   test.afterAll(async ({ request }) => {
     if (!docId) return;
     const tr = await request.post(`${API}/api/v1/token/`, {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     if (tr.ok()) {

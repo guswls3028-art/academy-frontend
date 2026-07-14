@@ -4,7 +4,7 @@
 // `basic_definition_2026_05_09` SSOT MVP 7단계 — 학원장 즉석 수정 워크플로우.
 //
 // E2E 정책 (memory feedback_no_e2e_on_real_tenants.md):
-//   T1 (admin97/koreaseoul97) only. read-only — confirm 모달 cancel 로 닫기. 실제 삭제 X.
+//   T1 (admin97/__MISSING_E2E_ADMIN_PASS__) only. read-only — confirm 모달 cancel 로 닫기. 실제 삭제 X.
 
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";

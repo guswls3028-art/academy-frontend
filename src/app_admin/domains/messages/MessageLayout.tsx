@@ -16,7 +16,7 @@ const MESSAGE_TABS: DomainTab[] = [
 
 export default function MessageLayout() {
   const { data: info } = useMessagingInfo();
-  const alimtalkAvailable = info?.alimtalk_available ?? Boolean(info?.kakao_pfid);
+  const alimtalkAvailable = Boolean(info?.alimtalk_available);
 
   return (
     <DomainLayout
@@ -26,7 +26,7 @@ export default function MessageLayout() {
     >
       {!alimtalkAvailable && info && (
         <div className={styles.alimtalkNotice}>
-          <span>알림톡 발송 준비 상태를 확인해 주세요</span>
+          <span>{info.messaging_disabled ? info.messaging_disabled_reason || "알림톡 발송이 운영 중지되었습니다" : "알림톡 발송 준비 상태를 확인해 주세요"}</span>
           <Link
             to="/admin/message/settings"
             className={styles.alimtalkNoticeLink}

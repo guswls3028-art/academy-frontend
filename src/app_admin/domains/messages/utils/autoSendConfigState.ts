@@ -14,15 +14,25 @@ export type AutoSendSummary = {
 export function canBulkToggleAutoSendConfig(config: AutoSendConfigItem): boolean {
   return config.policy_mode !== "SYSTEM_AUTO"
     && config.implementation_status !== "manual_only"
-    && config.implementation_status !== "disabled";
+    && config.implementation_status !== "disabled"
+    && config.effective_template_is_approved === true;
 }
 
 export function getEffectiveTemplateStatus(config: AutoSendConfigItem): string {
-  return config.effective_template_solapi_status || config.template_solapi_status || "";
+  const status = config.effective_template_solapi_status || "";
+  if (status) return status;
+  if (
+    config.effective_template_source === "missing"
+    || config.effective_template_source === "unified_missing"
+    || config.effective_template_is_approved === false
+  ) {
+    return "MISSING";
+  }
+  return "";
 }
 
 function hasEffectiveTemplate(config: AutoSendConfigItem): boolean {
-  return Boolean(config.effective_solapi_template_id || config.template);
+  return Boolean(config.effective_template_is_approved || config.effective_solapi_template_id);
 }
 
 export function getEffectiveTemplateStatusLabel(config: AutoSendConfigItem): string {
@@ -32,6 +42,7 @@ export function getEffectiveTemplateStatusLabel(config: AutoSendConfigItem): str
   }
   if (status === "PENDING") return "확인 중";
   if (status === "REJECTED") return "확인 필요";
+  if (status === "MISSING") return "발송 준비 필요";
   return status;
 }
 

@@ -1,8 +1,8 @@
 /**
  * 성적 발송 메시지 본문 자동 생성
- * — 학생의 시험/과제 결과를 포매팅하여 SMS/알림톡 본문 텍스트를 반환
+ * — 학생의 시험/과제 결과를 포매팅하여 알림톡 본문 텍스트를 반환
  *
- * generateScoreReport: SMS 본문용 (전체 텍스트)
+ * generateScoreReport: 전체 본문 텍스트용
  * buildScoreDetail: 알림톡 #{시험성적} 변수용 (시험/과제/요약 블록)
  */
 
@@ -570,9 +570,9 @@ export function buildScoreVars(
   // 시험성적 블록 (기존 buildScoreDetail과 동일)
   vars["시험성적"] = buildScoreDetail(row, meta, { passLabel, failLabel });
 
-  // 알림톡 전용 변수 — SMS 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
+  // 알림톡 봉투 변수 — 전체 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
   vars["선생님메모"] = buildScoreDetail(row, meta, { passLabel, failLabel });
-  // 기타 알림톡 전용 변수 — SMS에서 빈 문자열로 치환하여 원문 노출 방지
+  // 기타 봉투 변수 — 전체 본문에서 빈 문자열로 치환하여 원문 노출 방지
   vars["내용"] = vars["내용"] ?? "";
   vars["사이트링크"] = vars["사이트링크"] ?? "";
 

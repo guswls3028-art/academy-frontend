@@ -6,7 +6,7 @@ import { test, expect } from "../fixtures/strictTest";
 
 const API_BASE = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const TENANT_CODE = "hakwonplus";
 
 test("pending API 응답에 target_resolved 필드 노출", async ({ request }) => {

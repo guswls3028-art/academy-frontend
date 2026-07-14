@@ -98,7 +98,7 @@ test.describe("강의 출결 + 성적 트리거", () => {
 
     // 발송 내역 API 계약 확인
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
-      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
+      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     const { access } = await loginResp.json() as { access: string };
@@ -111,6 +111,6 @@ test.describe("강의 출결 + 성적 트리거", () => {
     const latest = logData.results[0];
 
     expect(latest, "발송 로그가 최소 1건 있어야 함").toBeDefined();
-    expect(latest!.message_mode || "", "발송 방식 필드").toMatch(/^(alimtalk|sms)?$/);
+    expect(latest!.message_mode || "", "신규 출결·성적 트리거는 알림톡").toMatch(/^(alimtalk)?$/);
   });
 });

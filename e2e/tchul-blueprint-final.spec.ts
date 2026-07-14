@@ -326,7 +326,7 @@ test.describe("V5 — cross-tenant superuser report", () => {
 
     // Attempt tchul login with admin97 (superuser)
     const resp = await page.request.post("https://api.hakwonplus.com/api/v1/token/", {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "tchul" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "tchul" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "tchul" },
       timeout: 30000,
     });

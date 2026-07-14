@@ -69,7 +69,7 @@ test.describe("전 트리거 발송 UX", () => {
 
   test("2. 발송 내역 확인 — 로그 API 계약", async ({ page }) => {
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
-      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
+      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     expect(loginResp.ok(), "admin 로그인 토큰 발급 성공").toBe(true);
@@ -89,6 +89,6 @@ test.describe("전 트리거 발송 UX", () => {
     }
 
     expect(results.length, "발송 내역 API는 최신 로그 목록을 반환해야 함").toBeGreaterThan(0);
-    expect(results[0].message_mode || "", "발송 방식 필드").toMatch(/^(alimtalk|sms)?$/);
+    expect(results[0].message_mode || "", "신규 트리거 발송 방식은 알림톡").toMatch(/^(alimtalk)?$/);
   });
 });

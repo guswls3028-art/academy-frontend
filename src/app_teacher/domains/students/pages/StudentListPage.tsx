@@ -21,7 +21,7 @@ import {
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 import { teacherStudentsQueryKeys } from "../queryKeys";
-import { sendMessage } from "@teacher/domains/comms/api";
+import { preflightMessage, sendMessage, type MessageSendPreflight } from "@teacher/domains/comms/api";
 import { useConfirm } from "@/shared/ui/confirm";
 
 type FilterState = {
@@ -43,6 +43,12 @@ const MESSAGE_RECIPIENT_OPTIONS: { value: MessageRecipient; label: string }[] = 
   { value: "student", label: "학생" },
   { value: "parent", label: "학부모" },
 ];
+
+const ALIMTALK_TYPE_OPTIONS = [
+  { value: "attendance", label: "출결·수업·시험·과제" },
+  { value: "grades", label: "성적 안내" },
+  { value: "clinic", label: "클리닉 안내" },
+] as const;
 
 function defaultScheduledLocalValue(): string {
   const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -543,8 +549,11 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   const confirm = useConfirm();
   const [body, setBody] = useState("");
   const [sendTo, setSendTo] = useState<MessageRecipient>("parent");
+  const [alimtalkType, setAlimtalkType] = useState<(typeof ALIMTALK_TYPE_OPTIONS)[number]["value"]>("attendance");
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
+  const [preflight, setPreflight] = useState<MessageSendPreflight | null>(null);
+  const [checking, setChecking] = useState(false);
   const tooManyRecipients = students.length > 200;
   const recipientLabel = sendTo === "parent" ? "학부모" : "학생";
   const scheduledDate = sendTiming === "scheduled" && scheduledAt ? new Date(scheduledAt) : null;
@@ -566,6 +575,8 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
     if (!open) return;
     setSendTiming(initialSendTiming);
     setScheduledAt(defaultScheduledLocalValue());
+    setAlimtalkType("attendance");
+    setPreflight(null);
   }, [initialSendTiming, open]);
 
   const sendMut = useMutation({
@@ -574,14 +585,14 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
       send_to: sendTo,
       message_mode: "alimtalk",
       raw_body: body,
-      block_category: "student",
+      block_category: alimtalkType,
       scheduled_send_at: scheduledSendAtIso,
     }),
     onSuccess: (res) => {
       const accepted = (res.enqueued ?? 0) + (res.scheduled ?? 0);
       teacherToast.success(sendTiming === "scheduled"
         ? `${res.scheduled ?? accepted}건 예약되었습니다.`
-        : `${res.enqueued}건 발송 요청되었습니다.`);
+        : `${accepted}건 발송 요청이 접수되었습니다.`);
       setBody("");
       onDone();
       onClose();
@@ -590,12 +601,39 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   });
 
   const requestSend = async () => {
-    if (!body.trim() || sendMut.isPending || tooManyRecipients || scheduleError) return;
+    if (!body.trim() || sendMut.isPending || checking || tooManyRecipients || scheduleError) return;
+    setChecking(true);
+    let checked: MessageSendPreflight;
+    try {
+      checked = await preflightMessage({
+        student_ids: students.map((s) => s.id),
+        send_to: sendTo,
+        message_mode: "alimtalk",
+        raw_body: body,
+        block_category: alimtalkType,
+        scheduled_send_at: scheduledSendAtIso,
+      });
+      setPreflight(checked);
+    } catch (error) {
+      teacherToast.error(extractApiError(error, "발송 준비 상태를 확인하지 못했습니다."));
+      setChecking(false);
+      return;
+    }
+    setChecking(false);
+    if (!checked.can_send) {
+      const blocker = checked.blockers[0];
+      teacherToast.error(blocker ? `${blocker.title}: ${blocker.detail}` : "현재 알림톡을 발송할 수 없습니다.");
+      return;
+    }
+    const skipped = checked.recipient.skipped_no_phone + (checked.recipient.invalid_or_deleted ?? 0);
+    const duplicateNotice = checked.recipient.duplicate_phone
+      ? ` 동일 번호 ${checked.recipient.duplicate_phone}건도 학생별 안내로 각각 포함됩니다.`
+      : "";
     const ok = await confirm({
       title: sendTiming === "scheduled" ? "알림톡 예약" : "알림톡 발송",
       message: sendTiming === "scheduled"
-        ? `${recipientLabel} ${students.length}명에게 ${scheduleLabel}에 알림톡을 예약할까요?`
-        : `${recipientLabel} ${students.length}명에게 알림톡을 발송할까요?`,
+        ? `${recipientLabel} 알림톡 ${checked.recipient.valid_phone}건을 ${scheduleLabel}에 예약할까요?${skipped ? ` ${skipped}건은 연락처 없음·대상 변경으로 제외됩니다.` : ""}${duplicateNotice}`
+        : `${recipientLabel} 알림톡 ${checked.recipient.valid_phone}건을 발송할까요?${skipped ? ` ${skipped}건은 연락처 없음·대상 변경으로 제외됩니다.` : ""}${duplicateNotice}`,
       confirmText: sendTiming === "scheduled" ? "예약" : "발송",
     });
     if (ok) sendMut.mutate();
@@ -605,10 +643,11 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
     <BottomSheet open={open} onClose={onClose} title={`${students.length}명에게 알림톡`}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>수신자</label>
-          <div className="flex gap-1.5">
+          <span id="bulk-message-recipient-label" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>수신자</span>
+          <div className="flex gap-1.5" role="group" aria-labelledby="bulk-message-recipient-label">
             {MESSAGE_RECIPIENT_OPTIONS.map(({ value, label }) => (
               <button key={value} onClick={() => setSendTo(value)} type="button"
+                aria-pressed={sendTo === value}
                 className="flex-1 text-[12px] font-semibold cursor-pointer"
                 style={{
                   padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
@@ -617,6 +656,25 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
                   color: sendTo === value ? "var(--tc-primary)" : "var(--tc-text-secondary)",
                 }}>{label}</button>
             ))}
+          </div>
+        </div>
+        <div>
+          <span id="bulk-message-type-label" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>알림톡 유형</span>
+          <div className="grid grid-cols-1 gap-1.5" role="group" aria-labelledby="bulk-message-type-label">
+            {ALIMTALK_TYPE_OPTIONS.map(({ value, label }) => (
+              <button key={value} onClick={() => { setAlimtalkType(value); setPreflight(null); }} type="button"
+                aria-pressed={alimtalkType === value}
+                className="text-left text-[12px] font-semibold cursor-pointer"
+                style={{
+                  padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
+                  border: `1px solid ${alimtalkType === value ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                  background: alimtalkType === value ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                  color: alimtalkType === value ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                }}>{label}</button>
+            ))}
+          </div>
+          <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+            선택한 유형의 카카오 승인 양식으로 발송됩니다.
           </div>
         </div>
         <div>
@@ -633,9 +691,10 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
           </div>
         </div>
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>발송 시점</label>
-          <div className="flex gap-1.5">
+          <span id="bulk-message-timing-label" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>발송 시점</span>
+          <div className="flex gap-1.5" role="group" aria-labelledby="bulk-message-timing-label">
             <button type="button" onClick={() => setSendTiming("now")}
+              aria-pressed={sendTiming === "now"}
               className="flex-1 text-[12px] font-semibold cursor-pointer"
               style={{
                 padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
@@ -644,6 +703,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
                 color: sendTiming === "now" ? "var(--tc-primary)" : "var(--tc-text-secondary)",
               }}>지금</button>
             <button type="button" onClick={() => setSendTiming("scheduled")}
+              aria-pressed={sendTiming === "scheduled"}
               className="flex-1 text-[12px] font-semibold cursor-pointer"
               style={{
                 padding: "8px 10px", borderRadius: "var(--tc-radius-sm)",
@@ -655,6 +715,8 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
           {sendTiming === "scheduled" && (
             <div className="mt-2">
               <input
+                id="bulk-message-scheduled-at"
+                aria-label="예약 발송 시각"
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
@@ -677,8 +739,10 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
           )}
         </div>
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>알림톡 본문</label>
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+          <label htmlFor="bulk-message-body" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>알림톡 본문</label>
+          <textarea value={body} onChange={(e) => { setBody(e.target.value); setPreflight(null); }} rows={5}
+            id="bulk-message-body"
+            maxLength={5000}
             placeholder="알림톡 내용을 입력하세요"
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
@@ -689,10 +753,20 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
             한 번에 최대 200명까지 발송할 수 있습니다.
           </div>
         )}
-        <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || tooManyRecipients || !!scheduleError}
+        {preflight && preflight.blockers.map((issue) => (
+          <div key={issue.code} className="text-[11px] font-semibold" role="alert" style={{ color: "var(--tc-danger)" }}>
+            {issue.title}: {issue.detail}
+          </div>
+        ))}
+        {preflight && preflight.warnings.map((issue) => (
+          <div key={issue.code} className="text-[11px]" style={{ color: "var(--tc-warning, #9a6700)" }}>
+            {issue.title}: {issue.detail}
+          </div>
+        ))}
+        <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || checking || tooManyRecipients || !!scheduleError}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients && !scheduleError ? "#fff" : "var(--tc-text-muted)" }}>
-          {sendMut.isPending ? "처리 중…" : `${students.length}명에게 알림톡 ${sendTiming === "scheduled" ? "예약" : "발송"}`}
+          {checking ? "발송 준비 확인 중…" : sendMut.isPending ? "처리 중…" : `${students.length}명에게 알림톡 ${sendTiming === "scheduled" ? "예약" : "발송"}`}
         </button>
       </div>
     </BottomSheet>

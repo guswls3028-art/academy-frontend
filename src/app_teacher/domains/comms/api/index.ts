@@ -200,6 +200,31 @@ export async function sendMessage(payload: {
   return res.data;
 }
 
+export interface MessageSendPreflight {
+  can_send: boolean;
+  recipient: {
+    selected: number;
+    resolved?: number;
+    valid_phone: number;
+    skipped_no_phone: number;
+    duplicate_phone: number;
+    unique_phone: number;
+    invalid_or_deleted?: number;
+  };
+  template: {
+    ok: boolean;
+    name: string;
+    detail: string;
+  };
+  blockers: Array<{ code: string; title: string; detail: string }>;
+  warnings: Array<{ code: string; title: string; detail: string }>;
+}
+
+export async function preflightMessage(payload: Parameters<typeof sendMessage>[0]): Promise<MessageSendPreflight> {
+  const res = await api.post<MessageSendPreflight>("/messaging/send/preflight/", payload);
+  return res.data;
+}
+
 /* ─── Message Log (발송 이력) ─── */
 export interface MessageLogItem {
   id: number;
@@ -220,43 +245,20 @@ export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ result
 }
 
 /* ─── Messaging Info & Templates ─── */
-export type MessagingProvider = "solapi" | "ppurio";
-
 export interface MessagingInfo {
   sms_allowed: boolean;
-  messaging_provider: MessagingProvider;
-  messaging_sender: string;
-  kakao_pfid: string | null;
-  channel_source?: "system_default" | "tenant_override";
+  messaging_provider: "solapi";
+  channel_source?: "common_owner" | "system_default";
+  resolved_pf_id?: string;
   alimtalk_available?: boolean;
-  balance?: number;
-  sms_price?: number;
-  alimtalk_price?: number;
-  own_solapi_api_key?: string;
-  own_solapi_api_secret?: string;
-  own_ppurio_api_key?: string;
-  own_ppurio_account?: string;
   has_own_credentials?: boolean;
+  delivery_policy?: "common_alimtalk_only";
+  messaging_disabled?: boolean;
+  messaging_disabled_reason?: string;
 }
 
 export async function fetchMessagingInfo(): Promise<MessagingInfo> {
   const res = await api.get("/messaging/info/");
-  return res.data;
-}
-
-export async function updateMessagingInfo(payload: Partial<MessagingInfo> & {
-  own_solapi_api_key?: string;
-  own_solapi_api_secret?: string;
-  own_ppurio_api_key?: string;
-  own_ppurio_account?: string;
-}): Promise<MessagingInfo> {
-  const res = await api.patch("/messaging/info/", payload);
-  return res.data;
-}
-
-/* ─── Verify sender (solapi) ─── */
-export async function verifySender(phoneNumber: string): Promise<{ verified: boolean; message: string }> {
-  const res = await api.post("/messaging/verify-sender/", { phone_number: phoneNumber });
   return res.data;
 }
 
@@ -281,6 +283,8 @@ export interface MsgTemplate {
   is_default?: boolean;
   is_user_default?: boolean;
   is_system?: boolean;
+  alimtalk_envelope_type?: string;
+  alimtalk_readiness?: "ready" | "provider_template_missing" | "system_managed" | "envelope_selection_required" | string;
 }
 
 export interface AutoSendConfig {
@@ -294,8 +298,10 @@ export interface AutoSendConfig {
   template_solapi_status?: string;
   effective_solapi_template_id?: string;
   effective_template_solapi_status?: string;
-  effective_template_source?: "unified" | "tenant_template" | "missing" | string;
+  effective_template_source?: "unified" | "unified_missing" | "owner_exact" | "missing" | string;
   effective_template_is_approved?: boolean;
+  effective_template_type?: string;
+  template_is_system?: boolean;
   enabled?: boolean;
   message_mode?: string;
   minutes_before?: number | null;

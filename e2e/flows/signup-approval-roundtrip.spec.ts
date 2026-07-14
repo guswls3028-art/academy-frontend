@@ -17,7 +17,7 @@ const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const CONTROLLED_PHONE = (process.env.E2E_SIGNUP_CONTROLLED_PHONE || "").replace(/\D/g, "");
 const ALLOW_REAL_SEND = process.env.E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND === "1";
 const TS = Date.now();

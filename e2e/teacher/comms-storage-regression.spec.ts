@@ -8,7 +8,7 @@ const BASE = process.env.E2E_LOCAL_BASE_URL || getBaseUrl("admin");
 const API_BASE = getApiBaseUrl();
 const TENANT_CODE = process.env.E2E_TENANT_CODE || "hakwonplus";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 
 type PostBody = {
   id: number;

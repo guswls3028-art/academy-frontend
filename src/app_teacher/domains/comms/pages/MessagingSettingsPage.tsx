@@ -1,40 +1,23 @@
 // PATH: src/app_teacher/domains/comms/pages/MessagingSettingsPage.tsx
-// 메시지 설정 — 공급자 선택 + 자체 API 키 + 발신번호 + 알림톡 + 연동 테스트 + 자동발송
-// 데스크탑 MessageSettingsPage와 정보 구조·설정 흐름을 일치시킨 모바일 버전
+// 메시지 설정 — 공용 알림톡 상태 + 자동발송. 테넌트별 공급자/키/PFID 편집은 노출하지 않는다.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { ChevronLeft, Check, AlertCircle, Phone, Send, MessageCircle, Settings, CheckCircle, Lock, Pencil, Eye } from "@teacher/shared/ui/Icons";
+import { ChevronLeft, Check, AlertCircle, Send, MessageCircle, Settings, Lock, Pencil, Eye } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import {
-  fetchMessagingInfo, updateMessagingInfo, verifySender, testCredentials,
-  fetchAutoSendConfigs, updateAutoSendConfig, fetchAllTemplates,
+  fetchMessagingInfo,
+  fetchAutoSendConfigs, updateAutoSendConfig,
   AUTO_SEND_TRIGGER_LABELS,
-  type AutoSendConfig, type MessagingProvider, type TestCredentialsResult,
+  type AutoSendConfig,
 } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
-import { useConfirm } from "@/shared/ui/confirm";
 import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import styles from "./MessagingSettingsPage.module.css";
-
-const SERVER_IP = "43.201.119.172";
-
-function getErrorDetail(error: unknown, fallback: string): string {
-  if (error && typeof error === "object") {
-    const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
-    if (typeof detail === "string" && detail.trim()) return detail;
-  }
-  return fallback;
-}
-
-function templateIdFromConfig(config: AutoSendConfig): number | null {
-  if (typeof config.template === "number") return config.template;
-  return config.template?.id ?? config.template_id ?? null;
-}
 
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   if (config.template_name) return config.template_name;
@@ -43,157 +26,25 @@ function templateNameFromConfig(config: AutoSendConfig): string | undefined {
 
 export default function MessagingSettingsPage() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const confirm = useConfirm();
 
-  const { data: info, isLoading } = useQuery({
+  const { data: info, isLoading, isError, refetch } = useQuery({
     queryKey: teacherCommsQueryKeys.messagingInfo,
     queryFn: fetchMessagingInfo,
   });
 
-  const { data: autoConfigs } = useQuery({
+  const { data: autoConfigs, isError: autoConfigsError } = useQuery({
     queryKey: teacherCommsQueryKeys.autoSendConfigs,
     queryFn: fetchAutoSendConfigs,
   });
 
-  const [provider, setProvider] = useState<MessagingProvider>("solapi");
-  const [sender, setSender] = useState("");
-  const [pfid, setPfid] = useState("");
-  const [ownSolapiKey, setOwnSolapiKey] = useState("");
-  const [ownSolapiSecret, setOwnSolapiSecret] = useState("");
-  const [ownPpurioKey, setOwnPpurioKey] = useState("");
-  const [ownPpurioAccount, setOwnPpurioAccount] = useState("");
-  const [verifyMsg, setVerifyMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [testResult, setTestResult] = useState<TestCredentialsResult | null>(null);
-
-  useEffect(() => { if (info?.messaging_provider) setProvider(info.messaging_provider); }, [info?.messaging_provider]);
-  useEffect(() => { setSender(info?.messaging_sender ?? ""); }, [info?.messaging_sender]);
-  useEffect(() => { setPfid(info?.kakao_pfid ?? ""); }, [info?.kakao_pfid]);
-  useEffect(() => { setOwnPpurioAccount(info?.own_ppurio_account ?? ""); }, [info?.own_ppurio_account]);
-
-  const updateMut = useMutation({
-    mutationFn: (payload: Parameters<typeof updateMessagingInfo>[0]) => updateMessagingInfo(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.messagingInfo }),
-  });
-
-  const verifyMut = useMutation({
-    mutationFn: (phone: string) => verifySender(phone),
-    onSuccess: (data) => setVerifyMsg({ ok: data.verified, msg: data.message }),
-    onError: (err: unknown) => setVerifyMsg({ ok: false, msg: getErrorDetail(err, "인증 확인에 실패했습니다.") }),
-  });
-
-  const testMut = useMutation({
-    mutationFn: testCredentials,
-    onSuccess: (data) => {
-      setTestResult(data);
-      if (data.all_ok) teacherToast.success("모든 연동이 정상입니다.");
-      else teacherToast.error("일부 설정을 확인해 주세요.");
-    },
-    onError: () => teacherToast.error("연동 테스트에 실패했습니다."),
-  });
-
-  const hasPfid = !!info?.kakao_pfid;
-  const alimtalkAvailable = info?.alimtalk_available ?? hasPfid;
-  const channelSourceLabel = info?.channel_source === "system_default" ? "기본 채널" : "개별 채널";
-  const hasSender = !!info?.messaging_sender;
-  const senderReady = hasSender || info?.channel_source === "system_default";
-  const hasOwnCreds = info?.has_own_credentials ?? false;
-  const providerLabel = provider === "ppurio" ? "뿌리오" : "솔라피";
-
-  const setupSteps = [
-    { done: alimtalkAvailable, label: "알림톡 채널/승인 템플릿" },
-    { done: senderReady, label: "발신번호" },
-  ];
-  const allSetupDone = setupSteps.every((s) => s.done);
-
-  const handleChangeProvider = (next: MessagingProvider) => {
-    if (next === provider) return;
-    const label = next === "ppurio" ? "뿌리오" : "솔라피";
-    confirm({
-      title: "메시지 공급자 변경",
-      message: `메시지 공급자를 ${label}(으)로 변경하시겠습니까?`,
-      confirmText: "변경",
-      cancelText: "취소",
-    }).then((ok) => {
-      if (!ok) return;
-      setProvider(next);
-      updateMut.mutate({ messaging_provider: next }, {
-        onSuccess: () => teacherToast.success(`${label}(으)로 변경되었습니다.`),
-        onError: () => teacherToast.error("변경에 실패했습니다."),
-      });
-    });
-  };
-
-  const handleSaveOwnCreds = () => {
-    const payload: Record<string, string> = {};
-    if (provider === "solapi") {
-      if (ownSolapiKey) payload.own_solapi_api_key = ownSolapiKey;
-      if (ownSolapiSecret) payload.own_solapi_api_secret = ownSolapiSecret;
-    } else {
-      if (ownPpurioKey) payload.own_ppurio_api_key = ownPpurioKey;
-      if (ownPpurioAccount) payload.own_ppurio_account = ownPpurioAccount;
-    }
-    if (Object.keys(payload).length === 0) { teacherToast.error("입력값을 확인해 주세요."); return; }
-    updateMut.mutate(payload, {
-      onSuccess: () => {
-        teacherToast.success("연동 정보가 저장되었습니다.");
-        setOwnSolapiKey(""); setOwnSolapiSecret(""); setOwnPpurioKey("");
-      },
-      onError: () => teacherToast.error("저장에 실패했습니다."),
-    });
-  };
-
-  const handleClearOwnCreds = () => {
-    confirm({
-      title: "연동 정보 초기화",
-      message: "자체 연동 정보를 초기화하시겠습니까?",
-      confirmText: "초기화",
-      cancelText: "취소",
-      danger: true,
-    }).then((ok) => {
-      if (!ok) return;
-      updateMut.mutate(
-        { own_solapi_api_key: "", own_solapi_api_secret: "", own_ppurio_api_key: "", own_ppurio_account: "" },
-        {
-          onSuccess: () => {
-            teacherToast.success("연동 정보가 초기화되었습니다.");
-            setOwnSolapiKey(""); setOwnSolapiSecret(""); setOwnPpurioKey(""); setOwnPpurioAccount("");
-          },
-          onError: () => teacherToast.error("초기화에 실패했습니다."),
-        },
-      );
-    });
-  };
-
-  const handleVerifySender = () => {
-    const v = sender.replace(/-/g, "").trim();
-    if (!v) { setVerifyMsg({ ok: false, msg: "발신번호를 입력해 주세요." }); return; }
-    setVerifyMsg(null);
-    verifyMut.mutate(v);
-  };
-
-  const handleSaveSender = () => {
-    const v = sender.replace(/-/g, "").trim();
-    if (!v) return;
-    updateMut.mutate({ messaging_sender: v }, {
-      onSuccess: () => { teacherToast.success("발신번호가 저장되었습니다."); setVerifyMsg(null); },
-      onError: () => teacherToast.error("발신번호 저장에 실패했습니다."),
-    });
-  };
-
-  const handleSavePfid = () => {
-    const v = pfid.trim();
-    if (!v) return;
-    updateMut.mutate({ kakao_pfid: v }, {
-      onSuccess: () => teacherToast.success("알림톡 채널이 저장되었습니다."),
-      onError: () => teacherToast.error("저장에 실패했습니다."),
-    });
-  };
+  const alimtalkAvailable = Boolean(info?.alimtalk_available);
+  const messagingDisabled = Boolean(info?.messaging_disabled);
+  const readyAutoCount = (autoConfigs ?? []).filter((config) => config.effective_template_is_approved).length;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
-        <button type="button" onClick={() => navigate(-1)} className={`${styles.backButton} flex p-1 cursor-pointer`}>
+        <button type="button" onClick={() => navigate(-1)} aria-label="뒤로가기" className={`${styles.backButton} flex p-1 cursor-pointer`}>
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className={`${styles.pageTitle} text-[17px] font-bold`}>메시지 설정</h1>
@@ -201,191 +52,70 @@ export default function MessagingSettingsPage() {
 
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
 
+      {isError && (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="메시지 설정을 불러오지 못했습니다"
+          description="연결 상태를 확인한 뒤 다시 시도해 주세요."
+          actions={<button type="button" className={styles.secondaryButton} onClick={() => void refetch()}>다시 시도</button>}
+        />
+      )}
+
       {!isLoading && info && (
         <>
-          {/* 설정 완료 안내 */}
-          {!allSetupDone && (
+          {!alimtalkAvailable && (
             <div className={styles.setupNotice}>
               <AlertCircle size={ICON.sm} className={styles.warnIcon} />
               <div className={`${styles.setupNoticeText} text-[12px]`}>
-                <strong className={styles.setupNoticeTitle}>메시지 발송 설정을 완료해 주세요.</strong>
+                <strong className={styles.setupNoticeTitle}>{messagingDisabled ? "알림톡 발송이 중지되어 있습니다." : "공용 알림톡 상태를 확인해 주세요."}</strong>
                 <span className={styles.setupNoticeTail}>
-                  {setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.
+                  {messagingDisabled
+                    ? info.messaging_disabled_reason
+                    : "학원에서 키를 입력하지 않습니다. 대표·관리자가 운영 담당자에게 상태 확인을 요청해 주세요."}
                 </span>
               </div>
             </div>
           )}
 
-          {/* KPI 요약 — 2x2 */}
           <div className="grid grid-cols-2 gap-2">
-            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value={providerLabel} status="none" tone="provider" />
-            <KpiStatCard icon={<Phone size={ICON.xs} />} label="발신번호" value={info.messaging_sender || (info.channel_source === "system_default" ? "기본값 사용" : "미등록")} status={senderReady ? "ok" : "warn"} tone="sender" />
-            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={alimtalkAvailable ? "사용 가능" : "미설정"} status={alimtalkAvailable ? "ok" : "none"} tone="kakao" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={alimtalkAvailable ? channelSourceLabel : "미설정"} status={alimtalkAvailable ? "ok" : "warn"} tone="sms" />
+            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value="공용 솔라피" status="ok" tone="provider" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={messagingDisabled ? "운영 중지" : "공용 채널"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="sender" />
+            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="kakao" />
+            <KpiStatCard icon={<Lock size={ICON.xs} />} label="발송 정책" value="알림톡 전용" status="ok" tone="sms" />
           </div>
 
-          {/* 잔액 (보조 정보) */}
-          {info.balance != null && (
-            <div className={`${styles.balanceText} text-[12px] text-center`}>
-              잔액: <span className={styles.balanceAmount}>{info.balance.toLocaleString()}원</span>
-              {info.alimtalk_price != null ? ` · 알림톡 ${info.alimtalk_price}원` : ""}
-            </div>
-          )}
-
-          {/* ① 공급자 선택 */}
           <Card>
-            <SectionHeader icon={<Settings size={ICON.sm} />} title="메시지 공급자" desc="알림톡 발송에 사용할 공급자를 선택하세요." />
-            <div className={`${styles.segmentControl} flex gap-0 rounded-lg overflow-hidden`}>
-              {([
-                { k: "solapi" as const, l: "솔라피(Solapi)" },
-                { k: "ppurio" as const, l: "뿌리오(Ppurio)" },
-              ]).map((opt) => (
-                <button
-                  key={opt.k}
-                  type="button"
-                  onClick={() => handleChangeProvider(opt.k)}
-                  className={`${styles.segmentButton} ${provider === opt.k ? styles.segmentButtonActive : ""} flex-1 text-[13px] font-bold cursor-pointer`}
-                >
-                  {opt.l}
-                </button>
-              ))}
-            </div>
+            <SectionHeader icon={<Lock size={ICON.sm} />} title="공용 알림톡 정책" desc="학생·학부모 안내는 승인된 카카오 알림톡으로만 발송됩니다." badge="알림톡 전용" />
+            <p className={`${styles.mutedText} text-[12px] leading-5`}>
+              공급자, API 키, 발신번호와 카카오 채널은 서비스가 공용으로 관리합니다. 저장한 문구는 발송 시 승인된 알림톡 양식에 안전하게 담깁니다.
+            </p>
           </Card>
 
-          {/* ② API 키 등록 */}
           <Card>
-            <SectionHeader icon={<Lock size={ICON.sm} />} title="API 연동 설정" desc={provider === "solapi"
-              ? "솔라피 콘솔에서 발급받은 API Key/Secret을 입력하세요."
-              : "뿌리오 계정 ID와 API 인증키를 입력하세요. (연동 IP: " + SERVER_IP + ")"} />
-
-            {provider === "solapi" ? (
-              <div className="flex flex-col gap-2">
-                <InputField label="API Key" value={ownSolapiKey} onChange={setOwnSolapiKey}
-                  placeholder={info.own_solapi_api_key ? `현재: ${info.own_solapi_api_key}` : "API Key"} />
-                <InputField label="API Secret" value={ownSolapiSecret} onChange={setOwnSolapiSecret}
-                  placeholder={info.own_solapi_api_secret ? `현재: ${info.own_solapi_api_secret}` : "API Secret"} type="password" />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <InputField label="계정 ID (뿌리오 로그인 아이디)" value={ownPpurioAccount} onChange={setOwnPpurioAccount}
-                  placeholder={info.own_ppurio_account ? `현재: ${info.own_ppurio_account}` : "예: myacademy"} />
-                <InputField label="API 인증키" value={ownPpurioKey} onChange={setOwnPpurioKey}
-                  placeholder={info.own_ppurio_api_key ? "현재 인증키가 저장되어 있습니다" : "뿌리오 연동개발 API 인증키"} type="password" />
-                <p className={`${styles.mutedText} text-[11px] mt-0.5`}>
-                  뿌리오 [연동] → [연동관리] 에서 연동 IP <code className={styles.inlineCode}>{SERVER_IP}</code> 를 반드시 등록하세요.
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-2 mt-3 flex-wrap">
-              <button type="button" onClick={handleSaveOwnCreds} disabled={updateMut.isPending}
-                className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}>
-                {updateMut.isPending ? "저장 중…" : "저장"}
-              </button>
-              {hasOwnCreds && (
-                <button type="button" onClick={handleClearOwnCreds} disabled={updateMut.isPending}
-                  className={`${styles.secondaryButton} text-xs font-semibold cursor-pointer`}>
-                  초기화
-                </button>
-              )}
-              {hasOwnCreds && <StatusChip ok label="연동됨" />}
+            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="알림톡 채널" desc="공용 채널과 발송 준비 상태를 확인합니다." badge={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "연결됨" : "확인 필요"} />
+            <div className="flex items-center justify-between gap-2">
+              <span className={`${styles.mutedText} text-[12px]`}>공용 채널 · 별도 입력 없음</span>
+              <StatusChip ok={alimtalkAvailable} label={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "발송 가능" : "확인 필요"} />
             </div>
+            <button type="button" onClick={() => navigate("/teacher/message-templates")}
+              className={`${styles.secondaryButton} w-full text-xs font-semibold cursor-pointer mt-3`}>
+              알림톡 문구 관리
+            </button>
           </Card>
 
-          {/* ③ 발신번호 */}
-          <Card>
-            <SectionHeader icon={<Phone size={ICON.sm} />} title="발신번호" desc={`${providerLabel}에 등록된 발신번호를 입력하세요.`} />
-            <div className="flex flex-col gap-2">
-              <input type="tel" value={sender} onChange={(e) => { setSender(e.target.value); setVerifyMsg(null); }}
-                placeholder="예: 01012345678"
-                className={`${styles.input} w-full text-sm`} />
-              <div className="flex gap-2 flex-wrap">
-                {provider === "solapi" && (
-                  <button type="button" onClick={handleVerifySender} disabled={!sender.trim() || verifyMut.isPending}
-                    className={`${styles.secondaryButton} text-xs font-semibold cursor-pointer`}>
-                    {verifyMut.isPending ? "확인 중…" : "인증 확인"}
-                  </button>
-                )}
-                <button type="button" onClick={handleSaveSender} disabled={!sender.trim() || updateMut.isPending}
-                  className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}>
-                  {updateMut.isPending ? "저장 중…" : "저장"}
-                </button>
-              </div>
-              {verifyMsg && (
-                <p className={`${styles.statusMessage} ${verifyMsg.ok ? styles.statusMessageOk : styles.statusMessageError} text-[12px] font-semibold flex items-center gap-1`}>
-                  {verifyMsg.ok ? <Check size={ICON.xs} /> : <AlertCircle size={ICON.xs} />}
-                  {verifyMsg.msg}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          {/* ④ 카카오 알림톡 */}
-          <Card>
-            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="카카오 알림톡 채널" desc={alimtalkAvailable
-              ? (info.channel_source === "system_default" ? "시스템 기본 채널로 알림톡을 발송할 수 있습니다." : "알림톡 채널이 연동되어 있습니다.")
-              : "자동 발송과 학생·학부모 알림톡 전송에 필요합니다."} badge={alimtalkAvailable ? channelSourceLabel : "필수"} />
-            <div className="flex gap-2 flex-wrap">
-              <input type="text" value={pfid} onChange={(e) => setPfid(e.target.value)}
-                placeholder="예: @yourChannel"
-                className={`${styles.input} ${styles.pfidInput} flex-1 text-sm`} />
-              <button type="button" onClick={handleSavePfid} disabled={!pfid.trim() || updateMut.isPending}
-                className={`${styles.primaryButton} text-xs font-bold cursor-pointer shrink-0`}>
-                {updateMut.isPending ? "저장 중…" : "저장"}
-              </button>
-            </div>
-            {hasPfid ? (
-              <div className="flex items-center gap-2 mt-2">
-                <StatusChip ok label="연동됨" />
-                <span className={`${styles.mutedText} text-[11px]`}>
-                  현재 PFID: <code className={styles.inlineCode}>{info.kakao_pfid}</code>
-                </span>
-              </div>
-            ) : alimtalkAvailable ? (
-              <div className="flex items-center gap-2 mt-2">
-                <StatusChip ok label="기본 채널 사용 중" />
-              </div>
-            ) : null}
-          </Card>
-
-          {/* ⑤ 연동 테스트 */}
-          <Card>
-            <SectionHeader icon={<CheckCircle size={ICON.sm} />} title="연동 테스트" desc="설정이 끝났다면 아래 버튼으로 연동 상태를 확인하세요." />
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => { setTestResult(null); testMut.mutate(); }}
-                disabled={testMut.isPending}
-                className={`${styles.primaryButton} text-xs font-bold cursor-pointer`}
-              >
-                {testMut.isPending ? "테스트 중…" : "연동 상태 테스트"}
-              </button>
-              {testResult && <StatusChip ok={testResult.all_ok} label={testResult.all_ok ? "모두 정상" : "확인 필요"} />}
-            </div>
-            {testResult && (
-              <div className="flex flex-col gap-1.5 mt-2.5">
-                {testResult.checks.map((c, i) => (
-                  <div key={i} className={`${styles.testCheckRow} ${c.ok ? styles.testCheckRowOk : styles.testCheckRowError} flex items-start gap-2`}>
-                    {c.ok
-                      ? <CheckCircle size={ICON.sm} className={`${styles.testCheckIcon} ${styles.testCheckIconOk}`} />
-                      : <AlertCircle size={ICON.sm} className={`${styles.testCheckIcon} ${styles.testCheckIconError}`} />}
-                    <span className={`${styles.testCheckMessage} text-[12px]`}>{c.message}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* ⑥ 자동 발송 */}
           {Array.isArray(autoConfigs) && autoConfigs.length > 0 && (
             <Card>
-              <SectionHeader icon={<Send size={ICON.sm} />} title="자동 발송" desc="트리거별로 자동 발송 여부를 설정하세요." />
+              <SectionHeader icon={<Send size={ICON.sm} />} title="자동 발송" desc="승인 양식이 준비된 알림만 켤 수 있습니다." badge={`${readyAutoCount}/${autoConfigs.length} 준비`} />
               <div className="flex flex-col gap-1.5">
                 {autoConfigs.map((cfg, i) => (
-                  <AutoSendRow key={cfg.id ?? i} config={cfg} />
+                  <AutoSendRow key={cfg.id ?? i} config={cfg} operationalDisabled={messagingDisabled} />
                 ))}
               </div>
             </Card>
+          )}
+          {autoConfigsError && (
+            <EmptyState scope="panel" tone="error" title="자동 발송 설정을 불러오지 못했습니다" />
           )}
         </>
       )}
@@ -395,8 +125,8 @@ export default function MessagingSettingsPage() {
 
 /* ─── Sub-components ─── */
 
-function KpiStatCard({ icon, label, value, status, tone }: {
-  icon: React.ReactNode; label: string; value: string; status: "ok" | "warn" | "none"; tone: "provider" | "sender" | "kakao" | "sms";
+function KpiStatCard({ icon, label, value, status, statusLabel, tone }: {
+  icon: React.ReactNode; label: string; value: string; status: "ok" | "warn" | "none"; statusLabel?: string; tone: "provider" | "sender" | "kakao" | "sms";
 }) {
   const toneClass = {
     provider: styles.kpiProvider,
@@ -421,7 +151,7 @@ function KpiStatCard({ icon, label, value, status, tone }: {
         {status !== "none" && (
           <span className={`${statusClass} text-[10px] font-semibold flex items-center gap-0.5`}>
             {status === "ok" ? <Check size={9} /> : <AlertCircle size={9} />}
-            {status === "ok" ? "연동" : "미설정"}
+            {statusLabel ?? (status === "ok" ? "연동" : "미설정")}
           </span>
         )}
       </div>
@@ -456,18 +186,6 @@ function SectionHeader({ icon, title, desc, badge }: { icon: React.ReactNode; ti
   );
 }
 
-function InputField({ label, value, onChange, placeholder, type = "text" }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
-}) {
-  return (
-    <div>
-      <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className={`${styles.input} w-full text-sm`} />
-    </div>
-  );
-}
-
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`${styles.statusChip} ${ok ? styles.statusChipOk : styles.statusChipWarn} text-[11px] font-semibold flex items-center gap-0.5`}>
@@ -477,12 +195,14 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-function AutoSendRow({ config }: { config: AutoSendConfig }) {
+function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; operationalDisabled: boolean }) {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const implStatus = config.implementation_status;
   const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
-  const enabled = !isUnimplemented && (config.enabled ?? false);
+  const isSystem = config.policy_mode === "SYSTEM_AUTO";
+  const templateReady = Boolean(config.effective_template_is_approved);
+  const enabled = !operationalDisabled && templateReady && !isUnimplemented && (isSystem || (config.enabled ?? false));
 
   const toggleMut = useMutation({
     mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
@@ -510,6 +230,11 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
                 {implStatus === "disabled" ? "비활성" : "수동 전용"}
               </Badge>
             )}
+            {!templateReady && !isUnimplemented && (
+              <Badge tone="warning" size="xs">발송 준비 필요</Badge>
+            )}
+            {operationalDisabled && <Badge tone="warning" size="xs">운영 중지</Badge>}
+            {isSystem && templateReady && !operationalDisabled && <Badge tone="success" size="xs">항상 활성</Badge>}
             {minutesBefore != null && minutesBefore > 0 && (
               <Badge tone="neutral" size="xs">{minutesBefore}분 전</Badge>
             )}
@@ -523,14 +248,17 @@ function AutoSendRow({ config }: { config: AutoSendConfig }) {
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => setEditOpen(true)} type="button"
             className={`${styles.iconButton} flex p-1 cursor-pointer`}
-            title="설정 편집">
-            <Pencil size={ICON.sm} />
+            title={config.template_is_system ? "내용 보기" : "설정 편집"}>
+            {config.template_is_system ? <Eye size={ICON.sm} /> : <Pencil size={ICON.sm} />}
           </button>
           <button
             onClick={() => { if (!isUnimplemented) toggleMut.mutate(); }}
             type="button"
+            role="switch"
+            aria-label={`${triggerLabel} 자동 발송`}
+            aria-checked={enabled}
             className={`${styles.toggleButton} cursor-pointer`}
-            disabled={isUnimplemented}
+            disabled={operationalDisabled || isUnimplemented || isSystem || !templateReady}
           >
             <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
               <div className={`${styles.toggleKnob} ${enabled ? styles.toggleKnobOn : ""} absolute top-0.5 w-4 h-4 rounded-full bg-white shadow`} />
@@ -549,27 +277,18 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
   const [minutesBefore, setMinutesBefore] = useState<string>(
     config.minutes_before != null ? String(config.minutes_before) : ""
   );
-  const [templateId, setTemplateId] = useState<number | null>(templateIdFromConfig(config));
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setMinutesBefore(config.minutes_before != null ? String(config.minutes_before) : "");
-    setTemplateId(templateIdFromConfig(config));
   }, [open, config]);
-
-  const { data: templates } = useQuery({
-    queryKey: teacherCommsQueryKeys.templates,
-    queryFn: fetchAllTemplates,
-    enabled: open,
-  });
 
   const saveMut = useMutation({
     mutationFn: () => {
       const payload: Record<string, unknown> = {
         message_mode: "alimtalk",
         minutes_before: minutesBefore.trim() ? Number(minutesBefore) : null,
-        template_id: templateId,
       };
       return updateAutoSendConfig(config.trigger, payload);
     },
@@ -583,7 +302,9 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
 
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || triggerKey;
-  const selectedTemplate = (templates ?? []).find((t) => t.id === templateId);
+  const templateName = templateNameFromConfig(config) || "정해진 알림톡";
+  const templateBody = config.template_body || (typeof config.template === "object" && config.template ? config.template.body : "");
+  const canEditTiming = config.policy_mode !== "SYSTEM_AUTO" && config.implementation_status === "implemented";
   const showMinutesBefore = triggerKey.includes("minutes_before") || triggerKey.includes("reminder") || triggerKey.includes("days_before") || triggerKey.includes("hours_before");
 
   return (
@@ -596,6 +317,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
             <div className="flex gap-1.5">
               <button
                 type="button"
+                aria-pressed="true"
                 className={`${styles.channelButton} ${styles.channelButtonActive} flex-1 text-[12px] font-semibold`}
               >
                 알림톡
@@ -606,11 +328,12 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           {/* 분/시간 전 */}
           {showMinutesBefore && (
             <div>
-              <label className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>
+              <label htmlFor={`auto-send-minutes-${triggerKey}`} className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>
                 {triggerKey.includes("hours_before") ? "시간 전" : triggerKey.includes("days_before") ? "일 전" : "분 전"}
               </label>
-              <input type="number" value={minutesBefore} onChange={(e) => setMinutesBefore(e.target.value)}
+              <input id={`auto-send-minutes-${triggerKey}`} type="number" value={minutesBefore} onChange={(e) => setMinutesBefore(e.target.value)}
                 placeholder="예: 10"
+                disabled={!canEditTiming}
                 className={`${styles.input} w-full text-sm`} />
               <p className={`${styles.mutedText} text-[11px] mt-1`}>
                 이벤트 발생 {minutesBefore || "--"} 단위 전에 자동 발송합니다.
@@ -622,57 +345,42 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className={`${styles.fieldLabel} text-[11px] font-semibold`}>템플릿</label>
-              {selectedTemplate && (
+              {templateBody && (
                 <button onClick={() => setPreviewOpen(true)} type="button"
                   className={`${styles.templatePreviewButton} flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer`}>
                   <Eye size={ICON.xs} /> 미리보기
                 </button>
               )}
             </div>
-            {templates && templates.length > 0 ? (
-              <div className={`${styles.templateList} flex flex-col gap-1`}>
-                {templates.map((t) => (
-                  <button key={t.id} onClick={() => setTemplateId(t.id)} type="button"
-                    className={`${styles.templateOption} ${templateId === t.id ? styles.templateOptionActive : ""} text-left cursor-pointer`}>
-                    <div className={`${styles.templateName} text-[13px] font-semibold`}>{t.name}</div>
-                    {t.category && (
-                      <div className={`${styles.mutedText} text-[11px]`}>{t.category}</div>
-                    )}
-                  </button>
-                ))}
+            <div className={`${styles.templateOption} text-left`}>
+              <div className={`${styles.templateName} text-[13px] font-semibold`}>{templateName}</div>
+              <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
+                승인된 알림톡 양식은 자동으로 연결됩니다.
               </div>
-            ) : (
-              <div className={`${styles.emptyTemplates} text-[12px] text-center py-3`}>
-                등록된 템플릿이 없습니다.
-              </div>
-            )}
+            </div>
           </div>
 
-          <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
-            className={`${styles.fullSaveButton} w-full text-sm font-bold cursor-pointer mt-1`}>
-            {saveMut.isPending ? "저장 중…" : "저장"}
-          </button>
+          {canEditTiming && (
+            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+              className={`${styles.fullSaveButton} w-full text-sm font-bold cursor-pointer mt-1`}>
+              {saveMut.isPending ? "저장 중…" : "발송 시점 저장"}
+            </button>
+          )}
         </div>
       </BottomSheet>
 
       {/* Preview */}
-      {selectedTemplate && (
+      {templateBody && (
         <BottomSheet open={previewOpen} onClose={() => setPreviewOpen(false)} title="템플릿 미리보기">
           <div className={`${styles.sheetContent} flex flex-col gap-2`}>
             <div>
               <div className={`${styles.previewLabel} text-[11px]`}>이름</div>
-              <div className={`${styles.previewValue} text-sm font-semibold`}>{selectedTemplate.name}</div>
+              <div className={`${styles.previewValue} text-sm font-semibold`}>{templateName}</div>
             </div>
-            {selectedTemplate.subject && (
-              <div>
-                <div className={`${styles.previewLabel} text-[11px]`}>제목</div>
-                <div className={`${styles.previewValue} text-sm`}>{selectedTemplate.subject}</div>
-              </div>
-            )}
             <div>
               <div className={`${styles.previewLabel} text-[11px]`}>본문</div>
               <div className={`${styles.previewBody} text-[13px] mt-1`}>
-                {selectedTemplate.body}
+                {templateBody}
               </div>
             </div>
           </div>

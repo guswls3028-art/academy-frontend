@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -14,6 +15,10 @@ const requirements = new Map([
 ]);
 
 const failures = [];
+const forbiddenCredentialHashes = new Set([
+  // Former production E2E credential. Keep only the irreversible digest here.
+  "45f607ae5d71d23397806a772cc3f7002b1ca91d049db22166fcd5ea540c8543",
+]);
 for (const [relativePath, marker] of requirements) {
   const absolutePath = path.join(root, relativePath);
   if (!fs.existsSync(absolutePath)) {
@@ -37,6 +42,28 @@ function collect(directory) {
   }
 }
 collect(e2eRoot);
+
+const credentialCandidates = [];
+function collectCredentialCandidates(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) collectCredentialCandidates(absolutePath);
+    else if (/\.(?:ts|tsx|js|mjs)$/.test(entry.name)) credentialCandidates.push(absolutePath);
+  }
+}
+collectCredentialCandidates(e2eRoot);
+collectCredentialCandidates(path.join(root, "scripts"));
+
+for (const absolutePath of credentialCandidates) {
+  const source = fs.readFileSync(absolutePath, "utf8");
+  const relativePath = path.relative(root, absolutePath).replaceAll(path.sep, "/");
+  for (const token of source.match(/[A-Za-z0-9]{10,}/g) ?? []) {
+    const digest = createHash("sha256").update(token).digest("hex");
+    if (forbiddenCredentialHashes.has(digest)) {
+      failures.push(`${relativePath}: embedded production credential is forbidden; use E2E_* env`);
+    }
+  }
+}
 
 for (const absolutePath of activeSpecs) {
   const source = fs.readFileSync(absolutePath, "utf8");

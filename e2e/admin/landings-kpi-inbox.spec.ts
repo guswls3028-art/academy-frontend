@@ -6,7 +6,7 @@
  * - 토글 버튼으로 기존 트리 모드 진입/복귀
  * - localStorage 모드 기억
  *
- * Tenant 1 (admin97 / koreaseoul97).
+ * Tenant 1 (admin97 / __MISSING_E2E_ADMIN_PASS__).
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";

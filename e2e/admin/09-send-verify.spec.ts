@@ -6,7 +6,7 @@
  *   2. 클리닉 미리보기에서 #{장소} 정상 확인
  *   3. 발송 내역 상세 팝업 UX 정밀 검증
  *
- * 환경: hakwonplus.com / admin97 / koreaseoul97
+ * 환경: hakwonplus.com / admin97 / __MISSING_E2E_ADMIN_PASS__
  * 운영에서 참여자 있는 차시를 동적으로 조회
  */
 
@@ -139,7 +139,7 @@ test("1. 성적 메시지 발송 직전 확인 + 발송 내역 확인", async ({
     // 핵심 라벨 hard expect
     const fullBodyText = await page.locator("body").innerText().catch(() => "");
     expect(fullBodyText, "성공/실패 배지").toMatch(/성공|실패/);
-    expect(fullBodyText, "SMS 또는 알림톡 표시").toMatch(/SMS|알림톡/);
+    expect(fullBodyText, "알림톡 표시").toMatch(/알림톡/);
     expect(fullBodyText, "발송 내용 섹션").toContain("발송 내용");
 
     await snap(page, "11-detail-modal-full");
@@ -239,7 +239,7 @@ test("3. 발송 내역 상세 팝업 UX 정밀 검증", async ({ page }) => {
 
   await expect(
     rowToClick,
-    "발송 내역에 클릭할 행이 보여야 함 (시나리오 1 의 SMS 발송이 반영되어야 함)",
+    "발송 내역에 클릭할 행이 보여야 함",
   ).toBeVisible({ timeout: 8000 });
   await rowToClick.click();
   await snap(page, "32-detail-popup");
@@ -254,7 +254,7 @@ test("3. 발송 내역 상세 팝업 UX 정밀 검증", async ({ page }) => {
   expect(bodyText, "상세 팝업에 '발송 내용' 레이블").toContain("발송 내용");
   expect(bodyText, "상세 팝업에 '발송 방식' 레이블").toContain("발송 방식");
   expect(bodyText, "상세 팝업에 성공/실패 배지").toMatch(/성공|실패/);
-  expect(bodyText, "상세 팝업에 SMS 또는 알림톡 표시").toMatch(/SMS|알림톡/);
+  expect(bodyText, "상세 팝업에 발송 채널 표시").toMatch(/알림톡|레거시 문자/);
 
   await snap(page, "33-detail-full");
 

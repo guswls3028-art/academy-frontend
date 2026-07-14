@@ -122,20 +122,11 @@ export default function HomeworkDetailPage() {
               teacherToast.error("복사에 실패했습니다.");
             }
           }}
-          onContactStudent={(s) => {
-            const phone = s.student_phone ?? s.parent_phone;
-            if (phone) {
-              const cleaned = String(phone).replace(/[^0-9+]/g, "");
-              if (cleaned) {
-                const body = encodeURIComponent(`[${hw.title}] 과제 미제출 안내드립니다.${dueDate ? ` 마감일: ${dueDate}` : ""}`);
-                window.location.href = `sms:${cleaned}?body=${body}`;
-                return;
-              }
-            }
+          onOpenStudent={(s) => {
             if (s.student_id != null && s.student_id > 0) {
               navigate(`/teacher/students/${s.student_id}`);
             } else {
-              teacherToast.error("연락처 정보가 없습니다.");
+              teacherToast.error("학생 상세 정보를 찾을 수 없습니다.");
             }
           }}
         />
@@ -172,13 +163,13 @@ function PendingSection({
   homeworkTitle,
   dueDate,
   onCopy,
-  onContactStudent,
+  onOpenStudent,
 }: {
   pending: HomeworkSubmission[];
   homeworkTitle: string;
   dueDate?: string;
   onCopy: (text: string) => Promise<void> | void;
-  onContactStudent: (s: HomeworkSubmission) => void;
+  onOpenStudent: (s: HomeworkSubmission) => void;
 }) {
   const handleCopyAll = () => {
     const lines = pending.map((s) => {
@@ -206,7 +197,6 @@ function PendingSection({
       </div>
       <div className="flex flex-col gap-0">
         {pending.map((s) => {
-          const phone = s.student_phone ?? s.parent_phone;
           return (
             <div
               key={s.id}
@@ -219,11 +209,11 @@ function PendingSection({
                 <span className={`${styles.dangerText} text-xs font-semibold`}>미제출</span>
                 <button
                   type="button"
-                  onClick={() => onContactStudent(s)}
-                  className={`${styles.contactButton} ${phone ? styles.contactButtonSms : styles.contactButtonDetail} text-[11px] font-semibold cursor-pointer`}
-                  title={phone ? "문자 보내기" : "학생 상세로 이동"}
+                  onClick={() => onOpenStudent(s)}
+                  className={`${styles.contactButton} ${styles.contactButtonDetail} text-[11px] font-semibold cursor-pointer`}
+                  title="학생 상세로 이동"
                 >
-                  {phone ? "문자" : "상세"}
+                  상세
                 </button>
               </div>
             </div>

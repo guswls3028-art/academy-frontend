@@ -159,17 +159,21 @@ function TriggerCard({
   saving,
   onEditTemplate,
   channelMode,
+  operationalDisabled,
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
   channelMode?: "alimtalk";
+  operationalDisabled: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
-  const hasTemplate = !!config.template;
+  const hasTemplate = Boolean(config.template || config.effective_template_is_approved);
   const status = getEffectiveTemplateStatus(config);
   const statusLabel = getEffectiveTemplateStatusLabel(config);
+  const isSystem = config.policy_mode === "SYSTEM_AUTO";
+  const deliveryReady = !operationalDisabled && Boolean(config.effective_template_is_approved);
 
   const handleEditClick = () => {
     onEditTemplate?.(config.trigger, config.template);
@@ -177,8 +181,8 @@ function TriggerCard({
 
   // channel-aware: is THIS channel active for this trigger?
   const channelActive = channelMode
-    ? config.enabled && isChannelActive(config.message_mode, channelMode)
-    : config.enabled;
+    ? deliveryReady && config.enabled && isChannelActive(config.message_mode, channelMode)
+    : deliveryReady && (isSystem || config.enabled);
 
   const handleChannelToggle = (checked: boolean) => {
     if (!channelMode) {
@@ -245,14 +249,15 @@ function TriggerCard({
           <Switch
             checked={channelActive}
             onChange={handleChannelToggle}
-            disabled={saving || isUnimplemented}
+            disabled={operationalDisabled || saving || isUnimplemented || isSystem || !config.effective_template_is_approved}
+            aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
           <span
             className={styles.channelState}
             data-channel-active={channelActive ? "true" : "false"}
           >
-            {channelActive ? "활성화" : "비활성화"}
+            {operationalDisabled ? "운영 중지" : !deliveryReady ? "발송 준비 필요" : isSystem ? "항상 활성" : channelActive ? "활성화" : "비활성화"}
           </span>
           {config.template_body && (
             <button
@@ -275,6 +280,8 @@ function TriggerCard({
         fallbackTrigger={AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
         body={config.template_body}
         templateName={config.template_name}
+        templateReady={deliveryReady}
+        templateSource={config.effective_template_source}
       />
       <div
         className={styles.controls}
@@ -291,13 +298,11 @@ function TriggerCard({
             disabled={saving}
             className={styles.templateButton}
           >
-            <FiEdit3
-              size={13}
-              className={styles.templateEditIcon}
-              aria-hidden
-            />
+            {config.template_is_system
+              ? <Eye size={13} className={styles.templateEditIcon} aria-hidden />
+              : <FiEdit3 size={13} className={styles.templateEditIcon} aria-hidden />}
             <span className={styles.templateButtonText}>
-              수정하기
+              {config.template_is_system ? "내용 보기" : "수정하기"}
             </span>
             {hasTemplate && status && (
               <span
@@ -306,6 +311,8 @@ function TriggerCard({
                 title={
                   config.effective_template_source === "unified"
                     ? "현재 설정으로 발송됩니다."
+                    : status === "MISSING"
+                      ? "승인된 알림톡 양식이 연결되어야 발송할 수 있습니다."
                     : undefined
                 }
               >
@@ -358,6 +365,7 @@ function TriggerCard({
             checked={config.show_actual_time ?? false}
             onChange={(checked) => onUpdate({ ...config, show_actual_time: checked })}
             disabled={saving}
+            aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 실제 처리 시각 표시`}
           />
           <span className={styles.clinicTimeText}>
             알림톡 <strong>시간 항목</strong>에 실제 {config.trigger === "clinic_check_in" ? "도착" : "처리"} 시각 표시
@@ -438,10 +446,11 @@ export default function AutoSendSettingsPanel({
 }: AutoSendSettingsPanelProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  useMessagingInfo();
+  const { data: messagingInfo } = useMessagingInfo();
+  const operationalDisabled = Boolean(messagingInfo?.messaging_disabled);
 
   // ---- Data fetching ----
-  const { data: allConfigs = EMPTY_CONFIGS, isLoading } = useQuery({
+  const { data: allConfigs = EMPTY_CONFIGS, isLoading, isError, refetch } = useQuery({
     queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30_000,
@@ -494,6 +503,10 @@ export default function AutoSendSettingsPanel({
       feedback.success("자동발송 설정이 저장되었습니다.");
     },
     onError: (err: unknown) => {
+      pendingConfigsRef.current = [];
+      hasPendingDebouncedSaveRef.current = false;
+      setLocalConfigs(allConfigs);
+      void qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       const msg =
         err && typeof err === "object" && "response" in err
           ? (err as { response?: { data?: { detail?: string } } }).response
@@ -664,6 +677,18 @@ export default function AutoSendSettingsPanel({
     );
   }
 
+  if (isError) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>{title}</h2>
+          <p className={panelStyles.headerDesc}>자동발송 설정을 불러오지 못했습니다.</p>
+          <Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>
+        </div>
+      </div>
+    );
+  }
+
   // ---- Empty state (no matching triggers) ----
   if (filteredConfigs.length === 0) {
     return (
@@ -719,15 +744,16 @@ export default function AutoSendSettingsPanel({
                 checked={sectionEnabled}
                 onChange={handleSectionToggle}
                 disabled={
-                  updateMut.isPending || sectionSummary.toggleable === 0
+                  operationalDisabled || updateMut.isPending || sectionSummary.toggleable === 0
                 }
+                aria-label={`${title} 전체 자동 발송`}
                 size="small"
               />
               <span
                 className={styles.masterToggleText}
                 data-enabled={sectionEnabled ? "true" : "false"}
               >
-                {getMasterToggleLabel(sectionSummary)}
+                {operationalDisabled ? "운영 중지" : getMasterToggleLabel(sectionSummary)}
               </span>
             </div>
           </div>
@@ -747,6 +773,7 @@ export default function AutoSendSettingsPanel({
                 config={config}
                 onUpdate={handleUpdate}
                 saving={updateMut.isPending}
+                operationalDisabled={operationalDisabled}
                 onEditTemplate={handleEditTemplate}
                 channelMode={channelMode}
               />

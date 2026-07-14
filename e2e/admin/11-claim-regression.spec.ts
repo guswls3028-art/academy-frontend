@@ -26,7 +26,7 @@ test.describe("클레임 회귀 — 공지사항 제목 수정", () => {
 
     // API로 테스트 공지 생성 (UI 의존성 제거)
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
-      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
+      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     const { access } = await loginResp.json() as { access: string };
@@ -115,7 +115,7 @@ test.describe("클레임 회귀 — 클리닉 알림톡 발송", () => {
   test("클리닉 알림톡 API 발송 파이프라인 검증", async ({ page }) => {
     // 관리자 로그인 후 토큰 획득
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
-      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "koreaseoul97"), tenant_code: "hakwonplus" },
+      data: { username: (process.env.E2E_ADMIN_USER || "admin97"), password: (process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__"), tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     expect(loginResp.status()).toBe(200);

@@ -4,7 +4,7 @@ import { gotoAndSettle } from "./helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL ?? "https://hakwonplus.com";
 const ADMIN = process.env.E2E_ADMIN_USER ?? "admin97";
-const PASS = process.env.E2E_ADMIN_PASS ?? "koreaseoul97";
+const PASS = process.env.E2E_ADMIN_PASS ?? "__MISSING_E2E_ADMIN_PASS__";
 const SHOTS = path.resolve("e2e/screenshots/prod-visual-20260512-cycle2");
 const TOAST_SELECTOR = "[class*='toast'], [class*='Toast'], [role='alert'], [class*='snack']";
 

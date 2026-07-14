@@ -11,7 +11,7 @@ import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 const BASE = "https://hakwonplus.com";
 const API = "https://api.hakwonplus.com";
 const ADMIN_USER = "admin97";
-const ADMIN_PASS = "koreaseoul97";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const TENANT = "hakwonplus";
 
 const OUT = "../_artifacts/sessions/matchup-realuse-2026-05-09";

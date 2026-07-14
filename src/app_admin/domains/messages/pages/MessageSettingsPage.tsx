@@ -81,24 +81,34 @@ function Desc({ children }: { children: ReactNode }) {
 }
 
 export default function MessageSettingsPage() {
-  const { data: info } = useMessagingInfo();
+  const { data: info, isError, refetch } = useMessagingInfo();
   const { mutate: runTest, isPending: isTesting } = useTestCredentials();
   const [testResult, setTestResult] = useState<TestCredentialsResult | null>(null);
 
   const channelSourceLabel = "공용 채널";
   const alimtalkAvailable = Boolean(info?.alimtalk_available);
+  const messagingDisabled = Boolean(info?.messaging_disabled);
   const setupSteps = [{ done: alimtalkAvailable, label: "알림톡 발송 준비" }];
   const allSetupDone = setupSteps.every((s) => s.done);
 
   return (
     <div className={styles.root}>
+      {isError && (
+        <Card>
+          <SectionTitle icon={<FiAlertCircle size={15} />}>설정을 불러오지 못했습니다</SectionTitle>
+          <Desc>연결 상태를 확인한 뒤 다시 시도해 주세요.</Desc>
+          <Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>
+        </Card>
+      )}
       {!allSetupDone && info && (
         <div className={styles.setupAlert}>
           <FiAlertCircle size={16} className={styles.setupAlertIcon} />
           <div className={styles.setupAlertText}>
-            <strong className={styles.setupAlertTitle}>알림톡 연동 상태를 확인해 주세요.</strong>
+            <strong className={styles.setupAlertTitle}>{messagingDisabled ? "알림톡 발송이 운영 중지되었습니다." : "알림톡 연동 상태를 확인해 주세요."}</strong>
             <span className={styles.setupMissing}>
-              {setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.
+              {messagingDisabled
+                ? info.messaging_disabled_reason
+                : `${setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.`}
             </span>
           </div>
         </div>
@@ -122,7 +132,7 @@ export default function MessageSettingsPage() {
         <KpiCard
           icon={<FiSend size={16} />}
           label="알림톡"
-          value={alimtalkAvailable ? "사용 가능" : "확인 필요"}
+          value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"}
           status={alimtalkAvailable ? "ok" : "warn"}
           tone="alimtalk"
         />
@@ -146,13 +156,12 @@ export default function MessageSettingsPage() {
       <Card>
         <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널</SectionTitle>
         <Desc>
-          현재 채널 출처: <code className={styles.inlineCode}>{channelSourceLabel}</code>
+          {alimtalkAvailable
+            ? "공용 채널이 연결되어 있습니다. 별도 채널 정보나 API 키를 입력할 필요가 없습니다."
+            : messagingDisabled
+              ? info?.messaging_disabled_reason
+              : "공용 채널 연결 상태를 확인해 주세요. 학원에서 직접 연동 정보를 입력하지 않습니다."}
         </Desc>
-        {info?.resolved_pf_id && (
-          <p className={styles.pfidCurrent}>
-            공용 PFID: <code className={styles.inlineCode}>{info.resolved_pf_id}</code>
-          </p>
-        )}
       </Card>
 
       <Card accent="success">

@@ -42,7 +42,7 @@ test("[B-retry] share chip with clipboard permission granted", async ({ browser 
 
     // Login via API token injection
     const resp = await page.request.post("https://api.hakwonplus.com/api/v1/token/", {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
       timeout: 30000,
     });

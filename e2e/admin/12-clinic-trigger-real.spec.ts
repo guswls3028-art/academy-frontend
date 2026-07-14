@@ -134,7 +134,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     const loginResp = await page.request.post(`${API}/api/v1/token/`, {
       data: {
         username: process.env.E2E_ADMIN_USER || "admin97",
-        password: process.env.E2E_ADMIN_PASS || "koreaseoul97",
+        password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__",
         tenant_code: "hakwonplus",
       },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },

@@ -23,7 +23,7 @@ interface StaffApiItem {
 
 async function getToken(page: Page): Promise<string> {
   const tokenResp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-    data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+    data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
     headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
   });
   expect(tokenResp.status()).toBe(200);

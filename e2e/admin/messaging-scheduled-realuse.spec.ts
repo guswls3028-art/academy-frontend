@@ -13,7 +13,7 @@ test.setTimeout(120_000);
 const API = getApiBaseUrl();
 const CODE = "hakwonplus";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "koreaseoul97";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const TEST_PHONE = process.env.E2E_MESSAGING_TEST_PHONE || "01031217466";
 const TS = Date.now();
 

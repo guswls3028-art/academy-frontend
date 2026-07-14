@@ -9,34 +9,21 @@ const PREFIX = "/messaging";
 // 타입 (1~4단계 백엔드 스키마와 맞춤)
 // ----------------------------------------
 
-/** 알림톡 공급자 (솔라피 또는 뿌리오) */
-export type MessagingProvider = "solapi" | "ppurio";
-
 export interface TenantMessagingInfo {
-  /** 학원 개별 카카오 프로필 ID (연동 시 저장) */
-  kakao_pfid: string | null;
-  /** 알림톡 발신번호 (예: 01012345678) */
-  messaging_sender: string | null;
-  /** legacy 표시용. 문자 실발송은 정책상 비활성화되어 있으며 API 응답 기준만 사용 */
+  /** 문자 실발송은 정책상 비활성화되어 있으며 API 응답 기준만 사용 */
   sms_allowed?: boolean;
   /** 알림톡 채널 출처: 공용 owner 채널 */
-  channel_source?: "common_owner" | "system_default" | "tenant_override";
+  channel_source?: "common_owner" | "system_default";
   /** 실제 발송에 사용되는 공용 PFID */
   resolved_pf_id?: string;
-  /** 알림톡 발송 가능 여부 (PFID + 승인 템플릿 존재). API 응답 기준만 사용 */
+  /** 공용 채널 기준 알림톡 발송 가능 여부 */
   alimtalk_available?: boolean;
-  /** 알림톡 공급자: solapi(기본) 또는 ppurio(뿌리오) */
-  messaging_provider?: MessagingProvider;
-  /** 자체 솔라피 API Key (마스킹됨, 읽기용) */
-  own_solapi_api_key?: string;
-  /** 자체 솔라피 API Secret (마스킹됨, 읽기용) */
-  own_solapi_api_secret?: string;
-  /** 자체 뿌리오 API Key (마스킹됨, 읽기용) */
-  own_ppurio_api_key?: string;
-  /** 자체 뿌리오 계정 ID */
-  own_ppurio_account?: string;
-  /** 자체 연동 키가 설정되어 있는지 여부 */
+  /** 실제 발송 공급자는 공용 솔라피로 고정 */
+  messaging_provider?: "solapi";
   has_own_credentials?: boolean;
+  delivery_policy?: "common_alimtalk_only";
+  messaging_disabled?: boolean;
+  messaging_disabled_reason?: string;
 }
 
 export interface NotificationLogItem {
@@ -105,37 +92,6 @@ export interface ScheduledNotificationResponse {
 /** 테넌트 메시징 정보 (잔액, PFID, 활성화, 단가) */
 export async function fetchMessagingInfo(): Promise<TenantMessagingInfo> {
   const res = await api.get<TenantMessagingInfo>(`${PREFIX}/info/`);
-  return res.data;
-}
-
-/** 카카오 PFID 저장/연동 */
-export async function updateKakaoPfid(pfid: string): Promise<TenantMessagingInfo> {
-  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, { kakao_pfid: pfid });
-  return res.data;
-}
-
-/** 발신번호가 솔라피에 등록된 번호인지 인증 */
-export async function verifySender(phoneNumber: string): Promise<{
-  verified: boolean;
-  message: string;
-}> {
-  const res = await api.post<{ verified: boolean; message: string }>(
-    `${PREFIX}/verify-sender/`,
-    { phone_number: phoneNumber }
-  );
-  return res.data;
-}
-
-/** 메시징 설정 일부 수정 (발신번호, PFID, 공급자, 자체 연동 키 등) */
-export async function updateMessagingInfo(
-  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender" | "messaging_provider">> & {
-    own_solapi_api_key?: string;
-    own_solapi_api_secret?: string;
-    own_ppurio_api_key?: string;
-    own_ppurio_account?: string;
-  }
-): Promise<TenantMessagingInfo> {
-  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, payload);
   return res.data;
 }
 
@@ -311,6 +267,15 @@ export interface MessageTemplateItem {
   solapi_status?: SolapiStatus;
   /** 본문에 #{내용} 변수 포함 여부 — true면 자유양식 발송 가능 */
   has_content_var?: boolean;
+  /** 실제 발송에 사용하는 승인 알림톡 봉투 유형 */
+  alimtalk_envelope_type?: string;
+  /** 저장 문구와 승인 봉투 사이의 발송 준비 상태 */
+  alimtalk_readiness?:
+    | "ready"
+    | "provider_template_missing"
+    | "system_managed"
+    | "envelope_selection_required"
+    | string;
   created_at: string;
   updated_at: string;
 }
@@ -335,13 +300,10 @@ function normalizeTemplatePayload<T extends Partial<MessageTemplatePayload>>(pay
 
 export async function fetchMessageTemplates(
   category?: MessageTemplateCategory,
-  /** true이면 오너 테넌트의 승인 알림톡 템플릿도 포함 (시스템 기본 채널 폴백용) */
-  includeSystem?: boolean,
 ): Promise<MessageTemplateItem[]> {
   const params: Record<string, string> = {};
   const normalizedCategory = normalizeTemplateCategory(category);
   if (normalizedCategory) params.category = normalizedCategory;
-  if (includeSystem) params.include_system = "true";
   const res = await api.get<MessageTemplateItem[]>(`${PREFIX}/templates/`, { params });
   return res.data;
 }
@@ -382,54 +344,6 @@ export async function duplicateMessageTemplate(
   name?: string
 ): Promise<MessageTemplateItem> {
   const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/${id}/duplicate/`, { name });
-  return res.data;
-}
-
-/** 템플릿 검수 신청 (솔라피 알림톡 템플릿 등록 → 카카오 검수 대기) */
-export async function submitMessageTemplateReview(
-  id: number
-): Promise<{ detail: string; template: MessageTemplateItem }> {
-  const res = await api.post<{ detail: string; template: MessageTemplateItem }>(
-    `${PREFIX}/templates/${id}/submit-review/`
-  );
-  return res.data;
-}
-
-/** 솔라피에서 SaaS에 아직 등록되지 않은 (미매칭) 양식 미리보기 */
-export interface SolapiOnlyTemplate {
-  templateId: string;
-  name: string;
-  status: string;
-  content_preview: string;
-}
-
-export interface SolapiOrphanCleaned {
-  tenant_id: number;
-  id: number;
-  name: string;
-  previous_template_id: string;
-}
-
-export interface SolapiSyncResult {
-  detail: string;
-  updated: number;
-  unchanged: number;
-  orphan_cleaned_count: number;
-  orphan_cleaned: SolapiOrphanCleaned[];
-  solapi_only_count: number;
-  solapi_only: SolapiOnlyTemplate[];
-  errors: string[];
-  credential_source: "tenant" | "system";
-  pfid: string;
-}
-
-/**
- * 솔라피 콘솔의 알림톡 템플릿을 SaaS DB와 동기화 (콘솔=truth).
- * 학원장 임근혁 보고 (2026-05-13): 솔라피 콘솔에서 직접 본문/상태가 변경돼도
- * SaaS DB가 stale 상태로 남던 결함 fix.
- */
-export async function syncSolapiTemplates(): Promise<SolapiSyncResult> {
-  const res = await api.post<SolapiSyncResult>(`${PREFIX}/templates/sync-solapi/`);
   return res.data;
 }
 
@@ -543,9 +457,10 @@ export interface AutoSendConfigItem {
   template_solapi_status: string;
   effective_solapi_template_id?: string;
   effective_template_solapi_status?: string;
-  effective_template_source?: "unified" | "tenant_template" | "missing" | string;
+  effective_template_source?: "unified" | "unified_missing" | "owner_exact" | "missing" | string;
   effective_template_is_approved?: boolean;
   effective_template_type?: string;
+  template_is_system?: boolean;
   enabled: boolean;
   message_mode: MessageMode;
   /** N분 전/후 발송 (null = 이벤트 시점). 사용자 설정 가능. */

@@ -93,6 +93,7 @@ function isSystemTpl(t: MessageTemplateItem): boolean {
 }
 
 function isApprovedTpl(t: MessageTemplateItem): boolean {
+  if (t.alimtalk_readiness) return t.alimtalk_readiness === "ready";
   return t.solapi_status === "APPROVED" && Boolean((t.solapi_template_id || "").trim());
 }
 
@@ -363,6 +364,7 @@ export default function SendMessageModal({
   const remainingThisHour = preflightResults[0]?.limits.remaining_this_hour ?? null;
   const aggregatePreflightBlockers: SendPreflightIssue[] =
     preflightResults.length === expectedPreflightCount
+    && !scheduledSendAtIso
     && remainingThisHour != null
     && preflightRecipientStats.validPhone > remainingThisHour
       ? [{
@@ -527,7 +529,7 @@ export default function SendMessageModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    fetchMessageTemplates(undefined, true).then((list) => {
+    fetchMessageTemplates().then((list) => {
       if (cancelled) return;
       setTemplates(list);
       if (!selectedTemplateId && !selectedPresetId && !initialBody) {
@@ -563,25 +565,6 @@ export default function SendMessageModal({
     }).catch(() => { if (!cancelled) setTemplates([]); });
     return () => { cancelled = true; };
   }, [open, effectiveBlockCategory]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 솔라피 동기화 후 picker가 부모에게 templates 재조회 요청
-  const refreshTemplates = useCallback(async () => {
-    try {
-      const list = await fetchMessageTemplates(undefined, true);
-      setTemplates(list);
-      // 현재 적용 중인 양식이 sync 후에도 유지되도록 body/snapshot 갱신
-      if (selectedTemplateId) {
-        const fresh = list.find((t) => t.id === selectedTemplateId);
-        const nextBody = fresh ? stripInternalAlimtalkMemoToken(fresh.body) : "";
-        if (fresh && nextBody !== templateBodySnapshot) {
-          setBody(nextBody);
-          setTemplateBodySnapshot(nextBody);
-        }
-      }
-    } catch {
-      // refresh 실패는 silent — 다음 모달 open 시 재시도됨
-    }
-  }, [selectedTemplateId, templateBodySnapshot]);
 
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
@@ -1178,7 +1161,7 @@ export default function SendMessageModal({
                 {selectedTemplate ? (
                   <div className="send-modal__tpl-bar-name-row">
                     <span className="send-modal__tpl-bar-name">{selectedTemplate.name}</span>
-                    {selectedTemplate.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
+                    {isApprovedTpl(selectedTemplate) && <Badge tone="success" size="xs">사용 가능</Badge>}
                     {isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                     {bodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
@@ -1482,7 +1465,6 @@ export default function SendMessageModal({
       onSetDefault={handleSetDefault}
       onDuplicate={handleDuplicate}
       onDelete={handleDeleteTemplate}
-      onRefreshTemplates={refreshTemplates}
     />
     </>
   );

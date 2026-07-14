@@ -281,7 +281,7 @@ test.describe("OCR 세그멘테이션 개선 검증 (commit 6f29d311)", () => {
 
     // 토큰 재획득 필요
     const tokenResp = await request.post(`${API}/api/v1/token/`, {
-      data: { username: "admin97", password: "koreaseoul97", tenant_code: "hakwonplus" },
+      data: { username: "admin97", password: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__", tenant_code: "hakwonplus" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
     });
     if (tokenResp.ok()) {

@@ -17,13 +17,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "antd";
-import { Search, Check, Edit3, Star, Copy, Trash2, Shield, Tag, RefreshCw } from "lucide-react";
+import { Search, Check, Edit3, Star, Copy, Trash2, Shield, Tag } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { renderPreviewWithActualData, TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
-import { syncSolapiTemplates, type MessageTemplateItem } from "../api/messages.api";
+import type { MessageTemplateItem } from "../api/messages.api";
 import type { ProvidedTemplatePreset } from "../constants/templatePresets";
 import {
   getAlimtalkTemplateLabel,
@@ -50,8 +49,6 @@ export type TemplatePickerModalProps = {
   onSetDefault: (id: number) => Promise<void> | void;
   onDuplicate: (id: number) => Promise<void> | void;
   onDelete: (id: number) => Promise<void> | void;
-  /** 솔라피 동기화 직후 부모가 templates 재조회 */
-  onRefreshTemplates: () => Promise<void> | void;
 };
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
@@ -73,7 +70,6 @@ export default function TemplatePickerModal({
   onSetDefault,
   onDuplicate,
   onDelete,
-  onRefreshTemplates,
 }: TemplatePickerModalProps) {
   const [search, setSearch] = useState("");
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -81,37 +77,8 @@ export default function TemplatePickerModal({
     selectedPresetId ? `preset:${selectedPresetId}` : selectedTemplateId ? `template:${selectedTemplateId}` : null,
   );
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const prevOpenRef = useRef(false);
-
-  const handleSync = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    try {
-      const res = await syncSolapiTemplates();
-      await onRefreshTemplates();
-      if (res.updated > 0 || res.orphan_cleaned_count > 0 || res.solapi_only_count > 0) {
-        const parts: string[] = [];
-        if (res.updated > 0) parts.push(`상태 ${res.updated}건 갱신`);
-        if (res.orphan_cleaned_count > 0) parts.push(`확인 누락 ${res.orphan_cleaned_count}건 정리`);
-        if (res.solapi_only_count > 0) parts.push(`연결되지 않은 문구 ${res.solapi_only_count}건`);
-        feedback.success(`동기화 — ${parts.join(", ")}`);
-      } else {
-        feedback.success(`동기화 완료 — 모든 문구 상태가 최신입니다 (${res.unchanged}건 확인).`);
-      }
-      if (res.errors && res.errors.length > 0) {
-        feedback.warning(`동기화 중 ${res.errors.length}건 오류가 있었습니다. 자세한 내용은 관리자에게 문의해 주세요.`);
-      }
-    } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "response" in e
-        ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
-        : null;
-      feedback.error((typeof msg === "string" ? msg : "솔라피 동기화에 실패했습니다."));
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   // 발송 모달이 열린 시점의 selectedTemplateId를 미리보기 기본으로
   useEffect(() => {
@@ -239,7 +206,9 @@ export default function TemplatePickerModal({
             {isSys && <Shield size={ICON.xs} className="tpl-picker__icon-sys" />}
             <span className="tpl-picker__card-name">{t.name}</span>
             {t.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
-            {t.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
+            {t.alimtalk_readiness === "ready" && <Badge tone="success" size="xs">알림톡 준비됨</Badge>}
+            {t.alimtalk_readiness === "provider_template_missing" && <Badge tone="warning" size="xs">발송 준비 필요</Badge>}
+            {t.alimtalk_readiness === "envelope_selection_required" && <Badge tone="info" size="xs">발송 시 유형 선택</Badge>}
             {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
           </div>
           <div className="tpl-picker__card-preview">
@@ -337,22 +306,6 @@ export default function TemplatePickerModal({
 
           {/* ═══ 좌측: 검색 + 필터 + 카드 리스트 ═══ */}
           <div className="tpl-picker__left">
-            <div className="tpl-picker__sync-bar">
-              <div className="tpl-picker__sync-text">
-                <div className="tpl-picker__sync-title">상태 새로고침</div>
-                <div className="tpl-picker__sync-desc">문구 사용 가능 상태를 새로 가져옵니다. 저장한 본문은 덮어쓰지 않습니다.</div>
-              </div>
-              <Button
-                size="sm"
-                intent="secondary"
-                onClick={handleSync}
-                disabled={syncing}
-              >
-                <RefreshCw size={ICON.xs} className={`tpl-picker__sync-icon${syncing ? " tpl-picker__sync-icon--spinning" : ""}`} />
-                {syncing ? "동기화 중…" : "동기화"}
-              </Button>
-            </div>
-
             <div className="tpl-picker__search">
               <Search size={ICON.sm} className="tpl-picker__search-icon" />
               <Input
@@ -443,7 +396,8 @@ export default function TemplatePickerModal({
                     </span>
                     {previewPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
                     {previewPreset?.recommended && <Badge tone="success" size="xs">추천</Badge>}
-                    {previewTpl?.solapi_status === "APPROVED" && <Badge tone="success" size="xs">사용 가능</Badge>}
+                    {previewTpl?.alimtalk_readiness === "ready" && <Badge tone="success" size="xs">알림톡 준비됨</Badge>}
+                    {previewTpl?.alimtalk_readiness === "provider_template_missing" && <Badge tone="warning" size="xs">발송 준비 필요</Badge>}
                     {previewTpl && isSystemTpl(previewTpl) && <Badge tone="info" size="xs">시스템</Badge>}
                   </div>
                 </div>

@@ -175,13 +175,13 @@ test.describe("메시징 미완 항목 완전 검증", () => {
 
     await page.keyboard.press("Escape");
 
-    // 알림톡/SMS 패널 — 둘 중 1개 이상 보여야 함.
+    // 메시지 설정은 알림톡 전용 패널만 노출한다.
     const alimVisible = await page.locator("text=알림톡").first().isVisible().catch(() => false);
-    const smsVisible = await page.locator("text=SMS").first().isVisible().catch(() => false);
     expect(
-      alimVisible || smsVisible,
-      "클리닉 메시지 설정에 알림톡 또는 SMS 패널 1개 이상 노출",
+      alimVisible,
+      "클리닉 메시지 설정에 알림톡 패널 노출",
     ).toBe(true);
+    await expect(page.getByText("SMS", { exact: true })).toHaveCount(0);
   });
 
   // ═══════════════════════════════════════════════════════════════

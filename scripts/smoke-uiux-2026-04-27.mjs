@@ -23,7 +23,7 @@ const API = process.env.API_BASE || "https://api.hakwonplus.com";
 
 const ADMIN = {
   user: process.env.E2E_ADMIN_USER || "admin97",
-  pass: process.env.E2E_ADMIN_PASS || "koreaseoul97",
+  pass: process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__",
   code: "hakwonplus",
 };
 const STUDENT = {

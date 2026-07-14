@@ -60,6 +60,8 @@ type TriggerEnvelopeProps = {
   fallbackTrigger?: string;
   body?: string;
   templateName?: string;
+  templateReady?: boolean;
+  templateSource?: string;
 };
 
 export function AlimtalkTriggerEnvelope({
@@ -67,12 +69,37 @@ export function AlimtalkTriggerEnvelope({
   fallbackTrigger,
   body,
   templateName,
+  templateReady = false,
+  templateSource,
 }: TriggerEnvelopeProps) {
   const normalized = normalizeAlimtalkTemplateType(templateType);
   const spec = getAlimtalkEnvelopeSpec(normalized);
   const editable = isAlimtalkTemplateBodyEditable(normalized);
 
   if (!spec) {
+    if (templateReady) {
+      return (
+        <div className={styles.triggerEnvelope} data-template-source={templateSource || "approved"}>
+          <div>
+            <div className={styles.triggerTitle}>
+              <Send size={14} />
+              승인된 전용 알림톡
+              <span className={styles.templateBadge}>전용 양식</span>
+            </div>
+            <div className={styles.triggerMeta}>
+              카카오 검수가 완료된 전용 양식으로 발송됩니다.
+            </div>
+          </div>
+          <div className={styles.memoPreview}>
+            <div className={styles.memoPreviewLabel}>발송 내용</div>
+            <div className={`${styles.memoPreviewBody} ${styles.fixedMemo}`}>
+              {body?.trim() || "정해진 본문으로 발송"}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.triggerEnvelope} data-missing="true">
         <div>
@@ -81,7 +108,7 @@ export function AlimtalkTriggerEnvelope({
             발송 준비 필요
           </div>
           <div className={styles.triggerMeta}>
-            {fallbackTrigger || templateName || "이 항목"}은 관리자 확인 후 사용할 수 있습니다.
+            {fallbackTrigger || templateName || "이 항목"}은 발송 준비가 끝난 뒤 사용할 수 있습니다.
           </div>
         </div>
         <div className={styles.memoPreview}>
