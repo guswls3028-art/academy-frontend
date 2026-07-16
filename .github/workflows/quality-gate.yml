@@ -16,6 +16,10 @@ jobs:
     name: Typecheck + Lint + Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Cloudflare Git builds expose the same commit as CF_PAGES_COMMIT_SHA.
+      # Using a shared commit version keeps dual build outputs deterministic.
+      VITE_BUILD_VERSION: ${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v6

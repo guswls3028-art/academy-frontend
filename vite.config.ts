@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import agentEventServer from "./vite-plugins/agentEventServer";
 
-function versionJsonPlugin() {
+function versionJsonPlugin(buildVersion: string) {
   return {
     name: "version-json",
     apply: "build" as const,
@@ -12,25 +12,43 @@ function versionJsonPlugin() {
       this.emitFile({
         type: "asset",
         fileName: "version.json",
-        source: JSON.stringify({ version: buildTimestamp }),
+        source: JSON.stringify({ version: buildVersion }),
       });
     },
   };
 }
 
-const buildTimestamp = Date.now().toString();
+function resolveBuildVersion(): string {
+  // GitHub Actions and Cloudflare Pages can both build the same main commit.
+  // A wall-clock version makes those otherwise identical builds produce
+  // different entry/lazy chunk hashes, so whichever deployment finishes last
+  // can invalidate the other one's assets. Platform commit identifiers take
+  // precedence so a stale dashboard override cannot break this invariant.
+  for (const candidate of [
+    process.env.CF_PAGES_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.VITE_BUILD_VERSION,
+  ]) {
+    const value = candidate?.trim();
+    if (value) return value;
+  }
+  return Date.now().toString();
+}
+
+const buildVersion = resolveBuildVersion();
 const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || "http://localhost:8000";
 
 export default defineConfig({
   define: {
-    __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+    // Keep the historical global name while using a deterministic build ID.
+    __BUILD_TIMESTAMP__: JSON.stringify(buildVersion),
   },
 
   plugins: [
     react(),
     tailwindcss(),
     agentEventServer(),
-    versionJsonPlugin(),
+    versionJsonPlugin(buildVersion),
   ],
 
   server: {
