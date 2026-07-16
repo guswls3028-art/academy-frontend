@@ -8,12 +8,14 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentAccountNotifications, fetchStudentExamResults, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
+import { fetchStudent, fetchStudentAccountNotifications, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
+import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
 import { teacherStudentsQueryKeys } from "../queryKeys";
 import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -59,10 +61,16 @@ export default function StudentDetailPage() {
     enabled: Number.isFinite(sid),
   });
 
-  const { data: examResults } = useQuery({
+  const {
+    data: gradesData,
+    isLoading: gradesLoading,
+    isError: gradesError,
+    refetch: refetchGrades,
+  } = useQuery({
     queryKey: teacherStudentsQueryKeys.studentExams(sid),
-    queryFn: () => fetchStudentExamResults(sid),
+    queryFn: () => fetchStudentGrades(sid),
     enabled: Number.isFinite(sid),
+    refetchOnMount: "always",
   });
 
   const { data: accountNotifications } = useQuery({
@@ -98,12 +106,12 @@ export default function StudentDetailPage() {
   const studentPhone = student.studentPhone;
   const enrollments: ClientEnrollmentLite[] = student.enrollments ?? [];
   const tags: ClientStudentTag[] = student.tags ?? [];
-  const exams: TeacherStudentExamResult[] = examResults ?? [];
-  const passCount = exams.filter((result) => result.is_pass).length;
-  const failCount = exams.filter((result) => result.is_pass === false).length;
-  const averageScore = exams.length > 0
-    ? Math.round(exams.reduce((sum, result) => sum + (result.total_score ?? result.score ?? 0), 0) / exams.length)
-    : undefined;
+  const exams: TeacherStudentExamResult[] = gradesData?.exams ?? [];
+  const homeworks = gradesData?.homeworks ?? [];
+  const judgedExams = exams.filter((result) => result.achievement === "PASS" || result.achievement === "REMEDIATED" || result.achievement === "FAIL");
+  const passCount = judgedExams.filter((result) => result.achievement === "PASS" || result.achievement === "REMEDIATED").length;
+  const failCount = judgedExams.length - passCount;
+  const averageScore = gradesData?.exam_summary.average_score_pct ?? undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -183,8 +191,8 @@ export default function StudentDetailPage() {
       {/* Summary KPI */}
       <div className="grid grid-cols-3 gap-2">
         <KpiCard label="수강" value={enrollments.filter((e) => e.status === "ACTIVE").length} sub={`/${enrollments.length}`} />
-        <KpiCard label="시험" value={exams.length} sub={averageScore != null ? `평균 ${averageScore}` : undefined} />
-        <KpiCard label="합격률" value={exams.length ? `${Math.round((passCount / exams.length) * 100)}%` : "-"} color={passCount > failCount ? "var(--tc-success)" : undefined} />
+        <KpiCard label="시험" value={exams.length} sub={averageScore != null ? `평균 ${averageScore}%` : undefined} />
+        <KpiCard label="합격률" value={judgedExams.length ? `${Math.round((passCount / judgedExams.length) * 100)}%` : "-"} color={passCount > failCount ? "var(--tc-success)" : undefined} />
       </div>
 
       {/* 5 Tabs */}
@@ -202,8 +210,16 @@ export default function StudentDetailPage() {
 
       {/* Tab content */}
       {tab === "enrollments" && <EnrollmentList enrollments={enrollments} />}
-      {tab === "exams" && <ExamList results={exams} />}
-      {tab === "homework" && <HomeworkList results={exams.filter((result) => result.homework_id || result.type === "homework")} />}
+      {tab === "exams" && (
+        <ExamList
+          results={exams}
+          trend={gradesData?.exam_trend ?? []}
+          isLoading={gradesLoading}
+          isError={gradesError}
+          onRetry={() => { void refetchGrades(); }}
+        />
+      )}
+      {tab === "homework" && <HomeworkList results={homeworks} />}
       {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
 
@@ -252,7 +268,30 @@ function EnrollmentList({ enrollments }: { enrollments: ClientEnrollmentLite[] }
   );
 }
 
-function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
+function ExamList({
+  results,
+  trend,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  results: TeacherStudentExamResult[];
+  trend: StudentExamTrendPoint[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  if (isLoading) {
+    return <EmptyState scope="panel" tone="loading" title="성적 추이를 불러오는 중…" />;
+  }
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <EmptyState scope="panel" tone="error" title="성적 추이를 불러오지 못했습니다" description="잠시 후 다시 불러와 주세요." />
+        <button type="button" onClick={onRetry} className="text-xs font-bold" style={{ color: "var(--tc-primary)" }}>다시 불러오기</button>
+      </div>
+    );
+  }
   if (!results.length) {
     return (
       <EmptyState
@@ -265,18 +304,19 @@ function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
   }
   return (
     <div className="flex flex-col gap-1.5">
+      <StudentScoreTrendChart points={trend} />
       {results.map((r) => (
-        <Card key={r.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+        <Card key={r.exam_id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
             {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label ?? undefined} size={20} />}
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.exam_title ?? r.title}</div>
+              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.title}</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                {r.session_title}{(r.retake_count ?? 0) > 0 ? ` · 재시험 ${r.retake_count ?? 0}회` : ""}{r.submitted_at ? ` · ${new Date(r.submitted_at).toLocaleDateString("ko-KR")}` : ""}
+                {r.session_title}{(r.retake_count ?? 1) > 1 ? ` · 재시험 ${(r.retake_count ?? 1) - 1}회` : ""}{r.submitted_at ? ` · ${new Date(r.submitted_at).toLocaleDateString("ko-KR")}` : ""}{r.archived ? " · 보관됨" : ""}
               </div>
             </div>
             <div className="flex flex-col items-end shrink-0">
-              <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{r.total_score ?? r.score ?? "-"}/{r.max_score ?? 100}</span>
+              <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{r.total_score ?? "-"}/{r.max_score ?? 100}</span>
               <AchievementBadge passed={r.is_pass} achievement={r.achievement} />
             </div>
           </div>
@@ -286,7 +326,7 @@ function ExamList({ results }: { results: TeacherStudentExamResult[] }) {
   );
 }
 
-function HomeworkList({ results }: { results: TeacherStudentExamResult[] }) {
+function HomeworkList({ results }: { results: StudentHomeworkGrade[] }) {
   if (!results.length) {
     return (
       <EmptyState
@@ -300,11 +340,11 @@ function HomeworkList({ results }: { results: TeacherStudentExamResult[] }) {
   return (
     <div className="flex flex-col gap-1.5">
       {results.map((r) => (
-        <Card key={r.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+        <Card key={r.homework_id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
             {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label ?? undefined} size={20} />}
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.title ?? r.homework_title}</div>
+              <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>{r.title}</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{r.session_title}</div>
             </div>
             <div className="flex flex-col items-end shrink-0">

@@ -8,32 +8,18 @@ import {
   uploadStudentBulkFromExcel,
 } from "@/shared/api/contracts/students";
 import type { ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
+import {
+  fetchAdminStudentGrades,
+  type StudentExamGrade,
+  type StudentGradesResponse,
+} from "@/shared/api/contracts/studentGrades";
 
 export type TeacherStudentsResponse = {
   data: ClientStudent[];
   count: number;
 };
 
-export type TeacherStudentExamResult = {
-  id: number | string;
-  exam_title?: string | null;
-  title?: string | null;
-  homework_title?: string | null;
-  session_title?: string | null;
-  lecture_title?: string | null;
-  lecture_color?: string | null;
-  lecture_chip_label?: string | null;
-  total_score?: number | null;
-  score?: number | null;
-  max_score?: number | null;
-  is_pass?: boolean | null;
-  passed?: boolean | null;
-  achievement?: string | null;
-  retake_count?: number | null;
-  submitted_at?: string | null;
-  homework_id?: number | string | null;
-  type?: string | null;
-};
+export type TeacherStudentExamResult = StudentExamGrade;
 
 export type StudentAccountNotificationLog = {
   id: number;
@@ -88,13 +74,9 @@ export async function fetchStudent(studentId: number): Promise<ClientStudent> {
   return mapStudent(res.data);
 }
 
-/** 학생 시험 성적 */
-export async function fetchStudentExamResults(studentId: number): Promise<TeacherStudentExamResult[]> {
-  const res = await api.get("/results/admin/student-grades/", {
-    params: { student_id: studentId },
-  });
-  const raw = res.data;
-  return Array.isArray(raw?.exams) ? raw.exams : [];
+/** 학생 시험·과제 성적과 전체 기간 회차별 추이 */
+export async function fetchStudentGrades(studentId: number): Promise<StudentGradesResponse> {
+  return fetchAdminStudentGrades(studentId);
 }
 
 /** 학생 계정 알림톡 최근 이력 */

@@ -22,6 +22,13 @@ import {
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
+import {
+  fetchAdminStudentGrades,
+  type StudentExamGrade,
+  type StudentGradesResponse,
+  type StudentHomeworkGrade,
+} from "@/shared/api/contracts/studentGrades";
 import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
@@ -35,49 +42,6 @@ const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEn
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
 type StatTabKey = "enroll" | "score" | "homework" | "clinic" | "question";
-type AchievementStatus = "PASS" | "FAIL" | "REMEDIATED" | "NOT_SUBMITTED";
-
-type StudentExamGrade = {
-  achievement?: AchievementStatus | null;
-  remediated?: boolean | null;
-  final_pass?: boolean | null;
-  is_pass?: boolean | null;
-  total_score?: number | null;
-  max_score?: number | null;
-  lecture_id?: number | null;
-  session_id?: number | null;
-  exam_id?: number | string | null;
-  title?: string | null;
-  lecture_title?: string | null;
-  lecture_color?: string | null;
-  lecture_chip_label?: string | null;
-  session_title?: string | null;
-  retake_count?: number | null;
-  submitted_at?: string | null;
-};
-
-type StudentHomeworkGrade = {
-  passed?: boolean | null;
-  achievement?: AchievementStatus | null;
-  score?: number | null;
-  max_score?: number | null;
-  lecture_id?: number | null;
-  session_id?: number | null;
-  homework_id?: number | string | null;
-  enrollment_id?: number | string | null;
-  title?: string | null;
-  lecture_title?: string | null;
-  lecture_color?: string | null;
-  lecture_chip_label?: string | null;
-  session_title?: string | null;
-  retake_count?: number | null;
-};
-
-type StudentGradesResponse = {
-  exams?: StudentExamGrade[];
-  homeworks?: StudentHomeworkGrade[];
-};
-
 type ClinicParticipant = {
   id: number | string;
   status?: string | null;
@@ -163,16 +127,16 @@ export default function StudentsDetailOverlay({
   });
 
   // 공유 데이터: 대시보드 + 탭에서 중복 호출 제거
-  const { data: gradesData } = useQuery({
+  const {
+    data: gradesData,
+    isLoading: gradesLoading,
+    isError: gradesError,
+    refetch: refetchGrades,
+  } = useQuery({
     queryKey: adminStudentsQueryKeys.studentGrades(id),
-    queryFn: async () => {
-      const res = await api.get<StudentGradesResponse>("/results/admin/student-grades/", { params: { student_id: id } });
-      return {
-        exams: Array.isArray(res.data.exams) ? res.data.exams : [],
-        homeworks: Array.isArray(res.data.homeworks) ? res.data.homeworks : [],
-      };
-    },
+    queryFn: () => fetchAdminStudentGrades(id),
     enabled: id > 0,
+    refetchOnMount: "always",
   });
   const examGrades = gradesData?.exams ?? [];
   const homeworkGrades = gradesData?.homeworks ?? [];
@@ -489,6 +453,7 @@ export default function StudentsDetailOverlay({
                   onTabChange={setTab}
                   enrollments={student.enrollments}
                   examGrades={examGrades}
+                  examSummary={gradesData?.exam_summary}
                   homeworkGrades={homeworkGrades}
                   clinicData={clinicData ?? []}
                   questionsData={questionsData ?? []}
@@ -496,7 +461,16 @@ export default function StudentsDetailOverlay({
 
                 <div className="ds-overlay-content-panel__scrollable">
                   {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
-                  {tab === "score" && <ScoreTab data={examGrades} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "score" && (
+                    <ScoreTab
+                      data={examGrades}
+                      trend={gradesData?.exam_trend ?? []}
+                      isLoading={gradesLoading}
+                      isError={gradesError}
+                      onRetry={() => { void refetchGrades(); }}
+                      onNavigate={(path) => { closeOverride?.(); navigate(path); }}
+                    />
+                  )}
                   {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
@@ -707,6 +681,7 @@ function StudentStatTabs({
   onTabChange,
   enrollments,
   examGrades,
+  examSummary,
   homeworkGrades,
   clinicData,
   questionsData,
@@ -715,6 +690,7 @@ function StudentStatTabs({
   onTabChange: (tab: StatTabKey) => void;
   enrollments: ClientEnrollmentLite[];
   examGrades: StudentExamGrade[];
+  examSummary?: StudentGradesResponse["exam_summary"];
   homeworkGrades: StudentHomeworkGrade[];
   clinicData: ClinicParticipant[];
   questionsData: CommunityPost[];
@@ -728,16 +704,16 @@ function StudentStatTabs({
     const ach: string | null | undefined = e.achievement;
     if (ach === "PASS" || ach === "REMEDIATED") examPassCount += 1;
     else if (ach === "FAIL") examFailCount += 1;
-    else if (ach === "NOT_SUBMITTED" || ach == null) {
+    else if (ach === "NOT_SUBMITTED") {
+      continue;
+    } else if (ach == null) {
       // achievement 필드 없는 구서버 폴백 — remediated/is_pass로 계산
       if (e.remediated === true || e.final_pass === true || e.is_pass === true) examPassCount += 1;
       else if (e.is_pass === false || e.final_pass === false) examFailCount += 1;
     }
   }
   const examJudged = examPassCount + examFailCount;
-  const avgScore = examGrades.length > 0
-    ? Math.round(examGrades.reduce((sum, exam) => sum + (exam.total_score ?? 0), 0) / examGrades.length)
-    : null;
+  const avgScore = examSummary?.average_score_pct ?? null;
   const passRate = examJudged > 0 ? `${Math.round((examPassCount / examJudged) * 100)}%` : null;
 
   const hwPassCount = homeworkGrades.filter((homework) => homework.passed === true).length;
@@ -760,7 +736,7 @@ function StudentStatTabs({
       key: "score",
       label: "시험",
       value: `${examGrades.length}건`,
-      sub: [avgScore != null ? `평균 ${avgScore}` : null, passRate ? `합격 ${passRate}` : null].filter(Boolean).join(" · ") || undefined,
+      sub: [avgScore != null ? `평균 ${avgScore}%` : null, passRate ? `합격 ${passRate}` : null].filter(Boolean).join(" · ") || undefined,
       tone: examJudged > 0 ? (examPassCount >= examFailCount ? "success" : "danger") : undefined,
     },
     {
@@ -1006,16 +982,53 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
 }
 
 /** 시험 성적 탭 — admin/student-grades API 기반 */
-function ScoreTab({ data, onNavigate }: { data: StudentExamGrade[]; onNavigate: (path: string) => void }) {
+function ScoreTab({
+  data,
+  trend,
+  isLoading,
+  isError,
+  onRetry,
+  onNavigate,
+}: {
+  data: StudentExamGrade[];
+  trend: StudentGradesResponse["exam_trend"];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  onNavigate: (path: string) => void;
+}) {
   const labels = useTenantLabels();
-  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="시험 성적이 없습니다." />;
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="성적 추이를 불러오는 중…" />;
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="성적 추이를 불러오지 못했습니다."
+        description="잠시 후 다시 불러와 주세요."
+        actions={<Button size="sm" onClick={onRetry}>다시 불러오기</Button>}
+      />
+    );
+  }
+  if (!data?.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="시험 성적이 없습니다."
+        description="첫 시험 점수가 입력되면 1회차부터 자동으로 누적됩니다."
+      />
+    );
+  }
 
   // PASS/FAIL 라벨은 학원장 커스텀 (Phase #5). REMEDIATED("보강합격")는 자체 정책.
   const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격" };
   const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
 
   return (
-    <div className={styles.tabList}>
+    <div>
+      <StudentScoreTrendChart points={trend} />
+      <div className={styles.tabList}>
       {data.map((exam, i) => {
         const lectureId = exam.lecture_id;
         const sessionId = exam.session_id;
@@ -1068,6 +1081,7 @@ function ScoreTab({ data, onNavigate }: { data: StudentExamGrade[]; onNavigate: 
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,342 @@
+import { expect, test, type Page } from "../fixtures/strictTest";
+
+const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
+
+function isLocalBase(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === "127.0.0.1" || hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+function fakeJwt(): string {
+  const payload = Buffer.from(JSON.stringify({
+    exp: Math.floor(Date.now() / 1000) + 60 * 60,
+  })).toString("base64url");
+  return `e30.${payload}.ymath`;
+}
+
+const student = {
+  id: 101,
+  name: "윤지용 학생",
+  ps_number: "YM001",
+  omr_code: "1042",
+  phone: "01012345678",
+  parent_phone: "01087654321",
+  high_school: "와이매스중학교",
+  grade: 2,
+  gender: "M",
+  is_managed: true,
+  created_at: "2026-03-01T09:00:00+09:00",
+  tags: [{ id: 91, name: "성장관찰", color: "#7c3aed" }],
+  enrollments: [
+    {
+      id: 201,
+      lecture: 501,
+      lecture_name: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      status: "ACTIVE",
+    },
+    {
+      id: 202,
+      lecture: 502,
+      lecture_name: "Ymath 경시 대비",
+      lecture_color: "#7c3aed",
+      lecture_chip_label: "경",
+      status: "ACTIVE",
+    },
+  ],
+};
+
+const grades = {
+  exams: [
+    {
+      exam_id: 301,
+      enrollment_id: 201,
+      title: "Ymath 주간 테스트 1회",
+      total_score: 40,
+      max_score: 50,
+      is_pass: true,
+      achievement: "PASS",
+      retake_count: 1,
+      session_id: 701,
+      session_title: "1차시",
+      lecture_id: 501,
+      lecture_title: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      submitted_at: "2026-07-01T18:00:00+09:00",
+      archived: true,
+    },
+    {
+      exam_id: 302,
+      enrollment_id: 201,
+      title: "Ymath 주간 테스트 2회",
+      total_score: 90,
+      max_score: 100,
+      is_pass: true,
+      achievement: "PASS",
+      retake_count: 2,
+      session_id: 702,
+      session_title: "2차시",
+      lecture_id: 501,
+      lecture_title: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      submitted_at: "2026-07-08T18:00:00+09:00",
+      archived: false,
+    },
+    {
+      exam_id: 303,
+      enrollment_id: 202,
+      title: "Ymath 경시 테스트 3회",
+      total_score: 48,
+      max_score: 50,
+      is_pass: true,
+      achievement: "PASS",
+      retake_count: 1,
+      session_id: 703,
+      session_title: "3차시",
+      lecture_id: 502,
+      lecture_title: "Ymath 경시 대비",
+      lecture_color: "#7c3aed",
+      lecture_chip_label: "경",
+      submitted_at: "2026-07-15T18:00:00+09:00",
+      archived: false,
+    },
+    {
+      exam_id: 304,
+      enrollment_id: 201,
+      title: "Ymath 주간 테스트 미응시",
+      total_score: null,
+      max_score: 100,
+      is_pass: false,
+      achievement: "NOT_SUBMITTED",
+      meta_status: "NOT_SUBMITTED",
+      retake_count: 1,
+      session_id: 704,
+      session_title: "4차시",
+      lecture_id: 501,
+      lecture_title: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      submitted_at: null,
+      archived: false,
+    },
+  ],
+  homeworks: [],
+  exam_trend: [
+    {
+      round_index: 1,
+      exam_id: 301,
+      enrollment_id: 201,
+      title: "Ymath 주간 테스트 1회",
+      score: 40,
+      max_score: 50,
+      score_pct: 80,
+      recorded_at: "2026-07-01T18:00:00+09:00",
+      session_id: 701,
+      session_title: "1차시",
+      session_order: 1,
+      session_regular_order: 1,
+      session_date: "2026-07-01",
+      lecture_id: 501,
+      lecture_title: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      retake_count: 1,
+      archived: true,
+    },
+    {
+      round_index: 2,
+      exam_id: 302,
+      enrollment_id: 201,
+      title: "Ymath 주간 테스트 2회",
+      score: 90,
+      max_score: 100,
+      score_pct: 90,
+      recorded_at: "2026-07-08T18:00:00+09:00",
+      session_id: 702,
+      session_title: "2차시",
+      session_order: 2,
+      session_regular_order: 2,
+      session_date: "2026-07-08",
+      lecture_id: 501,
+      lecture_title: "Ymath 중등 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "Y",
+      retake_count: 2,
+      archived: false,
+    },
+    {
+      round_index: 3,
+      exam_id: 303,
+      enrollment_id: 202,
+      title: "Ymath 경시 테스트 3회",
+      score: 48,
+      max_score: 50,
+      score_pct: 96,
+      recorded_at: "2026-07-15T18:00:00+09:00",
+      session_id: 703,
+      session_title: "3차시",
+      session_order: 3,
+      session_regular_order: 3,
+      session_date: "2026-07-15",
+      lecture_id: 502,
+      lecture_title: "Ymath 경시 대비",
+      lecture_color: "#7c3aed",
+      lecture_chip_label: "경",
+      retake_count: 1,
+      archived: false,
+    },
+  ],
+  exam_summary: {
+    scored_count: 3,
+    average_score_pct: 88.7,
+    latest_score_pct: 96,
+    change_pct_points: 6,
+    best_score_pct: 96,
+  },
+};
+
+async function installApi(page: Page): Promise<void> {
+  const access = fakeJwt();
+  await page.addInitScript(({ token }) => {
+    localStorage.setItem("access", token);
+    localStorage.setItem("refresh", "ymath-refresh");
+    localStorage.setItem("tenant_code", "hakwonplus");
+    localStorage.setItem("teacher:preferAdmin", "0");
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+  }, { token: access });
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (path.endsWith("/core/program/")) {
+      await route.fulfill({ json: {
+        tenantCode: "hakwonplus",
+        display_name: "Ymath",
+        is_active: true,
+        ui_config: {},
+        feature_flags: {},
+      } });
+      return;
+    }
+    if (path.endsWith("/core/me/")) {
+      await route.fulfill({ json: {
+        id: 1,
+        username: "ymath-admin",
+        name: "Ymath 선생님",
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+        must_change_password: false,
+      } });
+      return;
+    }
+    if (path.endsWith("/staffs/me/")) {
+      await route.fulfill({ json: { id: 1, name: "Ymath 선생님", role: "admin", user: 1 } });
+      return;
+    }
+    if (path.endsWith("/students/101/account-notifications/")) {
+      await route.fulfill({ json: { count: 0, results: [] } });
+      return;
+    }
+    if (path.endsWith("/students/101/")) {
+      await route.fulfill({ json: student });
+      return;
+    }
+    if (path.endsWith("/students/tags/")) {
+      await route.fulfill({ json: { count: 1, results: student.tags } });
+      return;
+    }
+    if (path.endsWith("/students/")) {
+      await route.fulfill({ json: { count: 1, page_size: 50, results: [student] } });
+      return;
+    }
+    if (path.endsWith("/results/admin/student-grades/")) {
+      await route.fulfill({ json: grades });
+      return;
+    }
+    await route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
+  });
+}
+
+async function assertTrend(component: ReturnType<Page["getByTestId"]>): Promise<void> {
+  await expect(component).toBeVisible();
+  await expect(component.getByText("회차별 성적 추이")).toBeVisible();
+  await expect(component).toContainText("자동 누적");
+  await expect(component).toContainText("최근96%");
+  await expect(component).toContainText("누적3회");
+  await expect(component).toContainText("평균88.7%");
+  await expect(component).toContainText("직전 대비+6%p");
+  await expect(component.getByText("1회차", { exact: true })).toBeVisible();
+  await expect(component.getByText("2회차", { exact: true })).toBeVisible();
+  await expect(component.getByText("3회차", { exact: true })).toBeVisible();
+}
+
+test.describe("학생별 회차 누적 성적 추이", () => {
+  test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
+  test.use({ serviceWorkers: "block" });
+
+  test("관리자 학생 상세에서 자동 누적·강의 필터·정규화 점수를 확인한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installApi(page);
+    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+
+    await page.locator('a[href="/admin/students"]').first().click();
+    await expect(page).toHaveURL(/\/admin\/students\/home/);
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await expect(page).toHaveURL(/\/admin\/students\/101/);
+    const examTab = page.getByRole("tab", { name: /^시험/ });
+    await expect(examTab).toContainText("합격 100%");
+    await examTab.click();
+
+    const component = page.getByTestId("student-score-trend");
+    await assertTrend(component);
+    await component.screenshot({ path: "test-results/student-score-trend/admin-1366.png" });
+
+    const dots = component.locator(".recharts-line-dots circle");
+    await expect(dots).toHaveCount(3);
+    await dots.nth(2).hover();
+    await expect(component).toContainText("48 / 50점 · 득점률 96%");
+
+    await component.getByRole("button", { name: /Ymath 중등 심화/ }).click();
+    await expect(component).toContainText("누적2회");
+    await expect(component.getByText("3회차", { exact: true })).toHaveCount(0);
+
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await expect(component).toBeVisible();
+    await page.screenshot({ path: "test-results/student-score-trend/admin-1100.png", fullPage: true });
+  });
+
+  test("선생 모바일 학생 상세에서도 회차 추이가 내부 스크롤로 안정적으로 보인다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page);
+    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded" });
+
+    await page.locator('a[href="/teacher/students"]').first().click();
+    await expect(page).toHaveURL(/\/teacher\/students$/);
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await expect(page).toHaveURL(/\/teacher\/students\/101/);
+    await page.getByRole("button", { name: "시험", exact: true }).click();
+
+    const component = page.getByTestId("student-score-trend");
+    await assertTrend(component);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/teacher-390.png", fullPage: true });
+    await page.mouse.move(380, 20);
+    await page.getByTestId("student-score-trend-chart").scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+    await page.screenshot({ path: "test-results/student-score-trend/teacher-390-chart.png" });
+  });
+});
