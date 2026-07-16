@@ -83,11 +83,19 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
   });
 
   test.afterAll(async () => {
-    // Cleanup: E2E 테스트 글 삭제
-    if (postId && adminPage) {
-      try { await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`); } catch { /* cleanup failure is not test failure */ }
+    try {
+      // Cleanup must use the author account and is part of the blocking contract.
+      // Silently accepting a failed admin DELETE previously left production residue.
+      if (postId && studentPage) {
+        const cleanupResp = await apiCall(studentPage, "DELETE", `/community/posts/${postId}/`);
+        expect(
+          [200, 204],
+          `QnA E2E cleanup failed for post ${postId}: HTTP ${cleanupResp.status}`,
+        ).toContain(cleanupResp.status);
+      }
+    } finally {
+      await studentPage?.context()?.close();
+      await adminPage?.context()?.close();
     }
-    await studentPage?.context()?.close();
-    await adminPage?.context()?.close();
   });
 });
