@@ -157,7 +157,7 @@ jobs:
   e2e-roundtrip:
     name: E2E 왕복 테스트 + tenant availability
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: [deploy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
@@ -197,26 +197,71 @@ jobs:
         run: |
           set -euo pipefail
           EXPECTED_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('.deploy-bundle/dist/version.json', 'utf8')).version")
-          mapfile -t PROBE_ASSETS < <(find .deploy-bundle/dist/assets -maxdepth 1 -type f \( -name 'NoticesPage-*.js' -o -name 'EmptyState-*.js' \) -printf '%f\n')
-          if [ "${#PROBE_ASSETS[@]}" -lt 2 ]; then
-            echo "::error::Required lazy-route probe assets are missing from deploy bundle"
-            exit 1
-          fi
+          PROBE_NAMES=(
+            AdminRouter StudentRouter DashboardPage ClinicPasscardModal
+            NoticesPage NoticeDetailPage QnaInboxPage CommunityPage
+            ClinicPage ClinicOperationsConsolePage LecturesPage LectureDetailPage
+            SessionDetailPage SessionScoresEntryPage SessionAssessmentSidePanel
+          )
+          PROBE_ASSETS=()
+          for NAME in "${PROBE_NAMES[@]}"; do
+            mapfile -t MATCHES < <(find .deploy-bundle/dist/assets -maxdepth 1 -type f -name "${NAME}-*.js" -printf '%f\n')
+            if [ "${#MATCHES[@]}" -eq 0 ]; then
+              echo "::error::Required lazy-route probe asset is missing from deploy bundle: ${NAME}"
+              exit 1
+            fi
+            PROBE_ASSETS+=("${MATCHES[@]}")
+          done
+          mapfile -t PROBE_ASSETS < <(printf '%s\n' "${PROBE_ASSETS[@]}" | sort -u)
+          echo "Checking ${#PROBE_ASSETS[@]} route-critical assets"
 
+          CURL_ARGS=(--connect-timeout 5 -fsS)
+          DEADLINE=$((SECONDS + 300))
+          ATTEMPT=0
           CONSECUTIVE=0
-          for ATTEMPT in $(seq 1 30); do
-            ACTUAL_VERSION=$(curl -fsS "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}" \
+          while [ "$SECONDS" -lt "$DEADLINE" ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            REMAINING=$((DEADLINE - SECONDS))
+            MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
+            ACTUAL_VERSION=$(curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}" \
               | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" \
               || true)
             READY=true
             if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
               READY=false
             fi
-            for ASSET in "${PROBE_ASSETS[@]}"; do
-              if ! curl -fsS -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
-                READY=false
-              fi
-            done
+            if [ "$READY" = true ]; then
+              # Confirm origin propagation without priming a canonical negative
+              # cache entry while the deployment is still incomplete.
+              for ASSET in "${PROBE_ASSETS[@]}"; do
+                REMAINING=$((DEADLINE - SECONDS))
+                if [ "$REMAINING" -le 0 ]; then
+                  READY=false
+                  break
+                fi
+                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
+                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+                  READY=false
+                  break
+                fi
+              done
+            fi
+            if [ "$READY" = true ]; then
+              # Vite imports use the exact query-less URL. This must also be
+              # healthy so a stale edge-cached 404 cannot slip past the gate.
+              for ASSET in "${PROBE_ASSETS[@]}"; do
+                REMAINING=$((DEADLINE - SECONDS))
+                if [ "$REMAINING" -le 0 ]; then
+                  READY=false
+                  break
+                fi
+                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
+                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}"; then
+                  READY=false
+                  break
+                fi
+              done
+            fi
 
             if [ "$READY" = true ]; then
               CONSECUTIVE=$((CONSECUTIVE + 1))
@@ -228,9 +273,13 @@ jobs:
               CONSECUTIVE=0
               echo "Cloudflare propagation check ${ATTEMPT}: waiting"
             fi
-            sleep 5
+            REMAINING=$((DEADLINE - SECONDS))
+            if [ "$REMAINING" -gt 0 ]; then
+              SLEEP_FOR=$((REMAINING < 5 ? REMAINING : 5))
+              sleep "$SLEEP_FOR"
+            fi
           done
-          echo "::error::Current Cloudflare build did not stabilize within 150s"
+          echo "::error::Current Cloudflare build did not stabilize within 300s"
           exit 1
 
       - name: Run production canary (login smoke)

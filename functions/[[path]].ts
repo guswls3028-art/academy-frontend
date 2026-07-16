@@ -412,11 +412,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (STATIC_EXT.test(pathname)) {
     const res = await context.env.ASSETS.fetch(context.request);
     const ct = res.headers.get("Content-Type") ?? "";
-    // 404이거나 200인데 HTML(SPA 폴백)이 오면 → MIME 오류 방지로 404 + 올바른 Content-Type 반환
-    if (ct.includes("text/html")) {
+    // 404이거나 200인데 HTML(SPA 폴백)이 오면 → MIME 오류 방지로
+    // 404 + 올바른 Content-Type 반환. 전파 중의 일시적 asset miss가
+    // edge에 오래 남지 않도록 negative response는 절대 캐시하지 않는다.
+    if (res.status >= 400 || ct.includes("text/html")) {
       return new Response("/* 404 Not Found */", {
         status: 404,
-        headers: { "Content-Type": contentTypeForPath(pathname) },
+        headers: {
+          "Content-Type": contentTypeForPath(pathname),
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
       });
     }
     return res;
