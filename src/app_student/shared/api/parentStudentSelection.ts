@@ -15,6 +15,18 @@ function storageKey(): string {
 
 let currentId: number | null = null;
 
+export function isStudentScopedQueryKey(queryKey: readonly unknown[]): boolean {
+  const head = queryKey[0];
+  if (typeof head !== "string") return false;
+  return (
+    head === "student" ||
+    head.startsWith("student-") ||
+    head === "clinic-idcard" ||
+    head === "video-comments" ||
+    head === "storage-quota"
+  );
+}
+
 export function getParentStudentId(): number | null {
   return currentId;
 }

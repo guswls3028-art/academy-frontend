@@ -19,21 +19,10 @@ import { cx } from "@/shared/utils/cx";
 import {
   getParentStudentId,
   initParentStudentId,
+  isStudentScopedQueryKey,
   setParentStudentId,
 } from "@student/shared/api/parentStudentSelection";
 import styles from "./ParentChildSwitcher.module.css";
-
-function isStudentScopedQueryKey(queryKey: readonly unknown[]): boolean {
-  const head = queryKey[0];
-  if (typeof head !== "string") return false;
-  return (
-    head === "student" ||
-    head.startsWith("student-") ||
-    head === "clinic-idcard" ||
-    head === "video-comments" ||
-    head === "storage-quota"
-  );
-}
 
 export default function ParentChildSwitcher() {
   const { user } = useAuthContext();

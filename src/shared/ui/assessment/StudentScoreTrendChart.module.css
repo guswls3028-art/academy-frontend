@@ -1,14 +1,22 @@
 .root {
-  --score-line: var(--color-brand-primary, #2563eb);
-  --score-grid: color-mix(in srgb, var(--color-border-divider, #e2e8f0) 72%, transparent);
+  --score-line: var(--stu-primary, var(--color-brand-primary, #2563eb));
+  --score-surface: var(--stu-surface, var(--color-bg-surface, #fff));
+  --score-surface-soft: var(--stu-surface-soft, var(--color-bg-surface-hover, #f8fafc));
+  --score-border: var(--stu-border, var(--color-border-divider, #e2e8f0));
+  --score-border-strong: var(--stu-border-strong, var(--color-border-strong, #cbd5e1));
+  --score-text: var(--stu-text, var(--color-text-primary, #0f172a));
+  --score-text-muted: var(--stu-text-muted, var(--color-text-muted, #64748b));
+  --score-success: var(--stu-success, var(--color-success, #16a34a));
+  --score-error: var(--stu-danger, var(--color-error, #dc2626));
+  --score-grid: color-mix(in srgb, var(--score-border) 72%, transparent);
   display: grid;
   gap: 14px;
   margin-bottom: 16px;
   padding: 18px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--score-line) 22%, var(--color-border-divider));
+  border: 1px solid color-mix(in srgb, var(--score-line) 22%, var(--score-border));
   border-radius: var(--radius-lg, 12px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--score-surface);
   box-shadow: 0 10px 30px color-mix(in srgb, var(--score-line) 7%, transparent);
 }
 
@@ -40,7 +48,7 @@
   place-items: center;
   border-radius: 10px;
   color: var(--score-line);
-  background: color-mix(in srgb, var(--score-line) 10%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--score-line) 10%, var(--score-surface));
 }
 
 .titleRow {
@@ -50,7 +58,7 @@
 
 .titleRow h3 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--score-text);
   font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -59,7 +67,7 @@
 .headingGroup p,
 .onePoint {
   margin: 4px 0 0;
-  color: var(--color-text-muted);
+  color: var(--score-text-muted);
   font-size: 11px;
   line-height: 1.5;
   word-break: keep-all;
@@ -74,25 +82,25 @@
 }
 
 .growth span {
-  color: var(--color-text-muted);
+  color: var(--score-text-muted);
   font-size: 10px;
   font-weight: 700;
 }
 
 .growth strong {
-  color: var(--color-text-primary);
+  color: var(--score-text);
   font-size: 18px;
   font-weight: 850;
 }
 
 .growth[data-tone="up"] strong,
 .metric[data-tone="up"] strong {
-  color: var(--color-success, #16a34a);
+  color: var(--score-success);
 }
 
 .growth[data-tone="down"] strong,
 .metric[data-tone="down"] strong {
-  color: var(--color-error, #dc2626);
+  color: var(--score-error);
 }
 
 .filters {
@@ -108,19 +116,19 @@
   min-height: 30px;
   padding: 4px 10px;
   flex-shrink: 0;
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid var(--score-border);
   border-radius: 999px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-surface);
+  color: var(--score-text-muted);
+  background: var(--score-surface);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .filters button[data-active="true"] {
-  border-color: color-mix(in srgb, var(--score-line) 48%, var(--color-border-divider));
+  border-color: color-mix(in srgb, var(--score-line) 48%, var(--score-border));
   color: var(--score-line);
-  background: color-mix(in srgb, var(--score-line) 8%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--score-line) 8%, var(--score-surface));
 }
 
 .filters button:focus-visible {
@@ -139,20 +147,20 @@
   gap: 3px;
   min-width: 0;
   padding: 9px 10px;
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid var(--score-border);
   border-radius: var(--radius-md, 8px);
-  background: color-mix(in srgb, var(--score-line) 2.5%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--score-line) 2.5%, var(--score-surface));
 }
 
 .metric > span {
-  color: var(--color-text-muted);
+  color: var(--score-text-muted);
   font-size: 10px;
   font-weight: 700;
 }
 
 .metric strong {
   gap: 2px;
-  color: var(--color-text-primary);
+  color: var(--score-text);
   font-size: 15px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -168,9 +176,9 @@
 .chartPaper {
   height: 248px;
   min-width: 100%;
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid var(--score-border);
   border-radius: var(--radius-md, 8px);
-  background-color: color-mix(in srgb, var(--score-line) 1.8%, var(--color-bg-surface));
+  background-color: color-mix(in srgb, var(--score-line) 1.8%, var(--score-surface-soft));
   background-image:
     linear-gradient(to right, var(--score-grid) 1px, transparent 1px),
     linear-gradient(to bottom, var(--score-grid) 1px, transparent 1px);
@@ -182,10 +190,10 @@
   max-width: 260px;
   gap: 3px;
   padding: 10px 12px;
-  border: 1px solid var(--color-border-strong, var(--color-border-divider));
+  border: 1px solid var(--score-border-strong);
   border-radius: var(--radius-md, 8px);
-  color: var(--color-text-secondary);
-  background: var(--color-bg-surface);
+  color: var(--score-text-muted);
+  background: var(--score-surface);
   box-shadow: var(--shadow-md, 0 12px 24px rgba(15, 23, 42, 0.14));
   font-size: 11px;
   line-height: 1.45;
@@ -193,7 +201,7 @@
 }
 
 .tooltip strong {
-  color: var(--color-text-primary);
+  color: var(--score-text);
   font-size: 12px;
 }
 
@@ -208,19 +216,19 @@
   place-content: center;
   gap: 5px;
   padding: 24px;
-  border: 1px dashed color-mix(in srgb, var(--score-line) 30%, var(--color-border-divider));
+  border: 1px dashed color-mix(in srgb, var(--score-line) 30%, var(--score-border));
   border-radius: var(--radius-md, 8px);
   text-align: center;
-  background: color-mix(in srgb, var(--score-line) 3%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--score-line) 3%, var(--score-surface));
 }
 
 .empty strong {
-  color: var(--color-text-primary);
+  color: var(--score-text);
   font-size: 13px;
 }
 
 .empty span {
-  color: var(--color-text-muted);
+  color: var(--score-text-muted);
   font-size: 11px;
 }
 
@@ -259,6 +267,10 @@
 
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 

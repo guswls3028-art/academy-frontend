@@ -93,6 +93,32 @@
   border-radius: var(--stu-radius);
 }
 
+.chartLegend {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--stu-space-4);
+  margin-bottom: var(--stu-space-2);
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chartLegend span::before {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 5px;
+  vertical-align: 3px;
+  content: "";
+  background: var(--stu-primary);
+  border-radius: 999px;
+}
+
+.chartLegend span[data-series="average"]::before {
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--stu-text-muted) 0 4px, transparent 4px 7px);
+}
+
 .analyticsSplit {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -197,22 +223,9 @@
   flex: 1;
 }
 
-.chartWrap,
 .weaknessCard {
   background: var(--stu-surface-soft);
   border-radius: var(--stu-radius);
-}
-
-.chartWrap {
-  padding: var(--stu-space-6);
-  min-width: 0;
-}
-
-.chartBox {
-  width: 100%;
-  min-width: 1px;
-  height: 160px;
-  min-height: 160px;
 }
 
 .trendChart {
@@ -264,35 +277,6 @@
   stroke: var(--stu-surface-1);
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
-}
-
-.filterPillWrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--stu-space-2);
-  margin-bottom: var(--stu-space-4);
-}
-
-.filterPill {
-  padding: var(--stu-space-2) var(--stu-space-4);
-  color: var(--stu-text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border-subtle);
-  border-radius: 999px;
-  transition:
-    background var(--stu-motion-base),
-    border-color var(--stu-motion-base),
-    color var(--stu-motion-base);
-}
-
-.filterPill[data-active="true"] {
-  color: var(--stu-primary-contrast, #fff);
-  background: var(--stu-primary);
-  border-color: var(--stu-primary);
 }
 
 .rankNotes {

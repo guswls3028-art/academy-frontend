@@ -27,6 +27,7 @@ import styles from "./StudentScoreTrendChart.module.css";
 type Props = {
   points: StudentExamTrendPoint[];
   className?: string;
+  audience?: "staff" | "learner";
 };
 
 type LectureOption = {
@@ -68,7 +69,7 @@ function ScoreTooltip({ active, payload }: TooltipContentProps<TooltipValueType,
   );
 }
 
-export default function StudentScoreTrendChart({ points, className }: Props) {
+export default function StudentScoreTrendChart({ points, className, audience = "staff" }: Props) {
   const titleId = useId();
   const [lectureFilter, setLectureFilter] = useState<StudentScoreLectureFilter>(ALL_LECTURES);
   const lectureOptions = useMemo(() => {
@@ -99,6 +100,7 @@ export default function StudentScoreTrendChart({ points, className }: Props) {
     <section
       className={[styles.root, className].filter(Boolean).join(" ")}
       aria-labelledby={titleId}
+      data-audience={audience}
       data-testid="student-score-trend"
     >
       <div className={styles.header}>
@@ -109,7 +111,11 @@ export default function StudentScoreTrendChart({ points, className }: Props) {
               <h3 id={titleId}>회차별 성적 추이</h3>
               <Badge size="xs" tone="info">자동 누적</Badge>
             </div>
-            <p>점수가 확정된 테스트를 시간순으로 쌓아 득점률로 비교합니다.</p>
+            <p>
+              {audience === "learner"
+                ? "시험이 추가될 때마다 1회차부터 자동으로 이어집니다. 서로 다른 만점은 득점률로 비교합니다."
+                : "점수가 입력된 테스트를 시간순으로 쌓아 득점률로 비교합니다."}
+            </p>
           </div>
         </div>
         {metrics.firstToLatest != null && (
@@ -137,7 +143,11 @@ export default function StudentScoreTrendChart({ points, className }: Props) {
       {displayPoints.length === 0 ? (
         <div className={styles.empty}>
           <strong>아직 연결할 점수가 없습니다.</strong>
-          <span>첫 시험 점수가 입력되면 1회차부터 자동으로 표시됩니다.</span>
+          <span>
+            {audience === "learner"
+              ? "첫 시험 점수가 입력되면 1회차 성적이 이곳에 표시됩니다."
+              : "첫 시험 점수가 입력되면 1회차부터 자동으로 표시됩니다."}
+          </span>
         </div>
       ) : (
         <>
@@ -156,18 +166,18 @@ export default function StudentScoreTrendChart({ points, className }: Props) {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={displayPoints} margin={{ top: 18, right: 24, bottom: 8, left: 2 }} accessibilityLayer>
                   <CartesianGrid stroke="var(--score-grid)" strokeDasharray="2 6" vertical />
-                  <XAxis dataKey="round_label" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
-                  <YAxis domain={[0, chartUpperBound]} width={34} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} tick={{ fontSize: 10, fill: "var(--color-text-muted)" }} />
-                  <ReferenceLine y={metrics.average ?? 0} stroke="var(--color-text-muted)" strokeDasharray="5 5" strokeOpacity={0.55} />
-                  <Tooltip content={ScoreTooltip} cursor={{ stroke: "var(--color-border-strong)", strokeDasharray: "3 4" }} />
+                  <XAxis dataKey="round_label" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 11, fill: "var(--score-text-muted)" }} />
+                  <YAxis domain={[0, chartUpperBound]} width={34} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} tick={{ fontSize: 10, fill: "var(--score-text-muted)" }} />
+                  <ReferenceLine y={metrics.average ?? 0} stroke="var(--score-text-muted)" strokeDasharray="5 5" strokeOpacity={0.55} />
+                  <Tooltip content={ScoreTooltip} cursor={{ stroke: "var(--score-border-strong)", strokeDasharray: "3 4" }} />
                   <Line
                     type="monotone"
                     dataKey="score_pct"
                     name="득점률"
                     stroke="var(--score-line)"
                     strokeWidth={3}
-                    dot={{ r: 5, fill: "var(--color-bg-surface)", stroke: "var(--score-line)", strokeWidth: 3 }}
-                    activeDot={{ r: 7, fill: "var(--score-line)", stroke: "var(--color-bg-surface)", strokeWidth: 3 }}
+                    dot={{ r: 5, fill: "var(--score-surface)", stroke: "var(--score-line)", strokeWidth: 3 }}
+                    activeDot={{ r: 7, fill: "var(--score-line)", stroke: "var(--score-surface)", strokeWidth: 3 }}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -198,7 +208,7 @@ function ChangeMetric({ value }: { value: number | null }) {
   return (
     <div className={styles.metric} data-tone={tone}>
       <span>직전 대비</span>
-      <strong><Icon size={ICON.sm} aria-hidden />{value == null ? "-" : `${value > 0 ? "+" : ""}${value}%p`}</strong>
+      <strong><Icon size={ICON.sm} aria-hidden />{value == null ? "다음 시험 후" : `${value > 0 ? "+" : ""}${value}%p`}</strong>
     </div>
   );
 }

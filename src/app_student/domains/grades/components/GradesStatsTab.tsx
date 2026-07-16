@@ -2,18 +2,18 @@
  * 성적 통계 탭 — StatCard 그리드 + 추이 차트 + 과제 진행바
  * GradesPage에서 추출.
  */
-import { useState, useMemo } from "react";
-import EmptyState from "@student/layout/EmptyState";
+import { useMemo } from "react";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
+import type { StudentExamTrendPoint } from "@/shared/api/contracts/studentGrades";
+import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
 import styles from "./GradesStatsTab.module.css";
-
-const ALL_FILTER = "__all__";
 
 type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+  examTrend: StudentExamTrendPoint[];
   analytics?: MyGradesAnalytics;
   analyticsLoading?: boolean;
   analyticsError?: boolean;
@@ -25,9 +25,7 @@ type TrendDatum = {
   전체평균?: number;
 };
 
-export default function GradesStatsTab({ exams, homeworks, analytics, analyticsLoading, analyticsError }: Props) {
-  const [lectureFilter, setLectureFilter] = useState<string>(ALL_FILTER);
-
+export default function GradesStatsTab({ exams, homeworks, examTrend, analytics, analyticsLoading, analyticsError }: Props) {
   const examStats = useMemo(() => {
     if (exams.length === 0) return null;
     const scoredExams = exams.filter((e) => e.total_score != null);
@@ -59,32 +57,6 @@ export default function GradesStatsTab({ exams, homeworks, analytics, analyticsL
       : null;
     return { avgPct: Math.round(avgPct), passRate: Math.round(passRate), count: exams.length, avgRank };
   }, [exams]);
-
-  const lectureNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const e of exams) {
-      if (e.lecture_title) names.add(e.lecture_title);
-    }
-    return Array.from(names);
-  }, [exams]);
-
-  const trendData = useMemo(() => {
-    const filtered = lectureFilter === ALL_FILTER
-      ? exams
-      : exams.filter((e) => e.lecture_title === lectureFilter);
-    return filtered
-      .filter((e) => e.submitted_at && e.max_score > 0 && e.total_score != null)
-      .sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime())
-      .map((e) => ({
-        name: e.title.length > 6 ? e.title.slice(0, 6) + "\u2026" : e.title,
-        득점률: Math.round(((e.total_score ?? 0) / e.max_score) * 100),
-        전체평균: e.cohort_avg != null && e.max_score > 0
-          ? Math.round((e.cohort_avg / e.max_score) * 100)
-          : undefined,
-      }));
-  }, [exams, lectureFilter]);
-
-  const hasAvgLine = trendData.some((d) => d.전체평균 != null);
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
@@ -135,12 +107,10 @@ export default function GradesStatsTab({ exams, homeworks, analytics, analyticsL
   const homeworkPassPct = hwStats && hwStats.total > 0 ? (hwStats.passed / hwStats.total) * 100 : 0;
   const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
 
-  if (exams.length === 0 && homeworks.length === 0) {
-    return <EmptyState title="성적 데이터가 없습니다." description="시험이나 과제 결과가 입력되면 통계가 표시됩니다." />;
-  }
-
   return (
     <div className={styles.stack}>
+      <StudentScoreTrendChart points={examTrend} audience="learner" />
+
       <AnalyticsOverview
         analytics={analytics}
         loading={analyticsLoading}
@@ -168,26 +138,6 @@ export default function GradesStatsTab({ exams, homeworks, analytics, analyticsL
                 }
               </StatGrid>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 점수 추이 차트 */}
-      {trendData.length >= 2 && (
-        <div data-guide="grades-chart" className={styles.chartWrap}>
-          <div className={styles.sectionTitle}>점수 추이</div>
-
-          {lectureNames.length >= 2 && (
-            <div className={styles.filterPillWrap}>
-              <FilterPill label="전체" active={lectureFilter === ALL_FILTER} onClick={() => setLectureFilter(ALL_FILTER)} />
-              {lectureNames.map((name) => (
-                <FilterPill key={name} label={name} active={lectureFilter === name} onClick={() => setLectureFilter(name)} />
-              ))}
-            </div>
-          )}
-
-          <div className={styles.chartBox}>
-            <TrendChart data={trendData} showAverage={hasAvgLine} />
           </div>
         </div>
       )}
@@ -271,8 +221,8 @@ function AnalyticsOverview({
     return (
       <div className={styles.analyticsPanel}>
         <div className={styles.analyticsHeader}>
-          <span>전문 분석</span>
-          <span className={styles.analyticsMeta}>실제 성적 기준</span>
+          <span>성적 비교</span>
+          <span className={styles.analyticsMeta}>전체 평균과 비교</span>
         </div>
         <div className={styles.analyticsSkeletonGrid}>
           <div />
@@ -284,7 +234,7 @@ function AnalyticsOverview({
   }
   if (error || !analytics) {
     return error ? (
-      <div className={styles.analyticsNotice}>전문 분석을 불러오지 못했습니다.</div>
+      <div className={styles.analyticsNotice}>비교 분석을 불러오지 못했습니다. 누적 성적은 위 그래프에서 계속 확인할 수 있습니다.</div>
     ) : null;
   }
 
@@ -301,10 +251,10 @@ function AnalyticsOverview({
   const highlight = analytics.highlights?.weakest_exam ?? analytics.highlights?.latest_exam;
 
   return (
-    <section className={styles.analyticsPanel} aria-label="전문 성적 분석">
+    <section className={styles.analyticsPanel} aria-label="성적 비교">
       <div className={styles.analyticsHeader}>
-        <span>전문 분석</span>
-        <span className={styles.analyticsMeta}>최근 {analytics.date_range?.days ?? 365}일</span>
+        <span>성적 비교</span>
+        <span className={styles.analyticsMeta}>내 기록과 전체 평균</span>
       </div>
 
       <div className={styles.analyticsGrid}>
@@ -326,8 +276,18 @@ function AnalyticsOverview({
       </div>
 
       {trendData.length >= 2 && (
-        <div className={styles.analyticsChartBox}>
-          <TrendChart data={trendData} showAverage={trendData.some((row) => row.전체평균 != null)} />
+        <div>
+          <div className={styles.chartLegend} role="list" aria-label="최근 성적 비교 그래프 범례">
+            <span role="listitem" data-series="score">내 득점률</span>
+            {trendData.some((row) => row.전체평균 != null) && <span role="listitem" data-series="average">전체 평균</span>}
+          </div>
+          <div className={styles.analyticsChartBox}>
+            <TrendChart
+              data={trendData}
+              showAverage={trendData.some((row) => row.전체평균 != null)}
+              ariaLabel="최근 시험 득점률과 전체 평균 비교. 실선은 내 득점률, 점선은 전체 평균입니다."
+            />
+          </div>
         </div>
       )}
 
@@ -389,21 +349,7 @@ function riskLabel(value: string) {
   return { label: "데이터 적음", className: "riskNeutral" };
 }
 
-function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={styles.filterPill}
-      data-active={active}
-      aria-pressed={active}
-    >
-      {label}
-    </button>
-  );
-}
-
-function TrendChart({ data, showAverage }: { data: TrendDatum[]; showAverage: boolean }) {
+function TrendChart({ data, showAverage, ariaLabel = "점수 추이" }: { data: TrendDatum[]; showAverage: boolean; ariaLabel?: string }) {
   const width = 320;
   const height = 160;
   const plot = { left: 34, right: 12, top: 12, bottom: 28 };
@@ -418,7 +364,7 @@ function TrendChart({ data, showAverage }: { data: TrendDatum[]; showAverage: bo
     .join(" ");
 
   return (
-    <svg className={styles.trendChart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="점수 추이">
+    <svg className={styles.trendChart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
       {[0, 50, 100].map((tick) => (
         <g key={tick}>
           <line className={styles.chartGridLine} x1={plot.left} x2={width - plot.right} y1={y(tick)} y2={y(tick)} />

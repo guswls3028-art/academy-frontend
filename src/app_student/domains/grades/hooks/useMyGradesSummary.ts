@@ -9,6 +9,7 @@ export function useMyGradesSummary(opts?: { enabled?: boolean }) {
     queryKey: studentQueryKeys.gradesSummary,
     queryFn: fetchMyGradesSummary,
     staleTime: 60 * 1000,
+    refetchOnMount: "always",
     enabled: opts?.enabled ?? true,
   });
 }

@@ -4,9 +4,15 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import { initParentStudentId } from "@student/shared/api/parentStudentSelection";
+import {
+  getParentStudentId,
+  initParentStudentId,
+  isStudentScopedQueryKey,
+  setParentStudentId,
+} from "@student/shared/api/parentStudentSelection";
 import { StudentThemeProvider } from "@student/shared/context/StudentThemeContext";
 import { useStudentTheme } from "@student/shared/context/studentTheme";
 import "../shared/ui/theme/tokens.css";
@@ -65,22 +71,39 @@ function StudentLayoutInner() {
   const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
   const { user } = useAuthContext();
+  const queryClient = useQueryClient();
 
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
 
+  const clearStudentScopedQueries = useCallback(() => {
+    const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
+      isStudentScopedQueryKey(query.queryKey);
+    void queryClient.resetQueries({ predicate: studentScopePredicate });
+    queryClient.removeQueries({ predicate: studentScopePredicate });
+    void queryClient.invalidateQueries({ predicate: studentScopePredicate });
+  }, [queryClient]);
+
   useEffect(() => {
     if (user?.tenantRole !== "parent") {
+      const previousId = getParentStudentId();
+      setParentStudentId(null);
+      if (previousId != null) clearStudentScopedQueries();
       setParentSelectionReady(true);
       return;
     }
     const ids = user.linkedStudents?.map((s) => s.id) ?? [];
     if (!ids.length) {
+      const previousId = getParentStudentId();
+      setParentStudentId(null);
+      if (previousId != null) clearStudentScopedQueries();
       setParentSelectionReady(true);
       return;
     }
-    initParentStudentId(ids);
+    const previousId = getParentStudentId();
+    const nextId = initParentStudentId(ids);
+    if (previousId !== nextId) clearStudentScopedQueries();
     setParentSelectionReady(true);
-  }, [user?.tenantRole, user?.linkedStudents]);
+  }, [clearStudentScopedQueries, user?.tenantRole, user?.linkedStudents]);
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
   useEffect(() => {

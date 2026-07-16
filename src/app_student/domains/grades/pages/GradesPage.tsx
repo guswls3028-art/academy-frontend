@@ -27,6 +27,7 @@ export default function GradesPage() {
   } = useMyGradesAnalytics({ enabled: tab === "stats" && !isLoading && !isError });
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
+  const examTrend = data?.exam_trend ?? [];
   const labels = data?.labels;
   const shellTitle = tab === "stats" ? "성장 그래프" : "성적 보드";
   const shellDescription =
@@ -62,6 +63,7 @@ export default function GradesPage() {
         <GradesStatsTab
           exams={exams}
           homeworks={homeworks}
+          examTrend={examTrend}
           analytics={analytics}
           analyticsLoading={analyticsLoading}
           analyticsError={analyticsError}

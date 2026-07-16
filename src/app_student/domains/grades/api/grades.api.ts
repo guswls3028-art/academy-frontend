@@ -1,6 +1,10 @@
 // PATH: src/app_student/domains/grades/api/grades.ts
 
 import api from "@student/shared/api/student.api";
+import type {
+  StudentExamSummary,
+  StudentExamTrendPoint,
+} from "@/shared/api/contracts/studentGrades";
 
 /** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격, NOT_SUBMITTED=미응시 */
 export type Achievement = "PASS" | "REMEDIATED" | "FAIL" | "NOT_SUBMITTED";
@@ -46,8 +50,18 @@ export type MyHomeworkGradeSummary = {
 export type MyGradesSummary = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+  exam_trend: StudentExamTrendPoint[];
+  exam_summary: StudentExamSummary;
   /** 학원장이 커스텀한 합/불 라벨. 빈 문자열이면 GradeBadge 기본값 사용. */
   labels?: { pass?: string; fail?: string };
+};
+
+const EMPTY_EXAM_SUMMARY: StudentExamSummary = {
+  scored_count: 0,
+  average_score_pct: null,
+  latest_score_pct: null,
+  change_pct_points: null,
+  best_score_pct: null,
 };
 
 export type MyGradesAnalytics = {
@@ -108,6 +122,8 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   return {
     exams: Array.isArray(data.exams) ? data.exams : [],
     homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],
+    exam_trend: Array.isArray(data.exam_trend) ? data.exam_trend : [],
+    exam_summary: data.exam_summary ?? EMPTY_EXAM_SUMMARY,
     labels: data.labels ?? undefined,
   };
 }
