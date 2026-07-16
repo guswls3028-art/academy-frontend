@@ -122,11 +122,11 @@ export default function StudentScoreTrendChart({ points, className }: Props) {
 
       {lectureOptions.length > 1 && (
         <div className={styles.filters} aria-label="강의별 성적 추이">
-          <button type="button" data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
+          <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
             전체
           </button>
           {lectureOptions.map((option) => (
-            <button key={option.id} type="button" data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
+            <button key={option.id} type="button" aria-pressed={selectedLecture === option.id} data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
               <LectureChip lectureName={option.title} color={option.color ?? undefined} chipLabel={option.chipLabel} size={20} />
               <span>{option.title}</span>
             </button>

@@ -136,13 +136,15 @@ export function AchievementBadge({
   passed?: boolean | null;
   achievement?: string | null;
 }) {
-  // SSOT: achievement(PASS/REMEDIATED/FAIL) 우선, passed boolean fallback.
+  // SSOT: achievement(PASS/REMEDIATED/FAIL/NOT_SUBMITTED) 우선,
+  // achievement가 없을 때만 passed boolean fallback.
   // 일부 응답이 achievement만 주거나 passed만 주는 경우 모두 대응.
   // 2026-05-13: Tenant.pass_label/fail_label 학원장 커스텀 라벨 반영.
   const labels = useTenantLabels();
+  if (achievement === "NOT_SUBMITTED") return <Badge tone="neutral">미응시</Badge>;
   if (achievement === "REMEDIATED") return <Badge tone="info">{`보강 ${labels.pass}`}</Badge>;
-  if (achievement === "PASS" || passed === true) return <Badge tone="success">{labels.pass}</Badge>;
-  if (achievement === "FAIL" || passed === false) return <Badge tone="danger">{labels.fail}</Badge>;
+  if (achievement === "PASS" || (achievement == null && passed === true)) return <Badge tone="success">{labels.pass}</Badge>;
+  if (achievement === "FAIL" || (achievement == null && passed === false)) return <Badge tone="danger">{labels.fail}</Badge>;
   return null;
 }
 

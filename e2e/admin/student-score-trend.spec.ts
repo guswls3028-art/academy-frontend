@@ -202,7 +202,7 @@ const grades = {
   },
 };
 
-async function installApi(page: Page): Promise<void> {
+async function installApi(page: Page, options: { failGrades?: boolean } = {}): Promise<void> {
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -262,6 +262,10 @@ async function installApi(page: Page): Promise<void> {
       return;
     }
     if (path.endsWith("/results/admin/student-grades/")) {
+      if (options.failGrades) {
+        await route.fulfill({ status: 500, json: { detail: "성적 조회 일시 실패" } });
+        return;
+      }
       await route.fulfill({ json: grades });
       return;
     }
@@ -301,6 +305,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     const component = page.getByTestId("student-score-trend");
     await assertTrend(component);
+    await expect(page.getByText("미응시", { exact: true })).toBeVisible();
     await component.screenshot({ path: "test-results/student-score-trend/admin-1366.png" });
 
     const dots = component.locator(".recharts-line-dots circle");
@@ -317,6 +322,25 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.screenshot({ path: "test-results/student-score-trend/admin-1100.png", fullPage: true });
   });
 
+  test("성적 API 오류를 실제 0건으로 오인시키지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { failGrades: true });
+    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+
+    await page.locator('a[href="/admin/students"]').first().click();
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    const examTab = page.getByRole("tab", { name: /시험/ });
+    await expect(examTab).toContainText("확인 필요");
+    await expect(examTab).toContainText("불러오기 실패");
+    await examTab.click();
+    await expect(page.getByText("성적 추이를 불러오지 못했습니다.")).toBeVisible();
+
+    const homeworkTab = page.getByRole("tab", { name: /과제/ });
+    await expect(homeworkTab).toContainText("확인 필요");
+    await homeworkTab.click();
+    await expect(page.getByText("과제 성적을 불러오지 못했습니다.")).toBeVisible();
+  });
+
   test("선생 모바일 학생 상세에서도 회차 추이가 내부 스크롤로 안정적으로 보인다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installApi(page);
@@ -330,6 +354,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     const component = page.getByTestId("student-score-trend");
     await assertTrend(component);
+    await expect(page.getByText("미응시", { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/teacher-390.png", fullPage: true });
     await page.mouse.move(380, 20);

@@ -191,8 +191,17 @@ export default function StudentDetailPage() {
       {/* Summary KPI */}
       <div className="grid grid-cols-3 gap-2">
         <KpiCard label="수강" value={enrollments.filter((e) => e.status === "ACTIVE").length} sub={`/${enrollments.length}`} />
-        <KpiCard label="시험" value={exams.length} sub={averageScore != null ? `평균 ${averageScore}%` : undefined} />
-        <KpiCard label="합격률" value={judgedExams.length ? `${Math.round((passCount / judgedExams.length) * 100)}%` : "-"} color={passCount > failCount ? "var(--tc-success)" : undefined} />
+        <KpiCard
+          label="시험"
+          value={gradesLoading ? "…" : gradesError ? "-" : exams.length}
+          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : averageScore != null ? `평균 ${averageScore}%` : undefined}
+        />
+        <KpiCard
+          label="합격률"
+          value={gradesLoading || gradesError ? "-" : judgedExams.length ? `${Math.round((passCount / judgedExams.length) * 100)}%` : "-"}
+          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : undefined}
+          color={!gradesLoading && !gradesError && passCount > failCount ? "var(--tc-success)" : undefined}
+        />
       </div>
 
       {/* 5 Tabs */}
@@ -219,7 +228,14 @@ export default function StudentDetailPage() {
           onRetry={() => { void refetchGrades(); }}
         />
       )}
-      {tab === "homework" && <HomeworkList results={homeworks} />}
+      {tab === "homework" && (
+        <HomeworkList
+          results={homeworks}
+          isLoading={gradesLoading}
+          isError={gradesError}
+          onRetry={() => { void refetchGrades(); }}
+        />
+      )}
       {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
 
@@ -326,7 +342,28 @@ function ExamList({
   );
 }
 
-function HomeworkList({ results }: { results: StudentHomeworkGrade[] }) {
+function HomeworkList({
+  results,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  results: StudentHomeworkGrade[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  if (isLoading) {
+    return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
+  }
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <EmptyState scope="panel" tone="error" title="과제 성적을 불러오지 못했습니다" description="잠시 후 다시 불러와 주세요." />
+        <button type="button" onClick={onRetry} className="text-xs font-bold" style={{ color: "var(--tc-primary)" }}>다시 불러오기</button>
+      </div>
+    );
+  }
   if (!results.length) {
     return (
       <EmptyState
@@ -340,7 +377,7 @@ function HomeworkList({ results }: { results: StudentHomeworkGrade[] }) {
   return (
     <div className="flex flex-col gap-1.5">
       {results.map((r) => (
-        <Card key={r.homework_id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+        <Card key={`${r.homework_id}-${r.session_id ?? "none"}-${r.enrollment_id}`} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
           <div className="flex items-center gap-2">
             {r.lecture_color && <LectureChip lectureName={r.lecture_title ?? ""} color={r.lecture_color} chipLabel={r.lecture_chip_label ?? undefined} size={20} />}
             <div className="flex-1 min-w-0">

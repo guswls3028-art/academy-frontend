@@ -455,6 +455,8 @@ export default function StudentsDetailOverlay({
                   examGrades={examGrades}
                   examSummary={gradesData?.exam_summary}
                   homeworkGrades={homeworkGrades}
+                  gradesLoading={gradesLoading}
+                  gradesError={gradesError}
                   clinicData={clinicData ?? []}
                   questionsData={questionsData ?? []}
                 />
@@ -471,7 +473,15 @@ export default function StudentsDetailOverlay({
                       onNavigate={(path) => { closeOverride?.(); navigate(path); }}
                     />
                   )}
-                  {tab === "homework" && <HomeworkTab data={homeworkGrades} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "homework" && (
+                    <HomeworkTab
+                      data={homeworkGrades}
+                      isLoading={gradesLoading}
+                      isError={gradesError}
+                      onRetry={() => { void refetchGrades(); }}
+                      onNavigate={(path) => { closeOverride?.(); navigate(path); }}
+                    />
+                  )}
                   {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                 </div>
@@ -683,6 +693,8 @@ function StudentStatTabs({
   examGrades,
   examSummary,
   homeworkGrades,
+  gradesLoading,
+  gradesError,
   clinicData,
   questionsData,
 }: {
@@ -692,6 +704,8 @@ function StudentStatTabs({
   examGrades: StudentExamGrade[];
   examSummary?: StudentGradesResponse["exam_summary"];
   homeworkGrades: StudentHomeworkGrade[];
+  gradesLoading: boolean;
+  gradesError: boolean;
   clinicData: ClinicParticipant[];
   questionsData: CommunityPost[];
 }) {
@@ -735,15 +749,19 @@ function StudentStatTabs({
     {
       key: "score",
       label: "시험",
-      value: `${examGrades.length}건`,
-      sub: [avgScore != null ? `평균 ${avgScore}%` : null, passRate ? `합격 ${passRate}` : null].filter(Boolean).join(" · ") || undefined,
+      value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${examGrades.length}건`,
+      sub: gradesLoading
+        ? "불러오는 중"
+        : gradesError
+          ? "불러오기 실패"
+          : [avgScore != null ? `평균 ${avgScore}%` : null, passRate ? `합격 ${passRate}` : null].filter(Boolean).join(" · ") || undefined,
       tone: examJudged > 0 ? (examPassCount >= examFailCount ? "success" : "danger") : undefined,
     },
     {
       key: "homework",
       label: "과제",
-      value: `${hwTotal}건`,
-      sub: hwTotal > 0 ? `완료 ${hwPassCount}` : undefined,
+      value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${hwTotal}건`,
+      sub: gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : hwTotal > 0 ? `완료 ${hwPassCount}` : undefined,
     },
     {
       key: "clinic",
@@ -1022,8 +1040,8 @@ function ScoreTab({
   }
 
   // PASS/FAIL 라벨은 학원장 커스텀 (Phase #5). REMEDIATED("보강합격")는 자체 정책.
-  const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격" };
-  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
+  const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격", NOT_SUBMITTED: "미응시" };
+  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning", NOT_SUBMITTED: "muted" };
 
   return (
     <div>
@@ -1087,7 +1105,31 @@ function ScoreTab({
 }
 
 /** 과제 탭 — admin/student-grades API 기반 */
-function HomeworkTab({ data, onNavigate }: { data: StudentHomeworkGrade[]; onNavigate: (path: string) => void }) {
+function HomeworkTab({
+  data,
+  isLoading,
+  isError,
+  onRetry,
+  onNavigate,
+}: {
+  data: StudentHomeworkGrade[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  onNavigate: (path: string) => void;
+}) {
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="과제 성적을 불러오지 못했습니다."
+        description="잠시 후 다시 불러와 주세요."
+        actions={<Button size="sm" onClick={onRetry}>다시 불러오기</Button>}
+      />
+    );
+  }
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
 
   const achievementLabel: Record<string, string> = { PASS: "완료", FAIL: "미완료", REMEDIATED: "보강완료" };
