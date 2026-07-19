@@ -202,6 +202,56 @@ const grades = {
   },
 };
 
+const performanceConsole = {
+  period: { days: 180, from: "2026-01-20", to: "2026-07-19" },
+  summary: {
+    student_count: 1,
+    scored_student_count: 1,
+    result_count: 3,
+    average_score_pct: 88.7,
+    under_60_student_count: 0,
+    improving_student_count: 1,
+    declining_student_count: 0,
+  },
+  filter_options: {
+    lectures: student.enrollments.map((enrollment) => ({
+      id: enrollment.lecture,
+      title: enrollment.lecture_name,
+      color: enrollment.lecture_color,
+      chip_label: enrollment.lecture_chip_label,
+      is_active: true,
+    })),
+    grades: [2],
+  },
+  students: [{
+    student_id: student.id,
+    name: student.name,
+    display_name: student.name,
+    grade: student.grade,
+    school_type: "MIDDLE",
+    school: student.high_school,
+    lectures: student.enrollments.map((enrollment) => ({
+      id: enrollment.lecture,
+      title: enrollment.lecture_name,
+      color: enrollment.lecture_color,
+      chip_label: enrollment.lecture_chip_label,
+      is_active: true,
+      enrollment_id: enrollment.id,
+      enrollment_status: enrollment.status,
+    })),
+    scored_count: 3,
+    average_score_pct: 88.7,
+    latest_score_pct: 96,
+    change_pct_points: 6,
+    first_to_latest_pct_points: 16,
+    best_score_pct: 96,
+    latest_exam_title: "Ymath 경시 테스트 3회",
+    last_recorded_at: "2026-07-15T18:00:00+09:00",
+    score_band: "80_plus",
+    trend_direction: "up",
+  }],
+};
+
 async function installApi(page: Page, options: { failGrades?: boolean } = {}): Promise<void> {
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
@@ -269,6 +319,22 @@ async function installApi(page: Page, options: { failGrades?: boolean } = {}): P
       await route.fulfill({ json: grades });
       return;
     }
+    if (path.endsWith("/results/admin/student-performance/")) {
+      await route.fulfill({ json: performanceConsole });
+      return;
+    }
+    if (path.endsWith("/results/admin/landing-stats/")) {
+      await route.fulfill({ json: {
+        active_lectures: 2,
+        active_exams: 3,
+        pending_submissions: 0,
+        done_last_7d: 3,
+        failed_last_24h: 0,
+        pending_top: [],
+        recent_done_top: [],
+      } });
+      return;
+    }
     await route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
   });
 }
@@ -289,6 +355,44 @@ async function assertTrend(component: ReturnType<Page["getByTestId"]>): Promise<
 test.describe("학생별 회차 누적 성적 추이", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block" });
+
+  test("관리자 성적 콘솔에서 학생별 누적 추이와 다중 필터를 함께 관리한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 960 });
+    await installApi(page);
+    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+
+    await page.locator('a[href="/admin/results"]').first().click();
+    await expect(page).toHaveURL(/\/admin\/results$/);
+    const console = page.getByTestId("results-performance-console");
+    await expect(console).toBeVisible();
+    await expect(console.getByText("학생의 변화를 회차로 봅니다")).toBeVisible();
+    await expect(console.getByText("시험 추가 시 자동 누적")).toBeVisible();
+    await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
+    await expect(console.getByText("최근96%").first()).toBeVisible();
+
+    const detail = page.getByTestId("performance-student-detail");
+    await expect(detail).toContainText("윤지용 학생");
+    await assertTrend(detail.getByTestId("student-score-trend"));
+    await expect(detail.getByText("1회차", { exact: true }).first()).toBeVisible();
+    await expect(detail.getByText("3회차", { exact: true }).first()).toBeVisible();
+
+    await console.getByLabel("강의").selectOption("501");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적2회");
+    await expect(detail.getByText("3회차", { exact: true })).toHaveCount(0);
+    await console.getByRole("button", { name: /초기화/ }).first().click();
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
+
+    await console.getByLabel("득점 구간").selectOption("under_60");
+    await expect(console.getByText("조건에 맞는 학생이 없습니다")).toBeVisible();
+    await console.getByRole("button", { name: /초기화/ }).first().click();
+    await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
+
+    await page.screenshot({ path: "test-results/student-score-trend/results-console-1366.png", fullPage: true });
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await expect(console).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/results-console-1100.png", fullPage: true });
+  });
 
   test("관리자 학생 상세에서 자동 누적·강의 필터·정규화 점수를 확인한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });

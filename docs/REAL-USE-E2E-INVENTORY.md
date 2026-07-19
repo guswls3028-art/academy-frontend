@@ -42,7 +42,7 @@
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
 | OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts` | OMR CTA, 더보기, 편집모드, 발송 차단, 테이블 UX 확인 | 고정 fixture 의존 |
-| 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자·선생 학생 상세 진입, 만점 정규화, 자동 회차, 강의 필터, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
+| 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 기간·강의·학년·득점·변화 필터와 학생 선택, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
 | 공지 왕복 | `e2e/flows/notice-roundtrip.spec.ts` | 관리자 작성->학생 확인 roundtrip | 시각/초심자 판정은 부족 |
 | QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |

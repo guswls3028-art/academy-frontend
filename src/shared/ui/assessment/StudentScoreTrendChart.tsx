@@ -28,6 +28,7 @@ type Props = {
   points: StudentExamTrendPoint[];
   className?: string;
   audience?: "staff" | "learner";
+  showLectureFilters?: boolean;
 };
 
 type LectureOption = {
@@ -69,7 +70,12 @@ function ScoreTooltip({ active, payload }: TooltipContentProps<TooltipValueType,
   );
 }
 
-export default function StudentScoreTrendChart({ points, className, audience = "staff" }: Props) {
+export default function StudentScoreTrendChart({
+  points,
+  className,
+  audience = "staff",
+  showLectureFilters = true,
+}: Props) {
   const titleId = useId();
   const [lectureFilter, setLectureFilter] = useState<StudentScoreLectureFilter>(ALL_LECTURES);
   const lectureOptions = useMemo(() => {
@@ -126,7 +132,7 @@ export default function StudentScoreTrendChart({ points, className, audience = "
         )}
       </div>
 
-      {lectureOptions.length > 1 && (
+      {showLectureFilters && lectureOptions.length > 1 && (
         <div className={styles.filters} aria-label="강의별 성적 추이">
           <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
             전체

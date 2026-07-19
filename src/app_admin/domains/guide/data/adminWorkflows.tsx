@@ -162,11 +162,11 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
     icon: <NavIcon d="M4 18h16M6 14V9M10 14V5M14 14V7M18 14v-4" />,
     title: "성적 확인하기",
     summary:
-      "시험 제출 결과를 강의, 시험, 학생 기준으로 확인하는 방법입니다.",
+      "학생별 누적 성적과 시험 제출 결과를 함께 확인하는 방법입니다.",
     steps: [
       { title: "성적으로 이동", description: "사이드바에서 '성적'을 클릭합니다." },
-      { title: "필터링", description: "강의, 차시, 시험 기준으로 원하는 결과를 좁혀 봅니다." },
-      { title: "학생별 상세 확인", description: "개별 학생을 클릭하면 점수, 제출 답안, 오답 흐름을 확인할 수 있습니다." },
+      { title: "학생 좁히기", description: "기간, 강의, 학년, 득점 구간, 점수 변화 조건으로 학생을 좁혀 봅니다." },
+      { title: "회차별 추이 확인", description: "학생을 선택하면 1회차부터 누적된 점수 그래프와 최근 시험 기록을 확인할 수 있습니다." },
       { title: "후속 조치", description: "반복 오답이나 미제출 학생은 클리닉, 알림톡, 상담 메모로 이어서 관리합니다." },
     ],
     tourPath: "/admin/results",
@@ -174,7 +174,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       {
         selector: '[data-guide="results-filter"]',
         title: "성적 필터",
-        description: "강의와 시험을 선택해서 원하는 성적만 볼 수 있어요.",
+        description: "기간과 강의, 학년, 득점 구간, 상승·하락 조건을 조합할 수 있어요.",
         placement: "bottom",
       },
     ],
