@@ -27,7 +27,8 @@ export type StudentReportedScore = {
   label: string;
   academic_year: number;
   semester: number | null;
-  exam_round: "first" | "second" | null;
+  exam_round: "first" | "second" | "performance" | "other" | null;
+  exam_name: string | null;
   exam_month: number | null;
   exam_date: string | null;
   subject: string;
@@ -42,9 +43,9 @@ export type StudentReportedScore = {
   subject_average: number | null;
   standard_deviation: number | null;
   cohort_size: number | null;
-  status: "pending" | "verified" | "rejected";
+  status: "pending" | "verified" | "rejected" | "voided";
   review_note: string;
-  evidence_file_id: number;
+  evidence_file_id: number | null;
   evidence_r2_key: string;
   created_at: string | null;
   reviewed_at: string | null;
@@ -102,6 +103,9 @@ export type StudentPerformanceConsoleResponse = {
     improving_student_count: number;
     declining_student_count: number;
     pending_reported_score_count: number;
+    academy_student_count: number;
+    school_student_count: number;
+    mock_student_count: number;
     verified_school_score_count: number;
     verified_mock_score_count: number;
   };
@@ -111,15 +115,44 @@ export type StudentPerformanceConsoleResponse = {
     reported_subjects: string[];
   };
   pending_reported_scores: StudentReportedScore[];
+  review_pagination: {
+    page: number;
+    page_size: number;
+    total_count: number;
+    total_rows: number;
+    total_pages: number;
+  };
+  pagination: {
+    page: number;
+    page_size: number;
+    total_count: number;
+    total_pages: number;
+  };
   students: StudentPerformanceRow[];
+};
+
+export type StudentPerformanceConsoleFilters = {
+  source: StudentPerformanceSource;
+  subject: string;
+  grade: number | "all";
+  scoreBand: StudentScoreBand | "all";
+  trend: StudentTrendDirection | "all";
+  sort: "attention" | "latest_desc" | "change_desc" | "name";
+  search: string;
+  page: number;
+  pageSize: number;
+  reviewPage: number;
+  reviewPageSize: number;
 };
 
 export async function fetchStudentPerformanceConsole({
   period,
   lectureId,
+  filters,
 }: {
   period: StudentPerformancePeriod;
   lectureId: number | null;
+  filters: StudentPerformanceConsoleFilters;
 }): Promise<StudentPerformanceConsoleResponse> {
   const response = await api.get<StudentPerformanceConsoleResponse>(
     "/results/admin/student-performance/",
@@ -127,6 +160,17 @@ export async function fetchStudentPerformanceConsole({
       params: {
         days: period,
         lecture_id: lectureId ?? undefined,
+        source: filters.source,
+        subject: filters.subject || undefined,
+        grade: filters.grade === "all" ? undefined : filters.grade,
+        score_band: filters.scoreBand,
+        trend: filters.trend,
+        sort: filters.sort,
+        search: filters.search || undefined,
+        page: filters.page,
+        page_size: filters.pageSize,
+        review_page: filters.reviewPage,
+        review_page_size: filters.reviewPageSize,
       },
     },
   );
@@ -147,6 +191,14 @@ export async function fetchStudentPerformanceConsole({
     pending_reported_scores: Array.isArray(response.data?.pending_reported_scores)
       ? response.data.pending_reported_scores
       : [],
+    review_pagination: response.data?.review_pagination ?? {
+      page: 1,
+      page_size: filters.reviewPageSize,
+      total_count: 0,
+      total_rows: 0,
+      total_pages: 1,
+    },
+    pagination: response.data?.pagination ?? { page: 1, page_size: filters.pageSize, total_count: 0, total_pages: 1 },
   };
 }
 
@@ -154,14 +206,23 @@ export async function reviewStudentReportedScore({
   scoreId,
   action,
   reviewNote,
+  reviewAllEvidence,
+  gradeScaleConfirmed,
 }: {
   scoreId: number;
-  action: "verify" | "reject";
+  action: "verify" | "reject" | "void";
   reviewNote?: string;
-}): Promise<StudentReportedScore> {
-  const response = await api.patch<StudentReportedScore>(
+  reviewAllEvidence?: boolean;
+  gradeScaleConfirmed?: boolean;
+}): Promise<StudentReportedScore | { score_submissions: StudentReportedScore[] }> {
+  const response = await api.patch<StudentReportedScore | { score_submissions: StudentReportedScore[] }>(
     `/results/admin/reported-scores/${scoreId}/review/`,
-    { action, review_note: reviewNote ?? "" },
+    {
+      action,
+      review_note: reviewNote ?? "",
+      review_all_evidence: reviewAllEvidence ?? false,
+      grade_scale_confirmed: gradeScaleConfirmed ?? false,
+    },
   );
   return response.data;
 }

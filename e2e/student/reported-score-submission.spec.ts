@@ -27,6 +27,7 @@ async function installApi(page: Page): Promise<string[]> {
     academic_year: 2026,
     semester: 2,
     exam_round: "second",
+    exam_name: null,
     exam_month: null,
     exam_date: "2026-12-10",
     subject: "수학",
@@ -36,12 +37,20 @@ async function installApi(page: Page): Promise<string[]> {
     standard_score: null,
     percentile: null,
     grade_rank: 2,
+    grade_scale: "nine",
     status: "pending",
     review_note: "",
     evidence_file_id: 801,
     evidence_r2_key: "tenant/student/score.jpg",
     created_at: "2026-07-19T14:00:00+09:00",
     reviewed_at: null,
+  };
+  const secondSubmission = {
+    ...submission,
+    id: 702,
+    subject: "영어",
+    score: 89,
+    score_pct: 89,
   };
   const inventoryFile = {
     id: "801",
@@ -55,6 +64,7 @@ async function installApi(page: Page): Promise<string[]> {
     contentType: "image/jpeg",
     createdAt: "2026-07-19T14:00:00+09:00",
     scoreSubmission: submission,
+    scoreSubmissions: [submission, secondSubmission],
   };
 
   await page.addInitScript(({ token }) => {
@@ -111,6 +121,12 @@ test.describe("학생 성적표 자발 제출", () => {
     await expect(page.getByTestId("score-grade-rank")).toBeDisabled();
     await page.getByTestId("score-grade-scale").selectOption("nine");
     await page.getByTestId("score-grade-rank").selectOption("2");
+    await page.locator("summary").filter({ hasText: "성적표의 상세 지표 입력" }).click();
+    await page.getByLabel("과목 평균 선택", { exact: true }).fill("76.5");
+    await page.getByRole("button", { name: /같은 성적표의 과목 추가/ }).click();
+    const secondItem = page.getByTestId("score-item").nth(1);
+    await secondItem.getByPlaceholder("예: 수학").fill("영어");
+    await secondItem.getByLabel("받은 점수").fill("89");
     await page.locator('input[type="file"]').setInputFiles({
       name: "school-score.jpg",
       mimeType: "image/jpeg",
@@ -129,6 +145,9 @@ test.describe("학생 성적표 자발 제출", () => {
     expect(uploads[0]).toContain("second");
     expect(uploads[0]).toContain('name="score"');
     expect(uploads[0]).toContain("93");
+    expect(uploads[0]).toContain('name="score_items"');
+    expect(uploads[0]).toContain("영어");
+    expect(uploads[0]).toContain("76.5");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/reported-score-submission/student-success-390.png", fullPage: true });
   });
@@ -141,5 +160,25 @@ test.describe("학생 성적표 자발 제출", () => {
     await page.getByRole("button", { name: /평가원 모의/ }).click();
     await expect(page.getByTestId("score-exam-month").locator("option")).toHaveText(["6월", "9월"]);
     await expect(page.getByTestId("score-exam-month")).toHaveValue("6");
+  });
+
+  test("수행평가는 성적표 기재 시험명과 시험일을 함께 보낸다", async ({ page }) => {
+    const uploads = await installApi(page);
+    await page.goto(`${BASE}/student/submit/score`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("score-exam-round").selectOption("performance");
+    await page.getByTestId("score-exam-name").fill("수학 주제탐구 수행평가");
+    await page.getByLabel("시험일 선택", { exact: true }).fill("2026-05-14");
+    await page.getByLabel("받은 점수").fill("18");
+    await page.getByLabel("만점").fill("20");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "performance-score.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("score-card"),
+    });
+    await page.getByRole("button", { name: "성적표 보내기" }).click();
+
+    await expect.poll(() => uploads.length).toBe(1);
+    expect(uploads[0]).toContain("performance");
+    expect(uploads[0]).toContain("수학 주제탐구 수행평가");
   });
 });

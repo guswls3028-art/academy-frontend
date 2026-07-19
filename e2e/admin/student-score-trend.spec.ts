@@ -213,6 +213,9 @@ const performanceConsole = {
     improving_student_count: 1,
     declining_student_count: 0,
     pending_reported_score_count: 1,
+    academy_student_count: 1,
+    school_student_count: 1,
+    mock_student_count: 1,
     verified_school_score_count: 2,
     verified_mock_score_count: 1,
   },
@@ -239,6 +242,7 @@ const performanceConsole = {
     academic_year: 2026,
     semester: null,
     exam_round: null,
+    exam_name: null,
     exam_month: 9,
     exam_date: "2026-09-03",
     subject: "수학",
@@ -248,6 +252,7 @@ const performanceConsole = {
     standard_score: 136,
     percentile: 96,
     grade_rank: 1,
+    grade_scale: "nine",
     status: "pending",
     review_note: "",
     evidence_file_id: 1903,
@@ -255,6 +260,8 @@ const performanceConsole = {
     created_at: "2026-07-19T10:30:00+09:00",
     reviewed_at: null,
   }],
+  review_pagination: { page: 1, page_size: 20, total_count: 1, total_rows: 1, total_pages: 1 },
+  pagination: { page: 1, page_size: 30, total_count: 1, total_pages: 1 },
   students: [{
     student_id: student.id,
     name: student.name,
@@ -310,7 +317,7 @@ const performanceConsole = {
   }],
 };
 
-async function installApi(page: Page, options: { failGrades?: boolean } = {}): Promise<void> {
+async function installApi(page: Page, options: { failGrades?: boolean; failPerformance?: boolean } = {}): Promise<void> {
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -379,12 +386,25 @@ async function installApi(page: Page, options: { failGrades?: boolean } = {}): P
       return;
     }
     if (path.endsWith("/results/admin/student-performance/")) {
-      await route.fulfill({ json: scoreReviewResolved ? {
+      if (options.failPerformance) {
+        await route.fulfill({ status: 500, json: { detail: "성적 콘솔 조회 일시 실패" } });
+        return;
+      }
+      const scoreBand = new URL(request.url()).searchParams.get("score_band");
+      const filteredOut = scoreBand === "under_60";
+      const resolvedConsole = scoreReviewResolved ? {
         ...performanceConsole,
         summary: { ...performanceConsole.summary, pending_reported_score_count: 0 },
         pending_reported_scores: [],
+        review_pagination: { ...performanceConsole.review_pagination, total_count: 0, total_rows: 0 },
         students: performanceConsole.students.map((row) => ({ ...row, pending_reported_score_count: 0 })),
-      } : performanceConsole });
+      } : performanceConsole;
+      await route.fulfill({ json: filteredOut ? {
+        ...resolvedConsole,
+        summary: { ...resolvedConsole.summary, student_count: 0, scored_student_count: 0 },
+        pagination: { ...resolvedConsole.pagination, total_count: 0 },
+        students: [],
+      } : resolvedConsole });
       return;
     }
     if (path.includes("/results/admin/reported-scores/") && path.endsWith("/review/") && request.method() === "PATCH") {
@@ -443,9 +463,9 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
     await expect(console.getByText("학원96%").first()).toBeVisible();
     await console.screenshot({ path: "test-results/student-score-trend/results-console-initial-1366.png" });
-    await expect(console.getByLabel("학생", { exact: true })).toContainText("윤지용 학생");
-    await console.getByLabel("학생", { exact: true }).selectOption(String(student.id));
+    await console.getByLabel("학생 검색").fill("윤지용");
     await expect(console.getByTestId("performance-student-list")).toContainText("윤지용 학생");
+    await expect(console.getByRole("button", { name: /초기화/ }).first()).toBeEnabled();
     await console.getByRole("button", { name: /초기화/ }).first().click();
 
     const detail = page.getByTestId("performance-student-detail");
@@ -480,7 +500,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const reviewQueue = page.getByTestId("reported-score-review-queue");
     await expect(reviewQueue).toContainText("2026년 9월 평가원 모의평가");
     await reviewQueue.screenshot({ path: "test-results/student-score-trend/reported-score-review-queue.png" });
-    await reviewQueue.getByRole("button", { name: "확인·반영" }).click();
+    await reviewQueue.getByLabel("원본에서 등급 체계까지 확인함").check();
+    await reviewQueue.getByRole("button", { name: "전체 확인·반영" }).click();
     await expect(reviewQueue).toContainText("확인할 성적표가 없습니다.");
 
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -522,6 +543,17 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.setViewportSize({ width: 1100, height: 820 });
     await expect(component).toBeVisible();
     await page.screenshot({ path: "test-results/student-score-trend/admin-1100.png", fullPage: true });
+  });
+
+  test("성적 콘솔 오류를 검토 대상 0건으로 표시하지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { failPerformance: true });
+    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("학생별 성적을 불러올 수 없습니다")).toBeVisible();
+    const reviewQueue = page.getByTestId("reported-score-review-queue");
+    await expect(reviewQueue).toContainText("검토 대상을 불러오지 못했습니다.");
+    await expect(reviewQueue).not.toContainText("확인할 성적표가 없습니다.");
   });
 
   test("성적 API 오류를 실제 0건으로 오인시키지 않는다", async ({ page }) => {

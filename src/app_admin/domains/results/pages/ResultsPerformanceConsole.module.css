@@ -433,6 +433,18 @@
   overscroll-behavior: contain;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--gradebook-rule);
+  background: var(--gradebook-soft);
+}
+.pagination span { color: var(--gradebook-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pagination strong { color: var(--gradebook-ink); }
+
 .studentRow {
   position: relative;
   display: grid;
@@ -669,11 +681,13 @@
 .sourceCards dd { color: var(--gradebook-ink); font-weight: 750; font-variant-numeric: tabular-nums; }
 .pendingNotice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, #d97706 25%, var(--gradebook-rule)); border-radius: 9px; color: #9a3412; background: color-mix(in srgb, #f59e0b 8%, var(--gradebook-paper)); font-size: 11px; font-weight: 700; }
 
-.reportedTable th:nth-child(1) { width: 32%; }
+.reportedTable { min-width: 760px; }
+.reportedTable th:nth-child(1) { width: 30%; }
 .reportedTable th:nth-child(2) { width: 70px; }
 .reportedTable th:nth-child(3) { width: 90px; }
 .reportedTable th:nth-child(4) { width: 25%; }
 .reportedTable th:nth-child(5) { width: 82px; }
+.reportedTable th:nth-child(6) { width: 92px; }
 
 .reviewQueue {
   overflow: hidden;
@@ -700,9 +714,21 @@
 .reviewStudent, .reviewExam { display: grid; gap: 3px; min-width: 0; }
 .reviewStudent strong, .reviewExam strong { overflow: hidden; color: var(--gradebook-ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .reviewStudent span, .reviewExam span { color: var(--gradebook-muted); font-size: 9px; }
+.reviewExam ul { display: grid; gap: 3px; margin: 3px 0 0; padding: 0; list-style: none; }
+.reviewExam li { color: var(--gradebook-muted); font-size: 9px; }
+.reviewExam li strong { display: inline; margin-right: 3px; font-size: 9px; }
 .reviewIndicators { display: flex; flex-wrap: wrap; gap: 4px; }
 .reviewIndicators span { padding: 3px 5px; border-radius: 5px; color: var(--gradebook-muted); background: var(--gradebook-soft); font-size: 8px; font-weight: 700; }
+.gradeConfirmation { display: flex; width: 100%; align-items: center; gap: 5px; color: var(--gradebook-ink); font-size: 9px; font-weight: 750; cursor: pointer; }
+.gradeConfirmation input { accent-color: var(--gradebook-teal); }
 .reviewActions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
+.voidForm { display: grid; gap: 14px; }
+.voidForm > strong { color: var(--gradebook-ink); font-size: 13px; }
+.voidForm label { display: grid; gap: 6px; color: var(--gradebook-ink); font-size: 11px; font-weight: 750; }
+.voidForm label em { color: var(--gradebook-coral); font-size: 9px; font-style: normal; }
+.voidForm textarea { min-height: 92px; resize: vertical; padding: 10px 12px; border: 1px solid var(--gradebook-rule); border-radius: 8px; color: var(--gradebook-ink); background: var(--gradebook-paper); font: inherit; }
+.voidForm p { margin: 0; color: var(--gradebook-muted); font-size: 10px; line-height: 1.5; }
 
 .operations {
   display: grid;

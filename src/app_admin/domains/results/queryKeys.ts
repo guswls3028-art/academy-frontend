@@ -2,8 +2,8 @@
 
 export const adminResultsQueryKeys = {
   landingStats: ["admin-results-landing-stats"] as const,
-  studentPerformance: (period: number | "all", lectureId: number | null) =>
-    ["admin-results-student-performance", period, lectureId] as const,
+  studentPerformance: (period: number | "all", lectureId: number | null, filters: object) =>
+    ["admin-results-student-performance", period, lectureId, filters] as const,
   lectures: ["admin-results-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,
 

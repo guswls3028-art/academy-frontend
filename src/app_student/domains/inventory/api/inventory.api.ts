@@ -31,6 +31,7 @@ export function uploadMyFile(
     description?: string;
     icon?: string;
     scoreSubmission?: StudentScoreSubmissionPayload;
+    scoreSubmissions?: StudentScoreSubmissionPayload[];
   }
 ): Promise<InventoryFile> {
   return uploadFile({
@@ -41,6 +42,7 @@ export function uploadMyFile(
     description: opts?.description || "",
     icon: opts?.icon || inferIcon(file),
     scoreSubmission: opts?.scoreSubmission,
+    scoreSubmissions: opts?.scoreSubmissions,
     file,
   });
 }

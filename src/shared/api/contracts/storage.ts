@@ -31,7 +31,8 @@ export type InventoryFileMatchupInfo = {
 };
 
 export type StudentScoreSource = "school_exam" | "national_mock" | "kice_mock";
-export type StudentScoreReviewStatus = "pending" | "verified" | "rejected";
+export type StudentScoreReviewStatus = "pending" | "verified" | "rejected" | "voided";
+export type StudentSchoolExamRound = "first" | "second" | "performance" | "other";
 
 export type StudentReportedScoreSubmission = {
   id: number;
@@ -41,7 +42,8 @@ export type StudentReportedScoreSubmission = {
   label: string;
   academic_year: number;
   semester: number | null;
-  exam_round: "first" | "second" | null;
+  exam_round: StudentSchoolExamRound | null;
+  exam_name: string | null;
   exam_month: number | null;
   exam_date: string | null;
   subject: string;
@@ -58,7 +60,7 @@ export type StudentReportedScoreSubmission = {
   cohort_size: number | null;
   status: StudentScoreReviewStatus;
   review_note: string;
-  evidence_file_id: number;
+  evidence_file_id: number | null;
   evidence_r2_key: string;
   created_at: string | null;
   reviewed_at: string | null;
@@ -71,7 +73,8 @@ export type StudentScoreSubmissionPayload = {
   score: number;
   maxScore: number;
   semester?: 1 | 2;
-  examRound?: "first" | "second";
+  examRound?: StudentSchoolExamRound;
+  examName?: string;
   examMonth?: number;
   examDate?: string;
   standardScore?: number;
@@ -99,6 +102,7 @@ export type InventoryFile = {
   matchup?: InventoryFileMatchupInfo;
   // 학생 성적표로 제출한 파일에만 채워짐.
   scoreSubmission?: StudentReportedScoreSubmission;
+  scoreSubmissions?: StudentReportedScoreSubmission[];
 };
 
 export type InventoryListResponse = {
@@ -145,6 +149,7 @@ export type UploadFilePayload = {
   subject?: string;
   gradeLevel?: string;
   scoreSubmission?: StudentScoreSubmissionPayload;
+  scoreSubmissions?: StudentScoreSubmissionPayload[];
 };
 
 export type UploadFileResponse = InventoryFile & {
@@ -166,8 +171,13 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
   if (payload.promoteToMatchup) form.append("promote_to_matchup", "true");
   if (payload.subject) form.append("subject", payload.subject);
   if (payload.gradeLevel) form.append("grade_level", payload.gradeLevel);
-  if (payload.scoreSubmission) {
-    const score = payload.scoreSubmission;
+  const scoreSubmissions = payload.scoreSubmissions?.length
+    ? payload.scoreSubmissions
+    : payload.scoreSubmission
+      ? [payload.scoreSubmission]
+      : [];
+  if (scoreSubmissions.length) {
+    const score = scoreSubmissions[0];
     form.append("score_submission", "true");
     form.append("score_source", score.source);
     form.append("academic_year", String(score.academicYear));
@@ -176,6 +186,7 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
     form.append("max_score", String(score.maxScore));
     if (score.semester != null) form.append("semester", String(score.semester));
     if (score.examRound) form.append("exam_round", score.examRound);
+    if (score.examName) form.append("exam_name", score.examName);
     if (score.examMonth != null) form.append("exam_month", String(score.examMonth));
     if (score.examDate) form.append("exam_date", score.examDate);
     if (score.standardScore != null) form.append("standard_score", String(score.standardScore));
@@ -186,6 +197,21 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
     if (score.subjectAverage != null) form.append("subject_average", String(score.subjectAverage));
     if (score.standardDeviation != null) form.append("standard_deviation", String(score.standardDeviation));
     if (score.cohortSize != null) form.append("cohort_size", String(score.cohortSize));
+    if (scoreSubmissions.length > 1) {
+      form.append("score_items", JSON.stringify(scoreSubmissions.map((item) => ({
+        subject: item.subject,
+        score: item.score,
+        max_score: item.maxScore,
+        standard_score: item.standardScore,
+        percentile: item.percentile,
+        grade_rank: item.gradeRank,
+        grade_scale: item.gradeScale,
+        achievement_level: item.achievementLevel,
+        subject_average: item.subjectAverage,
+        standard_deviation: item.standardDeviation,
+        cohort_size: item.cohortSize,
+      }))));
+    }
   }
 
   const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {

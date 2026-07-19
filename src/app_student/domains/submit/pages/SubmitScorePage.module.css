@@ -97,6 +97,37 @@
 .fieldGrid em { color: var(--stu-text-muted); font-size: 9px; font-style: normal; font-weight: 600; }
 .fieldGrid :global(.stu-input) { width: 100%; min-width: 0; }
 
+.scoreItems { display: grid; gap: 12px; }
+.scoreItem {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-primary) 2%, var(--stu-surface));
+}
+.scoreItemHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.scoreItemHeader > span { display: grid; gap: 2px; }
+.scoreItemHeader strong { color: var(--stu-text); font-size: 12px; font-weight: 800; }
+.scoreItemHeader small { color: var(--stu-text-muted); font-size: 9px; }
+.optionalMetrics {
+  padding: 9px 10px;
+  border: 1px dashed color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+  border-radius: var(--stu-radius-sm);
+  background: var(--stu-surface);
+}
+.optionalMetrics summary {
+  cursor: pointer;
+  color: var(--stu-text);
+  font-size: 11px;
+  font-weight: 750;
+}
+.optionalMetrics summary span { color: var(--stu-text-muted); font-size: 9px; font-weight: 600; }
+.optionalMetrics > p { margin: 6px 0 10px; color: var(--stu-text-muted); font-size: 9px; }
+.optionalMetrics:not([open]) > p,
+.optionalMetrics:not([open]) > div { display: none; }
+.addSubjectButton { width: 100%; justify-content: center; border-style: dashed; }
+
 .hiddenInput { display: none; }
 .chooseButton { width: 100%; justify-content: center; border-style: dashed; }
 .selectedFile {
@@ -140,6 +171,7 @@
 .statusBadge small { max-width: 165px; overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .statusBadge[data-status="verified"] { color: var(--stu-success-text); background: var(--stu-success-bg); }
 .statusBadge[data-status="rejected"] { color: var(--stu-danger-text); background: var(--stu-danger-bg); }
+.statusBadge[data-status="voided"] { color: var(--stu-text-muted); background: var(--stu-surface-soft); }
 .iconButton { width: 34px; height: 34px; min-height: 34px; padding: 0; }
 .downloadIcon { width: 14px; height: 14px; }
 
