@@ -54,7 +54,7 @@
   border-radius: 999px;
   background: var(--color-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .processRail svg {
@@ -625,6 +625,29 @@
   font-size: 11px;
   line-height: 1.5;
   text-align: center;
+}
+
+.companionSetup {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 94%, var(--color-primary) 6%);
+}
+
+.companionSetup p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.companionSetup strong {
+  color: var(--color-text-secondary);
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .reviewBundle {

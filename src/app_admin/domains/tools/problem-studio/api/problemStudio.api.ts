@@ -80,6 +80,14 @@ export type ProblemStudioTransferJobStatusResponse = {
   message?: string;
 };
 
+export type ProblemStudioHangulCompanionDownload = {
+  download_url: string;
+  filename: string;
+  version: string;
+  sha256: string;
+  size_bytes: number;
+};
+
 export type ProblemStudioVariantMode = "copy" | "same-type" | "trap" | "concept";
 
 export type ProblemStudioGeneratePayload = {
@@ -214,6 +222,13 @@ export async function createProblemStudioHangulHandoff(
 ): Promise<{ protocol_url: string; expires_in: number }> {
   const { data } = await api.post<{ protocol_url: string; expires_in: number }>(
     `/tools/problem-studio/transfer-jobs/${encodeURIComponent(jobId)}/hangul-handoff/`,
+  );
+  return data;
+}
+
+export async function getProblemStudioHangulCompanionDownload(): Promise<ProblemStudioHangulCompanionDownload> {
+  const { data } = await api.get<ProblemStudioHangulCompanionDownload>(
+    "/tools/problem-studio/hangul-companion/",
   );
   return data;
 }

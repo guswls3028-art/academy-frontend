@@ -37,6 +37,7 @@ import {
   createProblemStudioHangulHandoff,
   createProblemStudioJob,
   createProblemStudioTransferJob,
+  getProblemStudioHangulCompanionDownload,
   getProblemStudioJob,
   getProblemStudioTransferJob,
   type ProblemStudioGeneratedQuestion,
@@ -298,6 +299,7 @@ export default function ProblemStudioPage() {
   const [pdfLoading, setPdfLoading] = useState<WorksheetPdfKind | null>(null);
   const [transferResult, setTransferResult] = useState<ProblemStudioTransferJobResult | null>(null);
   const [transferJobId, setTransferJobId] = useState<string | null>(null);
+  const [companionDownloading, setCompanionDownloading] = useState(false);
 
   useEffect(() => {
     try {
@@ -504,11 +506,28 @@ export default function ProblemStudioPage() {
       feedback.warning("먼저 AI 타이핑을 완료해 주세요.");
       return;
     }
+    if (typeof navigator !== "undefined" && !/Windows/i.test(navigator.userAgent)) {
+      feedback.warning("한글 연결은 Windows PC에서 사용할 수 있습니다.");
+      return;
+    }
     try {
       const handoff = await createProblemStudioHangulHandoff(transferJobId);
       window.location.assign(handoff.protocol_url);
     } catch (error) {
       feedback.error(error instanceof Error ? error.message : "한글 연결 프로그램을 열 수 없습니다.");
+    }
+  };
+
+  const handleCompanionDownload = async () => {
+    setCompanionDownloading(true);
+    try {
+      const companion = await getProblemStudioHangulCompanionDownload();
+      downloadPresignedUrl(companion.download_url, companion.filename);
+      feedback.success(`한글 연결 프로그램 v${companion.version} ZIP을 저장했습니다.`);
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "한글 연결 프로그램을 내려받지 못했습니다.");
+    } finally {
+      setCompanionDownloading(false);
     }
   };
 
@@ -973,6 +992,22 @@ export default function ProblemStudioPage() {
               >
                 AI 타이핑 시작
               </Button>
+              <div className={styles.companionSetup}>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="md"
+                  loading={companionDownloading}
+                  leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                  onClick={handleCompanionDownload}
+                >
+                  Windows 연결 프로그램 설치
+                </Button>
+                <p>
+                  처음 한 번만 ZIP을 풀고 <strong>Academy.HangulCompanion.exe</strong>를 실행하세요.
+                  관리자 권한은 필요하지 않습니다.
+                </p>
+              </div>
               {transferResult && (
                 <>
                   <Button
@@ -991,9 +1026,9 @@ export default function ProblemStudioPage() {
                     leftIcon={<FileInput size={ICON_FOR_BUTTON.md} />}
                     onClick={handleOpenInHangul}
                   >
-                    한글에서 열기 (Windows Beta)
+                    한글에서 열기
                   </Button>
-                  <p className={styles.companionNote}>Academy 한글 연결 프로그램이 설치된 Windows PC에서 동작합니다.</p>
+                  <p className={styles.companionNote}>설치된 Windows PC의 한글 문서로 안전하게 전달합니다.</p>
                 </>
               )}
               <Button

@@ -7,5 +7,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Academy.HangulCompanion</AssemblyName>
     <RootNamespace>Academy.HangulCompanion</RootNamespace>
+    <Version>1.0.0</Version>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 </Project>

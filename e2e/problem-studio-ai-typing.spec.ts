@@ -41,6 +41,20 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
       });
       return;
     }
+    if (pathname.endsWith("/tools/problem-studio/hangul-companion/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: {
+          download_url: "https://download.example/Academy-Hangul-Companion-Windows-1.0.0.zip",
+          filename: "Academy-Hangul-Companion-Windows-1.0.0.zip",
+          version: "1.0.0",
+          sha256: "a".repeat(64),
+          size_bytes: 67644035,
+        },
+      });
+      return;
+    }
     if (pathname.endsWith("/tools/problem-studio/transfer-jobs/ps-e2e-job/")) {
       await route.fulfill({
         status: 200,
@@ -70,10 +84,25 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     }
     await route.fallback();
   });
+  await page.route("https://download.example/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": 'attachment; filename="Academy-Hangul-Companion-Windows-1.0.0.zip"',
+      },
+      body: Buffer.from("companion-zip"),
+    });
+  });
 
   await page.goto(`${baseUrl}/admin/tools/problem-studio`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "사진만 올리면, 한글 검수본까지" })).toBeVisible();
   await expect(page.getByText("원본 업로드")).toBeVisible();
+  await expect(page.getByText(/처음 한 번만 ZIP을 풀고/)).toBeVisible();
+  const companionDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Windows 연결 프로그램 설치" }).click();
+  const downloadedCompanion = await companionDownload;
+  expect(downloadedCompanion.suggestedFilename()).toBe("Academy-Hangul-Companion-Windows-1.0.0.zip");
 
   await page.locator('input[type="file"]').first().setInputFiles({
     name: "chemistry.png",
@@ -86,6 +115,7 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   page.on("download", () => { automaticDownloads += 1; });
   await page.getByRole("button", { name: "AI 타이핑 시작" }).click();
   await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
   await expect(page.getByText("준비 완료 · AI 1쪽 · 검수 후보 1건", { exact: true })).toBeVisible();
   expect(automaticDownloads).toBe(0);
 
