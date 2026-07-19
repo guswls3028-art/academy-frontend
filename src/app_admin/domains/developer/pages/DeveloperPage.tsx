@@ -4,7 +4,22 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, X, Zap, Wrench, Shield, ArrowUpCircle } from "lucide-react";
+import {
+  ArrowUpCircle,
+  BookOpenText,
+  Bug,
+  CheckCircle2,
+  ChevronRight,
+  ImagePlus,
+  MessageSquare,
+  Paperclip,
+  Send,
+  Shield,
+  Sparkles,
+  Trash2,
+  Wrench,
+  X,
+} from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import {
@@ -20,44 +35,95 @@ import { PATCH_NOTES, type PatchNote, type NoteCategory } from "./patchNotesData
 
 // ═══════════════════ 패치노트 페이지 (기본) ═══════════════════
 
-const CATEGORY_META: Record<NoteCategory, { label: string; icon: typeof Zap }> = {
-  new:      { label: "NEW",      icon: Zap },
-  fix:      { label: "FIX",      icon: Wrench },
-  improve:  { label: "IMPROVE",  icon: ArrowUpCircle },
-  security: { label: "SECURITY", icon: Shield },
+const CATEGORY_META: Record<NoteCategory, { label: string; shortLabel: string; icon: typeof Sparkles }> = {
+  new: { label: "새 기능", shortLabel: "신규", icon: Sparkles },
+  improve: { label: "사용성 개선", shortLabel: "개선", icon: ArrowUpCircle },
+  fix: { label: "오류 수정", shortLabel: "수정", icon: Wrench },
+  security: { label: "보안·안정성", shortLabel: "안정성", icon: Shield },
 };
+
+const CATEGORY_ORDER: NoteCategory[] = ["new", "improve", "fix", "security"];
+
+function getCategoryCounts(note: PatchNote): Record<NoteCategory, number> {
+  const counts: Record<NoteCategory, number> = { new: 0, fix: 0, improve: 0, security: 0 };
+  note.entries.forEach((entry) => counts[entry.category]++);
+  return counts;
+}
 
 export default function PatchNotesPage() {
   const [selected, setSelected] = useState<PatchNote | null>(null);
+  const latest = PATCH_NOTES[0];
 
   return (
-    <>
-      <div className={styles.pnTimeline}>
+    <section className={styles.releasePage} aria-labelledby="release-ledger-title" data-testid="patch-notes-page">
+      <header className={styles.releaseIntro}>
+        <div className={styles.releaseIntroCopy}>
+          <div className={styles.releaseEyebrow}>
+            <BookOpenText size={15} aria-hidden="true" />
+            운영 릴리스 장부
+          </div>
+          <h2 id="release-ledger-title">운영에 반영된 변경만 기록합니다.</h2>
+          <p>
+            봉인된 릴리스 문서와 배포 검증 결과를 기준으로, 실제 사용에 영향을 주는 내용을 간결하게 정리했습니다.
+          </p>
+        </div>
+        <dl className={styles.releaseProof} aria-label="현재 릴리스 기준">
+          <div>
+            <dt>현재 기준</dt>
+            <dd>{latest.version}</dd>
+          </div>
+          <div>
+            <dt>운영 반영일</dt>
+            <dd>{latest.date}</dd>
+          </div>
+          <div className={styles.releaseProofStatus}>
+            <dt>상태</dt>
+            <dd><CheckCircle2 size={14} aria-hidden="true" /> 운영 반영</dd>
+          </div>
+        </dl>
+      </header>
+
+      <div className={styles.releaseSectionHead}>
+        <div>
+          <h3>최근 운영 릴리스</h3>
+          <p>최신순 · {PATCH_NOTES.length}건</p>
+        </div>
+        <span>카드를 선택하면 상세 변경을 확인할 수 있습니다.</span>
+      </div>
+
+      <div className={styles.releaseLedger}>
         {PATCH_NOTES.map((note, i) => {
-          const counts = { new: 0, fix: 0, improve: 0, security: 0 };
-          note.entries.forEach((e) => counts[e.category]++);
+          const counts = getCategoryCounts(note);
           const isLatest = i === 0;
 
           return (
             <button
               key={note.version}
               type="button"
-              className={styles.pnCard + (isLatest ? " " + styles.pnCardLatest : "")}
+              className={`${styles.releaseCard} ${isLatest ? styles.releaseCardLatest : ""}`}
               onClick={() => setSelected(note)}
+              aria-label={`${note.version} ${note.codename} 상세 보기`}
             >
-              <div className={styles.pnCardHead}>
-                <span className={styles.pnCardVersion}>{note.version}</span>
-                {isLatest && <span className={styles.pnCardNew}>LATEST</span>}
-                <span className={styles.pnCardDate}>{note.date}</span>
+              <div className={styles.releaseRail} aria-hidden="true">
+                <span>{note.date}</span>
               </div>
-              <div className={styles.pnCardCodename}>{note.codename}</div>
-              <p className={styles.pnCardSummary}>{note.summary}</p>
-              <div className={styles.pnCardTags}>
-                {counts.new > 0 && <span className={styles.pnTag} data-cat="new">+{counts.new} NEW</span>}
-                {counts.fix > 0 && <span className={styles.pnTag} data-cat="fix">{counts.fix} FIX</span>}
-                {counts.improve > 0 && <span className={styles.pnTag} data-cat="improve">{counts.improve} IMPROVE</span>}
-                {counts.security > 0 && <span className={styles.pnTag} data-cat="security">{counts.security} SECURITY</span>}
+              <div className={styles.releaseCardBody}>
+                <div className={styles.releaseCardMeta}>
+                  <span className={styles.releaseVersion}>{note.version}</span>
+                  {isLatest && <span className={styles.releaseLatest}>최신</span>}
+                  <span className={styles.releaseStatus}><CheckCircle2 size={12} aria-hidden="true" /> 운영 반영</span>
+                </div>
+                <h4>{note.codename}</h4>
+                <p className={styles.releaseSummary}>{note.summary}</p>
+                <div className={styles.releaseTags} aria-label="변경 분류">
+                  {CATEGORY_ORDER.map((category) => counts[category] > 0 && (
+                    <span key={category} className={styles.releaseTag} data-cat={category}>
+                      {CATEGORY_META[category].shortLabel} {counts[category]}
+                    </span>
+                  ))}
+                </div>
               </div>
+              <ChevronRight className={styles.releaseChevron} size={18} aria-hidden="true" />
             </button>
           );
         })}
@@ -66,59 +132,68 @@ export default function PatchNotesPage() {
       {selected && (
         <PatchNoteModal note={selected} onClose={() => setSelected(null)} />
       )}
-    </>
+    </section>
   );
 }
 
 function PatchNoteModal({ note, onClose }: { note: PatchNote; onClose: () => void }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handler);
+    closeButtonRef.current?.focus();
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", handler);
+      previouslyFocused?.focus();
     };
   }, [onClose]);
 
   const grouped: Record<NoteCategory, string[]> = { new: [], fix: [], improve: [], security: [] };
   note.entries.forEach((e) => grouped[e.category].push(e.text));
 
-  const order: NoteCategory[] = ["new", "improve", "fix", "security"];
   const total = note.entries.length;
 
   return (
     <div className={styles.pnOverlay} data-testid="pn-overlay" onClick={onClose}>
-      <div className={styles.pnModal} data-testid="pn-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.pnModal}
+        data-testid="pn-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="patch-note-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.pnModalHeader}>
-          <div className={styles.pnModalHeaderLeft}>
-            <span className={styles.pnModalVersion}>{note.version}</span>
-            <span className={styles.pnModalCodename}>&ldquo;{note.codename}&rdquo;</span>
+          <div className={styles.pnModalHeading}>
+            <div className={styles.pnModalMeta}>
+              <span className={styles.pnModalStatus}><CheckCircle2 size={13} aria-hidden="true" /> 운영 반영</span>
+              <span className={styles.pnModalVersion}>{note.version}</span>
+              <span className={styles.pnModalDate}>{note.date}</span>
+            </div>
+            <h2 id="patch-note-dialog-title">{note.codename}</h2>
+            <p>{note.summary}</p>
           </div>
-          <div className={styles.pnModalHeaderRight}>
-            <span className={styles.pnModalDate}>{note.date}</span>
-            <button type="button" className={styles.pnModalClose} onClick={onClose}>
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.pnModalSummary}>
-          <p className={styles.pnModalSummaryText}>{note.summary}</p>
-          <div className={styles.pnModalStats}>
-            <span className={styles.pnModalStatsTotal}>{total}건 변경</span>
-            {grouped.new.length > 0 && <span className={styles.pnTag} data-cat="new">+{grouped.new.length} NEW</span>}
-            {grouped.improve.length > 0 && <span className={styles.pnTag} data-cat="improve">{grouped.improve.length} IMPROVE</span>}
-            {grouped.fix.length > 0 && <span className={styles.pnTag} data-cat="fix">{grouped.fix.length} FIX</span>}
-            {grouped.security.length > 0 && <span className={styles.pnTag} data-cat="security">{grouped.security.length} SECURITY</span>}
-          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className={styles.pnModalClose}
+            onClick={onClose}
+            aria-label="릴리스 상세 닫기"
+          >
+            <X size={17} aria-hidden="true" />
+          </button>
         </div>
 
         <div className={styles.pnModalBody}>
-          {order.map((cat) => {
+          <div className={styles.pnModalCount}>{total}개 변경 사항</div>
+          {CATEGORY_ORDER.map((cat) => {
             const items = grouped[cat];
             if (items.length === 0) return null;
             const meta = CATEGORY_META[cat];

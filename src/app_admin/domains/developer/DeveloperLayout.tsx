@@ -15,8 +15,8 @@ const DEVELOPER_TABS: DomainTab[] = [
 export default function DeveloperLayout() {
   return (
     <DomainLayout
-      title="To개발자"
-      description="패치노트, 버그 제보, 피드백"
+      title="개발자 노트"
+      description="운영 릴리스, 버그 제보, 피드백"
       tabs={DEVELOPER_TABS}
     >
       <Outlet />

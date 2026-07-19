@@ -1,5 +1,4 @@
-.title,
-.primaryText {
+.title {
   color: var(--tc-text);
 }
 
@@ -7,26 +6,234 @@
   color: var(--tc-text-muted);
 }
 
-.secondaryText,
 .uploadLabel {
   color: var(--tc-text-secondary);
 }
 
+.releaseIntro {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid var(--tc-border);
+  border-left: 4px solid var(--tc-primary);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface-soft);
+}
+
+.releaseEyebrow {
+  color: var(--tc-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.releaseIntro > strong {
+  color: var(--tc-text);
+  font-size: 17px;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+}
+
+.releaseIntro > p {
+  margin: 0;
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.releaseCurrent {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tc-border);
+  color: var(--tc-text-muted);
+  font-size: 10px;
+}
+
+.releaseCurrent b {
+  color: var(--tc-text);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 11px;
+}
+
+.releaseCurrent > :last-child {
+  margin-left: auto;
+}
+
+.releaseListHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 1px 0;
+}
+
+.releaseListHead strong {
+  color: var(--tc-text);
+  font-size: 13px;
+}
+
+.releaseListHead span {
+  color: var(--tc-text-muted);
+  font-size: 10px;
+}
+
 .noteButton {
+  width: 100%;
   min-height: var(--tc-touch-min);
-  padding: var(--tc-space-3) var(--tc-space-4);
+  padding: 14px 15px;
   border: 1px solid var(--tc-border);
   background: var(--tc-surface);
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.noteButton:active {
+  transform: scale(0.995);
+}
+
+.noteButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--tc-primary) 24%, transparent);
+  outline-offset: 2px;
 }
 
 .latestNoteButton {
-  border: 2px solid var(--tc-primary);
+  border-color: color-mix(in srgb, var(--tc-primary) 48%, var(--tc-border));
+  box-shadow: inset 3px 0 0 var(--tc-primary);
 }
 
-.patchEntry {
-  padding: var(--tc-space-2) var(--tc-space-3);
-  border: 1px solid var(--tc-border);
-  background: var(--tc-surface-soft);
+.noteMeta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+}
+
+.noteDate,
+.noteVersion {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 10px;
+}
+
+.noteDate {
+  color: var(--tc-text-muted);
+}
+
+.noteVersion {
+  color: var(--tc-text);
+  font-weight: 800;
+}
+
+.noteStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--tc-success);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.noteStatus::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.noteTitle {
+  margin-top: 9px;
+  color: var(--tc-text);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+}
+
+.noteSummary {
+  margin: 4px 0 0;
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.noteTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.sheetContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.sheetMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tc-text-muted);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 10px;
+}
+
+.sheetMeta > :last-child {
+  margin-left: auto;
+  font-family: var(--app-font-sans);
+}
+
+.sheetSummary {
+  color: var(--tc-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.sheetSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheetSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tc-text-muted);
+  font-size: 10px;
+}
+
+.sheetSection ul {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheetSection li {
+  position: relative;
+  padding: 8px 5px 8px 17px;
+  border-bottom: 1px solid var(--tc-border);
+  color: var(--tc-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sheetSection li::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tc-primary);
 }
 
 .field {
@@ -88,4 +295,14 @@
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
   color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noteButton {
+    transition: none;
+  }
+
+  .noteButton:active {
+    transform: none;
+  }
 }

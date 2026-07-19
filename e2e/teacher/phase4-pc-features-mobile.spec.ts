@@ -287,10 +287,13 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     await visit(page, "/teacher/developer");
 
     await expect(page.getByRole("heading", { name: "패치노트" })).toBeVisible();
-    const latest = page.getByText("LATEST").first();
+    await expect(page.getByText("운영에 반영된 변경만 기록합니다.")).toBeVisible();
+    const latest = page.getByRole("button", { name: /v1\.8\.1 알림톡 운영 체계 단순화/ });
     await expect(latest).toBeVisible();
     await latest.click();
     await settleAfterClick(page);
+    const sheet = page.getByLabel("v1.8.1 · 알림톡 운영 체계 단순화");
+    await expect(sheet.getByText("알림톡 발송 화면과 승인 양식", { exact: false })).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/developer-patchnotes.png`, fullPage: true });
     logNet("developer-patchnotes", cap);

@@ -22,18 +22,20 @@ import { teacherDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPages.module.css";
 
 const CATEGORY_LABEL: Record<NoteCategory, string> = {
-  new: "NEW",
-  fix: "FIX",
-  improve: "IMPROVE",
-  security: "SECURITY",
+  new: "신규",
+  improve: "개선",
+  fix: "수정",
+  security: "안정성",
 };
 
 const CATEGORY_TONE: Record<NoteCategory, "success" | "danger" | "warning" | "info"> = {
-  new: "success",
-  fix: "danger",
+  new: "info",
+  fix: "success",
   improve: "info",
   security: "warning",
 };
+
+const CATEGORY_ORDER: NoteCategory[] = ["new", "improve", "fix", "security"];
 
 /* ═══════════════════ 패치노트 ═══════════════════ */
 
@@ -48,6 +50,23 @@ export function PatchNotesPage() {
         <h1 className={`${styles.title} text-[17px] font-bold flex-1`}>패치노트</h1>
       </div>
 
+      <div className={styles.releaseIntro}>
+        <span className={styles.releaseEyebrow}>운영 릴리스 장부</span>
+        <strong>운영에 반영된 변경만 기록합니다.</strong>
+        <p>봉인된 릴리스 문서와 배포 검증 결과를 기준으로 최근 변경을 정리했습니다.</p>
+        <div className={styles.releaseCurrent}>
+          <span>현재 기준</span>
+          <b>{PATCH_NOTES[0].version}</b>
+          <span>{PATCH_NOTES[0].date}</span>
+          <Badge tone="success" size="xs">운영 반영</Badge>
+        </div>
+      </div>
+
+      <div className={styles.releaseListHead}>
+        <strong>최근 운영 릴리스</strong>
+        <span>최신순 · {PATCH_NOTES.length}건</span>
+      </div>
+
       <div className="flex flex-col gap-2">
         {PATCH_NOTES.map((note, i) => {
           const counts = { new: 0, fix: 0, improve: 0, security: 0 };
@@ -59,24 +78,22 @@ export function PatchNotesPage() {
               key={note.version}
               onClick={() => setSelected(note)}
               className={`${styles.noteButton} ${isLatest ? styles.latestNoteButton : ""} flex flex-col items-start text-left cursor-pointer rounded-xl`}
+              aria-label={`${note.version} ${note.codename} 상세 보기`}
             >
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`${styles.primaryText} text-sm font-bold`}>
-                  {note.version}
-                </span>
-                {isLatest && <Badge tone="primary" size="xs">LATEST</Badge>}
-                <span className={`${styles.mutedText} text-[11px] ml-auto`}>
-                  {note.date}
-                </span>
+              <div className={styles.noteMeta}>
+                <span className={styles.noteDate}>{note.date}</span>
+                <span className={styles.noteVersion}>{note.version}</span>
+                {isLatest && <Badge tone="primary" size="xs">최신</Badge>}
+                <span className={styles.noteStatus}>운영 반영</span>
               </div>
-              <div className={`${styles.primaryText} text-[13px] font-semibold mt-1`}>
+              <div className={styles.noteTitle}>
                 {note.codename}
               </div>
-              <p className={`${styles.mutedText} text-[12px] mt-0.5 leading-snug`}>
+              <p className={styles.noteSummary}>
                 {note.summary}
               </p>
-              <div className="flex gap-1 mt-2 flex-wrap">
-                {(Object.keys(counts) as NoteCategory[]).map((k) =>
+              <div className={styles.noteTags}>
+                {CATEGORY_ORDER.map((k) =>
                   counts[k] > 0 ? (
                     <Badge key={k} tone={CATEGORY_TONE[k]} size="xs">
                       {counts[k]} {CATEGORY_LABEL[k]}
@@ -95,28 +112,32 @@ export function PatchNotesPage() {
         title={selected ? `${selected.version} · ${selected.codename}` : ""}
       >
         {selected && (
-          <div className="flex flex-col gap-2 pb-3">
-            <div className={`${styles.mutedText} text-[11px]`}>
-              {selected.date}
+          <div className={styles.sheetContent}>
+            <div className={styles.sheetMeta}>
+              <span>{selected.version}</span>
+              <span>{selected.date}</span>
+              <Badge tone="success" size="xs">운영 반영</Badge>
             </div>
-            <div className={`${styles.secondaryText} text-[13px] leading-relaxed`}>
+            <div className={styles.sheetSummary}>
               {selected.summary}
             </div>
-            <div className="flex flex-col gap-1.5 mt-2">
-              {selected.entries.map((e, idx) => (
-                <div
-                  key={idx}
-                  className={`${styles.patchEntry} flex items-start gap-2 rounded-lg`}
-                >
-                  <Badge tone={CATEGORY_TONE[e.category]} size="xs">
-                    {CATEGORY_LABEL[e.category]}
-                  </Badge>
-                  <span className={`${styles.primaryText} text-[13px] leading-snug`}>
-                    {e.text}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {CATEGORY_ORDER.map((category) => {
+              const entries = selected.entries.filter((entry) => entry.category === category);
+              if (entries.length === 0) return null;
+              return (
+                <section key={category} className={styles.sheetSection}>
+                  <div className={styles.sheetSectionTitle}>
+                    <Badge tone={CATEGORY_TONE[category]} size="xs">
+                      {CATEGORY_LABEL[category]}
+                    </Badge>
+                    <span>{entries.length}건</span>
+                  </div>
+                  <ul>
+                    {entries.map((entry) => <li key={entry.text}>{entry.text}</li>)}
+                  </ul>
+                </section>
+              );
+            })}
           </div>
         )}
       </BottomSheet>
