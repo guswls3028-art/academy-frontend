@@ -56,6 +56,11 @@ export type ProblemStudioTransferJobResult = {
   structured_item_count: number;
   ocr_candidate_count: number;
   quality_level: string;
+  structure_limit_reached?: boolean;
+  sha256?: string;
+  transcription_engine?: string;
+  ai_transcribed_units?: number;
+  fallback_ocr_units?: number;
 };
 
 export type ProblemStudioTransferJobStatusResponse = {
@@ -87,6 +92,7 @@ export type ProblemStudioGeneratePayload = {
   note_policy: string;
   use_ai: boolean;
   transfer_only?: boolean;
+  ai_transcription?: boolean;
   questions: Array<{
     prompt: string;
     choices: string;
@@ -198,7 +204,16 @@ export async function getProblemStudioTransferJob(
   jobId: string,
 ): Promise<ProblemStudioTransferJobStatusResponse> {
   const { data } = await api.get<ProblemStudioTransferJobStatusResponse>(
-    `/jobs/${encodeURIComponent(jobId)}/progress/`,
+    `/tools/problem-studio/transfer-jobs/${encodeURIComponent(jobId)}/`,
+  );
+  return data;
+}
+
+export async function createProblemStudioHangulHandoff(
+  jobId: string,
+): Promise<{ protocol_url: string; expires_in: number }> {
+  const { data } = await api.post<{ protocol_url: string; expires_in: number }>(
+    `/tools/problem-studio/transfer-jobs/${encodeURIComponent(jobId)}/hangul-handoff/`,
   );
   return data;
 }

@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/tools/problem-studio/pages/ProblemStudioPage.tsx
 // 문제 제작 스튜디오 — 원본 이관과 선생님 검수용 산출물 출력.
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import {
+  ArrowRight,
   Copy,
   Download,
   Eye,
@@ -24,7 +25,6 @@ import {
   buildWorksheetPreviewHtml,
   downloadWorksheetPdf,
   openWorksheetPrintWindow,
-  type WorksheetAttachment,
   type WorksheetDraft,
   type WorksheetPdfKind,
   type WorksheetQuestion,
@@ -34,6 +34,7 @@ import {
   type HangulSourceFile,
 } from "../utils/worksheetDocument";
 import {
+  createProblemStudioHangulHandoff,
   createProblemStudioJob,
   createProblemStudioTransferJob,
   getProblemStudioJob,
@@ -60,29 +61,11 @@ type SourceFileEntry = HangulSourceFile & {
   warning?: string | null;
 };
 
-type PdfViewport = { width: number; height: number };
-type PdfPageProxy = {
-  getViewport: (params: { scale: number }) => PdfViewport;
-  render: (params: {
-    canvas: HTMLCanvasElement;
-    canvasContext: CanvasRenderingContext2D;
-    viewport: PdfViewport;
-  }) => { promise: Promise<void> };
-};
-type PdfDocumentProxy = {
-  numPages: number;
-  getPage: (pageNumber: number) => Promise<PdfPageProxy>;
-  destroy?: () => Promise<void> | void;
-};
-type PdfJsLib = {
-  GlobalWorkerOptions: { workerSrc: string };
-  getDocument: (params: { data: Uint8Array }) => { promise: Promise<PdfDocumentProxy> };
-};
-
 const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
-const SOURCE_KEY = "problem-studio:source-files:v1";
-const MAX_PDF_PAGES = 24;
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.zip,.png,.jpg,.jpeg,.webp,.bmp";
+const MAX_SOURCE_FILES = 40;
+const MAX_SOURCE_FILE_BYTES = 120 * 1024 * 1024;
+const MAX_SOURCE_TOTAL_BYTES = 512 * 1024 * 1024;
 const DEFAULT_PROMPT = "문제 이미지나 파일을 올리면 한글 초안에 그대로 옮겨집니다.";
 const DEFAULT_CHOICES = "① 보기 1\n② 보기 2\n③ 보기 3\n④ 보기 4\n⑤ 보기 5";
 const DEFAULT_ANSWER = "①";
@@ -142,15 +125,6 @@ function isDraft(value: unknown): value is WorksheetDraft {
   return typeof draft.title === "string" && Array.isArray(draft.questions);
 }
 
-function isSourceFileEntry(value: unknown): value is SourceFileEntry {
-  if (value == null || typeof value !== "object") return false;
-  const file = value as Partial<SourceFileEntry>;
-  return typeof file.id === "string"
-    && typeof file.name === "string"
-    && typeof file.kind === "string"
-    && typeof file.sizeLabel === "string";
-}
-
 function loadDraft(): WorksheetDraft {
   if (typeof window === "undefined") return defaultDraft();
   try {
@@ -172,41 +146,12 @@ function loadDraft(): WorksheetDraft {
   }
 }
 
-function loadSourceFiles(): SourceFileEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(SOURCE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter(isSourceFileEntry) : [];
-  } catch {
-    return [];
-  }
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error(`${file.name} 파일을 읽을 수 없습니다.`));
-    reader.readAsDataURL(file);
-  });
-}
-
 function isImageFile(file: File): boolean {
   return file.type.startsWith("image/") || /\.(png|jpe?g|webp|bmp)$/i.test(file.name);
 }
 
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-}
-
-function isHangulOrWordFile(file: File): boolean {
-  return /\.(hwp|hwpx|doc|docx)$/i.test(file.name);
-}
-
-function isArchiveFile(file: File): boolean {
-  return file.type === "application/zip" || file.name.toLowerCase().endsWith(".zip");
 }
 
 function formatFileSize(size: number): string {
@@ -242,48 +187,6 @@ function generatedToQuestion(item: ProblemStudioGeneratedQuestion): WorksheetQue
     answer: item.answer,
     explanation: item.explanation,
   });
-}
-
-async function pdfFileToImageQuestions(file: File): Promise<WorksheetQuestion[]> {
-  const pdfjsLib = (await import("pdfjs-dist")) as unknown as PdfJsLib;
-  const workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
-
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-  const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES);
-  const questions: WorksheetQuestion[] = [];
-
-  try {
-    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(2, 1250 / Math.max(baseViewport.width, 1));
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("PDF 페이지를 이미지로 변환할 수 없습니다.");
-      await page.render({ canvas, canvasContext: context, viewport }).promise;
-      const attachment: WorksheetAttachment = {
-        id: makeId("att"),
-        name: file.name,
-        pageLabel: `${file.name} · ${pageNumber}쪽`,
-        dataUrl: canvas.toDataURL("image/jpeg", 0.92),
-      };
-      questions.push(createQuestion({
-        prompt: "",
-        attachments: [attachment],
-      }));
-    }
-  } finally {
-    await pdf.destroy?.();
-  }
-
-  if (pdf.numPages > MAX_PDF_PAGES) {
-    feedback.warning(`PDF는 앞 ${MAX_PDF_PAGES}쪽까지만 가져왔습니다.`);
-  }
-  return questions;
 }
 
 function parseQuestionsFromText(text: string): WorksheetQuestion[] {
@@ -377,20 +280,11 @@ async function waitForProblemStudioTransferJob(
   throw new Error("원본 이관 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
 }
 
-function shouldUseGeneratedTransferQuestions(response: ProblemStudioGenerateResponse): boolean {
-  if (response.source_text_chars > 0) return true;
-  return response.questions.some((question) => (
-    question.prompt.trim()
-    && !question.prompt.includes("소스에서 본문 텍스트를 추출하지 못했습니다")
-  ));
-}
-
 export default function ProblemStudioPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const templateInputRef = useRef<HTMLInputElement | null>(null);
-  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>(() => loadSourceFiles());
+  const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [sourceFileBlobs, setSourceFileBlobs] = useState<File[]>([]);
-  const [templateName, setTemplateName] = useState("매치업 기존 양식");
+  const [templateName] = useState("매치업 기존 양식");
   const [notePolicy, setNotePolicy] = useState("원본을 한글 검수 파일로 그대로 옮긴 초안입니다. 선생님이 파일에서 직접 수정합니다.");
   const [draft, setDraft] = useState<WorksheetDraft>(() => loadDraft());
   const [pasteText, setPasteText] = useState("");
@@ -402,6 +296,8 @@ export default function ProblemStudioPage() {
   const [generationNote, setGenerationNote] = useState("파일이나 이미지를 올리면 한글 이관 초안을 만들 수 있습니다.");
   const [generationWarnings, setGenerationWarnings] = useState<string[]>([]);
   const [pdfLoading, setPdfLoading] = useState<WorksheetPdfKind | null>(null);
+  const [transferResult, setTransferResult] = useState<ProblemStudioTransferJobResult | null>(null);
+  const [transferJobId, setTransferJobId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -411,18 +307,7 @@ export default function ProblemStudioPage() {
     }
   }, [draft]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(SOURCE_KEY, JSON.stringify(sourceFiles));
-    } catch {
-      // 파일 본문은 저장하지 않고, 화면/문서에 필요한 소스 메타만 보존한다.
-    }
-  }, [sourceFiles]);
-
-  const questionCount = draft.questions.length;
-  const answeredCount = draft.questions.filter((q) => q.answer.trim()).length;
   const previewHtml = useMemo(() => buildWorksheetPreviewHtml(draft, "questions"), [draft]);
-  const sourceSummary = sourceFiles.length > 0 ? `${sourceFiles.length}개` : "대기";
   const realQuestions = useMemo(() => draft.questions.filter(hasRealQuestion), [draft.questions]);
 
   const patchDraft = (patch: Partial<WorksheetDraft>) => {
@@ -482,55 +367,54 @@ export default function ProblemStudioPage() {
     }));
   };
 
-  const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+  const registerSourceFiles = (files: File[]) => {
+    if (files.length === 0) return;
+    const nextCount = sourceFileBlobs.length + files.length;
+    if (nextCount > MAX_SOURCE_FILES) {
+      feedback.warning(`파일은 최대 ${MAX_SOURCE_FILES}개까지 올릴 수 있습니다.`);
+      return;
+    }
+    const tooLarge = files.find((file) => file.size > MAX_SOURCE_FILE_BYTES);
+    if (tooLarge) {
+      feedback.warning(`${tooLarge.name}은 120MB를 넘어서 올릴 수 없습니다.`);
+      return;
+    }
+    const totalBytes = [...sourceFileBlobs, ...files].reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_SOURCE_TOTAL_BYTES) {
+      feedback.warning("전체 파일 용량은 512MB까지 올릴 수 있습니다.");
+      return;
+    }
+    const supported = files.filter((file) => (
+      isImageFile(file)
+      || isPdfFile(file)
+      || /\.(hwp|hwpx|doc|docx|zip)$/i.test(file.name)
+    ));
+    if (supported.length !== files.length) {
+      feedback.warning("지원하지 않는 파일은 제외했습니다.");
+    }
+    if (supported.length === 0) return;
+    setSourceFiles((prev) => [...prev, ...supported.map(toSourceFileEntry)]);
+    setSourceFileBlobs((prev) => [...prev, ...supported]);
+    setTransferResult(null);
+    setTransferJobId(null);
+    setGenerationNote(`${supported.length}개 원본 등록 · AI 타이핑 준비`);
+    feedback.success(`${supported.length}개 원본을 등록했습니다.`);
+  };
+
+  const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (files.length === 0) return;
     setImporting(true);
     try {
-      setSourceFiles((prev) => [...prev, ...files.map(toSourceFileEntry)]);
-      setSourceFileBlobs((prev) => [...prev, ...files]);
-      const imported: WorksheetQuestion[] = [];
-      let registeredOnly = 0;
-      for (const file of files) {
-        if (isImageFile(file)) {
-          const attachment: WorksheetAttachment = {
-            id: makeId("att"),
-            name: file.name,
-            dataUrl: await fileToDataUrl(file),
-          };
-          imported.push(createQuestion({ attachments: [attachment] }));
-          continue;
-        }
-        if (isPdfFile(file)) {
-          imported.push(...await pdfFileToImageQuestions(file));
-          continue;
-        }
-        if (isHangulOrWordFile(file) || isArchiveFile(file)) {
-          registeredOnly += 1;
-          continue;
-        }
-        feedback.warning(`지원하지 않는 파일입니다: ${file.name}`);
-      }
-      if (imported.length > 0) {
-        setDraft((prev) => ({ ...prev, questions: mergeImportedQuestions(prev.questions, imported) }));
-        feedback.success(`${imported.length}개 문항 이미지를 가져왔습니다.`);
-      } else if (registeredOnly > 0) {
-        feedback.success(`${registeredOnly}개 한글/문서 소스를 등록했습니다.`);
-      }
-    } catch (error) {
-      feedback.error(error instanceof Error ? error.message : "파일을 가져오지 못했습니다.");
+      registerSourceFiles(files);
     } finally {
       setImporting(false);
     }
   };
 
-  const handleTemplateFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setTemplateName(file.name);
-    feedback.success("기준 양식 샘플을 연결했습니다.");
+  const handleSourceDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    registerSourceFiles(Array.from(event.dataTransfer.files));
   };
 
   const handleParseText = () => {
@@ -545,9 +429,8 @@ export default function ProblemStudioPage() {
   };
 
   const handleTransferOriginal = async () => {
-    const hasDraftContent = realQuestions.length > 0 || pasteText.trim();
-    if (sourceFileBlobs.length === 0 && !hasDraftContent) {
-      feedback.warning("원본으로 옮길 소스 파일을 먼저 올려 주세요.");
+    if (sourceFileBlobs.length === 0) {
+      feedback.warning("AI가 타이핑할 원본 파일을 먼저 올려 주세요.");
       return;
     }
     setTransferring(true);
@@ -561,74 +444,71 @@ export default function ProblemStudioPage() {
         variant_mode: "copy",
         variant_count: 1,
         note_policy: notePolicy,
-        use_ai: false,
+        use_ai: true,
         transfer_only: true,
+        ai_transcription: true,
         questions: buildQuestionPayload(),
       };
-      if (sourceFileBlobs.length > 0) {
-        setGenerationNote("원본 업로드 중");
-        const job = await createProblemStudioTransferJob(payload, sourceFileBlobs);
-        const pendingSourceFiles = job.source_files.length > 0
-          ? toSourceEntries(job.source_files)
-          : sourceFiles;
-        setSourceFiles(pendingSourceFiles);
-        setGenerationWarnings(job.warnings);
-        setGenerationNote(`원본 이관 처리 중 · ${job.job_id.slice(0, 8)}`);
-
-        const result = await waitForProblemStudioTransferJob(job.job_id, (status) => {
-          setGenerationNote(`원본 이관 처리 중 · ${job.job_id.slice(0, 8)} · ${problemStudioTransferStatusLabel(status)}`);
-        });
-        downloadPresignedUrl(result.download_url, result.filename || `${payload.title || "문제제작"}_원본이관.zip`);
-        const transferWarnings = [
-          result.warning_count > 0 ? `변환 경고 ${result.warning_count}건은 ZIP 안의 검수표와 변환리포트에서 확인하세요.` : "",
-          result.ocr_candidate_count > 0 ? `남은 OCR 후보 ${result.ocr_candidate_count}건은 ZIP 안의 02_OCR_연결후보.csv에서 확인하세요.` : "",
-        ].filter(Boolean);
-        setGenerationWarnings(transferWarnings);
-        setGenerationNote(
-          `원본 이관 패키지 · 문서 ${result.document_count || sourceFileBlobs.length}개 · 구조화 ${result.structured_item_count}개 · 남은 OCR후보 ${result.ocr_candidate_count}개`,
-        );
-        feedback.success("원본 이관 패키지를 저장했습니다.");
-        return;
-      }
-      const job = await createProblemStudioJob(payload, sourceFileBlobs);
+      setGenerationNote("원본을 안전하게 업로드하는 중");
+      const job = await createProblemStudioTransferJob(payload, sourceFileBlobs);
       const pendingSourceFiles = job.source_files.length > 0
         ? toSourceEntries(job.source_files)
         : sourceFiles;
       setSourceFiles(pendingSourceFiles);
       setGenerationWarnings(job.warnings);
-      setGenerationNote(`한글 이관 처리 중 · ${job.job_id.slice(0, 8)}`);
+      setGenerationNote(`AI 타이핑 대기 · ${job.job_id.slice(0, 8)}`);
 
-      const response = await waitForProblemStudioJob(job.job_id);
-      const nextSourceFiles = response.source_files.length > 0
-        ? toSourceEntries(response.source_files)
-        : pendingSourceFiles;
-      const generated = response.questions.map(generatedToQuestion);
-      const localVisualQuestions = draft.questions.filter((q) => hasRealQuestion(q) && q.attachments.length > 0);
-      const shouldMergeLocalVisuals = localVisualQuestions.length > 0;
-      const shouldUseGenerated = shouldUseGeneratedTransferQuestions(response);
-      const nextDraft = {
-        ...draft,
-        questions: shouldMergeLocalVisuals
-          ? (shouldUseGenerated ? [...localVisualQuestions, ...generated] : localVisualQuestions)
-          : generated,
-      };
-
-      setDraft(nextDraft);
-      setSourceFiles(nextSourceFiles);
-      setPasteText("");
-      setGenerationWarnings(response.warnings);
-      setGenerationNote(`원본 이관 · 한글 초안 ${nextDraft.questions.length}문항`);
-      downloadHangulDraft(nextDraft, {
-        sourceFiles: nextSourceFiles,
-        templateName,
-        variantLabel: "원본 이관 · 한글 초안",
-        notePolicy,
+      const result = await waitForProblemStudioTransferJob(job.job_id, (jobStatus) => {
+        setGenerationNote(`AI 타이핑 중 · ${job.job_id.slice(0, 8)} · ${problemStudioTransferStatusLabel(jobStatus)}`);
       });
-      feedback.success("원본 이관 한글 파일을 저장했습니다.");
+      setTransferResult(result);
+      setTransferJobId(job.job_id);
+      const transferWarnings = [
+        (result.fallback_ocr_units || 0) > 0 ? `${result.fallback_ocr_units}쪽은 AI 대신 로컬 OCR로 처리했습니다.` : "",
+        result.warning_count > 0 ? `변환 경고 ${result.warning_count}건은 ZIP 안의 검수표에서 확인하세요.` : "",
+        result.ocr_candidate_count > 0 ? `수식·표·도형 등 남은 검수 후보 ${result.ocr_candidate_count}건이 있습니다.` : "",
+        result.structure_limit_reached ? "구조화 한도 80개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
+      ].filter(Boolean);
+      setGenerationWarnings(transferWarnings);
+      setGenerationNote(
+        `검수본 준비 완료 · AI ${result.ai_transcribed_units || 0}쪽 · 구조화 ${result.structured_item_count}개`,
+      );
+      feedback.success("한글 검수본이 준비됐습니다. 다운로드 버튼을 눌러 저장하세요.");
     } catch (error) {
-      feedback.error(error instanceof Error ? error.message : "원본을 한글 파일로 옮길 수 없습니다.");
+      feedback.error(error instanceof Error ? error.message : "AI 타이핑을 완료할 수 없습니다.");
     } finally {
       setTransferring(false);
+    }
+  };
+
+  const handlePreparedDownload = async () => {
+    if (!transferJobId) {
+      feedback.warning("먼저 AI 타이핑을 완료해 주세요.");
+      return;
+    }
+    try {
+      const status = await getProblemStudioTransferJob(transferJobId);
+      if (status.status !== "DONE" || !status.result?.download_url) {
+        throw new Error("검수본 다운로드 링크를 새로 만들지 못했습니다.");
+      }
+      setTransferResult(status.result);
+      downloadPresignedUrl(status.result.download_url, status.result.filename);
+      feedback.success("한글 검수본 ZIP을 저장했습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "검수본을 내려받지 못했습니다.");
+    }
+  };
+
+  const handleOpenInHangul = async () => {
+    if (!transferJobId) {
+      feedback.warning("먼저 AI 타이핑을 완료해 주세요.");
+      return;
+    }
+    try {
+      const handoff = await createProblemStudioHangulHandoff(transferJobId);
+      window.location.assign(handoff.protocol_url);
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "한글 연결 프로그램을 열 수 없습니다.");
     }
   };
 
@@ -742,10 +622,11 @@ export default function ProblemStudioPage() {
     setSourceFileBlobs([]);
     setPasteText("");
     setGenerationWarnings([]);
+    setTransferResult(null);
+    setTransferJobId(null);
     setGenerationNote("아직 생성 전입니다.");
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
-      localStorage.removeItem(SOURCE_KEY);
     } catch {
       // ignore
     }
@@ -755,16 +636,18 @@ export default function ProblemStudioPage() {
     <div className={styles.page}>
       <section className={styles.builderHero} aria-labelledby="worksheet-builder-title">
         <div className={styles.builderHeroText}>
-          <Badge tone="primary" size="md">원본 이관</Badge>
-          <h2 id="worksheet-builder-title" className={styles.title}>문제 원본 한글 이관 도구</h2>
+          <Badge tone="primary" size="md">AI 시험지 타이핑</Badge>
+          <h2 id="worksheet-builder-title" className={styles.title}>사진만 올리면, 한글 검수본까지</h2>
           <p className={styles.lead}>
-            선생님이 올린 문제 이미지나 PDF/HWP/HWPX/DOCX/ZIP 파일을 한글 호환 검수 패키지와 HWPX 보조 검수본으로 옮깁니다.
+            AI가 문제를 풀거나 바꾸지 않고 보이는 원문을 그대로 타이핑합니다. 결과는 편집 가능한 HWPX와 원본 대조용 문서를 함께 제공합니다.
           </p>
         </div>
-        <div className={styles.heroStats}>
-          <Stat label="소스" value={sourceSummary} />
-          <Stat label="문항" value={`${questionCount}`} />
-          <Stat label="정답" value={`${answeredCount}/${questionCount}`} />
+        <div className={styles.processRail} aria-label="AI 시험지 타이핑 3단계">
+          <span><b>1</b> 원본 업로드</span>
+          <ArrowRight aria-hidden size={16} />
+          <span><b>2</b> AI 타이핑</span>
+          <ArrowRight aria-hidden size={16} />
+          <span><b>3</b> 한글 검수</span>
         </div>
       </section>
 
@@ -773,8 +656,8 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="source-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="source-title">1. 소스와 양식</h3>
-                <p>문제 이미지와 PDF/HWP/HWPX/DOCX/ZIP 자료를 검수표가 포함된 한글 호환 패키지로 옮깁니다.</p>
+                <h3 id="source-title">1. 원본 올리기</h3>
+                <p>스캔 사진, PDF, HWP/HWPX, Word, ZIP을 최대 40개·전체 512MB까지 처리합니다.</p>
               </div>
               <Button
                 type="button"
@@ -784,7 +667,7 @@ export default function ProblemStudioPage() {
                 leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => fileInputRef.current?.click()}
               >
-                소스 업로드
+                파일 선택
               </Button>
             </div>
 
@@ -796,32 +679,37 @@ export default function ProblemStudioPage() {
               className={styles.hiddenInput}
               onChange={handleFiles}
             />
-            <input
-              ref={templateInputRef}
-              type="file"
-              accept={SOURCE_ACCEPT}
-              className={styles.hiddenInput}
-              onChange={handleTemplateFile}
-            />
-
             <div className={styles.sourceGrid}>
-              <div className={styles.sourceDrop}>
-                <FileCheck2 size={ICON.lg} />
-                <strong>기준 양식</strong>
-                <span>{templateName}</span>
+              <div
+                className={styles.sourceDrop}
+                role="button"
+                tabIndex={0}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={handleSourceDrop}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={ICON.lg} />
+                <strong>여기에 시험지를 놓으세요</strong>
+                <span>PDF·사진은 서버에서 바로 처리해 브라우저가 무거워지지 않습니다.</span>
                 <Button
                   type="button"
                   intent="secondary"
                   size="sm"
-                  onClick={() => templateInputRef.current?.click()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
                 >
-                  양식 샘플 연결
+                  내 컴퓨터에서 찾기
                 </Button>
               </div>
               <div className={styles.sourceList}>
                 <strong>등록된 소스</strong>
                 {sourceFiles.length === 0 ? (
-                  <p>아직 등록된 소스가 없습니다. 이미지, PDF, HWP, HWPX, DOCX, ZIP을 올리면 여기에 쌓입니다.</p>
+                  <p>아직 원본이 없습니다. 파일은 새로고침하면 사라지며, 서버 전송 전에는 외부로 보내지지 않습니다.</p>
                 ) : (
                   <div className={styles.filePills}>
                     {sourceFiles.map((file) => (
@@ -844,8 +732,8 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="generation-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="generation-title">2. 한글 이관</h3>
-                <p>기본은 원본을 한글 검수 파일로 그대로 옮기는 흐름입니다.</p>
+                <h3 id="generation-title">2. AI 타이핑</h3>
+                <p>풀이·정답 추론 없이 원문을 옮깁니다. 수식·표·도형과 [판독불가] 표시는 원본과 꼭 대조하세요.</p>
               </div>
             </div>
             <div className={styles.generationControls}>
@@ -853,6 +741,9 @@ export default function ProblemStudioPage() {
                 <textarea value={notePolicy} onChange={(e) => setNotePolicy(e.target.value)} rows={2} />
               </Field>
             </div>
+            <p className={styles.privacyNote}>
+              시작하면 텍스트가 없는 이미지 페이지를 외부 AI 처리업체로 전송합니다. 임시 원본 묶음은 작업 종료 시 삭제합니다.
+            </p>
             <div className={styles.generationStatus} data-warning={generationWarnings.length > 0 ? "true" : "false"}>
               <FileCheck2 size={ICON.sm} />
               <div>
@@ -860,7 +751,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>저장 ZIP에는 검수표, 자체양식 문제검수본, HWPX 보조 검수본, OCR 후보표, 변환리포트, 파일목록, manifest가 함께 들어갑니다.</span>
+                  <span>완료 후 편집 가능한 HWPX, 원본 보존 문서, 검수 체크리스트를 한 번에 내려받을 수 있습니다.</span>
                 )}
               </div>
             </div>
@@ -1059,13 +950,17 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="output-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="output-title">한글 출력</h3>
-                <p>원본 문제를 한글 호환 검수 패키지로 옮깁니다. ZIP 안의 검수표, 자체양식 문제검수본, HWPX 보조 검수본부터 확인하면 됩니다.</p>
+                <h3 id="output-title">3. 한글 검수본</h3>
+                <p>AI 타이핑이 끝나도 자동 저장하지 않습니다. 결과를 확인한 뒤 직접 내려받아 주세요.</p>
               </div>
             </div>
             <div className={styles.reviewBundle}>
               <FileCheck2 size={ICON.sm} />
-              <span>검수 체크리스트 · 자체양식 문제검수본 · HWPX 보조 검수본 · 변환리포트 · manifest 포함</span>
+              <span>
+                {transferResult
+                  ? `준비 완료 · AI ${transferResult.ai_transcribed_units || 0}쪽 · 검수 후보 ${transferResult.ocr_candidate_count}건`
+                  : "HWPX 검수본 · 원본 대조 문서 · 체크리스트 · 변환리포트 포함"}
+              </span>
             </div>
             <div className={styles.outputButtons}>
               <Button
@@ -1073,11 +968,34 @@ export default function ProblemStudioPage() {
                 intent="primary"
                 size="md"
                 loading={transferring}
-                leftIcon={<FileInput size={ICON_FOR_BUTTON.md} />}
+                leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >
-                원본 한글로 저장
+                AI 타이핑 시작
               </Button>
+              {transferResult && (
+                <>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="md"
+                    leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                    onClick={handlePreparedDownload}
+                  >
+                    검수본 ZIP 내려받기
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="md"
+                    leftIcon={<FileInput size={ICON_FOR_BUTTON.md} />}
+                    onClick={handleOpenInHangul}
+                  >
+                    한글에서 열기 (Windows Beta)
+                  </Button>
+                  <p className={styles.companionNote}>Academy 한글 연결 프로그램이 설치된 Windows PC에서 동작합니다.</p>
+                </>
+              )}
               <Button
                 type="button"
                 intent="secondary"
@@ -1184,14 +1102,5 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
       <span>{label}</span>
       {children}
     </label>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.stat}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }

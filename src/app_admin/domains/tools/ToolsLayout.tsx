@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 import { DomainLayout, type DomainTab } from "@/shared/ui/layout";
 
 const TOOLS_TABS: DomainTab[] = [
-  { key: "problem-studio", label: "문제 제작", path: "/admin/tools/problem-studio" },
+  { key: "problem-studio", label: "AI 시험지 타이핑", path: "/admin/tools/problem-studio" },
   { key: "ppt", label: "PPT 생성", path: "/admin/tools/ppt" },
   { key: "omr", label: "OMR 생성", path: "/admin/tools/omr" },
   { key: "clinic", label: "클리닉 대상자", path: "/admin/tools/clinic" },
