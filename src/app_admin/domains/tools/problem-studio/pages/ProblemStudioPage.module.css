@@ -21,10 +21,44 @@
   align-items: end;
   padding: 20px;
   border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border-divider));
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 46%),
-    linear-gradient(0deg, color-mix(in srgb, #0f9f9a 5%, transparent), transparent 60%),
-    var(--bg-surface);
+  background: var(--bg-surface);
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-primary) 72%, #0f766e);
+}
+
+.processRail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.processRail span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.processRail b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+}
+
+.processRail svg {
+  color: var(--color-text-muted);
 }
 
 .builderHeroText {
@@ -241,6 +275,15 @@
   display: grid;
   gap: 9px;
   align-content: start;
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.sourceDrop:hover,
+.sourceDrop:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--color-primary) 12%);
+  outline: none;
 }
 
 .sourceDrop svg {
@@ -312,6 +355,13 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
+}
+
+.privacyNote {
+  margin: 10px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .generationStatus {
@@ -569,6 +619,14 @@
   width: 100%;
 }
 
+.companionNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .reviewBundle {
   display: flex;
   align-items: flex-start;
@@ -759,6 +817,11 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .processRail {
+    flex-wrap: wrap;
+    white-space: normal;
   }
 
   .builderShell {
