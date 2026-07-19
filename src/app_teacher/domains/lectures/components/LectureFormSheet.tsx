@@ -67,6 +67,9 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures });
+      if (isEdit) {
+        qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lecture(editData.id) });
+      }
       teacherToast.success(isEdit ? `${title} 강의가 수정되었습니다.` : `${title} 강의가 생성되었습니다.`);
       onClose();
     },

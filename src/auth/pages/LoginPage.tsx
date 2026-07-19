@@ -1,6 +1,6 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, useParams, Navigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/auth/api/auth.api";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
@@ -17,6 +17,7 @@ import {
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { fetchLandingHasPublished } from "@/landing/api";
 import { useFavicon } from "@/shared/hooks/useFavicon";
+import { getSafeInternalNextPath } from "@/auth/utils/loginReturnPath";
 import SignupModal from "./SignupModal";
 import AccountRecoveryModal from "./AccountRecoveryModal";
 import "@/auth/themes/tchul.css";
@@ -73,6 +74,7 @@ export default function LoginPage() {
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { refreshMe } = useAuth();
 
   // 진입 시 username에 자동 포커스
@@ -111,7 +113,7 @@ export default function LoginPage() {
     hostname.endsWith(".pages.dev") ||
     hostname.endsWith(".trycloudflare.com");
   if (paramCode && fromHost.ok && !isLocalOrPreview) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login${location.search}`} replace />;
   }
 
   const title = program?.ui_config?.login_title || branding?.loginTitle || "로그인";
@@ -128,8 +130,12 @@ export default function LoginPage() {
     try {
       await login(username, password);
       await refreshMe();
-      const returnPath = consumeReturnPath();
-      navigate(returnPath || "/", { replace: true });
+      const nextPath = getSafeInternalNextPath(
+        new URLSearchParams(location.search).get("next"),
+        window.location.origin,
+      );
+      const returnPath = getSafeInternalNextPath(consumeReturnPath(), window.location.origin);
+      navigate(nextPath || returnPath || "/", { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
       setPending(false);

@@ -2,14 +2,14 @@
 //
 // Stage 6.3A-FE — Proposal Review UI v1.
 //
-// 학원장/운영자가 자동분리 결과(ProblemSegmentationProposal)를 List/Approve/Reject 만 검수.
+// 학원장/운영자가 자동분리 결과와 직접 자른 문항의 OCR 정보 제안을 List/Approve/Reject 검수.
 // 범위 외 (의도적 제외 — backend SSOT가 아직 미지원):
 //   - bbox 수정 / 번호 수정 / merge / split / batch approve.
 //
-// 백엔드 sanitized 응답(`_serialize_proposal_user_v1`) 그대로 사용 — UI는 raw 필드(
+// 백엔드 sanitized 응답(`_serialize_proposal_user_v1`) 그대로 사용 — manual_index는
+// 대상 문항 ID와 제안 텍스트/형식만 추가 노출하고, UI는 raw 필드(
 // engine, model_version, paper_type, raw confidence, analysis_version_key, tenant_id,
-// reviewed_by_id, raw_response)를 절대 표시하지 않는다. 신규 필드는 backend가
-// 노출 결정을 끝낸 다음에 추가.
+// reviewed_by_id, raw_response)를 절대 표시하지 않는다.
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -123,9 +123,12 @@ export default function ProposalReviewPage() {
 
   const handleApprove = useCallback(async (proposal: ProposalReviewItem) => {
     if (!proposal.can_approve || busyId != null) return;
+    const isManualIndex = proposal.proposal_kind === "manual_index";
     const ok = await confirm({
-      title: "이 분리 결과를 승인하시겠습니까?",
-      message: `Q${proposal.detected_problem_number} (page ${proposal.page_number}) 가 매치업 문항으로 등록됩니다.`,
+      title: isManualIndex ? "이 문항 정보 제안을 승인하시겠습니까?" : "이 분리 결과를 승인하시겠습니까?",
+      message: isManualIndex
+        ? `직접 자른 문항 #${proposal.target_problem_id ?? "-"}에 아래 OCR 텍스트와 형식을 반영합니다.`
+        : `Q${proposal.detected_problem_number} (page ${proposal.page_number}) 가 매치업 문항으로 등록됩니다.`,
       confirmText: "승인",
     });
     if (!ok) return;
@@ -133,7 +136,9 @@ export default function ProposalReviewPage() {
     try {
       const resp = await approveProposal(proposal.id);
       replaceRow(resp.proposal);
-      feedback.success(`Q${proposal.detected_problem_number} 승인 완료`);
+      feedback.success(isManualIndex
+        ? `문항 #${proposal.target_problem_id ?? "-"} 정보 승인 완료`
+        : `Q${proposal.detected_problem_number} 승인 완료`);
     } catch (e) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         || "승인 실패 — 잠시 후 다시 시도해주세요.";
@@ -145,8 +150,11 @@ export default function ProposalReviewPage() {
 
   const handleReject = useCallback(async (proposal: ProposalReviewItem) => {
     if (!proposal.can_reject || busyId != null) return;
+    const isManualIndex = proposal.proposal_kind === "manual_index";
     const reason = window.prompt(
-      `Q${proposal.detected_problem_number} (page ${proposal.page_number}) 거절 사유를 적어주세요. (선택)`,
+      isManualIndex
+        ? `문항 #${proposal.target_problem_id ?? "-"} 정보 제안의 거절 사유를 적어주세요. (선택)`
+        : `Q${proposal.detected_problem_number} (page ${proposal.page_number}) 거절 사유를 적어주세요. (선택)`,
       "",
     );
     // 사용자가 ESC/Cancel 했을 때 prompt 가 null 반환 — 거절 취소로 해석.
@@ -155,7 +163,9 @@ export default function ProposalReviewPage() {
     try {
       const resp = await rejectProposal(proposal.id, { reason: reason.trim() });
       replaceRow(resp.proposal);
-      feedback.success(`Q${proposal.detected_problem_number} 거절 처리됨`);
+      feedback.success(isManualIndex
+        ? `문항 #${proposal.target_problem_id ?? "-"} 정보 제안 거절 처리됨`
+        : `Q${proposal.detected_problem_number} 거절 처리됨`);
     } catch (e) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         || "거절 실패 — 잠시 후 다시 시도해주세요.";
@@ -179,10 +189,10 @@ export default function ProposalReviewPage() {
       }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-text-primary)" }}>
-            자동 분리 검수
+            AI 제안 검수
           </h1>
           <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>
-            자동 분리된 문항 후보를 한 건씩 승인/거절합니다.
+            자동 분리 후보와 직접 자른 문항의 OCR 정보 제안을 한 건씩 승인/거절합니다.
             {data && (
               <span>{"  ·  "}총 {data.total}건</span>
             )}
@@ -261,10 +271,10 @@ export default function ProposalReviewPage() {
             }}
           >
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--color-text-primary)" }}>
-              검수 대기 중인 분리 결과가 없습니다
+              검수 대기 중인 제안이 없습니다
             </div>
             <div style={{ fontSize: 12 }}>
-              자동 분리가 끝난 문서가 있을 때만 후보가 나타납니다.
+              자동 분리 또는 직접 자른 문항의 OCR 분석이 끝나면 제안이 나타납니다.
             </div>
           </div>
         ) : (
@@ -301,6 +311,10 @@ function ProposalRow({
 }) {
   const conf = CONFIDENCE_LABEL_KO[proposal.confidence_label] ?? CONFIDENCE_LABEL_KO.unknown;
   const isConflict = proposal.conflict_type != null;
+  const isManualIndex = proposal.proposal_kind === "manual_index";
+  const proposalLabel = isManualIndex
+    ? `문항 #${proposal.target_problem_id ?? "-"}`
+    : `Q${proposal.detected_problem_number}`;
 
   return (
     <li
@@ -325,12 +339,12 @@ function ProposalRow({
           : "var(--color-bg-canvas)",
       }}
     >
-      <ProposalPreview imageKey={proposal.image_key} alt={`page ${proposal.page_number} Q${proposal.detected_problem_number}`} />
+      <ProposalPreview imageKey={proposal.image_key} alt={`page ${proposal.page_number} ${proposalLabel}`} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)" }}>
-            Q{proposal.detected_problem_number}
+            {proposalLabel}
             <span style={{ marginLeft: 6, fontWeight: 500, color: "var(--color-text-muted)", fontSize: 12 }}>
               · page {proposal.page_number}
             </span>
@@ -341,6 +355,11 @@ function ProposalRow({
           <Badge tone={conf.tone} size="sm" variant="soft">
             {conf.text}
           </Badge>
+          {isManualIndex && (
+            <Badge tone="info" size="sm" variant="soft">
+              직접 자른 문항 OCR
+            </Badge>
+          )}
           {proposal.promoted_problem_id != null && (
             <Badge tone="success" size="sm">
               등록됨 · #{proposal.promoted_problem_id}
@@ -377,6 +396,28 @@ function ProposalRow({
           >
             <AlertTriangle size={ICON_FOR_BADGE.sm} style={{ flexShrink: 0, marginTop: 1 }} />
             <span>{proposal.user_message}</span>
+          </div>
+        )}
+
+        {isManualIndex && (
+          <div
+            data-testid="proposal-manual-index-content"
+            style={{
+              display: "flex", flexDirection: "column", gap: 6,
+              padding: "10px 12px", borderRadius: 6,
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface-soft, #f3f4f6)",
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)" }}>
+              제안 형식 · {proposal.proposed_format || "형식 미지정"}
+            </div>
+            <div style={{
+              maxHeight: 160, overflowY: "auto", whiteSpace: "pre-wrap", wordBreak: "keep-all",
+              fontSize: 13, lineHeight: 1.6, color: "var(--color-text-primary)",
+            }}>
+              {proposal.proposed_text || "제안된 OCR 텍스트가 없습니다."}
+            </div>
           </div>
         )}
       </div>

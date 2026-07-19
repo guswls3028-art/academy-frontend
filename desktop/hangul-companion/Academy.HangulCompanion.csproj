@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>Academy.HangulCompanion</AssemblyName>
     <RootNamespace>Academy.HangulCompanion</RootNamespace>
   </PropertyGroup>

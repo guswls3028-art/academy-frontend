@@ -77,6 +77,7 @@ export interface StudentInvoice {
   invoice_number: string;
   student: number;
   student_name: string;
+  lectures?: LectureOption[];
   student_phone?: string | null;
   student_parent_phone?: string | null;
   billing_year: number;
@@ -117,6 +118,8 @@ export interface DashboardStats {
 export interface LectureOption {
   id: number;
   title: string;
+  color?: string | null;
+  chip_label?: string | null;
 }
 
 export async function fetchLectureOptions(): Promise<LectureOption[]> {
@@ -146,7 +149,9 @@ function normalizeLectureOption(value: unknown): LectureOption | null {
   const id = Number(record.id);
   const title = typeof record.title === "string" ? record.title : "";
   if (!Number.isFinite(id) || id <= 0 || !title) return null;
-  return { id, title };
+  const color = typeof record.color === "string" ? record.color : null;
+  const chipLabel = typeof record.chip_label === "string" ? record.chip_label : null;
+  return { id, title, color, chip_label: chipLabel };
 }
 
 /* ────────── API: Fee Templates ────────── */

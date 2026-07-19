@@ -73,6 +73,25 @@
   box-shadow: var(--elevation-2);
 }
 
+.cardOpen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.cardOpen:focus-visible,
+.itemAdd:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 52%, transparent);
+  outline-offset: 2px;
+}
+
 /* ── Thumbnail wrapper (16:9 aspect ratio) ── */
 .thumbnailWrap {
   position: relative;
@@ -198,6 +217,7 @@
   font-weight: 600;
   color: var(--color-text-muted);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
+  font-family: inherit;
 }
 
 .itemAdd:hover {

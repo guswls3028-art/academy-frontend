@@ -112,6 +112,17 @@
   font-size: 13px;
 }
 
+.studentCell {
+  min-width: 160px;
+}
+
+.invoiceDescription {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
 .outstanding {
   font-weight: 400;
 }

@@ -20,7 +20,7 @@ const STORAGE_TABS: DomainTab[] = [
     activePaths: ["/admin/storage/files", "/admin/storage/students"],
   },
   { key: "hit-reports", label: "적중 보고서", path: "/admin/storage/hit-reports" },
-  { key: "proposals", label: "분리 검수", path: "/admin/storage/proposals" },
+  { key: "proposals", label: "제안 검수", path: "/admin/storage/proposals" },
 ];
 
 export default function StorageLayout() {

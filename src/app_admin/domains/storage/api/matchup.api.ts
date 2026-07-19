@@ -1134,6 +1134,7 @@ export type ProposalStatus =
 export type ProposalConflictType = "manual_overlap" | "number_conflict" | null;
 
 export type ProposalConfidenceLabel = "high" | "medium" | "low" | "unknown";
+export type ProposalKind = "segmentation" | "manual_index";
 
 export type ProposalBbox = {
   x: number;
@@ -1159,6 +1160,10 @@ export type ProposalReviewItem = {
   promoted_problem_id: number | null;
   reviewed_at: string | null;
   created_at: string;
+  proposal_kind?: ProposalKind;
+  target_problem_id?: number | null;
+  proposed_text?: string | null;
+  proposed_format?: string | null;
 };
 
 export type ProposalListResponse = {

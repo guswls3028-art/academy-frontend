@@ -54,7 +54,7 @@ export default function StorageRoutes() {
           element={renderLazyRoute(HitReportListPage, <StorageRouteFallback />)}
         />
 
-        {/* Stage 6.3A — 자동 분리 검수 큐 (Proposal Review v1) */}
+        {/* 자동 분리 + 직접 자른 문항 OCR 정보 제안 검수 큐 */}
         <Route
           path="proposals"
           element={renderLazyRoute(ProposalReviewPage, <StorageRouteFallback />)}

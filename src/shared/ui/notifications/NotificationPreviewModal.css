@@ -144,6 +144,14 @@
   padding-left: 18px;
 }
 
+.notification-preview__excluded li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 .notification-preview__confirm-check {
   display: flex;
   align-items: center;

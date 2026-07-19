@@ -420,7 +420,8 @@ export default function VideoTreeView() {
             ) : (
               <div className={styles.grid}>
                 {isPublicSelection && publicSession && (
-                  <div
+                  <button
+                    type="button"
                     data-guide="videos-add"
                     className={styles.itemAdd}
                     onClick={() => setAddChoiceModalOpen(true)}
@@ -428,17 +429,18 @@ export default function VideoTreeView() {
                   >
                     <FilePlus size={32} />
                     <span>추가</span>
-                  </div>
+                  </button>
                 )}
                 {selectedSession && !isPublicSelection && (
-                  <div
+                  <button
+                    type="button"
                     className={styles.itemAdd}
                     onClick={() => openUploadModal(selectedSession.session.id)}
                     title="영상 추가"
                   >
                     <FilePlus size={32} />
                     <span>추가</span>
-                  </div>
+                  </button>
                 )}
 
                 {videos.map((v) => {
@@ -446,42 +448,47 @@ export default function VideoTreeView() {
                   const hasViewCount = v.view_count != null && Number.isFinite(v.view_count);
 
                   return (
-                    <div key={v.id} className={styles.card} onClick={() => openVideoDetail(v)}>
-                      <div className={styles.thumbnailWrap}>
-                        <VideoThumbnail
-                          title={v.title}
-                          status={v.status ?? "PENDING"}
-                          thumbnail_url={v.thumbnail_url}
-                        />
-                        {durationLabel && v.status === "READY" && (
-                          <span className={styles.duration}>{durationLabel}</span>
-                        )}
-                        <div className={styles.statusOverlay}>
-                          <VideoStatusBadge status={v.status ?? "PENDING"} />
-                        </div>
-                      </div>
-
-                      <div className={styles.cardBody}>
-                        <span className={styles.cardTitle} title={v.title}>
-                          {v.title || "—"}
-                        </span>
-                        <div className={styles.cardMeta}>
-                          {v.source_type === "youtube" && (
-                            <span className={styles.sourceChip}>YouTube</span>
+                    <div key={v.id} className={styles.card}>
+                      <button
+                        type="button"
+                        className={styles.cardOpen}
+                        onClick={() => openVideoDetail(v)}
+                        aria-label={`${v.title || "영상"} 상세 보기`}
+                      >
+                        <div className={styles.thumbnailWrap}>
+                          <VideoThumbnail
+                            title={v.title}
+                            status={v.status ?? "PENDING"}
+                            thumbnail_url={v.thumbnail_url}
+                          />
+                          {durationLabel && v.status === "READY" && (
+                            <span className={styles.duration}>{durationLabel}</span>
                           )}
-                          {v.source_type === "youtube" && (hasViewCount || v.created_at) && <span className={styles.metaDot}>·</span>}
-                          {hasViewCount && (
-                            <>
+                          <div className={styles.statusOverlay}>
+                            <VideoStatusBadge status={v.status ?? "PENDING"} />
+                          </div>
+                        </div>
+
+                        <div className={styles.cardBody}>
+                          <span className={styles.cardTitle} title={v.title}>
+                            {v.title || "—"}
+                          </span>
+                          <div className={styles.cardMeta}>
+                            {v.source_type === "youtube" && (
+                              <span className={styles.sourceChip}>YouTube</span>
+                            )}
+                            {v.source_type === "youtube" && (hasViewCount || v.created_at) && <span className={styles.metaDot}>·</span>}
+                            {hasViewCount && (
                               <span className={styles.viewCount}>
                                 <Eye className={styles.viewIcon} />
                                 조회수 {formatVideoViewCount(v.view_count!)}회
                               </span>
-                            </>
-                          )}
-                          {hasViewCount && v.created_at && <span className={styles.metaDot}>·</span>}
-                          {v.created_at && <span>{formatVideoTimeAgo(v.created_at)}</span>}
+                            )}
+                            {hasViewCount && v.created_at && <span className={styles.metaDot}>·</span>}
+                            {v.created_at && <span>{formatVideoTimeAgo(v.created_at)}</span>}
+                          </div>
                         </div>
-                      </div>
+                      </button>
 
                       <div className={styles.cardActions}>
                         {canShowRetryButton(v) && (

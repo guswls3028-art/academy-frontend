@@ -27,7 +27,9 @@
     "verify:routes": "pnpm verify:student-routes && pnpm verify:teacher-routes && pnpm verify:landing-routes && pnpm verify:admin-routes",
     "refactor:inventory": "node scripts/refactor-boundary-snapshot.mjs",
     "refactor:budget": "node scripts/refactor-boundary-snapshot.mjs --budget scripts/refactor-budget-baseline.json",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "pnpm typecheck:app && pnpm typecheck:functions",
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck:functions": "tsc --noEmit -p tsconfig.functions.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
@@ -75,6 +77,7 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260719.1",
     "@eslint/js": "^9.19.0",
     "@jridgewell/gen-mapping": "0.3.7",
     "@playwright/test": "^1.58.2",

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\hangul-companion\BoundedDownload.cs" Link="BoundedDownload.cs" />
+    <Compile Include="..\hangul-companion\TrustedOrigins.cs" Link="TrustedOrigins.cs" />
+  </ItemGroup>
+</Project>

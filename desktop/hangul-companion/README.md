@@ -6,6 +6,9 @@
 - 조건이 맞지 않거나 삽입이 거부되면 HWPX를 새 문서로 엽니다.
 - 기존 문서를 저장·닫기·종료하지 않습니다.
 - 다운로드 URL이나 인증 토큰을 custom URI에 직접 넣지 않습니다.
+- handoff는 `https://api.hakwonplus.com/api/v1/tools/problem-studio/hangul-handoffs/`만 허용합니다.
+- 결과 다운로드는 운영 API 또는 정확한 운영 R2 account host만 허용하며 userinfo, HTTP, 비표준 port, redirect는 거부합니다.
+- 서버가 선언한 archive 크기는 0보다 크고 1 GiB 이하여야 합니다. Content-Length와 실제 stream도 선언 크기와 일치해야 하며 초과 stream은 디스크에 쓰기 전에 중단합니다.
 
 ## 빌드와 등록
 
@@ -13,6 +16,8 @@
 dotnet publish .\Academy.HangulCompanion.csproj -c Release -r win-x64 --self-contained false
 .\install-protocol.ps1 -ExecutablePath .\bin\Release\net8.0-windows\win-x64\publish\Academy.HangulCompanion.exe
 ```
+
+CI는 플랫폼 독립 trust-boundary 검사를 실행한 뒤 Windows companion을 Release로 빌드합니다.
 
 등록 해제는 `uninstall-protocol.ps1`을 실행합니다. 연결 프로그램은 24시간이 지난 임시 다운로드 폴더를 다음 실행 때 정리합니다.
 

@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/**'
       - 'e2e/**'
+      - 'functions/**'
       - 'index.html'
       - 'package.json'
       - 'playwright.config.ts'

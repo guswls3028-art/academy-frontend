@@ -2,7 +2,7 @@
 //
 // Phase F (2026-05-10) — Stage 6.3A Proposal Review UI v1.
 //
-// 자동분리(YOLO/VLM/OCR) 결과를 학원장이 검수해서 승인/거절하는 큐 화면.
+// 자동분리(YOLO/VLM/OCR) 결과와 직접 자른 문항의 OCR 정보 제안을 승인/거절하는 큐 화면.
 // backend `/matchup/proposals/` user_v1 schema 와 1:1 (sanitized: paper_type/engine/
 // raw confidence/raw_response/analysis_version_key 등은 서버가 미노출).
 //
@@ -15,7 +15,8 @@
 //
 // 의도적 미노출 (서버가 안 내려줌, schema 도 X):
 //   paper_type / engine / model_version / raw confidence float / raw_response /
-//   analysis_version_key / tenant_id / reviewed_by_id.
+//   analysis_version_key / tenant_id / reviewed_by_id. manual_index는 sanitized
+//   target_problem_id / proposed_text / proposed_format만 표시한다.
 //   학원장 시야에 들어갈 필요 없음.
 
 import { useState } from "react";
@@ -80,7 +81,9 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
     setBusyId(p.id);
     try {
       await approveProposal(p.id);
-      feedback.success(`Q${p.detected_problem_number} 승인 — 매치업에 추가됨`);
+      feedback.success(p.proposal_kind === "manual_index"
+        ? `문항 #${p.target_problem_id ?? "-"} 정보 승인 완료`
+        : `Q${p.detected_problem_number} 승인 — 매치업에 추가됨`);
       await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProposals(documentId) });
       await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblems(documentId) });
       await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
@@ -99,11 +102,13 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
       feedback.info(p.user_message || "이 항목은 거절할 수 없습니다.");
       return;
     }
+    const isManualIndex = p.proposal_kind === "manual_index";
     const ok = await confirm({
-      title: `Q${p.detected_problem_number} 거절`,
-      message:
-        `자동분리 결과를 거절합니다. 거절된 항목은 매치업에 포함되지 않으며, 자료의 문항 카드에도 추가되지 않습니다.\n\n` +
-        `거절 후에도 [직접 자르기]로 같은 페이지에서 박스를 다시 그릴 수 있습니다.`,
+      title: isManualIndex ? `문항 #${p.target_problem_id ?? "-"} 정보 제안 거절` : `Q${p.detected_problem_number} 거절`,
+      message: isManualIndex
+        ? "제안된 OCR 텍스트와 형식을 반영하지 않습니다. 직접 자른 원본 문항은 그대로 유지됩니다."
+        : `자동분리 결과를 거절합니다. 거절된 항목은 매치업에 포함되지 않으며, 자료의 문항 카드에도 추가되지 않습니다.\n\n` +
+          `거절 후에도 [직접 자르기]로 같은 페이지에서 박스를 다시 그릴 수 있습니다.`,
       confirmText: "거절",
       cancelText: "취소",
       danger: true,
@@ -112,7 +117,9 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
     setBusyId(p.id);
     try {
       await rejectProposal(p.id, { code: "manual_reject" });
-      feedback.success(`Q${p.detected_problem_number} 거절 완료`);
+      feedback.success(isManualIndex
+        ? `문항 #${p.target_problem_id ?? "-"} 정보 제안 거절 완료`
+        : `Q${p.detected_problem_number} 거절 완료`);
       await qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProposals(documentId) });
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -197,12 +204,12 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
               margin: 0, fontSize: 15, fontWeight: 700, color: "var(--color-text-primary)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              AI 자동분리 검수 — {documentTitle}
+              AI 제안 검수 — {documentTitle}
             </h3>
             <p style={/* eslint-disable-line no-restricted-syntax */ {
               margin: "2px 0 0 0", fontSize: 11, color: "var(--color-text-muted)",
             }}>
-              자동분리 결과를 승인하면 매치업 자료에 추가됩니다. 거절하면 카드 목록에 들어가지 않습니다.
+              자동 분리 후보와 직접 자른 문항의 OCR 정보 제안을 확인하고 승인하거나 거절합니다.
             </p>
           </div>
           <span style={/* eslint-disable-line no-restricted-syntax */ {
@@ -267,13 +274,13 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
               <p style={/* eslint-disable-line no-restricted-syntax */ {
                 fontSize: 14, color: "var(--color-text-secondary)", margin: 0, fontWeight: 600,
               }}>
-                검수 대기 중인 자동분리 결과가 없습니다
+                검수 대기 중인 제안이 없습니다
               </p>
               <p style={/* eslint-disable-line no-restricted-syntax */ {
                 fontSize: 12, color: "var(--color-text-muted)", margin: 0, lineHeight: 1.6, maxWidth: 480,
               }}>
-                자동분리 결과는 학원장님 자료에 즉시 반영됩니다. 결과가 만족스럽지 않다면<br />
-                카드 그리드에서 <strong>여러 문항 삭제</strong> 또는 <strong>직접 자르기</strong>로 정리할 수 있습니다.
+                자동 분리 또는 직접 자른 문항의 OCR 분석이 끝나면<br />
+                승인하거나 거절할 수 있는 제안이 여기에 나타납니다.
               </p>
             </div>
           ) : (
@@ -281,6 +288,7 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
               const isBusy = busyId === p.id;
               const tone = CONFIDENCE_TONE[p.confidence_label];
               const conflict = p.conflict_type;
+              const isManualIndex = p.proposal_kind === "manual_index";
               return (
                 <div
                   key={p.id}
@@ -312,7 +320,7 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
                       <strong style={/* eslint-disable-line no-restricted-syntax */ {
                         fontSize: 14, color: "var(--color-text-primary)",
                       }}>
-                        Q{p.detected_problem_number}
+                        {isManualIndex ? `문항 #${p.target_problem_id ?? "-"}` : `Q${p.detected_problem_number}`}
                       </strong>
                       <span style={/* eslint-disable-line no-restricted-syntax */ {
                         fontSize: 11, color: "var(--color-text-muted)",
@@ -320,6 +328,9 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
                         {p.page_number}페이지
                       </span>
                       <Badge tone={tone} size="sm">{CONFIDENCE_LABEL[p.confidence_label]}</Badge>
+                      {isManualIndex && (
+                        <Badge tone="info" size="sm" variant="soft">직접 자른 문항 OCR</Badge>
+                      )}
                       {p.ui_status_label && (
                         <Badge tone="neutral" size="sm">{p.ui_status_label}</Badge>
                       )}
@@ -336,6 +347,30 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
                       }}>
                         {p.user_message}
                       </p>
+                    )}
+                    {isManualIndex && (
+                      <div
+                        data-testid="matchup-proposal-manual-index-content"
+                        style={/* eslint-disable-line no-restricted-syntax */ {
+                          display: "flex", flexDirection: "column", gap: 6,
+                          marginTop: 4, padding: "8px 10px",
+                          border: "1px solid var(--color-border-divider)",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--color-bg-surface-soft)",
+                        }}
+                      >
+                        <span style={/* eslint-disable-line no-restricted-syntax */ {
+                          fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)",
+                        }}>
+                          제안 형식 · {p.proposed_format || "형식 미지정"}
+                        </span>
+                        <span style={/* eslint-disable-line no-restricted-syntax */ {
+                          maxHeight: 140, overflowY: "auto", whiteSpace: "pre-wrap", wordBreak: "keep-all",
+                          fontSize: 12, lineHeight: 1.6, color: "var(--color-text-primary)",
+                        }}>
+                          {p.proposed_text || "제안된 OCR 텍스트가 없습니다."}
+                        </span>
+                      </div>
                     )}
                     <div style={/* eslint-disable-line no-restricted-syntax */ {
                       display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap",
@@ -376,7 +411,7 @@ export default function ProposalReviewPanel({ documentId, documentTitle, onClose
           fontSize: 11, color: "var(--color-text-muted)",
           flexShrink: 0,
         }}>
-          승인된 항목은 즉시 매치업 자료에 추가됩니다 · 거절된 항목은 카드 그리드에서 직접 자르기로 다시 작업할 수 있습니다.
+          자동 분리 승인은 새 문항을 추가하고 · OCR 정보 승인은 표시된 텍스트와 형식을 직접 자른 문항에 반영합니다.
         </div>
       </div>
     </div>

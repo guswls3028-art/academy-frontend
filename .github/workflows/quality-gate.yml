@@ -37,7 +37,7 @@ jobs:
 
       # 차단 게이트: 타입 에러 = 배포 차단
       - name: Typecheck
-        run: pnpm exec tsc --noEmit -p tsconfig.app.json
+        run: pnpm typecheck
 
       - name: API and E2E safety contract guards
         run: pnpm guard:legacy-api
@@ -60,7 +60,7 @@ jobs:
           else
             BASE="HEAD~1"
           fi
-          CHANGED=$(git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/**/*.ts' 'src/**/*.tsx' 'e2e/**/*.ts' || true)
+          CHANGED=$(git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/**/*.ts' 'src/**/*.tsx' 'e2e/**/*.ts' 'functions/**/*.ts' || true)
           if [ -z "$CHANGED" ]; then
             echo "변경된 .ts/.tsx 없음 — skip"
             exit 0
@@ -72,6 +72,19 @@ jobs:
       # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
         run: pnpm build
+
+      - name: Build Cloudflare Pages Functions
+        run: npx wrangler@4.93.1 pages functions build functions --outdir .wrangler/functions-build
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test and build Hangul companion trust boundary
+        run: |
+          dotnet run --project desktop/hangul-companion-tests/Academy.HangulCompanion.TrustTests.csproj -c Release
+          dotnet build desktop/hangul-companion/Academy.HangulCompanion.csproj -c Release
 
       - name: Upload build artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

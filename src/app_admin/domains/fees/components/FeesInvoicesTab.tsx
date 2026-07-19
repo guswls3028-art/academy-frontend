@@ -11,6 +11,7 @@ import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
+import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { StatusBadge } from "./FeesDashboardTab";
 import styles from "./FeesInvoicesTab.module.css";
 import {
@@ -148,6 +149,25 @@ export default function FeesInvoicesTab() {
     unpaid: invoices?.filter((i) => ["PENDING", "PARTIAL", "OVERDUE"].includes(i.status)).length ?? 0,
     overdue: invoices?.filter((i) => i.status === "OVERDUE").length ?? 0,
   };
+  const selectedLecture = lectureFilter
+    ? lectures?.find((lecture) => String(lecture.id) === lectureFilter)
+    : undefined;
+  const visibleStudentLectures: LectureInfo[] = selectedLecture
+    ? [{
+        lectureName: selectedLecture.title,
+        color: selectedLecture.color,
+        chipLabel: selectedLecture.chip_label,
+      }]
+    : [];
+  const invoiceLectures = (invoice: StudentInvoice): LectureInfo[] => (
+    invoice.lectures?.length
+      ? invoice.lectures.map((lecture) => ({
+          lectureName: lecture.title,
+          color: lecture.color,
+          chipLabel: lecture.chip_label,
+        }))
+      : visibleStudentLectures
+  );
 
   return (
     <div className={styles.page}>
@@ -291,7 +311,14 @@ export default function FeesInvoicesTab() {
                   className={styles.invoiceRow}
                   data-status={inv.status}
                 >
-                  <td>{inv.student_name}</td>
+                  <td className={styles.studentCell}>
+                    <StudentNameWithLectureChip
+                      name={inv.student_name}
+                      lectures={invoiceLectures(inv)}
+                      chipSize={20}
+                      density="compact"
+                    />
+                  </td>
                   <td className={styles.invoiceNumber}>{inv.invoice_number}</td>
                   <td className={styles.alignRight}>{formatKRW(inv.total_amount)}</td>
                   <td className={styles.alignRight}>{formatKRW(inv.paid_amount)}</td>
@@ -361,7 +388,17 @@ export default function FeesInvoicesTab() {
           <>
             <ModalHeader
               title={`청구서 ${selectedInvoice.invoice_number}`}
-              description={`${selectedInvoice.student_name} · ${selectedInvoice.billing_year}년 ${selectedInvoice.billing_month}월`}
+              description={(
+                <span className={styles.invoiceDescription}>
+                  <StudentNameWithLectureChip
+                    name={selectedInvoice.student_name}
+                    lectures={invoiceLectures(selectedInvoice)}
+                    chipSize={20}
+                    density="compact"
+                  />
+                  <span>· {selectedInvoice.billing_year}년 {selectedInvoice.billing_month}월</span>
+                </span>
+              )}
               type="inspect"
             />
             <ModalBody>
@@ -479,7 +516,18 @@ export default function FeesInvoicesTab() {
 
       {/* ===== Payment Modal ===== */}
       <AdminModal open={paymentOpen} onClose={() => setPaymentOpen(false)} type="action" width={MODAL_WIDTH.sm}>
-        <ModalHeader title="수납 기록" description={selectedInvoice?.student_name} type="action" />
+        <ModalHeader
+          title="수납 기록"
+          description={selectedInvoice ? (
+            <StudentNameWithLectureChip
+              name={selectedInvoice.student_name}
+              lectures={invoiceLectures(selectedInvoice)}
+              chipSize={20}
+              density="compact"
+            />
+          ) : undefined}
+          type="action"
+        />
         <ModalBody>
           <div className="modal-scroll-body">
             <div className="modal-form-group">

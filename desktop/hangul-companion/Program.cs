@@ -23,7 +23,8 @@ internal static class Program
                 throw new InvalidOperationException("Academy 도구에서 '한글에서 열기'를 다시 눌러 주세요.");
 
             var handoffUri = ParseHandoffUri(args[0]);
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var http = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
             var handoff = await ReadHandoffAsync(http, handoffUri);
             CleanupOldTempDirectories();
             var tempRoot = Path.Combine(
@@ -71,10 +72,8 @@ internal static class Program
             .FirstOrDefault(parts => parts.Length == 2 && parts[0] == "handoff");
         if (query is null || !Uri.TryCreate(Uri.UnescapeDataString(query[1]), UriKind.Absolute, out var handoffUri))
             throw new InvalidOperationException("한글 연결 코드가 없습니다.");
-#if !DEBUG
-        if (handoffUri.Scheme != Uri.UriSchemeHttps)
-            throw new InvalidOperationException("보안 HTTPS 연결만 사용할 수 있습니다.");
-#endif
+        if (!TrustedOrigins.IsTrustedHandoff(handoffUri))
+            throw new InvalidOperationException("승인된 Academy 서버의 한글 연결만 사용할 수 있습니다.");
         return handoffUri;
     }
 
@@ -91,15 +90,23 @@ internal static class Program
 
     private static async Task DownloadAsync(HttpClient http, string rawUrl, string target, long expectedSize)
     {
-        if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps)
+        BoundedDownload.ValidateExpectedSize(expectedSize);
+        if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var url) || !TrustedOrigins.IsTrustedDownload(url))
             throw new InvalidOperationException("검수본 다운로드 주소가 안전하지 않습니다.");
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
+        BoundedDownload.ValidateContentLength(response.Content.Headers.ContentLength, expectedSize);
         await using var source = await response.Content.ReadAsStreamAsync();
-        await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        await source.CopyToAsync(output);
-        if (expectedSize > 0 && output.Length != expectedSize)
-            throw new InvalidOperationException("다운로드한 검수본 크기가 서버 정보와 다릅니다.");
+        try
+        {
+            await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            await BoundedDownload.CopyToAsync(source, output, expectedSize);
+        }
+        catch
+        {
+            try { File.Delete(target); } catch { }
+            throw;
+        }
     }
 
     private static void VerifySha256(string path, string expected)
