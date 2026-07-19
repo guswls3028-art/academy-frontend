@@ -11,6 +11,7 @@ import {
   type InventoryFile,
   type InventoryFolder,
   type InventoryListResponse,
+  type StudentScoreSubmissionPayload,
 } from "@/shared/api/contracts/storage";
 
 export type { InventoryFile, InventoryFolder, InventoryListResponse };
@@ -24,7 +25,13 @@ export function fetchMyInventory(studentPs: string): Promise<InventoryListRespon
 export function uploadMyFile(
   studentPs: string,
   file: File,
-  opts?: { folderId?: string | null; displayName?: string; description?: string; icon?: string }
+  opts?: {
+    folderId?: string | null;
+    displayName?: string;
+    description?: string;
+    icon?: string;
+    scoreSubmission?: StudentScoreSubmissionPayload;
+  }
 ): Promise<InventoryFile> {
   return uploadFile({
     scope: "student",
@@ -33,6 +40,7 @@ export function uploadMyFile(
     displayName: opts?.displayName || file.name,
     description: opts?.description || "",
     icon: opts?.icon || inferIcon(file),
+    scoreSubmission: opts?.scoreSubmission,
     file,
   });
 }

@@ -29,6 +29,9 @@ type Props = {
   className?: string;
   audience?: "staff" | "learner";
   showLectureFilters?: boolean;
+  title?: string;
+  description?: string;
+  badgeLabel?: string;
 };
 
 type LectureOption = {
@@ -75,6 +78,9 @@ export default function StudentScoreTrendChart({
   className,
   audience = "staff",
   showLectureFilters = true,
+  title = "회차별 성적 추이",
+  description,
+  badgeLabel = "자동 누적",
 }: Props) {
   const titleId = useId();
   const [lectureFilter, setLectureFilter] = useState<StudentScoreLectureFilter>(ALL_LECTURES);
@@ -114,13 +120,13 @@ export default function StudentScoreTrendChart({
           <span className={styles.iconWrap} aria-hidden><Route size={ICON.md} /></span>
           <div>
             <div className={styles.titleRow}>
-              <h3 id={titleId}>회차별 성적 추이</h3>
-              <Badge size="xs" tone="info">자동 누적</Badge>
+              <h3 id={titleId}>{title}</h3>
+              <Badge size="xs" tone="info">{badgeLabel}</Badge>
             </div>
             <p>
-              {audience === "learner"
+              {description ?? (audience === "learner"
                 ? "시험이 추가될 때마다 1회차부터 자동으로 이어집니다. 서로 다른 만점은 득점률로 비교합니다."
-                : "점수가 입력된 테스트를 시간순으로 쌓아 득점률로 비교합니다."}
+                : "점수가 입력된 테스트를 시간순으로 쌓아 득점률로 비교합니다.")}
             </p>
           </div>
         </div>

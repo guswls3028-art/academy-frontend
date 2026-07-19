@@ -42,7 +42,8 @@
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
 | OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts` | OMR CTA, 더보기, 편집모드, 발송 차단, 테이블 UX 확인 | 고정 fixture 의존 |
-| 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 기간·강의·학년·득점·변화 필터와 학생 선택, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
+| 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 학원시험·학교내신·모의고사 출처 전환, 기간·학생·강의·학년·득점·변화 필터, 학생 선택, 성적표 원본 검수·반영, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
+| 학생 성적표 자발 제출 | `e2e/student/reported-score-submission.spec.ts` | 학교 내신 시험 시기·과목·점수·원본 multipart 계약, 내신 등급 입력 전 5/9등급제 선택, 확인 대기 상태, 평가원 6·9월 선택 제한, 390px overflow 확인 | local route-mock 계약 검증 |
 | 공지 왕복 | `e2e/flows/notice-roundtrip.spec.ts` | 관리자 작성->학생 확인 roundtrip | 시각/초심자 판정은 부족 |
 | QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |
@@ -52,6 +53,7 @@
 | 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
 | 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
 | 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts`, `e2e/student/homework-submission-realuse.spec.ts` | 렌더/API shape와 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 체인 확인 | 관리자 UI 생성은 아직 API-assisted |
+| 학생 성적표->관리자 확인->누적 반영 | `e2e/student/reported-score-submission.spec.ts`, `e2e/admin/student-score-trend.spec.ts` | 학생 입력·원본 첨부와 관리자 출처별 검수·누적 UI 계약을 각각 검증 | local route-mock 2개로 역할별 계약 확인. 운영 데이터 roundtrip은 별도 canary 대상 |
 | 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
 | 운영 시나리오 | `e2e/flows/real-scenario.spec.ts` | 의도한 큰 흐름을 담고 있음 | API setup 중심, cleanup 없음, 실사용 gate로는 위험 |
 | 학생 이상행동 guardrail | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜토큰 보호 라우트, 로그아웃 뒤로가기, 390px 모바일 overflow를 hard expect로 검증 | 상품성 시각 리뷰는 별도 manual 판정표 필요 |

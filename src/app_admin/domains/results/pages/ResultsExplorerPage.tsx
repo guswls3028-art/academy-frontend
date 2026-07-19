@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowDownRight,
   ArrowUpRight,
   ChevronRight,
   CircleAlert,
+  ClipboardCheck,
+  ExternalLink,
+  FileCheck2,
+  FileX2,
   Minus,
   RefreshCw,
   Search,
@@ -22,14 +26,19 @@ import {
   type StudentExamTrendPoint,
 } from "@/shared/api/contracts/studentGrades";
 import { adminStudentsQueryKeys } from "@admin/domains/students/queryKeys";
+import { getPresignedUrl } from "@/shared/api/contracts/storage";
 import {
   fetchResultsLandingStats,
   type LandingSubmissionSummary,
 } from "../api/landingStats";
 import {
   fetchStudentPerformanceConsole,
+  reviewStudentReportedScore,
   type StudentPerformancePeriod,
   type StudentPerformanceRow,
+  type StudentPerformanceSource,
+  type StudentPerformanceSourceSummary,
+  type StudentReportedScore,
   type StudentScoreBand,
   type StudentTrendDirection,
 } from "../api/studentPerformance";
@@ -39,6 +48,13 @@ import styles from "./ResultsPerformanceConsole.module.css";
 type ScoreBandFilter = "all" | StudentScoreBand;
 type TrendFilter = "all" | StudentTrendDirection;
 type SortKey = "attention" | "latest_desc" | "change_desc" | "name";
+
+const SOURCE_OPTIONS: Array<{ value: StudentPerformanceSource; label: string; description: string }> = [
+  { value: "overall", label: "종합", description: "세 갈래 성적을 함께 봅니다" },
+  { value: "academy", label: "학원 시험", description: "수업별 테스트·정기시험" },
+  { value: "school", label: "학교 내신", description: "학기별 1·2차 지필평가" },
+  { value: "mock", label: "모의고사", description: "교육청·평가원 모의평가" },
+];
 
 const PERIOD_OPTIONS: Array<{ value: StudentPerformancePeriod; label: string }> = [
   { value: 30, label: "30일" },
@@ -97,8 +113,76 @@ function isWithinPeriod(point: StudentExamTrendPoint, period: StudentPerformance
   return timestamp >= Date.now() - period * 24 * 60 * 60 * 1000;
 }
 
+function reportedEffectiveDate(item: StudentReportedScore): string | null {
+  if (item.exam_date) return item.exam_date;
+  if (item.source_group === "mock" && item.exam_month) {
+    return `${item.academic_year}-${String(item.exam_month).padStart(2, "0")}-01`;
+  }
+  const schoolMonths: Record<string, number> = {
+    "1-first": 4,
+    "1-second": 7,
+    "2-first": 10,
+    "2-second": 12,
+  };
+  const month = schoolMonths[`${item.semester}-${item.exam_round}`];
+  return item.source_group === "school" && month
+    ? `${item.academic_year}-${String(month).padStart(2, "0")}-01`
+    : null;
+}
+
+const EMPTY_SOURCE_SUMMARY: StudentPerformanceSourceSummary = {
+  scored_count: 0,
+  average_score_pct: null,
+  latest_score_pct: null,
+  change_pct_points: null,
+  first_to_latest_pct_points: null,
+  best_score_pct: null,
+  score_band: "unscored",
+  trend_direction: "insufficient",
+};
+
+function sourceSummary(
+  student: StudentPerformanceRow,
+  source: StudentPerformanceSource,
+  subject?: string,
+): StudentPerformanceSourceSummary {
+  if ((source === "school" || source === "mock") && subject) {
+    return student.subject_summaries[source]?.[subject] ?? EMPTY_SOURCE_SUMMARY;
+  }
+  return student.source_summaries[source];
+}
+
+function reportedTrendPoints(student: StudentPerformanceRow, source: "school" | "mock", subject: string): StudentExamTrendPoint[] {
+  return student.reported_scores
+    .filter((item) => item.status === "verified" && item.source_group === source && item.subject === subject && item.score_pct != null)
+    .map((item, index) => ({
+      round_index: index + 1,
+      exam_id: item.id,
+      enrollment_id: 0,
+      title: `${item.label} · ${item.subject}`,
+      score: item.score,
+      max_score: item.max_score,
+      score_pct: item.score_pct ?? 0,
+      recorded_at: reportedEffectiveDate(item),
+      session_id: null,
+      session_title: item.label,
+      session_order: null,
+      session_regular_order: null,
+      session_date: reportedEffectiveDate(item),
+      lecture_id: null,
+      lecture_title: item.subject,
+      lecture_color: null,
+      lecture_chip_label: null,
+      retake_count: 1,
+      archived: false,
+    }));
+}
+
 export default function ResultsExplorerPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [source, setSource] = useState<StudentPerformanceSource>("overall");
+  const [reportedSubject, setReportedSubject] = useState("");
   const [period, setPeriod] = useState<StudentPerformancePeriod>(180);
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [grade, setGrade] = useState<number | "all">("all");
@@ -106,7 +190,9 @@ export default function ResultsExplorerPage() {
   const [trend, setTrend] = useState<TrendFilter>("all");
   const [sort, setSort] = useState<SortKey>("attention");
   const [search, setSearch] = useState("");
+  const [studentIdFilter, setStudentIdFilter] = useState<number | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
   const performanceQuery = useQuery({
     queryKey: adminResultsQueryKeys.studentPerformance(period, lectureId),
@@ -120,9 +206,34 @@ export default function ResultsExplorerPage() {
     queryFn: fetchResultsLandingStats,
     staleTime: 60_000,
   });
+  const reviewMutation = useMutation({
+    mutationFn: reviewStudentReportedScore,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-results-student-performance"] });
+    },
+  });
+
+  useEffect(() => {
+    if (source !== "school" && source !== "mock") return;
+    const subjects = performanceQuery.data?.filter_options.reported_subjects ?? [];
+    if (!subjects.includes(reportedSubject)) {
+      setReportedSubject(subjects.includes("수학") ? "수학" : subjects[0] ?? "");
+    }
+  }, [performanceQuery.data?.filter_options.reported_subjects, reportedSubject, source]);
+
+  const studentOptions = useMemo(
+    () => [...(performanceQuery.data?.students ?? [])].sort((a, b) => a.display_name.localeCompare(b.display_name, "ko-KR")),
+    [performanceQuery.data?.students],
+  );
+
+  useEffect(() => {
+    if (studentIdFilter != null && !studentOptions.some((student) => student.student_id === studentIdFilter)) {
+      setStudentIdFilter(null);
+    }
+  }, [studentIdFilter, studentOptions]);
 
   const filteredStudents = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("ko-KR");
+    const keyword = deferredSearch.trim().toLocaleLowerCase("ko-KR");
     const rows = (performanceQuery.data?.students ?? []).filter((student) => {
       const matchesSearch = !keyword || [
         student.display_name,
@@ -130,19 +241,27 @@ export default function ResultsExplorerPage() {
         student.school,
         ...student.lectures.map((lecture) => lecture.title),
       ].filter(Boolean).some((value) => String(value).toLocaleLowerCase("ko-KR").includes(keyword));
-      return matchesSearch
+      const metrics = sourceSummary(student, source, reportedSubject);
+      return (studentIdFilter == null || student.student_id === studentIdFilter)
+        && matchesSearch
         && (grade === "all" || student.grade === grade)
-        && (scoreBand === "all" || student.score_band === scoreBand)
-        && (trend === "all" || student.trend_direction === trend);
+        && (source === "overall" || scoreBand === "all" || metrics.score_band === scoreBand)
+        && (source === "overall" || trend === "all" || metrics.trend_direction === trend);
     });
     return [...rows].sort((a, b) => {
+      if (source === "overall") {
+        return b.pending_reported_score_count - a.pending_reported_score_count
+          || a.display_name.localeCompare(b.display_name, "ko-KR");
+      }
       if (sort === "name") return a.display_name.localeCompare(b.display_name, "ko-KR");
-      if (sort === "latest_desc") return (b.latest_score_pct ?? -1) - (a.latest_score_pct ?? -1);
-      if (sort === "change_desc") return (b.change_pct_points ?? -Infinity) - (a.change_pct_points ?? -Infinity);
-      return (a.latest_score_pct ?? Infinity) - (b.latest_score_pct ?? Infinity)
+      const aMetrics = sourceSummary(a, source, reportedSubject);
+      const bMetrics = sourceSummary(b, source, reportedSubject);
+      if (sort === "latest_desc") return (bMetrics.latest_score_pct ?? -1) - (aMetrics.latest_score_pct ?? -1);
+      if (sort === "change_desc") return (bMetrics.change_pct_points ?? -Infinity) - (aMetrics.change_pct_points ?? -Infinity);
+      return (aMetrics.latest_score_pct ?? Infinity) - (bMetrics.latest_score_pct ?? Infinity)
         || a.display_name.localeCompare(b.display_name, "ko-KR");
     });
-  }, [grade, performanceQuery.data?.students, scoreBand, search, sort, trend]);
+  }, [deferredSearch, grade, performanceQuery.data?.students, reportedSubject, scoreBand, sort, source, studentIdFilter, trend]);
 
   useEffect(() => {
     if (filteredStudents.length === 0) {
@@ -158,7 +277,7 @@ export default function ResultsExplorerPage() {
   const gradesQuery = useQuery({
     queryKey: adminStudentsQueryKeys.studentGrades(selectedStudentId ?? 0),
     queryFn: () => fetchAdminStudentGrades(selectedStudentId!),
-    enabled: selectedStudentId != null,
+    enabled: selectedStudentId != null && source === "academy",
     staleTime: 30_000,
   });
   const selectedTrend = useMemo(
@@ -177,12 +296,19 @@ export default function ResultsExplorerPage() {
         return bDate.localeCompare(aDate) || b.exam_id - a.exam_id;
       });
   }, [gradesQuery.data?.exams, selectedTrend]);
+  const selectedReportedTrend = useMemo(
+    () => selectedStudent && (source === "school" || source === "mock")
+      ? reportedTrendPoints(selectedStudent, source, reportedSubject).filter((point) => isWithinPeriod(point, period))
+      : [],
+    [period, reportedSubject, selectedStudent, source],
+  );
   const activeFilterCount = [
     lectureId != null,
     grade !== "all",
-    scoreBand !== "all",
-    trend !== "all",
+    source !== "overall" && scoreBand !== "all",
+    source !== "overall" && trend !== "all",
     search.trim() !== "",
+    studentIdFilter != null,
   ].filter(Boolean).length;
 
   function resetFilters() {
@@ -191,6 +317,7 @@ export default function ResultsExplorerPage() {
     setScoreBand("all");
     setTrend("all");
     setSearch("");
+    setStudentIdFilter(null);
     setSort("attention");
   }
 
@@ -214,6 +341,27 @@ export default function ResultsExplorerPage() {
         >
           새로고침
         </Button>
+      </section>
+
+      <section className={styles.sourceRail} aria-label="성적 출처" data-guide="results-source">
+        {SOURCE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={source === option.value}
+            data-active={source === option.value ? "true" : "false"}
+            onClick={() => {
+              setSource(option.value);
+              if (option.value === "overall") {
+                setScoreBand("all");
+                setTrend("all");
+              }
+            }}
+          >
+            <strong>{option.label}</strong>
+            <span>{option.description}</span>
+          </button>
+        ))}
       </section>
 
       <section className={styles.filterPanel} aria-label="성적 콘솔 필터" data-guide="results-filter">
@@ -241,6 +389,18 @@ export default function ResultsExplorerPage() {
             />
           </label>
           <FilterSelect
+            label="학생"
+            value={studentIdFilter == null ? "all" : String(studentIdFilter)}
+            onChange={(value) => setStudentIdFilter(value === "all" ? null : Number(value))}
+            options={[
+              { value: "all", label: "전체 학생" },
+              ...studentOptions.map((student) => ({
+                value: String(student.student_id),
+                label: [student.display_name, student.grade != null ? `${student.grade}학년` : null, student.school].filter(Boolean).join(" · "),
+              })),
+            ]}
+          />
+          <FilterSelect
             label="강의"
             value={lectureId == null ? "all" : String(lectureId)}
             onChange={(value) => setLectureId(value === "all" ? null : Number(value))}
@@ -261,9 +421,18 @@ export default function ResultsExplorerPage() {
               ...(performanceQuery.data?.filter_options.grades ?? []).map((value) => ({ value: String(value), label: `${value}학년` })),
             ]}
           />
-          <FilterSelect label="득점 구간" value={scoreBand} onChange={(value) => setScoreBand(value as ScoreBandFilter)} options={SCORE_BAND_OPTIONS} />
-          <FilterSelect label="점수 변화" value={trend} onChange={(value) => setTrend(value as TrendFilter)} options={TREND_OPTIONS} />
-          <FilterSelect label="정렬" value={sort} onChange={(value) => setSort(value as SortKey)} options={SORT_OPTIONS} />
+          {(source === "school" || source === "mock") && (
+            <FilterSelect
+              label="과목"
+              value={reportedSubject}
+              onChange={setReportedSubject}
+              options={(performanceQuery.data?.filter_options.reported_subjects ?? []).map((value) => ({ value, label: value }))}
+              disabled={(performanceQuery.data?.filter_options.reported_subjects ?? []).length === 0}
+            />
+          )}
+          <FilterSelect label="득점 구간" value={scoreBand} onChange={(value) => setScoreBand(value as ScoreBandFilter)} options={SCORE_BAND_OPTIONS} disabled={source === "overall"} />
+          <FilterSelect label="점수 변화" value={trend} onChange={(value) => setTrend(value as TrendFilter)} options={TREND_OPTIONS} disabled={source === "overall"} />
+          <FilterSelect label="정렬" value={sort} onChange={(value) => setSort(value as SortKey)} options={SORT_OPTIONS} disabled={source === "overall"} />
           <button type="button" className={styles.resetButton} onClick={resetFilters} disabled={activeFilterCount === 0}>
             <SlidersHorizontal size={ICON.sm} aria-hidden />
             초기화{activeFilterCount > 0 ? ` ${activeFilterCount}` : ""}
@@ -283,7 +452,7 @@ export default function ResultsExplorerPage() {
         />
       ) : (
         <>
-          <PerformanceSummary students={filteredStudents} />
+          <PerformanceSummary students={filteredStudents} source={source} subject={reportedSubject} />
           <div className={styles.workspace}>
             <section className={styles.rosterPanel} aria-labelledby="roster-title">
               <div className={styles.panelHeader}>
@@ -308,6 +477,8 @@ export default function ResultsExplorerPage() {
                       key={student.student_id}
                       student={student}
                       selected={student.student_id === selectedStudentId}
+                      source={source}
+                      subject={reportedSubject}
                       onClick={() => setSelectedStudentId(student.student_id)}
                     />
                   ))}
@@ -319,10 +490,12 @@ export default function ResultsExplorerPage() {
               {selectedStudent ? (
                 <StudentPerformanceDetail
                   student={selectedStudent}
-                  trend={selectedTrend}
+                  source={source}
+                  subject={reportedSubject}
+                  trend={source === "academy" ? selectedTrend : selectedReportedTrend}
                   exams={selectedExams}
-                  isLoading={gradesQuery.isLoading}
-                  isError={gradesQuery.isError}
+                  isLoading={source === "academy" && gradesQuery.isLoading}
+                  isError={source === "academy" && gradesQuery.isError}
                   onRetry={() => { void gradesQuery.refetch(); }}
                   onOpenStudent={() => navigate(`/admin/students/${selectedStudent.student_id}`)}
                 />
@@ -333,6 +506,13 @@ export default function ResultsExplorerPage() {
           </div>
         </>
       )}
+
+      <ReportedScoreReviewQueue
+        rows={performanceQuery.data?.pending_reported_scores ?? []}
+        pendingId={reviewMutation.isPending ? reviewMutation.variables?.scoreId ?? null : null}
+        mutationError={reviewMutation.isError}
+        onReview={(scoreId, action) => reviewMutation.mutate({ scoreId, action })}
+      />
 
       <GradingOperations
         data={operationsQuery.data}
@@ -349,29 +529,56 @@ function FilterSelect({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className={styles.selectControl}>
       <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
+      <select aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
   );
 }
 
-function PerformanceSummary({ students }: { students: StudentPerformanceRow[] }) {
-  const scored = students.filter((student) => student.scored_count > 0);
-  const scoreValues = scored.flatMap((student) => student.average_score_pct == null ? [] : [student.average_score_pct]);
+function PerformanceSummary({
+  students,
+  source,
+  subject,
+}: {
+  students: StudentPerformanceRow[];
+  source: StudentPerformanceSource;
+  subject: string;
+}) {
+  if (source === "overall") {
+    const academy = students.filter((student) => student.source_summaries.academy.scored_count > 0).length;
+    const school = students.filter((student) => student.source_summaries.school.scored_count > 0).length;
+    const mock = students.filter((student) => student.source_summaries.mock.scored_count > 0).length;
+    const pending = students.reduce((sum, student) => sum + student.pending_reported_score_count, 0);
+    return (
+      <section className={styles.summaryRail} aria-label="성적 출처별 기록 현황">
+        <SummaryMetric icon={<Users size={ICON.md} />} label="조회 학생" value={`${students.length}명`} note="현재 조건" />
+        <SummaryMetric icon={<Activity size={ICON.md} />} label="학원 시험 기록" value={`${academy}명`} note="학원 채점 결과" />
+        <SummaryMetric icon={<FileCheck2 size={ICON.md} />} label="학교 내신 확인" value={`${school}명`} note={`확인 대기 ${pending}건`} tone={pending > 0 ? "attention" : undefined} />
+        <SummaryMetric icon={<ClipboardCheck size={ICON.md} />} label="모의고사 확인" value={`${mock}명`} note="교육청·평가원" />
+      </section>
+    );
+  }
+  const scored = students.filter((student) => sourceSummary(student, source, subject).scored_count > 0);
+  const scoreValues = scored.flatMap((student) => {
+    const value = sourceSummary(student, source, subject).average_score_pct;
+    return value == null ? [] : [value];
+  });
   const average = scoreValues.length ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length : null;
-  const low = students.filter((student) => student.score_band === "under_60").length;
-  const improving = students.filter((student) => student.trend_direction === "up").length;
-  const declining = students.filter((student) => student.trend_direction === "down").length;
+  const low = students.filter((student) => sourceSummary(student, source, subject).score_band === "under_60").length;
+  const improving = students.filter((student) => sourceSummary(student, source, subject).trend_direction === "up").length;
+  const declining = students.filter((student) => sourceSummary(student, source, subject).trend_direction === "down").length;
   return (
     <section className={styles.summaryRail} aria-label="필터 결과 요약">
       <SummaryMetric icon={<Users size={ICON.md} />} label="조회 학생" value={`${students.length}명`} note={`점수 기록 ${scored.length}명`} />
@@ -407,12 +614,17 @@ function SummaryMetric({
 function StudentPerformanceButton({
   student,
   selected,
+  source,
+  subject,
   onClick,
 }: {
   student: StudentPerformanceRow;
   selected: boolean;
+  source: StudentPerformanceSource;
+  subject: string;
   onClick: () => void;
 }) {
+  const metrics = sourceSummary(student, source, subject);
   return (
     <button type="button" className={styles.studentRow} data-selected={selected ? "true" : "false"} onClick={onClick}>
       <span className={styles.studentIdentity}>
@@ -428,14 +640,26 @@ function StudentPerformanceButton({
             chipLabel: lecture.chip_label,
           }))}
         />
-        <small>{[student.grade != null ? `${student.grade}학년` : null, student.school, student.latest_exam_title].filter(Boolean).join(" · ") || "시험 기록 없음"}</small>
+        <small>{[student.grade != null ? `${student.grade}학년` : null, student.school, source === "academy" ? student.latest_exam_title : null].filter(Boolean).join(" · ") || "시험 기록 없음"}</small>
       </span>
-      <span className={styles.rowMetrics}>
-        <span><small>최근</small><strong>{formatPct(student.latest_score_pct)}</strong></span>
-        <TrendValue value={student.change_pct_points} />
-        <span><small>누적</small><strong>{student.scored_count}회</strong></span>
-      </span>
-      <ScoreBandBadge band={student.score_band} />
+      {source === "overall" ? (
+        <span className={styles.sourceMiniMetrics}>
+          <span><small>학원</small><strong>{formatPct(student.source_summaries.academy.latest_score_pct)}</strong></span>
+          <span><small>내신</small><strong>{Object.keys(student.subject_summaries.school).length}과목</strong></span>
+          <span><small>모의</small><strong>{Object.keys(student.subject_summaries.mock).length}과목</strong></span>
+        </span>
+      ) : (
+        <span className={styles.rowMetrics}>
+          <span><small>최근</small><strong>{formatPct(metrics.latest_score_pct)}</strong></span>
+          <TrendValue value={metrics.change_pct_points} />
+          <span><small>누적</small><strong>{metrics.scored_count}회</strong></span>
+        </span>
+      )}
+      {source === "overall" ? (
+        <Badge tone={student.pending_reported_score_count > 0 ? "warning" : "muted"} size="xs">
+          {student.pending_reported_score_count > 0 ? `확인 ${student.pending_reported_score_count}건` : "출처별"}
+        </Badge>
+      ) : <ScoreBandBadge band={metrics.score_band} />}
       <ChevronRight size={ICON.sm} className={styles.rowChevron} aria-hidden />
     </button>
   );
@@ -465,6 +689,8 @@ function ScoreBandBadge({ band }: { band: StudentScoreBand }) {
 
 function StudentPerformanceDetail({
   student,
+  source,
+  subject,
   trend,
   exams,
   isLoading,
@@ -473,6 +699,8 @@ function StudentPerformanceDetail({
   onOpenStudent,
 }: {
   student: StudentPerformanceRow;
+  source: StudentPerformanceSource;
+  subject: string;
   trend: StudentExamTrendPoint[];
   exams: StudentExamGrade[];
   isLoading: boolean;
@@ -480,6 +708,11 @@ function StudentPerformanceDetail({
   onRetry: () => void;
   onOpenStudent: () => void;
 }) {
+  const sourceLabel = SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? "성적";
+  const visibleReportedIds = new Set(trend.map((point) => point.exam_id));
+  const reportedRows = source === "school" || source === "mock"
+    ? student.reported_scores.filter((item) => item.status === "verified" && item.source_group === source && item.subject === subject && visibleReportedIds.has(item.id))
+    : [];
   return (
     <div className={styles.detailContent} data-testid="performance-student-detail">
       <header className={styles.studentHeader}>
@@ -491,18 +724,28 @@ function StudentPerformanceDetail({
             chipSize={20}
             lectures={student.lectures.map((lecture) => ({ lectureName: lecture.title, color: lecture.color, chipLabel: lecture.chip_label }))}
           />
-          <p>{[student.grade != null ? `${student.grade}학년` : null, student.school, `마지막 기록 ${formatShortDate(student.last_recorded_at)}`].filter(Boolean).join(" · ")}</p>
+          <p>{[student.grade != null ? `${student.grade}학년` : null, student.school, sourceLabel, source === "school" || source === "mock" ? subject : null].filter(Boolean).join(" · ")}</p>
         </div>
         <Button intent="secondary" size="sm" rightIcon={<ChevronRight size={ICON.sm} />} onClick={onOpenStudent}>학생 상세</Button>
       </header>
 
-      {isLoading ? (
+      {source === "overall" ? (
+        <SourceOverview student={student} />
+      ) : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="회차별 성적을 불러오는 중…" />
       ) : isError ? (
         <EmptyState scope="panel" tone="error" title="회차별 성적을 불러올 수 없습니다" actions={<Button intent="secondary" size="sm" onClick={onRetry}>다시 시도</Button>} />
       ) : (
         <>
-          <StudentScoreTrendChart points={trend} showLectureFilters={false} />
+          <StudentScoreTrendChart
+            points={trend}
+            showLectureFilters={false}
+            title={source === "academy" ? "학원 시험 누적 추이" : source === "school" ? "학교 내신 누적 추이" : "모의고사 누적 추이"}
+            description={source === "academy"
+              ? "학원에서 채점된 테스트를 회차순으로 비교합니다."
+              : "학생이 제출하고 선생님이 확인한 성적만 시험 순서대로 비교합니다."}
+            badgeLabel={source === "academy" ? "자동 누적" : "확인된 성적"}
+          />
           <div className={styles.historyHeader}>
             <div>
               <span className={styles.panelKicker}>시험 기록</span>
@@ -510,7 +753,7 @@ function StudentPerformanceDetail({
             </div>
             <span>총 {trend.length}회</span>
           </div>
-          {exams.length > 0 ? (
+          {source === "academy" && exams.length > 0 ? (
             <div className={styles.historyTableWrap}>
               <table className={styles.historyTable}>
                 <thead><tr><th>회차</th><th>시험</th><th>점수</th><th>수업</th><th>기록일</th></tr></thead>
@@ -531,12 +774,161 @@ function StudentPerformanceDetail({
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : source === "academy" ? (
             <div className={styles.historyEmpty}>선택한 조건에 기록된 시험 점수가 없습니다.</div>
+          ) : reportedRows.length > 0 ? (
+            <ReportedScoreHistory rows={reportedRows} />
+          ) : (
+            <div className={styles.historyEmpty}>확인 완료된 {source === "school" ? "학교 내신" : "모의고사"} 성적이 없습니다.</div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function SourceOverview({ student }: { student: StudentPerformanceRow }) {
+  const sources: Array<{ key: "academy" | "school" | "mock"; label: string; note: string }> = [
+    { key: "academy", label: "학원 시험", note: "학원 채점 결과" },
+    { key: "school", label: "학교 내신", note: "학기별 지필평가" },
+    { key: "mock", label: "모의고사", note: "교육청·평가원" },
+  ];
+  return (
+    <div className={styles.sourceOverview}>
+      <div className={styles.overviewIntro}>
+        <strong>성적을 세 갈래로 나눠 봅니다.</strong>
+        <span>시험 성격이 다른 점수를 섞지 않고, 각 출처의 최근값과 흐름을 비교합니다.</span>
+      </div>
+      <div className={styles.sourceCards}>
+        {sources.map((item) => {
+          const metrics = student.source_summaries[item.key];
+          const subjectCount = item.key === "academy" ? 0 : Object.keys(student.subject_summaries[item.key]).length;
+          return (
+            <article key={item.key} data-source={item.key}>
+              <header><span>{item.label}</span><small>{item.note}</small></header>
+              <strong>{item.key === "academy" ? formatPct(metrics.latest_score_pct) : `${subjectCount}과목`}</strong>
+              {item.key === "academy" ? (
+                <dl>
+                  <div><dt>누적</dt><dd>{metrics.scored_count}회</dd></div>
+                  <div><dt>평균</dt><dd>{formatPct(metrics.average_score_pct)}</dd></div>
+                  <div><dt>직전 대비</dt><dd>{formatPointChange(metrics.change_pct_points)}</dd></div>
+                </dl>
+              ) : (
+                <dl>
+                  <div><dt>확인 성적</dt><dd>{metrics.scored_count}건</dd></div>
+                  <div><dt>비교 기준</dt><dd>과목별</dd></div>
+                  <div><dt>상세</dt><dd>{item.label} 탭</dd></div>
+                </dl>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {student.pending_reported_score_count > 0 && (
+        <div className={styles.pendingNotice}><ClipboardCheck size={ICON.sm} aria-hidden /><span>학생이 제출한 성적표 {student.pending_reported_score_count}건이 확인을 기다리고 있습니다.</span></div>
+      )}
+    </div>
+  );
+}
+
+function ReportedScoreHistory({ rows }: { rows: StudentReportedScore[] }) {
+  const ordered = [...rows].sort((a, b) => (reportedEffectiveDate(b) || "").localeCompare(reportedEffectiveDate(a) || ""));
+  return (
+    <div className={styles.historyTableWrap}>
+      <table className={`${styles.historyTable} ${styles.reportedTable}`}>
+        <thead><tr><th>시험</th><th>과목</th><th>점수</th><th>성적 지표</th><th>시험일</th></tr></thead>
+        <tbody>
+          {ordered.slice(0, 12).map((row) => (
+            <tr key={row.id}>
+              <td><strong>{row.label}</strong><small>{row.source === "kice_mock" ? "평가원" : row.source === "national_mock" ? "교육청" : "학교"}</small></td>
+              <td>{row.subject}</td>
+              <td><strong>{formatPct(row.score_pct)}</strong><small>{row.score} / {row.max_score}점</small></td>
+              <td>{[
+                row.grade_rank ? `${row.grade_rank}등급${row.grade_scale === "five" ? "(5등급제)" : ""}` : null,
+                row.achievement_level ? `성취도 ${row.achievement_level}` : null,
+                row.subject_average != null ? `평균 ${row.subject_average}` : null,
+                row.standard_deviation != null ? `표준편차 ${row.standard_deviation}` : null,
+                row.cohort_size != null ? `${row.cohort_size}명` : null,
+                row.standard_score != null ? `표준 ${row.standard_score}` : null,
+                row.percentile != null ? `백분위 ${row.percentile}` : null,
+              ].filter(Boolean).join(" · ") || "—"}</td>
+              <td>{formatShortDate(reportedEffectiveDate(row))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReportedScoreReviewQueue({
+  rows,
+  pendingId,
+  mutationError,
+  onReview,
+}: {
+  rows: StudentReportedScore[];
+  pendingId: number | null;
+  mutationError: boolean;
+  onReview: (scoreId: number, action: "verify" | "reject") => void;
+}) {
+  const [evidenceError, setEvidenceError] = useState(false);
+  const openEvidence = async (row: StudentReportedScore) => {
+    setEvidenceError(false);
+    try {
+      const { url } = await getPresignedUrl(row.evidence_r2_key);
+      if (url) window.open(url, "_blank", "noopener");
+    } catch {
+      setEvidenceError(true);
+    }
+  };
+  return (
+    <section className={styles.reviewQueue} aria-labelledby="reported-score-review-title" data-testid="reported-score-review-queue">
+      <header className={styles.operationsHeader}>
+        <div>
+          <span className={styles.panelKicker}>학생 제출 성적표</span>
+          <h3 id="reported-score-review-title">원본 확인 후 성적 반영</h3>
+          <p>학생이 입력한 값과 성적표 원본이 일치할 때만 승인합니다.</p>
+        </div>
+        <span className={styles.reviewCount}><ClipboardCheck size={ICON.sm} aria-hidden /><strong>{rows.length}건</strong> 확인 대기</span>
+      </header>
+      {(mutationError || evidenceError) && (
+        <div role="alert" className={styles.reviewError}>
+          {evidenceError ? "성적표 원본을 열지 못했습니다. 잠시 후 다시 시도해 주세요." : "성적 반영 상태를 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요."}
+        </div>
+      )}
+      {rows.length === 0 ? (
+        <div className={styles.reviewEmpty}><FileCheck2 size={ICON.md} aria-hidden /><strong>확인할 성적표가 없습니다.</strong><span>새 제출이 들어오면 이곳에 자동으로 표시됩니다.</span></div>
+      ) : (
+        <div className={styles.reviewList}>
+          {rows.map((row) => (
+            <article key={row.id} className={styles.reviewRow}>
+              <div className={styles.reviewStudent}>
+                <strong>{row.student_name || "학생"}</strong>
+                <span>{[row.grade != null ? `${row.grade}학년` : null, row.school].filter(Boolean).join(" · ") || "학교 정보 없음"}</span>
+              </div>
+              <div className={styles.reviewExam}>
+                <strong>{row.label}</strong>
+                <span>{row.subject} · {row.score}/{row.max_score}점 ({formatPct(row.score_pct)})</span>
+              </div>
+              <div className={styles.reviewIndicators}>
+                {row.grade_rank && <span>{row.grade_rank}등급</span>}
+                {row.grade_scale && <span>{row.grade_scale === "five" ? "5등급제" : "9등급제"}</span>}
+                {row.achievement_level && <span>성취도 {row.achievement_level}</span>}
+                {row.subject_average != null && <span>평균 {row.subject_average}</span>}
+                {row.standard_score != null && <span>표준 {row.standard_score}</span>}
+                {row.percentile != null && <span>백분위 {row.percentile}</span>}
+              </div>
+              <div className={styles.reviewActions}>
+                <Button intent="secondary" size="sm" leftIcon={<ExternalLink size={ICON.xs} />} onClick={() => { void openEvidence(row); }}>원본 보기</Button>
+                <Button intent="secondary" size="sm" leftIcon={<FileX2 size={ICON.xs} />} disabled={pendingId === row.id} onClick={() => onReview(row.id, "reject")}>반려</Button>
+                <Button intent="primary" size="sm" leftIcon={<FileCheck2 size={ICON.xs} />} loading={pendingId === row.id} onClick={() => onReview(row.id, "verify")}>확인·반영</Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

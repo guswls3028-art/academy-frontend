@@ -187,14 +187,14 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await expect(S.locator("text=성적표 제출")).toBeVisible({ timeout: 10000 });
 
     // 파일 선택 버튼 존재 (학부모 계정이 아닌 경우)
-    const hasFileBtn = await S.locator("button").filter({ hasText: /파일 선택/ }).isVisible({ timeout: 5000 }).catch(() => false);
+    const hasFileBtn = await S.locator("button").filter({ hasText: /성적표 선택/ }).isVisible({ timeout: 5000 }).catch(() => false);
     const hasParentMsg = await S.locator("text=학부모 계정").isVisible({ timeout: 3000 }).catch(() => false);
     // 파일 선택 버튼이 보이거나, 학부모 메시지가 보이거나
     expect(hasFileBtn || hasParentMsg).toBeTruthy();
 
     // 제출하기 버튼 존재 확인 (disabled 상태일 수 있음)
     if (hasFileBtn) {
-      const submitBtn = S.locator("button").filter({ hasText: /제출하기/ });
+      const submitBtn = S.locator("button").filter({ hasText: /성적표 보내기/ });
       await expect(submitBtn).toBeVisible({ timeout: 5000 });
       // 파일이 없으므로 disabled 상태여야 함
       await expect(submitBtn).toBeDisabled();

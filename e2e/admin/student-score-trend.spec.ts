@@ -212,6 +212,9 @@ const performanceConsole = {
     under_60_student_count: 0,
     improving_student_count: 1,
     declining_student_count: 0,
+    pending_reported_score_count: 1,
+    verified_school_score_count: 2,
+    verified_mock_score_count: 1,
   },
   filter_options: {
     lectures: student.enrollments.map((enrollment) => ({
@@ -222,7 +225,36 @@ const performanceConsole = {
       is_active: true,
     })),
     grades: [2],
+    reported_subjects: ["수학"],
   },
+  pending_reported_scores: [{
+    id: 903,
+    student_id: student.id,
+    student_name: student.name,
+    school: student.high_school,
+    grade: student.grade,
+    source: "kice_mock",
+    source_group: "mock",
+    label: "2026년 9월 평가원 모의평가",
+    academic_year: 2026,
+    semester: null,
+    exam_round: null,
+    exam_month: 9,
+    exam_date: "2026-09-03",
+    subject: "수학",
+    score: 92,
+    max_score: 100,
+    score_pct: 92,
+    standard_score: 136,
+    percentile: 96,
+    grade_rank: 1,
+    status: "pending",
+    review_note: "",
+    evidence_file_id: 1903,
+    evidence_r2_key: "tenant/student/score-903.jpg",
+    created_at: "2026-07-19T10:30:00+09:00",
+    reviewed_at: null,
+  }],
   students: [{
     student_id: student.id,
     name: student.name,
@@ -249,6 +281,32 @@ const performanceConsole = {
     last_recorded_at: "2026-07-15T18:00:00+09:00",
     score_band: "80_plus",
     trend_direction: "up",
+    source_summaries: {
+      overall: { scored_count: 6, average_score_pct: 87.8, latest_score_pct: 91, change_pct_points: 5, first_to_latest_pct_points: 11, best_score_pct: 96, score_band: "80_plus", trend_direction: "up" },
+      academy: { scored_count: 3, average_score_pct: 88.7, latest_score_pct: 96, change_pct_points: 6, first_to_latest_pct_points: 16, best_score_pct: 96, score_band: "80_plus", trend_direction: "up" },
+      school: { scored_count: 2, average_score_pct: 83.5, latest_score_pct: 87, change_pct_points: 7, first_to_latest_pct_points: 7, best_score_pct: 87, score_band: "80_plus", trend_direction: "up" },
+      mock: { scored_count: 1, average_score_pct: 91, latest_score_pct: 91, change_pct_points: null, first_to_latest_pct_points: null, best_score_pct: 91, score_band: "80_plus", trend_direction: "insufficient" },
+    },
+    subject_summaries: {
+      school: {
+        수학: { scored_count: 2, average_score_pct: 83.5, latest_score_pct: 87, change_pct_points: 7, first_to_latest_pct_points: 7, best_score_pct: 87, score_band: "80_plus", trend_direction: "up" },
+      },
+      mock: {
+        수학: { scored_count: 1, average_score_pct: 91, latest_score_pct: 91, change_pct_points: null, first_to_latest_pct_points: null, best_score_pct: 91, score_band: "80_plus", trend_direction: "insufficient" },
+      },
+    },
+    reported_scores: [
+      {
+        id: 901, student_id: student.id, source: "school_exam", source_group: "school", label: "2026년 1학기 1차 지필평가(중간)", academic_year: 2026, semester: 1, exam_round: "first", exam_month: null, exam_date: "2026-04-28", subject: "수학", score: 80, max_score: 100, score_pct: 80, standard_score: null, percentile: null, grade_rank: 3, status: "verified", review_note: "", evidence_file_id: 1901, evidence_r2_key: "tenant/student/score-901.jpg", created_at: "2026-04-29T10:00:00+09:00", reviewed_at: "2026-04-29T11:00:00+09:00",
+      },
+      {
+        id: 902, student_id: student.id, source: "school_exam", source_group: "school", label: "2026년 1학기 2차 지필평가(기말)", academic_year: 2026, semester: 1, exam_round: "second", exam_month: null, exam_date: "2026-07-03", subject: "수학", score: 87, max_score: 100, score_pct: 87, standard_score: null, percentile: null, grade_rank: 2, status: "verified", review_note: "", evidence_file_id: 1902, evidence_r2_key: "tenant/student/score-902.jpg", created_at: "2026-07-04T10:00:00+09:00", reviewed_at: "2026-07-04T11:00:00+09:00",
+      },
+      {
+        id: 904, student_id: student.id, source: "national_mock", source_group: "mock", label: "2026년 6월 전국연합학력평가", academic_year: 2026, semester: null, exam_round: null, exam_month: 6, exam_date: "2026-06-04", subject: "수학", score: 91, max_score: 100, score_pct: 91, standard_score: 132, percentile: 94, grade_rank: 2, status: "verified", review_note: "", evidence_file_id: 1904, evidence_r2_key: "tenant/student/score-904.jpg", created_at: "2026-06-05T10:00:00+09:00", reviewed_at: "2026-06-05T11:00:00+09:00",
+      },
+    ],
+    pending_reported_score_count: 1,
   }],
 };
 
@@ -262,6 +320,7 @@ async function installApi(page: Page, options: { failGrades?: boolean } = {}): P
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, { token: access });
 
+  let scoreReviewResolved = false;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -320,7 +379,21 @@ async function installApi(page: Page, options: { failGrades?: boolean } = {}): P
       return;
     }
     if (path.endsWith("/results/admin/student-performance/")) {
-      await route.fulfill({ json: performanceConsole });
+      await route.fulfill({ json: scoreReviewResolved ? {
+        ...performanceConsole,
+        summary: { ...performanceConsole.summary, pending_reported_score_count: 0 },
+        pending_reported_scores: [],
+        students: performanceConsole.students.map((row) => ({ ...row, pending_reported_score_count: 0 })),
+      } : performanceConsole });
+      return;
+    }
+    if (path.includes("/results/admin/reported-scores/") && path.endsWith("/review/") && request.method() === "PATCH") {
+      scoreReviewResolved = true;
+      await route.fulfill({ json: { ...performanceConsole.pending_reported_scores[0], status: "verified" } });
+      return;
+    }
+    if (path.endsWith("/storage/inventory/presign/")) {
+      await route.fulfill({ json: { url: "https://example.invalid/score-evidence.jpg" } });
       return;
     }
     if (path.endsWith("/results/admin/landing-stats/")) {
@@ -368,11 +441,19 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(console.getByText("학생의 변화를 회차로 봅니다")).toBeVisible();
     await expect(console.getByText("시험 추가 시 자동 누적")).toBeVisible();
     await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
-    await expect(console.getByText("최근96%").first()).toBeVisible();
+    await expect(console.getByText("학원96%").first()).toBeVisible();
+    await console.screenshot({ path: "test-results/student-score-trend/results-console-initial-1366.png" });
+    await expect(console.getByLabel("학생", { exact: true })).toContainText("윤지용 학생");
+    await console.getByLabel("학생", { exact: true }).selectOption(String(student.id));
+    await expect(console.getByTestId("performance-student-list")).toContainText("윤지용 학생");
+    await console.getByRole("button", { name: /초기화/ }).first().click();
 
     const detail = page.getByTestId("performance-student-detail");
     await expect(detail).toContainText("윤지용 학생");
-    await assertTrend(detail.getByTestId("student-score-trend"));
+    await expect(detail).toContainText("성적을 세 갈래로 나눠 봅니다.");
+    await console.getByRole("button", { name: /학원 시험/ }).first().click();
+    await expect(detail.getByTestId("student-score-trend")).toContainText("학원 시험 누적 추이");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
     await expect(detail.getByText("1회차", { exact: true }).first()).toBeVisible();
     await expect(detail.getByText("3회차", { exact: true }).first()).toBeVisible();
 
@@ -387,6 +468,23 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await console.getByRole("button", { name: /초기화/ }).first().click();
     await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
 
+    await console.getByRole("button", { name: /학교 내신/ }).first().click();
+    await expect(console.getByLabel("과목")).toHaveValue("수학");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("학교 내신 누적 추이");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적2회");
+    await expect(detail).toContainText("1학기 2차 지필평가");
+    await console.getByRole("button", { name: "30일", exact: true }).click();
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적1회");
+    await expect(detail).not.toContainText("1학기 1차 지필평가");
+
+    const reviewQueue = page.getByTestId("reported-score-review-queue");
+    await expect(reviewQueue).toContainText("2026년 9월 평가원 모의평가");
+    await reviewQueue.screenshot({ path: "test-results/student-score-trend/reported-score-review-queue.png" });
+    await reviewQueue.getByRole("button", { name: "확인·반영" }).click();
+    await expect(reviewQueue).toContainText("확인할 성적표가 없습니다.");
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: "test-results/student-score-trend/results-console-top-1366.png" });
     await page.screenshot({ path: "test-results/student-score-trend/results-console-1366.png", fullPage: true });
     await page.setViewportSize({ width: 1100, height: 820 });
     await expect(console).toBeVisible();

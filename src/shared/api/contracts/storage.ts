@@ -30,6 +30,60 @@ export type InventoryFileMatchupInfo = {
   problemCount: number;
 };
 
+export type StudentScoreSource = "school_exam" | "national_mock" | "kice_mock";
+export type StudentScoreReviewStatus = "pending" | "verified" | "rejected";
+
+export type StudentReportedScoreSubmission = {
+  id: number;
+  student_id: number;
+  source: StudentScoreSource;
+  source_group: "school" | "mock";
+  label: string;
+  academic_year: number;
+  semester: number | null;
+  exam_round: "first" | "second" | null;
+  exam_month: number | null;
+  exam_date: string | null;
+  subject: string;
+  score: number;
+  max_score: number;
+  score_pct: number | null;
+  standard_score: number | null;
+  percentile: number | null;
+  grade_rank: number | null;
+  grade_scale: "five" | "nine" | null;
+  achievement_level: "A" | "B" | "C" | "D" | "E" | null;
+  subject_average: number | null;
+  standard_deviation: number | null;
+  cohort_size: number | null;
+  status: StudentScoreReviewStatus;
+  review_note: string;
+  evidence_file_id: number;
+  evidence_r2_key: string;
+  created_at: string | null;
+  reviewed_at: string | null;
+};
+
+export type StudentScoreSubmissionPayload = {
+  source: StudentScoreSource;
+  academicYear: number;
+  subject: string;
+  score: number;
+  maxScore: number;
+  semester?: 1 | 2;
+  examRound?: "first" | "second";
+  examMonth?: number;
+  examDate?: string;
+  standardScore?: number;
+  percentile?: number;
+  gradeRank?: number;
+  gradeScale?: "five" | "nine";
+  achievementLevel?: "A" | "B" | "C" | "D" | "E";
+  subjectAverage?: number;
+  standardDeviation?: number;
+  cohortSize?: number;
+};
+
 export type InventoryFile = {
   id: string;
   name: string;
@@ -43,6 +97,8 @@ export type InventoryFile = {
   createdAt: string;
   // admin scope에서만 채워짐. 매치업 자료로 승격된 경우 doc 정보 포함.
   matchup?: InventoryFileMatchupInfo;
+  // 학생 성적표로 제출한 파일에만 채워짐.
+  scoreSubmission?: StudentReportedScoreSubmission;
 };
 
 export type InventoryListResponse = {
@@ -88,6 +144,7 @@ export type UploadFilePayload = {
   promoteToMatchup?: boolean;
   subject?: string;
   gradeLevel?: string;
+  scoreSubmission?: StudentScoreSubmissionPayload;
 };
 
 export type UploadFileResponse = InventoryFile & {
@@ -109,6 +166,27 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
   if (payload.promoteToMatchup) form.append("promote_to_matchup", "true");
   if (payload.subject) form.append("subject", payload.subject);
   if (payload.gradeLevel) form.append("grade_level", payload.gradeLevel);
+  if (payload.scoreSubmission) {
+    const score = payload.scoreSubmission;
+    form.append("score_submission", "true");
+    form.append("score_source", score.source);
+    form.append("academic_year", String(score.academicYear));
+    form.append("subject", score.subject);
+    form.append("score", String(score.score));
+    form.append("max_score", String(score.maxScore));
+    if (score.semester != null) form.append("semester", String(score.semester));
+    if (score.examRound) form.append("exam_round", score.examRound);
+    if (score.examMonth != null) form.append("exam_month", String(score.examMonth));
+    if (score.examDate) form.append("exam_date", score.examDate);
+    if (score.standardScore != null) form.append("standard_score", String(score.standardScore));
+    if (score.percentile != null) form.append("percentile", String(score.percentile));
+    if (score.gradeRank != null) form.append("grade_rank", String(score.gradeRank));
+    if (score.gradeScale) form.append("grade_scale", score.gradeScale);
+    if (score.achievementLevel) form.append("achievement_level", score.achievementLevel);
+    if (score.subjectAverage != null) form.append("subject_average", String(score.subjectAverage));
+    if (score.standardDeviation != null) form.append("standard_deviation", String(score.standardDeviation));
+    if (score.cohortSize != null) form.append("cohort_size", String(score.cohortSize));
+  }
 
   const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {
     headers: { "Content-Type": "multipart/form-data" },
