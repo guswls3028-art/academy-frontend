@@ -231,12 +231,13 @@ async function waitForStudentResult(
 async function cleanup(request: APIRequestContext): Promise<void> {
   const token = created.adminAccess;
   if (!token) return;
+  const failures: string[] = [];
 
-  const safe = async (
+  const remove = async (
     method: string,
     path: string,
     data?: Record<string, unknown>,
-    options?: { logFailure?: boolean },
+    acceptedStatuses: number[] = [200, 202, 204, 404],
   ) => {
     let out: { status: number; body: unknown };
     try {
@@ -247,40 +248,55 @@ async function cleanup(request: APIRequestContext): Promise<void> {
         body: { error: error instanceof Error ? error.message : String(error) },
       };
     }
-    if ((options?.logFailure ?? true) && ![200, 202, 204, 404].includes(out.status)) {
-      console.log(`cleanup ${method} ${path}: ${out.status} ${JSON.stringify(out.body)}`);
+    if (!acceptedStatuses.includes(out.status)) {
+      failures.push(`${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`);
     }
     return out;
   };
 
   for (const id of created.submissionIds) {
-    await safe("DELETE", `/submissions/submissions/${id}/`, undefined, { logFailure: false });
+    await remove("DELETE", `/submissions/submissions/${id}/`);
   }
+  for (const id of created.sessionEnrollmentIds) {
+    await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
+  }
+  if (created.studentId) {
+    await remove("POST", "/students/bulk_delete/", { ids: [created.studentId] }, [200, 204]);
+    await remove(
+      "POST",
+      "/students/bulk_permanent_delete/",
+      { ids: [created.studentId] },
+      [200],
+    );
+  }
+  if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
   if (created.examId && created.sessionId) {
-    const examDelete = await safe(
+    await remove(
       "DELETE",
       `/exams/${created.examId}/?session_id=${created.sessionId}`,
       undefined,
-      { logFailure: false },
+      [204, 404],
     );
-    if (![200, 204, 404].includes(examDelete.status)) {
-      await safe("PATCH", `/exams/${created.examId}/`, {
-        is_active: false,
-        title: `${EXAM_TITLE} (archived)`,
-        close_at: new Date(Date.now() - 60_000).toISOString(),
-      });
+  }
+  if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+
+  for (const [label, path] of [
+    ...created.submissionIds.map((id) => [`submission ${id}`, `/submissions/submissions/${id}/`] as const),
+    ...(created.examId ? [[`exam ${created.examId}`, `/exams/${created.examId}/`] as const] : []),
+    ...(created.studentId ? [[`student ${created.studentId}`, `/students/${created.studentId}/`] as const] : []),
+    ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
+    ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+  ]) {
+    const verification = await apiFetch(request, "GET", path, token);
+    if (verification.status !== 404) {
+      failures.push(`verify ${label} absent -> ${verification.status} ${JSON.stringify(verification.body)}`);
     }
   }
-  for (const id of created.sessionEnrollmentIds) {
-    await safe("DELETE", `/enrollments/session-enrollments/${id}/`);
+
+  if (failures.length > 0) {
+    throw new Error(`OMR production fixture cleanup failed:\n${failures.join("\n")}`);
   }
-  if (created.enrollmentId) await safe("DELETE", `/enrollments/${created.enrollmentId}/`);
-  if (created.studentId) {
-    await safe("POST", "/students/bulk_delete/", { ids: [created.studentId] });
-    await safe("POST", "/students/bulk_permanent_delete/", { ids: [created.studentId] });
-  }
-  if (created.sessionId) await safe("DELETE", `/lectures/sessions/${created.sessionId}/`, undefined, { logFailure: false });
-  if (created.lectureId) await safe("DELETE", `/lectures/lectures/${created.lectureId}/`, undefined, { logFailure: false });
 }
 
 test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", () => {
