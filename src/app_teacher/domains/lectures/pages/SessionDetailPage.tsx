@@ -21,7 +21,8 @@ import {
   getExamResultMaxScore,
   getExamResultScore,
 } from "@teacher/domains/results/examResultContract";
-import { fetchVideos } from "@teacher/domains/videos/api";
+import CompactVideoThumbnail from "@teacher/domains/videos/components/CompactVideoThumbnail";
+import { fetchVideos, type TeacherVideo } from "@teacher/domains/videos/api";
 import { fetchHomeworks } from "@teacher/domains/exams/api";
 import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
 import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
@@ -735,7 +736,7 @@ function ScoresTab({
 }
 
 /* === Videos tab === */
-function VideosTab({ videos, navigate }: { videos: any[]; navigate: any }) {
+function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any }) {
   if (!videos.length) {
     return (
       <EmptyState
@@ -763,7 +764,7 @@ function VideosTab({ videos, navigate }: { videos: any[]; navigate: any }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      {videos.map((v: any) => {
+      {videos.map((v) => {
         const st = STATUS_MAP[v.status ?? "PENDING"] ?? STATUS_MAP.PENDING;
         return (
           <button
@@ -776,12 +777,7 @@ function VideosTab({ videos, navigate }: { videos: any[]; navigate: any }) {
               border: "1px solid var(--tc-border)",
             }}
           >
-            <div
-              className="w-10 h-8 rounded flex items-center justify-center shrink-0"
-              style={{ background: "var(--tc-surface-soft)" }}
-            >
-              <VideoIcon />
-            </div>
+            <CompactVideoThumbnail thumbnailUrl={v.thumbnail_url} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
                 {v.title}
@@ -819,14 +815,6 @@ function ActionBtn({ label, color, onClick }: { label: string; color: string; on
     >
       {label}
     </button>
-  );
-}
-
-function VideoIcon() {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--tc-text-muted)" strokeWidth={1.5}>
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
   );
 }
 

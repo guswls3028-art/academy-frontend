@@ -11,6 +11,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { extractYouTubeVideoId, isYouTubeSource, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
+import CompactVideoThumbnail from "../components/CompactVideoThumbnail";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession, createYoutubeVideo } from "../api";
 import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
@@ -330,23 +331,10 @@ export default function VideoListPage() {
                   border: "1px solid var(--tc-border)",
                 }}
               >
-                {/* Thumbnail placeholder */}
-                <div
-                  className="shrink-0 rounded-lg flex items-center justify-center"
-                  style={{
-                    width: 64,
-                    height: 48,
-                    background: "var(--tc-surface-soft)",
-                    border: "1px solid var(--tc-border)",
-                    overflow: "hidden",
-                  }}
-                >
-                  {isYoutube && youtubeId ? (
-                    <img src={youtubeThumbnailUrl(youtubeId)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <VideoIcon />
-                  )}
-                </div>
+                {/* Thumbnail */}
+                <CompactVideoThumbnail
+                  thumbnailUrl={v.thumbnail_url || (isYoutube && youtubeId ? youtubeThumbnailUrl(youtubeId) : null)}
+                />
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
@@ -538,13 +526,5 @@ function YoutubeLinkSheet({
         </div>
       </form>
     </div>
-  );
-}
-
-function VideoIcon() {
-  return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="var(--tc-text-muted)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
   );
 }
