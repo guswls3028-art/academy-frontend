@@ -475,6 +475,28 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
     }
 
+    const firstAnswerRow = page.locator(".orw-q-row").first();
+    await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
+
+    const wrongSaveResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.request().method() === "POST" &&
+        resp.url().includes(`/submissions/submissions/${submissionId}/manual-edit/`),
+      { timeout: 90_000 },
+    );
+    await page.getByRole("button", { name: "저장 + 재채점" }).click();
+    const wrongSaveResponse = await wrongSaveResponsePromise;
+    expect(wrongSaveResponse.status()).toBe(200);
+    const wrongSaveBody = await wrongSaveResponse.json() as { score?: number; total_score?: number };
+    expect(wrongSaveBody.score ?? wrongSaveBody.total_score).toBe(EXPECTED_SCORE - 1);
+    await expect(page.getByText(`저장 + 재채점 완료: ${EXPECTED_SCORE - 1}점`))
+      .toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "변경 사항 없음" }))
+      .toBeDisabled({ timeout: 20_000 });
+
+    await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
     const saveResponsePromise = page.waitForResponse(
       (resp) =>
         resp.request().method() === "POST" &&
