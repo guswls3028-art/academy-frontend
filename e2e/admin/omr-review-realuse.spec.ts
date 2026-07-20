@@ -7,6 +7,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
+import { PDFDocument, rgb } from "pdf-lib";
 import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
@@ -26,9 +27,9 @@ const SESSION_TITLE = `[E2E-${TS}] OMR 1차시`;
 const EXAM_TITLE = `[E2E-${TS}] OMR 업로드 검토 재채점`;
 const STUDENT_NAME = `[E2E-${TS}] OMR학생`;
 const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
-const PARENT_PHONE = `010${String(TS).slice(-8)}`;
-const EXPECTED_ANSWERS = ["1", "2", "4", "4", "1"];
-const EXPECTED_SCORE = 60;
+const CONTROLLED_PHONE = "01031217466";
+const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => String((index % 5) + 1));
+const EXPECTED_SCORE = 30;
 
 type Tokens = { access: string; refresh: string };
 
@@ -130,8 +131,9 @@ async function downloadOmrPdf(
       exam_title: EXAM_TITLE,
       lecture_name: LECTURE_TITLE,
       session_name: SESSION_TITLE,
-      mc_count: 5,
+      mc_count: 30,
       essay_count: 0,
+      include_optional_essay_area: false,
       n_choices: 5,
     },
     headers: headers(token),
@@ -139,6 +141,49 @@ async function downloadOmrPdf(
   });
   expect(resp.status(), `OMR PDF generation -> ${resp.status()} ${await resp.text().catch(() => "")}`).toBe(200);
   return await resp.body();
+}
+
+async function markThirtyQuestionOmrPdf(
+  pdfBuffer: Buffer,
+  answers: string[],
+  identifier: string,
+): Promise<Buffer> {
+  expect(answers).toHaveLength(30);
+  expect(identifier).toMatch(/^\d{8}$/);
+
+  const pdf = await PDFDocument.load(pdfBuffer);
+  const page = pdf.getPages()[0];
+  const { width, height } = page.getSize();
+  const scaleX = width / 297;
+  const scaleY = height / 210;
+  const black = rgb(0, 0, 0);
+  const choiceXs = [
+    [88.13, 94.57, 101.0, 107.43, 113.87],
+    [134.63, 141.07, 147.5, 153.93, 160.37],
+  ];
+  const identifierXs = [18.95, 24.75, 30.55, 36.35, 45.65, 51.45, 57.25, 63.05];
+
+  const fillBubble = (xMm: number, yMm: number) => {
+    page.drawEllipse({
+      x: xMm * scaleX,
+      y: height - yMm * scaleY,
+      xScale: 1.8 * scaleX,
+      yScale: 2.6 * scaleY,
+      color: black,
+      borderColor: black,
+    });
+  };
+
+  answers.forEach((answer, index) => {
+    const column = Math.floor(index / 15);
+    const row = index % 15;
+    fillBubble(choiceXs[column][Number(answer) - 1], 20.75 + row * 12.5);
+  });
+  [...identifier].forEach((digit, index) => {
+    fillBubble(identifierXs[index], 109.6 + Number(digit) * 6.4);
+  });
+
+  return Buffer.from(await pdf.save());
 }
 
 async function waitForOmrAnswers(
@@ -272,7 +317,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     const student = await expectApi<{ id: number }>(request, "POST", "/students/", adminTokens.access, {
       name: STUDENT_NAME,
-      parent_phone: PARENT_PHONE,
+      parent_phone: CONTROLLED_PHONE,
       ps_number: STUDENT_USER,
       no_phone: true,
       school_type: "HIGH",
@@ -302,11 +347,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", adminTokens.access, {
       title: EXAM_TITLE,
-      description: "OMR blank PDF -> manual review -> regrade canary",
+      description: "OMR 30-question marked PDF -> recognition -> review -> grade canary",
       exam_type: "regular",
       session_id: created.sessionId,
-      pass_score: 50,
-      max_score: 100,
+      pass_score: 15,
+      max_score: 30,
       answer_visibility: "hidden",
     });
     created.examId = Number(exam.id);
@@ -316,7 +361,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       "POST",
       `/exams/${created.examId}/questions/init/`,
       adminTokens.access,
-      { total_questions: 5, default_score: 20 },
+      { total_questions: 30, default_score: 1 },
     );
     const questionIdsByNumber = questions
       .sort((a, b) => Number(a.number) - Number(b.number))
@@ -324,7 +369,9 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     await expectApi(request, "POST", "/exams/answer-keys/", adminTokens.access, {
       exam: created.examId,
-      answers: Object.fromEntries(questionIdsByNumber.map((id, idx) => [String(id), String(idx + 1)])),
+      answers: Object.fromEntries(
+        questionIdsByNumber.map((id, idx) => [String(id), EXPECTED_ANSWERS[idx]]),
+      ),
     });
 
     await expectApi(
@@ -337,6 +384,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
 
     const pdfBuffer = await downloadOmrPdf(request, adminTokens.access, created.examId);
+    const markedPdfBuffer = await markThirtyQuestionOmrPdf(
+      pdfBuffer,
+      EXPECTED_ANSWERS,
+      CONTROLLED_PHONE.slice(-8),
+    );
 
     await seedBrowser(
       page,
@@ -350,7 +402,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.locator(".admin-omr-upload input[type='file']").setInputFiles({
       name: `omr-realuse-${TS}.pdf`,
       mimeType: "application/pdf",
-      buffer: pdfBuffer,
+      buffer: markedPdfBuffer,
     });
     await expect(page.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
 
@@ -379,6 +431,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     expect(reviewDetail.answers.map((row: any) => Number(row.question_id)).sort((a: number, b: number) => a - b))
       .toEqual([...questionIdsByNumber].sort((a, b) => a - b));
+    expect(Number(reviewDetail.enrollment_id)).toBe(created.enrollmentId);
+    expect(
+      [...reviewDetail.answers]
+        .sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))
+        .map((row: any) => String(row.answer)),
+    ).toEqual(EXPECTED_ANSWERS);
 
     await gotoAndSettle(
       page,
@@ -399,16 +457,6 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         .toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
-    }
-
-    for (let i = 0; i < EXPECTED_ANSWERS.length; i += 1) {
-      const row = page.locator(".orw-q-row").nth(i);
-      const bubbleCount = await row.locator(".orw-bubble").count();
-      if (bubbleCount > 0) {
-        await row.getByRole("button", { name: EXPECTED_ANSWERS[i], exact: true }).click();
-      } else {
-        await row.locator("input.orw-essay-input").fill(EXPECTED_ANSWERS[i]);
-      }
     }
 
     const saveResponsePromise = page.waitForResponse(
@@ -432,7 +480,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const studentTokens = await loginToken(request, STUDENT_USER, STUDENT_PASS);
     const studentResult = await waitForStudentResult(request, studentTokens.access, created.examId);
     expect(studentResult.total_score).toBe(EXPECTED_SCORE);
-    expect(studentResult.analysis.wrong_question_numbers).toEqual([3, 5]);
+    expect(studentResult.analysis.wrong_question_numbers).toEqual([]);
 
     await seedBrowser(page, studentTokens, "/student/grades");
     await waitForRenderSettled(page, { timeout: 20_000 });
