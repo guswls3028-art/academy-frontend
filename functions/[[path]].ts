@@ -14,7 +14,8 @@ const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
 function isExpectedStaticHtml(pathname: string, html: string): boolean {
   if (STATIC_HTML_PATHS.has(pathname)) {
-    return html.includes("OMR 답안지") && html.includes('id="cfEs"');
+    return html.includes("OMR 답안지 생성기로 이동")
+      && html.includes('data-omr-canonical-route="/admin/tools/omr"');
   }
   return false;
 }

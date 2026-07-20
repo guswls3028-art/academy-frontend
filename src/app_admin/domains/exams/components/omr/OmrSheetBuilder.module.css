@@ -64,6 +64,34 @@
   line-height: 1.5;
 }
 
+.optionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.optionCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.optionLabel {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.optionHelp {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

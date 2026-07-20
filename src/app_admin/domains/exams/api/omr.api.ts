@@ -9,6 +9,8 @@ export type OMRDefaults = {
   session_name: string;
   mc_count: number;
   essay_count: number;
+  include_optional_essay_area: boolean;
+  can_include_optional_essay_area: boolean;
   n_choices: number;
   logo_url: string | null;
 };
@@ -19,6 +21,7 @@ export type OMRParams = {
   session_name?: string;
   mc_count: number;
   essay_count: number;
+  include_optional_essay_area: boolean;
   n_choices: number;
 };
 

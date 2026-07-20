@@ -21,6 +21,7 @@ import {
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
 import { ensureExamStructure } from "../api/adminExam";
+import { fetchOMRDefaults } from "../api/omr.api";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
 import {
   fetchExplanations,
@@ -58,7 +59,7 @@ const EMPTY_EXPLANATIONS: ExplanationData[] = [];
 const CHOICES = ["1", "2", "3", "4", "5"];
 const MAX_EXAM_QUESTIONS = 500;
 const MAX_OMR_MC_COUNT = 60;
-const MAX_OMR_ESSAY_COUNT = 10;
+const MAX_OMR_ESSAY_COUNT = 20;
 const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
 type CountDraft = number | "";
 type ScoreInputDraft = string;
@@ -85,6 +86,18 @@ const CIRCLED_CHOICE_MAP: Record<string, string> = {
 function normalizeChoiceToken(value: string): string {
   const token = String(value ?? "").trim();
   return CIRCLED_CHOICE_MAP[token] ?? token;
+}
+
+function isMathSubject(value: string | null | undefined): boolean {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+  return normalized.includes("수학") || normalized.startsWith("math");
+}
+
+function normalizeNumericShortAnswer(value: string): string | null {
+  const text = String(value ?? "").trim();
+  if (!/^[0-9]{1,3}$/.test(text)) return null;
+  const number = Number(text);
+  return Number.isInteger(number) && number >= 0 && number <= 999 ? String(number) : null;
 }
 
 function parseChoiceDraft(value: string): Set<string> {
@@ -266,6 +279,7 @@ export default function AnswerKeyRegisterModal({
   const needsStructureEnsure = open && exam?.exam_type === "regular";
   const structureReady = !needsStructureEnsure || ensuredExamId === examId;
   const effectiveStructureOwnerId = exam?.structure_owner_id ?? structureOwnerId;
+  const isMathExam = isMathSubject(exam?.subject);
 
   useEffect(() => {
     if (!open) {
@@ -291,6 +305,12 @@ export default function AnswerKeyRegisterModal({
     enabled: open && Number.isFinite(examId) && structureReady,
   });
   const questions = questionsData ?? EMPTY_QUESTIONS;
+
+  const { data: omrDefaults } = useQuery({
+    queryKey: [...adminExamsQueryKeys.adminExam(examId), "answer-key-shape"],
+    queryFn: () => fetchOMRDefaults(examId),
+    enabled: open && Number.isFinite(examId) && structureReady,
+  });
 
   const { data: answerKeyList } = useQuery({
     queryKey: adminExamsQueryKeys.answerKey(examId),
@@ -419,8 +439,16 @@ export default function AnswerKeyRegisterModal({
   useEffect(() => {
     if (!open) return;
     if (!answerKey || !answerKey.answers) return;
-    // 기존 답안키 기반으로 선택형/서술형 수 자동 계산 (미설정 시에만)
+    // 시트 계약의 객관식/서술형 수를 우선 사용한다. 숫자 단답 1~5를 객관식으로
+    // 오인하지 않도록 답안 내용 추론은 legacy fallback으로만 남긴다.
     if (choiceCount === "" && essayCount === "" && sortedQuestions.length > 0) {
+      if (omrDefaults) {
+        setChoiceCount(omrDefaults.mc_count);
+        setChoiceCountInput(omrDefaults.mc_count);
+        setEssayCount(omrDefaults.essay_count);
+        setEssayCountInput(omrDefaults.essay_count);
+        return;
+      }
       const normalized = normalizeAnswers(answerKey.answers);
       let choiceCnt = 0;
       for (const q of sortedQuestions) {
@@ -436,7 +464,7 @@ export default function AnswerKeyRegisterModal({
       setEssayCount(essayCnt > 0 ? essayCnt : 0);
       setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
     }
-  }, [answerKey, choiceCount, essayCount, open, sortedQuestions]);
+  }, [answerKey, choiceCount, essayCount, omrDefaults, open, sortedQuestions]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
   useEffect(() => {
@@ -685,9 +713,21 @@ export default function AnswerKeyRegisterModal({
       const essayIds = new Set(
         sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount).map((q) => String(q.id))
       );
-      essayIds.forEach((questionId) => {
-        if (currentAnswers[questionId] === "" || currentAnswers[questionId] === undefined) currentAnswers[questionId] = "해설참조";
-      });
+      if (isMathExam) {
+        for (const questionId of essayIds) {
+          const normalizedAnswer = normalizeNumericShortAnswer(currentAnswers[questionId] ?? "");
+          if (normalizedAnswer === null) {
+            const questionNumber = sortedQuestions.find((q) => String(q.id) === questionId)?.number;
+            feedback.error(`${questionNumber ?? "단답형"}번 정답을 0~999 사이의 정수로 입력해 주세요.`);
+            return;
+          }
+          currentAnswers[questionId] = normalizedAnswer;
+        }
+      } else {
+        essayIds.forEach((questionId) => {
+          if (currentAnswers[questionId] === "" || currentAnswers[questionId] === undefined) currentAnswers[questionId] = "해설참조";
+        });
+      }
       const answersPayload = withScoreAdjustment(currentAnswers, scoreAdjustmentDraft);
       const targetExamId = examId;
       if (!answerKey) {
@@ -989,7 +1029,9 @@ export default function AnswerKeyRegisterModal({
               <div className="answer-key-panel answer-key-panel--essay">
                 <div className="answer-key-section-header">
                   <div className="answer-key-section-btn answer-key-section-btn--label-only">
-                    <span className="answer-key-section-btn__title">서술형 ({formatScore(essayTotalScore)}점)</span>
+                    <span className="answer-key-section-btn__title">
+                      {isMathExam ? "단답형 0~999" : "서술형"} ({formatScore(essayTotalScore)}점)
+                    </span>
                     <span className="answer-key-section-badge" aria-label="문항 수">
                       {essayQuestions.length}문항
                     </span>
@@ -1138,6 +1180,7 @@ export default function AnswerKeyRegisterModal({
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
                       editable={canEditStructure}
+                      numericOnly={isMathExam}
                       showDividerAfter={false}
                       inputRef={(el) => {
                         if (essayInputRefs.current.length <= index) essayInputRefs.current.length = index + 1;
@@ -1246,6 +1289,7 @@ function ChoiceRow({
   onScoreChange,
   onScoreReset,
   editable,
+  numericOnly = false,
   showDividerAfter = false,
   bubblesRef,
   onMoveToNextRow,
@@ -1258,6 +1302,7 @@ function ChoiceRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   editable: boolean;
+  numericOnly?: boolean;
   showDividerAfter?: boolean;
   bubblesRef?: (el: HTMLDivElement | null) => void;
   onMoveToNextRow?: (currentValue: string) => void;
@@ -1419,10 +1464,15 @@ function EssayRow({
         <input
           ref={inputRef}
           type="text"
+          inputMode={numericOnly ? "numeric" : "text"}
+          pattern={numericOnly ? "[0-9]*" : undefined}
           value={draft}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(
+            numericOnly ? e.target.value.replace(/\D/g, "").slice(0, 3) : e.target.value
+          )}
           onKeyDown={handleKeyDown}
-          placeholder="해설참조"
+          placeholder={numericOnly ? "0~999" : "해설참조"}
+          maxLength={numericOnly ? 3 : undefined}
           className="ds-input answer-key-row__input"
           disabled={!editable}
         />
@@ -1628,8 +1678,8 @@ function OmrSettingsTab({
     <div className="answer-key-omr-tab">
       {exceedsOmrLimit && (
         <div className="answer-key-omr-limit-alert" role="status">
-          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 서술형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
-          현재 시험은 객관식 {choiceCount}문항, 서술형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
+          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 단답형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
+          현재 시험은 객관식 {choiceCount}문항, 단답형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
         </div>
       )}
       <OmrSheetBuilder

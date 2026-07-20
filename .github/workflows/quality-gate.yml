@@ -137,13 +137,17 @@ jobs:
       - name: Verify OMR static sheet (post-deploy)
         run: |
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
-            OMR=$(curl -fsSL "https://hakwonplus.com${PATHNAME}?mc=20&essay=0&choices=5&mode=embed")
-            if ! echo "$OMR" | grep -q 'id="cfEs"'; then
-              echo "::error::OMR static sheet missing essay input marker at ${PATHNAME}"
+            OMR=$(curl -fsSL "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)")
+            if ! echo "$OMR" | grep -q 'data-omr-canonical-route="/admin/tools/omr"'; then
+              echo "::error::OMR compatibility route missing canonical builder target at ${PATHNAME}"
               exit 1
             fi
-            if ! echo "$OMR" | grep -q "renderEss"; then
-              echo "::error::OMR static sheet missing decorative essay rendering logic at ${PATHNAME}"
+            if echo "$OMR" | grep -q 'onerror="alert(1)'; then
+              echo "::error::OMR compatibility route reflected query input at ${PATHNAME}"
+              exit 1
+            fi
+            if echo "$OMR" | grep -q 'cdnjs.cloudflare.com'; then
+              echo "::error::OMR compatibility route loads executable third-party scripts at ${PATHNAME}"
               exit 1
             fi
             if echo "$OMR" | grep -q 'id="root"'; then
@@ -151,7 +155,7 @@ jobs:
               exit 1
             fi
           done
-          echo "✅ OMR static sheet verified"
+          echo "✅ OMR compatibility routes verified"
 
   # ── 3. E2E 왕복 플로우 + 전체 테넌트 공개 화면 가용성 (배포 후) ──
   e2e-roundtrip:
