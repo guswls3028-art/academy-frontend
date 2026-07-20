@@ -1380,6 +1380,7 @@ function EssayRow({
   onScoreChange,
   onScoreReset,
   editable,
+  numericOnly = false,
   showDividerAfter = false,
   inputRef,
   onMoveToNextRow,
@@ -1392,6 +1393,7 @@ function EssayRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   editable: boolean;
+  numericOnly?: boolean;
   showDividerAfter?: boolean;
   inputRef?: (el: HTMLInputElement | null) => void;
   onMoveToNextRow?: () => void;

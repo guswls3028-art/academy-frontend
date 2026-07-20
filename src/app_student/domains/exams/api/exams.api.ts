@@ -39,6 +39,7 @@ export type StudentExamQuestion = {
   id: number;
   number: number;
   score: number;
+  answer_format: "text" | "integer_0_999";
 };
 
 export async function fetchStudentExamQuestions(
