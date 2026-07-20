@@ -1,8 +1,9 @@
 // PATH: src/app_teacher/domains/exams/pages/OmrPage.tsx
 // OMR 관리 — 답안지 PDF 다운로드 + 카메라/파일로 스캔 업로드
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useId, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Switch } from "antd";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download, Upload, Camera, Check } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -37,7 +38,8 @@ type TeacherExamResultRow = {
 };
 
 const MAX_MC_COUNT = 60;
-const MAX_ESSAY_COUNT = 10;
+const MAX_ESSAY_COUNT = 20;
+const MAX_MC_WITH_OPTIONAL_ESSAY_AREA = 40;
 
 export default function OmrPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -47,6 +49,7 @@ export default function OmrPage() {
 
   const [mcCount, setMcCount] = useState(20);
   const [essayCount, setEssayCount] = useState(0);
+  const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
   const [nChoices, setNChoices] = useState(5);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
   /** 업로드 후 자동 채점 진행 중인 enrollment 추적 — 결과 도착 시 자동 해제 */
@@ -164,6 +167,7 @@ export default function OmrPage() {
     if (defaults) {
       setMcCount(clampInt(defaults.mc_count, 0, MAX_MC_COUNT));
       setEssayCount(clampInt(defaults.essay_count, 0, MAX_ESSAY_COUNT));
+      setIncludeOptionalEssayArea(defaults.include_optional_essay_area ?? true);
       setNChoices(defaults.n_choices);
     }
   }, [defaults]);
@@ -175,6 +179,7 @@ export default function OmrPage() {
       session_name: defaults?.session_name,
       mc_count: mcCount,
       essay_count: essayCount,
+      include_optional_essay_area: includeOptionalEssayArea,
       n_choices: nChoices,
     }),
     onSuccess: () => teacherToast.success("OMR PDF를 다운로드했습니다."),
@@ -205,6 +210,35 @@ export default function OmrPage() {
           <div className="flex gap-2">
             <Fld label="객관식 문항 수" value={mcCount} onChange={setMcCount} min={0} max={MAX_MC_COUNT} />
             <Fld label="단답형 문항 수" value={essayCount} onChange={setEssayCount} min={0} max={MAX_ESSAY_COUNT} />
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className={`${styles.title} text-[12px] font-bold`}>단답형 작성 공간</div>
+              <div className={`${styles.mutedText} mt-0.5 text-[11px] leading-relaxed [word-break:keep-all]`}>
+                {essayCount > 0
+                  ? "실제 단답형 문항이 있어 항상 표시됩니다."
+                  : mcCount > MAX_MC_WITH_OPTIONAL_ESSAY_AREA
+                    ? `객관식 ${MAX_MC_WITH_OPTIONAL_ESSAY_AREA + 1}문항부터는 자동으로 숨겨집니다.`
+                    : mcCount > 0
+                      ? "객관식 전용 답안지의 오른쪽 빈 작성 공간을 표시합니다."
+                      : "문항 수를 입력하면 설정할 수 있습니다."}
+              </div>
+            </div>
+            <Switch
+              aria-label="단답형 작성 공간 표시"
+              checked={essayCount > 0 || (
+                essayCount === 0
+                && mcCount > 0
+                && mcCount <= MAX_MC_WITH_OPTIONAL_ESSAY_AREA
+                && includeOptionalEssayArea
+              )}
+              onChange={setIncludeOptionalEssayArea}
+              disabled={
+                essayCount > 0
+                || mcCount <= 0
+                || mcCount > MAX_MC_WITH_OPTIONAL_ESSAY_AREA
+              }
+            />
           </div>
           <Fld label="객관식 선택지 수" value={nChoices} onChange={setNChoices} min={5} max={5} />
         </div>
@@ -391,10 +425,11 @@ function UploadSheet({ open, onClose, examId, enrollmentId, onSubmitted }: {
 }
 
 function Fld({ label, value, onChange, min = 0, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+  const inputId = useId();
   return (
     <div className="flex-1">
-      <label className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>{label}</label>
-      <input type="number" value={value} min={min} max={max} onChange={(e) => onChange(clampInt(Number(e.target.value) || 0, min, max))}
+      <label htmlFor={inputId} className={`${styles.mutedText} text-[11px] font-semibold block mb-1`}>{label}</label>
+      <input id={inputId} type="number" value={value} min={min} max={max} onChange={(e) => onChange(clampInt(Number(e.target.value) || 0, min, max))}
         className={`${styles.numberInput} w-full text-sm`} />
     </div>
   );

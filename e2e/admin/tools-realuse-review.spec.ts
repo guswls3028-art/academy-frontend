@@ -18,6 +18,28 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
+async function openOmrTool(page: import("@playwright/test").Page) {
+  await gotoAndSettle(page, `${BASE}/admin/dashboard`);
+  await page.getByRole("link", { name: "도구", exact: true }).click();
+  await page.getByRole("link", { name: "OMR 생성", exact: true }).click();
+  await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
+}
+
+function isOmrPreviewFor(
+  response: import("@playwright/test").Response,
+  expected: Record<string, string | number | boolean>,
+) {
+  if (!response.url().includes("/tools/omr/preview/") || response.request().method() !== "POST") {
+    return false;
+  }
+  try {
+    const body = response.request().postDataJSON() as Record<string, unknown>;
+    return Object.entries(expected).every(([key, value]) => body[key] === value);
+  } catch {
+    return false;
+  }
+}
+
 test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   test.setTimeout(120_000);
 
@@ -64,7 +86,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── OMR ──────────────────────────────────────────
 
   test("OMR-1. mc 한도 초과 입력 → 60 자동 보정 + toast (P1-1)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
+    await openOmrTool(page);
 
     const mc = page.locator('input[type="number"]').first();
     await mc.fill("99");
@@ -81,25 +103,107 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("OMR-2. 입력 변경 → 700ms 후 미리보기 자동 갱신 (P1-2)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
+    await openOmrTool(page);
 
     const examInput = page.getByPlaceholder("제1회 단원평가");
     await examInput.fill("실사용리뷰_E2E_시험명");
 
     // 디바운스(700ms) + 네트워크 — 1.5초 충분
     const previewReq = page.waitForResponse(
-      (r) => r.url().includes("/tools/omr/preview/") && r.request().method() === "POST",
+      (response) => isOmrPreviewFor(response, { exam_title: "실사용리뷰_E2E_시험명" }),
       { timeout: 4_000 },
     );
     await previewReq;
   });
 
-  test("OMR-3. PDF 다운로드 골든패스 — %PDF- 매직", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/omr`);
+  test("OMR-3. 객관식 전용 답안지는 빈 단답형 공간을 선택해 숨긴다", async ({ page }) => {
+    await openOmrTool(page);
 
+    const numericInputs = page.locator('input[type="number"]');
+    const previewResponsePromise = page.waitForResponse(
+      (response) => isOmrPreviewFor(response, { mc_count: 30, essay_count: 0 }),
+    );
+    await numericInputs.nth(0).fill("30");
+    await numericInputs.nth(1).fill("0");
+    await previewResponsePromise;
+
+    const optionalAreaSwitch = page.getByRole("switch", { name: "단답형 작성 공간 표시" });
+    await expect(optionalAreaSwitch).toBeEnabled();
+    await expect(optionalAreaSwitch).toBeChecked();
+
+    const preview = page.frameLocator('iframe[title="OMR 답안지 미리보기"]');
+    await expect(preview.getByText("단답형 공간", { exact: true })).toBeVisible();
+
+    const hiddenPreviewPromise = page.waitForResponse(
+      (response) => isOmrPreviewFor(response, {
+        mc_count: 30,
+        essay_count: 0,
+        include_optional_essay_area: false,
+      }),
+    );
+    await optionalAreaSwitch.click();
+    const hiddenPreviewResponse = await hiddenPreviewPromise;
+    expect(hiddenPreviewResponse.request().postDataJSON()).toMatchObject({
+      mc_count: 30,
+      essay_count: 0,
+      include_optional_essay_area: false,
+    });
+    await expect(preview.getByText("단답형 공간", { exact: true })).toHaveCount(0);
+    await expect(preview.getByText("객관식 1번 ~ 15번", { exact: true })).toBeVisible();
+  });
+
+  test("OMR-4. 단답형 전용 20문항 미리보기", async ({ page }) => {
+    await openOmrTool(page);
+
+    const numericInputs = page.locator('input[type="number"]');
+    const previewResponsePromise = page.waitForResponse(
+      (response) => isOmrPreviewFor(response, { mc_count: 0, essay_count: 20 }),
+    );
+    await numericInputs.nth(0).fill("0");
+    await numericInputs.nth(1).fill("20");
+    const previewResponse = await previewResponsePromise;
+    expect(previewResponse.request().postDataJSON()).toMatchObject({
+      mc_count: 0,
+      essay_count: 20,
+    });
+
+    const preview = page.frameLocator('iframe[title="OMR 답안지 미리보기"]');
+    await expect(preview.getByText("단답형 20문항", { exact: true })).toBeVisible();
+    await expect(preview.getByText(/객관식 \d+번/)).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: "단답형 작성 공간 표시" })).toBeDisabled();
+  });
+
+  test("OMR-5. 빈 단답형 공간을 숨긴 PDF 다운로드 — %PDF- 매직", async ({ page }) => {
+    await openOmrTool(page);
+
+    const numericInputs = page.locator('input[type="number"]');
+    await numericInputs.nth(0).fill("30");
+    await numericInputs.nth(1).fill("0");
+    const optionalAreaSwitch = page.getByRole("switch", { name: "단답형 작성 공간 표시" });
+    await expect(optionalAreaSwitch).toBeEnabled();
+    await optionalAreaSwitch.click();
+
+    const pdfRequestPromise = page.waitForRequest(
+      (request) => {
+        if (!request.url().includes("/tools/omr/pdf/") || request.method() !== "POST") return false;
+        try {
+          return request.postDataJSON().include_optional_essay_area === false;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 20_000 },
+    );
     const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
     await page.getByRole("button", { name: /PDF 다운로드/ }).click();
+    const pdfRequest = await pdfRequestPromise;
     const dl = await downloadPromise;
+
+    expect(pdfRequest.postDataJSON()).toMatchObject({
+      mc_count: 30,
+      essay_count: 0,
+      include_optional_essay_area: false,
+    });
 
     const path = await dl.path();
     expect(path).toBeTruthy();
@@ -108,6 +212,16 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
       const head = await fs.readFile(path).then((b) => b.subarray(0, 5).toString("ascii"));
       expect(head).toBe("%PDF-");
     }
+  });
+
+  test("OMR-6. 레거시 공개 생성 경로는 인식 SSOT 생성기로 이동한다", async ({ page }) => {
+    await gotoAndSettle(
+      page,
+      `${BASE}/omr-sheet.html?logo=x%22%20onerror%3D%22alert(document.domain)`,
+    );
+
+    await expect(page).toHaveURL(/\/admin\/tools\/omr$/);
+    await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
   });
 
   // ── Clinic ──────────────────────────────────────────

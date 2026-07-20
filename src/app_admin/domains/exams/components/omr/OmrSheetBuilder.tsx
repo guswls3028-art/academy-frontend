@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Switch } from "antd";
 import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/shared/ui/ds";
@@ -14,7 +15,8 @@ import styles from "./OmrSheetBuilder.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
 const MAX_MC_COUNT = 60;
-const MAX_ESSAY_COUNT = 10;
+const MAX_ESSAY_COUNT = 20;
+const MAX_MC_WITH_OPTIONAL_ESSAY_AREA = 40;
 
 type OmrSheetBuilderLayout = "page" | "modal";
 
@@ -49,6 +51,7 @@ export default function OmrSheetBuilder({
   const [sessionName, setSessionName] = useState(initialSessionName || "");
   const [mcCount, setMcCount] = useState(clampInt(initialMcCount, 0, MAX_MC_COUNT));
   const [essayCount, setEssayCount] = useState(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
+  const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -70,6 +73,9 @@ export default function OmrSheetBuilder({
   useEffect(() => {
     if (!countsEditable) setEssayCount(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
   }, [countsEditable, initialEssayCount]);
+  useEffect(() => {
+    setIncludeOptionalEssayArea(true);
+  }, [targetType, targetExamId]);
 
   useEffect(() => {
     return () => {
@@ -78,14 +84,23 @@ export default function OmrSheetBuilder({
   }, []);
 
   const totalCount = mcCount + essayCount;
+  const canIncludeOptionalEssayArea = (
+    essayCount === 0
+    && mcCount > 0
+    && mcCount <= MAX_MC_WITH_OPTIONAL_ESSAY_AREA
+  );
+  const essayAreaChecked = essayCount > 0 || (
+    canIncludeOptionalEssayArea && includeOptionalEssayArea
+  );
   const params = useCallback((): OMRParams => ({
     exam_title: examTitle,
     lecture_name: lectureName,
     session_name: sessionName,
     mc_count: mcCount,
     essay_count: essayCount,
+    include_optional_essay_area: includeOptionalEssayArea,
     n_choices: 5,
-  }), [examTitle, lectureName, sessionName, mcCount, essayCount]);
+  }), [examTitle, lectureName, sessionName, mcCount, essayCount, includeOptionalEssayArea]);
 
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;
@@ -210,6 +225,30 @@ export default function OmrSheetBuilder({
               <span> · 총 {totalCount}문항</span>
             </div>
           )}
+        </div>
+
+        <div className={styles.group}>
+          <div className={styles.groupTitle}>답안 영역</div>
+          <div className={styles.optionRow}>
+            <div className={styles.optionCopy}>
+              <span className={styles.optionLabel}>단답형 작성 공간</span>
+              <span className={styles.optionHelp}>
+                {essayCount > 0
+                  ? "실제 단답형 문항이 있어 항상 표시됩니다."
+                  : mcCount > MAX_MC_WITH_OPTIONAL_ESSAY_AREA
+                    ? `객관식 ${MAX_MC_WITH_OPTIONAL_ESSAY_AREA + 1}문항부터는 자동으로 숨겨집니다.`
+                    : mcCount > 0
+                      ? "객관식 전용 답안지의 오른쪽 빈 작성 공간을 표시합니다."
+                      : "문항 수를 입력하면 설정할 수 있습니다."}
+              </span>
+            </div>
+            <Switch
+              aria-label="단답형 작성 공간 표시"
+              checked={essayAreaChecked}
+              onChange={setIncludeOptionalEssayArea}
+              disabled={essayCount > 0 || !canIncludeOptionalEssayArea}
+            />
+          </div>
         </div>
 
         <div className={styles.actions}>
