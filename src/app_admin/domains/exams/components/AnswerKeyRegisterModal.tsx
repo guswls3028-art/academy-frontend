@@ -1289,7 +1289,6 @@ function ChoiceRow({
   onScoreChange,
   onScoreReset,
   editable,
-  numericOnly = false,
   showDividerAfter = false,
   bubblesRef,
   onMoveToNextRow,
@@ -1302,7 +1301,6 @@ function ChoiceRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   editable: boolean;
-  numericOnly?: boolean;
   showDividerAfter?: boolean;
   bubblesRef?: (el: HTMLDivElement | null) => void;
   onMoveToNextRow?: (currentValue: string) => void;
@@ -1425,6 +1423,7 @@ function EssayRow({
   onScoreChange,
   onScoreReset,
   editable,
+  numericOnly = false,
   showDividerAfter = false,
   inputRef,
   onMoveToNextRow,
@@ -1437,6 +1436,7 @@ function EssayRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   editable: boolean;
+  numericOnly?: boolean;
   showDividerAfter?: boolean;
   inputRef?: (el: HTMLInputElement | null) => void;
   onMoveToNextRow?: () => void;

@@ -91,13 +91,27 @@ export default function ExamSubmitPage() {
   const handleSubmit = async () => {
     if (submitting) return;
     if (!Number.isFinite(safeId)) return;
+    const questionById = new Map(questions.map((question) => [question.id, question]));
+    const normalizedAnswers: Array<{ exam_question_id: number; answer: string }> = [];
+    for (const [qIdText, rawAnswer] of Object.entries(answers)) {
+      const answer = String(rawAnswer).trim();
+      if (!answer) continue;
+      const questionId = Number(qIdText);
+      const question = questionById.get(questionId);
+      if (!question) continue;
+      if (question.answer_format === "integer_0_999") {
+        const numericAnswer = normalizeNumericShortAnswer(answer);
+        if (numericAnswer === null) {
+          setError(`${question.number}번 답은 0~999 사이의 정수로 입력해 주세요.`);
+          return;
+        }
+        normalizedAnswers.push({ exam_question_id: questionId, answer: numericAnswer });
+        continue;
+      }
+      normalizedAnswers.push({ exam_question_id: questionId, answer });
+    }
     const payload = {
-      answers: Object.entries(answers)
-        .filter(([, v]) => String(v).trim() !== "")
-        .map(([qId, answer]) => ({
-          exam_question_id: Number(qId),
-          answer: String(answer).trim(),
-        })),
+      answers: normalizedAnswers,
     };
     if (payload.answers.length === 0) {
       setError("최소 한 문항의 답을 입력하세요.");
@@ -296,16 +310,20 @@ export default function ExamSubmitPage() {
                     <input
                       className={`stu-input ${styles.answerInput}`}
                       type="text"
+                      inputMode={q.answer_format === "integer_0_999" ? "numeric" : "text"}
+                      pattern={q.answer_format === "integer_0_999" ? "[0-9]*" : undefined}
                       value={answers[q.id] ?? ""}
                       onChange={(e) => {
-                        const val = e.target.value;
+                        const val = q.answer_format === "integer_0_999"
+                          ? e.target.value.replace(/\D/g, "").slice(0, 3)
+                          : e.target.value;
                         updateAnswers((prev) => ({
                           ...prev,
                           [q.id]: val,
                         }));
                       }}
-                      placeholder="1~5, O/X, 단답"
-                      maxLength={20}
+                      placeholder={q.answer_format === "integer_0_999" ? "0~999" : "1~5, O/X, 단답"}
+                      maxLength={q.answer_format === "integer_0_999" ? 3 : 20}
                       aria-label={`${q.number}번 답`}
                     />
                   </div>
@@ -332,4 +350,12 @@ export default function ExamSubmitPage() {
 
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value));
+}
+
+function normalizeNumericShortAnswer(value: string): string | null {
+  const text = value.trim();
+  if (!/^[0-9]{1,3}$/.test(text)) return null;
+  const number = Number(text);
+  if (!Number.isInteger(number) || number < 0 || number > 999) return null;
+  return String(number);
 }
