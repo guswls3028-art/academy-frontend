@@ -21,7 +21,7 @@ const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 async function openOmrTool(page: import("@playwright/test").Page) {
   await gotoAndSettle(page, `${BASE}/admin/dashboard`);
   await page.getByRole("link", { name: "도구", exact: true }).click();
-  await page.getByRole("link", { name: "OMR 생성", exact: true }).click();
+  await page.getByRole("button", { name: "OMR 생성", exact: true }).click();
   await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
 }
 
