@@ -55,6 +55,77 @@
   gap: 8px;
 }
 
+.singleCount {
+  grid-template-columns: 1fr;
+}
+
+.formatField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fieldLabel {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.segmentGroup,
+.areaChoices {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface-soft);
+}
+
+.segmentGroup {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmentButton,
+.areaChoice {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.segmentButton {
+  min-height: 36px;
+  padding: 7px 6px;
+}
+
+.segmentButton:last-child,
+.areaChoice:last-child {
+  border-right: 0;
+}
+
+.segmentButton:hover,
+.areaChoice:hover {
+  color: var(--color-text-primary);
+}
+
+.segmentButton:focus-visible,
+.areaChoice:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+.segmentButtonActive,
+.areaChoiceActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
 .summary {
   padding: 8px 10px;
   border-radius: 8px;
@@ -66,7 +137,7 @@
 
 .optionRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -90,6 +161,47 @@
   font-size: 11px;
   line-height: 1.45;
   word-break: keep-all;
+}
+
+.areaChoices {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.areaChoice {
+  min-height: 32px;
+  padding: 6px 9px;
+}
+
+.areaStatus {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selectionSummary {
+  display: grid;
+  gap: 2px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--color-brand-primary);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  word-break: keep-all;
+}
+
+.selectionSummary span,
+.selectionSummary small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.selectionSummary strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
 }
 
 .actions {

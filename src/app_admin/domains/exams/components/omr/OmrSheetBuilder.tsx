@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Switch } from "antd";
 import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/shared/ui/ds";
@@ -19,6 +18,7 @@ const MAX_ESSAY_COUNT = 20;
 const MAX_MC_WITH_OPTIONAL_ESSAY_AREA = 40;
 
 type OmrSheetBuilderLayout = "page" | "modal";
+type OmrFormat = "choice" | "mixed" | "essay";
 
 type OmrSheetBuilderProps = {
   target: OMRTarget;
@@ -36,6 +36,12 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
+function getInitialFormat(mcCount: number, essayCount: number): OmrFormat {
+  if (mcCount > 0 && essayCount === 0) return "choice";
+  if (mcCount === 0 && essayCount > 0) return "essay";
+  return "mixed";
+}
+
 export default function OmrSheetBuilder({
   target,
   initialExamTitle,
@@ -51,11 +57,14 @@ export default function OmrSheetBuilder({
   const [sessionName, setSessionName] = useState(initialSessionName || "");
   const [mcCount, setMcCount] = useState(clampInt(initialMcCount, 0, MAX_MC_COUNT));
   const [essayCount, setEssayCount] = useState(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
+  const [format, setFormat] = useState<OmrFormat>(() => getInitialFormat(initialMcCount, initialEssayCount));
   const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const previewRequestRef = useRef(0);
+  const lastMcCountRef = useRef(initialMcCount > 0 ? clampInt(initialMcCount, 1, MAX_MC_COUNT) : 20);
+  const lastEssayCountRef = useRef(initialEssayCount > 0 ? clampInt(initialEssayCount, 1, MAX_ESSAY_COUNT) : 5);
   const targetType = target.type;
   const targetExamId = target.type === "exam" ? target.examId : undefined;
   const requestTarget = useMemo<OMRTarget>(() => (
@@ -76,6 +85,12 @@ export default function OmrSheetBuilder({
   useEffect(() => {
     setIncludeOptionalEssayArea(true);
   }, [targetType, targetExamId]);
+  useEffect(() => {
+    if (mcCount > 0) lastMcCountRef.current = mcCount;
+  }, [mcCount]);
+  useEffect(() => {
+    if (essayCount > 0) lastEssayCountRef.current = essayCount;
+  }, [essayCount]);
 
   useEffect(() => {
     return () => {
@@ -92,6 +107,13 @@ export default function OmrSheetBuilder({
   const essayAreaChecked = essayCount > 0 || (
     canIncludeOptionalEssayArea && includeOptionalEssayArea
   );
+  const displayedFormat = countsEditable ? format : getInitialFormat(mcCount, essayCount);
+  const formatLabel = displayedFormat === "choice" ? "객관식만" : displayedFormat === "essay" ? "단답형만" : "혼합형";
+  const areaLabel = essayCount > 0
+    ? "단답형 작성칸 포함"
+    : canIncludeOptionalEssayArea
+      ? includeOptionalEssayArea ? "단답형 작성칸 표시" : "단답형 작성칸 숨김"
+      : "단답형 작성칸 없음";
   const params = useCallback((): OMRParams => ({
     exam_title: examTitle,
     lecture_name: lectureName,
@@ -119,7 +141,12 @@ export default function OmrSheetBuilder({
   }, [params, requestTarget, totalCount]);
 
   useEffect(() => {
-    if (totalCount < 1) return;
+    if (totalCount < 1) {
+      previewRequestRef.current += 1;
+      setPreviewHtml(null);
+      setPreviewLoading(false);
+      return;
+    }
     const timer = window.setTimeout(() => { void loadPreview(); }, layout === "modal" ? 250 : 550);
     return () => window.clearTimeout(timer);
   }, [examTitle, lectureName, sessionName, mcCount, essayCount, layout, loadPreview, totalCount]);
@@ -140,13 +167,29 @@ export default function OmrSheetBuilder({
   const setClampedMcCount = (raw: string) => {
     const parsed = Number(raw);
     if (parsed > MAX_MC_COUNT) feedback.warning(`객관식은 최대 ${MAX_MC_COUNT}문항입니다.`);
-    setMcCount(clampInt(parsed || 0, 0, MAX_MC_COUNT));
+    setMcCount(clampInt(parsed || 1, 1, MAX_MC_COUNT));
   };
 
   const setClampedEssayCount = (raw: string) => {
     const parsed = Number(raw);
     if (parsed > MAX_ESSAY_COUNT) feedback.warning(`단답형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
-    setEssayCount(clampInt(parsed || 0, 0, MAX_ESSAY_COUNT));
+    setEssayCount(clampInt(parsed || 1, 1, MAX_ESSAY_COUNT));
+  };
+
+  const changeFormat = (nextFormat: OmrFormat) => {
+    setFormat(nextFormat);
+    if (nextFormat === "choice") {
+      setMcCount((current) => current > 0 ? current : lastMcCountRef.current);
+      setEssayCount(0);
+      return;
+    }
+    if (nextFormat === "essay") {
+      setMcCount(0);
+      setEssayCount((current) => current > 0 ? current : lastEssayCountRef.current);
+      return;
+    }
+    setMcCount((current) => current > 0 ? current : lastMcCountRef.current);
+    setEssayCount((current) => current > 0 ? current : lastEssayCountRef.current);
   };
 
   return (
@@ -192,30 +235,58 @@ export default function OmrSheetBuilder({
         <div className={styles.group}>
           <div className={styles.groupTitle}>문항 설정</div>
           {countsEditable ? (
-            <div className={styles.countGrid}>
-              <label className={styles.field}>
-                <span>객관식</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={MAX_MC_COUNT}
-                  value={mcCount}
-                  onChange={(e) => setClampedMcCount(e.target.value)}
-                  className="ds-input"
-                />
-              </label>
-              <label className={styles.field}>
-                <span>단답형</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={MAX_ESSAY_COUNT}
-                  value={essayCount}
-                  onChange={(e) => setClampedEssayCount(e.target.value)}
-                  className="ds-input"
-                />
-              </label>
-            </div>
+            <>
+              <div className={styles.formatField}>
+                <span className={styles.fieldLabel}>답안지 구성</span>
+                <div className={styles.segmentGroup} role="radiogroup" aria-label="답안지 구성">
+                  {([
+                    ["choice", "객관식만"],
+                    ["mixed", "혼합형"],
+                    ["essay", "단답형만"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={format === value}
+                      className={`${styles.segmentButton} ${format === value ? styles.segmentButtonActive : ""}`}
+                      onClick={() => changeFormat(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`${styles.countGrid} ${format !== "mixed" ? styles.singleCount : ""}`}>
+                {format !== "essay" && (
+                  <label className={styles.field}>
+                    <span>객관식 문항 수</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_MC_COUNT}
+                      value={mcCount}
+                      onChange={(e) => setClampedMcCount(e.target.value)}
+                      className="ds-input"
+                    />
+                  </label>
+                )}
+                {format !== "choice" && (
+                  <label className={styles.field}>
+                    <span>단답형 문항 수</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_ESSAY_COUNT}
+                      value={essayCount}
+                      onChange={(e) => setClampedEssayCount(e.target.value)}
+                      className="ds-input"
+                    />
+                  </label>
+                )}
+              </div>
+            </>
           ) : (
             <div className={styles.summary}>
               {mcCount > 0 && <span>객관식 {mcCount}문항</span>}
@@ -234,27 +305,53 @@ export default function OmrSheetBuilder({
               <span className={styles.optionLabel}>단답형 작성 공간</span>
               <span className={styles.optionHelp}>
                 {essayCount > 0
-                  ? "실제 단답형 문항이 있어 항상 표시됩니다."
+                  ? `단답형 ${essayCount}문항의 작성칸이 포함됩니다.`
                   : mcCount > MAX_MC_WITH_OPTIONAL_ESSAY_AREA
-                    ? `객관식 ${MAX_MC_WITH_OPTIONAL_ESSAY_AREA + 1}문항부터는 자동으로 숨겨집니다.`
+                    ? `객관식 ${MAX_MC_WITH_OPTIONAL_ESSAY_AREA + 1}문항부터는 객관식 영역을 넓게 사용합니다.`
                     : mcCount > 0
-                      ? "객관식 전용 답안지의 오른쪽 빈 작성 공간을 표시합니다."
+                      ? includeOptionalEssayArea
+                        ? "오른쪽에 메모나 풀이를 적을 수 있는 작성칸을 함께 둡니다."
+                        : "객관식 답안만 남기고 오른쪽 작성칸은 넣지 않습니다."
                       : "문항 수를 입력하면 설정할 수 있습니다."}
               </span>
             </div>
-            <Switch
-              aria-label="단답형 작성 공간 표시"
-              checked={essayAreaChecked}
-              onChange={setIncludeOptionalEssayArea}
-              disabled={essayCount > 0 || !canIncludeOptionalEssayArea}
-            />
+            {canIncludeOptionalEssayArea ? (
+              <div className={styles.areaChoices} role="radiogroup" aria-label="단답형 작성 공간">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={essayAreaChecked}
+                  className={`${styles.areaChoice} ${essayAreaChecked ? styles.areaChoiceActive : ""}`}
+                  onClick={() => setIncludeOptionalEssayArea(true)}
+                >
+                  표시
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!essayAreaChecked}
+                  className={`${styles.areaChoice} ${!essayAreaChecked ? styles.areaChoiceActive : ""}`}
+                  onClick={() => setIncludeOptionalEssayArea(false)}
+                >
+                  숨김
+                </button>
+              </div>
+            ) : (
+              <span className={styles.areaStatus}>{essayCount > 0 ? "포함" : "없음"}</span>
+            )}
           </div>
+        </div>
+
+        <div className={styles.selectionSummary} aria-live="polite">
+          <span>현재 구성</span>
+          <strong>{formatLabel} · 총 {totalCount}문항</strong>
+          <small>{areaLabel}</small>
         </div>
 
         <div className={styles.actions}>
           <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
             <Download size={16} aria-hidden="true" />
-            {pdfLoading ? "다운로드 중..." : "PDF 다운로드"}
+            {pdfLoading ? "다운로드 중..." : "이 구성으로 PDF 다운로드"}
           </Button>
           <Button type="button" intent="secondary" size="md" className="w-full" onClick={loadPreview} disabled={previewLoading || totalCount < 1}>
             <RefreshCw size={15} aria-hidden="true" />
@@ -273,7 +370,11 @@ export default function OmrSheetBuilder({
           />
         ) : (
           <div className={styles.previewEmpty}>
-            {previewLoading ? "미리보기 로딩 중..." : "미리보기를 준비 중입니다."}
+            {previewLoading
+              ? "미리보기 로딩 중..."
+              : totalCount < 1
+                ? "문항 수를 1개 이상 입력하면 미리보기가 나타납니다."
+                : "미리보기를 준비 중입니다."}
           </div>
         )}
       </section>
