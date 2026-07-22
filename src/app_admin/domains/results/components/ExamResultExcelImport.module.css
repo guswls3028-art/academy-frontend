@@ -199,3 +199,18 @@
     min-width: 760px;
   }
 }
+
+@media (max-width: 640px) {
+  .header {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .headingGroup {
+    width: 100%;
+  }
+
+  .templateButton {
+    width: 100%;
+  }
+}

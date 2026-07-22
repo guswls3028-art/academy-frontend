@@ -99,6 +99,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           </div>
         </div>
         <Button
+          className={styles.templateButton}
           type="button"
           intent="secondary"
           size="sm"
