@@ -5,6 +5,7 @@ export interface ExamQuestion {
   id: number;
   sheet: number;
   number: number;
+  question_kind?: "choice" | "essay" | null;
   score: number;
   image?: string;
   image_key?: string;

@@ -63,6 +63,7 @@ const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
 type CountDraft = number | "";
 type ScoreInputDraft = string;
 type ScoreDistributionMode = "integer" | "decimal";
+type QuestionKind = "choice" | "essay";
 type ScoreAdjustmentDraft = {
   objective: number;
   subjective: number;
@@ -72,6 +73,7 @@ type ApplyQuestionOverrides = {
   essayCount?: CountDraft;
   choiceTotal?: number | null;
   essayTotal?: number | null;
+  questionTypes?: QuestionKind[];
 };
 
 const CIRCLED_CHOICE_MAP: Record<string, string> = {
@@ -322,6 +324,8 @@ export default function AnswerKeyRegisterModal({
   const [essayAutoScore, setEssayAutoScore] = useState(false);
   const [essayScoreMode, setEssayScoreMode] = useState<ScoreDistributionMode>("integer");
   const [essayTotalInput, setEssayTotalInput] = useState<ScoreInputDraft>("");
+  const [questionTypes, setQuestionTypes] = useState<QuestionKind[]>([]);
+  const [totalCountInput, setTotalCountInput] = useState<CountDraft>("");
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
@@ -360,6 +364,8 @@ export default function AnswerKeyRegisterModal({
     setEssayAutoScore(false);
     setEssayScoreMode("integer");
     setEssayTotalInput("");
+    setQuestionTypes([]);
+    setTotalCountInput("");
     setDraft({});
     setScoreDraft({});
     setScoreAdjustmentDraft({ objective: 0, subjective: 0 });
@@ -388,16 +394,14 @@ export default function AnswerKeyRegisterModal({
         : essayCount !== ""
           ? Math.max(0, questions.length - (Number(essayCount) || 0))
           : 0;
-  const effectiveEssayCount =
-    choiceCount !== "" && essayCount !== ""
-      ? Math.max(0, Number(essayCount) || 0)
-      : essayCount !== ""
-        ? Math.max(0, Number(essayCount) || 0)
-        : choiceCount !== ""
-          ? Math.max(0, questions.length - (Number(choiceCount) || 0))
-          : 0;
-  const choiceQuestions = sortedQuestions.slice(0, effectiveChoiceCount);
-  const essayQuestions = sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount);
+  const resolvedQuestionTypes = useMemo<QuestionKind[]>(() => {
+    if (questionTypes.length === sortedQuestions.length) return questionTypes;
+    return sortedQuestions.map((question, index) =>
+      question.question_kind ?? (index < effectiveChoiceCount ? "choice" : "essay")
+    );
+  }, [effectiveChoiceCount, questionTypes, sortedQuestions]);
+  const choiceQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "choice");
+  const essayQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "essay");
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const questionTotalScore = useMemo(
@@ -437,6 +441,22 @@ export default function AnswerKeyRegisterModal({
       setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
     }
   }, [answerKey, choiceCount, essayCount, open, sortedQuestions]);
+
+  useEffect(() => {
+    if (!open || sortedQuestions.length === 0) return;
+    const fallbackChoiceCount = omrDefaults?.mc_count ?? sortedQuestions.length;
+    const nextTypes = sortedQuestions.map((question, index) =>
+      question.question_kind ?? omrDefaults?.question_types?.[index] ?? (
+        index < fallbackChoiceCount ? "choice" : "essay"
+      )
+    );
+    setQuestionTypes((previous) =>
+      previous.length === nextTypes.length && previous.every((kind, index) => kind === nextTypes[index])
+        ? previous
+        : nextTypes
+    );
+    setTotalCountInput(sortedQuestions.length);
+  }, [omrDefaults, open, sortedQuestions]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
   useEffect(() => {
@@ -497,6 +517,16 @@ export default function AnswerKeyRegisterModal({
 
   const initMut = useMutation({
     mutationFn: async (overrides?: ApplyQuestionOverrides) => {
+      if (overrides?.questionTypes) {
+        if (overrides.questionTypes.length < 1) throw new Error("문항 수는 1개 이상이어야 합니다.");
+        if (overrides.questionTypes.length > MAX_EXAM_QUESTIONS) {
+          throw new Error(`문항 수는 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
+        }
+        return initExamQuestions({
+          examId,
+          question_types: overrides.questionTypes,
+        });
+      }
       const total = questions.length;
       let cc: number;
       let ec: number;
@@ -529,9 +559,17 @@ export default function AnswerKeyRegisterModal({
     },
     onSuccess: async (result, overrides) => {
       const list = result?.data ?? [];
+      const appliedTypes: QuestionKind[] = overrides?.questionTypes ?? list.map(
+        (question, index) => question.question_kind ?? (
+          index < Number(choiceCount || list.length) ? "choice" : "essay"
+        )
+      );
       let appliedCc: number;
       let appliedEc: number;
-      if (overrides) {
+      if (overrides?.questionTypes) {
+        appliedCc = appliedTypes.filter((kind) => kind === "choice").length;
+        appliedEc = appliedTypes.length - appliedCc;
+      } else if (overrides) {
         const oc = overrides.choiceCount;
         const oe = overrides.essayCount;
         appliedCc = oc !== "" && oc !== undefined ? Math.max(0, Number(oc) || 0) : Math.max(0, list.length - (Number(oe) || 0));
@@ -550,10 +588,14 @@ export default function AnswerKeyRegisterModal({
       appliedEc = Math.trunc(appliedEc);
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
+      setChoiceCountInput(appliedCc);
+      setEssayCountInput(appliedEc);
+      setQuestionTypes(appliedTypes);
+      setTotalCountInput(list.length);
       qc.setQueryData(adminExamsQueryKeys.examQuestions(examId), list);
       const sorted = [...list].sort((a: ExamQuestion, b: ExamQuestion) => a.number - b.number);
-      const choiceList = sorted.slice(0, appliedCc);
-      const essayList = sorted.slice(appliedCc, appliedCc + appliedEc);
+      const choiceList = sorted.filter((_, index) => appliedTypes[index] === "choice");
+      const essayList = sorted.filter((_, index) => appliedTypes[index] === "essay");
 
       const nextScoreDraft: Record<number, number> = {};
       const nextScoreAdjustment: ScoreAdjustmentDraft = { ...scoreAdjustmentDraft };
@@ -604,6 +646,9 @@ export default function AnswerKeyRegisterModal({
       }
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
+      await qc.invalidateQueries({
+        queryKey: [...adminExamsQueryKeys.adminExam(examId), "answer-key-shape"],
+      });
       feedback.success("적용되었습니다.");
     },
     onError: (error: unknown) => {
@@ -654,12 +699,33 @@ export default function AnswerKeyRegisterModal({
     setEssayCount(nextEssayCount);
     setChoiceCountInput(nextChoiceCount);
     setEssayCountInput(nextEssayCount);
+    const nextQuestionTypes: QuestionKind[] = [
+      ...Array<QuestionKind>(nextChoiceCount).fill("choice"),
+      ...Array<QuestionKind>(nextEssayCount).fill("essay"),
+    ];
+    setQuestionTypes(nextQuestionTypes);
     initMut.mutate({
       choiceCount: nextChoiceCount,
       essayCount: nextEssayCount,
       choiceTotal: parsedChoiceTotal,
       essayTotal: parsedEssayTotal,
+      questionTypes: nextQuestionTypes,
     });
+  };
+
+  const applyQuestionTypePlan = () => {
+    if (!canEditStructure) return;
+    const total = countDraftToNumber(totalCountInput);
+    if (total === undefined || total < 1 || total > MAX_EXAM_QUESTIONS) {
+      feedback.error(`전체 문항 수를 1~${MAX_EXAM_QUESTIONS} 사이로 입력해 주세요.`);
+      return;
+    }
+    const nextTypes = Array.from(
+      { length: total },
+      (_, index): QuestionKind => questionTypes[index] ?? resolvedQuestionTypes[index] ?? "choice"
+    );
+    setQuestionTypes(nextTypes);
+    initMut.mutate({ questionTypes: nextTypes });
   };
 
   const handleApplyEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -676,18 +742,41 @@ export default function AnswerKeyRegisterModal({
     }
     setSaveBusy(true);
     try {
+      const shouldPersistQuestionTypes =
+        questionTypes.length === sortedQuestions.length &&
+        sortedQuestions.some((question, index) => question.question_kind !== questionTypes[index]);
+      if (shouldPersistQuestionTypes) {
+        const { data: updatedQuestions } = await initExamQuestions({
+          examId,
+          question_types: questionTypes,
+        });
+        qc.setQueryData(adminExamsQueryKeys.examQuestions(examId), updatedQuestions);
+        await qc.invalidateQueries({
+          queryKey: [...adminExamsQueryKeys.adminExam(examId), "answer-key-shape"],
+        });
+      }
       const normalized = normalizeAnswers(draft);
       const currentQuestionIds = new Set(sortedQuestions.map((q) => String(q.id)));
       const currentAnswers: Record<string, string> = {};
       for (const [questionId, answer] of Object.entries(normalized)) {
         if (currentQuestionIds.has(questionId)) currentAnswers[questionId] = answer;
       }
-      const essayIds = new Set(
-        sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount).map((q) => String(q.id))
-      );
-      essayIds.forEach((questionId) => {
-        if (currentAnswers[questionId] === "" || currentAnswers[questionId] === undefined) currentAnswers[questionId] = "해설참조";
-      });
+      const essayIds = new Set(essayQuestions.map((q) => String(q.id)));
+      if (isMathExam) {
+        for (const questionId of essayIds) {
+          const normalizedAnswer = normalizeNumericShortAnswer(currentAnswers[questionId] ?? "");
+          if (normalizedAnswer === null) {
+            const questionNumber = sortedQuestions.find((q) => String(q.id) === questionId)?.number;
+            feedback.error(`${questionNumber ?? "단답형"}번 정답을 0~999 사이의 정수로 입력해 주세요.`);
+            return;
+          }
+          currentAnswers[questionId] = normalizedAnswer;
+        }
+      } else {
+        essayIds.forEach((questionId) => {
+          if (currentAnswers[questionId] === "" || currentAnswers[questionId] === undefined) currentAnswers[questionId] = "해설참조";
+        });
+      }
       const answersPayload = withScoreAdjustment(currentAnswers, scoreAdjustmentDraft);
       const targetExamId = examId;
       if (!answerKey) {
@@ -759,7 +848,9 @@ export default function AnswerKeyRegisterModal({
       type="action"
       width={MODAL_WIDTH.answerKey}
       onEnterConfirm={
-        activeTab === "answer" && hasQuestions && canEditStructure && !saveBusy ? handleSave : undefined
+        activeTab === "answer" && hasQuestions && canEditStructure && !saveBusy && !initMut.isPending
+          ? handleSave
+          : undefined
       }
     >
       <ModalHeader
@@ -806,6 +897,66 @@ export default function AnswerKeyRegisterModal({
           {structureReady && activeTab === "answer" && (
             <>
             {/* 등록된 답안 요약 영역 제거 — 아래 문항 목록에서 동일 정보 제공 */}
+            <section className="answer-key-type-map" aria-labelledby="answer-key-type-map-title">
+              <div className="answer-key-type-map__header">
+                <div>
+                  <strong id="answer-key-type-map-title">문항별 유형</strong>
+                  <p>전체 문항 수를 정하고, 각 번호를 눌러 객관식과 단답형을 지정하세요.</p>
+                </div>
+                <div className="answer-key-type-map__actions">
+                  <label className="answer-key-field">
+                    <span className="answer-key-field__label">전체 문항 수</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_EXAM_QUESTIONS}
+                      value={totalCountInput}
+                      onChange={(event) => setTotalCountInput(parseCountDraft(event.target.value))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") applyQuestionTypePlan();
+                      }}
+                      className="ds-input answer-key-input--count"
+                      disabled={!canEditStructure}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    onClick={applyQuestionTypePlan}
+                    disabled={!canEditStructure || initMut.isPending}
+                    loading={initMut.isPending}
+                  >
+                    유형 저장
+                  </Button>
+                </div>
+              </div>
+              {questionTypes.length > 0 && (
+                <div className="answer-key-type-map__grid" role="group" aria-label="문항별 유형">
+                  {questionTypes.map((kind, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      className={`answer-key-type-chip answer-key-type-chip--${kind}`}
+                      onClick={() => setQuestionTypes((current) => current.map(
+                        (value, itemIndex) => itemIndex === index
+                          ? (value === "choice" ? "essay" : "choice")
+                          : value
+                      ))}
+                      disabled={!canEditStructure || initMut.isPending}
+                      aria-label={`${index + 1}번 ${kind === "choice" ? "객관식" : "단답형"}. 눌러서 변경`}
+                    >
+                      <span>{index + 1}</span>
+                      <small>{kind === "choice" ? "객관식" : "단답"}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="answer-key-type-map__legend">
+                <span><i className="is-choice" />객관식 {questionTypes.filter((kind) => kind === "choice").length}</span>
+                <span><i className="is-essay" />단답형 {questionTypes.filter((kind) => kind === "essay").length}</span>
+              </div>
+            </section>
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
@@ -1197,8 +1348,9 @@ export default function AnswerKeyRegisterModal({
               examTitle={exam?.title || ""}
               lectureName={lectureName}
               sessionName={sessionName}
-              choiceCount={effectiveChoiceCount}
-              essayCount={effectiveEssayCount}
+              choiceCount={choiceQuestions.length}
+              essayCount={essayQuestions.length}
+              questionTypes={resolvedQuestionTypes}
             />
           )}
         </div>
@@ -1215,7 +1367,7 @@ export default function AnswerKeyRegisterModal({
               <Button
                 intent="primary"
                 onClick={handleSave}
-                disabled={saveBusy || !canEditStructure}
+                disabled={saveBusy || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
                 저장 (총 {formatScore(totalScore)}점)
@@ -1617,6 +1769,7 @@ function OmrSettingsTab({
   sessionName,
   choiceCount,
   essayCount,
+  questionTypes,
 }: {
   examId: number;
   examTitle: string;
@@ -1624,6 +1777,7 @@ function OmrSettingsTab({
   sessionName: string;
   choiceCount: number;
   essayCount: number;
+  questionTypes: QuestionKind[];
 }) {
   const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
   return (
@@ -1641,6 +1795,7 @@ function OmrSettingsTab({
         initialSessionName={sessionName || ""}
         initialMcCount={choiceCount}
         initialEssayCount={essayCount}
+        initialQuestionTypes={questionTypes}
         layout="modal"
       />
     </div>

@@ -41,6 +41,101 @@
   gap: var(--space-2);
 }
 
+.answer-key-type-map {
+  flex: 0 0 auto;
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+.answer-key-type-map__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.answer-key-type-map__header strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+.answer-key-type-map__header p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.answer-key-type-map__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.answer-key-type-map__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px;
+  max-height: 112px;
+  margin-top: var(--space-3);
+  padding: 2px;
+  overflow-y: auto;
+}
+.answer-key-type-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 5px 7px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+}
+.answer-key-type-chip:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.answer-key-type-chip:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+.answer-key-type-chip span {
+  font-size: 12px;
+  font-weight: 800;
+}
+.answer-key-type-chip small {
+  font-size: 10px;
+  font-weight: 700;
+}
+.answer-key-type-chip--choice {
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 38%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-bg-surface));
+}
+.answer-key-type-chip--essay {
+  color: #9a4f08;
+  border-color: color-mix(in srgb, #d97706 42%, var(--color-border-divider));
+  background: color-mix(in srgb, #f59e0b 10%, var(--color-bg-surface));
+}
+.answer-key-type-map__legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.answer-key-type-map__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.answer-key-type-map__legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.answer-key-type-map__legend .is-choice { background: var(--color-brand-primary); }
+.answer-key-type-map__legend .is-essay { background: #d97706; }
+
 /* 좌우 2패널 — 부모(.answer-key-panel)의 flex:1로 남은 공간 전부 사용 */
 .answer-key-two-panels {
   display: grid;
@@ -153,6 +248,13 @@
 }
 
 @media (max-width: 720px) {
+  .answer-key-type-map__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .answer-key-type-map__actions {
+    justify-content: flex-end;
+  }
   .answer-key-two-panels {
     grid-template-columns: 1fr;
   }

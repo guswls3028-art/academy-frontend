@@ -12,6 +12,9 @@ export type OMRDefaults = {
   include_optional_essay_area: boolean;
   can_include_optional_essay_area: boolean;
   n_choices: number;
+  question_types: Array<"choice" | "essay">;
+  choice_question_numbers: number[];
+  essay_question_numbers: number[];
   logo_url: string | null;
 };
 
@@ -23,6 +26,8 @@ export type OMRParams = {
   essay_count: number;
   include_optional_essay_area: boolean;
   n_choices: number;
+  choice_question_numbers?: number[];
+  essay_question_numbers?: number[];
 };
 
 export type OMRTarget =

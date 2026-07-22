@@ -71,6 +71,7 @@ type ExamQuestionForDrawer = {
   number: number;
   score: number;
   kind?: "choice" | "essay" | null;
+  question_kind?: "choice" | "essay" | null;
 };
 
 type ScoreShape = {
@@ -148,13 +149,13 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           return {
             ...existing,
             question_number: existing.question_number ?? q.number,
-            question_kind: existing.question_kind ?? q.kind ?? questionKindFromNumber(q.number, detail?.score_shape),
+            question_kind: existing.question_kind ?? q.kind ?? q.question_kind ?? questionKindFromNumber(q.number, detail?.score_shape),
           };
         }
         return {
           question_id: q.id,
           question_number: q.number,
-          question_kind: q.kind ?? questionKindFromNumber(q.number, detail?.score_shape),
+          question_kind: q.kind ?? q.question_kind ?? questionKindFromNumber(q.number, detail?.score_shape),
           answer: "",
           is_correct: false,
           score: 0,
