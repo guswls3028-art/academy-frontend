@@ -27,6 +27,7 @@ type OmrSheetBuilderProps = {
   initialSessionName?: string;
   initialMcCount: number;
   initialEssayCount: number;
+  initialQuestionTypes?: Array<"choice" | "essay">;
   countsEditable?: boolean;
   layout?: OmrSheetBuilderLayout;
 };
@@ -43,6 +44,7 @@ export default function OmrSheetBuilder({
   initialSessionName = "",
   initialMcCount,
   initialEssayCount,
+  initialQuestionTypes,
   countsEditable = false,
   layout = "page",
 }: OmrSheetBuilderProps) {
@@ -100,7 +102,17 @@ export default function OmrSheetBuilder({
     essay_count: essayCount,
     include_optional_essay_area: includeOptionalEssayArea,
     n_choices: 5,
-  }), [examTitle, lectureName, sessionName, mcCount, essayCount, includeOptionalEssayArea]);
+    ...(initialQuestionTypes?.length === totalCount
+      ? {
+          choice_question_numbers: initialQuestionTypes
+            .map((kind, index) => kind === "choice" ? index + 1 : null)
+            .filter((number): number is number => number !== null),
+          essay_question_numbers: initialQuestionTypes
+            .map((kind, index) => kind === "essay" ? index + 1 : null)
+            .filter((number): number is number => number !== null),
+        }
+      : {}),
+  }), [examTitle, lectureName, sessionName, mcCount, essayCount, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
 
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;

@@ -4,6 +4,12 @@ import type { ExamQuestion } from "./question.api";
 export type InitExamQuestionsParams =
   | {
       examId: number;
+      question_types: Array<"choice" | "essay">;
+      choice_score?: number;
+      essay_score?: number;
+    }
+  | {
+      examId: number;
       total_questions: number;
       default_score?: number;
     }
@@ -17,7 +23,13 @@ export type InitExamQuestionsParams =
 
 export function initExamQuestions(params: InitExamQuestionsParams) {
   const body =
-    "total_questions" in params
+    "question_types" in params
+      ? {
+          question_types: params.question_types,
+          ...(params.choice_score !== undefined ? { choice_score: params.choice_score } : {}),
+          ...(params.essay_score !== undefined ? { essay_score: params.essay_score } : {}),
+        }
+      : "total_questions" in params
       ? {
           total_questions: params.total_questions,
           default_score: params.default_score,
