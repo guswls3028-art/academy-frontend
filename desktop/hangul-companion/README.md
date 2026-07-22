@@ -22,9 +22,11 @@
 ```powershell
 .\publish.ps1 -DotNetPath dotnet -OutputDirectory .\dist
 Academy.HangulCompanion.exe --diagnose-handoff "academy-hangul://insert?handoff=..." ".\diagnostic.json"
+dotnet run --project ..\hangul-companion-integration-tests\Academy.HangulCompanion.IntegrationTests.csproj -c Release
 ```
 
 `--diagnose-handoff`는 한글을 열지 않고 실제 일회용 코드 소비, HTTPS ZIP 다운로드, 크기/SHA-256 검증, HWPX 추출 결과를 JSON으로 남깁니다.
+Windows COM 통합 검사는 한글 Automation의 Running Object Table 계약을 재현해 보이는 일반 편집 문서 선택, `InsertFile` 파라미터, 보안 모듈 등록, 삽입 거부 폴백, 저장·닫기·종료 금지를 실행 검증합니다.
 배포 자동화는 동일 설치/제거 로직의 메시지 없는 `--install-silent`, `--uninstall-silent`를 사용할 수 있습니다.
 
 한컴 Automation의 파일 경로 보안 모듈을 승인·설치한 환경에서는 모듈 이름을 `ACADEMY_HWP_FILE_PATH_MODULE` 사용자 환경 변수로 지정합니다. 외부 상용 배포 전에는 한컴의 Automation 사용 승인/재배포 조건, 보안 모듈 등록, 코드 서명을 별도로 완료해야 합니다. 승인 모듈이 없으면 한글 보안 정책에 따라 직접 삽입이 거부될 수 있으며 이때 새 HWPX 열기로 폴백합니다.
