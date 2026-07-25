@@ -11,11 +11,10 @@ type ExamOption = SessionScoreMeta["exams"][number];
 
 type Props = {
   exams: ExamOption[];
-  isEditMode: boolean;
   onRefresh: () => void;
 };
 
-export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }: Props) {
+export default function SessionOmrUploadAction({ exams, onRefresh }: Props) {
   const [selectedExam, setSelectedExam] = useState<{ examId: number; title: string } | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -60,7 +59,7 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
       <div ref={pickerRef} className="scores-omr-action">
         <Button
           type="button"
-          intent={isEditMode ? "secondary" : "primary"}
+          intent="primary"
           size="md"
           className="scores-omr-primary"
           onClick={openUpload}

@@ -5,7 +5,7 @@
  * 1. OMR 스캔 등록 주 동선
  * 2. 시험·과제 없을 때 워크플로우 가이드
  * 3. 대상자 0명일 때 경고 배너
- * 4. 편집 모드 키보드 힌트 (Tab·화살표·Enter)
+ * 4. 상시 입력·자동 저장·키보드 단축키 안내
  * 5. 더보기 메뉴 아이콘 추가
  * 6. "수강생 일괄배정" 보조 기능 이동
  *
@@ -124,35 +124,34 @@ test.describe("성적 탭 UX 개선 검증", () => {
   });
 
   /**
-   * 4. 편집 모드 키보드 힌트 (Tab·화살표·Enter)
+   * 4. 상시 입력·자동 저장·키보드 단축키
    */
-  test("2. 편집 모드 키보드 힌트 확인", async ({ page }) => {
+  test("2. 상시 입력과 자동 저장 단축키 안내 확인", async ({ page }) => {
     const ok = await navigateToScoresTab(page);
     if (!ok) { test.skip(); return; }
 
-    // 학생 상세 드로어를 먼저 열어 둔 뒤 편집 모드로 진입한다.
-    // 실제 리스크는 편집 중에도 기존 드로어가 유지될 때 단건 발송이 가능한지 여부다.
+    // 학생 상세 드로어를 먼저 열어 둔 뒤에도 점수 셀은 바로 입력 가능해야 한다.
     await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
     const drawer = page.locator(".student-scores-drawer");
     await expect(drawer).toBeVisible({ timeout: 5_000 });
 
-    // 편집 모드 진입
-    const editBtn = page.locator("button").filter({ hasText: "편집 모드" }).first();
-    await expect(editBtn).toBeVisible({ timeout: 5000 });
-    await editBtn.click();
+    await expect(page.getByRole("button", { name: "편집 모드" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "지금 저장" })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible({ timeout: 5000 });
 
-    // 키보드 힌트: 편집 모드에서는 긴 안내 배너 대신 도움말 팝업으로 제공된다.
+    // 키보드 힌트는 도움말 팝업으로 제공된다.
     await expect(page.locator(".scores-edit-help-banner")).toHaveCount(0);
-    const editHelpButton = page.getByRole("button", { name: "편집 모드 도움말" });
+    const editHelpButton = page.getByRole("button", { name: "성적 입력 도움말" });
     await expect(editHelpButton).toBeVisible({ timeout: 5000 });
     await editHelpButton.click();
-    const hint = page.getByRole("dialog", { name: "편집 모드 안내" });
+    const hint = page.getByRole("dialog", { name: "빠른 성적 입력 안내" });
     await expect(hint).toBeVisible({ timeout: 5000 });
     await expect(hint).toContainText("Enter");
     await expect(hint).toContainText("Tab");
     await expect(hint).toContainText("Esc");
-    await expect(hint).toContainText("저장하기");
-    await snap(page, "02-edit-mode");
+    await expect(hint).toContainText("Ctrl");
+    await expect(hint).toContainText("자동 저장");
+    await snap(page, "02-quick-entry");
     await page.keyboard.press("Escape");
     await expect(hint).toBeHidden({ timeout: 3000 });
     console.log("[키보드 힌트] 도움말 팝업 확인됨");
@@ -160,9 +159,8 @@ test.describe("성적 탭 UX 개선 검증", () => {
     const firstStudentCheckbox = page.locator('input[type="checkbox"][aria-label]:not([aria-label="전체 선택"])').first();
     await firstStudentCheckbox.check({ force: true });
     const scoreSendButton = page.getByRole("button", { name: "수업결과 알림톡 발송" });
-    await expect(scoreSendButton).toBeDisabled();
-    await expect(scoreSendButton).toHaveAttribute("title", "점수를 저장한 뒤 발송할 수 있습니다.");
-    console.log("[알림톡] 편집 모드에서는 저장 전 발송 차단 확인됨");
+    await expect(scoreSendButton).toBeEnabled();
+    console.log("[알림톡] 저장된 점수 발송 진입 가능 확인됨");
 
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
@@ -170,9 +168,9 @@ test.describe("성적 탭 UX 개선 검증", () => {
       await expect(draftDialog).toBeHidden({ timeout: 3_000 });
     }
 
-    await expect(drawer.getByRole("button", { name: /알림톡 발송/ })).toBeDisabled();
-    await expect(drawer.getByRole("button", { name: /성적 발송/ })).toBeDisabled();
-    console.log("[알림톡] 편집 모드에서는 학생 상세 단건 발송도 차단 확인됨");
+    await expect(drawer.getByRole("button", { name: /알림톡 발송/ })).toBeEnabled();
+    await expect(drawer.getByRole("button", { name: /성적 발송/ })).toBeEnabled();
+    console.log("[알림톡] 학생 상세 단건 발송 진입 가능 확인됨");
 
     // 편집 컨트롤 확인
     await expect(page.getByRole("group", { name: "시험 점수 입력 방식" })).toBeVisible({ timeout: 3000 });
@@ -181,12 +179,7 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(page.getByRole("group", { name: "과제 점수 입력 켜짐/꺼짐" })).toBeVisible({ timeout: 3000 });
     console.log("[편집 컨트롤] 시험/과제 입력 방식 확인됨");
 
-    // 편집 모드 종료 → 힌트 사라짐 확인
-    const saveBtn = page.locator("button").filter({ hasText: "저장하기" }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 3000 });
-    await saveBtn.click();
-    await expect(editHelpButton).toBeHidden({ timeout: 10_000 });
-    console.log("[키보드 힌트] 편집 종료 후 도움말 버튼 숨김 확인됨");
+    await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
   });
 
   /**

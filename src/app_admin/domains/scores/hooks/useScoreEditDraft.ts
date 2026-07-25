@@ -1,9 +1,9 @@
 // PATH: src/app_admin/domains/scores/hooks/useScoreEditDraft.ts
 /**
- * Score edit draft: autosave, recovery prompt, status, beforeunload.
- * - Draft autosave when 12+ cells changed OR every 40s (whichever first).
- * - GET draft on edit-mode enter → show restore prompt if present.
- * - beforeunload when dirty and not recently saved.
+ * Score edit autosave: live score persistence, recovery draft, status, beforeunload.
+ * - A committed cell is persisted after a short idle delay.
+ * - Ctrl+S consumers call saveNow for an immediate flush.
+ * - The server draft is written before score patches so a failed save can be restored.
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -16,8 +16,9 @@ import {
 } from "../api/scoreDraft";
 import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 
-const AUTOSAVE_CELL_THRESHOLD = 12;
-const AUTOSAVE_INTERVAL_MS = 40_000;
+const AUTOSAVE_IDLE_MS = 900;
+const AUTOSAVE_POLL_MS = 250;
+const AUTOSAVE_RETRY_MS = 5_000;
 /**
  * P0-3 (2026-05-13): 1시간 넘게 방치된 draft 는 자동 폐기.
  * 학원장이 "복원할까요?" 모달을 매 진입마다 보지 않게 하기 위함.
@@ -26,15 +27,15 @@ const AUTOSAVE_INTERVAL_MS = 40_000;
 const DRAFT_STALE_MS = 60 * 60 * 1000;
 const DRAFT_TS_KEY = (sessionId: number) => `scores-draft-ts:${sessionId}`;
 
-export type DraftStatus = "idle" | "saving" | "saved" | "error";
+export type DraftStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
 type Options = {
   sessionId: number;
   panelRef: React.RefObject<SessionScoresPanelHandle | null>;
-  isEditMode: boolean;
+  isActive: boolean;
 };
 
-export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) {
+export function useScoreEditDraft({ sessionId, panelRef, isActive }: Options) {
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("idle");
   const [draftError, setDraftError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -42,31 +43,77 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
   const [restoreChanges, setRestoreChanges] = useState<PendingChange[]>([]);
   /** P0-3: 모달에 변경 건수를 표시해서 학원장이 "복원할 만한지" 즉시 판단. */
   const [restoreChangeCount, setRestoreChangeCount] = useState(0);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const savePromiseRef = useRef<Promise<number> | null>(null);
+  const lastSaveAttemptAtRef = useRef(0);
 
-  const lastAutosaveAtRef = useRef<number>(0);
+  const saveNow = useCallback(async function savePendingScores(): Promise<number> {
+    if (savePromiseRef.current) {
+      const inFlight = savePromiseRef.current;
+      const savedCount = await inFlight;
+      if (savePromiseRef.current === inFlight) savePromiseRef.current = null;
+      if ((panelRef.current?.getPendingSnapshot?.() ?? []).length > 0) {
+        return savedCount + await savePendingScores();
+      }
+      return savedCount;
+    }
 
-  const performSave = useCallback(async () => {
-    const snapshot = panelRef.current?.getPendingSnapshot?.();
-    if (!snapshot?.length) return;
+    const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
+    if (snapshot.length === 0) {
+      setHasPendingChanges(false);
+      return 0;
+    }
+
     setDraftStatus("saving");
     setDraftError(null);
+    lastSaveAttemptAtRef.current = Date.now();
+
+    const run = (async () => {
+      try {
+        await putScoreDraft(sessionId, snapshot);
+        try { localStorage.setItem(DRAFT_TS_KEY(sessionId), String(Date.now())); } catch { /* ignore */ }
+
+        const savedCount = await panelRef.current?.flushPendingChanges?.() ?? 0;
+        const remaining = panelRef.current?.getPendingSnapshot?.() ?? [];
+        if (remaining.length === 0) {
+          await postScoreDraftCommit(sessionId);
+          try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
+          const savedAt = Date.now();
+          lastSaveAttemptAtRef.current = 0;
+          setLastSavedAt(savedAt);
+          setHasPendingChanges(false);
+          setDraftStatus("saved");
+        } else {
+          lastSaveAttemptAtRef.current = 0;
+          setHasPendingChanges(true);
+          setDraftStatus("dirty");
+        }
+        return savedCount;
+      } catch (e) {
+        setHasPendingChanges(true);
+        setDraftStatus("error");
+        setDraftError(e instanceof Error ? e.message : "성적 저장 실패");
+        throw e;
+      }
+    })();
+
+    savePromiseRef.current = run;
+    let savedCount = 0;
     try {
-      await putScoreDraft(sessionId, snapshot);
-      lastAutosaveAtRef.current = Date.now();
-      setLastSavedAt(Date.now());
-      setDraftStatus("saved");
-      try { localStorage.setItem(DRAFT_TS_KEY(sessionId), String(Date.now())); } catch { /* ignore */ }
-    } catch (e) {
-      setDraftStatus("error");
-      setDraftError(e instanceof Error ? e.message : "임시저장 실패");
+      savedCount = await run;
+    } finally {
+      if (savePromiseRef.current === run) savePromiseRef.current = null;
     }
+    const remaining = panelRef.current?.getPendingSnapshot?.() ?? [];
+    if (remaining.length > 0) return savedCount + await savePendingScores();
+    return savedCount;
   }, [sessionId, panelRef]);
 
-  // On edit mode enter: check for existing draft once.
+  // On score page enter: check for an existing recovery draft once.
   // P0-3 (2026-05-13): 1시간 넘게 방치된 draft 는 자동 commit(폐기)해서
   // 매 진입마다 "복원할까요?" 모달 노출되는 패턴 차단.
   useEffect(() => {
-    if (!isEditMode || !Number.isFinite(sessionId)) return;
+    if (!isActive || !Number.isFinite(sessionId)) return;
     let cancelled = false;
     getScoreDraft(sessionId)
       .then(async (data) => {
@@ -104,27 +151,48 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
     return () => {
       cancelled = true;
     };
-  }, [isEditMode, sessionId]);
+  }, [isActive, sessionId]);
 
-  // Autosave: by count (12+) or by interval (40s)
+  // Live autosave after the pending snapshot stays unchanged for a short idle window.
   useEffect(() => {
-    if (!isEditMode || !panelRef.current) return;
+    if (!isActive) return;
+    let lastSignature = "";
+    let changedAt = 0;
     const interval = setInterval(() => {
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
+      const signature = JSON.stringify(snapshot);
       const now = Date.now();
-      const elapsed = now - lastAutosaveAtRef.current;
-      if (
-        snapshot.length >= AUTOSAVE_CELL_THRESHOLD ||
-        (snapshot.length > 0 && elapsed >= AUTOSAVE_INTERVAL_MS)
-      ) {
-        void performSave();
+      const hasPending = snapshot.length > 0;
+      setHasPendingChanges((current) => current === hasPending ? current : hasPending);
+
+      if (!hasPending) {
+        lastSignature = "";
+        changedAt = 0;
+        return;
       }
-    }, 5000);
+      if (signature !== lastSignature) {
+        lastSignature = signature;
+        changedAt = now;
+        setDraftStatus("dirty");
+        return;
+      }
+      if (
+        now - changedAt >= AUTOSAVE_IDLE_MS &&
+        now - lastSaveAttemptAtRef.current >= AUTOSAVE_RETRY_MS &&
+        savePromiseRef.current == null
+      ) {
+        void saveNow().catch(() => undefined);
+      }
+    }, AUTOSAVE_POLL_MS);
     return () => clearInterval(interval);
-  }, [isEditMode, panelRef, performSave]);
+  }, [isActive, panelRef, saveNow]);
 
   const restoreDraft = useCallback(() => {
-    if (restoreChanges.length > 0) panelRef.current?.applyDraftPatch?.(restoreChanges);
+    if (restoreChanges.length > 0) {
+      panelRef.current?.applyDraftPatch?.(restoreChanges);
+      setHasPendingChanges(true);
+      setDraftStatus("dirty");
+    }
     setHasDraftToRestore(false);
     setRestoreChanges([]);
     setRestoreChangeCount(0);
@@ -141,13 +209,15 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
     }
   }, [sessionId]);
 
-  // 편집 모드 중 자동 리로드 차단 + beforeunload
+  // Pending changes block deployment auto-reload only while data is actually dirty.
   useEffect(() => {
-    if (!isEditMode) return;
-
-    // 배포 자동 리로드 차단
+    if (!isActive || !hasPendingChanges) return;
     const unblock = blockAutoReload();
+    return unblock;
+  }, [isActive, hasPendingChanges]);
 
+  useEffect(() => {
+    if (!isActive) return;
     // beforeunload: 미저장 변경이 있으면 항상 경고 + 긴급 저장 시도
     const handler = (e: BeforeUnloadEvent) => {
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
@@ -165,18 +235,18 @@ export function useScoreEditDraft({ sessionId, panelRef, isEditMode }: Options) 
 
     return () => {
       window.removeEventListener("beforeunload", handler);
-      unblock(); // 편집 모드 해제 시 자동 리로드 허용
     };
-  }, [isEditMode, panelRef, sessionId]);
+  }, [isActive, panelRef, sessionId]);
 
   return {
     draftStatus,
     draftError,
     lastSavedAt,
+    hasPendingChanges,
     hasDraftToRestore,
     restoreChangeCount,
     restoreDraft,
     discardDraft,
-    performSave,
+    saveNow,
   };
 }

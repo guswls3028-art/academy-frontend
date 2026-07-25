@@ -37,7 +37,7 @@ type Props = {
   row: SessionScoreRow;
   meta: SessionScoreMeta | null;
   sessionId?: number;
-  isEditMode?: boolean;
+  hasUnsavedChanges?: boolean;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -67,7 +67,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({ row, meta, sessionId, hasUnsavedChanges = false, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
@@ -87,8 +87,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     [row],
   );
   const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
-  const scoreSendDisabled = isEditMode || row.student_id == null;
-  const scoreSendTitle = isEditMode
+  const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
+  const scoreSendTitle = hasUnsavedChanges
     ? "점수를 저장한 뒤 알림톡을 발송할 수 있습니다."
     : row.student_id == null
       ? "학생 정보가 없어 발송할 수 없습니다."
@@ -141,7 +141,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(async () => {
-    if (isEditMode) {
+    if (hasUnsavedChanges) {
       feedback.info("점수를 저장한 뒤 알림톡을 발송해 주세요.");
       return;
     }
@@ -210,7 +210,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       },
       recomputePerStudentVars,
     });
-  }, [isEditMode, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
 
   return (
     <div className="student-scores-drawer-side-panel">

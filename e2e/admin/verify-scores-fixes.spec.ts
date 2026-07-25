@@ -106,30 +106,21 @@ test.describe("Verify Scores Fixes & UX", () => {
     await page.keyboard.press("Escape");
   });
 
-  // ─── 2. Edit mode keyboard hints ─────────────────────────────────
-  test("2. Edit mode keyboard hints — Enter and Tab", async ({ page }) => {
+  // ─── 2. Always-on score entry keyboard hints ─────────────────────
+  test("2. Always-on score entry — autosave and Excel shortcuts", async ({ page }) => {
     await gotoAndSettle(page, scoresUrl(), { settleMs: 2000 });
 
-    const editBtn = page.locator("button").filter({ hasText: "편집 모드" }).first();
-    await expect(editBtn).toBeVisible({ timeout: 10000 });
-    await editBtn.click();
-    // 편집 모드 진입 — 키보드 힌트 텍스트 (Enter/Tab) 가 보여야 함.
-    await expect(
-      page.locator("body"),
-      "편집 모드 진입 후 'Enter' 키보드 힌트가 노출되어야 함",
-    ).toContainText("Enter", { timeout: 5_000 });
-    await snap(page, "02-edit-mode-active");
+    await expect(page.getByRole("button", { name: "편집 모드" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "지금 저장" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible({ timeout: 5_000 });
+    await snap(page, "02-always-on-score-entry");
 
     const pageText = await page.locator("body").innerText();
-    expect(pageText).toContain("Tab");
+    expect(pageText).toContain("자동 저장");
+    expect(pageText).toContain("Ctrl+S");
 
     await snap(page, "02-keyboard-hints");
-
-    const saveBtn = page.locator("button").filter({ hasText: /저장|편집 종료/ }).first();
-    if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await saveBtn.click();
-      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    }
   });
 
   // ─── 3. Exam creation modal — cutline unit badge ──────────────────

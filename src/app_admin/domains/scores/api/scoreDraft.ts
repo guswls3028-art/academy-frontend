@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/scores/api/scoreDraft.ts
 /**
- * Score edit draft API — 임시 저장/복원. 최종 반영은 "편집 종료" 시 patch API로만 수행.
+ * Score edit recovery API.
+ * 실제 성적 PATCH 전에 복구용 변경 목록을 저장하고, PATCH 완료 뒤 commit으로 비운다.
  */
 
 import api from "@/shared/api/axios";
