@@ -3,6 +3,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
+import { reportClientException } from "@/shared/lib/userIncidentReporter";
 import styles from "./ErrorBoundary.module.css";
 
 interface Props {
@@ -125,12 +126,17 @@ export default class ErrorBoundary extends Component<Props, State> {
     // 쿨다운 이내에 재발생 — 자동 복구 실패. 사용자에게 원본 정보 노출.
     this.setState({ recurred: true });
 
-    Sentry.captureException(error, {
+    const eventId = Sentry.captureException(error, {
       tags: { recurred: "true", chunk: String(isChunk) },
       contexts: {
         react: { componentStack: info.componentStack || "" },
         app: { url, tenantCode: tenantCode || "unknown" },
       },
+    });
+    reportClientException(error.name || "ReactError", {
+      route: url,
+      sentryEventId: eventId,
+      confirmedPersistent: true,
     });
   }
 

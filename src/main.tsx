@@ -23,6 +23,7 @@ import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider } from "@/shared/ui/modal/ModalWindowContext";
 import ModalTaskbar from "@/shared/ui/modal/ModalTaskbar";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
+import { reportClientException } from "@/shared/lib/userIncidentReporter";
 
 import "antd/dist/reset.css";
 import "./index.css";
@@ -61,13 +62,17 @@ function installChunkReloadHandler() {
     const msg = String((e as ErrorEvent).message || "");
     if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
       reloadOnce();
+      return;
     }
+    reportClientException((e as ErrorEvent).error?.name || "WindowError");
   });
   window.addEventListener("unhandledrejection", (e) => {
     const msg = String((e as PromiseRejectionEvent).reason?.message || "");
     if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
       reloadOnce();
+      return;
     }
+    reportClientException((e as PromiseRejectionEvent).reason?.name || "UnhandledRejection");
   });
 }
 installChunkReloadHandler();

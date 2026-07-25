@@ -8,6 +8,7 @@ import { SendOutlined } from "@ant-design/icons";
 import * as Sentry from "@sentry/react";
 import { feedback } from "./feedback";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
+import { submitUserIncident } from "@/shared/lib/userIncidentReporter";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -53,27 +54,35 @@ export default function BugReportDialog({ open, onClose }: BugReportDialogProps)
     setSubmitting(true);
     try {
       const ctx = collectContext(location.pathname);
-
-      // Sentry 이벤트 생성 + User Feedback 연결
-      const eventId = Sentry.captureMessage("사용자 문제 신고", {
-        level: "info",
-        tags: {
-          "report.type": "user_bug_report",
-          "report.route": ctx.route,
-        },
-        contexts: {
-          bugReport: {
-            description: text,
-            ...ctx,
-          },
-        },
-      });
-
-      // Sentry User Feedback API
-      Sentry.captureFeedback({
-        associatedEventId: eventId,
+      await submitUserIncident({
+        source: "manual",
         message: text,
+        route: ctx.route,
+        screenSize: ctx.screenSize,
       });
+
+      try {
+        // Sentry는 상세 진단용 보조 경로이며, 운영 DB 접수 성공을 되돌리지 않는다.
+        const eventId = Sentry.captureMessage("사용자 문제 신고", {
+          level: "info",
+          tags: {
+            "report.type": "user_bug_report",
+            "report.route": ctx.route,
+          },
+          contexts: {
+            bugReport: {
+              description: text,
+              ...ctx,
+            },
+          },
+        });
+        Sentry.captureFeedback({
+          associatedEventId: eventId,
+          message: text,
+        });
+      } catch {
+        // 운영 DB 접수가 정본이므로 Sentry 장애는 사용자 재제출을 유도하지 않는다.
+      }
 
       feedback.success("문제가 접수되었습니다. 확인 후 처리하겠습니다.");
       handleClose();
