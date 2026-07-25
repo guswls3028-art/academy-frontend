@@ -3,10 +3,12 @@ import {
   ArrowRight,
   BellRing,
   BookOpenCheck,
+  Camera,
   CheckCircle2,
   ClipboardCheck,
   GraduationCap,
-  MessageSquareText,
+  Presentation,
+  ScanSearch,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -26,7 +28,7 @@ type ProofCard = {
   points: string[];
   ctaPath: string;
   ctaLabel: string;
-  tone: "video" | "alimtalk" | "admin";
+  tone: "video" | "alimtalk" | "admin" | "matchup";
   phone?: boolean;
   featured?: boolean;
 };
@@ -43,6 +45,19 @@ type FeatureGroup = {
 
 const PROOF_CARDS: ProofCard[] = [
   {
+    id: "matchup-ppt",
+    badge: "제품 실화면 · 개포고 데모",
+    title: "시험지를 올리면 유사문제 후보 확인부터 수업 PPT까지 이어집니다",
+    body: "원문 옆에서 후보를 비교해 선생님이 직접 고르고, 선택한 문제를 16:9 수업용 PPT로 구성합니다.",
+    image: "/promo/matchup-gaepo-results-20260725.png",
+    alt: "개포고 시험 문제와 유사문제 결과를 나란히 비교하는 학원플러스 매치업 실제 화면",
+    points: ["학교 시험지·문제 이미지 업로드", "유사도와 출처를 보고 후보 확인", "고른 문제를 PPT 슬라이드로 구성"],
+    ctaPath: "/promo/matchup-ppt",
+    ctaLabel: "매치업·PPT 실제 화면 따라보기",
+    tone: "matchup",
+    featured: true,
+  },
+  {
     id: "parent-trust",
     badge: "학부모 리포트",
     title: "출결·성적·복습·보강 내역을 상담 전에 보낼 수 있습니다",
@@ -53,7 +68,6 @@ const PROOF_CARDS: ProofCard[] = [
     ctaPath: "/promo/parent-trust",
     ctaLabel: "학부모 리포트 보기",
     tone: "admin",
-    featured: true,
   },
   {
     id: "student-video",
@@ -95,6 +109,20 @@ const PROOF_CARDS: ProofCard[] = [
 ];
 
 const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    id: "matchup-ppt-flow",
+    title: "시험지 매치업·수업 PPT",
+    kicker: "수업자료 제작",
+    body: "학교 시험지를 시작점으로 유사문제 후보를 확인하고, 선생님이 고른 문제를 강의실 PPT까지 이어서 만듭니다.",
+    icon: Presentation,
+    accentBg: "#dce8ff",
+    items: [
+      { title: "학교별 자료함", desc: "개포고·단대부고·숙명여고처럼 학교와 시험 범위별로 원문을 정리합니다." },
+      { title: "문항별 후보 비교", desc: "원문 옆에서 유사도와 출처를 보고 확인할 후보의 순서를 판단합니다." },
+      { title: "선생님 최종 선택", desc: "점수를 자동 정답처럼 쓰지 않고 풀이 구조와 수업 목적을 보고 직접 고릅니다." },
+      { title: "수업 PPT 생성", desc: "선택한 문제를 16:9·4:3 슬라이드로 구성하고 미리본 뒤 내려받습니다." },
+    ],
+  },
   {
     id: "parent-report",
     title: "학부모 리포트",
@@ -182,6 +210,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
 ];
 
 const NAV_LINKS = [
+  { label: "매치업·PPT", href: "#matchup-ppt" },
   { label: "학부모 리포트", href: "#parent-trust" },
   { label: "학생앱 영상", href: "#student-video" },
   { label: "알림톡 자동 발송", href: "#alimtalk" },
@@ -196,40 +225,42 @@ export default function FeaturesPage() {
       <section className={`${styles.hero} ${styles.heroFeatures}`} aria-labelledby="features-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>실제 화면 중심</span>
-            <h1 id="features-title">수업 전후에 처리할 일을 화면별로 모았습니다</h1>
+            <span className={styles.eyebrow}>대치 수업 운영 · 실제 화면 중심</span>
+            <h1 id="features-title">찍은 문제를 찾고, 수업 PPT까지 이어서 만듭니다</h1>
             <p>
-              출결, 시험, 영상, 알림톡, 보강이 따로 흩어지면 확인할 일이 늘어납니다.
-              학원플러스는 선생님이 자주 보는 화면을 기준으로 수업 전후 업무를 묶었습니다.
+              시험지 매치업과 PPT 제작부터 출결, 성적, 영상, 알림톡, 보강까지.
+              대치 선생님이 수업 전후에 실제로 보는 화면을 기준으로 기능을 묶었습니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/parent-trust" className={styles.primaryCta}>
-                학부모 리포트 보기
-                <ShieldCheck size={18} />
+              <Link to="/promo/matchup-ppt" className={styles.primaryCta}>
+                매치업·PPT 따라보기
+                <Presentation size={18} />
               </Link>
-              <a href="#alimtalk" className={styles.secondaryCta}>
-                알림톡 발송 보기
-                <MessageSquareText size={18} />
+              <a href="#parent-trust" className={styles.secondaryCta}>
+                전체 실제 화면 보기
+                <ScanSearch size={18} />
               </a>
             </div>
           </div>
 
           <aside className={styles.heroProofStack} aria-label="핵심 기능 미리보기">
             <figure className={styles.heroScreen}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어 화면" />
+              <img src="/promo/ppt-gaepo-setup-20260725.png" alt="개포고 문제 두 장으로 수업 PPT를 구성하는 실제 화면" />
               <figcaption className={styles.heroScreenCaption}>
-                <strong>학생전용앱 영상</strong>
-                <span>이어보기 · 댓글 · 플레이어</span>
+                <strong>선택한 문제 → 수업 PPT</strong>
+                <span>제품 실화면 · 2장 · 16:9</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
               <article>
-                <strong>알림톡 자동 발송</strong>
-                <p>가입, 출결, 시험, 영상 안내를 필요한 순간에 발송합니다.</p>
+                <Camera size={16} />
+                <strong>학교 시험지 업로드</strong>
+                <p>이미지·PDF를 학교와 시험별로 정리합니다.</p>
               </article>
               <article>
-                <strong>학부모 리포트</strong>
-                <p>출결, 성적, 영상, 보강 내역을 한 주 단위로 요약합니다.</p>
+                <ScanSearch size={16} />
+                <strong>유사문제 후보</strong>
+                <p>원문 옆에서 후보를 보고 선생님이 고릅니다.</p>
               </article>
             </div>
           </aside>
@@ -245,8 +276,8 @@ export default function FeaturesPage() {
             </span>
             <h2 id="proof-title">말보다 먼저 보여줄 화면</h2>
             <p>
-              기능 이름만 나열하면 와닿지 않습니다. 학생앱, 관리자 화면, 리포트 예시를 먼저 보여주고
-              실제 수업에서 언제 쓰는지 짧게 붙였습니다.
+              기능 이름만 나열하지 않았습니다. 매치업, PPT, 학생앱, 관리자 화면을 실제 수업에서
+              언제 쓰는지와 함께 보여드립니다.
             </p>
           </header>
 

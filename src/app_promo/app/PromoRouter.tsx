@@ -6,6 +6,7 @@ import PromoLayout from "../layout/PromoLayout";
 
 const LandingPage = lazy(() => import("../domains/landing/pages/LandingPage"));
 const FeaturesPage = lazy(() => import("../domains/landing/pages/FeaturesPage"));
+const MatchupPptPage = lazy(() => import("../domains/landing/pages/MatchupPptPage"));
 const AiGradingPage = lazy(() => import("../domains/landing/pages/AiGradingPage"));
 const VideoPlatformPage = lazy(() => import("../domains/landing/pages/VideoPlatformPage"));
 const PricingPage = lazy(() => import("../domains/landing/pages/PricingPage"));
@@ -34,6 +35,7 @@ export default function PromoRouter() {
       <Route element={<PromoLayout />}>
         <Route index element={renderPromoPage(LandingPage)} />
         <Route path="features" element={renderPromoPage(FeaturesPage)} />
+        <Route path="matchup-ppt" element={renderPromoPage(MatchupPptPage)} />
         <Route path="parent-trust" element={renderPromoPage(ParentTrustPage)} />
         <Route path="ai-grading" element={renderPromoPage(AiGradingPage)} />
         <Route path="video-platform" element={renderPromoPage(VideoPlatformPage)} />
