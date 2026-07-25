@@ -14,3 +14,8 @@ verifyLazyRouteImports({
   label: "landing app",
   routerFile: path.join(root, "src", "landing", "app", "LandingRouter.tsx"),
 });
+
+verifyLazyRouteImports({
+  label: "promo app",
+  routerFile: path.join(root, "src", "app_promo", "app", "PromoRouter.tsx"),
+});

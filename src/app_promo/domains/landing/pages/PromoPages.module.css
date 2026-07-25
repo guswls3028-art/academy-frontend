@@ -287,6 +287,12 @@
     linear-gradient(135deg, #ffffff, #fff8eb);
 }
 
+.proofCard[data-tone="matchup"] {
+  border-color: rgba(36, 107, 253, 0.18);
+  background:
+    linear-gradient(135deg, #ffffff, #edf4ff);
+}
+
 .proofVisual {
   overflow: hidden;
   min-height: 300px;
@@ -344,6 +350,11 @@
 .proofCard[data-tone="alimtalk"] .proofBadge {
   color: #78350f;
   background: #ffedc2;
+}
+
+.proofCard[data-tone="matchup"] .proofBadge {
+  color: #174fb9;
+  background: #dce8ff;
 }
 
 .proofText h3 {

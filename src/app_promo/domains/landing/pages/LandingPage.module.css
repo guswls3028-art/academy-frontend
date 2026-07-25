@@ -387,6 +387,265 @@
   line-height: 1.7;
 }
 
+.matchupSection {
+  position: relative;
+  overflow: hidden;
+  padding: 104px 0 96px;
+  color: #10233f;
+  background:
+    linear-gradient(rgba(36, 107, 253, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 107, 253, 0.055) 1px, transparent 1px),
+    #f7faff;
+  background-size: 44px 44px;
+}
+
+.matchupSection::before {
+  content: "";
+  position: absolute;
+  top: -260px;
+  left: 58%;
+  width: 680px;
+  height: 680px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(36, 107, 253, 0.16), transparent 68%);
+}
+
+.matchupHead {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  align-items: end;
+  gap: 52px;
+}
+
+.matchupKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #246bfd;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.matchupHead h2 {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: #10233f;
+  font-size: 52px;
+  font-weight: 930;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+.matchupIntro p {
+  margin: 0;
+  color: #53657c;
+  font-size: 15px;
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.matchupLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: #174fb9;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.matchupStudio {
+  position: relative;
+  z-index: 1;
+  margin-top: 52px;
+}
+
+.matchupCanvas {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) 64px minmax(320px, 0.82fr);
+  align-items: center;
+  padding: 22px;
+  border: 1px solid rgba(36, 107, 253, 0.16);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(237, 244, 255, 0.9));
+  box-shadow: 0 38px 100px rgba(21, 53, 105, 0.14);
+}
+
+.productFrame {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(16, 35, 63, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(16, 35, 63, 0.15);
+}
+
+.productFrameMatch {
+  transform: rotate(-0.35deg);
+}
+
+.productFramePpt {
+  transform: rotate(0.7deg);
+}
+
+.productFrameBar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 39px;
+  padding: 0 13px;
+  border-bottom: 1px solid #e4eaf2;
+  color: #40516a;
+  background: #f8fafc;
+  font-style: normal;
+}
+
+.productFrameBar strong {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.productFrameBar em {
+  overflow: hidden;
+  color: #708095;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frameDots {
+  display: flex;
+  gap: 4px;
+}
+
+.frameDots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b9c4d2;
+}
+
+.frameDots i:first-child {
+  background: #ffb454;
+}
+
+.frameDots i:nth-child(2) {
+  background: #b8f5d5;
+}
+
+.productFrame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: left top;
+}
+
+.productFramePpt img {
+  aspect-ratio: 4 / 3;
+}
+
+.studioConnector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #246bfd;
+}
+
+.studioConnector span {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  writing-mode: vertical-rl;
+}
+
+.studioNote {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 4px 0;
+  color: #66768a;
+  font-size: 12px;
+}
+
+.studioNote > span {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #174fb9;
+  background: #dce8ff;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.studioNote strong {
+  color: #10233f;
+  font-size: 12px;
+}
+
+.studioNote p {
+  margin: 0;
+}
+
+.matchupFlow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 40px 0 0;
+  padding: 0;
+  border: 1px solid rgba(16, 35, 63, 0.11);
+  list-style: none;
+  background: rgba(16, 35, 63, 0.11);
+}
+
+.matchupFlow li {
+  min-height: 210px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.flowNumber {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #246bfd;
+}
+
+.flowNumber span {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.matchupFlow strong {
+  display: block;
+  margin-top: 34px;
+  color: #10233f;
+  font-size: 18px;
+  font-weight: 920;
+}
+
+.matchupFlow p {
+  margin: 9px 0 0;
+  color: #66768a;
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
 .trustSection {
   padding: 80px 0;
   background: #fff;
@@ -1066,6 +1325,7 @@
   }
 
   .sectionHead h2,
+  .matchupHead h2,
   .trustCopy h2,
   .studentProofCopy h2,
   .samplesCopy h2,
@@ -1089,10 +1349,38 @@
 
   .hubShell,
   .hubPanel,
+  .matchupHead,
   .trustLayout,
   .studentProofGrid,
   .samplesLayout {
     grid-template-columns: 1fr;
+  }
+
+  .matchupCanvas {
+    grid-template-columns: 1fr;
+  }
+
+  .productFramePpt {
+    width: min(72%, 620px);
+    justify-self: end;
+  }
+
+  .studioConnector {
+    min-height: 58px;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .studioConnector span {
+    writing-mode: horizontal-tb;
+  }
+
+  .studioConnector svg {
+    transform: rotate(90deg);
+  }
+
+  .matchupFlow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hubSidebar {
@@ -1179,6 +1467,7 @@
   }
 
   .operatingHub,
+  .matchupSection,
   .trustSection,
   .studentProof,
   .workflowSection,
@@ -1188,6 +1477,7 @@
   }
 
   .sectionHead h2,
+  .matchupHead h2,
   .trustCopy h2,
   .studentProofCopy h2,
   .samplesCopy h2,
@@ -1210,6 +1500,54 @@
 
   .trustBoard {
     padding: 16px;
+  }
+
+  .matchupHead {
+    gap: 22px;
+  }
+
+  .matchupHead h2 {
+    font-size: 36px;
+  }
+
+  .matchupCanvas {
+    padding: 10px;
+  }
+
+  .productFrameMatch,
+  .productFramePpt {
+    width: 100%;
+    transform: none;
+  }
+
+  .productFrameBar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .productFrameBar em {
+    display: none;
+  }
+
+  .studioNote {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .studioNote > span,
+  .studioNote strong {
+    width: fit-content;
+  }
+
+  .matchupFlow {
+    grid-template-columns: 1fr;
+  }
+
+  .matchupFlow li {
+    min-height: auto;
+  }
+
+  .matchupFlow strong {
+    margin-top: 20px;
   }
 
   .trustBoardHead {

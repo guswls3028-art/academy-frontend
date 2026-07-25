@@ -6,11 +6,13 @@ import {
   BarChart3,
   BellRing,
   BookOpen,
+  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
   ClipboardCheck,
+  Download,
   Eye,
   FileText,
   GraduationCap,
@@ -20,6 +22,8 @@ import {
   MousePointer2,
   Pause,
   Play,
+  Presentation,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   Smartphone,
@@ -29,6 +33,16 @@ import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./LandingPage.module.css";
 
 const HERO_SLIDES = [
+  {
+    id: "matchup",
+    eyebrow: "대치 수업자료 제작",
+    title: "찍은 문제, 찾아서 수업 PPT까지",
+    body: "학교 시험지를 올리면 유사문제 후보를 비교하고, 고른 문제를 16:9 수업용 PPT로 이어서 만듭니다.",
+    image: "/promo/matchup-gaepo-results-20260725.png",
+    tone: "매치업·PPT",
+    stat: "기출 비교 · 후보 확인 · 수업 PPT",
+    cta: "/promo/matchup-ppt",
+  },
   {
     id: "trust",
     eyebrow: "학부모 설명 자료",
@@ -240,9 +254,9 @@ function Hero() {
             </Link>
           </div>
           <ul className={styles.heroTags} aria-label="핵심 가치">
-            <li>학부모 리포트</li>
-            <li>적중 리포트</li>
-            <li>수업·영상·보강 기록</li>
+            <li>개포고·단대부고·숙명여고</li>
+            <li>유사문제 후보 비교</li>
+            <li>16:9 수업 PPT</li>
           </ul>
         </div>
 
@@ -306,6 +320,126 @@ function ValueStrip() {
             );
           })}
         </div>
+      </div>
+    </section>
+  );
+}
+
+const MATCHUP_FLOW = [
+  {
+    icon: Camera,
+    number: "01",
+    title: "시험지 올리기",
+    body: "휴대폰으로 찍은 JPG·PNG나 PDF를 학교·시험 폴더에 넣습니다.",
+  },
+  {
+    icon: ScanSearch,
+    number: "02",
+    title: "유사문제 후보 비교",
+    body: "원문과 후보를 나란히 보고 유사도 점수, 풀이 구조, 출처를 확인합니다.",
+  },
+  {
+    icon: Presentation,
+    number: "03",
+    title: "수업 PPT 구성",
+    body: "고른 문제를 슬라이드로 불러와 16:9 비율과 배경을 맞춥니다.",
+  },
+  {
+    icon: Download,
+    number: "04",
+    title: "교실에서 바로 사용",
+    body: "미리보기로 순서를 확인한 뒤 PPT 파일을 내려받아 수업에 씁니다.",
+  },
+];
+
+function MatchupPptShowcase() {
+  return (
+    <section className={styles.matchupSection} aria-labelledby="matchup-ppt-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.matchupHead}>
+          <div>
+            <span className={styles.matchupKicker}>
+              <Sparkles size={16} />
+              대치 수업자료 제작실
+            </span>
+            <h2 id="matchup-ppt-title">문제를 찍는 순간, 수업자료 제작이 이어집니다</h2>
+          </div>
+          <div className={styles.matchupIntro}>
+            <p>
+              개포고 시험지를 기준으로 직접 데이터를 채우고 확인한 제품 화면입니다.
+              매치업에서 고른 문제는 PPT 제작 화면으로 이어져, 다시 캡처하고 붙여 넣는 일을 줄입니다.
+            </p>
+            <Link to="/promo/matchup-ppt" className={styles.matchupLink}>
+              실제 화면으로 따라보기
+              <ArrowRight size={17} />
+            </Link>
+          </div>
+        </div>
+
+        <div className={styles.matchupStudio}>
+          <div className={styles.matchupCanvas}>
+            <figure className={`${styles.productFrame} ${styles.productFrameMatch}`}>
+              <div className={styles.productFrameBar}>
+                <span className={styles.frameDots} aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <strong>01 · 유사문제 매치업</strong>
+                <em>개포고 파이널 모의고사 1회</em>
+              </div>
+              <img
+                src="/promo/matchup-gaepo-candidates-20260725.png"
+                alt="개포고 시험 문제와 유사문제 후보를 나란히 비교하는 학원플러스 매치업 실제 화면"
+                loading="lazy"
+              />
+            </figure>
+
+            <div className={styles.studioConnector} aria-hidden="true">
+              <span>선택한 문제</span>
+              <ArrowRight size={20} />
+            </div>
+
+            <figure className={`${styles.productFrame} ${styles.productFramePpt}`}>
+              <div className={styles.productFrameBar}>
+                <span className={styles.frameDots} aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <strong>02 · PPT 생성</strong>
+                <em>2장 · 16:9</em>
+              </div>
+              <img
+                src="/promo/ppt-gaepo-setup-20260725.png"
+                alt="선택한 개포고 문제 두 장을 16대 9 수업 PPT로 구성하는 학원플러스 실제 화면"
+                loading="lazy"
+              />
+            </figure>
+          </div>
+
+          <div className={styles.studioNote}>
+            <span>PRODUCT CAPTURE</span>
+            <strong>제품 실화면 · 데모 데이터</strong>
+            <p>유사도는 후보를 찾는 참고 점수입니다. 최종 문제 선택은 선생님이 직접 확인합니다.</p>
+          </div>
+        </div>
+
+        <ol className={styles.matchupFlow}>
+          {MATCHUP_FLOW.map((step) => {
+            const Icon = step.icon;
+            return (
+              <li key={step.number}>
+                <div className={styles.flowNumber}>
+                  <span>{step.number}</span>
+                  <Icon size={21} />
+                </div>
+                <strong>{step.title}</strong>
+                <p>{step.body}</p>
+              </li>
+            );
+          })}
+        </ol>
       </div>
     </section>
   );
@@ -598,6 +732,7 @@ export default function LandingPage() {
     <>
       <Hero />
       <ValueStrip />
+      <MatchupPptShowcase />
       <ParentTrustSystem />
       <OperatingHub />
       <StudentAppProof />

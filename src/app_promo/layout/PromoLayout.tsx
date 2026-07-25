@@ -22,14 +22,14 @@ import styles from "./PromoLayout.module.css";
 const NAV_ITEMS = [
   { label: "홈", path: "/promo", icon: Home, note: "수업 운영 개요" },
   { label: "리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "상담 전 설명 자료" },
-  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "기능과 실제 화면" },
+  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·PPT와 실제 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
-  "/promo/features": ["/promo/ai-grading"],
+  "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt"],
   "/promo/contact": ["/promo/demo"],
 };
 
@@ -285,6 +285,7 @@ function Footer() {
           <h2>제품</h2>
           <Link to="/promo/parent-trust">학부모 리포트</Link>
           <Link to="/promo/features">기능 소개</Link>
+          <Link to="/promo/matchup-ppt">매치업·PPT</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
           <Link to="/promo/ai-grading">채점 보조</Link>
         </nav>
