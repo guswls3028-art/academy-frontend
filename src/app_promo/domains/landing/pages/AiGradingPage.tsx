@@ -64,7 +64,12 @@ export default function AiGradingPage() {
 
           <aside className={styles.heroProofStack} aria-label="AI 채점 화면 미리보기">
             <figure className={styles.heroScreen}>
-              <img src="/promo/admin-exams.png" alt="관리자 시험 운영 화면" />
+              <img
+                src="/promo/admin-exams.png"
+                alt="관리자 시험 운영 화면"
+                width={1440}
+                height={820}
+              />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>시험 운영</strong>
                 <span>문항 · 채점 · 검수</span>
@@ -153,7 +158,13 @@ export default function AiGradingPage() {
         <div className={styles.sectionWrap}>
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} id="exam-score">
             <div className={styles.proofVisual}>
-              <img src="/promo/admin-scores.png" alt="관리자 성적 분석 화면" loading="lazy" />
+              <img
+                src="/promo/admin-scores.png"
+                alt="관리자 성적 분석 화면"
+                width={1440}
+                height={820}
+                loading="lazy"
+              />
             </div>
             <div className={styles.proofText}>
               <span className={styles.proofBadge}>

@@ -73,12 +73,43 @@ test.describe("promo business readiness", () => {
 
     await expect(page.getByRole("heading", { name: "데모 요청이 접수되었습니다" })).toBeVisible();
     expect(request).not.toBeNull();
-    const payload = request!.postDataJSON() as { message: string; source: string };
+    const payload = request!.postDataJSON() as {
+      message: string;
+      source: string;
+      privacy_agreed: boolean;
+      privacy_policy_version: string;
+    };
     expect(payload.source).toBe("promo-demo");
+    expect(payload.privacy_agreed).toBe(true);
+    expect(payload.privacy_policy_version).toBe("1.2");
     expect(payload.message).toContain("개인정보 수집·이용: 동의");
     expect(payload.message).toContain("utm_source=kakao");
     expect(payload.message).toContain("utm_medium=message");
     expect(payload.message).toContain("utm_campaign=teacher-ppt");
+  });
+
+  test("reserves intrinsic space for images across the promo journey", async ({ page }) => {
+    const routes = [
+      "/promo",
+      "/promo/features",
+      "/promo/matchup-ppt",
+      "/promo/parent-trust",
+      "/promo/ai-grading",
+      "/promo/video-platform",
+      "/promo/faq",
+    ];
+
+    for (const route of routes) {
+      await page.goto(`${BASE}${route}`, { waitUntil: "load" });
+      const images = page.locator("img");
+      await expect(images.first()).toBeVisible();
+      expect(
+        await images.evaluateAll((elements) =>
+          elements.every((image) => image.hasAttribute("width") && image.hasAttribute("height")),
+        ),
+        `${route} should declare intrinsic image dimensions`,
+      ).toBe(true);
+    }
   });
 
   test("keeps keyboard focus inside the open mobile menu and restores it on close", async ({ page }) => {

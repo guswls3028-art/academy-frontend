@@ -163,6 +163,8 @@ export default function MatchupPptPage() {
               <img
                 src="/promo/matchup-gaepo-results-20260725.png"
                 alt="개포고 파이널 모의고사와 유사문제 결과를 함께 보여주는 학원플러스 실제 화면"
+                width={1280}
+                height={720}
               />
             </figure>
             <div className={styles.heroTicket}>
@@ -246,7 +248,13 @@ export default function MatchupPptPage() {
                   </div>
                   <figure className={styles.guideVisual} data-focus={"focus" in step ? step.focus : undefined}>
                     <ProductBar label={`${step.number} · ${step.label}`} />
-                    <img src={step.image} alt={step.alt} loading="lazy" />
+                    <img
+                      src={step.image}
+                      alt={step.alt}
+                      width={1280}
+                      height={720}
+                      loading="lazy"
+                    />
                     <figcaption>{step.caption}</figcaption>
                   </figure>
                 </article>

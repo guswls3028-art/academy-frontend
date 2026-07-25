@@ -87,7 +87,12 @@ export default function FaqPage() {
 
           <aside className={styles.heroProofStack} aria-label="자주 묻는 핵심 화면">
             <figure className={styles.heroScreen}>
-              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 발송 설정 화면" />
+              <img
+                src="/promo/admin-alimtalk-auto-send.png"
+                alt="관리자 알림톡 발송 설정 화면"
+                width={1440}
+                height={820}
+              />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>알림톡 발송 설정</strong>
                 <span>승인 양식 · 자동/수동 상태 · 발송 시점</span>
@@ -149,7 +154,13 @@ export default function FaqPage() {
         <div className={styles.sectionWrap}>
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} data-tone="video">
             <div className={`${styles.proofVisual} ${styles.proofPhoneVisual}`}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어 화면" loading="lazy" />
+              <img
+                src="/promo/student-video-player.png"
+                alt="학생전용앱 영상 플레이어 화면"
+                width={780}
+                height={1688}
+                loading="lazy"
+              />
             </div>
             <div className={styles.proofText}>
               <span className={styles.proofBadge}>

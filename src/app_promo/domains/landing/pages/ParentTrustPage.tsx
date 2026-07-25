@@ -46,6 +46,8 @@ const USE_CASES = [
     body: "학교, 학년, 시험 범위에 맞춰 출결, 응시, 취약 문항을 보여주면 관리 흐름이 분명해집니다.",
     image: "/promo/landing-daechi-preview-20260527.png",
     alt: "학교별 수업 소개 페이지 예시",
+    imageWidth: 1080,
+    imageHeight: 956,
   },
   {
     icon: Smartphone,
@@ -53,6 +55,8 @@ const USE_CASES = [
     body: "누가 영상을 안 봤는지, 어디까지 봤는지를 확인해 복습 안내와 상담 근거로 활용합니다.",
     image: "/promo/student-video-player.png",
     alt: "학생전용앱 영상 플레이어 화면",
+    imageWidth: 780,
+    imageHeight: 1688,
   },
   {
     icon: MessageSquareText,
@@ -60,6 +64,8 @@ const USE_CASES = [
     body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
     image: "/promo/admin-messages.png",
     alt: "관리자 알림톡 운영 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
   },
 ];
 
@@ -82,7 +88,12 @@ function HeroReportPreview() {
         <small>제품 실화면</small>
       </div>
       <figure className={styles.reportScreen}>
-        <img src="/promo/admin-scores.png" alt="수강생별 성적과 미처리 상태를 확인하는 학원플러스 관리자 화면" />
+        <img
+          src="/promo/admin-scores.png"
+          alt="수강생별 성적과 미처리 상태를 확인하는 학원플러스 관리자 화면"
+          width={1440}
+          height={820}
+        />
       </figure>
       <div className={styles.reportActions}>
         <span>기록을 확인한 다음</span>
@@ -165,7 +176,13 @@ export default function ParentTrustPage() {
               return (
                 <article key={item.title} className={styles.useCaseCard}>
                   <figure>
-                    <img src={item.image} alt={item.alt} loading="lazy" />
+                    <img
+                      src={item.image}
+                      alt={item.alt}
+                      width={item.imageWidth}
+                      height={item.imageHeight}
+                      loading="lazy"
+                    />
                   </figure>
                   <div>
                     <Icon size={22} />

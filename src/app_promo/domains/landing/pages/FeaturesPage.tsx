@@ -25,6 +25,8 @@ type ProofCard = {
   body: string;
   image: string;
   alt: string;
+  imageWidth: number;
+  imageHeight: number;
   points: string[];
   ctaPath: string;
   ctaLabel: string;
@@ -51,6 +53,8 @@ const PROOF_CARDS: ProofCard[] = [
     body: "원문 옆에서 후보를 비교해 선생님이 직접 고르고, 선택한 문제를 16:9 수업용 PPT로 구성합니다.",
     image: "/promo/matchup-gaepo-results-20260725.png",
     alt: "개포고 시험 문제와 유사문제 결과를 나란히 비교하는 학원플러스 매치업 실제 화면",
+    imageWidth: 1280,
+    imageHeight: 720,
     points: ["학교 시험지·문제 이미지 업로드", "유사도와 출처를 보고 후보 확인", "고른 문제를 PPT 슬라이드로 구성"],
     ctaPath: "/promo/matchup-ppt",
     ctaLabel: "매치업·PPT 실제 화면 따라보기",
@@ -64,6 +68,8 @@ const PROOF_CARDS: ProofCard[] = [
     body: "수업 중에 남긴 기록을 확인하고, 이번 상담에 필요한 내용만 선생님이 골라 설명합니다.",
     image: "/promo/admin-scores.png",
     alt: "수강생별 성적과 미처리 상태를 확인하는 학원플러스 관리자 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
     points: ["출결·응시·영상 시청 기록 확인", "보강 대상과 다음 조치 판단", "확인한 내용을 알림톡·상담에 활용"],
     ctaPath: "/promo/parent-trust",
     ctaLabel: "상담 자료 흐름 보기",
@@ -76,6 +82,8 @@ const PROOF_CARDS: ProofCard[] = [
     body: "외부 링크를 따로 보내지 않아도 학생전용앱 안에서 강의 목록, 재생, 댓글, 이어보기가 됩니다.",
     image: "/promo/student-video-player.png",
     alt: "학생전용앱 영상 플레이어와 댓글 화면",
+    imageWidth: 780,
+    imageHeight: 1688,
     points: ["영상 플레이어, 댓글, 좋아요가 학생앱 안에 표시", "마지막 재생 위치와 시청 상태 확인", "미시청 학생에게 영상 확인 알림톡 발송"],
     ctaPath: "/promo/video-platform",
     ctaLabel: "영상 기능 상세 보기",
@@ -89,6 +97,8 @@ const PROOF_CARDS: ProofCard[] = [
     body: "가입, 출결, 시험, 클리닉처럼 자주 보내는 연락을 양식별로 관리하고 발송 전 내용을 확인합니다.",
     image: "/promo/admin-alimtalk-auto-send.png",
     alt: "관리자 알림톡 발송 설정 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
     points: ["승인된 공용 알림톡 양식 사용", "자동·수동 발송 상태를 화면에서 구분", "대상과 선생님 메모를 발송 전에 확인"],
     ctaPath: "/promo/features#communication",
     ctaLabel: "알림톡 기능 보기",
@@ -101,6 +111,8 @@ const PROOF_CARDS: ProofCard[] = [
     body: "시험 운영, 점수 입력, 성적 분석, 보강 판단을 따로 찾지 않고 한 화면에서 확인합니다.",
     image: "/promo/admin-scores.png",
     alt: "관리자 성적 분석 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
     points: ["수강생별 성적과 미처리 확인", "AI 채점 결과는 강사가 검수", "성적표와 수업 결과 안내에 반영"],
     ctaPath: "/promo/ai-grading",
     ctaLabel: "AI 채점 상세 보기",
@@ -245,7 +257,12 @@ export default function FeaturesPage() {
 
           <aside className={styles.heroProofStack} aria-label="핵심 기능 미리보기">
             <figure className={styles.heroScreen}>
-              <img src="/promo/ppt-gaepo-setup-20260725.png" alt="개포고 문제 두 장으로 수업 PPT를 구성하는 실제 화면" />
+              <img
+                src="/promo/ppt-gaepo-setup-20260725.png"
+                alt="개포고 문제 두 장으로 수업 PPT를 구성하는 실제 화면"
+                width={1280}
+                height={720}
+              />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>선택한 문제 → 수업 PPT</strong>
                 <span>제품 실화면 · 2장 · 16:9</span>
@@ -290,7 +307,13 @@ export default function FeaturesPage() {
                 data-tone={card.tone}
               >
                 <div className={`${styles.proofVisual} ${card.phone ? styles.proofPhoneVisual : ""}`}>
-                  <img src={card.image} alt={card.alt} loading="lazy" />
+                  <img
+                    src={card.image}
+                    alt={card.alt}
+                    width={card.imageWidth}
+                    height={card.imageHeight}
+                    loading="lazy"
+                  />
                 </div>
                 <div className={styles.proofText}>
                   <span className={styles.proofBadge}>{card.badge}</span>

@@ -57,10 +57,20 @@ export default function VideoPlatformPage() {
 
           <div className={styles.heroScreens} aria-label="학생전용앱 영상 캡처">
             <figure className={`${styles.device} ${styles.deviceFront}`}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어 화면" />
+              <img
+                src="/promo/student-video-player.png"
+                alt="학생전용앱 영상 플레이어 화면"
+                width={780}
+                height={1688}
+              />
             </figure>
             <figure className={styles.device}>
-              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" />
+              <img
+                src="/promo/student-video-list.png"
+                alt="학생전용앱 영상 재생 목록 화면"
+                width={780}
+                height={1688}
+              />
             </figure>
           </div>
         </div>
@@ -79,15 +89,33 @@ export default function VideoPlatformPage() {
 
           <div className={styles.evidenceGrid}>
             <figure className={`${styles.evidencePhone} ${styles.evidencePhoneLead}`}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
+              <img
+                src="/promo/student-video-player.png"
+                alt="학생전용앱 영상 플레이어와 댓글 화면"
+                width={780}
+                height={1688}
+                loading="lazy"
+              />
               <figcaption>학생전용앱 플레이어 · 댓글 · 이어보기</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
-              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
+              <img
+                src="/promo/student-video-list.png"
+                alt="학생전용앱 영상 재생 목록 화면"
+                width={780}
+                height={1688}
+                loading="lazy"
+              />
               <figcaption>재생 목록 · 시청 진도</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
-              <img src="/promo/student-video-app.png" alt="학생전용앱 영상 강의 홈 화면" loading="lazy" />
+              <img
+                src="/promo/student-video-app.png"
+                alt="학생전용앱 영상 강의 홈 화면"
+                width={780}
+                height={1688}
+                loading="lazy"
+              />
               <figcaption>학생앱 강의 홈</figcaption>
             </figure>
           </div>
@@ -200,7 +228,13 @@ export default function VideoPlatformPage() {
               ))}
             </div>
             <figure className={styles.alimtalkVisual}>
-              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 발송 설정 화면" loading="lazy" />
+              <img
+                src="/promo/admin-alimtalk-auto-send.png"
+                alt="관리자 알림톡 발송 설정 화면"
+                width={1440}
+                height={820}
+                loading="lazy"
+              />
               <figcaption>관리자 알림톡 발송 설정 화면</figcaption>
             </figure>
           </div>

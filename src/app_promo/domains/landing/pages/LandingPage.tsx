@@ -88,6 +88,8 @@ const OPERATIONS = [
     bullets: ["수강생별 점수·미처리 확인", "문항별 결과와 취약 지점 확인", "피드백과 보강 기록 연결"],
     image: "/promo/admin-scores.png",
     alt: "학원플러스 관리자 성적 관리 실제 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
     href: "/promo/ai-grading",
     cta: "채점·성적 화면 보기",
     kind: "desktop",
@@ -101,6 +103,8 @@ const OPERATIONS = [
     bullets: ["강의별 영상 목록", "이어보기·배속·댓글", "미시청·시청중·완료 상태"],
     image: "/promo/student-video-player.png",
     alt: "학원플러스 학생앱 영상 플레이어 실제 화면",
+    imageWidth: 780,
+    imageHeight: 1688,
     href: "/promo/video-platform",
     cta: "학생앱 영상 보기",
     kind: "phone",
@@ -114,6 +118,8 @@ const OPERATIONS = [
     bullets: ["승인된 공용 알림톡 양식", "자동·수동 발송 상태 구분", "발송 전 내용과 대상 확인"],
     image: "/promo/admin-messages.png",
     alt: "학원플러스 관리자 알림톡 실제 화면",
+    imageWidth: 1440,
+    imageHeight: 820,
     href: "/promo/features#communication",
     cta: "알림톡 운영 보기",
     kind: "desktop",
@@ -388,7 +394,13 @@ function OperationsSection() {
             return (
               <article key={item.id} className={styles.operationRow} data-kind={item.kind} data-reverse={index % 2 === 1}>
                 <div className={styles.operationVisual}>
-                  <img src={item.image} alt={item.alt} loading="lazy" />
+                  <img
+                    src={item.image}
+                    alt={item.alt}
+                    width={item.imageWidth}
+                    height={item.imageHeight}
+                    loading="lazy"
+                  />
                   <span>실제 제품 화면</span>
                 </div>
                 <div className={styles.operationCopy}>

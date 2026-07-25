@@ -122,7 +122,7 @@ function Header() {
         <div className={styles.headerInner}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" />
+              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
@@ -210,7 +210,7 @@ function Header() {
         <div className={styles.sidebarHead}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" />
+              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
@@ -324,7 +324,7 @@ function Footer() {
         <div className={styles.footerBrand}>
           <Link to="/promo" className={styles.brand}>
             <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" />
+              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>

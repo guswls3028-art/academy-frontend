@@ -7,6 +7,8 @@ type PromoLeadPayload = {
   interest: string;
   message: string;
   source: "promo-demo" | "promo-contact";
+  privacy_agreed: true;
+  privacy_policy_version: "1.2";
   website?: string;
 };
 
@@ -17,6 +19,7 @@ type PromoLeadResult = {
 
 const MESSAGE_MAX = 2000;
 const INTEREST_MAX = 80;
+const PROMO_PRIVACY_POLICY_VERSION = "1.2" as const;
 
 function truncate(value: string, max: number) {
   return value.trim().slice(0, max);
@@ -79,6 +82,8 @@ export function submitPromoDemoLead(input: {
     interest,
     message,
     source: "promo-demo",
+    privacy_agreed: true,
+    privacy_policy_version: PROMO_PRIVACY_POLICY_VERSION,
     website: input.website,
   });
 }
@@ -114,6 +119,8 @@ export function submitPromoContactLead(input: {
     interest: input.inquiryType,
     message,
     source: "promo-contact",
+    privacy_agreed: true,
+    privacy_policy_version: PROMO_PRIVACY_POLICY_VERSION,
     website: input.website,
   });
 }
