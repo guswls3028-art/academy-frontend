@@ -78,6 +78,11 @@ function validateScore(value: number, maxScore?: number | null): boolean {
   return true;
 }
 
+function formatScoreNumber(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  return String(Number(value.toFixed(2)));
+}
+
 type ExamMeta = SessionScoreMeta["exams"][number];
 
 function safePositiveNumber(value: unknown, fallback = 0): number {
@@ -311,17 +316,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     };
     if (change.type === "examTotal") {
       const el = examInputRefs.current[`${change.enrollmentId}-${change.examId}`];
-      setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미응시" : String(Math.round(change.score)));
+      setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미응시" : formatScoreNumber(change.score));
       return;
     }
     if (change.type === "examObjective") {
       const el = examObjectiveInputRefs.current[`${change.enrollmentId}-${change.examId}-objective`];
-      setCellText(el, String(Math.round(change.score)));
+      setCellText(el, formatScoreNumber(change.score));
       return;
     }
     if (change.type === "examSubjective") {
       const el = examSubjectiveInputRefs.current[`${change.enrollmentId}-${change.examId}-subjective`];
-      setCellText(el, String(Math.round(change.score)));
+      setCellText(el, formatScoreNumber(change.score));
       return;
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
@@ -522,7 +527,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           el.innerText = "미응시";
         } else {
           const score = entry?.block?.score;
-          el.innerText = score != null ? String(Math.round(score)) : "";
+          el.innerText = score != null ? formatScoreNumber(score) : "";
         }
       });
     });
@@ -538,7 +543,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         if (!el || el === document.activeElement) return;
         const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
         const score = entry?.block?.objective_score ?? entry?.block?.score;
-        el.innerText = score != null ? String(Math.round(score)) : "";
+        el.innerText = score != null ? formatScoreNumber(score) : "";
       });
     });
   }, [rows, examOptions]);
@@ -553,7 +558,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         if (!el || el === document.activeElement) return;
         const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
         const subScore = entry?.block?.subjective_score;
-        el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+        el.innerText = subScore != null ? formatScoreNumber(subScore) : "";
       });
     });
   }, [rows, examOptions]);
@@ -1128,7 +1133,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
-                          const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${Math.round(block.score)}/${examMaxScore}` : `${Math.round(block.score)}`;
+                          const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${formatScoreNumber(block.score)}/${formatScoreNumber(Number(examMaxScore))}` : formatScoreNumber(block.score);
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
                           const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus;
@@ -1161,7 +1166,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       const pendingKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
                                       if (!applyPendingChangeToMountedCell(pendingKey)) {
                                         if (isExamNotSubmitted) el.innerText = "미응시";
-                                        else el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                        else el.innerText = block?.score != null ? formatScoreNumber(block.score) : "";
                                       }
                                     }
                                   }}
@@ -1327,7 +1332,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const objScore = block?.objective_score ?? block?.score ?? null;
                           const objectiveMax = examObjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
-                          const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : `${Math.round(objScore)}`;
+                          const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : formatScoreNumber(objScore);
                           const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus;
                           return (
                             <td
@@ -1347,7 +1352,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (el && el !== document.activeElement) {
                                       const pendingKey = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
                                       if (!applyPendingChangeToMountedCell(pendingKey)) {
-                                        el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                        el.innerText = objScore != null ? formatScoreNumber(objScore) : "";
                                       }
                                     }
                                   }}
@@ -1433,7 +1438,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const subScore = block?.subjective_score ?? null;
                           const subjectiveMax = examSubjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
-                          const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? String(Math.round(subScore)) : "-";
+                          const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? formatScoreNumber(subScore) : "-";
                           const canEdit = col.editable && subjectiveMax > 0 && !block?.is_locked && !omrReviewStatus;
                           return (
                             <td
@@ -1454,7 +1459,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (el && el !== document.activeElement) {
                                       const pendingKey = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
                                       if (!applyPendingChangeToMountedCell(pendingKey)) {
-                                        el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                        el.innerText = subScore != null ? formatScoreNumber(subScore) : "";
                                       }
                                     }
                                   }}
@@ -1591,7 +1596,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     const block = entry.block;
                     if (block?.score != null) {
                       hasAnyScore = true;
-                      totalScore += Math.round(block.score);
+                      totalScore += Number(block.score);
                       totalMaxScore += block.max_score ?? ex.max_score ?? 100;
                     }
                     if (block?.passed != null) {

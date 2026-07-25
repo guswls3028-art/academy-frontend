@@ -65,9 +65,11 @@ async function openScoresFromDashboard(page: Page, lecture: TargetLecture): Prom
 const scorePatches: Array<Record<string, unknown>> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
+const draftCommits: Array<Record<string, unknown>> = [];
 let currentScores = [65, 52];
 let currentDraft: unknown[] = [];
 let failNextDraftCommit = false;
+let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let delayNextScorePatchMs = 0;
 
@@ -75,9 +77,11 @@ async function installScoreRoutes(page: Page): Promise<void> {
   scorePatches.length = 0;
   scorePatchHeaders.length = 0;
   draftPuts.length = 0;
+  draftCommits.length = 0;
   currentScores = [65, 52];
   currentDraft = [];
   failNextDraftCommit = false;
+  failNextLeaseRelease = false;
   failNextDraftPut = false;
   delayNextScorePatchMs = 0;
 
@@ -139,6 +143,13 @@ async function installScoreRoutes(page: Page): Promise<void> {
     }
 
     if (path.endsWith("/score-draft/commit/") && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      draftCommits.push(body);
+      if (failNextLeaseRelease && body.release_lease === true) {
+        failNextLeaseRelease = false;
+        await route.fulfill({ status: 500, json: { detail: "lease release failed once" } });
+        return;
+      }
       if (failNextDraftCommit) {
         failNextDraftCommit = false;
         await route.fulfill({ status: 500, json: { detail: "commit failed once" } });
@@ -239,6 +250,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await editButton.click();
     await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
     const cells = page.locator(".ds-scores-cell-editable");
     await expect(cells.first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-1366.png"), fullPage: true });
@@ -319,6 +331,14 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("cell", { name: /77\/100/ }).first()).toBeVisible();
 
     await editButton.click();
+    await cells.nth(0).fill("77.5");
+    await page.keyboard.press("Control+s");
+    await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(77.5);
+    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await expect(editButton).toBeVisible();
+    await expect(page.getByRole("cell", { name: /77\.5\/100/ }).first()).toBeVisible();
+
+    await editButton.click();
     delayNextScorePatchMs = 1_500;
     await cells.nth(0).fill("79");
     await cells.nth(0).press("Enter");
@@ -343,6 +363,22 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
     await expect(editButton).toBeDisabled();
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
+    const releasedBeforeRecoveryNavigation = draftCommits.filter(
+      (commit) => commit.release_lease === true,
+    ).length;
+    await page
+      .getByRole("button", { name: "출결", exact: true })
+      .first()
+      .evaluate((button) => (button as HTMLButtonElement).click());
+    await expect(page).toHaveURL(/\/attendance/);
+    await expect
+      .poll(
+        () => draftCommits.filter((commit) => commit.release_lease === true).length,
+        { timeout: 2_000 },
+      )
+      .toBe(releasedBeforeRecoveryNavigation);
+    await page.getByRole("button", { name: "성적", exact: true }).first().click();
+    await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
     failNextDraftCommit = true;
     await recoveryDialog.getByRole("button", { name: "버리기" }).click();
     await expect(recoveryDialog).toBeVisible();
@@ -355,6 +391,16 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(page.getByRole("cell", { name: /83\/100/ }).first()).toBeVisible();
     await expect(page.getByRole("dialog", { name: /임시저장된 변경/ })).toHaveCount(0);
+
+    await editButton.click();
+    failNextLeaseRelease = true;
+    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await expect(page.getByRole("button", { name: "잠금 다시 시도", exact: true })).toBeVisible();
+    await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible();
+    await page.getByRole("button", { name: "잠금 다시 시도", exact: true }).click();
+    await expect(editButton).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+
     expect(scorePatchHeaders.length).toBeGreaterThan(0);
     for (const headers of scorePatchHeaders) {
       expect(headers["x-score-editor-client"]).toBeTruthy();

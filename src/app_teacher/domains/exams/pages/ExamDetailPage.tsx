@@ -2,10 +2,8 @@
 // 시험 상세 — 제출현황 + 간이 채점 (admin endpoint SSOT, enrollment_id schema)
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
-import { feedback } from "@/shared/ui/feedback";
-import { extractApiError } from "@/shared/utils/extractApiError";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
@@ -17,7 +15,6 @@ import {
   getExamResultScore,
   hasExamResultScore,
 } from "@teacher/domains/results/examResultContract";
-import { updateResult } from "@teacher/domains/scores/api";
 import { fetchExamEnrollmentRows } from "@/shared/api/contracts/examEnrollments";
 import ExamManageSheet from "../components/ExamManageSheet";
 import {
@@ -140,6 +137,21 @@ export default function ExamDetailPage() {
         <StatBox label="학생" value={`${merged.length}`} tone="primary" />
         <StatBox label="채점" value={`${graded.length}/${merged.length}`} tone="success" />
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`${styles.mutedText} text-[12px]`}>
+          점수 수정은 차시별 성적 입력에서 안전하게 저장됩니다.
+        </span>
+        {sessionIds.map((sessionId, index) => (
+          <button
+            key={sessionId}
+            type="button"
+            onClick={() => navigate(`/teacher/scores/${sessionId}`)}
+            className={`${styles.scoreButton} text-[12px] font-semibold px-3 py-1 rounded cursor-pointer`}
+          >
+            {sessionIds.length === 1 ? "성적 입력 열기" : `${index + 1}번째 차시 성적 입력`}
+          </button>
+        ))}
+      </div>
 
       {/* Ungraded list */}
       {ungraded.length > 0 && (
@@ -149,7 +161,7 @@ export default function ExamDetailPage() {
           </h3>
           <div className="flex flex-col gap-1">
             {ungraded.map((r) => (
-              <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
+              <ResultRow key={r.enrollment_id} result={r} exam={exam} />
             ))}
           </div>
         </div>
@@ -163,7 +175,7 @@ export default function ExamDetailPage() {
           </h3>
           <div className="flex flex-col gap-1">
             {graded.map((r) => (
-              <ResultRow key={r.enrollment_id} examId={eid} result={r} exam={exam} />
+              <ResultRow key={r.enrollment_id} result={r} exam={exam} />
             ))}
           </div>
         </div>
@@ -189,85 +201,26 @@ export default function ExamDetailPage() {
 }
 
 function ResultRow({
-  examId,
   result,
   exam,
 }: {
-  examId: number;
   result: ExamResultRow;
   exam: TeacherExamDetail;
 }) {
-  const qc = useQueryClient();
   const name = result.student_name ?? "이름 없음";
-  const enrollmentId = result.enrollment_id;
   const currentScore = getExamResultScore(result);
   const maxScore = getExamResultMaxScore(result, exam.max_score ?? 100);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<string>(currentScore != null ? String(currentScore) : "");
-
-  const mutation = useMutation({
-    mutationFn: (score: number) => updateResult(examId, enrollmentId, { score, maxScore }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.examResults(examId) });
-      feedback.success(`${name} 점수가 저장되었습니다.`);
-      setEditing(false);
-    },
-    onError: (e) => feedback.error(extractApiError(e, "점수 저장에 실패했습니다.")),
-  });
-
-  const startEdit = () => {
-    setDraft(currentScore != null ? String(currentScore) : "");
-    setEditing(true);
-  };
-
-  const commit = () => {
-    const trimmed = draft.trim();
-    if (trimmed === "") { setEditing(false); return; }
-    const score = Number(trimmed);
-    if (!Number.isFinite(score) || score < 0) {
-      feedback.error("점수는 0 이상의 숫자로 입력해 주세요.");
-      return;
-    }
-    if (Number.isFinite(maxScore) && maxScore > 0 && score > maxScore) {
-      feedback.error(`점수는 0 ~ ${maxScore} 사이로 입력해 주세요.`);
-      return;
-    }
-    mutation.mutate(score);
-  };
 
   return (
     <div className={`${styles.resultRow} flex justify-between items-center py-2`}>
       <span className={`${styles.title} text-sm flex-1 min-w-0 truncate`}>{name}</span>
       <div className="flex items-center gap-2 shrink-0">
         <AchievementBadge passed={result.final_pass ?? result.passed} achievement={result.achievement} />
-        {editing ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              inputMode="decimal"
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); commit(); }
-                if (e.key === "Escape") { setEditing(false); }
-              }}
-              placeholder="점수"
-              className={`${styles.scoreInput} text-center text-sm font-bold outline-none`}
-            />
-            <span className={`${styles.mutedText} text-[12px]`}>/ {maxScore}</span>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={startEdit}
-            disabled={mutation.isPending}
-            className={`${styles.scoreButton} ${currentScore != null ? styles.scoreButtonScored : styles.scoreButtonPending} text-sm font-semibold px-3 py-1 rounded cursor-pointer`}
-          >
-            {mutation.isPending ? "저장 중…" : currentScore != null ? `${currentScore}/${maxScore}` : "채점"}
-          </button>
-        )}
+        <span
+          className={`${styles.scoreButton} ${currentScore != null ? styles.scoreButtonScored : styles.scoreButtonPending} text-sm font-semibold px-3 py-1 rounded`}
+        >
+          {currentScore != null ? `${currentScore}/${maxScore}` : "미입력"}
+        </span>
       </div>
     </div>
   );

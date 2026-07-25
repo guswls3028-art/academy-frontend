@@ -2,6 +2,7 @@
 // 성적 API — admin endpoint(권한: IsTeacherOrAdmin)를 재사용해 enrollment 기반 schema 통일
 import api from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
+import { runWithScoreEditLease } from "@/shared/scoring/scoreEditLease";
 
 export type TeacherSessionExam = {
   id: number;
@@ -54,6 +55,7 @@ export async function fetchExamResults(examId: number): Promise<TeacherExamResul
  * Result row가 없으면 백엔드가 자동 생성.
  */
 export async function updateResult(
+  sessionId: number,
   examId: number,
   enrollmentId: number,
   payload: { score: number | null; maxScore?: number | null },
@@ -62,9 +64,12 @@ export async function updateResult(
     score: payload.score,
     max_score: payload.maxScore ?? null,
   };
-  const res = await api.patch(
-    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/score/`,
-    body,
-  );
-  return res.data;
+  return runWithScoreEditLease(sessionId, async (headers) => {
+    const res = await api.patch(
+      `/results/admin/exams/${examId}/enrollments/${enrollmentId}/score/`,
+      body,
+      { headers },
+    );
+    return res.data;
+  });
 }

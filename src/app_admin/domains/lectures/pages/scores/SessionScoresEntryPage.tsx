@@ -95,6 +95,10 @@ export default function SessionScoresEntryPage({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
+  const recoveryDialogRef = useRef<HTMLDivElement>(null);
+  const recoveryPreviousFocusRef = useRef<HTMLElement | null>(null);
+  const isEditModeRef = useRef(false);
+  isEditModeRef.current = isEditMode;
   const shouldLoadPrintData = showPrintPreview || showClinicPreview || showBillboardPreview;
 
   /** 강의 정보 (PDF 제목용) */
@@ -206,7 +210,7 @@ export default function SessionScoresEntryPage({
     releaseEditLease: releaseScoreEditLease,
   } = draft;
   const setPanelHandle = useCallback((handle: SessionScoresPanelHandle | null) => {
-    if (handle == null) {
+    if (handle == null && isEditModeRef.current) {
       panelRef.current?.commitActiveCell?.();
       // SPA 탭/차시 이동은 React unmount를 기다리지 않는다. ref를 해제하기 전에
       // 최종 스냅샷을 캡처해 저장을 시작하고, 패널의 보존 handle로 PATCH를 완료한다.
@@ -243,7 +247,46 @@ export default function SessionScoresEntryPage({
 
   useEffect(() => {
     if (!draft.hasDraftToRestore) return;
+    recoveryPreviousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     recoveryRestoreButtonRef.current?.focus();
+
+    const keepFocusInsideDialog = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        feedback.info("임시저장을 복원하거나 버리기를 선택해 주세요.");
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = recoveryDialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", keepFocusInsideDialog);
+    return () => {
+      document.removeEventListener("keydown", keepFocusInsideDialog);
+      const previous = recoveryPreviousFocusRef.current;
+      if (previous?.isConnected) previous.focus();
+    };
   }, [draft.hasDraftToRestore]);
 
   useEffect(() => {
@@ -702,7 +745,14 @@ export default function SessionScoresEntryPage({
       <SessionOmrUploadAction
         exams={examOptions}
         onRefresh={invalidateScores}
-        disabled={recoveryBlocked}
+        disabled={
+          recoveryBlocked ||
+          isEditMode ||
+          isSaving ||
+          draft.hasPendingChanges ||
+          draft.draftStatus === "saving" ||
+          draft.draftStatus === "error"
+        }
       />
 
       {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
@@ -870,8 +920,26 @@ export default function SessionScoresEntryPage({
                     <>
                       <span className="text-[var(--color-error)]">자동 저장 실패</span>
                       {" "}
-                      <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => void saveScoresNow()}>
-                        다시 시도
+                      <button
+                        type="button"
+                        className="underline text-[var(--color-brand-primary)]"
+                        onClick={() => {
+                          if (!draft.leaseReleaseFailed) {
+                            void saveScoresNow();
+                            return;
+                          }
+                          void (async () => {
+                            setIsSaving(true);
+                            const released = await releaseScoreEditLease();
+                            setIsSaving(false);
+                            if (released) {
+                              setIsEditMode(false);
+                              feedback.success("입력을 다시 잠갔습니다.");
+                            }
+                          })();
+                        }}
+                      >
+                        {draft.leaseReleaseFailed ? "잠금 다시 시도" : "다시 시도"}
                       </button>
                     </>
                   )}
@@ -893,14 +961,19 @@ export default function SessionScoresEntryPage({
           role="dialog"
           aria-modal="true"
           aria-labelledby="draft-restore-title-entry"
+          aria-describedby="draft-restore-description-entry"
         >
-          <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]">
+          <div
+            ref={recoveryDialogRef}
+            tabIndex={-1}
+            className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]"
+          >
             <h2 id="draft-restore-title-entry" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
               {draft.restoreChangeCount > 0
                 ? `임시저장된 변경 ${draft.restoreChangeCount}건이 있습니다. 복원할까요?`
                 : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
             </h2>
-            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+            <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
               복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
               <br />
               <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
@@ -913,7 +986,7 @@ export default function SessionScoresEntryPage({
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                disabled={draft.isDiscardingDraft}
+                disabled={draft.isDiscardingDraft || draft.isStartingEdit}
                 onClick={async () => {
                   const discarded = await draft.discardDraft();
                   if (!discarded) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
@@ -925,7 +998,7 @@ export default function SessionScoresEntryPage({
               <button
                 type="button"
                 ref={recoveryRestoreButtonRef}
-                disabled={isLoading || isError}
+                disabled={isLoading || isError || draft.isDiscardingDraft || draft.isStartingEdit}
                 onClick={async () => {
                   if (!await draft.restoreDraft()) {
                     feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
@@ -935,7 +1008,11 @@ export default function SessionScoresEntryPage({
                 }}
                 className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
               >
-                {isLoading ? "성적표 불러오는 중…" : "복원 후 수정"}
+                {draft.isStartingEdit
+                  ? "복원 준비 중…"
+                  : isLoading
+                    ? "성적표 불러오는 중…"
+                    : "복원 후 수정"}
               </button>
             </div>
           </div>

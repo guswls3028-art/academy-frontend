@@ -11,9 +11,10 @@ import type { SessionScoresPanelHandle } from "../panels/SessionScoresPanel";
 import {
   getScoreDraft,
   isScoreEditLockedError,
+  isScoreEditStaleError,
   putScoreDraft,
   postScoreDraftCommit,
-  resolvedScoreEditorClientId,
+  resolvedScoreEditorRecoveryId,
   type PendingChange,
 } from "../api/scoreDraft";
 import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
@@ -32,8 +33,7 @@ const LOCAL_DRAFT_KEY = (sessionId: number, clientId: string) =>
   `scores-local-draft:${sessionId}:${clientId}`;
 
 function readLocalDraft(sessionId: number): PendingChange[] {
-  const clientId = resolvedScoreEditorClientId();
-  if (!clientId) return [];
+  const clientId = resolvedScoreEditorRecoveryId();
   try {
     const value = JSON.parse(sessionStorage.getItem(LOCAL_DRAFT_KEY(sessionId, clientId)) ?? "[]");
     return Array.isArray(value) ? value as PendingChange[] : [];
@@ -43,8 +43,7 @@ function readLocalDraft(sessionId: number): PendingChange[] {
 }
 
 function writeLocalDraft(sessionId: number, changes: PendingChange[]): void {
-  const clientId = resolvedScoreEditorClientId();
-  if (!clientId) return;
+  const clientId = resolvedScoreEditorRecoveryId();
   try {
     if (changes.length > 0) {
       sessionStorage.setItem(LOCAL_DRAFT_KEY(sessionId, clientId), JSON.stringify(changes));
@@ -75,6 +74,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
   );
   const [recoveryCheckFailed, setRecoveryCheckFailed] = useState(false);
   const [editLockConflict, setEditLockConflict] = useState(false);
+  const [editStaleConflict, setEditStaleConflict] = useState(false);
+  const [leaseReleaseFailed, setLeaseReleaseFailed] = useState(false);
   const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [recoveryCheckNonce, setRecoveryCheckNonce] = useState(0);
   const [restoreChanges, setRestoreChanges] = useState<PendingChange[]>([]);
@@ -157,7 +158,14 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         writeLocalDraft(sessionId, panel?.getPendingSnapshot?.() ?? snapshot);
         setHasPendingChanges(true);
         setDraftStatus("error");
-        setDraftError(e instanceof Error ? e.message : "성적 저장 실패");
+        if (isScoreEditStaleError(e)) {
+          setEditStaleConflict(true);
+          setDraftError(
+            "시험 제출 또는 다른 안전한 작업으로 서버 점수가 바뀌었습니다. 입력값은 보존했습니다. 새로고침 후 복원 여부를 확인해 주세요.",
+          );
+        } else {
+          setDraftError(e instanceof Error ? e.message : "성적 저장 실패");
+        }
         throw e;
       }
     })();
@@ -193,13 +201,26 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     setIsRecoveryCheckPending(true);
     setRecoveryCheckFailed(false);
     setEditLockConflict(false);
+    setEditStaleConflict(false);
     getScoreDraft(sessionId)
       .then(async (data) => {
         if (cancelled) return;
         const localChanges = readLocalDraft(sessionId);
         const recoveryChanges = localChanges.length > 0 ? localChanges : data.changes;
         if (!recoveryChanges?.length) {
-          setHasDraftToRestore(false);
+          if (data.stale) {
+            try {
+              await postScoreDraftCommit(sessionId, true);
+              try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
+              writeLocalDraft(sessionId, []);
+            } catch {
+              if (!cancelled) {
+                setRecoveryCheckFailed(true);
+                setDraftError("변경된 서버 점수의 편집 잠금을 정리하지 못했습니다. 다시 확인해 주세요.");
+              }
+            }
+          }
+          if (!cancelled) setHasDraftToRestore(false);
           return;
         }
         // stale 검사: localStorage 의 마지막 putScoreDraft timestamp 가 1시간 이전이면 자동 폐기.
@@ -230,6 +251,12 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         setRestoreChanges(recoveryChanges);
         setRestoreChangeCount(recoveryChanges.length);
         setHasDraftToRestore(true);
+        if (data.stale) {
+          setEditStaleConflict(true);
+          setDraftError(
+            "임시저장 뒤 서버 점수가 변경되었습니다. 최신 성적표 위에 복원할 내용을 확인해 주세요.",
+          );
+        }
         // tsUnknown 인 경우는 timestamp 누락 — 다음 폐기/commit 사이클까지는 모달 노출.
         void tsUnknown;
       })
@@ -313,6 +340,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     try {
       await putScoreDraft(sessionId, []);
       setEditLockConflict(false);
+      setEditStaleConflict(false);
+      setLeaseReleaseFailed(false);
       return true;
     } catch (error) {
       if (isScoreEditLockedError(error)) setEditLockConflict(true);
@@ -333,8 +362,9 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     setIsStartingEdit(true);
     setDraftError(null);
     try {
-      await putScoreDraft(sessionId, restoreChanges);
+      await putScoreDraft(sessionId, restoreChanges, { acknowledgeStale: true });
       setEditLockConflict(false);
+      setEditStaleConflict(false);
       needsDraftCommitRef.current = restoreChanges.length > 0;
       if (restoreChanges.length > 0) {
         panel?.applyDraftPatch?.(restoreChanges);
@@ -367,6 +397,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
       try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
       writeLocalDraft(sessionId, []);
       setHasDraftToRestore(false);
+      setEditStaleConflict(false);
+      setLeaseReleaseFailed(false);
       setRestoreChanges([]);
       setRestoreChangeCount(0);
       return true;
@@ -382,9 +414,11 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     try {
       await postScoreDraftCommit(sessionId, true);
       setEditLockConflict(false);
+      setLeaseReleaseFailed(false);
       return true;
     } catch (error) {
       if (isScoreEditLockedError(error)) setEditLockConflict(true);
+      setLeaseReleaseFailed(true);
       setDraftStatus("error");
       setDraftError("입력 잠금 마무리에 실패했습니다. 다시 시도해 주세요.");
       return false;
@@ -447,6 +481,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     isRecoveryCheckPending,
     recoveryCheckFailed,
     editLockConflict,
+    editStaleConflict,
+    leaseReleaseFailed,
     isStartingEdit,
     retryRecoveryCheck,
     restoreChangeCount,

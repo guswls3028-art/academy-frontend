@@ -98,6 +98,7 @@ export default function MobileScoreEntryPage() {
           </div>
           {activeExamId && (
             <ScoreEntryList
+              sessionId={sid}
               examId={activeExamId}
               examMaxScore={activeExam?.max_score ?? 100}
               examPassScore={activeExam?.pass_score ?? null}
@@ -149,12 +150,14 @@ function saveDraft(examId: number, m: Map<number, string>) {
 }
 
 function ScoreEntryList({
+  sessionId,
   examId,
   examMaxScore,
   examPassScore,
   enrollments,
   rosterLoading,
 }: {
+  sessionId: number;
   examId: number;
   examMaxScore: number;
   examPassScore: number | null;
@@ -225,7 +228,7 @@ function ScoreEntryList({
 
   const updateMut = useMutation({
     mutationFn: ({ enrollmentId, score, maxScore }: { enrollmentId: number; score: number; maxScore: number }) =>
-      updateResult(examId, enrollmentId, { score, maxScore }),
+      updateResult(sessionId, examId, enrollmentId, { score, maxScore }),
     // 옵티미스틱 업데이트 — refetch 사이클(invalidate 후 서버 응답까지 ~300-500ms) 동안
     // 행이 옛 값으로 잠깐 표시되는 racing 차단. onError에서 롤백.
     onMutate: async (variables) => {
