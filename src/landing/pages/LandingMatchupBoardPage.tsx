@@ -1,9 +1,9 @@
 // PATH: src/landing/pages/LandingMatchupBoardPage.tsx
 // 공개 매치업 적중보고서 게시판 — 학생/학부모/외부인 read (Phase #69, 2026-05-13).
 //
-// 본질: 학원장이 게시한 PublicMatchupShowcase 게시물 리스트 노출 + PDF iframe 상세.
+// 본질: 학원장이 게시한 PublicMatchupShowcase 목록 + 정적 JPEG 미리보기.
 //   - PUBLISHED + window 안 게시물만 backend가 반환 (window 밖은 EXPIRED 카드만)
-//   - 카드 클릭 → modal로 PDF iframe (X-Frame-Options exempt)
+//   - 카드 클릭 → modal로 대표 비교 이미지, 전체 PDF는 명시 버튼으로만 열기
 //   - 비로그인 OK (학원 family 가입 안 한 외부 학부모도 접근)
 /* eslint-disable no-restricted-syntax */
 
@@ -24,6 +24,8 @@ import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
+import StaticReportPreview from "../components/StaticReportPreview";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 
 function StatusBadge({ card, accent }: { card: MatchupShowcaseCard; accent: string }) {
   if (card.expired) {
@@ -260,13 +262,13 @@ export default function LandingMatchupBoardPage() {
         )}
       </div>
 
-      {/* PDF viewer modal */}
+      {/* 정적 이미지 미리보기 modal — 전체 PDF는 명시 링크로만 연다. */}
       {viewing && viewing.pdf_url && (
         <div
           onClick={() => setViewing(null)}
           style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,12,22,0.7)", backdropFilter: "blur(6px)", display: "flex", flexDirection: "column", padding: 0 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(960px, 100%)", height: "100%", margin: "0 auto", background: "#fff", display: "flex", flexDirection: "column" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(960px, 100%)", height: "100%", margin: "0 auto", background: "#f1f5f9", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexShrink: 0 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>적중 보고서</div>
@@ -277,22 +279,35 @@ export default function LandingMatchupBoardPage() {
               >×</button>
             </div>
             {(() => {
-              // detail page와 동일 fix — backend pdf_url 상대 path에 apiBase 프리픽스 부착.
-              // 안 그러면 frontend SPA fallback이 메인 랜딩 페이지 로드 (#74-2).
-              // P0 audit (2026-05-13): tenantCode는 { ok, code } 객체. 이전 typeof === "string"
-              // 검사로 항상 false → tenant query 영구 미부착. detail page와 동일 ok/code 패턴.
-              const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-              const raw = viewing.pdf_url || "";
-              const abs = raw.startsWith("http") ? raw : `${apiBase}${raw}`;
-              const src = (tenantCode.ok && !abs.includes("tenant="))
-                ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tenantCode.code}`
-                : abs;
+              const addTenant = (raw: string) => {
+                const abs = resolvePublicReportUrl(raw);
+                return tenantCode.ok && !abs.includes("tenant=")
+                  ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(tenantCode.code)}`
+                  : abs;
+              };
+              const pdfUrl = addTenant(viewing.pdf_url || "");
+              const previewUrl = addTenant(
+                viewing.preview_url || (viewing.pdf_url || "").replace("/pdf/", "/preview/"),
+              );
               return (
-                <iframe
-                  src={src}
-                  title={viewing.title}
-                  style={{ flex: 1, border: "none", width: "100%", background: "#f8fafc" }}
-                />
+                <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+                  <StaticReportPreview
+                    imageUrl={previewUrl}
+                    pdfUrl={pdfUrl}
+                    alt={`${viewing.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
+                    compact
+                  />
+                  <div style={{ marginTop: 14, textAlign: "center" }}>
+                    <a
+                      href={pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "inline-flex", padding: "10px 16px", borderRadius: 8, background: "#0F172A", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 800 }}
+                    >
+                      PDF 전체 보기
+                    </a>
+                  </div>
+                </div>
               );
             })()}
           </div>

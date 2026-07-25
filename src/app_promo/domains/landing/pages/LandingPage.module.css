@@ -520,12 +520,15 @@
 
 .screenArrow {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 999px;
+  padding: 0 12px;
   color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   background: var(--teal);
   box-shadow: 0 12px 28px rgba(11, 125, 137, 0.22);
 }

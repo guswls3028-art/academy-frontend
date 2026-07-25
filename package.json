@@ -67,7 +67,6 @@
     "lightningcss-win32-x64-msvc": "^1.32.0",
     "lucide-react": "^0.563.0",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^5.7.284",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",

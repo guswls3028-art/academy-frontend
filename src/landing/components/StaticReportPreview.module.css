@@ -1,0 +1,53 @@
+.figure {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.frame {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.28);
+}
+
+.compact .frame {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.failed {
+  min-height: 360px;
+  padding: 32px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.compact .failed {
+  min-height: 240px;
+}
+
+.failed a {
+  color: #9a6b21;
+  font-weight: 800;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+.caption {
+  margin-top: 14px;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+  word-break: keep-all;
+}

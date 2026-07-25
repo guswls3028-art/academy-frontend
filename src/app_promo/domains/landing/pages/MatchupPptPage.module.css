@@ -176,8 +176,8 @@
 .heroFrame img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
   object-position: left top;
 }
 
@@ -375,6 +375,20 @@
   background: #fff;
 }
 
+.routeDivider {
+  position: absolute;
+  right: -34px;
+  z-index: 3;
+  border: 1px solid #bdd0f5;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #246bfd !important;
+  background: #eef4ff;
+  font-size: 8px !important;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .guideSection {
   padding: 112px 0;
   background:
@@ -507,15 +521,9 @@
 .guideVisual img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
   object-position: left top;
-}
-
-.guideVisual[data-focus="right"] img {
-  width: 160%;
-  max-width: none;
-  transform: translateX(-37.5%);
 }
 
 .guideVisual figcaption {
@@ -656,8 +664,18 @@
   font-size: 13px;
 }
 
-.fileRibbon > svg:nth-of-type(2),
-.fileRibbon > svg:nth-of-type(4) {
+.fileRibbonDivider {
+  border: 1px solid #bdd0f5;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--blue);
+  background: #fff;
+  font-size: 8px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.fileRibbon > svg:nth-of-type(3) {
   color: #9ba9b9;
 }
 
@@ -742,6 +760,10 @@
   .routeList li:nth-child(2) .routeArrow {
     display: none;
   }
+
+  .routeDivider {
+    right: -34px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -824,6 +846,13 @@
     display: block;
   }
 
+  .routeDivider {
+    right: auto;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
   .guideSection,
   .exampleSection,
   .finalCta {
@@ -885,9 +914,13 @@
     justify-content: start;
   }
 
-  .fileRibbon > svg:nth-of-type(2),
-  .fileRibbon > svg:nth-of-type(4) {
+  .fileRibbon > svg:nth-of-type(3) {
     display: none;
+  }
+
+  .fileRibbonDivider {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
 

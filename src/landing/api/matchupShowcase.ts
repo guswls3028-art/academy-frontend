@@ -4,7 +4,7 @@
 // backend: apps/domains/landing_public/api/views/matchup_showcase_views.py
 //
 // 학원장 (admin/owner) 1버튼 publish + 게시물 CRUD.
-// 게시 시점에 적중보고서 PDF가 R2 스냅샷으로 박힘. 이후 원본 변동 무관.
+// 게시 시점 PDF 스냅샷을 보존하고, 공개 열람은 캐시된 대표 JPEG를 우선 사용.
 
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
@@ -37,6 +37,7 @@ export interface MatchupShowcaseCard {
   visible: boolean;
   hit_report_id_ref: number | null;
   pdf_url?: string | null;
+  preview_url?: string | null;
 }
 
 export interface MatchupShowcaseListResponse {

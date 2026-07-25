@@ -4,7 +4,7 @@
 // 호소: "홈페이지 매치업만 볼 수 있는 링크에 제가 위에 올린 파일만 업로드.
 // 내일 수업 자랑하고 싶음." → 학원 전체 list URL 이 아닌 PDF 1개만 보이는 dedicated URL.
 //
-// 이 페이지: 학원 brand 헤더 + 카드 메타 + PDF iframe full + footer. 비로그인 OK
+// 이 페이지: 학원 brand 헤더 + 카드 메타 + 정적 JPEG 미리보기 + 전체 PDF 링크. 비로그인 OK
 // (backend `is_publicly_visible()` 통과 시점만). 학원장은 항상 preview 가능.
 /* eslint-disable no-restricted-syntax */
 
@@ -21,6 +21,8 @@ import {
 import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
+import StaticReportPreview from "../components/StaticReportPreview";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -119,16 +121,18 @@ export default function LandingMatchupBoardDetailPage() {
   // backend pdf_url 가 `/api/v1/...` 상대 path → iframe src에 그대로 박으면
   // frontend Cloudflare Pages 도메인으로 가서 SPA fallback이 메인 랜딩을 로드 →
   // 학생이 PDF가 아니라 학원 메인 페이지 봄. apiBase 프리픽스로 backend 절대 URL.
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const pdfUrl = (() => {
-    const raw = card.pdf_url;
+  const resolveTenantMediaUrl = (raw: string | null | undefined) => {
     if (!raw) return null;
-    const abs = raw.startsWith("http") ? raw : `${apiBase}${raw}`;
+    const abs = resolvePublicReportUrl(raw);
     if (tenantCode.ok && !abs.includes("tenant=")) {
-      return `${abs}${abs.includes("?") ? "&" : "?"}tenant=${tenantCode.code}`;
+      return `${abs}${abs.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(tenantCode.code)}`;
     }
     return abs;
-  })();
+  };
+  const pdfUrl = resolveTenantMediaUrl(card.pdf_url);
+  const previewUrl = resolveTenantMediaUrl(
+    card.preview_url || card.pdf_url?.replace("/pdf/", "/preview/"),
+  );
 
   if (!cfg) {
     return (
@@ -214,17 +218,17 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       </div>
 
-      {/* PDF action bar — 학생 카톡 in-app browser fallback (iframe PDF 못 렌더하는 환경 대응) */}
+      {/* 전체 PDF는 보조 동선으로 두고, 본문은 정적 이미지 미리보기를 사용. */}
       {pdfUrl && (
         <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>PDF가 안 보이면</span>
+            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>전체 문항 보기</span>
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
-            >새 탭에서 열기</a>
+            >PDF 전체 보기</a>
             <a
               href={pdfUrl}
               download
@@ -234,13 +238,14 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       )}
 
-      {/* PDF iframe area */}
-      <div style={{ flex: 1, position: "relative", background: "#101827", minHeight: 600 }}>
-        {pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            title={card.title}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", background: "#fff" }}
+      {/* 대표 비교 이미지 한 장 — 브라우저 PDF 렌더 대기 제거. */}
+      <div style={{ flex: 1, background: "#101827", minHeight: 420, padding: "24px" }}>
+        {pdfUrl && previewUrl ? (
+          <StaticReportPreview
+            imageUrl={previewUrl}
+            pdfUrl={pdfUrl}
+            alt={`${card.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
+            caption="대표 비교 화면입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
           />
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>

@@ -40,8 +40,8 @@ const AUDIENCES = [
 const VALUE_ITEMS = [
   {
     icon: Presentation,
-    title: "찍은 시험지를 수업자료로",
-    copy: "시험지 이미지를 올리고 유사문제 후보를 직접 확인한 뒤, 고른 문제를 PPT로 이어서 만듭니다.",
+    title: "적중 근거와 칠판용 PPT를 따로",
+    copy: "실제 시험과 우리 학원 대비 자료를 비교해 적중 근거를 남기고, 수업자료는 문제·개념 단위로 나눠 PPT로 만듭니다.",
   },
   {
     icon: ClipboardCheck,
@@ -58,23 +58,23 @@ const VALUE_ITEMS = [
 const MATCHUP_STEPS = [
   {
     icon: Camera,
-    title: "시험지 촬영·업로드",
-    copy: "휴대폰으로 찍은 문제 이미지나 PDF를 학교·시험별 자료함에 넣습니다.",
+    title: "적중 · 실제 시험 등록",
+    copy: "학교 시험에 실제로 출제된 문제를 이미지나 PDF로 등록합니다.",
   },
   {
     icon: ScanSearch,
-    title: "후보 나란히 비교",
-    copy: "원문 옆에서 유사문제 후보와 출처를 보고 수업에 맞는 문제를 직접 고릅니다.",
+    title: "적중 · 사전 자료 비교",
+    copy: "우리 학원이 시험 전에 다룬 유사 문제를 나란히 보고 선생님이 근거를 확정합니다.",
   },
   {
     icon: CheckCircle2,
-    title: "선생님이 최종 선택",
-    copy: "유사도는 참고값으로만 사용하고, 풀이 구조와 수업 목적을 기준으로 판단합니다.",
+    title: "PPT · 자료 분할",
+    copy: "문제나 개념 단위로 수업자료를 나누고 슬라이드 순서를 정합니다.",
   },
   {
     icon: Presentation,
-    title: "PPT 구성·다운로드",
-    copy: "선택한 문제를 16:9 또는 4:3 슬라이드로 미리 본 뒤 수업용 파일로 내려받습니다.",
+    title: "PPT · 흑백반전",
+    copy: "칠판 빔프로젝터에 맞게 반전한 PPT를 내려받아 리모컨으로 넘기며 수업합니다.",
   },
 ];
 
@@ -135,7 +135,7 @@ const START_POINTS = [
   {
     icon: FileText,
     title: "실제 자료로 화면을 보여드립니다",
-    copy: "샘플 문구보다 선생님의 시험지와 수업 흐름으로 매치업·PPT와 운영 화면을 확인합니다.",
+    copy: "샘플 문구보다 선생님의 시험지와 수업자료로 적중 매치업·칠판용 PPT를 확인합니다.",
   },
   {
     icon: ShieldCheck,
@@ -193,8 +193,8 @@ function Hero() {
             <strong>반복 운영은 한곳에서.</strong>
           </h1>
           <p className={styles.heroLead}>
-            시험지를 찍어 유사문제를 찾고 수업 PPT를 만듭니다. 출결·성적·영상·알림톡까지,
-            수업 전후에 흩어진 일을 실제 화면 하나로 이어보세요.
+            실제 시험과 우리 학원 대비 자료를 나란히 기록하고, 문제·개념 자료는 흑백반전해 칠판용
+            PPT로 만듭니다. 출결·성적·영상·알림톡까지 수업 전후의 일을 한곳에서 관리하세요.
           </p>
           <div className={styles.heroActions}>
             <Link to="/promo/demo" className={styles.primaryButton}>
@@ -225,28 +225,27 @@ function Hero() {
           </ul>
         </div>
 
-        <div className={styles.heroWorkbench} aria-label="시험지 매치업에서 수업 PPT까지 실제 제품 흐름">
+        <div className={styles.heroWorkbench} aria-label="적중 매치업과 칠판용 PPT 실제 제품 화면">
           <div className={styles.workbenchLabel}>
-            <span>오늘의 수업자료</span>
+            <span>두 가지 수업자료 업무</span>
             <strong>개포고 파이널 모의고사</strong>
           </div>
           <ProductFrame
-            label="유사문제 매치업"
-            detail="원문과 후보 비교"
+            label="적중 매치업"
+            detail="실제 시험 ↔ 사전 대비 자료"
             image="/promo/matchup-gaepo-results-20260725.png"
-            alt="개포고 시험 문제와 유사문제 후보를 비교하는 학원플러스 실제 화면"
+            alt="개포고 실제 시험 문제와 우리 학원 사전 대비 자료를 비교하는 학원플러스 화면"
             eager
           />
           <div className={styles.heroConnector} aria-hidden="true">
-            <span>선택한 문제가 그대로</span>
-            <ArrowRight size={ICON.md} />
+            <span>서로 다른 두 기능</span>
           </div>
           <div className={styles.pptPreview}>
             <ProductFrame
-              label="수업 PPT"
-              detail="2장 · 16:9"
+              label="칠판용 PPT"
+              detail="문항 분할 · 흑백반전"
               image="/promo/ppt-gaepo-setup-20260725.png"
-              alt="선택한 문제를 16대 9 수업 PPT로 구성하는 학원플러스 실제 화면"
+              alt="문제 자료를 나누고 흑백반전해 16대 9 칠판용 PPT로 구성하는 학원플러스 화면"
               eager
             />
           </div>
@@ -317,36 +316,36 @@ function MatchupShowcase() {
         <div className={styles.matchupIntro}>
           <header className={styles.sectionHead}>
             <span>가장 먼저 보여드릴 기능</span>
-            <h2 id="matchup-title">스크린샷 한 장이 매치업을 거쳐 수업 PPT가 됩니다</h2>
+            <h2 id="matchup-title">적중 근거와 칠판용 PPT, 두 작업을 줄입니다</h2>
             <p>
-              학교 시험지를 다시 자르고 붙이는 대신, 원문과 유사문제 후보를 한 화면에서 확인하고
-              선생님이 고른 문제만 수업자료로 가져갑니다.
+              매치업은 실제 시험 문제와 우리 학원이 사전에 다룬 자료를 비교합니다.
+              PPT 생성기는 자료를 문제·개념 단위로 나누고 칠판에 맞게 반전합니다.
             </p>
           </header>
           <div className={styles.teacherNote}>
             <MessageSquareText size={ICON.lg} aria-hidden="true" />
             <p>
-              <strong>현장 강사 피드백</strong>
-              “스크린샷을 찍으면 바로 PPT로 이어지는 흐름이 매치업과 잘 맞는다”는 의견을 제품 흐름에 반영했습니다.
+              <strong>현장 강사 요청</strong>
+              “수업자료를 바로 PPT로 만들어 리모컨으로 넘겨 쓰고 싶다”는 수업 방식을 반영했습니다.
             </p>
           </div>
         </div>
 
         <div className={styles.matchupScreens}>
           <ProductFrame
-            label="01 · 후보 확인"
-            detail="개포고 데모"
+            label="01 · 적중 자료 확인"
+            detail="실제 시험 ↔ 사전 자료"
             image="/promo/matchup-gaepo-candidates-20260725.png"
-            alt="개포고 시험 문제의 유사문제 후보를 확인하는 학원플러스 실제 화면"
+            alt="개포고 실제 시험 문제와 우리 학원 사전 대비 자료 후보를 비교하는 학원플러스 화면"
           />
           <span className={styles.screenArrow} aria-hidden="true">
-            <ArrowRight size={ICON.lg} />
+            별도
           </span>
           <ProductFrame
-            label="02 · PPT 구성"
-            detail="2장 · 16:9"
+            label="02 · 칠판용 PPT"
+            detail="흑백반전 · 16:9"
             image="/promo/ppt-gaepo-ready-20260725.png"
-            alt="선택한 문제를 수업용 PPT로 미리 보는 학원플러스 실제 화면"
+            alt="흑백반전한 문제 자료를 칠판용 PPT로 미리 보는 학원플러스 화면"
           />
         </div>
 
@@ -365,7 +364,7 @@ function MatchupShowcase() {
         </ol>
         <div className={styles.inlineActions}>
           <Link to="/promo/matchup-ppt" className={styles.darkButton}>
-            매치업·PPT 전체 과정
+            두 기능 실제 화면 보기
             <ArrowRight size={ICON.md} aria-hidden="true" />
           </Link>
           <Link to="/promo/demo" className={styles.textLink}>

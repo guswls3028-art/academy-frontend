@@ -307,15 +307,18 @@ export default function MinimalTutor({ config }: TemplateProps) {
             // 학원 활동 부재처럼 보이는 결함 회피 (시각 검수 2026-05-12 H-1).
             const hitItemsArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
             if (hitItemsArr.length === 0) return null;
+            const hitDescription = section.description?.includes("본문 PDF")
+              ? "카드를 누르면 실제 시험과 사전 대비 자료의 대표 비교 화면이 바로 열립니다. 전체 문항은 PDF로 확인할 수 있습니다."
+              : section.description;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <h2 style={{ fontSize: 28, fontWeight: 700, textAlign: "center", margin: "0 0 12px" }}>
                     {section.title || "최근 적중 사례"}
                   </h2>
-                  {section.description && (
+                  {hitDescription && (
                     <p style={{ fontSize: 15, color: "#64748b", textAlign: "center", margin: "0 0 36px", maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
-                      {section.description}
+                      {hitDescription}
                     </p>
                   )}
                   <HitReportCards

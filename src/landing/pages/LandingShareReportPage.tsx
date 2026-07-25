@@ -1,11 +1,12 @@
 // PATH: src/landing/pages/LandingShareReportPage.tsx
 // 1클릭 공유 토큰 진입 페이지 (#67, 2026-05-12).
 // 학원장 spec: 선생이 학생/학부모에게 카톡으로 링크만 보내면, 학생은 별도 로그인이나
-// 학원 가입 없이 클릭 한 번으로 적중보고서 본문 PDF 즉시 확인.
+// 학원 가입 없이 클릭 한 번으로 적중보고서 대표 비교 이미지를 즉시 확인.
 //
 // URL: /landing/share/:token
 // Backend: GET /matchup/share/<uuid:token>/        → 메타
-//          GET /matchup/share/<uuid:token>/curated.pdf → PDF (iframe)
+//          GET /matchup/share/<uuid:token>/preview.jpg → 정적 JPEG
+//          GET /matchup/share/<uuid:token>/curated.pdf → 전체 PDF
 // 토큰만으로 통과 — 학원장 picker 등록 무관. 학원장이 회전/취소하면 즉시 차단.
 /* eslint-disable no-restricted-syntax */
 
@@ -18,6 +19,8 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import StaticReportPreview from "../components/StaticReportPreview";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { setLandingMeta } from "../utils/seoMeta";
 import { fetchPublicHitReportsCached } from "../api/hitReports";
 
@@ -63,6 +66,7 @@ type ShareMeta = {
   tenant_name: string;
   tenant_code: string;
   pdf_url: string;
+  preview_url?: string;
   // 다른 보고서 — backend가 카드 메타 inline (1 round-trip 최적화 #67 cycle 9, 2026-05-12).
   // legacy other_report_ids는 호환 위해 유지하되 신규 코드는 other_reports 사용.
   other_reports?: OtherCard[];
@@ -112,7 +116,7 @@ export default function LandingShareReportPage() {
     document.title = `${subj} ${ratePct}% 적중 — ${brand}`;
     setLandingMeta("description", `${brand}의 ${subj} 적중 보고서 — ${meta.hit_count}/${meta.total_problems} 문항 (${ratePct}%).`);
     setLandingMeta("og:title", document.title);
-    setLandingMeta("og:description", `${subj} 적중률 ${ratePct}% · 시험지 ↔ 강의 자료 비교 본문 PDF`);
+    setLandingMeta("og:description", `${subj} 적중률 ${ratePct}% · 실제 시험 ↔ 사전 대비 자료 비교`);
     return () => { document.title = brand; };
   }, [meta, landing]);
 
@@ -140,10 +144,10 @@ export default function LandingShareReportPage() {
 
   const ratePct = Math.round(meta.hit_rate_pct);
   const subj = meta.doc_category || meta.doc_title;
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const pdfUrl = `${apiBase}/api/v1${meta.pdf_url.replace(/^\/api\/v1/, "")}`;
-  // 위 보정: meta.pdf_url 은 `/api/v1/matchup/share/<token>/curated.pdf` 형태로 backend 가 박아둠.
-  // apiBase 가 host 만 있을 수도 / `/api/v1` 까지 포함할 수도 있어서 중복 prefix 제거.
+  const pdfUrl = resolvePublicReportUrl(meta.pdf_url);
+  const previewUrl = resolvePublicReportUrl(
+    meta.preview_url || meta.pdf_url.replace(/curated\.pdf(?:\?.*)?$/, "preview.jpg"),
+  );
 
   const bg = "#0A0E1A";
   const bgAlt = "#0F1525";
@@ -236,29 +240,23 @@ export default function LandingShareReportPage() {
                 style={{ padding: "10px 18px", borderRadius: 10, background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                PDF 다운로드
+                PDF 전체 보기
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* PDF 본문 — 적중 자료 1건 이상일 때만 노출. 0건이면 학생 혼란 방지 fallback. */}
+      {/* 대표 비교 이미지 — PDF 브라우저 렌더를 기다리지 않고 정적 JPEG 한 장을 노출. */}
       <section style={{ padding: "32px 24px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {meta.hit_count > 0 ? (
-            <>
-              <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${cardBorder}`, background: "#fff", height: "min(85vh, 1100px)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-                <iframe
-                  src={`${pdfUrl}#zoom=page-fit`}
-                  title={`${subj} 적중 보고서`}
-                  style={{ width: "100%", height: "100%", border: "none" }}
-                />
-              </div>
-              <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "16px 0 0", lineHeight: 1.7 }}>
-                좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 모바일에서 PDF가 잘 안 보이면 우측 상단 PDF 다운로드를 누르세요.
-              </p>
-            </>
+            <StaticReportPreview
+              imageUrl={previewUrl}
+              pdfUrl={pdfUrl}
+              alt={`${subj} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
+              caption="대표 비교 화면 한 장입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
+            />
           ) : (
             // 적중 자료 0건 — 강사가 본문 매칭 자료를 아직 등록하지 않은 상태.
             // PDF iframe 띄우면 흰 화면 (cover만 있는 빈 PDF) → 학생이 "왜 빈 페이지?" 혼란.

@@ -24,7 +24,7 @@ test.describe("promo business readiness", () => {
     await stubPromoBootstrap(page);
   });
 
-  test("presents the real matchup-to-PPT workflow with route-specific metadata", async ({ page }) => {
+  test("presents matchup evidence and classroom PPT as distinct workflows", async ({ page }) => {
     await page.goto(`${BASE}/promo?utm_source=teacher-referral&utm_campaign=matchup-ppt`, {
       waitUntil: "load",
     });
@@ -35,7 +35,8 @@ test.describe("promo business readiness", () => {
     await expect(page.getByRole("link", { name: "내 자료로 데모 요청" }).first()).toBeVisible();
     await expect(page.getByText("제품 실화면", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/개포고 데모 데이터/)).toBeVisible();
-    await expect(page.getByText(/스크린샷을 찍으면 바로 PPT로 이어지는 흐름/)).toBeVisible();
+    await expect(page.getByText(/수업자료를 바로 PPT로 만들어 리모컨으로 넘겨 쓰고 싶다/)).toBeVisible();
+    await expect(page.getByText("서로 다른 두 기능")).toBeVisible();
     await expect(page).toHaveTitle("학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${BASE}/promo`);
 

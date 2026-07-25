@@ -174,8 +174,9 @@
 .heroScreen img {
   display: block;
   width: 100%;
-  height: 330px;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
   object-position: left top;
 }
 
@@ -300,7 +301,14 @@
 }
 
 .proofCardFeatured .proofVisual {
-  min-height: 520px;
+  min-height: 0;
+}
+
+.proofCardFeatured .proofVisual img {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
 }
 
 .proofVisual img {
@@ -761,7 +769,7 @@
   }
 
   .heroScreen img {
-    height: 260px;
+    height: auto;
   }
 
   .miniProofGrid,
@@ -778,7 +786,7 @@
   }
 
   .proofCardFeatured .proofVisual {
-    min-height: 440px;
+    min-height: 0;
   }
 
   .proofPhoneVisual {

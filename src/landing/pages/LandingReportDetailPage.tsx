@@ -1,6 +1,6 @@
 // PATH: src/landing/pages/LandingReportDetailPage.tsx
 // 적중보고서 상세 — 학원장 picker 등록 보고서만 (backend 404 게이트).
-// 학원 정체성 헤더(로고/브랜드명) + KPI 메타 + PDF iframe + 공유 버튼 + 다른 보고서 둘러보기.
+// 학원 정체성 헤더 + KPI + 정적 비교 이미지 + 전체 PDF 링크 + 다른 보고서 둘러보기.
 //
 // 학부모가 새 탭으로 사라지지 않고 사이트 내부 라우트 — 진짜 홈페이지 정체성 유지.
 /* eslint-disable no-restricted-syntax */
@@ -13,7 +13,8 @@ import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem 
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
-import PdfPageStack from "../components/PdfPageStack";
+import StaticReportPreview from "../components/StaticReportPreview";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { fetchReviewsList, fetchReviewsSummary, type PublicReview, type ReviewsSummary } from "../api/publicCommunity";
@@ -76,7 +77,7 @@ export default function LandingReportDetailPage() {
     document.title = `${subj} ${ratePct}% 적중 — ${landing.config.brand_name}`;
     setMeta("description", `${landing.config.brand_name}의 ${subj} 적중 보고서 — ${report.hit_count}/${report.total_problems} 문항 (${ratePct}%).`);
     setMeta("og:title", document.title);
-    setMeta("og:description", `${subj} 적중률 ${ratePct}% · 시험지 ↔ 강의 자료 비교 본문 PDF`);
+    setMeta("og:description", `${subj} 적중률 ${ratePct}% · 실제 시험 ↔ 사전 대비 자료 비교`);
     return () => { document.title = landing.config?.brand_name || "학원플러스"; };
   }, [landing, report]);
 
@@ -102,10 +103,10 @@ export default function LandingReportDetailPage() {
   const cfg = landing.config!;
   const ratePct = Math.round(report.hit_rate_pct);
   const subj = report.doc_category || report.doc_title;
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
   const tcRes = resolveTenantCode();
   const tcParam = tcRes.ok ? `?tenant=${encodeURIComponent(tcRes.code)}` : "";
-  const pdfUrl = `${apiBase}/api/v1/matchup/landing/public/${report.id}/curated.pdf${tcParam}`;
+  const pdfUrl = resolvePublicReportUrl(`/api/v1/matchup/landing/public/${report.id}/curated.pdf${tcParam}`);
+  const previewUrl = resolvePublicReportUrl(`/api/v1/matchup/landing/public/${report.id}/preview.jpg${tcParam}`);
 
   // 톤은 PremiumDark 시그니처 (template_key와 무관 — 보고서 detail은 통일된 다크 톤)
   const bg = "#0A0E1A";
@@ -200,26 +201,22 @@ export default function LandingReportDetailPage() {
                 style={{ padding: "10px 18px", borderRadius: 10, background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                PDF 다운로드
+                PDF 전체 보기
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* PDF 페이지 stack — 부모 페이지 자연 scroll로 카페 게시물처럼 위→아래 읽기.
-          학원장 spec(2026-05-12): "그냥 간단하게 쭉 스크롤하면서 읽을수있기를 바랬는데". */}
+      {/* 브라우저 PDF 렌더 대신 서버에 저장된 대표 비교 이미지 한 장을 즉시 노출. */}
       <section style={{ padding: "32px 24px 16px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <PdfPageStack
+          <StaticReportPreview
+            imageUrl={previewUrl}
             pdfUrl={pdfUrl}
-            maxWidth={1100}
-            pageGap={16}
-            textColor={textSecondary}
+            alt={`${subj} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
+            caption="대표 비교 화면 한 장입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
           />
-          <p style={{ fontSize: 12, color: textSecondary, textAlign: "center", margin: "20px 0 0", lineHeight: 1.7 }}>
-            좌:학교 시험지 문항 / 우:강의에서 다룬 자료. 페이지를 위에서 아래로 쭉 스크롤하며 읽을 수 있어요. PDF 원본은 우측 상단 "PDF 다운로드"로.
-          </p>
         </div>
       </section>
 

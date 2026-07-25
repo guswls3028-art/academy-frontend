@@ -49,15 +49,15 @@ const PROOF_CARDS: ProofCard[] = [
   {
     id: "matchup-ppt",
     badge: "제품 실화면 · 개포고 데모",
-    title: "시험지를 올리면 유사문제 후보 확인부터 수업 PPT까지 이어집니다",
-    body: "원문 옆에서 후보를 비교해 선생님이 직접 고르고, 선택한 문제를 16:9 수업용 PPT로 구성합니다.",
+    title: "적중 근거를 남기고, 수업자료는 칠판용 PPT로 만듭니다",
+    body: "실제 시험과 우리 학원 사전 자료를 비교합니다. 별도로 문제·개념 자료를 나누고 흑백반전해 빔프로젝터용 PPT를 만듭니다.",
     image: "/promo/matchup-gaepo-results-20260725.png",
-    alt: "개포고 시험 문제와 유사문제 결과를 나란히 비교하는 학원플러스 매치업 실제 화면",
+    alt: "개포고 실제 시험 문제와 우리 학원 사전 대비 자료를 나란히 비교하는 학원플러스 화면",
     imageWidth: 1280,
     imageHeight: 720,
-    points: ["학교 시험지·문제 이미지 업로드", "유사도와 출처를 보고 후보 확인", "고른 문제를 PPT 슬라이드로 구성"],
+    points: ["실제 시험 ↔ 사전 대비 자료 비교", "선생님이 적중 근거 최종 확인", "문제·개념 분할·흑백반전 PPT"],
     ctaPath: "/promo/matchup-ppt",
-    ctaLabel: "매치업·PPT 실제 화면 따라보기",
+    ctaLabel: "매치업·칠판 PPT 실제 화면 보기",
     tone: "matchup",
     featured: true,
   },
@@ -123,16 +123,16 @@ const PROOF_CARDS: ProofCard[] = [
 const FEATURE_GROUPS: FeatureGroup[] = [
   {
     id: "matchup-ppt-flow",
-    title: "시험지 매치업·수업 PPT",
+    title: "적중 매치업·칠판용 PPT",
     kicker: "수업자료 제작",
-    body: "학교 시험지를 시작점으로 유사문제 후보를 확인하고, 선생님이 고른 문제를 강의실 PPT까지 이어서 만듭니다.",
+    body: "실제 시험과 사전 대비 자료를 비교해 적중 근거를 남기고, 별도로 수업자료를 빔프로젝터용 PPT로 만듭니다.",
     icon: Presentation,
     accentBg: "#dce8ff",
     items: [
-      { title: "학교별 자료함", desc: "개포고·단대부고·숙명여고처럼 학교와 시험 범위별로 원문을 정리합니다." },
-      { title: "문항별 후보 비교", desc: "원문 옆에서 유사도와 출처를 보고 확인할 후보의 순서를 판단합니다." },
-      { title: "선생님 최종 선택", desc: "점수를 자동 정답처럼 쓰지 않고 풀이 구조와 수업 목적을 보고 직접 고릅니다." },
-      { title: "수업 PPT 생성", desc: "선택한 문제를 16:9·4:3 슬라이드로 구성하고 미리본 뒤 내려받습니다." },
+      { title: "실제 시험 등록", desc: "학교 시험에 실제로 출제된 문제를 학교·학기·시험별로 정리합니다." },
+      { title: "사전 자료 비교", desc: "우리 학원이 시험 전에 다룬 유사 문제를 나란히 보고 적중 근거를 확정합니다." },
+      { title: "문제·개념 분할", desc: "수업자료를 문제나 개념 단위로 나누고 슬라이드 순서를 정합니다." },
+      { title: "칠판용 PPT", desc: "흑백반전과 밝기·대비를 적용해 16:9·4:3 PPT로 내려받습니다." },
     ],
   },
   {
@@ -222,7 +222,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
 ];
 
 const NAV_LINKS = [
-  { label: "매치업·PPT", href: "#matchup-ppt" },
+  { label: "매치업·칠판 PPT", href: "#matchup-ppt" },
   { label: "학부모 상담 자료", href: "#parent-trust" },
   { label: "학생앱 영상", href: "#student-video" },
   { label: "알림톡 안내", href: "#alimtalk" },
@@ -238,14 +238,14 @@ export default function FeaturesPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>대치 수업 운영 · 실제 화면 중심</span>
-            <h1 id="features-title">찍은 문제를 찾고, 수업 PPT까지 이어서 만듭니다</h1>
+            <h1 id="features-title">적중 근거와 칠판용 PPT, 수업 전후의 일을 줄입니다</h1>
             <p>
-              시험지 매치업과 PPT 제작부터 출결, 성적, 영상, 알림톡, 보강까지.
+              실제 시험과 사전 자료 비교, 칠판용 PPT 제작부터 출결, 성적, 영상, 알림톡, 보강까지.
               대치 선생님이 수업 전후에 실제로 보는 화면을 기준으로 기능을 묶었습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/matchup-ppt" className={styles.primaryCta}>
-                매치업·PPT 따라보기
+                매치업·칠판 PPT 보기
                 <Presentation size={18} />
               </Link>
               <a href="#parent-trust" className={styles.secondaryCta}>
@@ -259,25 +259,25 @@ export default function FeaturesPage() {
             <figure className={styles.heroScreen}>
               <img
                 src="/promo/ppt-gaepo-setup-20260725.png"
-                alt="개포고 문제 두 장으로 수업 PPT를 구성하는 실제 화면"
+                alt="개포고 문제 자료를 나누고 흑백반전 칠판용 PPT로 구성하는 실제 화면"
                 width={1280}
                 height={720}
               />
               <figcaption className={styles.heroScreenCaption}>
-                <strong>선택한 문제 → 수업 PPT</strong>
+                <strong>문항 분할 → 흑백반전 PPT</strong>
                 <span>제품 실화면 · 2장 · 16:9</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
               <article>
                 <Camera size={16} />
-                <strong>학교 시험지 업로드</strong>
-                <p>이미지·PDF를 학교와 시험별로 정리합니다.</p>
+                <strong>적중 매치업</strong>
+                <p>실제 시험과 우리 학원 사전 자료를 비교합니다.</p>
               </article>
               <article>
                 <ScanSearch size={16} />
-                <strong>유사문제 후보</strong>
-                <p>원문 옆에서 후보를 보고 선생님이 고릅니다.</p>
+                <strong>칠판용 PPT</strong>
+                <p>자료를 나누고 흑백반전해 수업에 씁니다.</p>
               </article>
             </div>
           </aside>

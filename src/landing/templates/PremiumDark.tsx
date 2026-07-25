@@ -278,6 +278,9 @@ export default function PremiumDark({ config }: TemplateProps) {
             // 빈 picker = 섹션 hide (시각 검수 2026-05-12 H-1).
             const hitArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
             if (hitArr.length === 0) return null;
+            const hitDescription = section.description?.includes("본문 PDF")
+              ? "카드를 누르면 실제 시험과 사전 대비 자료의 대표 비교 화면이 바로 열립니다. 전체 문항은 PDF로 확인할 수 있습니다."
+              : section.description;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 40% at 50% 0%, rgba(${goldRgb},0.06) 0%, transparent 70%)`, pointerEvents: "none" }} />
@@ -285,7 +288,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                   <SectionHeader
                     eyebrow="Hit Records"
                     title={section.title || "최근 적중 사례"}
-                    description={section.description || "박철T 통합과학 내신반의 최근 학교 시험지 적중 결과입니다."}
+                    description={hitDescription || "실제 시험과 사전 대비 자료를 비교한 최근 적중 사례입니다."}
                     gold={gold}
                     goldRgb={goldRgb}
                     textSecondary={textSecondary}
