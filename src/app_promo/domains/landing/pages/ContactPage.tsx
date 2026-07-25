@@ -2,7 +2,9 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
+import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
+import { getPromoAttributionLabel } from "../promoAttribution";
 import styles from "./LeadPage.module.css";
 
 const INQUIRY_TYPES = ["가격 문의", "데모 요청", "수업 맞춤 상담", "기능 문의", "제휴 문의"];
@@ -12,6 +14,7 @@ export default function ContactPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -39,6 +42,8 @@ export default function ContactPage() {
         studentCount: form.student_count,
         inquiryType: form.inquiry_type,
         message: form.message,
+        privacyAgreed,
+        attribution: getPromoAttributionLabel(),
         website,
       });
       setSubmitted(true);
@@ -190,6 +195,12 @@ export default function ContactPage() {
                 placeholder="현재 수업 방식, 채점/피드백 고민, 필요한 기능을 적어주세요."
               />
             </label>
+
+            <LeadPrivacyConsent
+              checked={privacyAgreed}
+              disabled={pending}
+              onChange={setPrivacyAgreed}
+            />
 
             {error && <div className={styles.errorBox}>{error}</div>}
 

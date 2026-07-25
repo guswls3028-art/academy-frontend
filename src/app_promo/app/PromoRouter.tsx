@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import PromoLayout from "../layout/PromoLayout";
+import layoutStyles from "../layout/PromoLayout.module.css";
 
 const LandingPage = lazy(() => import("../domains/landing/pages/LandingPage"));
 const FeaturesPage = lazy(() => import("../domains/landing/pages/FeaturesPage"));
@@ -15,7 +16,13 @@ const ContactPage = lazy(() => import("../domains/landing/pages/ContactPage"));
 const DemoPage = lazy(() => import("../domains/landing/pages/DemoPage"));
 const LandingSamplesPage = lazy(() => import("@/landing/pages/LandingSamplesPage"));
 const ParentTrustPage = lazy(() => import("../domains/landing/pages/ParentTrustPage"));
-const routeFallback = <div className="flex min-h-[200px] items-center justify-center text-sm text-gray-500">불러오는 중…</div>;
+const routeFallback = (
+  <div className={layoutStyles.routeFallback} role="status" aria-live="polite">
+    <span aria-hidden="true" />
+    <strong>학원플러스 화면을 준비하고 있습니다</strong>
+    <p>잠시만 기다려주세요.</p>
+  </div>
+);
 
 type PromoPage = LazyExoticComponent<ComponentType>;
 

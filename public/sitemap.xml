@@ -7,7 +7,37 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://hakwonplus.com/login</loc>
+    <loc>https://hakwonplus.com/promo/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/matchup-ppt</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/parent-trust</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/ai-grading</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/video-platform</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/pricing</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hakwonplus.com/promo/faq</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

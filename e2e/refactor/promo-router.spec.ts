@@ -48,6 +48,7 @@ type VisibleLink = {
   label: string;
   targetPath: string;
   targetHash: string;
+  opensNewTab: boolean;
 };
 
 async function stubPromoBootstrap(page: Page) {
@@ -112,6 +113,7 @@ async function getVisibleInternalLinks(page: Page): Promise<VisibleLink[]> {
         href: el.getAttribute("href") || "",
         text: (el.textContent || "").replace(/\s+/g, " ").trim(),
         ariaLabel: el.getAttribute("aria-label") || "",
+        opensNewTab: el.target === "_blank",
         visible:
           rect.width > 0 &&
           rect.height > 0 &&
@@ -144,6 +146,7 @@ async function getVisibleInternalLinks(page: Page): Promise<VisibleLink[]> {
       label: link.text || link.ariaLabel || link.href,
       targetPath: target.pathname,
       targetHash: target.hash,
+      opensNewTab: link.opensNewTab,
     }];
   });
 }
@@ -173,6 +176,7 @@ async function getVisibleInternalLinkHandles(page: Page, sourceUrl: string) {
         href: anchor.getAttribute("href") || "",
         text: (anchor.textContent || "").replace(/\s+/g, " ").trim(),
         ariaLabel: anchor.getAttribute("aria-label") || "",
+        opensNewTab: anchor.target === "_blank",
         visible:
           rect.width > 0 &&
           rect.height > 0 &&
@@ -201,6 +205,7 @@ async function getVisibleInternalLinkHandles(page: Page, sourceUrl: string) {
         label: info.text || info.ariaLabel || info.href,
         targetPath: target.pathname,
         targetHash: target.hash,
+        opensNewTab: info.opensNewTab,
       },
     });
   }
@@ -215,6 +220,20 @@ async function clickAndAssertTarget(page: Page, link: VisibleLink, sourcePath: s
     (entry) => entry.link.targetPath === link.targetPath && entry.link.targetHash === link.targetHash,
   );
   expect(target, `click target should exist on ${sourcePath}: ${link.label} (${link.href})`).toBeTruthy();
+
+  if (target!.link.opensNewTab) {
+    const [popup] = await Promise.all([
+      page.waitForEvent("popup"),
+      target!.handle.click({ timeout: 8_000 }),
+    ]);
+    await popup.waitForLoadState("load");
+    await waitForRenderSettled(popup);
+    const after = new URL(popup.url());
+    expect(after.pathname, `${sourcePath} -> ${link.label} (${link.href})`).toBe(link.targetPath);
+    expect(after.hash, `${sourcePath} -> ${link.label} (${link.href}) hash`).toBe(link.targetHash);
+    await popup.close();
+    return;
+  }
 
   await target!.handle.click({ timeout: 8_000 });
   await waitForRenderSettled(page);
@@ -285,15 +304,8 @@ test.describe("promo route navigation", () => {
     }
   });
 
-  test("clicks every mobile promo tab and sidebar route", async ({ page }) => {
+  test("clicks every mobile sidebar route", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-
-    for (const targetPath of MOBILE_MENU_ROUTES) {
-      await gotoAndAssert(page, "/promo");
-      await page.locator(`nav[aria-label="프로모션 빠른 메뉴"] a[href="${targetPath}"]`).click();
-      await waitForRenderSettled(page);
-      expect(new URL(page.url()).pathname, `mobile tab -> ${targetPath}`).toBe(targetPath);
-    }
 
     for (const targetPath of MOBILE_MENU_ROUTES) {
       await gotoAndAssert(page, "/promo");

@@ -10,19 +10,11 @@ import {
   Megaphone,
   MessageSquareText,
   MousePointer2,
-  ShieldCheck,
   Smartphone,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./ParentTrustPage.module.css";
-
-const REPORT_METRICS = [
-  { label: "이번 주 출결", value: "97%", note: "결석 2명 알림톡 발송" },
-  { label: "시험 평균", value: "86점", note: "취약 문항 3개 확인" },
-  { label: "영상 완료", value: "92%", note: "미시청 5명 재안내" },
-  { label: "보강 후보", value: "8명", note: "클리닉 예약 후보" },
-];
 
 const REPORT_FLOW = [
   {
@@ -32,18 +24,18 @@ const REPORT_FLOW = [
   },
   {
     icon: FileText,
-    title: "학부모 리포트 요약",
-    body: "이번 주 변화, 취약 단원, 다음에 챙길 일을 짧은 문장으로 보여줍니다.",
+    title: "안내할 기록 확인하기",
+    body: "성적, 미시청 영상, 보강 이력 중 이번 상담에 필요한 내용만 선생님이 확인합니다.",
   },
   {
     icon: BellRing,
-    title: "알림톡 안내",
-    body: "수업 결과, 영상 확인, 보강 안내를 학부모에게 정리해 보냅니다.",
+    title: "선생님 메모 작성·검수",
+    body: "승인된 알림톡 양식 안에 선생님 메모를 적고, 대상과 내용을 발송 전에 확인합니다.",
   },
   {
     icon: Megaphone,
-    title: "상담·홍보 자료",
-    body: "적중 리포트와 학교별 내신반 소개 페이지에 같은 자료를 활용합니다.",
+    title: "알림톡 또는 상담에 활용",
+    body: "확정한 내용은 알림톡으로 보내거나 상담 화면을 보며 학부모에게 설명합니다.",
   },
 ];
 
@@ -58,14 +50,14 @@ const USE_CASES = [
   {
     icon: Smartphone,
     title: "영상 복습 관리",
-    body: "누가 영상을 안 봤는지, 어디까지 봤는지를 리포트에 담아 복습 확인 질문에 답할 수 있습니다.",
+    body: "누가 영상을 안 봤는지, 어디까지 봤는지를 확인해 복습 안내와 상담 근거로 활용합니다.",
     image: "/promo/student-video-player.png",
     alt: "학생전용앱 영상 플레이어 화면",
   },
   {
     icon: MessageSquareText,
     title: "보강 상담 회수",
-    body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 안내 알림톡까지 보냅니다.",
+    body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
     image: "/promo/admin-messages.png",
     alt: "관리자 알림톡 운영 화면",
   },
@@ -81,30 +73,20 @@ const PACKAGES = [
 
 function HeroReportPreview() {
   return (
-    <aside className={styles.reportPreview} aria-label="학부모 리포트 예시">
+    <aside className={styles.reportPreview} aria-label="성적 관리 실제 제품 화면">
       <div className={styles.reportTop}>
         <div>
-          <span>주간 관리 리포트</span>
-          <strong>대치중2 내신반</strong>
+          <span>상담에 쓸 수업 기록</span>
+          <strong>성적·미처리·보강 확인</strong>
         </div>
-        <small>발송 준비</small>
+        <small>제품 실화면</small>
       </div>
-      <div className={styles.reportSummary}>
-        <ShieldCheck size={22} />
-        <p>이번 주 출결은 안정적이고, 함수 단원 오답률이 높아 금요일 클리닉 대상자를 선별했습니다.</p>
-      </div>
-      <div className={styles.metricGrid}>
-        {REPORT_METRICS.map((metric) => (
-          <article key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-            <p>{metric.note}</p>
-          </article>
-        ))}
-      </div>
+      <figure className={styles.reportScreen}>
+        <img src="/promo/admin-scores.png" alt="수강생별 성적과 미처리 상태를 확인하는 학원플러스 관리자 화면" />
+      </figure>
       <div className={styles.reportActions}>
-        <span>학부모 알림톡</span>
-        <strong>이번 주 리포트 발송 대기 42명</strong>
+        <span>기록을 확인한 다음</span>
+        <strong>선생님이 안내 내용과 대상을 최종 확정합니다</strong>
       </div>
     </aside>
   );
@@ -116,23 +98,23 @@ export default function ParentTrustPage() {
       <section className={styles.hero} aria-labelledby="parent-trust-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>상담 전 설명 자료</span>
-            <h1 id="parent-trust-title">상담 전에 보낼 수 있는 주간 관리 리포트</h1>
+            <span className={styles.eyebrow}>학부모 상담 자료</span>
+            <h1 id="parent-trust-title">학부모 상담, 기억 대신 수업 기록으로</h1>
             <p>
-              학부모는 “이번 주에 뭘 챙겨줬는지”를 알고 싶어 합니다.
-              출결, 성적, 영상, 보강 내역을 한 주 리포트와 알림톡으로 보여주세요.
+              출결, 성적, 영상, 보강 기록을 화면에서 확인하고 상담에 필요한 내용만 골라 설명하세요.
+              알림톡은 선생님이 내용과 대상을 확인한 뒤 보냅니다.
             </p>
             <div className={styles.heroActions}>
-              <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
-              <Link to="/promo/demo" className={styles.secondaryCta}>
-                데모 요청
+              <Link to="/promo/demo" className={styles.primaryCta}>
+                내 자료로 데모 요청
                 <MousePointer2 size={18} />
               </Link>
-              <Link to="/promo/pricing" className={styles.ghostCta}>
-                패키지 요금 보기
+              <Link to="/promo/features" className={styles.ghostCta}>
+                실제 화면 보기
                 <ArrowRight size={18} />
               </Link>
             </div>
+            <p className={styles.heroPhone}>전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink></p>
           </div>
 
           <HeroReportPreview />
@@ -146,8 +128,8 @@ export default function ParentTrustPage() {
               <BarChart3 size={16} />
               수업 기록에서 안내까지
             </span>
-            <h2 id="trust-flow-title">이미 남긴 기록으로 이번 주 안내를 만듭니다</h2>
-            <p>새 일을 억지로 늘리지 않고, 수업 중에 남긴 기록을 학부모가 이해할 말로 바꿉니다.</p>
+            <h2 id="trust-flow-title">이미 남긴 기록을 확인하고, 선생님 말로 안내합니다</h2>
+            <p>자동으로 그럴듯한 보고서를 만들지 않습니다. 실제 기록을 보고 필요한 내용만 선생님이 확정합니다.</p>
           </header>
 
           <ol className={styles.flowGrid}>
@@ -173,8 +155,8 @@ export default function ParentTrustPage() {
               <Megaphone size={16} aria-hidden="true" />
               활용 예시
             </span>
-            <h2 id="use-case-title">보여줄 자료가 있어야 상담이 짧아집니다</h2>
-            <p>홍보 문구만 바꾸지 않고, 학부모가 실제로 볼 기록과 화면을 앞에 둡니다.</p>
+            <h2 id="use-case-title">기록을 함께 보면 상담이 편해집니다</h2>
+            <p>기억에 기대지 않고, 학부모가 궁금해하는 출결·성적·영상·보강 화면을 보며 설명합니다.</p>
           </header>
 
           <div className={styles.useCaseGrid}>
@@ -192,11 +174,11 @@ export default function ParentTrustPage() {
                     <ul>
                       <li>
                         <CheckCircle2 size={15} />
-                        학부모가 이해할 말로 다시 쓰기
+                        실제 기록에서 안내할 내용 고르기
                       </li>
                       <li>
                         <CheckCircle2 size={15} />
-                        상담·홍보 페이지에도 같은 내용 활용
+                        선생님이 대상과 내용 최종 확인
                       </li>
                     </ul>
                   </div>
@@ -237,8 +219,8 @@ export default function ParentTrustPage() {
       </section>
 
       <CtaSection
-        title="현재 남기고 있는 수업 기록부터 리포트로 만들어보세요"
-        subtitle="출결, 성적, 영상, 보강을 어떻게 관리하는지 듣고 시작 범위를 정해드립니다."
+        title="현재 남기고 있는 수업 기록부터 함께 확인해보세요"
+        subtitle="출결, 성적, 영상, 보강을 어떻게 관리하는지 듣고 상담에 필요한 화면을 보여드립니다."
       />
     </div>
   );

@@ -12,6 +12,6 @@ export const PLATFORM_LEGAL_CONFIG: LegalConfig = {
   privacy_officer_name: "유현진",
   privacy_officer_contact: "devhyun7466@gmail.com",
   terms_version: "1.1",
-  privacy_version: "1.1",
+  privacy_version: "1.2",
   effective_date: "2026-03-14",
 };

@@ -62,14 +62,15 @@ test.describe("promo navigation", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });
 
-    const quickVideoLink = page.locator('header nav[aria-label="프로모션 빠른 메뉴"] a[href="/promo/video-platform"]');
-    await expect(quickVideoLink).toHaveCount(1);
-    await quickVideoLink.click();
+    const menuButton = page.locator('button[aria-controls="promo-mobile-sidebar"]');
+    await menuButton.click();
+    const sidebarVideoLink = page.locator('#promo-mobile-sidebar a[href="/promo/video-platform"]');
+    await expect(sidebarVideoLink).toHaveCount(1);
+    await sidebarVideoLink.click();
     await expect(page).toHaveURL(/\/promo\/video-platform$/);
     await expect(page.getByRole("heading", { name: "수강생이 학생전용앱에서 이어서 보는 영상 학습" })).toBeVisible();
 
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });
-    const menuButton = page.locator('button[aria-controls="promo-mobile-sidebar"]');
     await expect(menuButton).toHaveCount(1);
     await menuButton.click();
     await expect(menuButton).toHaveAttribute("aria-expanded", "true");

@@ -1,6 +1,6 @@
 // PATH: src/app_promo/layout/PromoLayout.tsx
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ClipboardList,
   CreditCard,
@@ -16,12 +16,15 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
+import { capturePromoAttribution } from "../domains/landing/promoAttribution";
+import { applyPromoMeta } from "../domains/landing/promoMeta";
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "홈", path: "/promo", icon: Home, note: "수업 운영 개요" },
-  { label: "리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "상담 전 설명 자료" },
+  { label: "홈", path: "/promo", icon: Home, note: "제품과 도입 흐름" },
+  { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·PPT와 실제 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "8월 평생 보장가" },
@@ -33,7 +36,7 @@ const ACTIVE_ALIASES: Record<string, string[]> = {
   "/promo/contact": ["/promo/demo"],
 };
 
-const HAKWONPLUS_ICON = "/tenants/hakwonplus/icon.png";
+const HAKWONPLUS_ICON = "/tenants/hakwonplus/favicon.png";
 
 function isActive(pathname: string, path: string) {
   if (path === "/promo") return pathname === "/promo";
@@ -55,6 +58,9 @@ function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -68,16 +74,45 @@ function Header() {
   }, [location.pathname]);
 
   useEffect(() => {
+    if (sidebarRef.current) sidebarRef.current.inert = !mobileOpen;
+  }, [mobileOpen]);
+
+  useEffect(() => {
     if (!mobileOpen) return undefined;
     const previous = document.body.style.overflow;
+    const trigger = menuButtonRef.current;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(
+        sidebarRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
+    window.requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", onKey);
+      trigger?.focus();
     };
   }, [mobileOpen]);
 
@@ -105,7 +140,7 @@ function Header() {
                     to={item.path}
                     className={isActive(location.pathname, item.path) ? styles.isActive : ""}
                   >
-                    <Icon size={16} />
+                    <Icon size={ICON.sm} />
                     {item.label}
                   </Link>
                 );
@@ -115,28 +150,29 @@ function Header() {
 
           <div className={styles.headerActions}>
             <PhoneInquiryLink className={styles.phoneLink}>
-              <PhoneCall size={16} />
+              <PhoneCall size={ICON.sm} />
               전화 문의
             </PhoneInquiryLink>
             <Link to="/login" className={styles.loginLink}>
-              <LogIn size={16} />
+              <LogIn size={ICON.sm} />
               로그인
             </Link>
             <Link to="/promo/demo" className={styles.demoLink}>
-              <MousePointer2 size={16} />
-              데모 요청
+              <MousePointer2 size={ICON.sm} />
+              내 자료로 데모
             </Link>
           </div>
 
           <button
             type="button"
+            ref={menuButtonRef}
             className={styles.mobileMenuButton}
             aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
             aria-expanded={mobileOpen}
             aria-controls="promo-mobile-sidebar"
             onClick={() => setMobileOpen((value) => !value)}
           >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileOpen ? <X size={ICON.lg} /> : <Menu size={ICON.lg} />}
           </button>
         </div>
 
@@ -149,7 +185,7 @@ function Header() {
                 to={item.path}
                 className={isActive(location.pathname, item.path) ? styles.isActive : ""}
               >
-                <Icon size={15} />
+                <Icon size={ICON.sm} />
                 {item.label}
               </Link>
             );
@@ -165,9 +201,11 @@ function Header() {
         onClick={() => setMobileOpen(false)}
       />
       <aside
+        ref={sidebarRef}
         id="promo-mobile-sidebar"
         className={`${styles.mobileSidebar} ${mobileOpen ? styles.isOpen : ""}`}
         aria-label="프로모션 사이드 메뉴"
+        aria-hidden={!mobileOpen}
       >
         <div className={styles.sidebarHead}>
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
@@ -179,8 +217,8 @@ function Header() {
               <small>수업 운영</small>
             </span>
           </Link>
-          <button type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
-            <X size={20} />
+          <button ref={closeButtonRef} type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
+            <X size={ICON.md} />
           </button>
         </div>
 
@@ -193,7 +231,7 @@ function Header() {
                 to={item.path}
                 className={isActive(location.pathname, item.path) ? styles.isActive : ""}
               >
-                <Icon size={18} />
+                <Icon size={ICON.md} />
                 <span>
                   <strong>{item.label}</strong>
                   <small>{item.note}</small>
@@ -205,22 +243,33 @@ function Header() {
 
         <div className={styles.sidebarCta}>
           <span>
-            <Sparkles size={16} />
-            도입 범위 상담
+            <Sparkles size={ICON.sm} />
+            내 수업 기준으로 확인
           </span>
-          <p>현재 쓰는 수업 관리 방식을 기준으로 먼저 정리할 업무를 함께 고릅니다.</p>
+          <p>현재 쓰는 시험지와 운영 방식을 기준으로 필요한 화면만 보여드립니다.</p>
+          <Link to="/promo/demo">
+            내 자료로 데모 요청
+            <PanelLeftOpen size={ICON.sm} />
+          </Link>
           <PhoneInquiryLink>
             전화 문의
-            <PhoneCall size={16} />
+            <PhoneCall size={ICON.sm} />
           </PhoneInquiryLink>
-          <Link to="/promo/demo">
-            데모 요청
-            <PanelLeftOpen size={16} />
-          </Link>
         </div>
       </aside>
     </>
   );
+}
+
+function PromoDocumentManager() {
+  const location = useLocation();
+
+  useEffect(() => {
+    applyPromoMeta(location.pathname);
+    capturePromoAttribution(location.search);
+  }, [location.pathname, location.search]);
+
+  return null;
 }
 
 function PromoScrollManager() {
@@ -236,6 +285,7 @@ function PromoScrollManager() {
 
     let cancelled = false;
     let attempts = 0;
+    const correctionTimers: number[] = [];
     const id = decodeHashId(location.hash);
 
     const scrollToHashTarget = () => {
@@ -254,9 +304,13 @@ function PromoScrollManager() {
     };
 
     window.requestAnimationFrame(scrollToHashTarget);
+    [160, 480, 960].forEach((delay) => {
+      correctionTimers.push(window.setTimeout(scrollToHashTarget, delay));
+    });
 
     return () => {
       cancelled = true;
+      correctionTimers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [location.pathname, location.hash]);
 
@@ -277,13 +331,13 @@ function Footer() {
               <small>수업 운영</small>
             </span>
           </Link>
-          <p>출결, 시험, 영상, 알림톡을 한 화면에서 관리하는 학원 운영 도구</p>
+          <p>대치 강사·원장을 위한 수업자료 제작과 학원 운영 도구</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
         <nav aria-label="제품">
           <h2>제품</h2>
-          <Link to="/promo/parent-trust">학부모 리포트</Link>
+          <Link to="/promo/parent-trust">학부모 상담 자료</Link>
           <Link to="/promo/features">기능 소개</Link>
           <Link to="/promo/matchup-ppt">매치업·PPT</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
@@ -314,6 +368,7 @@ function Footer() {
 export default function PromoLayout() {
   return (
     <div className={styles.layout}>
+      <PromoDocumentManager />
       <PromoScrollManager />
       <Header />
       <main className={styles.main}>

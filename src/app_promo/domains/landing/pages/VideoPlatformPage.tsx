@@ -26,10 +26,10 @@ const TEACHER_VISIBLE = [
   "필요한 학생에게 영상 시청 안내 발송",
 ];
 
-const AUTO_MESSAGES = [
-  { title: "입실·결석 알림", desc: "출결 처리와 동시에 학부모에게 상황을 안내합니다." },
-  { title: "수업결과 알림톡", desc: "저장된 성적과 피드백으로 결과 안내를 보냅니다." },
-  { title: "영상 시청 안내", desc: "영상을 안 본 학생에게 복습 안내를 보냅니다." },
+const MESSAGE_CASES = [
+  { title: "입실·결석 알림", desc: "설정된 출결 안내의 발송 상태를 화면에서 확인합니다." },
+  { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 보고 내용을 확인한 뒤 보냅니다." },
+  { title: "영상 시청 안내", desc: "영상을 안 본 학생을 고르고 복습 안내를 보냅니다." },
 ];
 
 export default function VideoPlatformPage() {
@@ -184,14 +184,14 @@ export default function VideoPlatformPage() {
                 <MessageSquareText size={17} />
                 알림톡 발송
               </span>
-              <h2 id="video-alimtalk-title">알림톡 자동 발송은 반복 안내를 줄입니다</h2>
+              <h2 id="video-alimtalk-title">영상 안내 알림톡은 선생님이 확인해 보냅니다</h2>
               <p>
-                수업 후 결과 안내, 출결 확인, 영상 시청 안내를 매번 손으로 쓰지 않도록
-                승인 템플릿과 발송 조건을 미리 잡아둡니다.
+                미시청 학생을 확인하고 승인된 알림톡 양식에 안내 내용을 담습니다.
+                대상과 선생님 메모는 발송 전에 최종 확인합니다.
               </p>
             </div>
             <div className={styles.messageGrid}>
-              {AUTO_MESSAGES.map((item) => (
+              {MESSAGE_CASES.map((item) => (
                 <article key={item.title}>
                   <BellRing size={18} />
                   <strong>{item.title}</strong>
@@ -200,8 +200,8 @@ export default function VideoPlatformPage() {
               ))}
             </div>
             <figure className={styles.alimtalkVisual}>
-              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 자동 발송 설정 화면" loading="lazy" />
-              <figcaption>관리자 자동 발송 설정 화면</figcaption>
+              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 발송 설정 화면" loading="lazy" />
+              <figcaption>관리자 알림톡 발송 설정 화면</figcaption>
             </figure>
           </div>
         </div>

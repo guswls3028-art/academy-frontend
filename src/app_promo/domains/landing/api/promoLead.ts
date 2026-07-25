@@ -54,10 +54,17 @@ export function submitPromoDemoLead(input: {
   currentWorkflow: string;
   interests: string[];
   message: string;
+  privacyAgreed: boolean;
+  attribution?: string;
   website?: string;
 }) {
+  if (!input.privacyAgreed) {
+    throw new Error("개인정보 수집·이용 동의가 필요합니다.");
+  }
   const interest = input.interests.length > 0 ? input.interests.join(", ") : "데모 요청";
   const message = linesToMessage([
+    ["개인정보 수집·이용", "동의"],
+    ["유입 정보", input.attribution],
     ["소속/수업명", input.academyName],
     ["이메일", input.email],
     ["담당 수강생 수", input.studentCount],
@@ -84,9 +91,16 @@ export function submitPromoContactLead(input: {
   studentCount: string;
   inquiryType: string;
   message: string;
+  privacyAgreed: boolean;
+  attribution?: string;
   website?: string;
 }) {
+  if (!input.privacyAgreed) {
+    throw new Error("개인정보 수집·이용 동의가 필요합니다.");
+  }
   const message = linesToMessage([
+    ["개인정보 수집·이용", "동의"],
+    ["유입 정보", input.attribution],
     ["문의 유형", input.inquiryType],
     ["소속/수업명", input.academyName],
     ["이메일", input.email],
@@ -113,5 +127,6 @@ export function getPromoLeadErrorMessage(error: unknown) {
 
   if (Array.isArray(detail)) return detail[0] || "전송 실패. 잠시 후 다시 시도해주세요.";
   if (typeof detail === "string") return detail;
+  if (error instanceof Error && error.message) return error.message;
   return "전송 실패. 잠시 후 다시 시도해주세요.";
 }

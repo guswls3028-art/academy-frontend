@@ -83,8 +83,19 @@
   margin-top: 34px;
 }
 
+.heroPhone {
+  margin-top: 16px !important;
+  color: rgba(248, 250, 252, 0.66) !important;
+  font-size: 13px !important;
+}
+
+.heroPhone a {
+  color: #9ee8df;
+  font-weight: 900;
+  text-underline-offset: 3px;
+}
+
 .primaryCta,
-.secondaryCta,
 .ghostCta,
 .darkCta {
   display: inline-flex;
@@ -101,7 +112,6 @@
 }
 
 .primaryCta:hover,
-.secondaryCta:hover,
 .ghostCta:hover,
 .darkCta:hover {
   transform: translateY(-2px);
@@ -111,12 +121,6 @@
   color: #081018;
   background: #fff;
   box-shadow: 0 20px 54px rgba(0, 0, 0, 0.22);
-}
-
-.secondaryCta {
-  border: 1px solid rgba(125, 211, 252, 0.58);
-  color: #06131b;
-  background: #7dd3fc;
 }
 
 .ghostCta {
@@ -143,7 +147,6 @@
 }
 
 .reportTop span,
-.metricGrid span,
 .reportActions span,
 .packageStack span {
   display: block;
@@ -172,65 +175,21 @@
   background: rgba(251, 191, 36, 0.1);
 }
 
-.reportSummary {
-  display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 13px;
-  align-items: start;
-  margin-top: 22px;
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: 8px;
-  padding: 15px;
-  background: rgba(125, 211, 252, 0.1);
-}
-
-.reportSummary svg {
-  width: 46px;
-  height: 46px;
-  border-radius: 8px;
-  padding: 11px;
-  color: #08202a;
-  background: #9ee8df;
-}
-
-.reportSummary p {
-  margin: 0;
-  color: rgba(248, 250, 252, 0.78);
-  font-size: 13px;
-  line-height: 1.62;
-  word-break: keep-all;
-}
-
-.metricGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.reportScreen {
   margin-top: 14px;
-}
-
-.metricGrid article {
-  min-height: 128px;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #e7eef1;
 }
 
-.metricGrid strong {
+.reportScreen img {
   display: block;
-  margin-top: 18px;
-  color: #fff;
-  font-size: 30px;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.metricGrid p {
-  margin: 10px 0 0;
-  color: rgba(248, 250, 252, 0.62);
-  font-size: 12px;
-  line-height: 1.45;
-  word-break: keep-all;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: left top;
 }
 
 .reportActions {
@@ -540,7 +499,6 @@
   }
 
   .primaryCta,
-  .secondaryCta,
   .ghostCta,
   .darkCta {
     width: 100%;
@@ -550,7 +508,6 @@
     flex-direction: column;
   }
 
-  .metricGrid,
   .flowGrid {
     grid-template-columns: 1fr;
   }
@@ -581,14 +538,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .primaryCta,
-  .secondaryCta,
   .ghostCta,
   .darkCta {
     transition: none;
   }
 
   .primaryCta:hover,
-  .secondaryCta:hover,
   .ghostCta:hover,
   .darkCta:hover {
     transform: none;

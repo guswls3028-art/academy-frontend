@@ -81,8 +81,8 @@
 }
 
 .actions a:first-child {
-  color: #081018;
-  background: #fff;
+  color: #04131b;
+  background: #37d6f2;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
 }
 
@@ -91,6 +91,18 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
+}
+
+.phoneNote {
+  margin-top: 18px !important;
+  color: rgba(248, 250, 252, 0.66) !important;
+  font-size: 13px !important;
+}
+
+.phoneNote a {
+  color: #a7f3f5;
+  font-weight: 900;
+  text-underline-offset: 3px;
 }
 
 @media (max-width: 760px) {

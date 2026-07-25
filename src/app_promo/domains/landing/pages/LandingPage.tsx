@@ -1,321 +1,300 @@
-// PATH: src/app_promo/domains/landing/pages/LandingPage.tsx
-import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BarChart3,
   BellRing,
-  BookOpen,
+  BookOpenCheck,
   Camera,
+  Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
   ClipboardCheck,
-  Download,
-  Eye,
   FileText,
   GraduationCap,
-  Layers3,
-  Megaphone,
   MessageSquareText,
   MousePointer2,
-  Pause,
-  Play,
+  PlayCircle,
   Presentation,
   ScanSearch,
   ShieldCheck,
   Sparkles,
-  Smartphone,
-  Zap,
 } from "lucide-react";
+import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./LandingPage.module.css";
 
-const HERO_SLIDES = [
+const AUDIENCES = [
   {
-    id: "matchup",
-    eyebrow: "대치 수업자료 제작",
-    title: "찍은 문제, 찾아서 수업 PPT까지",
-    body: "학교 시험지를 올리면 유사문제 후보를 비교하고, 고른 문제를 16:9 수업용 PPT로 이어서 만듭니다.",
-    image: "/promo/matchup-gaepo-results-20260725.png",
-    tone: "매치업·PPT",
-    stat: "기출 비교 · 후보 확인 · 수업 PPT",
-    cta: "/promo/matchup-ppt",
+    label: "개인 강사",
+    copy: "시험지와 수업자료 제작 시간을 줄이고 싶은 선생님",
   },
   {
-    id: "trust",
-    eyebrow: "학부모 설명 자료",
-    title: "수업 기록이 학부모 리포트로 이어집니다",
-    body: "출결, 시험, 복습 영상, 보강 기록을 상담 때 확인할 자료로 정리합니다.",
+    label: "학원 원장",
+    copy: "여러 반의 수업 기록과 학부모 안내를 한곳에서 보고 싶은 원장님",
+  },
+  {
+    label: "운영 실장",
+    copy: "출결·성적·영상·보강의 누락을 줄이고 싶은 운영 담당자",
+  },
+];
+
+const VALUE_ITEMS = [
+  {
+    icon: Presentation,
+    title: "찍은 시험지를 수업자료로",
+    copy: "시험지 이미지를 올리고 유사문제 후보를 직접 확인한 뒤, 고른 문제를 PPT로 이어서 만듭니다.",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "시험 뒤 챙길 학생을 한눈에",
+    copy: "성적, 미제출, 영상 시청, 보강 기록을 따로 찾지 않고 필요한 학생부터 확인합니다.",
+  },
+  {
+    icon: MessageSquareText,
+    title: "학부모 안내는 기록을 보고",
+    copy: "저장된 수업 결과를 확인하고, 선생님이 내용을 최종 검수한 뒤 승인된 알림톡으로 안내합니다.",
+  },
+];
+
+const MATCHUP_STEPS = [
+  {
+    icon: Camera,
+    title: "시험지 촬영·업로드",
+    copy: "휴대폰으로 찍은 문제 이미지나 PDF를 학교·시험별 자료함에 넣습니다.",
+  },
+  {
+    icon: ScanSearch,
+    title: "후보 나란히 비교",
+    copy: "원문 옆에서 유사문제 후보와 출처를 보고 수업에 맞는 문제를 직접 고릅니다.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "선생님이 최종 선택",
+    copy: "유사도는 참고값으로만 사용하고, 풀이 구조와 수업 목적을 기준으로 판단합니다.",
+  },
+  {
+    icon: Presentation,
+    title: "PPT 구성·다운로드",
+    copy: "선택한 문제를 16:9 또는 4:3 슬라이드로 미리 본 뒤 수업용 파일로 내려받습니다.",
+  },
+];
+
+const OPERATIONS = [
+  {
+    id: "scores",
+    icon: BarChart3,
+    eyebrow: "시험·성적",
+    title: "시험이 끝난 뒤, 다음 조치까지 이어집니다",
+    copy: "점수와 미처리 상태를 한 화면에서 확인하고, 취약 문항과 보강이 필요한 학생을 선생님이 판단합니다.",
+    bullets: ["수강생별 점수·미처리 확인", "문항별 결과와 취약 지점 확인", "피드백과 보강 기록 연결"],
     image: "/promo/admin-scores.png",
-    tone: "학부모 리포트",
-    stat: "출결·성적·영상·보강 요약",
-    cta: "/promo/parent-trust",
-  },
-  {
-    id: "exam",
-    eyebrow: "시험 후 정리",
-    title: "시험 이후 챙길 일을 한 화면에서 봅니다",
-    body: "채점 결과, 약한 문항, 보강이 필요한 학생을 한 화면에서 확인합니다.",
-    image: "/promo/admin-exams.png",
-    tone: "채점·피드백",
-    stat: "문항 분석부터 보강 안내",
-    cta: "/promo/ai-grading",
-  },
-  {
-    id: "message",
-    eyebrow: "반복 안내 정리",
-    title: "출결·수업 결과 안내를 운영 흐름에 포함합니다",
-    body: "입실·결석, 수업 결과, 복습 영상 안내를 알림톡으로 보낼 수 있습니다.",
-    image: "/promo/admin-messages.png",
-    tone: "알림톡",
-    stat: "출결·성적·영상 안내",
-    cta: "/promo/features",
+    alt: "학원플러스 관리자 성적 관리 실제 화면",
+    href: "/promo/ai-grading",
+    cta: "채점·성적 화면 보기",
+    kind: "desktop",
   },
   {
     id: "video",
-    eyebrow: "학생앱 복습",
-    title: "학생은 앱에서 복습하고, 선생님은 시청 여부를 봅니다",
-    body: "누가 어디까지 봤는지 남기고, 아직 보지 않은 학생에게 안내를 보냅니다.",
-    image: "/promo/admin-lectures.png",
-    tone: "학생앱 영상",
-    stat: "이어보기·시청 이력·댓글",
-    cta: "/promo/video-platform",
-  },
-];
-
-const OPERATING_TABS = [
-  {
-    id: "classes",
-    label: "수업 준비",
-    icon: BookOpen,
-    title: "수업 전후 확인할 일을 한 화면에 모았습니다",
-    body: "강의, 차시, 수강생 상태, 미처리 항목을 수업 전후에 확인합니다.",
-    points: ["강의/차시 구조", "수강생별 상태", "미처리 확인"],
-    image: "/promo/admin-lectures.png",
-    accent: "mint",
-  },
-  {
-    id: "scores",
-    label: "시험·성적",
-    icon: ClipboardCheck,
-    title: "시험 결과를 보고 보강 대상을 정리합니다",
-    body: "시험 생성부터 채점, 성적표, 보강 후보 확인까지 이어서 처리합니다.",
-    points: ["시험 운영", "성적 분석", "보강 대상 확인"],
-    image: "/promo/admin-scores.png",
-    accent: "amber",
+    icon: PlayCircle,
+    eyebrow: "학생앱 영상",
+    title: "학생은 이어 보고, 선생님은 시청 상태를 봅니다",
+    copy: "학생은 별도 링크를 찾지 않고 앱에서 복습 영상을 보고, 선생님은 마지막 위치와 완료 여부를 확인합니다.",
+    bullets: ["강의별 영상 목록", "이어보기·배속·댓글", "미시청·시청중·완료 상태"],
+    image: "/promo/student-video-player.png",
+    alt: "학원플러스 학생앱 영상 플레이어 실제 화면",
+    href: "/promo/video-platform",
+    cta: "학생앱 영상 보기",
+    kind: "phone",
   },
   {
     id: "message",
-    label: "안내·메시지",
-    icon: MessageSquareText,
-    title: "출결, 수업 결과, 영상 안내를 알림톡으로 보냅니다",
-    body: "입실·결석과 수업 피드백을 저장된 템플릿으로 안내합니다.",
-    points: ["입실·결석 알림", "수업결과 알림톡", "영상 시청 안내"],
+    icon: BellRing,
+    eyebrow: "학부모 알림톡",
+    title: "보내기 전에 선생님이 내용을 확인합니다",
+    copy: "가입·출결·시험·클리닉처럼 반복되는 안내는 승인된 양식을 사용하고, 선생님 메모는 발송 전에 최종 확인합니다.",
+    bullets: ["승인된 공용 알림톡 양식", "자동·수동 발송 상태 구분", "발송 전 내용과 대상 확인"],
     image: "/promo/admin-messages.png",
-    accent: "rose",
-  },
-  {
-    id: "landing",
-    label: "수업 홍보",
-    icon: Megaphone,
-    title: "수업 소개와 성과 자료를 한 페이지에 모읍니다",
-    body: "학교별 내신반, 후기, 적중 리포트를 상담 전에 보여줄 페이지로 관리합니다.",
-    points: ["학교별 내신 대비", "수강 후기", "적중 리포트"],
-    image: "/promo/landing-daechi-preview-20260527.png",
-    accent: "blue",
+    alt: "학원플러스 관리자 알림톡 실제 화면",
+    href: "/promo/features#communication",
+    cta: "알림톡 운영 보기",
+    kind: "desktop",
   },
 ];
 
-const VALUE_CARDS = [
+const START_POINTS = [
+  {
+    icon: BookOpenCheck,
+    title: "지금 쓰는 방식부터 듣습니다",
+    copy: "엑셀, 수기, 다른 솔루션을 억지로 한 번에 바꾸지 않고 먼저 줄일 업무를 고릅니다.",
+  },
+  {
+    icon: FileText,
+    title: "실제 자료로 화면을 보여드립니다",
+    copy: "샘플 문구보다 선생님의 시험지와 수업 흐름으로 매치업·PPT와 운영 화면을 확인합니다.",
+  },
   {
     icon: ShieldCheck,
-    title: "상담 때 반복 설명을 줄입니다",
-    body: "출결, 시험, 복습, 보강 내역을 미리 정리해 상담 내용을 분명하게 만듭니다.",
-  },
-  {
-    icon: BarChart3,
-    title: "수업 기록을 다음 상담 자료로 씁니다",
-    body: "시험 결과와 수업 이력을 후기, 적중 리포트, 상담 자료에 연결합니다.",
-  },
-  {
-    icon: Layers3,
-    title: "수업 소개 페이지를 최신 상태로 둡니다",
-    body: "수업 중에 쌓인 자료를 소개 페이지와 상담 자료에 반영합니다.",
+    title: "가격과 별도 비용을 먼저 밝힙니다",
+    copy: "월 159,000원에 전체 기능과 200GB를 제공하며, 알림톡·추가 용량 등 별도 비용은 상담 전에 안내합니다.",
   },
 ];
 
-const TRUST_METRICS = [
-  { label: "이번 주 출결", value: "97%", detail: "결석 2명 자동 알림" },
-  { label: "시험 평균", value: "86점", detail: "취약 문항 3개 표시" },
-  { label: "영상 완료", value: "92%", detail: "미시청 5명 재안내" },
-  { label: "보강 대기", value: "8명", detail: "클리닉 후보 확인" },
-];
-
-const TRUST_STEPS = [
-  { icon: ClipboardCheck, title: "수업 기록", body: "출결·시험·복습·보강 내역이 수업을 진행하면서 쌓입니다." },
-  { icon: BarChart3, title: "주간 요약", body: "이번 주 변화와 다음에 챙길 일을 짧게 보여줍니다." },
-  { icon: BellRing, title: "알림톡 안내", body: "수업 결과, 복습 확인, 보강 안내를 학부모에게 보냅니다." },
-  { icon: Megaphone, title: "상담 자료", body: "적중 리포트와 학교별 내신반 소개에도 같은 자료를 씁니다." },
-];
-
-const WORKFLOW = [
-  { icon: GraduationCap, title: "수업", body: "강의와 수강생 상태 확인" },
-  { icon: FileText, title: "평가", body: "시험·과제 생성과 응시" },
-  { icon: BarChart3, title: "분석", body: "성적표와 문항별 분석" },
-  { icon: CheckCircle2, title: "보강", body: "보강 대상자 판단" },
-  { icon: MessageSquareText, title: "안내", body: "수업결과 알림톡 발송" },
-];
-
-const STUDENT_APP_POINTS = [
-  {
-    icon: Smartphone,
-    title: "학생앱 영상 복습",
-    body: "수강생은 모바일 앱에서 강의 목록을 보고, 보던 지점부터 이어서 봅니다.",
-  },
-  {
-    icon: Eye,
-    title: "시청 이력으로 후속 지도",
-    body: "선생님은 미시청·시청중·완료 상태를 보고 챙겨야 할 학생을 찾습니다.",
-  },
-  {
-    icon: BellRing,
-    title: "알림톡 발송",
-    body: "입실·결석, 수업 결과, 영상 시청 안내를 알림톡으로 보냅니다.",
-  },
-];
-
-const SAMPLE_CARDS = [
-  { title: "개인 강사형", body: "깔끔한 수업 소개", color: "blue" },
-  { title: "브랜드형", body: "대표 수업과 후기 중심", color: "ink" },
-  { title: "성적 관리형", body: "시험 결과와 리포트 중심", color: "mint" },
-  { title: "모집 안내형", body: "기간 모집과 커리큘럼 중심", color: "rose" },
-];
-
-const HAKWONPLUS_ICON = "/tenants/hakwonplus/icon.png";
+function ProductFrame({
+  label,
+  detail,
+  image,
+  alt,
+  eager = false,
+}: {
+  label: string;
+  detail: string;
+  image: string;
+  alt: string;
+  eager?: boolean;
+}) {
+  return (
+    <figure className={styles.productFrame}>
+      <div className={styles.productBar}>
+        <span aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        <strong>{label}</strong>
+        <small>{detail}</small>
+      </div>
+      <img
+        src={image}
+        alt={alt}
+        width={1280}
+        height={720}
+        loading={eager ? "eager" : "lazy"}
+      />
+    </figure>
+  );
+}
 
 function Hero() {
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const current = HERO_SLIDES[active];
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (paused || mediaQuery.matches) return undefined;
-    const timer = window.setInterval(() => {
-      setActive((value) => (value + 1) % HERO_SLIDES.length);
-    }, 6500);
-    return () => window.clearInterval(timer);
-  }, [paused]);
-
-  const move = (delta: number) => {
-    setPaused(true);
-    setActive((value) => (value + delta + HERO_SLIDES.length) % HERO_SLIDES.length);
-  };
-
   return (
     <section className={styles.hero} aria-labelledby="promo-hero-title">
-      <div className={styles.heroMedia} aria-hidden="true">
-        {HERO_SLIDES.map((slide, index) => (
-          <img
-            key={slide.id}
-            src={slide.image}
-            alt=""
-            className={`${styles.heroImage} ${index === active ? styles.heroImageActive : ""}`}
-            loading={index === 0 ? "eager" : "lazy"}
-          />
-        ))}
-        <div className={styles.heroVeil} />
-        <div className={styles.heroGrid} />
-      </div>
-
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
-          <span className={styles.heroEyebrow}>
-            <img src={HAKWONPLUS_ICON} alt="" aria-hidden="true" />
-            {current.eyebrow}
+          <span className={styles.eyebrow}>
+            <Sparkles size={ICON.sm} aria-hidden="true" />
+            대치 강사·원장을 위한 학원 운영 SaaS
           </span>
-          <h1 id="promo-hero-title" className={styles.heroTitle}>
-            {current.title}
+          <h1 id="promo-hero-title">
+            <span>수업은 선생님답게.</span>
+            <strong>반복 운영은 한곳에서.</strong>
           </h1>
-          <p className={styles.heroBody}>{current.body}</p>
+          <p className={styles.heroLead}>
+            시험지를 찍어 유사문제를 찾고 수업 PPT를 만듭니다. 출결·성적·영상·알림톡까지,
+            수업 전후에 흩어진 일을 실제 화면 하나로 이어보세요.
+          </p>
           <div className={styles.heroActions}>
-            <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
-              전화 문의
-            </PhoneInquiryLink>
-            <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
-              <MousePointer2 size={18} />
-              데모 요청
+            <Link to="/promo/demo" className={styles.primaryButton}>
+              <MousePointer2 size={ICON.md} aria-hidden="true" />
+              내 자료로 데모 요청
             </Link>
-            <Link to={current.cta} className={`${styles.button} ${styles.buttonSecondary}`}>
-              {current.tone} 보기
-              <ArrowRight size={18} />
-            </Link>
+            <a href="#real-screens" className={styles.secondaryButton}>
+              실제 화면 보기
+              <ArrowRight size={ICON.md} aria-hidden="true" />
+            </a>
           </div>
-          <ul className={styles.heroTags} aria-label="핵심 가치">
-            <li>개포고·단대부고·숙명여고</li>
-            <li>유사문제 후보 비교</li>
-            <li>16:9 수업 PPT</li>
+          <p className={styles.callLine}>
+            전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>로 필요한 기능만 먼저 확인할 수 있습니다.
+          </p>
+          <ul className={styles.heroFacts} aria-label="제품 안내">
+            <li>
+              <Check size={ICON.sm} aria-hidden="true" />
+              실제 제품 화면
+            </li>
+            <li>
+              <Check size={ICON.sm} aria-hidden="true" />
+              선생님 최종 확인
+            </li>
+            <li>
+              <Check size={ICON.sm} aria-hidden="true" />
+              전체 기능 단일 요금
+            </li>
           </ul>
         </div>
 
-        <aside className={styles.heroRail} aria-label="히어로 배너">
-          <div className={styles.heroRailHead}>
-            <span>화면 미리보기</span>
-            <strong>{String(active + 1).padStart(2, "0")}</strong>
+        <div className={styles.heroWorkbench} aria-label="시험지 매치업에서 수업 PPT까지 실제 제품 흐름">
+          <div className={styles.workbenchLabel}>
+            <span>오늘의 수업자료</span>
+            <strong>개포고 파이널 모의고사</strong>
           </div>
-          <div className={styles.heroRailMeta}>
-            <span>{current.tone}</span>
-            <p>{current.stat}</p>
+          <ProductFrame
+            label="유사문제 매치업"
+            detail="원문과 후보 비교"
+            image="/promo/matchup-gaepo-results-20260725.png"
+            alt="개포고 시험 문제와 유사문제 후보를 비교하는 학원플러스 실제 화면"
+            eager
+          />
+          <div className={styles.heroConnector} aria-hidden="true">
+            <span>선택한 문제가 그대로</span>
+            <ArrowRight size={ICON.md} />
           </div>
-          <div className={styles.heroControls}>
-            <button type="button" onClick={() => move(-1)} aria-label="이전 배너">
-              <ChevronLeft size={18} />
-            </button>
-            <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? "배너 재생" : "배너 일시정지"}>
-              {paused ? <Play size={16} /> : <Pause size={16} />}
-            </button>
-            <button type="button" onClick={() => move(1)} aria-label="다음 배너">
-              <ChevronRight size={18} />
-            </button>
+          <div className={styles.pptPreview}>
+            <ProductFrame
+              label="수업 PPT"
+              detail="2장 · 16:9"
+              image="/promo/ppt-gaepo-setup-20260725.png"
+              alt="선택한 문제를 16대 9 수업 PPT로 구성하는 학원플러스 실제 화면"
+              eager
+            />
           </div>
-          <div className={styles.heroTabs} role="tablist" aria-label="배너 선택">
-            {HERO_SLIDES.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                role="tab"
-                aria-selected={active === index}
-                className={active === index ? styles.isActive : ""}
-                onClick={() => {
-                  setPaused(true);
-                  setActive(index);
-                }}
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{slide.tone}</strong>
-              </button>
-            ))}
+          <div className={styles.proofStamp}>
+            <CheckCircle2 size={ICON.md} aria-hidden="true" />
+            <span>
+              <strong>제품 실화면</strong>
+              개포고 데모 데이터
+            </span>
           </div>
-        </aside>
+        </div>
       </div>
     </section>
   );
 }
 
-function ValueStrip() {
+function AudienceStrip() {
   return (
-    <section className={styles.valueStrip} aria-label="학원플러스 핵심 가치">
+    <section className={styles.audienceSection} aria-labelledby="audience-title">
       <div className={styles.sectionWrap}>
+        <header className={styles.audienceHead}>
+          <span>누구에게 필요한가요?</span>
+          <h2 id="audience-title">수업은 잘하고 있는데, 운영이 자꾸 수업 시간을 가져갈 때</h2>
+        </header>
+        <div className={styles.audienceGrid}>
+          {AUDIENCES.map((item) => (
+            <article key={item.label}>
+              <strong>{item.label}</strong>
+              <p>{item.copy}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ValueSection() {
+  return (
+    <section className={styles.valueSection} aria-labelledby="value-title">
+      <div className={styles.sectionWrap}>
+        <header className={styles.sectionHead}>
+          <span>학원플러스가 줄이는 일</span>
+          <h2 id="value-title">기능을 늘리는 대신, 같은 일을 두 번 하지 않게</h2>
+          <p>수업 중 이미 만든 자료와 기록이 다음 업무로 자연스럽게 이어지도록 설계했습니다.</p>
+        </header>
         <div className={styles.valueGrid}>
-          {VALUE_CARDS.map((item) => {
+          {VALUE_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
-              <article className={styles.valueCard} key={item.title}>
-                <Icon size={24} />
-                <h2>{item.title}</h2>
-                <p>{item.body}</p>
+              <article key={item.title}>
+                <Icon size={ICON.lg} aria-hidden="true" />
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
               </article>
             );
           })}
@@ -325,372 +304,153 @@ function ValueStrip() {
   );
 }
 
-const MATCHUP_FLOW = [
-  {
-    icon: Camera,
-    number: "01",
-    title: "시험지 올리기",
-    body: "휴대폰으로 찍은 JPG·PNG나 PDF를 학교·시험 폴더에 넣습니다.",
-  },
-  {
-    icon: ScanSearch,
-    number: "02",
-    title: "유사문제 후보 비교",
-    body: "원문과 후보를 나란히 보고 유사도 점수, 풀이 구조, 출처를 확인합니다.",
-  },
-  {
-    icon: Presentation,
-    number: "03",
-    title: "수업 PPT 구성",
-    body: "고른 문제를 슬라이드로 불러와 16:9 비율과 배경을 맞춥니다.",
-  },
-  {
-    icon: Download,
-    number: "04",
-    title: "교실에서 바로 사용",
-    body: "미리보기로 순서를 확인한 뒤 PPT 파일을 내려받아 수업에 씁니다.",
-  },
-];
-
-function MatchupPptShowcase() {
+function MatchupShowcase() {
   return (
-    <section className={styles.matchupSection} aria-labelledby="matchup-ppt-title">
+    <section id="real-screens" className={styles.matchupSection} aria-labelledby="matchup-title">
       <div className={styles.sectionWrap}>
-        <div className={styles.matchupHead}>
-          <div>
-            <span className={styles.matchupKicker}>
-              <Sparkles size={16} />
-              대치 수업자료 제작실
-            </span>
-            <h2 id="matchup-ppt-title">문제를 찍는 순간, 수업자료 제작이 이어집니다</h2>
-          </div>
-          <div className={styles.matchupIntro}>
+        <div className={styles.matchupIntro}>
+          <header className={styles.sectionHead}>
+            <span>가장 먼저 보여드릴 기능</span>
+            <h2 id="matchup-title">스크린샷 한 장이 매치업을 거쳐 수업 PPT가 됩니다</h2>
             <p>
-              개포고 시험지를 기준으로 직접 데이터를 채우고 확인한 제품 화면입니다.
-              매치업에서 고른 문제는 PPT 제작 화면으로 이어져, 다시 캡처하고 붙여 넣는 일을 줄입니다.
+              학교 시험지를 다시 자르고 붙이는 대신, 원문과 유사문제 후보를 한 화면에서 확인하고
+              선생님이 고른 문제만 수업자료로 가져갑니다.
             </p>
-            <Link to="/promo/matchup-ppt" className={styles.matchupLink}>
-              실제 화면으로 따라보기
-              <ArrowRight size={17} />
-            </Link>
-          </div>
-        </div>
-
-        <div className={styles.matchupStudio}>
-          <div className={styles.matchupCanvas}>
-            <figure className={`${styles.productFrame} ${styles.productFrameMatch}`}>
-              <div className={styles.productFrameBar}>
-                <span className={styles.frameDots} aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <strong>01 · 유사문제 매치업</strong>
-                <em>개포고 파이널 모의고사 1회</em>
-              </div>
-              <img
-                src="/promo/matchup-gaepo-candidates-20260725.png"
-                alt="개포고 시험 문제와 유사문제 후보를 나란히 비교하는 학원플러스 매치업 실제 화면"
-                loading="lazy"
-              />
-            </figure>
-
-            <div className={styles.studioConnector} aria-hidden="true">
-              <span>선택한 문제</span>
-              <ArrowRight size={20} />
-            </div>
-
-            <figure className={`${styles.productFrame} ${styles.productFramePpt}`}>
-              <div className={styles.productFrameBar}>
-                <span className={styles.frameDots} aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <strong>02 · PPT 생성</strong>
-                <em>2장 · 16:9</em>
-              </div>
-              <img
-                src="/promo/ppt-gaepo-setup-20260725.png"
-                alt="선택한 개포고 문제 두 장을 16대 9 수업 PPT로 구성하는 학원플러스 실제 화면"
-                loading="lazy"
-              />
-            </figure>
-          </div>
-
-          <div className={styles.studioNote}>
-            <span>PRODUCT CAPTURE</span>
-            <strong>제품 실화면 · 데모 데이터</strong>
-            <p>유사도는 후보를 찾는 참고 점수입니다. 최종 문제 선택은 선생님이 직접 확인합니다.</p>
-          </div>
-        </div>
-
-        <ol className={styles.matchupFlow}>
-          {MATCHUP_FLOW.map((step) => {
-            const Icon = step.icon;
-            return (
-              <li key={step.number}>
-                <div className={styles.flowNumber}>
-                  <span>{step.number}</span>
-                  <Icon size={21} />
-                </div>
-                <strong>{step.title}</strong>
-                <p>{step.body}</p>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-function ParentTrustSystem() {
-  return (
-    <section className={styles.trustSection} aria-labelledby="parent-trust-title">
-      <div className={styles.sectionWrap}>
-        <div className={styles.trustLayout}>
-          <div className={styles.trustCopy}>
-            <span>
-              <ShieldCheck size={16} />
-              학부모 설명 자료
-            </span>
-            <h2 id="parent-trust-title">학부모가 궁금한 건 “수업 후에 뭘 챙겼나”입니다</h2>
+          </header>
+          <div className={styles.teacherNote}>
+            <MessageSquareText size={ICON.lg} aria-hidden="true" />
             <p>
-              출결, 시험, 복습 영상, 보강 기록이 한곳에 모여 있으면 상담에서 같은 설명을 반복하지 않아도 됩니다.
-              학원플러스는 수업 중에 남긴 기록을 리포트와 알림톡으로 정리해 보낼 수 있게 합니다.
+              <strong>현장 강사 피드백</strong>
+              “스크린샷을 찍으면 바로 PPT로 이어지는 흐름이 매치업과 잘 맞는다”는 의견을 제품 흐름에 반영했습니다.
             </p>
-            <div className={styles.trustActions}>
-              <Link to="/promo/parent-trust" className={`${styles.button} ${styles.buttonDark}`}>
-                학부모 리포트 보기
-                <ArrowRight size={18} />
-              </Link>
-              <Link to="/promo/pricing" className={styles.trustTextLink}>
-                8월 평생 보장가 보기
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-
-          <div className={styles.trustBoard} aria-label="학부모 리포트 예시">
-            <div className={styles.trustBoardHead}>
-              <div>
-                <span>주간 리포트</span>
-                <strong>대치중2 내신반 학부모 리포트</strong>
-              </div>
-              <small>알림톡 발송 준비</small>
-            </div>
-            <div className={styles.trustMetricGrid}>
-              {TRUST_METRICS.map((metric) => (
-                <article key={metric.label}>
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                  <p>{metric.detail}</p>
-                </article>
-              ))}
-            </div>
-            <ol className={styles.trustTimeline}>
-              {TRUST_STEPS.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <li key={step.title}>
-                    <Icon size={18} />
-                    <div>
-                      <strong>{step.title}</strong>
-                      <p>{step.body}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
 
-function OperatingHub() {
-  const [activeTab, setActiveTab] = useState(OPERATING_TABS[0].id);
-  const active = useMemo(
-    () => OPERATING_TABS.find((item) => item.id === activeTab) ?? OPERATING_TABS[0],
-    [activeTab],
-  );
-  const ActiveIcon = active.icon;
-
-  return (
-    <section className={styles.operatingHub} id="product-flow" aria-labelledby="product-flow-title">
-      <div className={styles.sectionWrap}>
-        <header className={styles.sectionHead}>
-          <span>실제 업무 순서</span>
-          <h2 id="product-flow-title">수업 전후에 확인할 일을 한 화면에 모았습니다</h2>
-          <p>수업 준비, 채점, 피드백, 안내까지 선생님이 처리하는 순서대로 볼 수 있습니다.</p>
-        </header>
-
-        <div className={styles.hubShell}>
-          <nav className={styles.hubSidebar} aria-label="수업 관리 화면">
-            {OPERATING_TABS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={item.id === active.id ? styles.isActive : ""}
-                  onClick={() => setActiveTab(item.id)}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <article className={styles.hubPanel} data-accent={active.accent}>
-            <div className={styles.hubCopy}>
-              <span className={styles.hubKicker}>
-                <ActiveIcon size={16} />
-                {active.label}
-              </span>
-              <h3>{active.title}</h3>
-              <p>{active.body}</p>
-              <ul>
-                {active.points.map((point) => (
-                  <li key={point}>
-                    <CheckCircle2 size={16} />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/promo/features" className={styles.textLink}>
-                기능 전체 보기
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-            <div className={styles.hubVisual}>
-              <img src={active.image} alt={`${active.label} 화면 미리보기`} loading="lazy" />
-            </div>
-          </article>
+        <div className={styles.matchupScreens}>
+          <ProductFrame
+            label="01 · 후보 확인"
+            detail="개포고 데모"
+            image="/promo/matchup-gaepo-candidates-20260725.png"
+            alt="개포고 시험 문제의 유사문제 후보를 확인하는 학원플러스 실제 화면"
+          />
+          <span className={styles.screenArrow} aria-hidden="true">
+            <ArrowRight size={ICON.lg} />
+          </span>
+          <ProductFrame
+            label="02 · PPT 구성"
+            detail="2장 · 16:9"
+            image="/promo/ppt-gaepo-ready-20260725.png"
+            alt="선택한 문제를 수업용 PPT로 미리 보는 학원플러스 실제 화면"
+          />
         </div>
-      </div>
-    </section>
-  );
-}
 
-function StudentAppProof() {
-  return (
-    <section className={styles.studentProof} aria-labelledby="student-proof-title">
-      <div className={styles.sectionWrap}>
-        <div className={styles.studentProofGrid}>
-          <div className={styles.studentProofCopy}>
-            <span>학생앱과 알림톡</span>
-            <h2 id="student-proof-title">학생은 앱에서 보고, 선생님은 이력과 알림톡으로 챙깁니다</h2>
-            <p>
-              복습 영상은 학생이 실제로 봐야 의미가 있습니다. 학생은 앱에서 확인하고,
-              선생님은 시청 상태를 확인한 뒤 필요한 안내를 보낼 수 있습니다.
-            </p>
-            <ul className={styles.studentProofList}>
-              {STUDENT_APP_POINTS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <li key={item.title}>
-                    <Icon size={20} />
-                    <div>
-                      <strong>{item.title}</strong>
-                      <p>{item.body}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className={styles.studentProofActions}>
-              <Link to="/promo/video-platform" className={`${styles.button} ${styles.buttonPrimary}`}>
-                영상 기능 자세히 보기
-                <ArrowRight size={18} />
-              </Link>
-              <Link to="/promo/features" className={`${styles.button} ${styles.buttonSecondary}`}>
-                알림톡 기능 보기
-                <Clock3 size={18} />
-              </Link>
-            </div>
-          </div>
-
-          <div className={styles.phoneWall} aria-label="학생전용앱 영상 화면 캡처">
-            <figure className={`${styles.phoneFrame} ${styles.phoneFrameLead}`}>
-              <img src="/promo/student-video-player.png" alt="학생전용앱 영상 플레이어와 댓글 화면" loading="lazy" />
-              <figcaption>플레이어·댓글·이어보기</figcaption>
-            </figure>
-            <figure className={styles.phoneFrame}>
-              <img src="/promo/student-video-app.png" alt="학생전용앱 영상 강의 홈 화면" loading="lazy" />
-              <figcaption>학생앱 강의 홈</figcaption>
-            </figure>
-            <figure className={styles.phoneFrame}>
-              <img src="/promo/student-video-list.png" alt="학생전용앱 영상 재생 목록 화면" loading="lazy" />
-              <figcaption>재생 목록과 진도</figcaption>
-            </figure>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function WorkflowSection() {
-  return (
-    <section className={styles.workflowSection} aria-labelledby="workflow-title">
-      <div className={styles.sectionWrap}>
-        <header className={styles.sectionHead}>
-          <span>업무 순서</span>
-          <h2 id="workflow-title">시험이 끝나도 선생님이 챙길 일은 남습니다</h2>
-        </header>
-        <ol className={styles.workflow}>
-          {WORKFLOW.map((step, index) => {
+        <ol className={styles.matchupSteps}>
+          {MATCHUP_STEPS.map((step, index) => {
             const Icon = step.icon;
             return (
               <li key={step.title}>
-                <span className={styles.workflowNum}>{String(index + 1).padStart(2, "0")}</span>
-                <Icon size={22} />
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <Icon size={ICON.lg} aria-hidden="true" />
                 <strong>{step.title}</strong>
-                <p>{step.body}</p>
+                <p>{step.copy}</p>
               </li>
             );
           })}
         </ol>
+        <div className={styles.inlineActions}>
+          <Link to="/promo/matchup-ppt" className={styles.darkButton}>
+            매치업·PPT 전체 과정
+            <ArrowRight size={ICON.md} aria-hidden="true" />
+          </Link>
+          <Link to="/promo/demo" className={styles.textLink}>
+            내 시험지로 확인하기
+            <ArrowRight size={ICON.sm} aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     </section>
   );
 }
 
-function LandingSamples() {
+function OperationsSection() {
   return (
-    <section className={styles.samplesSection} aria-labelledby="samples-title">
+    <section className={styles.operationsSection} aria-labelledby="operations-title">
       <div className={styles.sectionWrap}>
-        <div className={styles.samplesLayout}>
-          <div className={styles.samplesCopy}>
-            <span>수업 소개 페이지</span>
-            <h2 id="samples-title">수업 소개 페이지도 계속 업데이트하세요</h2>
+        <header className={styles.sectionHead}>
+          <span>수업 전후 실제 화면</span>
+          <h2 id="operations-title">선생님이 일하는 순서대로 이어집니다</h2>
+          <p>홍보용 예시 화면이 아니라 현재 제품에서 사용하는 관리자·학생 화면입니다.</p>
+        </header>
+
+        <div className={styles.operationList}>
+          {OPERATIONS.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <article key={item.id} className={styles.operationRow} data-kind={item.kind} data-reverse={index % 2 === 1}>
+                <div className={styles.operationVisual}>
+                  <img src={item.image} alt={item.alt} loading="lazy" />
+                  <span>실제 제품 화면</span>
+                </div>
+                <div className={styles.operationCopy}>
+                  <span>
+                    <Icon size={ICON.sm} aria-hidden="true" />
+                    {item.eyebrow}
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.copy}</p>
+                  <ul>
+                    {item.bullets.map((bullet) => (
+                      <li key={bullet}>
+                        <Check size={ICON.sm} aria-hidden="true" />
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to={item.href}>
+                    {item.cta}
+                    <ArrowRight size={ICON.sm} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StartSection() {
+  return (
+    <section className={styles.startSection} aria-labelledby="start-title">
+      <div className={styles.sectionWrap}>
+        <div className={styles.startLayout}>
+          <header className={styles.sectionHead}>
+            <span>편안하게 시작하는 방법</span>
+            <h2 id="start-title">새 시스템을 공부하는 일이 되지 않도록</h2>
             <p>
-              수업 소개, 후기, 게시판, 적중 리포트를 운영 화면에서 만든 자료와 함께 관리합니다.
-              상담 전에 보여줄 페이지가 오래된 안내문처럼 보이지 않게 합니다.
+              모든 기능을 한 번에 바꾸는 대신, 지금 가장 오래 걸리는 일 하나부터 실제 자료로 확인합니다.
             </p>
-            <Link to="/promo/landing-samples" className={`${styles.button} ${styles.buttonDark}`}>
-              페이지 샘플 보기
-              <ArrowRight size={18} />
+            <Link to="/promo/pricing" className={styles.textLink}>
+              요금과 별도 비용 확인
+              <ArrowRight size={ICON.sm} aria-hidden="true" />
             </Link>
-          </div>
-          <div className={styles.samplesGrid} aria-label="페이지 템플릿">
-            {SAMPLE_CARDS.map((sample) => (
-              <Link
-                key={sample.title}
-                to="/promo/landing-samples"
-                className={styles.sampleCard}
-                data-color={sample.color}
-              >
-                <span />
-                <strong>{sample.title}</strong>
-                <small>{sample.body}</small>
-              </Link>
-            ))}
-          </div>
+          </header>
+          <ol className={styles.startList}>
+            {START_POINTS.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.title}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <Icon size={ICON.lg} aria-hidden="true" />
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.copy}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </div>
     </section>
@@ -700,28 +460,25 @@ function LandingSamples() {
 function FinalCta() {
   return (
     <section className={styles.finalCta} aria-labelledby="final-cta-title">
-      <div className={styles.sectionWrap}>
-        <div className={styles.finalCtaInner}>
-          <span>
-            <Sparkles size={18} />
-            수업 상담
-          </span>
-          <h2 id="final-cta-title">현재 수업 방식에 맞춰 시작 범위를 정해보세요</h2>
-          <p>강의, 시험, 피드백 방식을 듣고 먼저 정리할 업무를 함께 정합니다.</p>
-          <div className={styles.finalCtaActions}>
-            <PhoneInquiryLink className={`${styles.button} ${styles.buttonPhone}`}>
-              전화 문의
-            </PhoneInquiryLink>
-            <Link to="/promo/demo" className={`${styles.button} ${styles.buttonPrimary}`}>
-              데모 요청
-              <Zap size={18} />
-            </Link>
-            <Link to="/promo/contact" className={`${styles.button} ${styles.buttonSecondary}`}>
-              문의하기
-              <ArrowRight size={18} />
-            </Link>
-          </div>
+      <div className={styles.finalCtaInner}>
+        <span>
+          <GraduationCap size={ICON.md} aria-hidden="true" />
+          선생님의 자료로 확인하세요
+        </span>
+        <h2 id="final-cta-title">말로 설명하는 데모보다, 내 시험지로 보는 데모가 빠릅니다</h2>
+        <p>현재 쓰는 자료와 수업 방식을 알려주시면 필요한 화면만 준비해 보여드립니다.</p>
+        <div className={styles.finalActions}>
+          <Link to="/promo/demo" className={styles.primaryButton}>
+            내 자료로 데모 요청
+            <ArrowRight size={ICON.md} aria-hidden="true" />
+          </Link>
+          <Link to="/promo/features" className={styles.secondaryButton}>
+            실제 화면 더 보기
+          </Link>
         </div>
+        <p className={styles.finalCall}>
+          전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
+        </p>
       </div>
     </section>
   );
@@ -731,13 +488,11 @@ export default function LandingPage() {
   return (
     <>
       <Hero />
-      <ValueStrip />
-      <MatchupPptShowcase />
-      <ParentTrustSystem />
-      <OperatingHub />
-      <StudentAppProof />
-      <WorkflowSection />
-      <LandingSamples />
+      <AudienceStrip />
+      <ValueSection />
+      <MatchupShowcase />
+      <OperationsSection />
+      <StartSection />
       <FinalCta />
     </>
   );

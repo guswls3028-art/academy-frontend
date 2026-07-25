@@ -22,8 +22,8 @@ const FAQS = [
     a: "네. 수강생별 미시청, 시청중, 완료 상태와 마지막 재생 위치를 확인할 수 있습니다. 미시청 학생에게는 영상 확인 안내를 알림톡으로 보낼 수 있습니다.",
   },
   {
-    q: "알림톡 자동 발송은 어떤 상황에서 동작하나요?",
-    a: "가입·등록, 출결, 시험, 과제, 클리닉, 결제, 커뮤니티, 직원 관련 이벤트처럼 반복되는 운영 상황을 기준으로 발송 조건을 설정합니다. 실제 발송 범위는 승인 템플릿, 카카오 알림톡 정책, 학원별 설정에 맞춰 상담 시 확정합니다.",
+    q: "어떤 알림톡이 자동 또는 수동으로 발송되나요?",
+    a: "가입·출결처럼 설정된 일부 안내는 자동 발송을 지원합니다. 성적·수업 결과·과제·클리닉처럼 선생님 판단이 필요한 안내는 화면에서 대상과 내용을 확인한 뒤 수동으로 보냅니다. 실제 범위는 승인 템플릿과 학원 설정에 따라 달라집니다.",
   },
   {
     q: "수업결과나 성적도 알림톡으로 보낼 수 있나요?",
@@ -87,10 +87,10 @@ export default function FaqPage() {
 
           <aside className={styles.heroProofStack} aria-label="자주 묻는 핵심 화면">
             <figure className={styles.heroScreen}>
-              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 자동 발송 설정 화면" />
+              <img src="/promo/admin-alimtalk-auto-send.png" alt="관리자 알림톡 발송 설정 화면" />
               <figcaption className={styles.heroScreenCaption}>
-                <strong>알림톡 자동 발송</strong>
-                <span>운영 이벤트 · 템플릿 · 발송 시점</span>
+                <strong>알림톡 발송 설정</strong>
+                <span>승인 양식 · 자동/수동 상태 · 발송 시점</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>

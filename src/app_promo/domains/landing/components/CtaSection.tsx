@@ -19,10 +19,12 @@ export default function CtaSection({
         <h2 id="promo-cta-title">{title}</h2>
         <p>{subtitle}</p>
         <div className={styles.actions}>
-          <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
-          <Link to="/promo/demo">데모 요청</Link>
-          <Link to="/promo/contact">문의하기</Link>
+          <Link to="/promo/demo">내 자료로 데모 요청</Link>
+          <Link to="/promo/features">실제 화면 보기</Link>
         </div>
+        <p className={styles.phoneNote}>
+          전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>로 바로 확인할 수 있습니다.
+        </p>
       </div>
     </section>
   );

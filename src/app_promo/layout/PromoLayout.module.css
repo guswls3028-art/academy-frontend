@@ -7,6 +7,44 @@
   min-height: 50vh;
 }
 
+.routeFallback {
+  display: grid;
+  min-height: 72vh;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: 48px 20px;
+  color: #334155;
+  text-align: center;
+  background: #f6faf9;
+}
+
+.routeFallback > span {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #d8e7e7;
+  border-top-color: #0b7d8b;
+  border-radius: 50%;
+  animation: promo-loading-spin 800ms linear infinite;
+}
+
+.routeFallback strong {
+  color: #112a34;
+  font-size: 16px;
+}
+
+.routeFallback p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+@keyframes promo-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .header {
   position: sticky;
   top: 0;
@@ -330,10 +368,12 @@
   box-shadow: 22px 0 80px rgba(15, 23, 42, 0.22);
   transform: translateX(-105%);
   transition: transform 190ms ease;
+  visibility: hidden;
 }
 
 .mobileSidebar.isOpen {
   transform: translateX(0);
+  visibility: visible;
 }
 
 .sidebarHead {
@@ -556,6 +596,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .routeFallback > span {
+    animation: none;
+  }
+
   .header,
   .sidebarBackdrop,
   .mobileSidebar,

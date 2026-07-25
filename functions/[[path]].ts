@@ -38,6 +38,67 @@ interface TenantMeta {
   imageHeight?: number;
 }
 
+const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
+
+const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
+  "/promo": {
+    title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",
+    description: "시험지 캡처부터 유사문제 매치업, 수업 PPT, 출결·성적·영상·알림톡까지 실제 수업 흐름으로 확인하세요.",
+  },
+  "/promo/features": {
+    title: "기능과 실제 화면 | 학원플러스",
+    description: "매치업·PPT, 시험·성적, 학생앱 영상, 알림톡, 보강 관리의 실제 제품 화면과 사용 순서를 확인하세요.",
+  },
+  "/promo/matchup-ppt": {
+    title: "시험지 매치업에서 수업 PPT까지 | 학원플러스",
+    description: "학교 시험지를 올리고 유사문제 후보를 직접 확인한 뒤, 선택한 문제를 수업용 PPT로 만드는 과정을 보여드립니다.",
+  },
+  "/promo/parent-trust": {
+    title: "학부모 상담을 위한 수업 기록 | 학원플러스",
+    description: "출결·성적·영상·보강 기록을 확인하고, 선생님이 학부모 안내와 상담에 활용하는 흐름을 확인하세요.",
+  },
+  "/promo/ai-grading": {
+    title: "AI 채점 보조와 선생님 검수 | 학원플러스",
+    description: "명확한 문항은 빠르게 판정하고, 서술형과 중요한 성적은 선생님이 최종 확인하는 채점 흐름을 소개합니다.",
+  },
+  "/promo/video-platform": {
+    title: "학생앱 영상 복습과 시청 이력 | 학원플러스",
+    description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
+  },
+  "/promo/pricing": {
+    title: "요금제 | 월 159,000원 전체 기능 | 학원플러스",
+    description: "수강생과 관리자 계정 수 제한 없이 전체 기능과 200GB 저장공간을 월 159,000원에 제공합니다.",
+  },
+  "/promo/faq": {
+    title: "자주 묻는 질문 | 학원플러스",
+    description: "도입 범위, 요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스 도입 전에 자주 묻는 질문을 확인하세요.",
+  },
+  "/promo/contact": {
+    title: "도입 문의 | 학원플러스",
+    description: "현재 수업 방식과 필요한 기능을 알려주시면 학원에 맞는 도입 범위와 일정을 함께 정리해드립니다.",
+  },
+  "/promo/demo": {
+    title: "내 자료로 데모 요청 | 학원플러스",
+    description: "현재 쓰는 시험지와 수업 방식을 기준으로 매치업·PPT와 학원 운영 화면을 직접 확인해보세요.",
+  },
+};
+
+const HAKWONPLUS_PROMO_ROUTES = new Set([
+  ...Object.keys(HAKWONPLUS_PROMO_META),
+  "/promo/landing-samples",
+]);
+
+const HAKWONPLUS_INDEXABLE_PROMO_ROUTES = [
+  "/promo",
+  "/promo/features",
+  "/promo/matchup-ppt",
+  "/promo/parent-trust",
+  "/promo/ai-grading",
+  "/promo/video-platform",
+  "/promo/pricing",
+  "/promo/faq",
+];
+
 interface TenantPwaMeta {
   title: string;
   icon: string;
@@ -121,14 +182,18 @@ function generateSitemap(host: string): string | null {
   if (!seo) return null;
   const base = `https://${seo.domain}`;
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const primaryRoutes = HAKWONPLUS_HOSTS.has(host)
+    ? HAKWONPLUS_INDEXABLE_PROMO_ROUTES
+    : [seo.loginPath];
+  const primaryEntries = primaryRoutes.map((pathname, index) => `  <url>
+    <loc>${base}${pathname}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${pathname === "/promo" ? "weekly" : "monthly"}</changefreq>
+    <priority>${index === 0 ? "1.0" : "0.8"}</priority>
+  </url>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${base}${seo.loginPath}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
-  </url>
+${primaryEntries}
   <url>
     <loc>${base}/terms</loc>
     <lastmod>${today}</lastmod>
@@ -178,8 +243,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스",  description: "학원플러스 – 학원 관리·학생 학습 플랫폼", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "hakwonplus.com":     { title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",  description: "시험지 매치업·수업 PPT부터 출결·성적·영상·알림톡까지 이어지는 학원 운영 SaaS", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",  description: "시험지 매치업·수업 PPT부터 출결·성적·영상·알림톡까지 이어지는 학원 운영 SaaS", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -273,16 +338,32 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
   }
 }
 
-function injectMeta(html: string, meta: TenantMeta, origin: string, host: string): string {
+function injectMeta(
+  html: string,
+  meta: TenantMeta,
+  origin: string,
+  pageUrl: string,
+  host: string,
+  pathname: string,
+): string {
   const { title, description, favicon, image } = meta;
+  const siteName = HAKWONPLUS_HOSTS.has(host) ? "학원플러스" : title;
 
   // <title>
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  html = html.replace(
+    /<meta name="description" content="[^"]*" \/>/,
+    `<meta name="description" content="${description}" />`,
+  );
+  html = html.replace(
+    /<link rel="canonical" href="[^"]*" \/>/,
+    `<link rel="canonical" href="${pageUrl}" />`,
+  );
 
   // og:site_name, og:title, og:description
   html = html.replace(
     /<meta property="og:site_name" content="[^"]*" \/>/,
-    `<meta property="og:site_name" content="${title}" />`,
+    `<meta property="og:site_name" content="${siteName}" />`,
   );
   html = html.replace(
     /<meta property="og:title" content="[^"]*" \/>/,
@@ -293,10 +374,10 @@ function injectMeta(html: string, meta: TenantMeta, origin: string, host: string
     `<meta property="og:description" content="${description}" />`,
   );
 
-  // og:url — 현재 페이지 origin
+  // og:url — 쿼리를 제외한 현재 페이지 canonical URL
   html = html.replace(
     /<meta property="og:url" content="[^"]*" \/>/,
-    `<meta property="og:url" content="${origin}" />`,
+    `<meta property="og:url" content="${pageUrl}" />`,
   );
 
   // og:image — 절대 URL이면 그대로, 상대 경로면 origin 붙임
@@ -346,6 +427,28 @@ function injectMeta(html: string, meta: TenantMeta, origin: string, host: string
     );
   }
 
+  if (HAKWONPLUS_HOSTS.has(host) && HAKWONPLUS_PROMO_ROUTES.has(pathname)) {
+    const structuredData = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "학원플러스",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: pageUrl,
+      description,
+      offers: {
+        "@type": "Offer",
+        price: "159000",
+        priceCurrency: "KRW",
+        description: "월 구독료, 전체 기능 및 200GB 저장공간 포함",
+      },
+    });
+    html = html.replace(
+      "</head>",
+      `    <script id="promo-structured-data" type="application/ld+json">${structuredData}</script>\n  </head>`,
+    );
+  }
+
   return html;
 }
 
@@ -353,6 +456,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
+
+  if (HAKWONPLUS_HOSTS.has(host) && (pathname === "/promo/" || pathname.startsWith("/promo/"))) {
+    const canonicalPath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+    if (canonicalPath !== pathname && HAKWONPLUS_PROMO_ROUTES.has(canonicalPath)) {
+      const target = new URL(url);
+      target.pathname = canonicalPath;
+      return Response.redirect(target.toString(), 308);
+    }
+    if (!HAKWONPLUS_PROMO_ROUTES.has(pathname)) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+  }
 
   // 네이버 Search Advisor HTML 파일 소유 확인 (/naver{hash}.html)
   const naverVerifyId = NAVER_HTML_VERIFY[host];
@@ -458,7 +579,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // 테넌트별 메타 치환 — API 우선, 빈 필드는 폴백으로 보완
   const apiMeta = await fetchOgMeta(host);
   const fallback = FALLBACK_META[host];
-  const meta = apiMeta
+  const tenantMeta = apiMeta
     ? {
         ...apiMeta,
         image: apiMeta.image || fallback?.image,
@@ -467,9 +588,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         imageHeight: fallback?.imageHeight,
       }
     : fallback;
+  const promoMeta = HAKWONPLUS_HOSTS.has(host) ? HAKWONPLUS_PROMO_META[pathname] : undefined;
+  const meta = promoMeta
+    ? {
+        ...fallback,
+        ...promoMeta,
+      }
+    : tenantMeta;
   if (meta) {
     const origin = url.origin;
-    html = injectMeta(html, meta, origin, host);
+    const pageUrl = `${origin}${pathname}`;
+    html = injectMeta(html, meta, origin, pageUrl, host, pathname);
   }
 
   return new Response(html, {
@@ -477,6 +606,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": res.headers.get("Cache-Control") ?? "no-cache",
+      "Strict-Transport-Security": "max-age=31536000",
     },
   });
 };

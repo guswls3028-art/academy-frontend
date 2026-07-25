@@ -252,6 +252,95 @@
   margin-top: 18px;
 }
 
+.privacyConsent {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.privacySummary {
+  border: 1px solid #d8e5e7;
+  border-radius: 10px;
+  padding: 16px;
+  color: #435363;
+  background: #f7fbfb;
+}
+
+.privacySummary > strong {
+  display: block;
+  color: #172f38;
+  font-size: 14px;
+  font-weight: 930;
+}
+
+.privacySummary dl {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.privacySummary dl > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.privacySummary dt {
+  color: #0b7d83;
+  font-weight: 900;
+}
+
+.privacySummary dd {
+  margin: 0;
+}
+
+.privacySummary p {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.privacySummary a {
+  color: #086b76;
+  font-weight: 850;
+  text-underline-offset: 3px;
+}
+
+.formCard label.privacyCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #cbdde0;
+  border-radius: 10px;
+  padding: 13px 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.formCard label.privacyCheck:focus-within {
+  border-color: #0ea5a8;
+  box-shadow: 0 0 0 4px rgba(14, 165, 168, 0.12);
+}
+
+.formCard label.privacyCheck input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: #087b84;
+}
+
+.formCard label.privacyCheck span {
+  color: #253342;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
 .formCard textarea {
   resize: vertical;
   min-height: 132px;

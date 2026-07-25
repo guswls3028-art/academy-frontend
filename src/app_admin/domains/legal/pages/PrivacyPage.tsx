@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>개인정보 처리방침</h1>
         <p className={styles.meta}>
-          시행일: 2026년 3월 14일 | 버전 1.1
+          시행일: 2026년 7월 26일 | 버전 1.2
         </p>
 
         <article className={styles.article}>
@@ -49,6 +49,7 @@ export default function PrivacyPage() {
             <li><strong>서비스 개선:</strong> 서비스 이용 통계 분석 (개별 식별 불가능한 집계 데이터)</li>
             <li><strong>스태프 관리:</strong> 근태 관리, 급여 정산</li>
             <li><strong>유료 서비스 운영:</strong> 구독 결제 처리, 환불, 이용 요금 정산</li>
+            <li><strong>도입·상담 문의:</strong> 제품 데모 준비, 도입 범위 확인, 문의 답변 및 연락</li>
           </ol>
 
           {/* ── 2. 처리 항목 ── */}
@@ -84,6 +85,10 @@ export default function PrivacyPage() {
                 <td>서비스 이용 과정에서 자동 생성</td>
                 <td>시험 성적, 출결 기록, 수업 영상 시청 기록 (시청 시간, 진도율), 알림톡 발송 이력, 접속 로그</td>
               </tr>
+              <tr>
+                <td>도입·데모 문의</td>
+                <td>이름, 연락처(필수), 소속·수업명, 이메일, 담당 수강생 수, 현재 관리 방식, 관심 기능, 문의 내용, 유입 경로(선택)</td>
+              </tr>
             </tbody>
           </table>
 
@@ -92,6 +97,7 @@ export default function PrivacyPage() {
             <li>학원 운영자(원장) 또는 스태프가 서비스 내에서 직접 입력</li>
             <li>학생이 회원가입 신청 폼을 통해 직접 입력 (원장 승인 후 등록)</li>
             <li>서비스 이용 과정에서 자동 생성 (시험 성적, 출결 기록, 수업 영상 시청 기록, 알림톡 발송 이력)</li>
+            <li>학원플러스 홍보 페이지의 도입·데모 문의 양식을 통해 직접 입력</li>
           </ul>
 
           {/* ── 3. 만 14세 미만 아동 (PIPC 2025 필수) ── */}
@@ -116,6 +122,7 @@ export default function PrivacyPage() {
                 <li><strong>서비스 이용 계약 존속 기간:</strong> 서비스 이용 계약이 유효한 기간 동안 보유</li>
                 <li><strong>계약 해지 후:</strong> 소프트 삭제(soft-delete) 처리 후 30일 경과 시 완전 파기</li>
                 <li><strong>수업 영상:</strong> 삭제 요청 후 소프트 삭제 처리, 180일 경과 후 스토리지에서 완전 제거</li>
+                <li><strong>도입·데모 문의:</strong> 상담 종료 또는 동의 철회 시까지 보유하며, 관계 법령상 보관 의무가 있는 경우 해당 기간 동안 별도 보관</li>
               </ul>
             </li>
             <li>관련 법령에 의해 보존이 필요한 경우, 해당 법령이 정한 기간 동안 보유합니다:
@@ -281,8 +288,10 @@ export default function PrivacyPage() {
             쿠키가 사용될 수 있으며, 일반 서비스 이용자는 해당 경로를 거치지 않습니다.
           </p>
           <p>
-            본 서비스는 <strong>별도의 웹 분석·추적 도구</strong>(Google Analytics, Facebook Pixel 등)를
-            사용하지 않으며, 제3자의 행태정보 수집을 허용하지 않습니다.
+            본 서비스는 광고 맞춤화나 이용자 프로파일링을 위한 Google Analytics, Facebook Pixel 등의
+            행태 추적 도구를 사용하지 않습니다. 서비스 안정성 확인을 위해 Cloudflare가 쿠키 없이 페이지 주소,
+            유입 페이지, 기기·브라우저 유형 등의 웹 성능 정보를 처리할 수 있으며, 개인별 광고나 재식별 목적으로
+            사용하지 않습니다.
           </p>
 
           {/* ── 11. 정보주체 권리 ── */}
@@ -357,12 +366,13 @@ export default function PrivacyPage() {
               <ul>
                 <li>버전 1.0: 2026년 3월 14일 시행 (최초 수립)</li>
                 <li>버전 1.1: 2026년 3월 14일 시행 (PIPC 2025 작성지침 반영 — 만 14세 미만 아동 조항, 국외 이전 조항, 자동수집장치 조항 추가, 거래기록 보존기간 상세화, 고충처리 부서 추가)</li>
+                <li>버전 1.2: 2026년 7월 26일 시행 (도입·데모 문의 수집 목적·항목·보유 기준 및 웹 성능 정보 처리 안내 추가)</li>
               </ul>
             </li>
           </ol>
 
           <h2>제15조 (시행일)</h2>
-          <p>본 개인정보 처리방침은 2026년 3월 14일부터 시행합니다.</p>
+          <p>본 개인정보 처리방침은 2026년 7월 26일부터 시행합니다.</p>
 
           <div className={styles.businessInfo}>
             <p className={styles.businessInfoText}>

@@ -2,7 +2,9 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
+import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
+import { getPromoAttributionLabel } from "../promoAttribution";
 import styles from "./LeadPage.module.css";
 
 const INTEREST_OPTIONS = [
@@ -19,6 +21,7 @@ export default function DemoPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [form, setForm] = useState({
     name: "",
     academy_name: "",
@@ -56,6 +59,8 @@ export default function DemoPage() {
         currentWorkflow: form.current_workflow,
         interests: form.interests,
         message: form.message,
+        privacyAgreed,
+        attribution: getPromoAttributionLabel(),
         website,
       });
       setSubmitted(true);
@@ -222,6 +227,12 @@ export default function DemoPage() {
                 placeholder="데모에서 꼭 보고 싶은 화면이나 채점/피드백 고민을 적어주세요."
               />
             </label>
+
+            <LeadPrivacyConsent
+              checked={privacyAgreed}
+              disabled={pending}
+              onChange={setPrivacyAgreed}
+            />
 
             {error && <div className={styles.errorBox}>{error}</div>}
 
