@@ -114,6 +114,7 @@ export default function ExamResultsPanel({ examId }: Props) {
             enrollmentId={selectedEnrollmentId}
             studentName={selectedRow.student_name ?? "학생"}
             examTitle={examTitle}
+            readOnly
             onClose={() => setSelectedEnrollmentId(null)}
           />
         )

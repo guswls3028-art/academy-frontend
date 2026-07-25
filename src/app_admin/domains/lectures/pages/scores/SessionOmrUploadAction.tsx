@@ -11,14 +11,20 @@ type ExamOption = SessionScoreMeta["exams"][number];
 
 type Props = {
   exams: ExamOption[];
-  isEditMode: boolean;
   onRefresh: () => void;
+  disabled?: boolean;
 };
 
-export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }: Props) {
+export default function SessionOmrUploadAction({ exams, onRefresh, disabled = false }: Props) {
   const [selectedExam, setSelectedExam] = useState<{ examId: number; title: string } | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!disabled) return;
+    setShowPicker(false);
+    setSelectedExam(null);
+  }, [disabled]);
 
   useEffect(() => {
     if (!showPicker) return;
@@ -39,6 +45,7 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
   if (exams.length === 0) return null;
 
   const openUpload = () => {
+    if (disabled) return;
     if (exams.length === 0) {
       feedback.info("시험을 먼저 추가해주세요.");
       return;
@@ -60,11 +67,12 @@ export default function SessionOmrUploadAction({ exams, isEditMode, onRefresh }:
       <div ref={pickerRef} className="scores-omr-action">
         <Button
           type="button"
-          intent={isEditMode ? "secondary" : "primary"}
+          intent="primary"
           size="md"
           className="scores-omr-primary"
+          disabled={disabled}
           onClick={openUpload}
-          title="OMR 스캔 등록"
+          title={disabled ? "이전 입력 복구 여부를 먼저 확인해 주세요." : "OMR 스캔 등록"}
           leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
           rightIcon={exams.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
           aria-haspopup={exams.length > 1 ? "listbox" : undefined}

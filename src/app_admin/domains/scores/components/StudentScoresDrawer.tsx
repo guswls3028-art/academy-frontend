@@ -12,7 +12,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 
-import type { ScoreBlock, SessionScoreRow, SessionScoreExamEntry, SessionScoreHomeworkEntry, SessionScoreMeta } from "../api/sessionScores";
+import { fetchSessionScores, type ScoreBlock, type SessionScoreRow, type SessionScoreExamEntry, type SessionScoreHomeworkEntry, type SessionScoreMeta } from "../api/sessionScores";
 import { deriveAchievement, deriveFinalPass, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
@@ -38,6 +38,7 @@ type Props = {
   meta: SessionScoreMeta | null;
   sessionId?: number;
   isEditMode?: boolean;
+  hasUnsavedChanges?: boolean;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -67,7 +68,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, hasUnsavedChanges = false, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
@@ -87,9 +88,9 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     [row],
   );
   const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
-  const scoreSendDisabled = isEditMode || row.student_id == null;
-  const scoreSendTitle = isEditMode
-    ? "점수를 저장한 뒤 알림톡을 발송할 수 있습니다."
+  const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
+  const scoreSendTitle = hasUnsavedChanges
+    ? "점수를 저장하고 잠근 뒤 알림톡을 발송할 수 있습니다."
     : row.student_id == null
       ? "학생 정보가 없어 발송할 수 없습니다."
       : "이 학생에게만 알림톡을 발송합니다.";
@@ -141,20 +142,36 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
   }, [row, meta]);
 
   const handleSendScoreReport = useCallback(async () => {
-    if (isEditMode) {
-      feedback.info("점수를 저장한 뒤 알림톡을 발송해 주세요.");
+    if (hasUnsavedChanges) {
+      feedback.info("점수를 저장하고 잠근 뒤 알림톡을 발송해 주세요.");
       return;
     }
     if (row.student_id == null) {
       feedback.warning("학생 정보가 없어 알림톡을 발송할 수 없습니다.");
       return;
     }
+    let currentRow = row;
+    let currentMeta = meta;
+    if (sessionId != null && Number.isFinite(sessionId)) {
+      try {
+        const freshScores = await qc.fetchQuery({
+          queryKey: scoresQueryKeys.sessionScores(sessionId),
+          queryFn: () => fetchSessionScores(sessionId),
+          staleTime: 0,
+        });
+        currentRow = freshScores.rows.find((candidate) => candidate.enrollment_id === row.enrollment_id) ?? row;
+        currentMeta = freshScores.meta ?? meta;
+      } catch {
+        feedback.error("최신 성적을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+    }
     // SSOT (2026-05-13): 1순위 backend 응답 meta — session_scores_view.py가 응답 meta에 항상 채움 (lecture_title/session_title).
     // 2/3순위는 캐시·row fallback (호환). 진짜 진리는 meta.* — 어디서 발송하든 일관됨.
     const lecture = qc.getQueryData<{ title?: string; name?: string }>(["lecture", numericLectureId]);
     const session = sessionId ? qc.getQueryData<{ title?: string }>(["session-detail", sessionId]) : null;
-    const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (row as any).lecture_title ?? "";
-    const sessionTitle = meta?.session_title ?? session?.title ?? (row as any).session_title ?? "";
+    const lectureName = currentMeta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (currentRow as any).lecture_title ?? "";
+    const sessionTitle = currentMeta?.session_title ?? session?.title ?? (currentRow as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
@@ -179,22 +196,22 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
     }
 
-    const scoreDetail = buildScoreDetail(row, meta, { passLabel: labels.pass, failLabel: labels.fail });
+    const scoreDetail = buildScoreDetail(currentRow, currentMeta, { passLabel: labels.pass, failLabel: labels.fail });
     // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
     // raw 변수 잔존 가능. substituteScoreVars 가 학생이름2/학생이름3/시험성적 까지 처리하니 callback 통과.
-    const sid = row.student_id;
-    const scoreVars = buildScoreVars(row, meta, reportOptions);
+    const sid = currentRow.student_id;
+    const scoreVars = buildScoreVars(currentRow, currentMeta, reportOptions);
     const recomputePerStudentVars = sid != null
       ? (currentBody: string) => ({
           [sid]: {
             ...scoreVars,
-            _body_subst: substituteScoreVars(currentBody, row, meta, reportOptions),
+            _body_subst: substituteScoreVars(currentBody, currentRow, currentMeta, reportOptions),
           },
         })
       : undefined;
     openSendMessageModal({
       studentIds: sid != null ? [sid] : [],
-      recipientLabel: `${row.student_name} 성적 발송`,
+      recipientLabel: `${currentRow.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,
       initialTemplateId,
@@ -207,7 +224,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       },
       recomputePerStudentVars,
     });
-  }, [isEditMode, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
 
   return (
     <div className="student-scores-drawer-side-panel">
@@ -319,6 +336,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     meta={meta}
                     enrollmentId={row.enrollment_id}
                     sessionId={sessionId}
+                    isEditMode={isEditMode}
                     expanded={expandedExamId === exam.exam_id}
                     onToggle={() => toggleExpand(exam.exam_id)}
                     onOpenDetail={
@@ -351,6 +369,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     meta={meta}
                     enrollmentId={row.enrollment_id}
                     sessionId={sessionId}
+                    isEditMode={isEditMode}
                     expanded={expandedHwId === hw.homework_id}
                     onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
                   />
@@ -388,6 +407,7 @@ function ExamResultCard({
   meta,
   enrollmentId,
   sessionId,
+  isEditMode,
   expanded,
   onToggle,
   onOpenDetail,
@@ -396,6 +416,7 @@ function ExamResultCard({
   meta: SessionScoreMeta | null;
   enrollmentId: number;
   sessionId?: number;
+  isEditMode: boolean;
   expanded: boolean;
   onToggle: () => void;
   onOpenDetail?: () => void;
@@ -442,6 +463,7 @@ function ExamResultCard({
             exam={exam}
             enrollmentId={enrollmentId}
             expanded={expanded}
+            isEditMode={isEditMode}
             onOpenDetail={onOpenDetail}
           />
           <AttemptTimeline
@@ -449,6 +471,7 @@ function ExamResultCard({
             sourceType="exam"
             sourceId={exam.exam_id}
             sessionId={sessionId}
+            isEditMode={isEditMode}
             onOpenDetail={onOpenDetail}
           />
         </>
@@ -461,11 +484,13 @@ function ExamScanPreview({
   exam,
   enrollmentId,
   expanded,
+  isEditMode,
   onOpenDetail,
 }: {
   exam: SessionScoreExamEntry;
   enrollmentId: number;
   expanded: boolean;
+  isEditMode: boolean;
   onOpenDetail?: () => void;
 }) {
   const existingSubmissionId = exam.block.meta?.submission_id ?? null;
@@ -553,7 +578,7 @@ function ExamScanPreview({
             disabled={!onOpenDetail}
             leftIcon={<PencilLine size={ICON_FOR_BUTTON.sm} />}
           >
-            답안 보정
+            {isEditMode ? "답안 보정" : "답안 확인"}
           </Button>
           {scanUrl && (
             <a
@@ -592,6 +617,7 @@ function HomeworkResultCard({
   meta,
   enrollmentId,
   sessionId,
+  isEditMode,
   expanded,
   onToggle,
 }: {
@@ -599,6 +625,7 @@ function HomeworkResultCard({
   meta: SessionScoreMeta | null;
   enrollmentId: number;
   sessionId?: number;
+  isEditMode: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -637,6 +664,7 @@ function HomeworkResultCard({
           sourceType="homework"
           sourceId={hw.homework_id}
           sessionId={sessionId}
+          isEditMode={isEditMode}
         />
       )}
     </li>
@@ -657,12 +685,14 @@ function AttemptTimeline({
   sourceType,
   sourceId,
   sessionId,
+  isEditMode,
   onOpenDetail,
 }: {
   enrollmentId: number;
   sourceType: "exam" | "homework";
   sourceId: number;
   sessionId?: number;
+  isEditMode: boolean;
   onOpenDetail?: () => void;
 }) {
   const qc = useQueryClient();
@@ -740,7 +770,9 @@ function AttemptTimeline({
   const editFirstMutation = useMutation({
     mutationFn: async (params: { score: number; maxScore?: number }) => {
       if (isExam) {
+        if (!sessionId) throw new Error("sessionId가 필요합니다.");
         return patchExamTotalScoreQuick({
+          sessionId,
           examId: sourceId,
           enrollmentId,
           score: params.score,
@@ -770,6 +802,10 @@ function AttemptTimeline({
   });
 
   function handleEditSubmit(attemptIndex: number) {
+    if (!isEditMode) {
+      feedback.info("수정을 누른 뒤 점수를 변경해 주세요.");
+      return;
+    }
     const val = parseFloat(editScore);
     if (isNaN(val) || val < 0) {
       feedback.error("올바른 점수를 입력해주세요.");
@@ -811,6 +847,10 @@ function AttemptTimeline({
   }
 
   function handleRetakeSubmit() {
+    if (!isEditMode) {
+      feedback.info("수정을 누른 뒤 재시험 점수를 추가해 주세요.");
+      return;
+    }
     if (!data?.clinic_link_id) return;
     const val = parseFloat(retakeScore);
     const maxScore = data.max_score ?? 100;
@@ -840,7 +880,7 @@ function AttemptTimeline({
   }
 
   const nextAttemptIndex = (data?.attempts?.length ?? 0) + 1;
-  const canAddRetake = data?.clinic_link_id && !data?.resolved;
+  const canAddRetake = isEditMode && data?.clinic_link_id && !data?.resolved;
   const newAttemptPassScoreLabel = isExam
     ? (retakePassScore.trim() || (data?.pass_score != null ? String(data.pass_score) : ""))
     : (data?.pass_score != null ? String(data.pass_score) : "");
@@ -858,7 +898,7 @@ function AttemptTimeline({
           {/* ── 차수별 카드 블록 ── */}
           {(data.attempts ?? []).map((a) => {
             const isEditing = editingAttempt === a.attempt_index;
-            const canEdit = a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null);
+            const canEdit = isEditMode && (a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null));
             const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;
             const attemptMax = a.max_score ?? data.max_score;
             const attemptPassScore = a.pass_score ?? data.pass_score;

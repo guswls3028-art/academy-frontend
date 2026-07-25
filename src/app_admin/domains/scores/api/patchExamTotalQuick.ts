@@ -10,8 +10,10 @@
  */
 
 import api from "@/shared/api/axios";
+import { scoreEditorRequestHeaders } from "./scoreDraft";
 
 export async function patchExamTotalScoreQuick(params: {
+  sessionId: number;
   examId: number;
   enrollmentId: number;
   score: number | null;
@@ -31,7 +33,12 @@ export async function patchExamTotalScoreQuick(params: {
   const res = await api.patch(
     `/results/admin/exams/${params.examId}/enrollments/${params.enrollmentId}/score/`,
     payload,
+    {
+      headers: {
+        ...await scoreEditorRequestHeaders(),
+        "X-Score-Session-Id": String(params.sessionId),
+      },
+    },
   );
   return res.data;
 }
-

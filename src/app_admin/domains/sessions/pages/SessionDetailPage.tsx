@@ -202,6 +202,7 @@ export default function SessionDetailPage() {
 
           {activeTab === "scores" && (
             <SessionScoresEntryPage
+              key={sId}
               onOpenCreateExam={() => setOpenCreateExam(true)}
               onOpenCreateHomework={() => setOpenCreateHomework(true)}
             />

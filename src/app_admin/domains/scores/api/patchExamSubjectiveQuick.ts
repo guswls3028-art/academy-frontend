@@ -4,15 +4,23 @@
  */
 
 import api from "@/shared/api/axios";
+import { scoreEditorRequestHeaders } from "./scoreDraft";
 
 export async function patchExamSubjectiveScoreQuick(params: {
+  sessionId: number;
   examId: number;
   enrollmentId: number;
   score: number;
 }) {
   const res = await api.patch(
     `/results/admin/exams/${params.examId}/enrollments/${params.enrollmentId}/subjective/`,
-    { score: params.score }
+    { score: params.score },
+    {
+      headers: {
+        ...await scoreEditorRequestHeaders(),
+        "X-Score-Session-Id": String(params.sessionId),
+      },
+    },
   );
   return res.data;
 }

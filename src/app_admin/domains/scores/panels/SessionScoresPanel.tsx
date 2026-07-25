@@ -1,6 +1,5 @@
 // PATH: src/app_admin/domains/scores/panels/SessionScoresPanel.tsx
-// 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 입력은 테이블 셀에서만
-// 편집 종료 시 한 번에 저장(flushPendingChanges)
+// 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 자동 저장과 실행 취소
 
 import { useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +50,8 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
+  hasUnsavedChanges?: boolean;
   examEditTotal?: boolean;
   examEditObjective?: boolean;
   examEditSubjective?: boolean;
@@ -63,15 +64,20 @@ type Props = {
   viewFilter?: "all" | "exam" | "homework";
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
+  onPendingChange?: () => void;
 };
 
 export type SessionScoresPanelHandle = {
-  /** 편집 모드 종료 전 호출 — 대기 중인 점수 변경을 한 번에 저장 */
-  flushPendingChanges: () => Promise<void>;
+  /** 대기 중인 점수 변경을 실제 성적 API에 반영 */
+  flushPendingChanges: () => Promise<number>;
   /** 자동 저장용: 현재 pending 스냅샷 */
   getPendingSnapshot: () => import("../api/scoreDraft").PendingChange[];
   /** 드래프트 복원 시 호출 */
   applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => void;
+  commitActiveCell: () => boolean;
+  undoLastChange: () => boolean;
+  redoLastChange: () => boolean;
+  hasUncommittedActiveCell: () => boolean;
 };
 
 type ScoreCellRef =
@@ -93,6 +99,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  hasUnsavedChanges = false,
   examEditTotal = false,
   examEditObjective = false,
   examEditSubjective = false,
@@ -102,10 +109,18 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   viewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
+  onPendingChange,
 }, ref) {
   const confirm = useConfirm();
-  /** Direct DOM focus — no React state cycle needed */
+  /**
+   * Direct DOM focus/save handle. React callback ref의 null 해제를 무시해 마지막 handle을
+   * 보존한다. 탭 이동으로 unmount된 뒤에도 이미 캡처된 autosave가 pending PATCH를
+   * 끝낼 수 있어야 한다.
+   */
   const tableRef = useRef<ScoresTableHandle>(null);
+  const setTableHandle = useCallback((handle: ScoresTableHandle | null) => {
+    if (handle != null) tableRef.current = handle;
+  }, []);
   const qc = useQueryClient();
   /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
@@ -156,9 +171,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [meta, sessionId, qc]);
 
   useImperativeHandle(ref, () => ({
-    flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(),
+    flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(0),
     getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
     applyDraftPatch: (changes) => tableRef.current?.applyDraftPatch?.(changes),
+    commitActiveCell: () => tableRef.current?.commitActiveCell?.() ?? true,
+    undoLastChange: () => tableRef.current?.undoLastChange?.() ?? false,
+    redoLastChange: () => tableRef.current?.redoLastChange?.() ?? false,
+    hasUncommittedActiveCell: () => tableRef.current?.hasUncommittedActiveCell?.() ?? false,
   }), []);
 
   const attendanceMap = useMemo(() => {
@@ -437,7 +456,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         onKeyDown={handleGridKeyDown}
       >
         <ScoresTable
-          ref={tableRef}
+          ref={setTableHandle}
           rows={rows}
           meta={meta}
           sessionId={sessionId}
@@ -458,6 +477,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           onRequestMovePrev={onRequestMovePrev}
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
+          onPendingChange={onPendingChange}
           onSelectCell={isEditMode
             ? (row, type, id, questionIdOrSub) => {
                 setSelectedEnrollmentId(row.enrollment_id);
@@ -502,6 +522,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           meta={meta}
           sessionId={sessionId}
           isEditMode={isEditMode}
+          hasUnsavedChanges={hasUnsavedChanges}
           onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
           onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
             setAnswerDetail({ examId, enrollmentId, examTitle });
@@ -516,6 +537,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           enrollmentId={answerDetail.enrollmentId}
           studentName={drawerRow?.student_name ?? ""}
           examTitle={answerDetail.examTitle}
+          scoreSessionId={sessionId}
+          readOnly={!isEditMode}
           onClose={() => setAnswerDetail(null)}
         />
       )}

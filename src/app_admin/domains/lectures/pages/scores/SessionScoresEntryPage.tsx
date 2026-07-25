@@ -2,21 +2,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-restricted-syntax */
 /**
  * SessionScoresEntryPage — 성적 탭 (엑셀형 작업 플레이스)
- * - DomainListToolbar + 테이블, Tab/화살표 셀 이동, 편집 모드에서만 셀 편집
+ * - 기본 입력 잠금, 수정 중 자동 저장·Excel형 단축키, 완료 시 저장 후 다시 잠금
  * - 학생 체크박스 선택 시 수업결과 알림톡 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  *
  * 2026-05-12: 범용 발송 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
  */
 
-import { lazy, Suspense, useState, useMemo, useRef, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, MoreVertical, Plus, Printer, Trophy, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, LockKeyhole, MoreVertical, Pencil, Plus, Printer, Trophy, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
 import { useScoreEditDraft } from "@admin/domains/scores/hooks/useScoreEditDraft";
-import { postScoreDraftCommit } from "@admin/domains/scores/api/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreRow,
@@ -95,6 +94,7 @@ export default function SessionScoresEntryPage({
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
   const shouldLoadPrintData = showPrintPreview || showClinicPreview || showBillboardPreview;
 
   /** 강의 정보 (PDF 제목용) */
@@ -198,14 +198,99 @@ export default function SessionScoresEntryPage({
   const draft = useScoreEditDraft({
     sessionId: sessionIdForDraft,
     panelRef,
-    isEditMode: !!isEditMode && sessionIdForDraft > 0,
+    isActive: isEditMode && sessionIdForDraft > 0,
+    checkForRecovery: sessionIdForDraft > 0,
   });
+  const {
+    saveNow: saveScoreDraftNow,
+    releaseEditLease: releaseScoreEditLease,
+  } = draft;
+  const setPanelHandle = useCallback((handle: SessionScoresPanelHandle | null) => {
+    if (handle == null) {
+      panelRef.current?.commitActiveCell?.();
+      // SPA 탭/차시 이동은 React unmount를 기다리지 않는다. ref를 해제하기 전에
+      // 최종 스냅샷을 캡처해 저장을 시작하고, 패널의 보존 handle로 PATCH를 완료한다.
+      void saveScoreDraftNow()
+        .then(() => releaseScoreEditLease())
+        .catch(() => undefined);
+    }
+    panelRef.current = handle;
+  }, [releaseScoreEditLease, saveScoreDraftNow]);
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (!isEditMode || draft.draftStatus !== "saved") return;
+    if (draft.draftStatus !== "saved") return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
-  }, [isEditMode, draft.draftStatus]);
+  }, [draft.draftStatus]);
+
+  const saveScoresNow = useCallback(async (announce = false): Promise<boolean> => {
+    if (panelRef.current?.commitActiveCell?.() === false) return false;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    setIsSaving(true);
+    try {
+      const savedCount = await saveScoreDraftNow();
+      if (announce) {
+        feedback.success(savedCount > 0 ? `${savedCount}건의 점수를 저장했습니다.` : "모든 점수가 저장되어 있습니다.");
+      }
+      return true;
+    } catch (err) {
+      feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [saveScoreDraftNow]);
+
+  useEffect(() => {
+    if (!draft.hasDraftToRestore) return;
+    recoveryRestoreButtonRef.current?.focus();
+  }, [draft.hasDraftToRestore]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!isEditMode) return;
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key === "s") {
+        event.preventDefault();
+        void saveScoresNow(true);
+        return;
+      }
+      if (key !== "z" && key !== "y") return;
+      const activeElement = document.activeElement;
+      const isScoreCell =
+        activeElement instanceof HTMLElement &&
+        activeElement.classList.contains("ds-scores-cell-editable");
+      const isTextEditingElement =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        (activeElement instanceof HTMLElement && activeElement.isContentEditable);
+
+      if (isTextEditingElement && !isScoreCell) return;
+      if (panelRef.current?.hasUncommittedActiveCell?.()) return;
+      if (isScoreCell) event.preventDefault();
+
+      const redo = key === "y" || (key === "z" && event.shiftKey);
+      const changed = redo
+        ? panelRef.current?.redoLastChange?.()
+        : panelRef.current?.undoLastChange?.();
+      if (changed) event.preventDefault();
+    };
+    document.addEventListener("keydown", handleShortcut);
+    return () => document.removeEventListener("keydown", handleShortcut);
+  }, [isEditMode, saveScoresNow]);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    const commitBeforePointerAction = (event: PointerEvent) => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !active.classList.contains("ds-scores-cell-editable")) return;
+      if (event.target instanceof Node && active.contains(event.target)) return;
+      active.blur();
+    };
+    document.addEventListener("pointerdown", commitBeforePointerAction, true);
+    return () => document.removeEventListener("pointerdown", commitBeforePointerAction, true);
+  }, [isEditMode]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(numericSessionId),
@@ -258,14 +343,6 @@ export default function SessionScoresEntryPage({
     return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0).length;
   }, [data?.rows]);
 
-  const selectedStudentIds = useMemo(() => {
-    const rows = data?.rows ?? [];
-    return rows
-      .filter((r) => selectedEnrollmentIds.includes(r.enrollment_id))
-      .map((r) => r.student_id)
-      .filter((id): id is number => id != null && Number.isFinite(id));
-  }, [data?.rows, selectedEnrollmentIds]);
-
   /** 성적 일괄 변경 — Enter / 적용 버튼 단일 진입점.
       2026-05-13 3차: 동일 로직 40+줄이 onEnterConfirm + onClick 양쪽에 중복돼 있던 drift 위험을 한 곳으로. */
   const applyBulkScore = () => {
@@ -303,7 +380,7 @@ export default function SessionScoresEntryPage({
     }
     panelRef.current?.applyDraftPatch(changes);
     feedback.success(
-      `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적 일괄 변경이 적용되었습니다. (${selectedEnrollmentIds.length}명, ${score}점) 저장하기를 눌러 반영하세요.`
+      `${bulkScoreTarget === "exam" ? "시험" : "과제"} 성적을 변경했습니다. (${selectedEnrollmentIds.length}명, ${score}점) 자동 저장됩니다.`
     );
     setShowBulkScoreModal(false);
     setBulkScoreValue("");
@@ -312,11 +389,18 @@ export default function SessionScoresEntryPage({
   const hasSelection = selectedEnrollmentIds.length > 0;
   const showSelectionActions = hasSelection || !isMobile;
   const dimSelectionBar = !hasSelection && !isMobile;
-  const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0 || isEditMode;
-  const scoreAlimtalkTitle = isEditMode
-    ? "점수를 저장한 뒤 발송할 수 있습니다."
-    : selectedEnrollmentIds.length === 0
-      ? "학생을 선택하세요."
+  const recoveryBlocked =
+    draft.isRecoveryCheckPending ||
+    draft.recoveryCheckFailed ||
+    draft.editLockConflict ||
+    draft.hasDraftToRestore;
+  const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0 || isEditMode || isSaving || recoveryBlocked;
+  const scoreAlimtalkTitle = selectedEnrollmentIds.length === 0
+    ? "학생을 선택하세요."
+    : recoveryBlocked
+      ? "이전 입력 복구 여부를 먼저 확인해 주세요."
+    : isEditMode
+      ? "점수를 저장하고 잠근 뒤 알림톡을 발송할 수 있습니다."
       : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
@@ -351,13 +435,22 @@ export default function SessionScoresEntryPage({
             size="sm"
             title={scoreAlimtalkTitle}
             onClick={async () => {
-              if (isEditMode) {
-                feedback.info("점수를 저장한 뒤 알림톡을 발송해 주세요.");
+              if (recoveryBlocked) {
+                feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
                 return;
               }
-              const rows = data?.rows ?? [];
+              if (isEditMode) {
+                feedback.info("점수를 저장하고 잠근 뒤 알림톡을 발송해 주세요.");
+                return;
+              }
+              if (!await saveScoresNow()) return;
+              const freshData = (await refetch()).data ?? data;
+              const rows = freshData?.rows ?? [];
               const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const meta = data?.meta ?? null;
+              const meta = freshData?.meta ?? null;
+              const activeStudentIds = selectedRows
+                .map((row) => row.student_id)
+                .filter((id): id is number => id != null && Number.isFinite(id));
               // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
               const lecture = qc.getQueryData<{ title?: string; name?: string }>(
                 adminLectureQueryKeys.lecture(numericLectureId),
@@ -419,7 +512,7 @@ export default function SessionScoresEntryPage({
                 : {};
 
               openSendMessageModal({
-                studentIds: selectedStudentIds,
+                studentIds: activeStudentIds,
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",
                 initialBody,
@@ -438,9 +531,7 @@ export default function SessionScoresEntryPage({
         {/* ── 디바이더 ── */}
         {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
 
-        {/* ── 그룹 2: secondary 액션 ──
-            2026-05-13 학원장 호소 fix: 편집 모드 아닐 때 모달 진입 후 빨간 안내 = 짜증.
-            진입 자체를 편집 모드 ON + 선택 ≥1 일 때만 가능하도록 disabled + tooltip. */}
+        {/* ── 그룹 2: secondary 액션 ── */}
         {showSelectionActions && (
           <>
             <Button
@@ -448,7 +539,7 @@ export default function SessionScoresEntryPage({
               size="sm"
               onClick={() => setShowBulkScoreModal(true)}
               disabled={selectedEnrollmentIds.length === 0 || !isEditMode}
-              title={!isEditMode ? "편집 모드를 켠 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
+              title={!isEditMode ? "수정을 누른 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
             >
               성적 일괄 변경
             </Button>
@@ -456,14 +547,16 @@ export default function SessionScoresEntryPage({
               intent="secondary"
               size="sm"
               onClick={async () => {
-                const rows = data?.rows ?? [];
+                if (!await saveScoresNow()) return;
+                const freshData = (await refetch()).data ?? data;
+                const rows = freshData?.rows ?? [];
                 const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
                 if (selected.length === 0) {
                   feedback.info("선택한 학생이 없습니다.");
                   return;
                 }
-                const metaExams = data?.meta?.exams ?? [];
-                const metaHomeworks = data?.meta?.homeworks ?? [];
+                const metaExams = freshData?.meta?.exams ?? [];
+                const metaHomeworks = freshData?.meta?.homeworks ?? [];
                 const headers = ["이름"];
                 metaExams.forEach((e) => headers.push(`${e.title ?? "시험"} (점수)`));
                 metaHomeworks.forEach((h) => headers.push(`${h.title ?? "과제"} (점수)`));
@@ -489,7 +582,8 @@ export default function SessionScoresEntryPage({
                 downloadBlob(blob, `성적_${selected.length}명.csv`);
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
               }}
-              disabled={selectedEnrollmentIds.length === 0}
+              disabled={selectedEnrollmentIds.length === 0 || recoveryBlocked}
+              title={recoveryBlocked ? "이전 입력 복구 여부를 먼저 확인해 주세요." : undefined}
             >
               엑셀 다운로드
             </Button>
@@ -509,10 +603,8 @@ export default function SessionScoresEntryPage({
           </Button>
         )}
 
-        {/* 우측 컨텍스트 옵션 — 모드별 분기:
-            · 비-편집: 표시 옵션 toggle (펼침시 inline expand)
-            · 편집: 시험 합산/주관식 + 과제 켜짐/꺼짐 (별도 row 폐기, 4-layer stack → 3-layer) */}
-        {!isEditMode && hasExamsOrHomeworks && (
+        {/* 우측 컨텍스트 옵션 — 표시 방식과 입력 대상을 한 줄에서 조정 */}
+        {hasExamsOrHomeworks && (
           <>
             {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
             <button
@@ -563,7 +655,7 @@ export default function SessionScoresEntryPage({
       </div>
 
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
-      {!isEditMode && hasExamsOrHomeworks && (viewOptionsExpanded || hasNonDefaultViewOptions) && (
+      {hasExamsOrHomeworks && (viewOptionsExpanded || hasNonDefaultViewOptions) && (
         <div className="scores-selection-bar__options">
           <div className="scores-view-filter-section">
             <span className="scores-view-filter-label">보기</span>
@@ -607,34 +699,43 @@ export default function SessionScoresEntryPage({
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
-      <SessionOmrUploadAction exams={examOptions} isEditMode={isEditMode} onRefresh={invalidateScores} />
+      <SessionOmrUploadAction
+        exams={examOptions}
+        onRefresh={invalidateScores}
+        disabled={recoveryBlocked}
+      />
 
-      {/* ── 그룹 2: 핵심 액션 ──
-          P1-3 (2026-05-13): 편집 모드 ON 일 때만 primary 강조. 비편집 상태에선 secondary
-          톤으로 두어 학원장이 "이걸 눌렀을 때 뭔가가 저장된다"는 오해를 줄임. */}
+      {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
       <Button
         type="button"
         intent={isEditMode ? "primary" : "secondary"}
         size="sm"
-        disabled={isSaving}
+        disabled={isSaving || draft.isStartingEdit || isLoading || isError || recoveryBlocked}
+        leftIcon={isEditMode
+          ? <LockKeyhole size={ICON_FOR_BUTTON.sm} />
+          : <Pencil size={ICON_FOR_BUTTON.sm} />}
         onClick={async () => {
-          if (isEditMode) {
-            setIsSaving(true);
-            try {
-              await panelRef.current?.flushPendingChanges?.();
-              await postScoreDraftCommit(sessionIdForDraft);
-              setIsEditMode(false);
-            } catch (err) {
-              feedback.error((err as Error).message || "저장에 실패했습니다. 다시 시도해주세요.");
-            } finally {
-              setIsSaving(false);
+          if (!isEditMode) {
+            if (!await draft.beginEditing()) {
+              feedback.error("다른 화면의 수정을 마친 뒤 다시 시도해 주세요.");
+              return;
             }
+            setIsEditMode(true);
             return;
           }
-          setIsEditMode(true);
+          if (!await saveScoresNow()) return;
+          setIsSaving(true);
+          const released = await draft.releaseEditLease();
+          setIsSaving(false);
+          if (!released) return;
+          setIsEditMode(false);
+          feedback.success("점수를 저장하고 입력을 잠갔습니다.");
         }}
+        title={isEditMode
+          ? "입력 중인 점수를 저장하고 실수 방지를 위해 잠급니다"
+          : "점수 입력을 시작합니다"}
       >
-        {isSaving ? "저장 중…" : isEditMode ? "저장하기" : "편집 모드"}
+        {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
       </Button>
 
       {/* ── 구분선 ── */}
@@ -677,17 +778,32 @@ export default function SessionScoresEntryPage({
               {enrollingAll ? "배정 중..." : "수강생 일괄배정"}
             </button>
             <div className="scores-more-menu__divider" />
-            <button type="button" className="scores-more-menu__item" onClick={() => { setShowPrintPreview(true); setShowMoreMenu(false); }}>
+            <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
+              if (!await saveScoresNow()) return;
+              await refetch();
+              setShowPrintPreview(true);
+              setShowMoreMenu(false);
+            }}>
               <Printer size={ICON_FOR_BUTTON.sm} />
               성적표 출력
             </button>
             {isAnonymousBillboardMode ? (
-              <button type="button" className="scores-more-menu__item" onClick={() => { setShowBillboardPreview(true); setShowMoreMenu(false); }}>
+              <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
+                if (!await saveScoresNow()) return;
+                await refetch();
+                setShowBillboardPreview(true);
+                setShowMoreMenu(false);
+              }}>
                 <Trophy size={ICON_FOR_BUTTON.sm} />
                 익명 순위표 출력
               </button>
             ) : (
-              <button type="button" className="scores-more-menu__item" onClick={() => { setShowClinicPreview(true); setShowMoreMenu(false); }}>
+              <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
+                if (!await saveScoresNow()) return;
+                await refetch();
+                setShowClinicPreview(true);
+                setShowMoreMenu(false);
+              }}>
                 <HeartPulse size={ICON_FOR_BUTTON.sm} />
                 클리닉 대상 보기
               </button>
@@ -718,23 +834,54 @@ export default function SessionScoresEntryPage({
         primaryAction={
           <div className="scores-toolbar-actions">
             {primaryAction}
-            {isEditMode && (
-              <span className="scores-draft-status text-xs text-[var(--color-text-muted)]">
-                {draft.draftStatus === "saving" && "임시저장 중..."}
-                {draft.draftStatus === "saved" && draft.lastSavedAt != null &&
-                  `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`}
-                {draft.draftStatus === "error" && (
+            <span className="scores-draft-status text-xs text-[var(--color-text-muted)]" role="status" aria-live="polite">
+              {!isEditMode ? (
+                draft.editLockConflict ? (
                   <>
-                    <span className="text-[var(--color-error)]">임시저장 실패</span>
+                    <span className="text-[var(--color-error)]">다른 화면에서 수정 중</span>
                     {" "}
-                    <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => void draft.performSave()}>
+                    <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={draft.retryRecoveryCheck}>
+                      다시 확인
+                    </button>
+                  </>
+                ) : draft.recoveryCheckFailed ? (
+                  <>
+                    <span className="text-[var(--color-error)]">이전 입력 확인 실패</span>
+                    {" "}
+                    <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={draft.retryRecoveryCheck}>
                       다시 시도
                     </button>
                   </>
-                )}
-                {draft.draftStatus === "idle" && <span className="text-[var(--color-text-muted)]">저장 안 됨</span>}
-              </span>
-            )}
+                ) : draft.isRecoveryCheckPending ? (
+                  <span>이전 입력 확인 중…</span>
+                ) : (
+                  <span className="scores-lock-status">
+                    <LockKeyhole size={13} aria-hidden />
+                    입력 잠금됨
+                  </span>
+                )
+              ) : (
+                <>
+                  {draft.draftStatus === "dirty" && "저장 대기 중…"}
+                  {draft.draftStatus === "saving" && "자동 저장 중…"}
+                  {draft.draftStatus === "saved" && draft.lastSavedAt != null &&
+                    `저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`}
+                  {draft.draftStatus === "error" && (
+                    <>
+                      <span className="text-[var(--color-error)]">자동 저장 실패</span>
+                      {" "}
+                      <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => void saveScoresNow()}>
+                        다시 시도
+                      </button>
+                    </>
+                  )}
+                  {draft.draftStatus === "idle" && <span className="text-[var(--color-text-muted)]">수정 중 · 자동 저장 준비</span>}
+                  <span className="scores-shortcut-hint" aria-label="단축키: 컨트롤 S 저장, 컨트롤 Z 실행 취소">
+                    Ctrl+S 저장 · Ctrl+Z 실행 취소
+                  </span>
+                </>
+              )}
+            </span>
           </div>
         }
         belowSlot={selectionBar}
@@ -758,28 +905,44 @@ export default function SessionScoresEntryPage({
               <br />
               <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
             </p>
+            {draft.draftError && (
+              <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
+                {draft.draftError}
+              </p>
+            )}
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => void draft.discardDraft()}
+                disabled={draft.isDiscardingDraft}
+                onClick={async () => {
+                  const discarded = await draft.discardDraft();
+                  if (!discarded) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
+                }}
                 className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
               >
-                버리기
+                {draft.isDiscardingDraft ? "버리는 중…" : "버리기"}
               </button>
               <button
                 type="button"
-                onClick={draft.restoreDraft}
+                ref={recoveryRestoreButtonRef}
+                disabled={isLoading || isError}
+                onClick={async () => {
+                  if (!await draft.restoreDraft()) {
+                    feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
+                    return;
+                  }
+                  setIsEditMode(true);
+                }}
                 className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
               >
-                복원
+                {isLoading ? "성적표 불러오는 중…" : "복원 후 수정"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2026-05-13 학원장 호소 fix: 편집 모드 4-layer stack 압도감 해소.
-          편집 옵션 토글은 selectionBar 우측에 통합됨. 별도 row 제거. */}
+      {/* 입력 옵션 토글은 selectionBar 우측에 통합됨. */}
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
@@ -863,11 +1026,13 @@ export default function SessionScoresEntryPage({
 
       {!isLoading && !isError && (
         <SessionScoresPanel
-          ref={panelRef}
+          ref={setPanelHandle}
           sessionId={numericSessionId}
           lectureId={numericLectureId}
           search={searchInput}
           isEditMode={isEditMode}
+          hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+          onPendingChange={draft.requestAutosave}
           examEditTotal={examEditTotal}
           examEditObjective={false}
           examEditSubjective={examEditSubjective}
@@ -891,18 +1056,13 @@ export default function SessionScoresEntryPage({
         type="action"
         width={420}
         onEnterConfirm={() => {
-          if (!isEditMode || !bulkScoreValue.trim()) return;
+          if (!bulkScoreValue.trim()) return;
           applyBulkScore();
         }}
       >
         <ModalHeader title="성적 일괄 변경" />
         <ModalBody>
           <div className="flex flex-col gap-4">
-            {!isEditMode && (
-              <p className="text-sm font-medium" style={{ color: "var(--color-error)" }}>
-                편집 모드에서만 성적 일괄 변경이 가능합니다. 먼저 편집 모드를 켜주세요.
-              </p>
-            )}
             <p className="text-sm text-[var(--color-text-muted)]">
               선택한 {selectedEnrollmentIds.length}명의 성적을 일괄 변경합니다.
             </p>
@@ -967,7 +1127,7 @@ export default function SessionScoresEntryPage({
               <Button
                 intent="primary"
                 size="sm"
-                disabled={!bulkScoreValue.trim() || !isEditMode}
+                disabled={!bulkScoreValue.trim()}
                 onClick={applyBulkScore}
               >
                 적용

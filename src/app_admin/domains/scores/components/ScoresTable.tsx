@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/scores/components/ScoresTable.tsx
 /**
  * 성적 탭 메인 테이블 — 동적 컬럼 구조 (SSOT·UX 설계 문서 준수)
- * - 기본 Read-only, Edit Mode 시에만 입력
+ * - 성적 화면에서는 점수 셀을 바로 입력하고 자동 저장
  * - 2행 헤더: Row1 그룹 헤더(rowSpan=2 고정 컬럼 + colSpan 시험/과제 그룹) | Row2 서브헤더(점수/합불)
  * - 시험/과제 컬럼: exam.title, homework.title 기반 1:1, 서브컬럼 score / pass_fail
  * - 셀 패딩은 table.css의 .ds-scores-table 규칙으로 제어, 인라인 패딩 없음
@@ -58,6 +58,7 @@ const CLINIC_VERDICT_BADGE_META: Record<
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
   const v = input.trim();
+  if (!v) return null;
   const n = Number(v);
   if (Number.isFinite(n)) return n;
   if (maxScore != null && Number(maxScore) > 0 && v.endsWith("%")) {
@@ -115,6 +116,16 @@ function pendingKeyForChange(p: PendingChange): string {
   return `homework:${p.enrollmentId}:${p.homeworkId}`;
 }
 
+function samePendingChange(a: PendingChange, b: PendingChange): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+type ScoreEditHistoryEntry = {
+  key: string;
+  before: PendingChange;
+  after: PendingChange;
+};
+
 // PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
 // OmrUploadButton 컴포넌트 제거(2026-05-13 P0-2): 헤더 위 absolute 미니버튼 제거.
 // OMR 업로드는 SessionScoresEntryPage 툴바 첫 CTA(시험 1개 직진 / 2+개 선택) 단일 경로.
@@ -165,7 +176,7 @@ export type ScoreColumnDef =
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
-/** Imperative handle — focus a cell directly without a React state cycle; 편집 종료 시 한 번에 저장 */
+/** Imperative handle — focus/save/undo without a React state cycle */
 export type ScoresTableHandle = {
   imperativeFocusCell: (cell: {
     enrollmentId: number;
@@ -184,12 +195,19 @@ export type ScoresTableHandle = {
     type: "homework";
     homeworkId: number;
   }) => void;
-  /** 편집 모드 종료 시 호출 — 대기 중인 변경을 한 번에 저장 */
-  flushPendingChanges: () => Promise<void>;
+  /** 대기 중인 변경을 실제 성적 API에 반영 */
+  flushPendingChanges: () => Promise<number>;
   /** 자동 저장/복원용: 현재 pending 스냅샷 */
   getPendingSnapshot: () => PendingChange[];
   /** 드래프트 복원 시 호출 — pending+dirty 반영 후 셀 DOM 갱신 */
   applyDraftPatch: (changes: PendingChange[]) => void;
+  /** 현재 입력 셀을 확정(blur)해 pending에 반영 */
+  commitActiveCell: () => boolean;
+  /** 셀 단위 실행 취소/다시 실행 */
+  undoLastChange: () => boolean;
+  redoLastChange: () => boolean;
+  /** 현재 셀 안에서 아직 확정되지 않은 타이핑이 있는지 */
+  hasUncommittedActiveCell: () => boolean;
 };
 
 type Props = {
@@ -229,6 +247,8 @@ type Props = {
   onRequestMovePrev?: () => void;
   onRequestMoveDown?: () => void;
   onRequestMoveUp?: () => void;
+  /** 셀 변경이 pending에 등록되는 즉시 자동 저장 시작 */
+  onPendingChange?: () => void;
 
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
@@ -261,6 +281,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onRequestMovePrev,
   onRequestMoveDown,
   onRequestMoveUp,
+  onPendingChange,
   selectedEnrollmentIds = [],
   onSelectionChange,
 }: Props, ref) {
@@ -277,22 +298,108 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const pendingRef = useRef<Map<string, PendingChange>>(new Map());
   /** pending에 있는 셀은 sync effect에서 innerText 덮어쓰지 않음 */
   const dirtyKeysRef = useRef<Set<string>>(new Set());
+  const undoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
+  const redoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
+  const lastCommitInvalidRef = useRef(false);
+  const liveHistoryKeyRef = useRef<string | null>(null);
 
-  /** 편집 종료 시 한 번에 저장 — pending 항목 전부 API 호출 후 한 번만 invalidate */
+  const applyChangeToDom = useCallback((change: PendingChange) => {
+    const setCellText = (el: HTMLElement | null | undefined, value: string) => {
+      if (!el) return;
+      el.innerText = value;
+      if (el === document.activeElement) el.dataset.focusValue = value;
+    };
+    if (change.type === "examTotal") {
+      const el = examInputRefs.current[`${change.enrollmentId}-${change.examId}`];
+      setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미응시" : String(Math.round(change.score)));
+      return;
+    }
+    if (change.type === "examObjective") {
+      const el = examObjectiveInputRefs.current[`${change.enrollmentId}-${change.examId}-objective`];
+      setCellText(el, String(Math.round(change.score)));
+      return;
+    }
+    if (change.type === "examSubjective") {
+      const el = examSubjectiveInputRefs.current[`${change.enrollmentId}-${change.examId}-subjective`];
+      setCellText(el, String(Math.round(change.score)));
+      return;
+    }
+    const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
+    setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미제출" : (change.score != null ? String(change.score) : ""));
+  }, []);
+
+  const applyPendingChangeToMountedCell = useCallback((key: string): boolean => {
+    const pending = pendingRef.current.get(key);
+    if (pending == null) return false;
+    applyChangeToDom(pending);
+    return true;
+  }, [applyChangeToDom]);
+
+  const stagePendingChange = useCallback((
+    key: string,
+    next: PendingChange,
+    serverValue: PendingChange,
+  ) => {
+    const pendingValue = pendingRef.current.get(key);
+    const before = pendingValue ?? serverValue;
+    if (samePendingChange(before, next)) return;
+
+    pendingRef.current.set(key, next);
+    dirtyKeysRef.current.add(key);
+    undoStackRef.current.push({
+      key,
+      before,
+      after: next,
+    });
+    if (undoStackRef.current.length > 100) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    onPendingChange?.();
+  }, [onPendingChange]);
+
+  /** contenteditable 입력 중 유효한 값은 즉시 pending에 반영한다.
+   * 한 번의 포커스 안에서 여러 글자를 입력해도 실행 취소 이력은 셀 단위 한 건으로 합친다. */
+  const stageLivePendingChange = useCallback((
+    key: string,
+    next: PendingChange,
+    serverValue: PendingChange,
+  ) => {
+    const pendingValue = pendingRef.current.get(key);
+    if (pendingValue && samePendingChange(pendingValue, next)) return;
+    const before = pendingValue ?? serverValue;
+    pendingRef.current.set(key, next);
+    dirtyKeysRef.current.add(key);
+
+    const lastHistory = undoStackRef.current[undoStackRef.current.length - 1];
+    if (liveHistoryKeyRef.current === key && lastHistory?.key === key) {
+      lastHistory.after = next;
+    } else {
+      undoStackRef.current.push({
+        key,
+        before,
+        after: next,
+      });
+      if (undoStackRef.current.length > 100) undoStackRef.current.shift();
+      liveHistoryKeyRef.current = key;
+    }
+    redoStackRef.current = [];
+    onPendingChange?.();
+  }, [onPendingChange]);
+
+  /** pending 항목 전부 API 호출 후 한 번만 invalidate.
+   * 저장 도중 같은 셀이 다시 바뀌면 새 값을 지우지 않는다. */
   const flushPendingChanges = useCallback(async () => {
     const list = Array.from(pendingRef.current.values());
-    pendingRef.current.clear();
-    dirtyKeysRef.current.clear();
-    if (list.length === 0) return;
+    if (list.length === 0) return 0;
     const failed: PendingChange[] = [];
+    const succeeded: PendingChange[] = [];
     for (const p of list) {
       try {
         if (p.type === "examTotal") {
-          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100, metaStatus: p.metaStatus ?? undefined });
+          await patchExamTotalScoreQuick({ sessionId, examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100, metaStatus: p.metaStatus ?? undefined });
         } else if (p.type === "examObjective") {
-          await patchExamObjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
+          await patchExamObjectiveScoreQuick({ sessionId, examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
         } else if (p.type === "examSubjective") {
-          await patchExamSubjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
+          await patchExamSubjectiveScoreQuick({ sessionId, examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
         } else {
           await patchHomeworkQuick({
             sessionId,
@@ -302,26 +409,29 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             metaStatus: p.metaStatus ?? undefined,
           });
         }
+        succeeded.push(p);
       } catch {
         failed.push(p);
       }
     }
-    // 실패한 항목은 pending에 복원하여 다음 flush에서 재시도
-    for (const p of failed) {
+    await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+    for (const p of succeeded) {
       const key = pendingKeyForChange(p);
-      pendingRef.current.set(key, p);
-      dirtyKeysRef.current.add(key);
+      const current = pendingRef.current.get(key);
+      if (current && samePendingChange(current, p)) {
+        pendingRef.current.delete(key);
+        dirtyKeysRef.current.delete(key);
+        applyChangeToDom(p);
+      }
     }
-    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-    qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
-    qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExamResults });
+    void qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
+    void qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExamResults });
     const successCount = list.length - failed.length;
     if (failed.length > 0) {
-      throw new Error(`${failed.length}건의 점수 저장에 실패했습니다. 편집 모드를 유지합니다. 다시 저장해 주세요.`);
-    } else if (successCount > 0) {
-      feedback.success(`${successCount}건의 점수가 저장되었습니다.`);
+      throw new Error(`${failed.length}건의 점수를 저장하지 못했습니다. 입력값은 유지됩니다. 다시 저장해 주세요.`);
     }
-  }, [qc, sessionId]);
+    return successCount;
+  }, [applyChangeToDom, qc, sessionId]);
 
   /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */
   const getPendingSnapshot = useCallback((): PendingChange[] => {
@@ -332,27 +442,40 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const applyDraftPatch = useCallback((changes: PendingChange[]) => {
     pendingRef.current.clear();
     dirtyKeysRef.current.clear();
+    undoStackRef.current = [];
+    redoStackRef.current = [];
     for (const p of changes) {
       const key = pendingKeyForChange(p);
       pendingRef.current.set(key, p);
       dirtyKeysRef.current.add(key);
+      applyChangeToDom(p);
     }
-    for (const p of changes) {
-      if (p.type === "examTotal") {
-        const el = examInputRefs.current[`${p.enrollmentId}-${p.examId}`];
-        if (el) el.innerText = p.metaStatus === "NOT_SUBMITTED" ? "미응시" : String(Math.round(p.score));
-      } else if (p.type === "examObjective") {
-        const el = examObjectiveInputRefs.current[`${p.enrollmentId}-${p.examId}-objective`];
-        if (el) el.innerText = String(Math.round(p.score));
-      } else if (p.type === "examSubjective") {
-        const el = examSubjectiveInputRefs.current[`${p.enrollmentId}-${p.examId}-subjective`];
-        if (el) el.innerText = String(Math.round(p.score));
-      } else if (p.type === "homework") {
-        const el = homeworkInputRefs.current[`${p.enrollmentId}-${p.homeworkId}`];
-        if (el) el.innerText = p.metaStatus === "NOT_SUBMITTED" ? "미제출" : (p.score != null ? String(p.score) : "");
-      }
-    }
-  }, []);
+    if (changes.length > 0) onPendingChange?.();
+  }, [applyChangeToDom, onPendingChange]);
+
+  const undoLastChange = useCallback(() => {
+    const entry = undoStackRef.current.pop();
+    if (!entry) return false;
+    // 자동 저장이 직전에 완료됐을 수 있으므로, 실행 취소도 항상 명시적인 역방향
+    // 변경으로 저장한다. pending 삭제만 하면 이미 저장된 서버 값이 되돌아가지 않는다.
+    pendingRef.current.set(entry.key, entry.before);
+    dirtyKeysRef.current.add(entry.key);
+    applyChangeToDom(entry.before);
+    redoStackRef.current.push(entry);
+    onPendingChange?.();
+    return true;
+  }, [applyChangeToDom, onPendingChange]);
+
+  const redoLastChange = useCallback(() => {
+    const entry = redoStackRef.current.pop();
+    if (!entry) return false;
+    pendingRef.current.set(entry.key, entry.after);
+    dirtyKeysRef.current.add(entry.key);
+    applyChangeToDom(entry.after);
+    undoStackRef.current.push(entry);
+    onPendingChange?.();
+    return true;
+  }, [applyChangeToDom, onPendingChange]);
 
   const examOptions = useMemo(
     () => (viewFilter === "homework" ? [] : (meta?.exams ?? [])),
@@ -477,7 +600,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     flushPendingChanges,
     getPendingSnapshot,
     applyDraftPatch,
-  }), [selectAllScoreCell, flushPendingChanges, getPendingSnapshot, applyDraftPatch]);
+    commitActiveCell() {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.matches(".ds-scores-cell-editable")) {
+        lastCommitInvalidRef.current = false;
+        active.blur();
+      }
+      return !lastCommitInvalidRef.current;
+    },
+    undoLastChange,
+    redoLastChange,
+    hasUncommittedActiveCell() {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !active.matches(".ds-scores-cell-editable")) return false;
+      const focusValue = active.dataset.focusValue ?? "";
+      return firstLine(active.innerText) !== focusValue;
+    },
+  }), [
+    selectAllScoreCell,
+    flushPendingChanges,
+    getPendingSnapshot,
+    applyDraftPatch,
+    undoLastChange,
+    redoLastChange,
+  ]);
 
   /**
    * 컬럼 구조는 모드와 무관하게 항상 동일.
@@ -579,12 +725,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     <div>
       {isEditMode && (
         <div className="scores-context-help scores-context-help--edit">
-          <InlineHelp title="편집 모드 안내" ariaLabel="편집 모드 도움말" tone="admin" align="left">
+          <InlineHelp title="빠른 성적 입력 안내" ariaLabel="성적 입력 도움말" tone="admin" align="left">
             <ul>
               <li>점수 입력 후 <kbd>Enter</kbd>를 누르면 다음 셀로 이동합니다.</li>
               <li><kbd>/</kbd> 입력 후 <kbd>Enter</kbd>를 누르면 미응시/미제출로 처리합니다.</li>
               <li><kbd>Tab</kbd>은 다음 셀, <kbd>Esc</kbd>는 현재 입력 취소입니다.</li>
-              <li>변경 내용은 상단 저장하기 버튼을 눌러 반영합니다.</li>
+              <li>입력한 점수는 자동 저장됩니다. <kbd>Ctrl</kbd>+<kbd>S</kbd>는 즉시 저장, <kbd>Ctrl</kbd>+<kbd>Z</kbd>는 실행 취소입니다.</li>
             </ul>
           </InlineHelp>
         </div>
@@ -1011,37 +1157,94 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}`;
                                     examInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examTotal:${row.enrollment_id}:${ex.exam_id}`)) {
-                                      if (isExamNotSubmitted) el.innerText = "미응시";
-                                      else el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                    if (el && el !== document.activeElement) {
+                                      const pendingKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                      if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                        if (isExamNotSubmitted) el.innerText = "미응시";
+                                        else el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                      }
                                     }
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
+                                  role="textbox"
+                                  inputMode="decimal"
+                                  aria-label={`${row.student_name} · ${ex.title} 점수 입력`}
                                   className={`ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0 ${isExamNotSubmitted ? "text-[var(--color-text-muted)]" : ""}`}
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
-                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = isExamNotSubmitted ? "미응시" : (block?.score != null ? String(Math.round(block.score)) : "");
+                                    lastCommitInvalidRef.current = false;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = firstLine(el.innerText);
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = focusValue;
+                                    el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onInput={(e) => {
+                                    const raw = firstLine(e.currentTarget.innerText);
+                                    const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                    const serverValue: PendingChange = isExamNotSubmitted || block?.score == null
+                                      ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                      : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 };
+                                    if (raw === "/" || raw === "미응시") {
+                                      stageLivePendingChange(
+                                        cellKey,
+                                        { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
+                                        serverValue,
+                                      );
+                                      return;
+                                    }
+                                    const maxScore = block?.max_score ?? ex.max_score ?? 100;
+                                    const parsed = parseScoreInput(raw, maxScore);
+                                    if (parsed != null && parsed >= 0 && parsed <= maxScore) {
+                                      stageLivePendingChange(
+                                        cellKey,
+                                        { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore },
+                                        serverValue,
+                                      );
+                                    }
                                   }}
                                   onBlur={async () => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
                                     const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                    const wasLiveChange = liveHistoryKeyRef.current === cellKey;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = el.dataset.focusValue ?? "";
+                                    if (raw === focusValue) return;
                                     // "/" or "미응시" → NOT_SUBMITTED
                                     if (raw === "/" || raw === "미응시") {
                                       el.innerText = "미응시";
-                                      pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
-                                      dirtyKeysRef.current.add(cellKey);
+                                      if (wasLiveChange) return;
+                                      stagePendingChange(
+                                        cellKey,
+                                        { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
+                                        isExamNotSubmitted || block?.score == null
+                                          ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                          : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                      );
                                       return;
                                     }
                                     const metaMax = block?.max_score ?? ex.max_score ?? 100;
                                     const parsed = parseScoreInput(raw, metaMax);
-                                    if (parsed != null && validateScore(parsed, metaMax)) {
-                                      pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
-                                      dirtyKeysRef.current.add(cellKey);
-                                    } else if (raw !== "") el.innerText = isExamNotSubmitted ? "미응시" : (block?.score != null ? String(Math.round(block.score)) : "");
+                                    if (parsed == null) {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                      feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다. 미응시는 / 를 입력해 주세요.");
+                                    } else if (validateScore(parsed, metaMax)) {
+                                      if (wasLiveChange) return;
+                                      stagePendingChange(
+                                        cellKey,
+                                        { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax },
+                                        isExamNotSubmitted || block?.score == null
+                                          ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                          : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: metaMax },
+                                      );
+                                    } else {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                    }
                                   }}
                                   onKeyDown={(e) => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
@@ -1057,20 +1260,35 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       if (raw === "/") {
                                         if (el) el.innerText = "미응시";
                                         const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
-                                        pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
-                                        dirtyKeysRef.current.add(cellKey);
+                                        stagePendingChange(
+                                          cellKey,
+                                          { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
+                                          isExamNotSubmitted || block?.score == null
+                                            ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                        );
                                       } else if (raw === "미응시") {
                                         const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
-                                        pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" });
-                                        dirtyKeysRef.current.add(cellKey);
+                                        stagePendingChange(
+                                          cellKey,
+                                          { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
+                                          isExamNotSubmitted || block?.score == null
+                                            ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                        );
                                       } else {
                                         // 숫자 입력 → 점수 저장
                                         const metaMax = block?.max_score ?? ex.max_score ?? 100;
                                         const parsed = parseScoreInput(raw, metaMax);
                                         if (parsed != null && validateScore(parsed, metaMax)) {
                                           const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
-                                          pendingRef.current.set(cellKey, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax });
-                                          dirtyKeysRef.current.add(cellKey);
+                                          stagePendingChange(
+                                            cellKey,
+                                            { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: metaMax },
+                                            isExamNotSubmitted || block?.score == null
+                                              ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
+                                              : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: metaMax },
+                                          );
                                         }
                                       }
                                       onRequestMoveDown?.();
@@ -1126,26 +1344,63 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-objective`;
                                     examObjectiveInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examObjective:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                    if (el && el !== document.activeElement) {
+                                      const pendingKey = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
+                                      if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                        el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                      }
+                                    }
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
+                                  role="textbox"
+                                  inputMode="decimal"
+                                  aria-label={`${row.student_name} · ${ex.title} 객관식 점수 입력`}
                                   className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
-                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = objScore != null ? String(Math.round(objScore)) : "";
+                                    lastCommitInvalidRef.current = false;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = firstLine(el.innerText);
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = focusValue;
+                                    el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onInput={(e) => {
+                                    const raw = firstLine(e.currentTarget.innerText);
+                                    const parsed = parseScoreInput(raw, objectiveMax);
+                                    if (parsed == null || parsed < 0 || parsed > objectiveMax) return;
+                                    stageLivePendingChange(
+                                      `examObjective:${row.enrollment_id}:${ex.exam_id}`,
+                                      { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed },
+                                      { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
+                                    );
                                   }}
                                   onBlur={async () => {
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
+                                    const key = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
+                                    const wasLiveChange = liveHistoryKeyRef.current === key;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = el.dataset.focusValue ?? "";
+                                    if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, objectiveMax);
-                                    if (parsed != null && validateScore(parsed, objectiveMax)) {
-                                      const key = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
-                                      pendingRef.current.set(key, { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      dirtyKeysRef.current.add(key);
-                                    } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                    if (parsed == null) {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                      feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                    } else if (validateScore(parsed, objectiveMax)) {
+                                      if (wasLiveChange) return;
+                                      stagePendingChange(
+                                        key,
+                                        { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed },
+                                        { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
+                                      );
+                                    } else {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                    }
                                   }}
                                   onKeyDown={(e) => {
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
@@ -1196,26 +1451,63 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-subjective`;
                                     examSubjectiveInputRefs.current[k] = el;
-                                    if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`examSubjective:${row.enrollment_id}:${ex.exam_id}`)) el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                    if (el && el !== document.activeElement) {
+                                      const pendingKey = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
+                                      if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                        el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                      }
+                                    }
                                   }}
                                   contentEditable
                                   suppressContentEditableWarning
+                                  role="textbox"
+                                  inputMode="decimal"
+                                  aria-label={`${row.student_name} · ${ex.title} 주관식 점수 입력`}
                                   className="ds-scores-cell-editable font-medium text-center tabular-nums text-sm outline-none inline-block w-full min-w-0"
                                   onFocus={(e) => {
                                     const el = e.currentTarget;
-                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = subScore != null ? String(Math.round(subScore)) : "";
+                                    lastCommitInvalidRef.current = false;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = firstLine(el.innerText);
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = focusValue;
+                                    el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onInput={(e) => {
+                                    const raw = firstLine(e.currentTarget.innerText);
+                                    const parsed = parseScoreInput(raw, subjectiveMax);
+                                    if (parsed == null || parsed < 0 || parsed > subjectiveMax) return;
+                                    stageLivePendingChange(
+                                      `examSubjective:${row.enrollment_id}:${ex.exam_id}`,
+                                      { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed },
+                                      { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
+                                    );
                                   }}
                                   onBlur={async () => {
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
+                                    const key = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
+                                    const wasLiveChange = liveHistoryKeyRef.current === key;
+                                    liveHistoryKeyRef.current = null;
+                                    const focusValue = el.dataset.focusValue ?? "";
+                                    if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, subjectiveMax);
-                                    if (parsed != null && validateScore(parsed, subjectiveMax)) {
-                                      const key = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
-                                      pendingRef.current.set(key, { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      dirtyKeysRef.current.add(key);
-                                    } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                    if (parsed == null) {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                      feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                    } else if (validateScore(parsed, subjectiveMax)) {
+                                      if (wasLiveChange) return;
+                                      stagePendingChange(
+                                        key,
+                                        { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed },
+                                        { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
+                                      );
+                                    } else {
+                                      lastCommitInvalidRef.current = true;
+                                      el.innerText = focusValue;
+                                    }
                                   }}
                                   onKeyDown={(e) => {
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
@@ -1262,6 +1554,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             >
                               {canEdit ? (
                                 <ScoreInputCell
+                                  sessionId={sessionId}
                                   examId={ex.exam_id}
                                   enrollmentId={row.enrollment_id}
                                   questionId={col.questionId!}
@@ -1374,21 +1667,58 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               ref={(el) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 homeworkInputRefs.current[key] = el;
-                                if (el && el !== document.activeElement && !dirtyKeysRef.current.has(`homework:${row.enrollment_id}:${hw.homework_id}`)) {
-                                  if (isNotSubmitted) el.innerText = "미제출";
-                                  else el.innerText = block?.score != null ? String(block.score) : "";
+                                if (el && el !== document.activeElement) {
+                                  const pendingKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                  if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                    if (isNotSubmitted) el.innerText = "미제출";
+                                    else el.innerText = block?.score != null ? String(block.score) : "";
+                                  }
                                 }
                               }}
                               contentEditable
                               suppressContentEditableWarning
+                              role="textbox"
+                              inputMode="decimal"
+                              aria-label={`${row.student_name} · ${hw.title} 점수 입력`}
                               className={`ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0 ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}
                               // eslint-disable-next-line no-restricted-syntax
                               style={{ listStyle: "none" }}
                               onFocus={(e) => {
                                 const el = e.currentTarget;
+                                lastCommitInvalidRef.current = false;
+                                liveHistoryKeyRef.current = null;
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
-                                scoreValueOnFocusRef.current[key] = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                const focusValue = firstLine(el.innerText);
+                                scoreValueOnFocusRef.current[key] = focusValue;
+                                el.dataset.focusValue = focusValue;
                                 requestAnimationFrame(() => selectAllScoreCell(el));
+                              }}
+                              onInput={(e) => {
+                                const raw = firstLine(e.currentTarget.innerText);
+                                const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                const serverValue: PendingChange = isNotSubmitted
+                                  ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                  : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
+                                if (raw === "" || raw === "미제출") {
+                                  stageLivePendingChange(
+                                    cellKey,
+                                    raw === "미제출"
+                                      ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                      : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null },
+                                    serverValue,
+                                  );
+                                  return;
+                                }
+                                const maxScore = block?.max_score ?? null;
+                                const parsed = parseScoreInput(raw, maxScore);
+                                const max = maxScore != null && maxScore > 0 ? maxScore : 100;
+                                if (parsed != null && parsed >= 0 && parsed <= max) {
+                                  stageLivePendingChange(
+                                    cellKey,
+                                    { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed },
+                                    serverValue,
+                                  );
+                                }
                               }}
                               onMouseDown={(e) => {
                                 e.preventDefault();
@@ -1402,14 +1732,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const el = homeworkInputRefs.current[key];
                                 if (!el) return;
                                 const raw = el.innerText.trim();
+                                const wasLiveChange = liveHistoryKeyRef.current === cellKey;
+                                liveHistoryKeyRef.current = null;
+                                const serverValue: PendingChange = isNotSubmitted
+                                  ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                  : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
                                 if (raw === "미제출") {
-                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
-                                  dirtyKeysRef.current.add(cellKey);
+                                  if (wasLiveChange) return;
+                                  stagePendingChange(
+                                    cellKey,
+                                    { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
+                                    serverValue,
+                                  );
                                   return;
                                 }
                                 if (raw === "") {
-                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null });
-                                  dirtyKeysRef.current.add(cellKey);
+                                  if (wasLiveChange) return;
+                                  stagePendingChange(
+                                    cellKey,
+                                    { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null },
+                                    serverValue,
+                                  );
                                   return;
                                 }
                                 const parsed = parseScoreInput(raw, block?.max_score ?? null);
@@ -1418,8 +1761,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                     return;
                                   }
-                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed });
-                                  dirtyKeysRef.current.add(cellKey);
+                                  if (wasLiveChange) return;
+                                  stagePendingChange(
+                                    cellKey,
+                                    { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed },
+                                    serverValue,
+                                  );
                                 } else {
                                   el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 }
@@ -1451,15 +1798,25 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   if (raw === "/") {
                                     if (el) el.innerText = "미제출";
                                     const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
-                                    dirtyKeysRef.current.add(cellKey);
+                                    stagePendingChange(
+                                      cellKey,
+                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
+                                      isNotSubmitted
+                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
+                                    );
                                     onRequestMoveDown?.();
                                     return;
                                   }
                                   if (raw === "미제출") {
                                     const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
-                                    dirtyKeysRef.current.add(cellKey);
+                                    stagePendingChange(
+                                      cellKey,
+                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
+                                      isNotSubmitted
+                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
+                                    );
                                     onRequestMoveDown?.();
                                     return;
                                   }
@@ -1470,8 +1827,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       return;
                                     }
                                     const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed });
-                                    dirtyKeysRef.current.add(cellKey);
+                                    stagePendingChange(
+                                      cellKey,
+                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed },
+                                      isNotSubmitted
+                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
+                                    );
                                   }
                                   onRequestMoveDown?.();
                                   return;

@@ -12,6 +12,7 @@
  */
 
 import api from "@/shared/api/axios";
+import { scoreEditorRequestHeaders } from "./scoreDraft";
 
 export type HomeworkMetaStatus = "NOT_SUBMITTED";
 
@@ -28,14 +29,23 @@ export async function patchHomeworkQuick(params: {
   // ✅ 확장: 미제출 저장/해제
   metaStatus?: HomeworkMetaStatus | null;
 }) {
-  const res = await api.patch("/homework/scores/quick/", {
-    session_id: params.sessionId,
-    enrollment_id: params.enrollmentId,
-    homework_id: params.homeworkId,
-    score: params.score,
-    max_score: params.maxScore ?? null,
-    meta_status: params.metaStatus ?? null,
-  });
+  const res = await api.patch(
+    "/homework/scores/quick/",
+    {
+      session_id: params.sessionId,
+      enrollment_id: params.enrollmentId,
+      homework_id: params.homeworkId,
+      score: params.score,
+      max_score: params.maxScore ?? null,
+      meta_status: params.metaStatus ?? null,
+    },
+    {
+      headers: {
+        ...await scoreEditorRequestHeaders(),
+        "X-Score-Session-Id": String(params.sessionId),
+      },
+    },
+  );
 
   return res.data;
 }

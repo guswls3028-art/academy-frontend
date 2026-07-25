@@ -63,6 +63,8 @@ type Props = {
   enrollmentId: number;
   studentName: string;
   examTitle: string;
+  scoreSessionId?: number;
+  readOnly?: boolean;
   onClose: () => void;
 };
 
@@ -91,7 +93,7 @@ function questionKindFromNumber(
   return null;
 }
 
-export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, onClose }: Props) {
+export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
@@ -206,17 +208,28 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
 
-  const enterEdit = () => { setMainTab("answer"); setIsEditMode(true); };
+  const enterEdit = () => {
+    if (readOnly) {
+      feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
+      return;
+    }
+    setMainTab("answer");
+    setIsEditMode(true);
+  };
   const exitEdit = () => { setIsEditMode(false); invalidateAll(); };
+
+  useEffect(() => {
+    if (readOnly) setIsEditMode(false);
+  }, [readOnly]);
 
   // 상태 B: 최초 로드 시 데이터 없으면 바로 편집 모드 진입
   const initialAutoEdit = useRef(false);
   useEffect(() => {
-    if (!detailLoading && !detailError && hasQuestions && !hasData && !initialAutoEdit.current) {
+    if (!readOnly && !detailLoading && !detailError && hasQuestions && !hasData && !initialAutoEdit.current) {
       initialAutoEdit.current = true;
       setIsEditMode(true);
     }
-  }, [detailLoading, detailError, hasQuestions, hasData]);
+  }, [readOnly, detailLoading, detailError, hasQuestions, hasData]);
 
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {
@@ -423,13 +436,17 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       qNumMap={qNumMap}
                       correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
-                      onEdit={enterEdit}
+                      onEdit={readOnly ? undefined : enterEdit}
                     />
                   ) : hasQuestions ? (
                     /* ── 상태 B: 데이터 없음 + 문항 있음 → 입력 유도 ── */
                     <div className="srd-stateB">
                       <p className="srd-stateB__desc">아직 입력된 답안이 없습니다.</p>
-                      <button type="button" className="srd-stateB__btn" onClick={enterEdit}>답안 입력 시작</button>
+                      {readOnly ? (
+                        <p className="srd-stateB__desc">답안을 입력하려면 성적표에서 수정을 눌러 주세요.</p>
+                      ) : (
+                        <button type="button" className="srd-stateB__btn" onClick={enterEdit}>답안 입력 시작</button>
+                      )}
                     </div>
                   ) : (
                     /* ── 상태 C: 문항 미등록 ── */
@@ -438,8 +455,9 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 )}
 
                 {!detailLoading && !detailError && isEditMode && (
-                  <EditModeContent
-                    examId={examId}
+                    <EditModeContent
+                      sessionId={scoreSessionId}
+                      examId={examId}
                     enrollmentId={enrollmentId}
                     choiceItems={choiceItems}
                     essayItems={essayItems}
@@ -478,7 +496,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
   qNumMap: Map<number, number>;
   correctAnswers: Record<string, string>;
   isItemCorrect: (it: ExamResultItem) => boolean;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
@@ -545,14 +563,16 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
       </div>
 
       {/* 하단 수정 CTA */}
-      <div className="srd-read__footer">
-        <button type="button" className="srd-read__edit-btn" onClick={onEdit}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-          성적 수정
-        </button>
-      </div>
+      {onEdit && (
+        <div className="srd-read__footer">
+          <button type="button" className="srd-read__edit-btn" onClick={onEdit}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            성적 수정
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -628,7 +648,8 @@ function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptE
 /* 편집 모드 — 2단 (선택형 | 서술형) + sticky 총점       */
 /* ═══════════════════════════════════════════════════ */
 
-function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone }: {
+function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone }: {
+  sessionId?: number;
   examId: number;
   enrollmentId: number;
   choiceItems: ExamResultItem[];
@@ -653,7 +674,9 @@ function EditModeContent({ examId, enrollmentId, choiceItems, essayItems, allIte
 
   const saveMutation = useMutation({
     mutationFn: (params: { questionId: number; score: number; answer?: string }) =>
-      patchExamItemScore({ examId, enrollmentId, questionId: params.questionId, score: params.score, answer: params.answer }),
+      sessionId == null
+        ? Promise.reject(new Error("차시 성적 화면에서 수정해 주세요."))
+        : patchExamItemScore({ sessionId, examId, enrollmentId, questionId: params.questionId, score: params.score, answer: params.answer }),
     onError: () => feedback.error("저장에 실패했습니다."),
   });
 

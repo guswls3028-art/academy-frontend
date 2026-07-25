@@ -15,6 +15,7 @@ import { patchExamItemScore } from "../api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
+  sessionId: number;
   examId: number;
   enrollmentId: number;
   questionId: number;
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export default function ScoreInputCell({
+  sessionId,
   examId,
   enrollmentId,
   questionId,
@@ -77,6 +79,7 @@ export default function ScoreInputCell({
       savingRef.current = true;
       setSaving(true);
       await patchExamItemScore({
+        sessionId,
         examId,
         enrollmentId,
         questionId,
