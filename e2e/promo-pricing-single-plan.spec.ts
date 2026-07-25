@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/strictTest";
+import { onRequestGet } from "../functions/[[path]]";
 import { resolveBillingAmounts } from "../src/shared/product/billingAmounts";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -81,4 +82,21 @@ test("standard single-plan billing uses ten percent VAT", () => {
     totalAmount: 198_000,
     vatRatePercent: 10,
   });
+});
+
+test("Cloudflare routing forwards promo image assets", async () => {
+  const response = await onRequestGet({
+    request: new Request("https://hakwonplus.com/promo/admin-scores.png"),
+    env: {
+      ASSETS: {
+        fetch: async () => new Response(new Uint8Array([137, 80, 78, 71]), {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        }),
+      },
+    },
+  } as never);
+
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Content-Type")).toBe("image/png");
 });

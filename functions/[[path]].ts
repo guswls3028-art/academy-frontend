@@ -66,8 +66,8 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
   },
   "/promo/pricing": {
-    title: "요금제 | 월 159,000원 전체 기능 | 학원플러스",
-    description: "수강생과 관리자 계정 수 제한 없이 전체 기능과 200GB 저장공간을 월 159,000원에 제공합니다.",
+    title: "요금제 | 평소 198,000원 · 8월 특별가 159,000원 | 학원플러스",
+    description: "평소 월 198,000원인 전체 기능 요금제를 2026년 8월 가입자에게 월 159,000원으로 평생 보장합니다.",
   },
   "/promo/faq": {
     title: "자주 묻는 질문 | 학원플러스",
@@ -440,7 +440,8 @@ function injectMeta(
         "@type": "Offer",
         price: "159000",
         priceCurrency: "KRW",
-        description: "월 구독료, 전체 기능 및 200GB 저장공간 포함",
+        priceValidUntil: "2026-08-31",
+        description: "평소 월 198,000원, 2026년 8월 가입 특별가 월 159,000원. 전체 기능 및 200GB 저장공간 포함",
       },
     });
     html = html.replace(
@@ -457,7 +458,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
 
-  if (HAKWONPLUS_HOSTS.has(host) && (pathname === "/promo/" || pathname.startsWith("/promo/"))) {
+  if (
+    HAKWONPLUS_HOSTS.has(host)
+    && !STATIC_EXT.test(pathname)
+    && (pathname === "/promo/" || pathname.startsWith("/promo/"))
+  ) {
     const canonicalPath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
     if (canonicalPath !== pathname && HAKWONPLUS_PROMO_ROUTES.has(canonicalPath)) {
       const target = new URL(url);
