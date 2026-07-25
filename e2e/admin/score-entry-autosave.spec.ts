@@ -12,6 +12,11 @@ type TargetLecture = {
   title: string;
 };
 
+type ScoreRouteOptions = {
+  initialScores?: Array<number | null>;
+  initialDraft?: unknown[];
+};
+
 function rows<T>(value: ListEnvelope<T>): T[] {
   return Array.isArray(value) ? value : value.results ?? [];
 }
@@ -33,7 +38,11 @@ async function findLectureWithSession(page: Page): Promise<TargetLecture | null>
   return null;
 }
 
-async function openScoresFromDashboard(page: Page, lecture: TargetLecture): Promise<void> {
+async function openScoresFromDashboard(
+  page: Page,
+  lecture: TargetLecture,
+  routeOptions: ScoreRouteOptions = {},
+): Promise<void> {
   const lecturesLink = page
     .locator('nav a[href="/admin/lectures"], aside a[href="/admin/lectures"], [class*=sidebar] a[href="/admin/lectures"]')
     .filter({ hasText: "강의" })
@@ -54,32 +63,31 @@ async function openScoresFromDashboard(page: Page, lecture: TargetLecture): Prom
   await sessionBlock.click();
   await expect(page).toHaveURL(/\/admin\/lectures\/\d+\/sessions\/\d+\/attendance/);
 
-  await installScoreRoutes(page);
+  await installScoreRoutes(page, routeOptions);
   const scoresTab = page.getByRole("button", { name: "성적", exact: true }).first();
   await expect(scoresTab).toBeVisible({ timeout: 10_000 });
   await scoresTab.click();
   await expect(page).toHaveURL(/\/admin\/lectures\/\d+\/sessions\/\d+\/scores/);
-  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
 const scorePatches: Array<Record<string, unknown>> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
-let currentScores = [65, 52];
+let currentScores: Array<number | null> = [65, 52];
 let currentDraft: unknown[] = [];
 let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let delayNextScorePatchMs = 0;
 
-async function installScoreRoutes(page: Page): Promise<void> {
+async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
   scorePatchHeaders.length = 0;
   draftPuts.length = 0;
   draftCommits.length = 0;
-  currentScores = [65, 52];
-  currentDraft = [];
+  currentScores = [...(options.initialScores ?? [65, 52])];
+  currentDraft = [...(options.initialDraft ?? [])];
   failNextDraftCommit = false;
   failNextLeaseRelease = false;
   failNextDraftPut = false;
@@ -124,16 +132,17 @@ async function installScoreRoutes(page: Page): Promise<void> {
               block: {
                 score,
                 max_score: 100,
-                passed: score >= 60,
-                clinic_required: score < 60,
+                passed: score == null ? null : score >= 60,
+                clinic_required: score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
-                subjective_score: 0,
+                subjective_score: score == null ? null : 0,
                 meta: {},
               },
+              attempt_count: score == null ? 0 : 1,
             }],
             homeworks: [],
-            clinic_required: score < 60,
+            clinic_required: score == null ? false : score < 60,
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
           })),
@@ -224,6 +233,65 @@ async function installScoreRoutes(page: Page): Promise<void> {
 test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+
+  test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
+    await loginViaUI(page, "admin");
+    const target = await findLectureWithSession(page);
+    if (target == null) {
+      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
+      return;
+    }
+    await openScoresFromDashboard(page, target, { initialScores: [null, null] });
+
+    const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+    await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("status")).toContainText("수정 중 · 자동 저장 준비");
+    await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
+    await page.screenshot({ path: testInfo.outputPath("score-entry-empty-auto-edit-1366.png"), fullPage: true });
+
+    await saveAndLockButton.click();
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
+
+  test("빈 성적표라도 복구 초안이 있으면 자동 수정하지 않는다", async ({ page }) => {
+    await loginViaUI(page, "admin");
+    const target = await findLectureWithSession(page);
+    if (target == null) {
+      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
+      return;
+    }
+    await openScoresFromDashboard(page, target, {
+      initialScores: [null, null],
+      initialDraft: [{
+        type: "examTotal",
+        examId: 9101,
+        enrollmentId: 9201,
+        score: 88,
+        maxScore: 100,
+      }],
+    });
+
+    await expect(page.getByRole("dialog", { name: /임시저장된 변경 1건/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeDisabled();
+    await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
+
+  test("0점은 입력된 데이터로 보고 잠금 상태를 유지한다", async ({ page }) => {
+    await loginViaUI(page, "admin");
+    const target = await findLectureWithSession(page);
+    if (target == null) {
+      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
+      return;
+    }
+    await openScoresFromDashboard(page, target, { initialScores: [0, null] });
+
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
 
   test("수정 중 자동 저장·단축키를 지원하고 완료하면 다시 잠긴다", async ({ page }, testInfo) => {
     await loginViaUI(page, "admin");

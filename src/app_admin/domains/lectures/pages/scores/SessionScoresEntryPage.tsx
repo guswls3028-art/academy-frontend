@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-restricted-syntax */
 /**
  * SessionScoresEntryPage — 성적 탭 (엑셀형 작업 플레이스)
- * - 기본 입력 잠금, 수정 중 자동 저장·Excel형 단축키, 완료 시 저장 후 다시 잠금
+ * - 완전히 빈 성적표는 바로 입력, 기존 데이터가 있으면 잠금 상태에서 수정 시작
+ * - 수정 중 자동 저장·Excel형 단축키, 완료 시 저장 후 다시 잠금
  * - 학생 체크박스 선택 시 수업결과 알림톡 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  *
  * 2026-05-12: 범용 발송 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
@@ -19,6 +20,7 @@ import { useScoreEditDraft } from "@admin/domains/scores/hooks/useScoreEditDraft
 import {
   fetchSessionScores,
   type SessionScoreRow,
+  type SessionScoresResponse,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -46,6 +48,27 @@ type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
 };
+
+function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): boolean {
+  if (!data || data.rows.some((row) => row.progress_completed || row.progress_status === "completed")) {
+    return false;
+  }
+
+  const entries = data.rows.flatMap((row) => [...row.exams, ...row.homeworks]);
+  if (entries.length === 0) return false;
+
+  return entries.every((entry) => {
+    const { block } = entry;
+    return (
+      (entry.attempt_count ?? 0) === 0 &&
+      block.score == null &&
+      block.objective_score == null &&
+      block.subjective_score == null &&
+      block.is_locked !== true &&
+      (block.meta == null || Object.keys(block.meta).length === 0)
+    );
+  });
+}
 
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ScorePrintPreviewModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
@@ -98,6 +121,7 @@ export default function SessionScoresEntryPage({
   const recoveryDialogRef = useRef<HTMLDivElement>(null);
   const recoveryPreviousFocusRef = useRef<HTMLElement | null>(null);
   const isEditModeRef = useRef(false);
+  const autoEditAttemptedSessionsRef = useRef(new Set<number>());
   isEditModeRef.current = isEditMode;
   const shouldLoadPrintData = showPrintPreview || showClinicPreview || showBillboardPreview;
 
@@ -206,6 +230,7 @@ export default function SessionScoresEntryPage({
     checkForRecovery: sessionIdForDraft > 0,
   });
   const {
+    beginEditing: beginScoreEditing,
     saveNow: saveScoreDraftNow,
     releaseEditLease: releaseScoreEditLease,
   } = draft;
@@ -335,11 +360,12 @@ export default function SessionScoresEntryPage({
     return () => document.removeEventListener("pointerdown", commitBeforePointerAction, true);
   }, [isEditMode]);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(numericSessionId),
     queryFn: () => fetchSessionScores(numericSessionId),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
 
   const hasSubjectiveExam = useMemo(
     () => (data?.meta?.exams ?? []).some((exam) => Number(exam.subjective_max_score ?? 0) > 0),
@@ -450,6 +476,45 @@ export default function SessionScoresEntryPage({
      selectionBar 보다 위로 이동. */
   const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
   const examOptions = data?.meta?.exams ?? [];
+
+  useEffect(() => {
+    if (
+      !isBlankScoreSheet ||
+      isLoading ||
+      isFetching ||
+      isError ||
+      isEditMode ||
+      recoveryBlocked ||
+      autoEditAttemptedSessionsRef.current.has(sessionIdForDraft)
+    ) {
+      return;
+    }
+
+    autoEditAttemptedSessionsRef.current.add(sessionIdForDraft);
+    let cancelled = false;
+    void beginScoreEditing().then(async (started) => {
+      if (!started) return;
+      if (cancelled) {
+        await releaseScoreEditLease();
+        return;
+      }
+      setIsEditMode(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    beginScoreEditing,
+    isBlankScoreSheet,
+    isEditMode,
+    isError,
+    isFetching,
+    isLoading,
+    recoveryBlocked,
+    releaseScoreEditLease,
+    sessionIdForDraft,
+  ]);
+
   // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
   // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
@@ -766,7 +831,7 @@ export default function SessionScoresEntryPage({
           : <Pencil size={ICON_FOR_BUTTON.sm} />}
         onClick={async () => {
           if (!isEditMode) {
-            if (!await draft.beginEditing()) {
+            if (!await beginScoreEditing()) {
               feedback.error("다른 화면의 수정을 마친 뒤 다시 시도해 주세요.");
               return;
             }
