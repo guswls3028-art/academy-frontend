@@ -20,6 +20,9 @@ export type TenantSubscriptionDto = {
   vat_rate_percent?: number | null;
   billing_price_policy?: string;
   is_contract_price?: boolean;
+  has_lifetime_price_guarantee?: boolean;
+  price_guarantee_code?: string | null;
+  price_guarantee_label?: string | null;
   subscription_status: string;
   subscription_status_display: string;
   subscription_expires_at: string | null;

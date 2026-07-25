@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
+  AUGUST_PRICE_GUARANTEE,
+  AUGUST_PROMOTION_LABEL,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
   formatWon,
@@ -24,11 +26,11 @@ export default function PricingPage() {
       <section className={styles.hero} aria-labelledby="pricing-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>요금 안내</span>
-            <h1 id="pricing-title">월 159,000원, 모든 기능을 함께 씁니다</h1>
+            <span className={styles.eyebrow}>{AUGUST_PROMOTION_LABEL}</span>
+            <h1 id="pricing-title">8월에 시작하면, 월 159,000원 그대로</h1>
             <p>
-              기능별 등급과 상위 플랜 없이 하나의 요금제로 운영합니다.
-              공급가, 부가가치세, 실제 결제 총액을 모두 공개합니다.
+              이후 신규 가입 가격은 인상될 예정입니다.
+              8월에 가입한 학원은 가격 인상 없이 모든 기능을 계속 이용합니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -39,9 +41,9 @@ export default function PricingPage() {
           </div>
 
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
-            <span>월 결제 총액</span>
+            <span>8월 가입 평생 보장가</span>
             <strong>159,000원</strong>
-            <p>모든 기능 포함 · 월 구독</p>
+            <p>모든 기능 포함 · 추후 신규 가입가 인상 예정</p>
             <dl>
               <div>
                 <dt>공급가</dt>
@@ -86,6 +88,11 @@ export default function PricingPage() {
                   <small>
                     공급가 {formatWon(plan.monthlySupplyAmount)}원 + 부가가치세 {formatWon(plan.monthlyTaxAmount)}원
                   </small>
+                </div>
+
+                <div className={styles.guaranteeBox}>
+                  <strong>8월 가입자는 가격 인상 없음</strong>
+                  <span>{AUGUST_PRICE_GUARANTEE}</span>
                 </div>
 
                 <p className={styles.verdict}>{plan.verdict}</p>
@@ -135,8 +142,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="하나의 요금제로 모든 기능을 확인하세요"
-        subtitle="실제 수업 방식에 맞춘 데모와 도입 일정을 함께 정리합니다."
+        title="8월에 시작하고, 지금 가격을 계속 보장받으세요"
+        subtitle="모든 기능이 포함된 데모와 8월 가입 일정을 함께 정리합니다."
       />
     </>
   );

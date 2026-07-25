@@ -25,6 +25,9 @@ type SubscriptionInfo = {
   list_monthly_total_amount?: number;
   is_promo: boolean;
   discount_rate: number;
+  has_lifetime_price_guarantee?: boolean;
+  price_guarantee_code?: string | null;
+  price_guarantee_label?: string | null;
   subscription_status: string;
   subscription_status_display: string;
   subscription_started_at: string | null;
@@ -148,7 +151,14 @@ export default function BillingPage() {
         </div>
 
         <div className="mb-3">
-          {data.is_promo ? (
+          {data.has_lifetime_price_guarantee && data.price_guarantee_label ? (
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-[20px] font-bold" style={{ color: "var(--tc-text)" }}>
+                월 {formatPrice(amounts.totalAmount)}
+              </span>
+              <Badge tone="success" size="xs">{data.price_guarantee_label}</Badge>
+            </div>
+          ) : data.is_promo && data.discount_rate > 0 ? (
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-[13px]" style={{ color: "var(--tc-text-muted)", textDecoration: "line-through" }}>
                 월 {formatPrice(listTotalAmount)}

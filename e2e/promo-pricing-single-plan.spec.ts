@@ -20,7 +20,7 @@ async function stubPromoBootstrap(page: Page) {
   });
 }
 
-test("pricing presents one unrestricted plan with the exact monthly total", async ({ page }) => {
+test("pricing presents the August lifetime guarantee and one unrestricted plan", async ({ page }) => {
   await stubPromoBootstrap(page);
   await page.goto(`${BASE}/promo/pricing`, {
     waitUntil: "load",
@@ -28,8 +28,11 @@ test("pricing presents one unrestricted plan with the exact monthly total", asyn
   });
 
   await expect(
-    page.getByRole("heading", { name: "월 159,000원, 모든 기능을 함께 씁니다" }),
+    page.getByRole("heading", { name: "8월에 시작하면, 월 159,000원 그대로" }),
   ).toBeVisible();
+  await expect(page.getByText("2026년 8월 가입 특별가")).toBeVisible();
+  await expect(page.getByText("8월 가입 평생 보장가")).toBeVisible();
+  await expect(page.getByText("8월 가입자는 가격 인상 없음")).toBeVisible();
 
   const plans = page.locator("article[data-plan]");
   await expect(plans).toHaveCount(1);
@@ -40,6 +43,10 @@ test("pricing presents one unrestricted plan with the exact monthly total", asyn
   await expect(plans).toContainText("수강생제한 없음");
   await expect(plans).toContainText("계정제한 없음");
   await expect(plans).toContainText("기능모두 포함");
+  await expect(plans).toContainText("추후 신규 가입 가격이 올라도 월 159,000원 그대로");
+  await expect(plans).toContainText(
+    "8월 1일부터 31일까지 가입한 학원은 이후 가격이 인상되어도 월 159,000원을 그대로 적용합니다.",
+  );
 
   await expect(page.getByText(/Standard|Pro|Max/, { exact: false })).toHaveCount(0);
 });

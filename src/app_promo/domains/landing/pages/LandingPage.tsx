@@ -466,7 +466,7 @@ function ParentTrustSystem() {
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/pricing" className={styles.trustTextLink}>
-                패키지 요금 보기
+                8월 평생 보장가 보기
                 <ArrowRight size={16} />
               </Link>
             </div>

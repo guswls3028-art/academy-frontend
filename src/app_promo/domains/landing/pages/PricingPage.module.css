@@ -308,6 +308,30 @@
   font-weight: 800;
 }
 
+.guaranteeBox {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  padding: 15px 16px;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.guaranteeBox strong {
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 930;
+}
+
+.guaranteeBox span {
+  color: rgba(248, 250, 252, 0.74);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
 .verdict {
   min-height: 52px;
   margin: 22px 0;

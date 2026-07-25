@@ -101,7 +101,7 @@ export default function DemoPage() {
             <h2>데모에서 확인할 내용</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면</li>
-              <li>모든 기능이 포함된 단일 요금과 도입 범위</li>
+              <li>모든 기능이 포함된 8월 가입 평생 보장가와 도입 범위</li>
               <li>기존 자료 이전과 시작 일정</li>
             </ol>
             <div className={styles.callBox}>

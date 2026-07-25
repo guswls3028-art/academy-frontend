@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { label: "리포트", path: "/promo/parent-trust", icon: ShieldCheck, note: "상담 전 설명 자료" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·PPT와 실제 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
-  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "월 비용 기준" },
+  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "8월 평생 보장가" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
 ];
 

@@ -3,6 +3,9 @@
 const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
 export const CONSULT_PHONE_LABEL = "전화 문의";
+export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 특별가";
+export const AUGUST_PRICE_GUARANTEE =
+  "8월 1일부터 31일까지 가입한 학원은 이후 가격이 인상되어도 월 159,000원을 그대로 적용합니다.";
 
 export function getConsultPhoneTelHref() {
   return `tel:${CONSULT_PHONE_PARTS.join("")}`;
@@ -10,6 +13,8 @@ export function getConsultPhoneTelHref() {
 
 export const PRICE_POLICY_NOTES = [
   "월 공급가 145,000원, 부가가치세 14,000원, 월 결제 총액 159,000원입니다.",
+  AUGUST_PRICE_GUARANTEE,
+  "8월 이후 신규 가입 가격은 인상될 예정이며, 8월 가입 학원에는 해당 인상을 적용하지 않습니다.",
   "수강생 수나 계정 수에 따라 기능을 나누지 않고 모든 기능을 제공합니다.",
   "기본 저장공간은 200GB입니다. 추가 저장공간이 필요하면 별도 협의합니다.",
   "알림톡 발송비, 저장공간 초과, 대량 데이터 이전, 커스텀 개발은 별도 협의입니다.",
@@ -41,9 +46,9 @@ export const PROMO_PLANS: PromoPlanDef[] = [
     monthlySupplyAmount: 145000,
     monthlyTaxAmount: 14000,
     monthlyTotalAmount: 159000,
-    target: "개인 강사부터 여러 반을 운영하는 학원까지",
-    positioning: "기능을 고르지 않아도 되는 단일 요금제",
-    verdict: "출결·시험·성적·영상·알림톡·AI 도구를 모두 사용",
+    target: "2026년 8월 1일~31일 가입 학원",
+    positioning: "8월 가입자 평생 가격 보장",
+    verdict: "추후 신규 가입 가격이 올라도 월 159,000원 그대로",
     studentLimit: "제한 없음",
     adminLimit: "제한 없음",
     storage: "200GB 포함",

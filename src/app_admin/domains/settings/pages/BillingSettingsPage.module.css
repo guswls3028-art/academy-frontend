@@ -46,6 +46,10 @@
 }
 
 .planPrice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -70,6 +74,18 @@
   color: #fff;
   font-size: 0.75em;
   font-weight: 700;
+}
+
+.guaranteeBadge {
+  border: 1px solid color-mix(in srgb, var(--color-primary, #6366f1) 26%, transparent);
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--color-primary, #4f46e5);
+  background: color-mix(in srgb, var(--color-primary, #6366f1) 9%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 /* Card */
