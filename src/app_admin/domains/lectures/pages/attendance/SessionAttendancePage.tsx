@@ -365,12 +365,6 @@ export default function SessionAttendancePage({
 
         openSendMessageModal({
           studentIds,
-          previewRecipients: selectedRows
-            .filter((selectedRow) => selectedRow.student_id != null)
-            .map((selectedRow) => ({
-              studentId: selectedRow.student_id as number,
-              studentName: selectedRow.student_name || "선택 학생",
-            })),
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
           initialBody,

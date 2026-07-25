@@ -88,7 +88,18 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
           solapi_status: "APPROVED",
           detail: "",
           uses_unified_template: true,
+          template_type: "attendance",
         },
+        preview_recipients: MOCK_STUDENTS.map((student) => ({
+          student_id: student.id,
+          student_name: student.name,
+          phone: requestBody.send_to === "student" ? "010****" + student.phone.slice(-4) : "010****" + student.parent_phone.slice(-4),
+          excluded: false,
+          exclude_reason: "",
+          full_message_body:
+            `예담학원입니다.\n\n${student.name}학생님.\n\n출석 안내 드립니다.\n` +
+            "강의\n-\n\n차시\n-\n\n날짜\n-\n\n시간\n-\n\n테스트 안내입니다.\nhttps://yedam.example.com",
+        })),
         limits: {
           hourly_limit: 500,
           sent_last_hour: 0,
@@ -113,13 +124,19 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
 
   const kakaoPreview = page.getByLabel("카카오톡 실제 발송 미리보기");
   await expect(kakaoPreview).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "보내기 전 마지막 확인" })).toBeVisible();
+  await expect(kakaoPreview).toContainText("예담학원입니다.");
   await expect(kakaoPreview).toContainText("김민준학생님");
+  await expect(kakaoPreview).not.toContainText("수학 심화반");
+  await expect(kakaoPreview).not.toContainText("2026-04-06");
   await expect(page.getByText("지금 보는 학생", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "전체 학생 열기" }).click();
   const studentChoices = page.getByRole("radiogroup", { name: "미리보기 학생 선택" });
   await expect(studentChoices.getByRole("radio")).toHaveCount(2);
-  await studentChoices.getByRole("radio").filter({ hasText: "박서연" }).click();
+  await studentChoices.getByRole("radio").first().focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(studentChoices.getByRole("radio").filter({ hasText: "박서연" })).toHaveAttribute("aria-checked", "true");
   await expect(kakaoPreview).toContainText("박서연학생님");
   await expect(page.locator(".send-modal__confirm-previewing")).toContainText("박서연");
   await page.screenshot({ path: "e2e/screenshots/alimtalk-final-preview-desktop.png", fullPage: false });

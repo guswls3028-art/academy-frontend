@@ -172,7 +172,17 @@ export interface SendPreflightResponse {
     solapi_status: string;
     detail: string;
     uses_unified_template: boolean;
+    template_type: string;
   };
+  preview_recipients: Array<{
+    student_id: number;
+    student_name: string;
+    phone: string;
+    excluded: boolean;
+    exclude_reason: string;
+    /** 실제 Solapi replacements로 조립된 승인 봉투 전체 문구 */
+    full_message_body: string;
+  }>;
   limits: {
     hourly_limit: number;
     sent_last_hour: number;

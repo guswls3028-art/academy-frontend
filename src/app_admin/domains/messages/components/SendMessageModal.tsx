@@ -70,7 +70,6 @@ export type SendMessageModalProps = {
   open: boolean;
   onClose: () => void;
   initialStudentIds?: number[];
-  previewRecipients?: Array<{ studentId: number; studentName: string }>;
   recipientLabel?: string;
   blockCategory?: TemplateCategory;
   initialBody?: string;
@@ -106,6 +105,14 @@ function extractVars(body: string): string[] {
 
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
 type SendTiming = "now" | "scheduled";
+type ConfirmPreviewRecipient = {
+  studentId: number;
+  studentName: string;
+  phone: string;
+  excluded: boolean;
+  excludeReason: string;
+  fullMessageBody: string;
+};
 const EMPTY_ID_LIST: number[] = [];
 const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: string; hint: string }> = [
   { category: "attendance", label: "출석 안내", hint: "수업·일정" },
@@ -164,11 +171,59 @@ function formatSendTargetLabel(target: SendToType): string {
   return target === "parent" ? "학부모" : "학생";
 }
 
-function substituteKnownPreviewVars(
-  value: string,
-  vars: Record<string, string>,
-): string {
-  return value.replace(/#\{([^}]+)\}/g, (token, name: string) => vars[name] || token);
+function handleRecipientRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+  if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(event.key)) {
+    return;
+  }
+  const buttons = Array.from(
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [],
+  );
+  const currentIndex = buttons.indexOf(event.currentTarget);
+  if (currentIndex < 0 || buttons.length === 0) return;
+
+  event.preventDefault();
+  const nextIndex =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? buttons.length - 1
+        : event.key === "ArrowDown" || event.key === "ArrowRight"
+          ? (currentIndex + 1) % buttons.length
+          : (currentIndex - 1 + buttons.length) % buttons.length;
+  buttons[nextIndex]?.focus();
+  buttons[nextIndex]?.click();
+}
+
+function trapDialogFocus(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  closeDialog: () => void,
+) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeDialog();
+    return;
+  }
+  if (event.key !== "Tab") return;
+
+  const focusable = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+  if (focusable.length === 0) {
+    event.preventDefault();
+    event.currentTarget.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 /**
@@ -215,7 +270,6 @@ export default function SendMessageModal({
   open,
   onClose,
   initialStudentIds = EMPTY_ID_LIST,
-  previewRecipients = [],
   recipientLabel,
   blockCategory = "default",
   initialBody,
@@ -268,15 +322,6 @@ export default function SendMessageModal({
   const studentIds = initialStudentIds;
   const hasRecipients = studentIds.length > 0;
   const recipientCount = studentIds.length;
-  const resolvedPreviewRecipients = useMemo(() => {
-    const nameById = new Map(
-      previewRecipients.map((recipient) => [recipient.studentId, recipient.studentName.trim()]),
-    );
-    return studentIds.map((studentId, index) => ({
-      studentId,
-      studentName: nameById.get(studentId) || `선택 학생 ${index + 1}`,
-    }));
-  }, [previewRecipients, studentIds]);
   const sendToTargets: SendToType[] = (() => {
     const t: SendToType[] = [];
     if (sendToParent) t.push("parent");
@@ -395,6 +440,14 @@ export default function SendMessageModal({
         }]
       : [];
   const preflightBlockers = [...apiPreflightBlockers, ...aggregatePreflightBlockers];
+  const preflightPreviewReady =
+    preflightResults.length === expectedPreflightCount
+    && preflightResults.every(
+      (result) =>
+        Array.isArray(result.preview_recipients)
+        && result.preview_recipients.length === result.recipient.resolved
+        && result.preview_recipients.every((recipient) => recipient.full_message_body.trim()),
+    );
   const preflightReady = !frontendReady
     || (
       !preflightLoading
@@ -411,6 +464,7 @@ export default function SendMessageModal({
     );
   const canSend = frontendReady
     && preflightReady
+    && preflightPreviewReady
     && preflightBlockers.length === 0;
 
   const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
@@ -520,45 +574,54 @@ export default function SendMessageModal({
     alimtalkExtraVars,
   );
   const activeAlimtalkLabel = getAlimtalkTemplateLabel(activeAlimtalkType);
-  const confirmPerStudentVars = useMemo(() => {
-    if (!body) return alimtalkExtraVarsPerStudent ?? {};
-    if (!recomputePerStudentVarsRef?.current) return alimtalkExtraVarsPerStudent ?? {};
-    try {
-      return recomputePerStudentVarsRef.current(body);
-    } catch {
-      return alimtalkExtraVarsPerStudent ?? {};
-    }
-  }, [alimtalkExtraVarsPerStudent, body, recomputePerStudentVarsRef]);
-  const confirmPreviewRecipient =
-    resolvedPreviewRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
-    ?? resolvedPreviewRecipients[0]
-    ?? null;
-  const confirmStudentVars = confirmPreviewRecipient
-    ? confirmPerStudentVars[confirmPreviewRecipient.studentId] ?? {}
-    : {};
-  const confirmMergedVars = {
-    ...alimtalkExtraVars,
-    ...confirmStudentVars,
-    ...(confirmPreviewRecipient
-      ? {
-          학생이름: confirmStudentVars.학생이름 || confirmPreviewRecipient.studentName,
-          학생이름2: confirmStudentVars.학생이름2 || confirmPreviewRecipient.studentName.slice(-2),
-          학생이름3: confirmStudentVars.학생이름3 || confirmPreviewRecipient.studentName,
+  const serverPreviewRecipients = useMemo(() => {
+    const merged = new Map<number, ConfirmPreviewRecipient>();
+    for (const result of preflightResults) {
+      for (const recipient of result.preview_recipients ?? []) {
+        const next: ConfirmPreviewRecipient = {
+          studentId: recipient.student_id,
+          studentName: recipient.student_name,
+          phone: recipient.phone,
+          excluded: recipient.excluded,
+          excludeReason: recipient.exclude_reason,
+          fullMessageBody: recipient.full_message_body,
+        };
+        const existing = merged.get(next.studentId);
+        if (!existing || (existing.excluded && !next.excluded)) {
+          merged.set(next.studentId, next);
         }
-      : {}),
-  };
-  const confirmLetterBody =
-    confirmStudentVars._body_subst
-    || substituteKnownPreviewVars(body, confirmMergedVars);
-  const confirmFullPreview = activeAlimtalkType
-    ? renderAlimtalkFullPreview(activeAlimtalkType, confirmLetterBody, undefined, confirmMergedVars)
-    : confirmLetterBody;
-  const confirmSubjectText = substituteKnownPreviewVars(
-    subject || selectedTemplate?.subject || "",
-    confirmMergedVars,
-  );
+      }
+    }
+    return studentIds
+      .map((studentId) => merged.get(studentId))
+      .filter((recipient): recipient is ConfirmPreviewRecipient => Boolean(recipient));
+  }, [preflightResults, studentIds]);
+  const confirmSendableRecipients = serverPreviewRecipients.filter((recipient) => !recipient.excluded);
+  const confirmExcludedCount = Math.max(0, recipientCount - confirmSendableRecipients.length);
+  const validParentCount =
+    preflightResults.find((result) => result.send_to === "parent")?.recipient.valid_phone ?? 0;
+  const validStudentCount =
+    preflightResults.find((result) => result.send_to === "student")?.recipient.valid_phone ?? 0;
+  const confirmPreviewRecipient =
+    confirmSendableRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
+    ?? confirmSendableRecipients[0]
+    ?? null;
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const confirmReturnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!showConfirm) return undefined;
+    confirmReturnFocusRef.current = document.activeElement as HTMLElement | null;
+    const frame = window.requestAnimationFrame(() => {
+      confirmDialogRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      confirmReturnFocusRef.current?.focus();
+    };
+  }, [showConfirm]);
 
   // ─── Reset on open ───
   useEffect(() => {
@@ -781,9 +844,9 @@ export default function SendMessageModal({
   const requestSend = () => {
     if (!canSend) return;
     setConfirmPreviewStudentId((current) => (
-      resolvedPreviewRecipients.some((recipient) => recipient.studentId === current)
+      confirmSendableRecipients.some((recipient) => recipient.studentId === current)
         ? current
-        : resolvedPreviewRecipients[0]?.studentId ?? null
+        : confirmSendableRecipients[0]?.studentId ?? null
     ));
     setConfirmRecipientsExpanded(false);
     setShowConfirm(true);
@@ -900,6 +963,7 @@ export default function SendMessageModal({
     if (preflightChecking) return "발송 전 확인 중입니다";
     if (preflightError) return preflightError;
     if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 전 확인 필요";
+    if (preflightReady && !preflightPreviewReady) return "실제 카카오 미리보기를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요";
     return null;
   })();
 
@@ -1423,10 +1487,18 @@ export default function SendMessageModal({
       {/* ─── 발송 확인 오버레이 ─── */}
       {showConfirm && (
         <div className="send-modal__confirm-overlay">
-          <div className="send-modal__confirm-card">
+          <div
+            ref={confirmDialogRef}
+            className="send-modal__confirm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="send-modal-confirm-title"
+            tabIndex={-1}
+            onKeyDown={(event) => trapDialogFocus(event, () => setShowConfirm(false))}
+          >
             <div className="send-modal__confirm-heading">
               <div>
-                <div className="send-modal__confirm-title">보내기 전 마지막 확인</div>
+                <div id="send-modal-confirm-title" className="send-modal__confirm-title">보내기 전 마지막 확인</div>
                 <p>학생을 골라 실제로 들어갈 문구를 확인한 뒤 발송하세요.</p>
               </div>
               <span className="send-modal__confirm-count">
@@ -1444,9 +1516,8 @@ export default function SendMessageModal({
                 </div>
                 <KakaoAlimtalkPreview
                   channelLabel={activeAlimtalkLabel}
-                  subject={confirmSubjectText || undefined}
                 >
-                  {confirmFullPreview || "미리볼 문구가 없습니다."}
+                  {confirmPreviewRecipient?.fullMessageBody || "미리볼 문구가 없습니다."}
                 </KakaoAlimtalkPreview>
               </section>
 
@@ -1472,8 +1543,8 @@ export default function SendMessageModal({
                     <span className="send-modal__confirm-val">
                       {(() => {
                         const parts: string[] = [];
-                        if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
-                        if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
+                        if (sendToParent) parts.push(`학부모 ${validParentCount}명`);
+                        if (sendToStudent) parts.push(`학생 ${validStudentCount}명`);
                         return parts.join(" + ");
                       })()}
                     </span>
@@ -1492,12 +1563,15 @@ export default function SendMessageModal({
                   <div className="send-modal__confirm-recipients-head">
                     <div>
                       <span>발송 대상 학생</span>
-                      <strong>{recipientCount}명</strong>
+                      <strong>{confirmSendableRecipients.length}명</strong>
                     </div>
-                    <p>학생 선택은 미리보기만 바꾸며, 발송 대상은 그대로 유지됩니다.</p>
+                    <p>
+                      학생 선택은 미리보기만 바꾸며, 발송 대상은 그대로 유지됩니다.
+                      {confirmExcludedCount > 0 ? ` 전화번호가 없는 ${confirmExcludedCount}명은 제외됩니다.` : ""}
+                    </p>
                   </div>
 
-                  {recipientCount > 1 ? (
+                  {confirmSendableRecipients.length > 1 ? (
                     <button
                       type="button"
                       className="send-modal__confirm-recipients-toggle"
@@ -1510,14 +1584,14 @@ export default function SendMessageModal({
                     </button>
                   ) : null}
 
-                  {(confirmRecipientsExpanded || recipientCount === 1) && (
+                  {(confirmRecipientsExpanded || confirmSendableRecipients.length === 1) && (
                     <div
                       id="send-modal-confirm-recipient-list"
                       className="send-modal__confirm-recipient-list"
                       role="radiogroup"
                       aria-label="미리보기 학생 선택"
                     >
-                      {resolvedPreviewRecipients.map((recipient) => {
+                      {confirmSendableRecipients.map((recipient) => {
                         const selected = recipient.studentId === confirmPreviewRecipient?.studentId;
                         return (
                           <button
@@ -1526,10 +1600,15 @@ export default function SendMessageModal({
                             className="send-modal__confirm-recipient"
                             role="radio"
                             aria-checked={selected}
+                            tabIndex={selected ? 0 : -1}
                             data-selected={selected ? "true" : "false"}
                             onClick={() => setConfirmPreviewStudentId(recipient.studentId)}
+                            onKeyDown={handleRecipientRadioKeyDown}
                           >
-                            <span>{recipient.studentName}</span>
+                            <span>
+                              {recipient.studentName}
+                              <small>{recipient.phone}</small>
+                            </span>
                             <small>{selected ? "미리보기 중" : "보기"}</small>
                           </button>
                         );

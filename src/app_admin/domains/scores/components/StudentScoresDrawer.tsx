@@ -194,9 +194,6 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       : undefined;
     openSendMessageModal({
       studentIds: sid != null ? [sid] : [],
-      previewRecipients: sid != null
-        ? [{ studentId: sid, studentName: row.student_name || "선택 학생" }]
-        : [],
       recipientLabel: `${row.student_name} 성적 발송`,
       blockCategory: "grades",
       initialBody: body,

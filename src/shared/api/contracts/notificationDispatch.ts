@@ -8,6 +8,8 @@ export interface NotificationPreviewRecipient {
   phone: string;
   status: string;
   message_body: string;
+  /** 백엔드가 실제 Solapi replacements로 조립한 승인 봉투 전체 문구 */
+  full_message_body: string;
   excluded: boolean;
   exclude_reason?: string;
 }

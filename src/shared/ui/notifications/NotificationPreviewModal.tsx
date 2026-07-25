@@ -58,6 +58,29 @@ function recipientLectures(
   }];
 }
 
+function handleRecipientRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+  if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(event.key)) {
+    return;
+  }
+  const buttons = Array.from(
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [],
+  );
+  const currentIndex = buttons.indexOf(event.currentTarget);
+  if (currentIndex < 0 || buttons.length === 0) return;
+
+  event.preventDefault();
+  const nextIndex =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? buttons.length - 1
+        : event.key === "ArrowDown" || event.key === "ArrowRight"
+          ? (currentIndex + 1) % buttons.length
+          : (currentIndex - 1 + buttons.length) % buttons.length;
+  buttons[nextIndex]?.focus();
+  buttons[nextIndex]?.click();
+}
+
 export default function NotificationPreviewModal(props: Props) {
   const { open, onClose, sendTo = "parent" } = props;
   const [preview, setPreview] = useState<NotificationPreviewPayload | null>(null);
@@ -202,7 +225,7 @@ export default function NotificationPreviewModal(props: Props) {
                     />
                   </div>
                   <KakaoAlimtalkPreview channelLabel={label}>
-                    {selectedPreviewRecipient.message_body}
+                    {selectedPreviewRecipient.full_message_body}
                   </KakaoAlimtalkPreview>
                 </section>
 
@@ -248,8 +271,10 @@ export default function NotificationPreviewModal(props: Props) {
                             className="notification-preview__recipient"
                             role="radio"
                             aria-checked={selected}
+                            tabIndex={selected ? 0 : -1}
                             data-selected={selected ? "true" : "false"}
                             onClick={() => setSelectedPreviewStudentId(recipient.student_id)}
+                            onKeyDown={handleRecipientRadioKeyDown}
                           >
                             <span className="notification-preview__recipient-main">
                               <StudentNameWithLectureChip

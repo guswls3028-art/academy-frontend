@@ -1853,6 +1853,13 @@
   box-shadow: inset 3px 0 #e6cf00;
 }
 
+.send-modal__confirm-recipient > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .send-modal__confirm-recipient small {
   flex: 0 0 auto;
   color: var(--color-text-muted);
