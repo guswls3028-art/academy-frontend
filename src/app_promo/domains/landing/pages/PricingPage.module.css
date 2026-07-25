@@ -178,20 +178,17 @@
   margin: 0 auto;
 }
 
-.sectionHead,
-.comparisonHead {
+.sectionHead {
   max-width: 720px;
   margin-bottom: 34px;
 }
 
 .sectionHead span,
-.comparisonHead span,
 .policyBox span {
   color: #0ea5a8;
 }
 
-.sectionHead h2,
-.comparisonHead h2 {
+.sectionHead h2 {
   margin: 10px 0 0;
   color: #101923;
   font-size: 44px;
@@ -200,8 +197,7 @@
   word-break: keep-all;
 }
 
-.sectionHead p,
-.comparisonHead p {
+.sectionHead p {
   margin: 14px 0 0;
   color: #596878;
   font-size: 16px;
@@ -211,7 +207,8 @@
 
 .planGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
   gap: 18px;
   align-items: stretch;
 }
@@ -229,18 +226,12 @@
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
 }
 
-.planCard[data-plan="max"] {
-  background:
-    linear-gradient(180deg, rgba(255, 249, 237, 0.96), rgba(255, 255, 255, 0.98));
-}
-
 .planCard[data-popular="true"] {
   border-color: rgba(125, 211, 252, 0.42);
   color: #f8fafc;
   background:
     linear-gradient(160deg, rgba(8, 16, 24, 0.98), rgba(14, 49, 60, 0.96));
   box-shadow: 0 34px 100px rgba(8, 16, 24, 0.26);
-  transform: translateY(-14px);
 }
 
 .popularBadge {
@@ -456,73 +447,6 @@
   background: #d97706;
 }
 
-.comparisonSection {
-  padding: 74px 0 88px;
-}
-
-.comparisonHead {
-  text-align: center;
-  margin-right: auto;
-  margin-left: auto;
-}
-
-.tableShell {
-  overflow-x: auto;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 20px 70px rgba(15, 23, 42, 0.08);
-}
-
-.tableShell table {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.tableShell th,
-.tableShell td {
-  border-bottom: 1px solid #edf1f5;
-  padding: 16px 18px;
-}
-
-.tableShell th {
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 930;
-  text-align: center;
-  background: #f7fafb;
-}
-
-.tableShell th:first-child,
-.tableShell td:first-child {
-  position: sticky;
-  left: 0;
-  text-align: left;
-  background: #fff;
-}
-
-.tableShell td {
-  color: #596878;
-  text-align: center;
-}
-
-.tableShell td:first-child {
-  color: #101923;
-  font-weight: 900;
-}
-
-.tableShell td:nth-child(3) {
-  color: #101923;
-  font-weight: 900;
-  background: #eefaff;
-}
-
-.tableShell tr:last-child td {
-  border-bottom: 0;
-}
-
 @media (max-width: 1024px) {
   .heroInner {
     grid-template-columns: 1fr;
@@ -592,8 +516,7 @@
     padding: 62px 0;
   }
 
-  .sectionHead h2,
-  .comparisonHead h2 {
+  .sectionHead h2 {
     font-size: 31px;
   }
 
@@ -621,9 +544,6 @@
     padding: 20px;
   }
 
-  .comparisonSection {
-    padding: 62px 0 72px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

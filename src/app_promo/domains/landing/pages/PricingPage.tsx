@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
-  PRICE_COMPARISON,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
   formatWon,
@@ -26,10 +25,10 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>요금 안내</span>
-            <h1 id="pricing-title">월 99,000원부터, 비용 기준을 먼저 확인합니다</h1>
+            <h1 id="pricing-title">월 159,000원, 모든 기능을 함께 씁니다</h1>
             <p>
-              월 구독료를 먼저 공개합니다. 수강생 수, 함께 쓰는 계정, 저장공간,
-              메시지 발송비처럼 실제 비용이 달라지는 기준도 함께 확인하세요.
+              기능별 등급과 상위 플랜 없이 하나의 요금제로 운영합니다.
+              공급가, 부가가치세, 실제 결제 총액을 모두 공개합니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -40,17 +39,17 @@ export default function PricingPage() {
           </div>
 
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
-            <span>현재 프로모션 기준</span>
-            <strong>99,000원부터</strong>
-            <p>부가세 별도 · 월 구독 · 활성 수강생 수 기준</p>
+            <span>월 결제 총액</span>
+            <strong>159,000원</strong>
+            <p>모든 기능 포함 · 월 구독</p>
             <dl>
               <div>
-                <dt>주력 플랜</dt>
-                <dd>Pro</dd>
+                <dt>공급가</dt>
+                <dd>145,000원</dd>
               </div>
               <div>
-                <dt>상담 방식</dt>
-                <dd>전화 문의 / 데모 요청</dd>
+                <dt>부가가치세</dt>
+                <dd>14,000원</dd>
               </div>
             </dl>
           </aside>
@@ -60,9 +59,9 @@ export default function PricingPage() {
       <section className={styles.planSection} aria-labelledby="plan-title">
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
-            <span>플랜 선택</span>
-            <h2 id="plan-title">수업 규모별 세 가지 패키지</h2>
-            <p>기본 기능은 비슷하고, 비용 차이는 수강생 한도, 저장공간, 지원 방식에서 납니다.</p>
+            <span>단일 요금제</span>
+            <h2 id="plan-title">필요한 기능을 전부 포함했습니다</h2>
+            <p>수강생 수나 계정 수로 기능을 나누지 않습니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -73,7 +72,7 @@ export default function PricingPage() {
                 data-plan={plan.key}
                 data-popular={plan.popular ? "true" : undefined}
               >
-                {plan.popular && <span className={styles.popularBadge}>많이 쓰는 구성</span>}
+                {plan.popular && <span className={styles.popularBadge}>모든 기능 포함</span>}
 
                 <div className={styles.planTop}>
                   <span>{plan.positioning}</span>
@@ -82,9 +81,11 @@ export default function PricingPage() {
                 </div>
 
                 <div className={styles.priceLine}>
-                  <strong>{formatWon(plan.monthlyPrice)}</strong>
+                  <strong>{formatWon(plan.monthlyTotalAmount)}</strong>
                   <span>원 / 월</span>
-                  <small>부가세 별도</small>
+                  <small>
+                    공급가 {formatWon(plan.monthlySupplyAmount)}원 + 부가가치세 {formatWon(plan.monthlyTaxAmount)}원
+                  </small>
                 </div>
 
                 <p className={styles.verdict}>{plan.verdict}</p>
@@ -103,8 +104,8 @@ export default function PricingPage() {
                     <dd>{plan.storage}</dd>
                   </div>
                   <div>
-                    <dt>지원</dt>
-                    <dd>{plan.support}</dd>
+                    <dt>기능</dt>
+                    <dd>모두 포함</dd>
                   </div>
                 </dl>
 
@@ -133,42 +134,9 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className={styles.comparisonSection} aria-labelledby="comparison-title">
-        <div className={styles.sectionWrap}>
-          <div className={styles.comparisonHead}>
-            <span>비교표</span>
-            <h2 id="comparison-title">플랜별 비교</h2>
-            <p>기능 포함 여부보다 수강생 한도, 저장공간, 지원 방식 차이를 먼저 확인하세요.</p>
-          </div>
-
-          <div className={styles.tableShell}>
-            <table>
-              <thead>
-                <tr>
-                  <th>항목</th>
-                  <th>Standard</th>
-                  <th>Pro</th>
-                  <th>Max</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PRICE_COMPARISON.map((row) => (
-                  <tr key={row.feature}>
-                    <td>{row.feature}</td>
-                    <td>{row.standard}</td>
-                    <td>{row.pro}</td>
-                    <td>{row.max}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       <CtaSection
-        title="수업 규모에 맞는 플랜을 확인하세요"
-        subtitle="필요한 기능, 수강생 수, 저장공간 기준을 함께 보고 예상 비용을 정리합니다."
+        title="하나의 요금제로 모든 기능을 확인하세요"
+        subtitle="실제 수업 방식에 맞춘 데모와 도입 일정을 함께 정리합니다."
       />
     </>
   );

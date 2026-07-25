@@ -34,9 +34,8 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
     );
   }
 
-  const { usedBytes, limitBytes, plan } = data;
+  const { usedBytes, limitBytes } = data;
   const pct = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
-  const isStandard = plan === "standard";
   const isOver = limitBytes > 0 && usedBytes >= limitBytes;
   const barFillStyle = { "--quota-fill-width": `${pct}%` } as CSSProperties;
 
@@ -44,10 +43,17 @@ export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
     <div className={[styles.root, className].filter(Boolean).join(" ")}>
       <span className={styles.label}>전체 테넌트 사용량</span>
       <span className={styles.value}>
-        {formatBytes(usedBytes)} / {isStandard ? "—" : formatBytes(limitBytes)}
+        {formatBytes(usedBytes)} / {formatBytes(limitBytes)}
       </span>
-      {!isStandard && limitBytes > 0 && (
-        <div className={styles.bar}>
+      {limitBytes > 0 && (
+        <div
+          className={styles.bar}
+          role="progressbar"
+          aria-label="저장공간 사용률"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct)}
+        >
           <div
             className={[styles.barFill, isOver ? styles.barOver : ""].filter(Boolean).join(" ")}
             style={barFillStyle}

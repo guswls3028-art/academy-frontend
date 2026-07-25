@@ -122,7 +122,7 @@ export type TenantUsageDto = {
     monthly_tax_amount?: number;
     monthly_total_amount?: number;
     monthly_price_includes_tax?: boolean;
-    vat_rate_percent?: number;
+    vat_rate_percent?: number | null;
     billing_price_policy?: string;
     is_contract_price?: boolean;
     subscription_status: string;

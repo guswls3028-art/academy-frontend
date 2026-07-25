@@ -224,12 +224,6 @@
   border-color: color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
 }
 
-.itemAdd.itemLocked {
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
 .dropTarget {
   border-color: var(--color-brand-primary);
   background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));

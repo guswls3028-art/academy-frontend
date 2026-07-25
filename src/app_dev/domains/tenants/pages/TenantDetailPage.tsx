@@ -663,7 +663,7 @@ function UsageTab({ tenantId }: { tenantId: number }) {
                 <div className={s.infoValue}>{data.billing.plan_display}</div>
                 <div className={s.infoLabel}>월 공급가</div>
                 <div className={s.infoValue}>{billingAmounts.supplyAmount.toLocaleString("ko-KR")}원</div>
-                <div className={s.infoLabel}>VAT ({billingAmounts.vatRatePercent}%)</div>
+                <div className={s.infoLabel}>부가가치세</div>
                 <div className={s.infoValue}>{billingAmounts.taxAmount.toLocaleString("ko-KR")}원</div>
                 <div className={s.infoLabel}>월 결제 총액</div>
                 <div className={s.infoValue}>{billingAmounts.totalAmount.toLocaleString("ko-KR")}원 (VAT 포함)</div>

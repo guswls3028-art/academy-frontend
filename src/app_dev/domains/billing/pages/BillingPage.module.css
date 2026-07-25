@@ -316,8 +316,7 @@
   margin-bottom: 14px;
 }
 
-.presetButton,
-.planButton {
+.presetButton {
   background: var(--dev-surface);
   border: 1px solid var(--dev-border);
   border-radius: 8px;
@@ -331,23 +330,20 @@
   padding: 10px;
 }
 
-.presetButton span,
-.planButton span {
+.presetButton span {
   display: block;
   font-size: 13px;
   font-weight: 700;
 }
 
-.presetButton small,
-.planButton small {
+.presetButton small {
   color: var(--dev-text-muted);
   display: block;
   font-size: 11px;
   margin-top: 2px;
 }
 
-.presetButton[data-active="true"],
-.planButton[data-active="true"] {
+.presetButton[data-active="true"] {
   background: var(--dev-primary-subtle);
   border-color: var(--dev-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
@@ -395,24 +391,6 @@
   display: block;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-}
-
-.planGrid {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.planButton {
-  padding: 12px;
-}
-
-.planButton strong {
-  color: var(--dev-text);
-  display: block;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  margin-top: 3px;
 }
 
 .mobileTenantCard {
@@ -563,8 +541,7 @@
     gap: 10px;
   }
 
-  .presetGrid,
-  .planGrid {
+  .presetGrid {
     grid-template-columns: 1fr 1fr;
   }
 

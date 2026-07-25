@@ -15,9 +15,7 @@ type ExpiredDetail = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  standard: "Standard",
-  pro: "Pro",
-  max: "Max",
+  all: "전체 기능",
 };
 
 export default function SubscriptionExpiredOverlay() {

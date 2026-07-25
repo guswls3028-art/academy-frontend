@@ -17,7 +17,7 @@ type SubscriptionInfo = {
   monthly_tax_amount?: number;
   monthly_total_amount?: number;
   monthly_price_includes_tax?: boolean;
-  vat_rate_percent?: number;
+  vat_rate_percent?: number | null;
   original_price: number;
   list_monthly_total_amount?: number;
   is_promo: boolean;
@@ -117,7 +117,7 @@ export default function BillingSettingsPage() {
         </div>
 
         <div className={styles.cardRow}>
-          <span className={styles.cardLabel}>부가가치세 ({amounts.vatRatePercent}%)</span>
+          <span className={styles.cardLabel}>부가가치세</span>
           <span className={styles.cardValue}>{formatPrice(amounts.taxAmount)}</span>
         </div>
 

@@ -20,7 +20,7 @@ type SubscriptionInfo = {
   monthly_tax_amount?: number;
   monthly_total_amount?: number;
   monthly_price_includes_tax?: boolean;
-  vat_rate_percent?: number;
+  vat_rate_percent?: number | null;
   original_price: number;
   list_monthly_total_amount?: number;
   is_promo: boolean;
@@ -167,7 +167,7 @@ export default function BillingPage() {
 
         <div className="flex flex-col gap-1.5" style={{ borderTop: "1px solid var(--tc-border-subtle)", paddingTop: 10 }}>
           <Row label="월 공급가" value={formatPrice(amounts.supplyAmount)} />
-          <Row label={`부가가치세 (${amounts.vatRatePercent}%)`} value={formatPrice(amounts.taxAmount)} />
+          <Row label="부가가치세" value={formatPrice(amounts.taxAmount)} />
           <Row label="월 결제 총액 (VAT 포함)" value={formatPrice(amounts.totalAmount)} />
           <Row label="구독 시작" value={formatDate(data.subscription_started_at)} />
           <Row label="구독 만료일" value={formatDate(data.subscription_expires_at)}

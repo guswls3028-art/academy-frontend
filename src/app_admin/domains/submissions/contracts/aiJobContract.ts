@@ -8,7 +8,7 @@ export {
 
 import type { AIJobStatus } from "@/shared/api/contracts/aiJob";
 
-/** Lite/Basic에서는 FAILED, REVIEW_REQUIRED 미사용 */
+/** AI 작업 상태 */
 export const AI_JOB_STATUS_LABEL: Record<AIJobStatus, string> = {
   PENDING: "처리 대기",
   VALIDATING: "업로드 검증 중",
@@ -41,7 +41,6 @@ export const REJECTION_CODES = [
   "BLUR_OR_SHAKE",
   "TOO_DARK",
   "INVALID_FORMAT",
-  "OMR_PHOTO_NOT_ALLOWED",
 ] as const;
 
 export type RejectionCode = (typeof REJECTION_CODES)[number];
@@ -54,8 +53,6 @@ export const REJECTION_MESSAGE: Record<RejectionCode, string> = {
   BLUR_OR_SHAKE: "흔들리거나 흐릿합니다. 고정해서 다시 촬영해 주세요.",
   TOO_DARK: "너무 어둡습니다. 밝은 곳에서 촬영해 주세요.",
   INVALID_FORMAT: "지원하지 않는 파일 형식입니다.",
-  OMR_PHOTO_NOT_ALLOWED:
-    "Pro 요금제에서는 스캔된 OMR만 가능합니다. 촬영물은 Max에서 이용해 주세요.",
 };
 
 export function getRejectionMessage(code: string | null | undefined): string {

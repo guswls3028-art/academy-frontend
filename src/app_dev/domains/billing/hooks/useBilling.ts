@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTenantSubscriptions,
   extendSubscription,
-  changePlan,
   getInvoices,
   markInvoicePaid,
   getDashboard,
@@ -45,18 +44,6 @@ export function useExtendSubscription() {
   return useMutation({
     mutationFn: ({ programId, days }: { programId: number; days: number }) =>
       extendSubscription(programId, days),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.tenants });
-      qc.invalidateQueries({ queryKey: KEYS.dashboard });
-    },
-  });
-}
-
-export function useChangePlan() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ programId, plan }: { programId: number; plan: string }) =>
-      changePlan(programId, plan),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.tenants });
       qc.invalidateQueries({ queryKey: KEYS.dashboard });

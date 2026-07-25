@@ -73,19 +73,9 @@ const USE_CASES = [
 
 const PACKAGES = [
   {
-    name: "Standard",
-    target: "개인 강사",
-    body: "주간 학부모 리포트와 수업 결과 알림톡부터 세팅합니다.",
-  },
-  {
-    name: "Pro",
-    target: "전임 강사·팀 수업",
-    body: "학교별 내신반, 영상 미시청 관리, 보강 후보 리포트까지 함께 씁니다.",
-  },
-  {
-    name: "Max",
-    target: "여러 반·강사팀",
-    body: "학원 브랜드에 맞춘 리포트 템플릿, 적중 리포트, 전담 온보딩을 제공합니다.",
+    name: "전체 기능",
+    target: "월 159,000원",
+    body: "학부모 리포트, 알림톡, 영상 이력, 보강 관리, 적중 리포트까지 모두 포함합니다.",
   },
 ];
 
@@ -222,13 +212,13 @@ export default function ParentTrustPage() {
           <div className={styles.packageLayout}>
             <div className={styles.packageCopy}>
               <span>요금 기준</span>
-              <h2 id="package-title">수강생 규모와 필요한 범위에 맞춰 고릅니다</h2>
+              <h2 id="package-title">규모와 관계없이 모든 기능을 함께 씁니다</h2>
               <p>
-                혼자 쓰는 수업과 여러 반이 함께 쓰는 수업은 필요한 계정, 저장공간, 지원 범위가 다릅니다.
-                현재 쓰는 방식에 맞춰 시작 범위를 정합니다.
+                기능별 등급이나 상위 플랜은 없습니다. 현재 쓰는 수업 방식에 맞춰
+                시작 화면과 도입 순서만 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
-                요금제에서 비교하기
+                요금 확인하기
                 <ArrowRight size={18} />
               </Link>
             </div>
