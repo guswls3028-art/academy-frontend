@@ -131,7 +131,7 @@ export const NAV_SECTION_ANCHORS: Record<string, string> = {
   contact: "문의",
 };
 
-/** 사이드 햄버거 패널 메뉴 SSOT — nexon dnfm 스타일 카테고리 그루핑.
+/** 사이드 햄버거 패널 메뉴 SSOT — 카테고리형 메뉴 그루핑.
  *
  * 학원장이 enable한 sections만 자동 노출됨. 공개 랜딩의 1차 진입은 외부 학부모가
  * 바로 볼 수 있는 route/section으로 맞추고, family-only route는 보조 항목으로만 유지한다.
@@ -230,7 +230,7 @@ function selectInlineNavItem(cat: NavMenuCategory): NavMenuItem {
 /** 공통 NavBar — light/dark 톤만 prop으로 받음. PremiumDark/MinimalTutor 모두 사용.
  *
  * 모든 viewport: 로고 + 우측(역할/CTA) + 햄버거 → 카테고리 그루핑 사이드 패널.
- * 가로 메뉴 X (학원장 요청 2026-05-11: nexon dnfm 스타일로 깔끔하게 치울 수 있어야).
+ * 가로 메뉴 X (학원장 요청 2026-05-11: 햄버거 패널로 깔끔하게 치울 수 있어야).
  */
 export interface NavBarTokens {
   bg: string;
@@ -393,7 +393,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
             .landing-nav-inline { display: flex !important; }
             .landing-nav-burger { display: flex !important; }
           }
-          /* 가로 nav 메뉴 hover — minimal underline 또는 dnfm식 사각 탭. */
+          /* 가로 nav 메뉴 hover — minimal underline 또는 사각형 탭. */
           .landing-nav-top-item::after {
             content: "";
             position: absolute;

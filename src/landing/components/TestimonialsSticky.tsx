@@ -2,7 +2,7 @@
 // 수강 후기 sticky cards — hero 직후 학원장 신뢰감 강화용 후기 카드 row.
 //
 // 학원장 spec(2026-05-11 추가 cycle): testimonials section 외에 hero 근처에서도
-// 후기 미리보기. nexon dnfm 메인 페이지의 promotional banner row 차용.
+// 후기 미리보기. promotional banner row 형태.
 //
 // 데이터: usePublicTestimonials() — 학원장 승인된 후기. 상위 3개만.
 /* eslint-disable no-restricted-syntax */

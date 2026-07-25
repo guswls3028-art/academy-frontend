@@ -1,7 +1,7 @@
 // PATH: src/landing/components/LandingSectionTabs.tsx
 // 메인 랜딩 상단 sticky section tabs (#68, 2026-05-12).
 //
-// 학원장 spec (2026-05-12, nexon dnfm 스크린샷 4장):
+// 학원장 spec (2026-05-12):
 //   "메인 페이지를 상단에 소개 탭 및 나머지도 같은 식으로 상단 탭으로 구현하면 좋을듯"
 //
 // 동작:

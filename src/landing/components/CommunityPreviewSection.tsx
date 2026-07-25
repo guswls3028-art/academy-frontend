@@ -1,6 +1,6 @@
 // PATH: src/landing/components/CommunityPreviewSection.tsx
 // 랜딩 메인 footer 직전에 노출되는 커뮤니티 미리보기 섹션.
-// nexon dnfm 4번째 스크린샷 — "커뮤니티 +" + 탭 (자유/질문/공지/자료) + 최근 5개 글 카드.
+// "커뮤니티 +" + 탭 (자유/질문/공지/자료) + 최근 5개 글 카드.
 //
 // 비로그인 외부 학부모 → 로그인 유도 안내(실제 글 노출 X — tenant 격리 + 학생 사생활)
 // 로그인 → 기존 backend community endpoint(/api/v1/community/posts/)에서 권한대로 글 fetch.

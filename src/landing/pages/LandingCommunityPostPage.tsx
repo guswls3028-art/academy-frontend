@@ -402,7 +402,7 @@ export default function LandingCommunityPostPage() {
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>
       <LandingNavBar config={cfg} sections={cfg.sections || []} tokens={NAV_TOKENS} brandMark={<BrandMark name={cfg.brand_name} />} />
 
-      {/* 게시판 탭 — sticky. 카페 스타일(2026-05-12 nexon dnfm 차용): 게시판 사이를 탭으로 자유 이동. */}
+      {/* 게시판 탭 — sticky 카페 스타일: 게시판 사이를 탭으로 자유 이동. */}
       <section style={{ padding: "0 24px", background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto" }}>
           {[

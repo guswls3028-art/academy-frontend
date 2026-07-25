@@ -1,7 +1,7 @@
 // PATH: src/landing/pages/LandingCommunityListPage.tsx
 // 랜딩 커뮤니티 게시판 페이지 — /landing/community/:boardType
 //
-// nexon dnfm 스타일 — 탭(자유/질문/공지/자료) + 10개/page + 페이지네이션 (1 2 3 ... 10).
+// 카페형 게시판 — 탭(자유/질문/공지/자료) + 10개/page + 페이지네이션 (1 2 3 ... 10).
 // 학원장 요청(2026-05-11): 무한스크롤 X, 10개씩 페이지 넘기는 방식.
 //
 // 비로그인 → 로그인 유도 안내 화면 (외부인은 학원 커뮤니티 안 보임 — tenant + 학생 사생활 보호).

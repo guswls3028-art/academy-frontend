@@ -1,7 +1,7 @@
 /**
  * Landing NavBar Visual Validation (2026-05-11)
  *
- * nexon dnfm 스타일 hamburger nav 재설계 검증.
+ * 카테고리형 hamburger nav 재설계 검증.
  * Target: public landing production tenant.
  *
  * 실행: npx playwright test e2e/landing-navbar-visual.spec.ts
