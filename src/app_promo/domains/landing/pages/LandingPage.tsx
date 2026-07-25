@@ -149,12 +149,16 @@ function ProductFrame({
   detail,
   image,
   alt,
+  imageWidth = 1280,
+  imageHeight = 720,
   eager = false,
 }: {
   label: string;
   detail: string;
   image: string;
   alt: string;
+  imageWidth?: number;
+  imageHeight?: number;
   eager?: boolean;
 }) {
   return (
@@ -171,8 +175,8 @@ function ProductFrame({
       <img
         src={image}
         alt={alt}
-        width={1280}
-        height={720}
+        width={imageWidth}
+        height={imageHeight}
         loading={eager ? "eager" : "lazy"}
       />
     </figure>
@@ -228,13 +232,15 @@ function Hero() {
         <div className={styles.heroWorkbench} aria-label="적중 매치업과 칠판용 PPT 실제 제품 화면">
           <div className={styles.workbenchLabel}>
             <span>두 가지 수업자료 업무</span>
-            <strong>개포고 파이널 모의고사</strong>
+            <strong>2026 숙명여고 1학기 중간</strong>
           </div>
           <ProductFrame
             label="적중 매치업"
             detail="실제 시험 ↔ 사전 대비 자료"
-            image="/promo/matchup-gaepo-results-20260725.png"
-            alt="개포고 실제 시험 문제와 우리 학원 사전 대비 자료를 비교하는 학원플러스 화면"
+            image="/promo/matchup-actual-vs-prepared-q1-20260726.jpg"
+            alt="2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서"
+            imageWidth={1263}
+            imageHeight={893}
             eager
           />
           <div className={styles.heroConnector} aria-hidden="true">
@@ -253,7 +259,7 @@ function Hero() {
             <CheckCircle2 size={ICON.md} aria-hidden="true" />
             <span>
               <strong>제품 실화면</strong>
-              개포고 데모 데이터
+              2026 숙명여고 공개 적중 사례
             </span>
           </div>
         </div>
@@ -335,8 +341,10 @@ function MatchupShowcase() {
           <ProductFrame
             label="01 · 적중 자료 확인"
             detail="실제 시험 ↔ 사전 자료"
-            image="/promo/matchup-gaepo-candidates-20260725.png"
-            alt="개포고 실제 시험 문제와 우리 학원 사전 대비 자료 후보를 비교하는 학원플러스 화면"
+            image="/promo/matchup-actual-vs-prepared-q2-20260726.jpg"
+            alt="2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서"
+            imageWidth={1263}
+            imageHeight={893}
           />
           <span className={styles.screenArrow} aria-hidden="true">
             별도

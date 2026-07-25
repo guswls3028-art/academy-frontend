@@ -17,7 +17,22 @@ import {
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import styles from "./MatchupPptPage.module.css";
 
-const GUIDE_STEPS = [
+type GuideStep = {
+  number: string;
+  label: string;
+  icon: typeof Camera;
+  title: string;
+  body: string;
+  points: string[];
+  image: string;
+  imageWidth: number;
+  imageHeight: number;
+  alt: string;
+  caption: string;
+  focus?: "ppt-result";
+};
+
+const GUIDE_STEPS: GuideStep[] = [
   {
     number: "01",
     label: "EXAM",
@@ -29,9 +44,11 @@ const GUIDE_STEPS = [
       "학교·학기·시험별 분류",
       "출제 문항을 원문 그대로 확인",
     ],
-    image: "/promo/matchup-gaepo-results-20260725.png",
-    alt: "개포고 파이널 모의고사를 학교와 시험 폴더별로 정리한 학원플러스 매치업 화면",
-    caption: "제품 실화면 · 개포고 데모 데이터",
+    image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
+    imageWidth: 1263,
+    imageHeight: 893,
+    alt: "2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서",
+    caption: "공개 적중 보고서 · 2026 숙명여고 중간",
   },
   {
     number: "02",
@@ -44,9 +61,11 @@ const GUIDE_STEPS = [
       "유사도·출처는 확인 순서에만 활용",
       "선생님이 적중 근거를 최종 확정",
     ],
-    image: "/promo/matchup-gaepo-candidates-20260725.png",
-    alt: "개포고 문제와 85퍼센트 및 86퍼센트 유사문제 후보를 비교하는 실제 제품 화면",
-    caption: "유사도는 후보 점수 · 최종 선택은 선생님",
+    image: "/promo/matchup-actual-vs-prepared-q2-20260726.jpg",
+    imageWidth: 1263,
+    imageHeight: 893,
+    alt: "2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 비교한 두 번째 적중 사례",
+    caption: "실제 시험 ↔ 큐레이션 자료 · 선생님 확정",
   },
   {
     number: "03",
@@ -60,6 +79,8 @@ const GUIDE_STEPS = [
       "16:9·4:3 화면 비율 선택",
     ],
     image: "/promo/ppt-gaepo-setup-20260725.png",
+    imageWidth: 1280,
+    imageHeight: 720,
     alt: "개포고 문제 자료를 슬라이드 단위로 나누고 16대 9 비율을 설정하는 학원플러스 PPT 생성 화면",
     caption: "제품 실화면 · 문제 단위 2장 구성",
   },
@@ -74,9 +95,12 @@ const GUIDE_STEPS = [
       "밝기·대비와 화면 비율 확인",
       "PPT 다운로드 후 리모컨 수업",
     ],
-    image: "/promo/ppt-gaepo-ready-20260725.png",
-    alt: "개포고 문제 자료를 흑백반전해 칠판용 PPT로 미리 보는 학원플러스 화면",
-    caption: "제품 실화면 · 흑백반전 · 16:9",
+    image: "/promo/ppt-gaepo-ready-panel-20260726.png",
+    imageWidth: 460,
+    imageHeight: 720,
+    alt: "개포고 문제 자료의 그레이스케일, 밝기와 대비를 조정하고 칠판용 PPT를 내려받는 학원플러스 화면",
+    caption: "제품 실화면 · 반전 설정 · 미리보기 · PPT 다운로드",
+    focus: "ppt-result",
   },
 ];
 
@@ -158,18 +182,18 @@ export default function MatchupPptPage() {
 
           <div className={styles.heroVisual}>
             <figure className={styles.heroFrame}>
-              <ProductBar label="적중 매치업 · 개포고" />
+              <ProductBar label="실제 시험 ↔ 사전 대비 자료" />
               <img
-                src="/promo/matchup-gaepo-results-20260725.png"
-                alt="개포고 실제 시험과 우리 학원 사전 대비 자료를 비교하는 학원플러스 실제 화면"
-                width={1280}
-                height={720}
+                src="/promo/matchup-actual-vs-prepared-q1-20260726.jpg"
+                alt="2026 숙명여고 실제 시험과 시험 전에 다룬 학원 자료를 비교한 적중 보고서"
+                width={1263}
+                height={893}
               />
             </figure>
             <div className={styles.heroTicket}>
               <span>REAL PRODUCT</span>
               <strong>제품 실화면</strong>
-              <p>개포고 데모 데이터로 직접 캡처</p>
+              <p>2026 숙명여고 공개 적중 사례</p>
             </div>
             <div className={styles.heroPptCard}>
               <Presentation size={23} />
@@ -223,7 +247,7 @@ export default function MatchupPptPage() {
             <h2 id="guide-title">두 기능은 목적이 다릅니다</h2>
             <p>
               매치업은 적중 근거를 남기고, PPT 생성기는 칠판 수업자료를 만듭니다.
-              아래 화면은 개포고 데모 데이터를 직접 채워 캡처한 제품 화면입니다.
+              공개 적중 보고서와 실제 PPT 생성 화면을 확인해 구성했습니다.
             </p>
           </header>
 
@@ -249,13 +273,13 @@ export default function MatchupPptPage() {
                       ))}
                     </ul>
                   </div>
-                  <figure className={styles.guideVisual}>
+                  <figure className={styles.guideVisual} data-focus={step.focus}>
                     <ProductBar label={`${step.number} · ${step.label}`} />
                     <img
                       src={step.image}
                       alt={step.alt}
-                      width={1280}
-                      height={720}
+                      width={step.imageWidth}
+                      height={step.imageHeight}
                       loading="lazy"
                     />
                     <figcaption>{step.caption}</figcaption>

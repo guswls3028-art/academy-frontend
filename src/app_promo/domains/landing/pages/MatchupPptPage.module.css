@@ -176,7 +176,7 @@
 .heroFrame img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: auto;
   object-fit: contain;
   object-position: left top;
 }
@@ -521,9 +521,16 @@
 .guideVisual img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: auto;
   object-fit: contain;
   object-position: left top;
+}
+
+.guideVisual[data-focus="ppt-result"] figcaption {
+  right: auto;
+  left: 10px;
+  top: 50px;
+  bottom: auto;
 }
 
 .guideVisual figcaption {

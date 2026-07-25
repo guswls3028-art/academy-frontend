@@ -48,13 +48,13 @@ type FeatureGroup = {
 const PROOF_CARDS: ProofCard[] = [
   {
     id: "matchup-ppt",
-    badge: "제품 실화면 · 개포고 데모",
+    badge: "공개 적중 사례 · 2026 숙명여고",
     title: "적중 근거를 남기고, 수업자료는 칠판용 PPT로 만듭니다",
     body: "실제 시험과 우리 학원 사전 자료를 비교합니다. 별도로 문제·개념 자료를 나누고 흑백반전해 빔프로젝터용 PPT를 만듭니다.",
-    image: "/promo/matchup-gaepo-results-20260725.png",
-    alt: "개포고 실제 시험 문제와 우리 학원 사전 대비 자료를 나란히 비교하는 학원플러스 화면",
-    imageWidth: 1280,
-    imageHeight: 720,
+    image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
+    alt: "2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서",
+    imageWidth: 1263,
+    imageHeight: 893,
     points: ["실제 시험 ↔ 사전 대비 자료 비교", "선생님이 적중 근거 최종 확인", "문제·개념 분할·흑백반전 PPT"],
     ctaPath: "/promo/matchup-ppt",
     ctaLabel: "매치업·칠판 PPT 실제 화면 보기",

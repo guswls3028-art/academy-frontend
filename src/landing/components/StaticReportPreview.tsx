@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./StaticReportPreview.module.css";
 
 type StaticReportPreviewProps = {
@@ -17,6 +17,10 @@ export default function StaticReportPreview({
   compact = false,
 }: StaticReportPreviewProps) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
 
   return (
     <figure

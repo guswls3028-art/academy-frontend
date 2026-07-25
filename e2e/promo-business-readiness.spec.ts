@@ -34,7 +34,7 @@ test.describe("promo business readiness", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "내 자료로 데모 요청" }).first()).toBeVisible();
     await expect(page.getByText("제품 실화면", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/개포고 데모 데이터/)).toBeVisible();
+    await expect(page.getByText(/2026 숙명여고 공개 적중 사례/)).toBeVisible();
     await expect(page.getByText(/수업자료를 바로 PPT로 만들어 리모컨으로 넘겨 쓰고 싶다/)).toBeVisible();
     await expect(page.getByText("서로 다른 두 기능")).toBeVisible();
     await expect(page).toHaveTitle("학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS");

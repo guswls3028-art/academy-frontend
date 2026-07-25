@@ -7,7 +7,7 @@
 //   - 비로그인 OK (학원 family 가입 안 한 외부 학부모도 접근)
 /* eslint-disable no-restricted-syntax */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchLandingPublic } from "../api";
 import {
@@ -48,6 +48,8 @@ export default function LandingMatchupBoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<MatchupShowcaseCard | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
   const { user } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const tenantCode = resolveTenantCode();
@@ -79,9 +81,33 @@ export default function LandingMatchupBoardPage() {
     if (!viewing) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setViewing(null); };
+    const dialog = dialogRef.current;
+    const focusable = dialog
+      ? Array.from(dialog.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'))
+      : [];
+    focusable[0]?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setViewing(null);
+        return;
+      }
+      if (e.key !== "Tab" || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
-    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+      openerRef.current?.focus();
+    };
   }, [viewing]);
 
   const cfg = config?.config;
@@ -209,7 +235,11 @@ export default function LandingMatchupBoardPage() {
                   key={card.id}
                   type="button"
                   data-testid={`landing-matchup-card-${card.id}`}
-                  onClick={() => clickable && setViewing(card)}
+                  onClick={(event) => {
+                    if (!clickable) return;
+                    openerRef.current = event.currentTarget;
+                    setViewing(card);
+                  }}
                   disabled={!clickable}
                   style={{
                     textAlign: "left",
@@ -268,11 +298,18 @@ export default function LandingMatchupBoardPage() {
           onClick={() => setViewing(null)}
           style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,12,22,0.7)", backdropFilter: "blur(6px)", display: "flex", flexDirection: "column", padding: 0 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(960px, 100%)", height: "100%", margin: "0 auto", background: "#f1f5f9", display: "flex", flexDirection: "column" }}>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="matchup-preview-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(960px, 100%)", height: "100%", margin: "0 auto", background: "#f1f5f9", display: "flex", flexDirection: "column" }}
+          >
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexShrink: 0 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>적중 보고서</div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{viewing.title}</h3>
+                <h3 id="matchup-preview-dialog-title" style={{ fontSize: 14, fontWeight: 700, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{viewing.title}</h3>
               </div>
               <button type="button" onClick={() => setViewing(null)} aria-label="닫기"
                 style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0 }}

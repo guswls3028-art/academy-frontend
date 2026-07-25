@@ -175,7 +175,6 @@
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 9;
   object-fit: contain;
   object-position: left top;
 }
@@ -307,7 +306,6 @@
 .proofCardFeatured .proofVisual img {
   height: auto;
   min-height: 0;
-  aspect-ratio: 16 / 9;
   object-fit: contain;
 }
 
