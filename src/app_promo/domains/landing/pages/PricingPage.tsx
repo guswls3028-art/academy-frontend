@@ -5,8 +5,10 @@ import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
   AUGUST_PRICE_GUARANTEE,
   AUGUST_PROMOTION_LABEL,
+  AUGUST_MONTHLY_SAVINGS,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
+  STANDARD_MONTHLY_TOTAL_AMOUNT,
   formatWon,
 } from "../business";
 import styles from "./PricingPage.module.css";
@@ -27,10 +29,10 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>{AUGUST_PROMOTION_LABEL}</span>
-            <h1 id="pricing-title">8월에 시작하면, 월 159,000원 그대로</h1>
+            <h1 id="pricing-title">평소 월 198,000원, 8월 가입은 159,000원</h1>
             <p>
-              이후 신규 가입 가격은 인상될 예정입니다.
-              8월에 가입한 학원은 가격 인상 없이 모든 기능을 계속 이용합니다.
+              8월 한 달만 월 39,000원 할인합니다.
+              8월에 가입하면 할인된 가격으로 모든 기능을 계속 이용합니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -41,9 +43,14 @@ export default function PricingPage() {
           </div>
 
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
+            <div className={styles.standardPrice}>
+              <span>평소 월 요금</span>
+              <del>{formatWon(STANDARD_MONTHLY_TOTAL_AMOUNT)}원</del>
+            </div>
             <span>8월 가입 평생 보장가</span>
             <strong>159,000원</strong>
-            <p>모든 기능 포함 · 추후 신규 가입가 인상 예정</p>
+            <b>월 {formatWon(AUGUST_MONTHLY_SAVINGS)}원 할인</b>
+            <p>모든 기능 포함 · 8월 가입 후 가격 인상 없음</p>
             <dl>
               <div>
                 <dt>공급가</dt>
@@ -83,6 +90,13 @@ export default function PricingPage() {
                 </div>
 
                 <div className={styles.priceLine}>
+                  <div className={styles.standardLedger}>
+                    <span>평소 {formatWon(plan.standardMonthlyTotalAmount)}원</span>
+                    <small>
+                      공급가 {formatWon(plan.standardMonthlySupplyAmount)}원 + 부가가치세 {formatWon(plan.standardMonthlyTaxAmount)}원
+                    </small>
+                  </div>
+                  <div className={styles.savingsLine}>월 {formatWon(plan.monthlySavings)}원 절약</div>
                   <strong>{formatWon(plan.monthlyTotalAmount)}</strong>
                   <span>원 / 월</span>
                   <small>
