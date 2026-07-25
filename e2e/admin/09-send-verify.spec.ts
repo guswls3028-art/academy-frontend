@@ -109,6 +109,18 @@ test("1. 성적 메시지 발송 직전 확인 + 발송 내역 확인", async ({
   await footerSendBtn.click();
   await snap(page, "06-confirm-overlay");
 
+  // ── 실제 카카오톡 모양과 학생별 최종 문구 선택을 확인한다.
+  const kakaoPreview = page.getByLabel("카카오톡 실제 발송 미리보기");
+  await expect(kakaoPreview, "발송 직전 실제 카카오톡 형태의 미리보기가 보여야 함").toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("지금 보는 학생", { exact: true })).toBeVisible();
+  const openAllStudents = page.getByRole("button", { name: "전체 학생 열기" });
+  if (await openAllStudents.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await openAllStudents.click();
+    const previewStudentChoices = page.getByRole("radiogroup", { name: "미리보기 학생 선택" });
+    await expect(previewStudentChoices).toBeVisible();
+    expect(await previewStudentChoices.getByRole("radio").count()).toBeGreaterThan(1);
+  }
+
   // ── 확인 오버레이에서 최종 발송 버튼까지만 확인한다.
   const confirmBtn = page.locator("button").filter({ hasText: /^발송하기$/ }).first();
   await expect(confirmBtn, "확인 오버레이의 '발송하기' 버튼이 보여야 함 (안전 가드)").toBeVisible({ timeout: 5_000 });

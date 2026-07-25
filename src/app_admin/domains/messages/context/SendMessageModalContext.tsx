@@ -19,6 +19,8 @@ const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
 
 export type OpenSendMessageOptions = {
   studentIds?: number[];
+  /** 최종 확인에서 학생별 실제 문구를 골라 볼 때 사용하는 표시 정보 */
+  previewRecipients?: Array<{ studentId: number; studentName: string }>;
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
@@ -62,6 +64,7 @@ export function useSendMessageModal(): ContextValue {
 export function SendMessageModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [studentIds, setStudentIds] = useState<number[]>([]);
+  const [previewRecipients, setPreviewRecipients] = useState<Array<{ studentId: number; studentName: string }>>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
@@ -74,6 +77,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
     setStudentIds(options.studentIds ?? []);
+    setPreviewRecipients(options.previewRecipients ?? []);
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
     setInitialBody(options.initialBody);
@@ -89,6 +93,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const close = useCallback(() => {
     setOpen(false);
     setStudentIds([]);
+    setPreviewRecipients([]);
     setRecipientLabel(undefined);
     setBlockCategory(undefined);
     setInitialBody(undefined);
@@ -121,6 +126,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
             open
             onClose={close}
             initialStudentIds={studentIds}
+            previewRecipients={previewRecipients}
             recipientLabel={recipientLabel}
             blockCategory={blockCategory}
             initialBody={initialBody}

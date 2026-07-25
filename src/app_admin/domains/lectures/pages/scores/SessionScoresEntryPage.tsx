@@ -420,6 +420,12 @@ export default function SessionScoresEntryPage({
 
               openSendMessageModal({
                 studentIds: selectedStudentIds,
+                previewRecipients: selectedRows
+                  .filter((selectedRow) => selectedRow.student_id != null)
+                  .map((selectedRow) => ({
+                    studentId: selectedRow.student_id as number,
+                    studentName: selectedRow.student_name || "선택 학생",
+                  })),
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",
                 initialBody,

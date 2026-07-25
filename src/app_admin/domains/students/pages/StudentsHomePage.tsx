@@ -205,6 +205,10 @@ export default function StudentsHomePage() {
                 }
                 openSendMessageModal({
                   studentIds: visibleSelectedIds,
+                  previewRecipients: visibleSelectedStudents.map((student) => ({
+                    studentId: student.id,
+                    studentName: student.displayName || student.name,
+                  })),
                   recipientLabel: `선택한 학생 ${visibleSelectedIds.length}명`,
                 });
               }}

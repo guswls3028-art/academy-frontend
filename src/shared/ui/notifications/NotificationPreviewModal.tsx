@@ -24,6 +24,7 @@ import {
   getNotificationConfirmPresentation,
   notificationConfirmHeadline,
 } from "./notificationDispatchState";
+import KakaoAlimtalkPreview from "./KakaoAlimtalkPreview";
 import "./NotificationPreviewModal.css";
 
 type Props = {
@@ -138,6 +139,8 @@ export default function NotificationPreviewModal(props: Props) {
   const [previewPending, setPreviewPending] = useState(false);
   const [confirmPending, setConfirmPending] = useState(false);
   const [previewRefreshId, setPreviewRefreshId] = useState(0);
+  const [selectedPreviewStudentId, setSelectedPreviewStudentId] = useState<number | null>(null);
+  const [recipientsExpanded, setRecipientsExpanded] = useState(false);
   const requestLifecycleRef = useRef(new NotificationRequestLifecycle());
 
   const label =
@@ -159,6 +162,8 @@ export default function NotificationPreviewModal(props: Props) {
     setConfirmResult(null);
     setConfirmPending(confirmInFlight);
     setPreviewPending(open);
+    setSelectedPreviewStudentId(null);
+    setRecipientsExpanded(false);
     if (!open || confirmInFlight) return undefined;
 
     const controller = new AbortController();
@@ -222,6 +227,10 @@ export default function NotificationPreviewModal(props: Props) {
   const sendable = preview?.recipients?.filter((r) => !r.excluded) ?? [];
   const excluded = preview?.recipients?.filter((r) => r.excluded) ?? [];
   const sendableCount = sendable.length;
+  const selectedPreviewRecipient =
+    sendable.find((recipient) => recipient.student_id === selectedPreviewStudentId)
+    ?? sendable[0]
+    ?? null;
 
   return (
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.wide}>
@@ -260,50 +269,90 @@ export default function NotificationPreviewModal(props: Props) {
               )}
             </div>
 
-            {/* 본문 미리보기 */}
-            {sendable.length > 0 && (
-              <div className="notification-preview__message">
-                <div className="notification-preview__message-bar">
-                  <span>알림톡 미리보기</span>
-                  <StudentNameWithLectureChip
-                    name={sendable[0].student_name}
-                    lectures={recipientLectures(sendable[0], preview)}
-                    chipSize={20}
-                    density="compact"
-                  />
-                </div>
-                <div className="notification-preview__message-body">
-                  {sendable[0].message_body}
-                </div>
-              </div>
-            )}
+            {/* 학생별 실제 문구 + 대상 선택 */}
+            {selectedPreviewRecipient && (
+              <div className="notification-preview__review-grid">
+                <section className="notification-preview__kakao-pane">
+                  <div className="notification-preview__section-head">
+                    <div>
+                      <strong>카카오톡으로 이렇게 가요</strong>
+                      <span>선택한 학생에게 적용된 최종 문구입니다.</span>
+                    </div>
+                    <StudentNameWithLectureChip
+                      name={selectedPreviewRecipient.student_name}
+                      lectures={recipientLectures(selectedPreviewRecipient, preview)}
+                      chipSize={20}
+                      density="compact"
+                    />
+                  </div>
+                  <KakaoAlimtalkPreview channelLabel={label}>
+                    {selectedPreviewRecipient.message_body}
+                  </KakaoAlimtalkPreview>
+                </section>
 
-            {/* 대상자 목록 */}
-            {sendable.length > 0 && (
-              <div className="notification-preview__table-wrap">
-                <table className="notification-preview__table">
-                  <thead>
-                    <tr>
-                      <th>학생</th>
-                      <th>수신 번호</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sendable.map((r) => (
-                      <tr key={r.student_id}>
-                        <td>
-                          <StudentNameWithLectureChip
-                            name={r.student_name}
-                            lectures={recipientLectures(r, preview)}
-                            chipSize={20}
-                            density="compact"
-                          />
-                        </td>
-                        <td>{r.phone}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <section className="notification-preview__recipients" aria-label="발송 대상 학생">
+                  <div className="notification-preview__recipients-head">
+                    <div>
+                      <span>받는 대상</span>
+                      <strong>{sendableCount}명</strong>
+                    </div>
+                    <span>
+                      학생을 누르면 그 학생에게 갈 문구로 미리보기가 바뀝니다.
+                    </span>
+                  </div>
+
+                  {sendableCount > 1 ? (
+                    <button
+                      type="button"
+                      className="notification-preview__recipients-toggle"
+                      aria-expanded={recipientsExpanded}
+                      aria-controls="notification-preview-recipient-list"
+                      onClick={() => setRecipientsExpanded((current) => !current)}
+                    >
+                      <span>{recipientsExpanded ? "학생 명단 닫기" : "전체 학생 열기"}</span>
+                      <span aria-hidden="true">{recipientsExpanded ? "−" : "+"}</span>
+                    </button>
+                  ) : (
+                    <div className="notification-preview__single-recipient">선택한 학생 1명</div>
+                  )}
+
+                  {(recipientsExpanded || sendableCount === 1) && (
+                    <div
+                      id="notification-preview-recipient-list"
+                      className="notification-preview__recipient-list"
+                      role="radiogroup"
+                      aria-label="미리보기 학생 선택"
+                    >
+                      {sendable.map((recipient) => {
+                        const selected = recipient.student_id === selectedPreviewRecipient.student_id;
+                        return (
+                          <button
+                            key={recipient.student_id}
+                            type="button"
+                            className="notification-preview__recipient"
+                            role="radio"
+                            aria-checked={selected}
+                            data-selected={selected ? "true" : "false"}
+                            onClick={() => setSelectedPreviewStudentId(recipient.student_id)}
+                          >
+                            <span className="notification-preview__recipient-main">
+                              <StudentNameWithLectureChip
+                                name={recipient.student_name}
+                                lectures={recipientLectures(recipient, preview)}
+                                chipSize={20}
+                                density="compact"
+                              />
+                              <small>{recipient.phone}</small>
+                            </span>
+                            <span className="notification-preview__recipient-state">
+                              {selected ? "미리보기 중" : "보기"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
               </div>
             )}
 
