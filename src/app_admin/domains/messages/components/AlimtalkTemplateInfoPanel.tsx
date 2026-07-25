@@ -103,75 +103,94 @@ export function renderAlimtalkFullPreview(
   templateType: AlimtalkTemplateType | null,
   contentBody: string,
   siteUrl?: string,
+  previewData?: Record<string, string>,
 ): string {
   // 실제 테넌트 URL 사용 (없으면 도메인에서 추출)
-  let url = siteUrl || "";
+  let url = siteUrl || previewData?.사이트링크 || "";
   if (!url) {
     try {
       const host = window.location.hostname;
       url = host === "localhost" || host === "127.0.0.1" ? "https://학원사이트.com" : `https://${host}`;
     } catch { url = "https://학원사이트.com"; }
   }
+  const firstValue = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = previewData?.[key]?.trim();
+      if (value) return value;
+    }
+    return "";
+  };
+  const academyName = firstValue("학원명") || "학원플러스";
+  const studentName = firstValue("학생이름", "학생이름3") || "홍길동";
+  const studentShortName = firstValue("학생이름2") || studentName.slice(-2);
+  const lectureName = firstValue("강의명") || "수학 심화반";
+  const sessionName = firstValue("차시명") || "3회차";
+  const lectureDate = firstValue("강의날짜", "날짜") || "2026-04-06";
+  const lectureTime = firstValue("강의시간", "시간") || "14:00";
+  const clinicPlace = firstValue("클리닉장소", "장소") || "3층 세미나실";
+  const clinicPreviousSchedule = firstValue("클리닉기존일정") || "4/6(일) 14:00 3층";
+  const clinicChanges = firstValue("클리닉변동사항") || "4/7(월) 15:00으로 변경";
+  const clinicModifier = firstValue("클리닉수정자") || "김선생님";
   if (templateType === "clinic_info") {
     return (
-      `학원플러스입니다.\n\n` +
-      `홍길동학생님.\n\n` +
+      `${academyName}입니다.\n\n` +
+      `${studentName}학생님.\n\n` +
       `클리닉 안내 드립니다.\n` +
-      `장소\n3층 세미나실\n\n` +
-      `날짜\n2026-04-06\n\n` +
-      `시간\n14:00\n\n` +
+      `장소\n${clinicPlace}\n\n` +
+      `날짜\n${lectureDate}\n\n` +
+      `시간\n${lectureTime}\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
       url
     );
   }
   if (templateType === "clinic_change") {
     return (
-      `학원플러스입니다.\n\n` +
-      `홍길동학생님. 클리닉 일정이 변경되었습니다.\n\n` +
+      `${academyName}입니다.\n\n` +
+      `${studentName}학생님. 클리닉 일정이 변경되었습니다.\n\n` +
       `일정 변경 안내 드립니다.\n` +
-      `기존일정\n4/6(일) 14:00 3층\n\n` +
-      `변동사항\n4/7(월) 15:00으로 변경\n\n` +
-      `수정자\n김선생님\n\n` +
+      `기존일정\n${clinicPreviousSchedule}\n\n` +
+      `변동사항\n${clinicChanges}\n\n` +
+      `수정자\n${clinicModifier}\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
       url
     );
   }
   if (templateType === "attendance") {
     return (
-      `학원플러스입니다.\n\n` +
-      `홍길동학생님.\n\n` +
+      `${academyName}입니다.\n\n` +
+      `${studentName}학생님.\n\n` +
       `출석 안내 드립니다.\n` +
-      `강의\n수학 심화반\n\n` +
-      `차시\n3회차\n\n` +
-      `날짜\n2026-04-06\n\n` +
-      `시간\n14:00\n\n` +
+      `강의\n${lectureName}\n\n` +
+      `차시\n${sessionName}\n\n` +
+      `날짜\n${lectureDate}\n\n` +
+      `시간\n${lectureTime}\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
       url
     );
   }
   if (templateType === "score") {
     return (
-      `학원플러스입니다.\n\n` +
-      `홍길동학생님.\n\n` +
+      `${academyName}입니다.\n\n` +
+      `${studentName}학생님.\n\n` +
       `성적표 안내 드립니다.\n` +
-      `강의\n수학 심화반\n\n` +
-      `차시\n3회차\n\n` +
+      `강의\n${lectureName}\n\n` +
+      `차시\n${sessionName}\n\n` +
       `${contentBody || "(안내 문구를 작성하세요)"}\n` +
       url
     );
   }
   if (templateType === "notice_withdrawal") {
     return (
-      `안녕하세요, 학원플러스입니다.\n\n` +
-      `길동학생님, 퇴원 처리가 완료되었습니다.\n\n` +
+      `안녕하세요, ${academyName}입니다.\n\n` +
+      `${studentShortName}학생님, 퇴원 처리가 완료되었습니다.\n\n` +
       `그동안 학원을 이용해 주셔서 감사합니다.\n` +
       `재등록을 원하시면 언제든 문의해 주세요.`
     );
   }
   if (templateType === "notice_payment") {
     return (
-      `안녕하세요, 학원플러스입니다.\n\n` +
-      `길동학생님, 결제가 완료되었습니다.\n\n` +
+      `안녕하세요, ${academyName}입니다.\n\n` +
+      `${studentShortName}학생님, 결제가 완료되었습니다.\n\n` +
       `수업·결제 내역은 아래 링크에서 확인하실 수 있습니다.\n` +
       url
     );

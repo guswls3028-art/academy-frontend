@@ -23,6 +23,7 @@ import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
 import {
   fetchMessageTemplates,
   preflightSendMessage,
@@ -69,6 +70,7 @@ export type SendMessageModalProps = {
   open: boolean;
   onClose: () => void;
   initialStudentIds?: number[];
+  previewRecipients?: Array<{ studentId: number; studentName: string }>;
   recipientLabel?: string;
   blockCategory?: TemplateCategory;
   initialBody?: string;
@@ -162,6 +164,13 @@ function formatSendTargetLabel(target: SendToType): string {
   return target === "parent" ? "학부모" : "학생";
 }
 
+function substituteKnownPreviewVars(
+  value: string,
+  vars: Record<string, string>,
+): string {
+  return value.replace(/#\{([^}]+)\}/g, (token, name: string) => vars[name] || token);
+}
+
 /**
  * 자동 선택 우선순위:
  *   1. 본 테넌트 양식: 카테고리 일치 + 기본 지정
@@ -206,6 +215,7 @@ export default function SendMessageModal({
   open,
   onClose,
   initialStudentIds = EMPTY_ID_LIST,
+  previewRecipients = [],
   recipientLabel,
   blockCategory = "default",
   initialBody,
@@ -246,6 +256,8 @@ export default function SendMessageModal({
   const [preflightResultKey, setPreflightResultKey] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [confirmPreviewStudentId, setConfirmPreviewStudentId] = useState<number | null>(null);
+  const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const prevOpenRef = useRef(false);
   const getNativeTextarea = useCallback(
@@ -256,6 +268,15 @@ export default function SendMessageModal({
   const studentIds = initialStudentIds;
   const hasRecipients = studentIds.length > 0;
   const recipientCount = studentIds.length;
+  const resolvedPreviewRecipients = useMemo(() => {
+    const nameById = new Map(
+      previewRecipients.map((recipient) => [recipient.studentId, recipient.studentName.trim()]),
+    );
+    return studentIds.map((studentId, index) => ({
+      studentId,
+      studentName: nameById.get(studentId) || `선택 학생 ${index + 1}`,
+    }));
+  }, [previewRecipients, studentIds]);
   const sendToTargets: SendToType[] = (() => {
     const t: SendToType[] = [];
     if (sendToParent) t.push("parent");
@@ -491,6 +512,51 @@ export default function SendMessageModal({
     : selectedTemplate
       ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
       : subject;
+  const activeTemplateCategory =
+    (selectedTemplate?.category as TemplateCategory | undefined) ?? effectiveBlockCategory;
+  const activeAlimtalkType = getAlimtalkTemplateTypeFromCategory(
+    activeTemplateCategory,
+    selectedTemplate?.name ?? selectedPreset?.name ?? "",
+    alimtalkExtraVars,
+  );
+  const activeAlimtalkLabel = getAlimtalkTemplateLabel(activeAlimtalkType);
+  const confirmPerStudentVars = useMemo(() => {
+    if (!body) return alimtalkExtraVarsPerStudent ?? {};
+    if (!recomputePerStudentVarsRef?.current) return alimtalkExtraVarsPerStudent ?? {};
+    try {
+      return recomputePerStudentVarsRef.current(body);
+    } catch {
+      return alimtalkExtraVarsPerStudent ?? {};
+    }
+  }, [alimtalkExtraVarsPerStudent, body, recomputePerStudentVarsRef]);
+  const confirmPreviewRecipient =
+    resolvedPreviewRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
+    ?? resolvedPreviewRecipients[0]
+    ?? null;
+  const confirmStudentVars = confirmPreviewRecipient
+    ? confirmPerStudentVars[confirmPreviewRecipient.studentId] ?? {}
+    : {};
+  const confirmMergedVars = {
+    ...alimtalkExtraVars,
+    ...confirmStudentVars,
+    ...(confirmPreviewRecipient
+      ? {
+          학생이름: confirmStudentVars.학생이름 || confirmPreviewRecipient.studentName,
+          학생이름2: confirmStudentVars.학생이름2 || confirmPreviewRecipient.studentName.slice(-2),
+          학생이름3: confirmStudentVars.학생이름3 || confirmPreviewRecipient.studentName,
+        }
+      : {}),
+  };
+  const confirmLetterBody =
+    confirmStudentVars._body_subst
+    || substituteKnownPreviewVars(body, confirmMergedVars);
+  const confirmFullPreview = activeAlimtalkType
+    ? renderAlimtalkFullPreview(activeAlimtalkType, confirmLetterBody, undefined, confirmMergedVars)
+    : confirmLetterBody;
+  const confirmSubjectText = substituteKnownPreviewVars(
+    subject || selectedTemplate?.subject || "",
+    confirmMergedVars,
+  );
 
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -519,6 +585,8 @@ export default function SendMessageModal({
     setPreflightResultKey("");
     setPreflightLoading(false);
     setPreflightError(null);
+    setConfirmPreviewStudentId(null);
+    setConfirmRecipientsExpanded(false);
     sendingRef.current = false;
   }, [open, blockCategory, initialBody, initialTemplateId, initialLetterPresetId]);
 
@@ -712,6 +780,12 @@ export default function SendMessageModal({
 
   const requestSend = () => {
     if (!canSend) return;
+    setConfirmPreviewStudentId((current) => (
+      resolvedPreviewRecipients.some((recipient) => recipient.studentId === current)
+        ? current
+        : resolvedPreviewRecipients[0]?.studentId ?? null
+    ));
+    setConfirmRecipientsExpanded(false);
     setShowConfirm(true);
   };
 
@@ -1350,69 +1424,133 @@ export default function SendMessageModal({
       {showConfirm && (
         <div className="send-modal__confirm-overlay">
           <div className="send-modal__confirm-card">
-            <div className="send-modal__confirm-title">발송을 확인해 주세요</div>
-            <div className="send-modal__confirm-meta">
-              <div className="send-modal__confirm-row">
-                <span className="send-modal__confirm-key">채널</span>
-                <span className="send-modal__confirm-val">카카오 알림톡</span>
+            <div className="send-modal__confirm-heading">
+              <div>
+                <div className="send-modal__confirm-title">보내기 전 마지막 확인</div>
+                <p>학생을 골라 실제로 들어갈 문구를 확인한 뒤 발송하세요.</p>
               </div>
-              <div className="send-modal__confirm-row">
-                <span className="send-modal__confirm-key">발송 시점</span>
-                <span className="send-modal__confirm-val">
-                  {sendTiming === "scheduled" ? formatScheduleLabel(scheduledSendAtIso) : "즉시"}
-                </span>
-              </div>
-              {sendTiming === "scheduled" && (
-                <div className="send-modal__confirm-note">
-                  발송 전까지 발송 내역의 예약 발송에서 취소할 수 있습니다.
-                </div>
-              )}
-              <div className="send-modal__confirm-row">
-                <span className="send-modal__confirm-key">대상</span>
-                <span className="send-modal__confirm-val">
-                  {(() => {
-                    const parts: string[] = [];
-                    if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
-                    if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
-                    return parts.join(" + ");
-                  })()}
-                </span>
-              </div>
-              {hasSelectedBodySource && (
-                <div className="send-modal__confirm-row">
-                  <span className="send-modal__confirm-key">문구</span>
-                  <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
-                    {selectedTemplate?.name ?? selectedPreset?.name ?? "직접 작성"}
-                  </span>
-                </div>
-              )}
-              {preflightResults.length > 0 && (
-                <div className="send-modal__confirm-row">
-                  <span className="send-modal__confirm-key">확인</span>
-                  <span className="send-modal__confirm-val">
-                    {preflightRecipientStats.validPhone.toLocaleString()}건 가능
-                  </span>
-                </div>
-              )}
-              <div className="send-modal__confirm-row">
-                <span className="send-modal__confirm-key">본문</span>
-                <span className="send-modal__confirm-val">{body.length}자</span>
-              </div>
-              <div className="send-modal__confirm-preview">
-                {/* 성적 발송은 양식 기준, 그 외는 첫 수신자 기준 previewLetterBody를 사용한다. */}
-                {previewLetterBody.slice(0, 200)}{previewLetterBody.length > 200 ? "…" : ""}
-              </div>
-              {qualityIssues.length > 0 && (
-                <div className="send-modal__confirm-quality">
-                  {qualityIssues.map((issue) => (
-                    <div key={issue.id} className="send-modal__confirm-quality-row" data-severity={issue.severity}>
-                      <AlertTriangle size={ICON.xs} />
-                      <span>{issue.title}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span className="send-modal__confirm-count">
+                {preflightResults.length > 0
+                  ? `${preflightRecipientStats.validPhone.toLocaleString()}건 발송 가능`
+                  : `${recipientCount.toLocaleString()}명 선택`}
+              </span>
             </div>
+
+            <div className="send-modal__confirm-layout">
+              <section className="send-modal__confirm-kakao">
+                <div className="send-modal__confirm-previewing">
+                  <span>지금 보는 학생</span>
+                  <strong>{confirmPreviewRecipient?.studentName ?? "선택 학생"}</strong>
+                </div>
+                <KakaoAlimtalkPreview
+                  channelLabel={activeAlimtalkLabel}
+                  subject={confirmSubjectText || undefined}
+                >
+                  {confirmFullPreview || "미리볼 문구가 없습니다."}
+                </KakaoAlimtalkPreview>
+              </section>
+
+              <section className="send-modal__confirm-details">
+                <div className="send-modal__confirm-meta">
+                  <div className="send-modal__confirm-row">
+                    <span className="send-modal__confirm-key">채널</span>
+                    <span className="send-modal__confirm-val">카카오 알림톡</span>
+                  </div>
+                  <div className="send-modal__confirm-row">
+                    <span className="send-modal__confirm-key">발송 시점</span>
+                    <span className="send-modal__confirm-val">
+                      {sendTiming === "scheduled" ? formatScheduleLabel(scheduledSendAtIso) : "즉시"}
+                    </span>
+                  </div>
+                  {sendTiming === "scheduled" && (
+                    <div className="send-modal__confirm-note">
+                      발송 전까지 발송 내역의 예약 발송에서 취소할 수 있습니다.
+                    </div>
+                  )}
+                  <div className="send-modal__confirm-row">
+                    <span className="send-modal__confirm-key">받는 사람</span>
+                    <span className="send-modal__confirm-val">
+                      {(() => {
+                        const parts: string[] = [];
+                        if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
+                        if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
+                        return parts.join(" + ");
+                      })()}
+                    </span>
+                  </div>
+                  {hasSelectedBodySource && (
+                    <div className="send-modal__confirm-row">
+                      <span className="send-modal__confirm-key">적용 문구</span>
+                      <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
+                        {selectedTemplate?.name ?? selectedPreset?.name ?? "직접 작성"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="send-modal__confirm-recipients">
+                  <div className="send-modal__confirm-recipients-head">
+                    <div>
+                      <span>발송 대상 학생</span>
+                      <strong>{recipientCount}명</strong>
+                    </div>
+                    <p>학생 선택은 미리보기만 바꾸며, 발송 대상은 그대로 유지됩니다.</p>
+                  </div>
+
+                  {recipientCount > 1 ? (
+                    <button
+                      type="button"
+                      className="send-modal__confirm-recipients-toggle"
+                      aria-expanded={confirmRecipientsExpanded}
+                      aria-controls="send-modal-confirm-recipient-list"
+                      onClick={() => setConfirmRecipientsExpanded((current) => !current)}
+                    >
+                      <span>{confirmRecipientsExpanded ? "학생 명단 닫기" : "전체 학생 열기"}</span>
+                      <span aria-hidden="true">{confirmRecipientsExpanded ? "−" : "+"}</span>
+                    </button>
+                  ) : null}
+
+                  {(confirmRecipientsExpanded || recipientCount === 1) && (
+                    <div
+                      id="send-modal-confirm-recipient-list"
+                      className="send-modal__confirm-recipient-list"
+                      role="radiogroup"
+                      aria-label="미리보기 학생 선택"
+                    >
+                      {resolvedPreviewRecipients.map((recipient) => {
+                        const selected = recipient.studentId === confirmPreviewRecipient?.studentId;
+                        return (
+                          <button
+                            key={recipient.studentId}
+                            type="button"
+                            className="send-modal__confirm-recipient"
+                            role="radio"
+                            aria-checked={selected}
+                            data-selected={selected ? "true" : "false"}
+                            onClick={() => setConfirmPreviewStudentId(recipient.studentId)}
+                          >
+                            <span>{recipient.studentName}</span>
+                            <small>{selected ? "미리보기 중" : "보기"}</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {qualityIssues.length > 0 && (
+                  <div className="send-modal__confirm-quality">
+                    {qualityIssues.map((issue) => (
+                      <div key={issue.id} className="send-modal__confirm-quality-row" data-severity={issue.severity}>
+                        <AlertTriangle size={ICON.xs} />
+                        <span>{issue.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
             <div className="send-modal__confirm-actions">
               <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">
                 돌아가기
