@@ -6,16 +6,12 @@ import api from "@/shared/api/axios";
 export type StorageQuota = {
   usedBytes: number;
   limitBytes: number;
-  plan: "standard" | "pro" | "max";
+  plan: "all";
 };
 
 export async function fetchStorageQuota(): Promise<StorageQuota> {
-  try {
-    const { data } = await api.get<StorageQuota>("/storage/quota/");
-    return data;
-  } catch {
-    return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "pro" };
-  }
+  const { data } = await api.get<StorageQuota>("/storage/quota/");
+  return data;
 }
 
 export type InventoryFolder = {

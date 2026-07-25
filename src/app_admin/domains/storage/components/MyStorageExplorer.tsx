@@ -12,7 +12,6 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchInventoryList,
-  fetchStorageQuota,
   createFolder,
   uploadFile,
   deleteFolder,
@@ -88,12 +87,6 @@ export default function MyStorageExplorer() {
     queryKey: storageQueryKeys.storageInventory(SCOPE),
     queryFn: () => fetchInventoryList(SCOPE),
   });
-  const { data: quota } = useQuery({
-    queryKey: storageQueryKeys.storageQuota,
-    queryFn: fetchStorageQuota,
-  });
-  const isLocked = quota?.plan === "standard";
-
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
@@ -625,9 +618,7 @@ export default function MyStorageExplorer() {
             type="button"
             intent="primary"
             size="sm"
-            onClick={() => !isLocked && setAddChoiceOpen(true)}
-            disabled={isLocked}
-            title={isLocked ? "Standard 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+            onClick={() => setAddChoiceOpen(true)}
             leftIcon={<FilePlus size={16} />}
           >
             추가
@@ -808,9 +799,9 @@ export default function MyStorageExplorer() {
                 </div>
               ))}
               <div
-                className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
-                onClick={(e) => { e.stopPropagation(); if (!isLocked) setAddChoiceOpen(true); }}
-                title={isLocked ? "Standard 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
+                className={styles.item + " " + styles.itemAdd}
+                onClick={(e) => { e.stopPropagation(); setAddChoiceOpen(true); }}
+                title="폴더 또는 파일 추가"
               >
                 <FilePlus size={32} />
                 <span>추가</span>

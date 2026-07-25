@@ -3,13 +3,12 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { CalendarPlus, CreditCard, Search } from "lucide-react";
+import { CalendarPlus, Search } from "lucide-react";
 import {
   useBillingTenants,
   useBillingDashboard,
   useBillingInvoices,
   useExtendSubscription,
-  useChangePlan,
   useMarkInvoicePaid,
 } from "@dev/domains/billing/hooks/useBilling";
 import { useDevToast } from "@dev/shared/components/useDevToast";
@@ -64,9 +63,7 @@ const SUBSCRIPTION_STATE_TEXT: Record<string, string> = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  standard: "Standard",
-  pro: "Pro",
-  max: "Max",
+  all: "전체 기능",
 };
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -83,26 +80,8 @@ const EXTEND_PRESETS = [
   { days: 365, label: "+365일", caption: "1년" },
 ];
 
-const PLAN_OPTIONS = [
-  { value: "standard", label: "Standard", caption: "기본 운영" },
-  { value: "pro", label: "Pro", caption: "성장형" },
-  { value: "max", label: "Max", caption: "대형 학원" },
-];
-
-const PLAN_STANDARD_PRICES: Record<string, number> = {
-  standard: 99_000,
-  pro: 198_000,
-  max: 330_000,
-};
-
 function statusKey(status: string): string {
   return status.toLowerCase().replace(/[^a-z0-9_-]/g, "");
-}
-
-function getPlanPreviewPrice(plan: string, tenant: TenantSubscriptionDto | null): number | null {
-  if (tenant?.plan === plan) return resolveBillingAmounts(tenant).totalAmount;
-  const supplyAmount = PLAN_STANDARD_PRICES[plan];
-  return supplyAmount === undefined ? null : supplyAmount + Math.floor(supplyAmount * 0.1);
 }
 
 // ── Main Component ──
@@ -112,7 +91,6 @@ export default function BillingPage() {
   const [tab, setTab] = useState<Tab>("tenants");
   const [tenantQuery, setTenantQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
   const [expiringOnly, setExpiringOnly] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState("");
 
@@ -125,20 +103,15 @@ export default function BillingPage() {
 
   // Mutations
   const extendMut = useExtendSubscription();
-  const changePlanMut = useChangePlan();
   const markPaidMut = useMarkInvoicePaid();
 
   // Modal state
   const [extendModal, setExtendModal] = useState<TenantSubscriptionDto | null>(null);
   const [extendDays, setExtendDays] = useState("30");
-  const [planModal, setPlanModal] = useState<TenantSubscriptionDto | null>(null);
-  const [newPlan, setNewPlan] = useState("");
   const extendDaysNumber = parsePositiveInt(extendDays);
   const extendPreview = extendModal && extendDaysNumber
     ? getExtensionPreview(extendModal.subscription_expires_at, extendDaysNumber)
     : null;
-  const selectedPlan = PLAN_OPTIONS.find((p) => p.value === newPlan);
-  const selectedPlanPrice = getPlanPreviewPrice(newPlan, planModal);
 
   // Filtered tenants
   const filtered = useMemo(() => {
@@ -152,21 +125,15 @@ export default function BillingPage() {
       );
     }
     if (statusFilter) list = list.filter((t) => t.subscription_status === statusFilter);
-    if (planFilter) list = list.filter((t) => t.plan === planFilter);
     if (expiringOnly) list = list.filter((t) => t.days_remaining !== null && t.days_remaining <= 7);
     return list;
-  }, [tenants, tenantQuery, statusFilter, planFilter, expiringOnly]);
+  }, [tenants, tenantQuery, statusFilter, expiringOnly]);
 
   // ── Actions ──
 
   function openExtendModal(t: TenantSubscriptionDto, days = 30) {
     setExtendModal(t);
     setExtendDays(String(days));
-  }
-
-  function openPlanModal(t: TenantSubscriptionDto) {
-    setPlanModal(t);
-    setNewPlan(t.plan);
   }
 
   async function handleExtend() {
@@ -186,21 +153,6 @@ export default function BillingPage() {
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
       toast("연장 실패: " + (err.response?.data?.detail || String(e)), "error");
-    }
-  }
-
-  async function handleChangePlan() {
-    if (!planModal || !newPlan) return;
-    try {
-      const result = await changePlanMut.mutateAsync({
-        programId: getProgramId(planModal),
-        plan: newPlan,
-      });
-      toast(`${result.tenant_code} -> ${result.plan_display} (${wonText(result.monthly_price)})`);
-      setPlanModal(null);
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      toast("플랜 변경 실패: " + (err.response?.data?.detail || String(e)), "error");
     }
   }
 
@@ -271,13 +223,6 @@ export default function BillingPage() {
                   <option value="grace">유예</option>
                   <option value="expired">만료</option>
                 </select>
-                <select className={`${s.input} ${b.filterSelect}`}
-                  value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
-                  <option value="">전체 요금제</option>
-                  <option value="standard">Standard</option>
-                  <option value="pro">Pro</option>
-                  <option value="max">Max</option>
-                </select>
                 <label className={b.checkboxLabel}>
                   <input type="checkbox" checked={expiringOnly} onChange={(e) => setExpiringOnly(e.target.checked)} />
                   7일 내 만료
@@ -345,11 +290,6 @@ export default function BillingPage() {
                                 onClick={() => openExtendModal(t)}>
                                 연장
                               </button>
-                              <button className={`${s.btn} ${s.btnSm}`}
-                                onClick={() => openPlanModal(t)}>
-                                <CreditCard size={13} strokeWidth={1.8} />
-                                요금제
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -402,11 +342,6 @@ export default function BillingPage() {
                       <button className={`${s.btn} ${s.btnSecondary}`}
                         onClick={() => openExtendModal(t)}>
                         기간 설정
-                      </button>
-                      <button className={`${s.btn} ${s.btnSecondary}`}
-                        onClick={() => openPlanModal(t)}>
-                        <CreditCard size={16} strokeWidth={1.8} />
-                        요금제
                       </button>
                     </div>
                   </article>
@@ -558,70 +493,6 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Plan Change Modal ── */}
-      {planModal && (
-        <div className={s.overlay} onClick={() => setPlanModal(null)}>
-          <div className={s.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={s.modalHeader}>
-              <h2 className={s.modalTitle}>요금제 변경</h2>
-              <p className={s.modalSub}>월 금액이 실제 운영 테넌트에 바로 반영됩니다.</p>
-            </div>
-            <div className={s.modalBody}>
-              <p className={b.modalIntro}>
-                <strong>{planModal.tenant_name || planModal.tenant_code}</strong>
-                {" "}<TenantTypeBadge exempt={isExempt(planModal.tenant_id)} />
-                <br />
-                <span className={b.modalMeta}>
-                  현재 {planModal.plan_display} ({wonText(resolveBillingAmounts(planModal).totalAmount)}, VAT 포함)
-                </span>
-              </p>
-              {!isExempt(planModal.tenant_id) && <LiveWarning action="change plan" />}
-              <label className={s.inputLabel}>변경할 요금제</label>
-              <div className={b.planGrid} role="radiogroup" aria-label="요금제 선택">
-                {PLAN_OPTIONS.map((plan) => {
-                  const price = getPlanPreviewPrice(plan.value, planModal);
-                  const isCurrentPlan = planModal.plan === plan.value;
-                  return (
-                    <button
-                      key={plan.value}
-                      type="button"
-                      className={b.planButton}
-                      data-active={newPlan === plan.value ? "true" : undefined}
-                      aria-pressed={newPlan === plan.value}
-                      onClick={() => setNewPlan(plan.value)}
-                    >
-                      <span>{plan.label}</span>
-                      <strong>{price === null ? "금액 확인 필요" : wonText(price)}</strong>
-                      <small>{isCurrentPlan ? "현재 적용 총액 (VAT 포함)" : `${plan.caption} 정가 (VAT 포함)`}</small>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className={b.previewBox}>
-                <div>
-                  <span>현재</span>
-                  <strong>{planModal.plan_display} · {wonText(resolveBillingAmounts(planModal).totalAmount)} (VAT 포함)</strong>
-                </div>
-                <div>
-                  <span>변경 후</span>
-                  <strong>
-                    {selectedPlan
-                      ? `${selectedPlan.label} · ${selectedPlanPrice === null ? "금액 확인 필요" : wonText(selectedPlanPrice)}`
-                      : "-"}
-                  </strong>
-                </div>
-              </div>
-            </div>
-            <div className={s.modalFooter}>
-              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setPlanModal(null)}>취소</button>
-              <button className={`${s.btn} ${!isExempt(planModal.tenant_id) ? s.btnDanger : s.btnPrimary}`}
-                onClick={handleChangePlan} disabled={changePlanMut.isPending}>
-                {changePlanMut.isPending ? "변경 중..." : "운영에 적용"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
@@ -684,7 +555,6 @@ function LiveWarning({ action }: { action: string }) {
     <div className={b.liveWarning}>
       <strong>운영 테넌트</strong> - 이 작업은 실제 구독 상태를 변경합니다.
       {action === "extend" && " 구독 만료일이 실제로 연장됩니다."}
-      {action === "change plan" && " 요금제와 월 결제액이 실제로 변경됩니다."}
     </div>
   );
 }

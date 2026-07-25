@@ -184,13 +184,20 @@ export default function MyStoragePage() {
         <Card>
           <div className="flex justify-between items-center mb-1.5">
             <span className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
-              사용 공간 · {quota.plan.toUpperCase()}
+              사용 공간 · 전체 기능
             </span>
             <span className="text-[12px] tabular-nums" style={{ color: "var(--tc-text)" }}>
               {formatBytes(quota.usedBytes)} / {formatBytes(quota.limitBytes)}
             </span>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: "var(--tc-surface-soft)", overflow: "hidden" }}>
+          <div
+            role="progressbar"
+            aria-label="저장공간 사용률"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(Math.min(100, (quota.usedBytes / Math.max(1, quota.limitBytes)) * 100))}
+            style={{ height: 6, borderRadius: 3, background: "var(--tc-surface-soft)", overflow: "hidden" }}
+          >
             <div
               style={{
                 height: "100%",

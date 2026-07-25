@@ -17,7 +17,7 @@ export type TenantSubscriptionDto = {
   monthly_tax_amount?: number;
   monthly_total_amount?: number;
   monthly_price_includes_tax?: boolean;
-  vat_rate_percent?: number;
+  vat_rate_percent?: number | null;
   billing_price_policy?: string;
   is_contract_price?: boolean;
   subscription_status: string;
@@ -62,7 +62,7 @@ export type DashboardDto = {
   mrr_tax_amount?: number;
   mrr_total_amount?: number;
   mrr_includes_tax?: boolean;
-  vat_rate_percent?: number;
+  vat_rate_percent?: number | null;
   status_counts: Record<string, number>;
   expiring_soon: number;
   overdue_invoices: number;
@@ -82,26 +82,6 @@ export async function extendSubscription(
   days: number,
 ): Promise<{ tenant_code: string; subscription_status: string; subscription_expires_at: string; days_remaining: number }> {
   const res = await api.post(`/billing/admin/tenants/${programId}/extend/`, { days });
-  return res.data;
-}
-
-export async function changePlan(
-  programId: number,
-  plan: string,
-): Promise<{
-  tenant_code: string;
-  plan: string;
-  plan_display: string;
-  monthly_price: number;
-  monthly_supply_amount: number;
-  monthly_tax_amount: number;
-  monthly_total_amount: number;
-  monthly_price_includes_tax: boolean;
-  vat_rate_percent: number;
-  billing_price_policy: string;
-  is_contract_price: boolean;
-}> {
-  const res = await api.post(`/billing/admin/tenants/${programId}/change-plan/`, { plan });
   return res.data;
 }
 

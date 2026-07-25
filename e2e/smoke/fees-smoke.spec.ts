@@ -24,11 +24,6 @@ test.describe("Fees Management", () => {
       )
       .catch(() => {});
 
-    const feesEnabled = await page.locator("text=수납 관리").isVisible({ timeout: 5000 }).catch(() => false);
-    if (!feesEnabled) {
-      await page.screenshot({ path: "e2e/screenshots/fees-feature-disabled-redirect.png", fullPage: true });
-    }
-    test.skip(!feesEnabled, "fee_management off — FeesPage redirects to dashboard (FeesPage.tsx)");
     await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
 
     // Check tabs exist
@@ -48,8 +43,7 @@ test.describe("Fees Management", () => {
 
     await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    const feesOk = await page.locator("text=수납 관리").isVisible({ timeout: 4000 }).catch(() => false);
-    test.skip(!feesOk, "fee_management off");
+    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
     await page.locator(".ds-tab").filter({ hasText: "비목 관리" }).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
@@ -98,8 +92,7 @@ test.describe("Fees Management", () => {
 
     await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    const feesOkInv = await page.locator("text=수납 관리").isVisible({ timeout: 4000 }).catch(() => false);
-    test.skip(!feesOkInv, "fee_management off");
+    await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
     await page.locator(".ds-tab").filter({ hasText: "청구서" }).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
@@ -122,8 +115,7 @@ test.describe("Fees Management", () => {
     await page.goto(`${BASE}/student/fees`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
-    const studentFeesVisible = await page.locator("text=수납/결제").isVisible({ timeout: 5000 }).catch(() => false);
-    test.skip(!studentFeesVisible, "fee_management off — student fees gate redirects");
+    await expect(page.locator("text=수납/결제")).toBeVisible({ timeout: 10000 });
 
     await page.screenshot({ path: "e2e/screenshots/student-fees.png" });
   });
