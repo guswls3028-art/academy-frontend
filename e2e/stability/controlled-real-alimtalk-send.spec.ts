@@ -23,7 +23,19 @@ const ADMIN_PASS = requiredEnv("E2E_ADMIN_PASS");
 const CONTROLLED_PHONE = (process.env.E2E_REAL_ALIMTALK_CONTROLLED_PHONE || "01031217466").trim();
 const TS = Date.now();
 const RUN = `[E2E-REALMSG-${TS}]`;
-const STUDENT_NAME = `${RUN} 통제발송`;
+const PRECREATED_STUDENT_ID = Number.parseInt(
+  process.env.E2E_REAL_ALIMTALK_EXISTING_STUDENT_ID || "",
+  10,
+);
+const PRECREATED_STUDENT_NAME =
+  (process.env.E2E_REAL_ALIMTALK_EXISTING_STUDENT_NAME || "").trim();
+const HAS_PRECREATED_STUDENT =
+  Number.isInteger(PRECREATED_STUDENT_ID)
+  && PRECREATED_STUDENT_ID > 0
+  && PRECREATED_STUDENT_NAME.startsWith("[E2E-REALMSG-");
+const STUDENT_NAME = HAS_PRECREATED_STUDENT
+  ? PRECREATED_STUDENT_NAME
+  : `${RUN} 통제발송`;
 const STUDENT_USER = `e2erm${String(TS).slice(-8)}`;
 
 type Tokens = { access: string; refresh: string };
@@ -234,7 +246,16 @@ async function selectStudentInUi(page: Page, name: string): Promise<void> {
   const search = page.locator("[data-guide='students-search']");
   await expect(search).toBeVisible({ timeout: 15_000 });
   await search.click({ clickCount: 3 });
+  const filteredStudents = page.waitForResponse((response) => {
+    if (!response.ok() || !response.url().includes("/api/v1/students/")) return false;
+    try {
+      return new URL(response.url()).searchParams.get("search") === name;
+    } catch {
+      return false;
+    }
+  });
   await search.fill(name);
+  await filteredStudents;
   const row = page.locator("tbody tr").filter({ hasText: name }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
   const checkbox = row.getByRole("checkbox", { name: `${name} 선택`, exact: true });
@@ -276,6 +297,10 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
   test("학생 선택 UI에서 즉시 발송하고 provider id가 있는 성공 로그를 확인한다", async ({ page, request }) => {
     if (isProductionApi()) {
       expect(CONTROLLED_PHONE, "운영 실발송은 통제번호 한 곳만 허용").toBe("01031217466");
+      expect(
+        HAS_PRECREATED_STUDENT,
+        "운영에서는 가입 안내 추가 발송을 막기 위해 무알림으로 사전 생성한 E2E 학생만 사용",
+      ).toBe(true);
     }
 
     const token = (await loginToken(request)).access;
@@ -289,7 +314,10 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
       "승인 알림톡 템플릿이 있어야 함",
     ).toBeGreaterThan(0);
 
-    const student = await createControlledStudent(request, token);
+    const student = HAS_PRECREATED_STUDENT
+      ? { id: PRECREATED_STUDENT_ID, name: PRECREATED_STUDENT_NAME }
+      : await createControlledStudent(request, token);
+    created.studentId = student.id;
     const approvedTemplate = await findApprovedSendTemplate(request, token);
     const marker = `${RUN} 통제번호 실제 알림톡 발송`;
 
