@@ -8,6 +8,7 @@ import type {
 } from "../api/sessionScores";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
+import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
 import { isSessionRowProgressCompleted } from "./sessionScoreRowVerdict";
 
 // ── 공통 ──
@@ -464,14 +465,7 @@ export async function htmlToPdfDownload(html: string, filename: string) {
     await new Promise((r) => setTimeout(r, 200));
 
     // 2) CDN 로드
-    const [h2cMod, jpMod] = await Promise.all([
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
-    ]);
-    const html2canvas = h2cMod.default;
-    const { jsPDF } = jpMod;
+    const { html2canvas, jsPDF } = await loadPdfCdnModules();
 
     // 3) 캡처
     const pageEl = (doc.querySelector(".page") as HTMLElement | null) ?? doc.body;

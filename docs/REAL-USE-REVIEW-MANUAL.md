@@ -18,13 +18,13 @@
 
 ## 2. 현재 근거
 
-2026-06-05 재실측 기준.
+2026-07-27 재실측 기준.
 
 | 구분 | 현재 사실 |
 |------|-----------|
 | 앱 라우트 | 관리자 `/admin`, 교사 모바일 `/teacher`, 학생/학부모 `/student` |
-| E2E 파일 | `frontend/e2e` 활성 spec 약 193개 |
-| E2E 테스트 라인 | `test(` 약 855개 |
+| E2E 파일 | 안전 가드 기준 활성 spec 217개 (`frontend/e2e/*.spec.ts` 실파일 216개) |
+| E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 977개, `test.skip(` 118개 |
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름이 많아 실사용 완주 증거로 약함 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
 | 배포 후 gate | `frontend/.github/workflows/quality-gate.yml`의 notice/qna/clinic/password/session-assessment 중심 |

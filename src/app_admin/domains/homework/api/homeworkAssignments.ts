@@ -26,7 +26,7 @@ export type HomeworkAssignmentItem = {
   grade?: number | null;
 };
 
-export type HomeworkAssignmentsResponse = {
+export type HomeworkAssignmentsState = {
   items: HomeworkAssignmentItem[];
   selected_ids: number[];
 };
@@ -73,7 +73,7 @@ function normalizeItems(raw: unknown): HomeworkAssignmentItem[] {
 
 export async function fetchHomeworkAssignments(
   homeworkId: number
-): Promise<HomeworkAssignmentsResponse> {
+): Promise<HomeworkAssignmentsState> {
   const hid = Number(homeworkId);
   if (!Number.isFinite(hid) || hid <= 0) {
     return { items: [], selected_ids: [] };

@@ -1,0 +1,57 @@
+.fileRibbon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 17px;
+  margin-top: 24px;
+  padding: 22px;
+  color: var(--blue);
+  background: #f1f6ff;
+}
+
+.fileRibbon > div span {
+  display: block;
+  color: #8392a5;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.fileRibbon > div strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.divider {
+  border: 1px solid #bdd0f5;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--blue);
+  background: #fff;
+  font-size: 8px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.fileRibbon > svg:nth-of-type(3) {
+  color: #9ba9b9;
+}
+
+@media (max-width: 760px) {
+  .fileRibbon {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    justify-content: start;
+  }
+
+  .fileRibbon > svg:nth-of-type(3) {
+    display: none;
+  }
+
+  .divider {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

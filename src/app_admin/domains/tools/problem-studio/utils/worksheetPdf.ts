@@ -1,6 +1,8 @@
 // PATH: src/app_admin/domains/tools/problem-studio/utils/worksheetPdf.ts
 // 문제 제작 스튜디오: 초안 → 학원 양식 PDF HTML/다운로드.
 
+import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
+
 export type WorksheetAttachment = {
   id: string;
   name: string;
@@ -463,36 +465,6 @@ export function buildWorksheetFilename(draft: WorksheetDraft, kind: WorksheetPdf
   return `${pieces.join("_").replace(/[\\/:*?"<>|]+/g, "-")}.pdf`;
 }
 
-type Html2Canvas = (
-  element: HTMLElement,
-  options: {
-    scale: number;
-    useCORS: boolean;
-    backgroundColor: string;
-    logging: boolean;
-    windowWidth: number;
-    windowHeight: number;
-  },
-) => Promise<HTMLCanvasElement>;
-
-type JsPdfInstance = {
-  internal: {
-    pageSize: {
-      getWidth: () => number;
-      getHeight: () => number;
-    };
-  };
-  addImage: (imageData: string, format: "PNG", x: number, y: number, width: number, height: number) => void;
-  addPage: () => void;
-  save: (filename: string) => void;
-};
-
-type JsPdfCtor = new (options: {
-  orientation: "portrait";
-  unit: "mm";
-  format: "a4";
-}) => JsPdfInstance;
-
 function waitForDocument(doc: Document): Promise<void> {
   return new Promise((resolve) => {
     const check = () => {
@@ -535,14 +507,7 @@ export async function downloadWorksheetPdf(draft: WorksheetDraft, kind: Workshee
     await waitForImages(doc);
     await new Promise((resolve) => window.setTimeout(resolve, 180));
 
-    const [h2cMod, jpMod] = await Promise.all([
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
-    ]);
-    const html2canvas = (h2cMod as { default: Html2Canvas }).default;
-    const { jsPDF } = jpMod as { jsPDF: JsPdfCtor };
+    const { html2canvas, jsPDF } = await loadPdfCdnModules();
 
     const target = doc.querySelector(".worksheet-doc") as HTMLElement | null;
     if (!target) throw new Error("PDF 렌더링 대상을 찾을 수 없습니다.");

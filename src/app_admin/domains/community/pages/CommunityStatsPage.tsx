@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
-interface StatsResponse {
+interface CommunityStats {
   days: number;
   posts: { total: number; by_type: Record<string, number> };
   replies_total: number;
@@ -32,13 +32,13 @@ const DAYS_OPTIONS = [7, 30, 90];
 
 export default function CommunityStatsPage() {
   const [days, setDays] = useState(30);
-  const [data, setData] = useState<StatsResponse | null>(null);
+  const [data, setData] = useState<CommunityStats | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     setData(null); setError(false);
     api.get("/community/admin/stats/", { params: { days } } as ApiRequestConfig)
-      .then((r) => setData(r.data as StatsResponse))
+      .then((r) => setData(r.data as CommunityStats))
       .catch(() => setError(true));
   }, [days]);
 

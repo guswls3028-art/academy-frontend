@@ -42,7 +42,7 @@ type AchievementSummary = {
   incomplete_count: number;
 };
 
-type AchievementResponse = {
+type AchievementData = {
   summary?: AchievementSummary;
   students?: Row[];
 };
@@ -163,11 +163,11 @@ export default function VideoAchievementTab({
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("status");
 
-  const { data, isFetching } = useQuery<AchievementResponse>({
+  const { data, isFetching } = useQuery<AchievementData>({
     queryKey: adminVideoQueryKeys.achievement(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/achievement/`);
-      return res.data as AchievementResponse;
+      return res.data as AchievementData;
     },
     enabled: !!videoId,
     staleTime: 5000,

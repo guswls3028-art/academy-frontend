@@ -12,6 +12,10 @@ import api, { clearTokens, isSessionEnding, saveReturnPath } from "@/shared/api/
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
+import {
+  getSessionItem,
+  removeSessionItem,
+} from "@/shared/utils/safeSessionStorage";
 
 export type TenantRole =
   | "owner"
@@ -88,14 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 세션 만료 시 로그인 페이지로 이동 — axios interceptor가 이미 리다이렉트 중이면 스킵
     if (isSessionEnding) return;
-    try {
-      if (sessionStorage.getItem("session_expired") === "1") {
-        sessionStorage.removeItem("session_expired");
-        feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
-        saveReturnPath();
-        window.location.href = "/login";
-      }
-    } catch { /* ignore */ }
+    if (getSessionItem("session_expired") === "1") {
+      removeSessionItem("session_expired");
+      feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      saveReturnPath();
+      window.location.href = "/login";
+    }
   }, [queryClient]);
 
   const refreshMe = useCallback(async () => {

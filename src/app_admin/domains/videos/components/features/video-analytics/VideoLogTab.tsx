@@ -58,8 +58,8 @@ type ListEnvelope<T> = {
   count?: number;
 };
 
-type EventListResponse = PlaybackEvent[] | ListEnvelope<PlaybackEvent>;
-type RiskResponse = RiskStudent[] | ListEnvelope<RiskStudent>;
+type EventListPayload = PlaybackEvent[] | ListEnvelope<PlaybackEvent>;
+type RiskPayload = RiskStudent[] | ListEnvelope<RiskStudent>;
 
 function rowsFromResponse<T>(data: T[] | ListEnvelope<T> | undefined): T[] {
   if (!data) return [];
@@ -124,26 +124,26 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
     [videoId, range]
   );
 
-  const { data: listData, isFetching } = useQuery<EventListResponse>({
+  const { data: listData, isFetching } = useQuery<EventListPayload>({
     queryKey: listQueryKey,
     queryFn: async () => {
       const res = await api.get("/media/video-playback-events/", {
         params: { video: videoId, range, page, page_size: pageSize },
       });
-      return res.data as EventListResponse;
+      return res.data as EventListPayload;
     },
     enabled: !!videoId,
     staleTime: 3000,
     retry: 1,
   });
 
-  const { data: riskData } = useQuery<RiskResponse>({
+  const { data: riskData } = useQuery<RiskPayload>({
     queryKey: riskQueryKey,
     queryFn: async () => {
       const res = await api.get("/media/video-playback-events/risk/", {
         params: { video: videoId, range, limit: 5 },
       });
-      return res.data as RiskResponse;
+      return res.data as RiskPayload;
     },
     enabled: !!videoId,
     staleTime: 3000,

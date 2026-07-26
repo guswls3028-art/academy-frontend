@@ -6,13 +6,14 @@
 
 ## 1. 재실측 스냅샷
 
-2026-06-05 기준 `frontend/e2e` 활성 파일 재실측.
+2026-07-27 기준 `frontend/e2e` 파일 재실측.
 
 | 항목 | 값 |
 |------|----|
-| spec 파일 | 약 193개 |
-| `test(` 라인 | 약 855개 |
-| skip/annotation 라인 | 약 136개 |
+| 활성 spec | `guard:e2e-safety` 기준 217개 (`frontend/e2e/*.spec.ts` 실파일 216개) |
+| 전체 TypeScript `test(` 라인 | 977개 |
+| `test.skip(` 라인 | 118개 |
+| `test.fixme(` 라인 | 0개 |
 | early `return;` 라인 | 약 201개 |
 | `waitForTimeout` 라인 | 약 44개 |
 | screenshot 호출 | 약 597개 |

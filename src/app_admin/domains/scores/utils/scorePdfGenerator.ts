@@ -5,6 +5,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
 import { getSessionScoresTableVerdict } from "./sessionScoreRowVerdict";
 
 // ── 공통 스타일 (흑백 최적화) ──
@@ -339,14 +340,7 @@ export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
   await new Promise((r) => setTimeout(r, 300));
 
   // 3) CDN에서 html2canvas, jsPDF 로드
-  const [html2canvasModule, jsPDFModule] = await Promise.all([
-    // @ts-expect-error CDN dynamic import
-    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
-    // @ts-expect-error CDN dynamic import
-    import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
-  ]);
-  const html2canvas = html2canvasModule.default;
-  const { jsPDF } = jsPDFModule;
+  const { html2canvas, jsPDF } = await loadPdfCdnModules();
 
   // 4) 캡처
   const pageEl = doc.querySelector(".page") as HTMLElement ?? doc.body;

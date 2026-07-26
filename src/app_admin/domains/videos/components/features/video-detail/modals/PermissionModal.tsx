@@ -18,7 +18,7 @@ import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 
 import "../../video-permission/permission-modal.css";
 
-interface PermissionStatsResponse {
+interface PermissionStatsData {
   students?: PermissionStudent[];
 }
 
@@ -66,11 +66,11 @@ export default function PermissionModal({
 
   /* ================= query ================= */
 
-  const { data, isFetching } = useQuery<PermissionStatsResponse>({
+  const { data, isFetching } = useQuery<PermissionStatsData>({
     queryKey: adminVideoQueryKeys.permissionStats(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
-      return res.data as PermissionStatsResponse;
+      return res.data as PermissionStatsData;
     },
     enabled: open && !!videoId && tab === "permission",
     staleTime: 5000,

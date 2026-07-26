@@ -5,6 +5,7 @@ import type {
   SessionScoreRow,
 } from "../api/sessionScores";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
 
 export type AnonymousBillboardEntry = {
   rank: number;
@@ -334,28 +335,6 @@ export function buildAnonymousBillboardPdfHtml(params: AnonymousBillboardPdfPara
   return buildAnonymousBillboardHtml(buildAnonymousBillboardDocument(params));
 }
 
-type Html2Canvas = (element: HTMLElement, options: {
-  scale: number;
-  useCORS: boolean;
-  backgroundColor: string;
-  logging: boolean;
-  windowWidth: number;
-  windowHeight: number;
-}) => Promise<HTMLCanvasElement>;
-
-type JsPdfDocument = {
-  internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
-  addPage: () => void;
-  addImage: (imageData: string, format: "PNG", x: number, y: number, width: number, height: number) => void;
-  save: (filename: string) => void;
-};
-
-type JsPdfConstructor = new (options: {
-  orientation: "portrait";
-  unit: "mm";
-  format: typeof BILLBOARD_PRINT_PAGE.jsPdfFormat;
-}) => JsPdfDocument;
-
 export async function htmlToBillboardPdfDownload(html: string, filename: string) {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${BILLBOARD_PRINT_PAGE.width};height:${BILLBOARD_PRINT_PAGE.height};border:0;pointer-events:none;z-index:-1`;
@@ -374,14 +353,7 @@ export async function htmlToBillboardPdfDownload(html: string, filename: string)
     await doc.fonts?.ready;
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const [h2cMod, jpMod] = await Promise.all([
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm"),
-      // @ts-expect-error CDN dynamic import
-      import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm"),
-    ]);
-    const html2canvas = h2cMod.default as Html2Canvas;
-    const { jsPDF } = jpMod as { jsPDF: JsPdfConstructor };
+    const { html2canvas, jsPDF } = await loadPdfCdnModules();
 
     const pageEls = Array.from(doc.querySelectorAll<HTMLElement>(".billboard-page"));
     if (pageEls.length === 0) return;

@@ -10,6 +10,11 @@ import axios, {
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { captureApiError } from "@/shared/lib/sentryContext";
+import {
+  getSessionItem,
+  removeSessionItem,
+  setSessionItem,
+} from "@/shared/utils/safeSessionStorage";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -64,9 +69,9 @@ export function clearTokens() {
         localStorage.removeItem(k);
       }
     }
-    sessionStorage.removeItem("session_expired");
-    sessionStorage.removeItem("session_return_path");
-    sessionStorage.removeItem("tenantCode");
+    removeSessionItem("session_expired");
+    removeSessionItem("session_return_path");
+    removeSessionItem("tenantCode");
   } catch {
     // ignore
   }
@@ -78,7 +83,7 @@ export function saveReturnPath() {
     const path = window.location.pathname + window.location.search + window.location.hash;
     // /login 자체이거나 빈 경로는 저장하지 않음
     if (path && path !== "/login" && !path.startsWith("/login")) {
-      sessionStorage.setItem("session_return_path", path);
+      setSessionItem("session_return_path", path);
     }
   } catch { /* ignore */ }
 }
@@ -86,8 +91,8 @@ export function saveReturnPath() {
 /** 저장된 복귀 경로를 꺼내고 삭제 (1회용) */
 export function consumeReturnPath(): string | null {
   try {
-    const path = sessionStorage.getItem("session_return_path");
-    sessionStorage.removeItem("session_return_path");
+    const path = getSessionItem("session_return_path");
+    removeSessionItem("session_return_path");
     return path || null;
   } catch {
     return null;
@@ -502,7 +507,7 @@ api.interceptors.response.use(
         if (!isSessionEnding) {
           markSessionEnding();
           try {
-            sessionStorage.setItem("session_expired", "1");
+            setSessionItem("session_expired", "1");
           } catch { /* ignore */ }
           saveReturnPath();
           window.location.href = "/login";

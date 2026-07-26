@@ -5,13 +5,7 @@
 import api from "@/shared/api/axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
-
-type UploadInitResponse = {
-  video: { id: number };
-  upload_url: string;
-  file_key: string;
-  content_type?: string;
-};
+import type { UploadInitResponse } from "../api/videos.api";
 
 export interface VideoUploadParams {
   sessionId: number;

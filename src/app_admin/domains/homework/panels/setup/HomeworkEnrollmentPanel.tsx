@@ -23,7 +23,7 @@ import { useAdminHomework } from "@admin/domains/homework/hooks/useAdminHomework
 import { useHomeworkAssignments } from "@admin/domains/homework/hooks/useHomeworkAssignments";
 import {
   putHomeworkAssignments,
-  type HomeworkAssignmentsResponse,
+  type HomeworkAssignmentsState,
 } from "@admin/domains/homework/api/homeworkAssignments";
 import styles from "./HomeworkEnrollmentPanel.module.css";
 
@@ -66,7 +66,7 @@ export default function HomeworkEnrollmentPanel({
 
   const showEmptyAssignmentWarning = !loadingAssignments && selectedCount === 0;
 
-  const hydrateLocalFromQuery = (q: HomeworkAssignmentsResponse | undefined) => {
+  const hydrateLocalFromQuery = (q: HomeworkAssignmentsState | undefined) => {
     const items = q?.items ?? [];
     const normalizedRows: EnrollmentRow[] = items.map((x) => ({
       enrollment_id: x.enrollment_id,
