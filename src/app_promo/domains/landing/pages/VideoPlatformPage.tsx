@@ -14,10 +14,10 @@ import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./VideoPlatformPage.module.css";
 
 const STUDENT_VISIBLE = [
-  "학생전용앱에서 강의 목록 확인",
+  "홈에서 오늘 수업과 할 일 확인",
+  "영상 탭에서 수강 중인 강의 선택",
   "마지막으로 보던 지점부터 이어보기",
-  "모바일/태블릿 플레이어, 배속, 전체화면",
-  "영상별 댓글로 질문과 보충 설명 확인",
+  "배속·전체화면·댓글 이용",
 ];
 
 const TEACHER_VISIBLE = [
@@ -30,7 +30,7 @@ const TEACHER_VISIBLE = [
 const MESSAGE_CASES = [
   { title: "입실·결석 알림", desc: "설정된 출결 안내의 발송 상태를 화면에서 확인합니다." },
   { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 보고 내용을 확인한 뒤 보냅니다." },
-  { title: "영상 시청 안내", desc: "영상을 안 본 학생을 고르고 복습 안내를 보냅니다." },
+  { title: "영상 시청 안내", desc: "미시청 학생을 고르고 복습 안내를 보냅니다." },
 ];
 
 export default function VideoPlatformPage() {
@@ -40,7 +40,7 @@ export default function VideoPlatformPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span>학생앱 영상</span>
-            <h1 id="video-platform-title">학생전용앱에서 복습 영상을 이어서 볼 수 있습니다</h1>
+            <h1 id="video-platform-title">학생앱에서 복습 영상을 이어 봅니다</h1>
             <p>
               학생은 강의별 영상 목록, 이어보기와 댓글을 앱에서 이용합니다.
               선생님은 수강생별 시청 상태와 마지막 재생 위치를 확인할 수 있습니다.
@@ -59,7 +59,7 @@ export default function VideoPlatformPage() {
           <div className={styles.heroScreens} aria-label="학생전용앱 영상 캡처">
             <figure className={`${styles.device} ${styles.deviceFront}`}>
               <PromoEvidenceImage
-                src="/promo/student-video-player.png"
+                src="/promo/student-video-player.webp"
                 alt="학생전용앱 영상 플레이어 화면"
                 width={780}
                 height={1688}
@@ -67,8 +67,8 @@ export default function VideoPlatformPage() {
             </figure>
             <figure className={styles.device}>
               <PromoEvidenceImage
-                src="/promo/student-video-list.png"
-                alt="학생전용앱 영상 재생 목록 화면"
+                src="/promo/student-app-home.webp"
+                alt="학생전용앱 홈에서 오늘 할 일과 수업을 확인하는 화면"
                 width={780}
                 height={1688}
               />
@@ -81,43 +81,53 @@ export default function VideoPlatformPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>실제 학생 화면</span>
-            <h2 id="video-screens-title">학생앱의 영상 이용 화면입니다</h2>
+            <h2 id="video-screens-title">홈에서 영상을 찾아 복습하는 과정입니다</h2>
             <p>
-              영상 기능은 화면에서 흐름을 확인할 수 있습니다. 학생전용앱의 플레이어와 재생 목록을
-              학부모에게도 쉽게 보여줄 수 있습니다.
+              학생은 홈에서 오늘 일정을 확인하고 영상 탭으로 이동합니다. 강의와 차시를 고른 뒤
+              이어보기와 댓글을 이용합니다.
             </p>
           </header>
 
           <div className={styles.evidenceGrid}>
-            <figure className={`${styles.evidencePhone} ${styles.evidencePhoneLead}`}>
+            <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-player.png"
-                alt="학생전용앱 영상 플레이어와 댓글 화면"
+                src="/promo/student-app-home.webp"
+                alt="학생전용앱 홈에서 오늘 할 일과 수업을 확인하는 화면"
                 width={780}
                 height={1688}
                 loading="lazy"
               />
-              <figcaption>학생전용앱 플레이어 · 댓글 · 이어보기</figcaption>
+              <figcaption>01 · 학생앱 홈</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-list.png"
-                alt="학생전용앱 영상 재생 목록 화면"
+                src="/promo/student-video-app.webp"
+                alt="학생전용앱에서 수강 중인 영상 강의를 고르는 화면"
                 width={780}
                 height={1688}
                 loading="lazy"
               />
-              <figcaption>재생 목록 · 시청 진도</figcaption>
+              <figcaption>02 · 영상 강의 홈</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-app.png"
-                alt="학생전용앱 영상 강의 홈 화면"
+                src="/promo/student-video-list.webp"
+                alt="학생전용앱에서 차시별 영상과 시청 진도를 확인하는 화면"
                 width={780}
                 height={1688}
                 loading="lazy"
               />
-              <figcaption>학생앱 강의 홈</figcaption>
+              <figcaption>03 · 차시 재생 목록</figcaption>
+            </figure>
+            <figure className={styles.evidencePhone}>
+              <PromoEvidenceImage
+                src="/promo/student-video-player.webp"
+                alt="학생전용앱 영상 플레이어와 선생님 댓글 화면"
+                width={780}
+                height={1688}
+                loading="lazy"
+              />
+              <figcaption>04 · 플레이어와 댓글</figcaption>
             </figure>
           </div>
         </div>
@@ -127,10 +137,10 @@ export default function VideoPlatformPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>복습 확인</span>
-            <h2 id="student-proof-title">복습했는지 확인할 수 있어야 합니다</h2>
+            <h2 id="student-proof-title">시청 기록은 선생님 화면에 남습니다</h2>
             <p>
-              학생이 앱에서 복습 영상을 보고, 선생님이 시청 이력을 확인하면
-              수업 뒤에 누굴 더 챙겨야 하는지 확인할 수 있습니다.
+              학생이 앱에서 영상을 보면 마지막 재생 위치와 완료 상태가 기록됩니다.
+              선생님은 미시청 학생과 이어서 볼 학생을 확인할 수 있습니다.
             </p>
           </header>
 

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810" role="img" aria-labelledby="title desc">
+  <title id="title">수열 실전 문제 수업 표지</title>
+  <desc id="desc">칠판 느낌의 짙은 청록색 배경에 수열 도식과 수업 제목이 표시된 예시 영상 표지</desc>
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1b28"/>
+      <stop offset=".55" stop-color="#18363f"/>
+      <stop offset="1" stop-color="#10232f"/>
+    </linearGradient>
+    <pattern id="grid2" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#b7e3dc" stroke-opacity=".09" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1440" height="810" rx="42" fill="url(#bg2)"/>
+  <rect x="48" y="48" width="1344" height="714" rx="34" fill="url(#grid2)" stroke="#c7ede6" stroke-opacity=".2" stroke-width="3"/>
+  <g font-family="Pretendard, Noto Sans KR, sans-serif">
+    <text x="110" y="154" fill="#93c5fd" font-size="30" font-weight="700">고2 내신 심화반 · 2차시</text>
+    <text x="110" y="262" fill="#f8fafc" font-size="76" font-weight="800">수열 실전 문제</text>
+    <text x="110" y="350" fill="#f8fafc" font-size="76" font-weight="800">풀이 전략</text>
+    <text x="112" y="425" fill="#c2d0d7" font-size="30" font-weight="500">조건 정리부터 점화식 해석까지</text>
+    <rect x="110" y="520" width="252" height="62" rx="31" fill="#93c5fd"/>
+    <text x="236" y="561" fill="#10202c" text-anchor="middle" font-size="25" font-weight="800">POINT 02</text>
+    <text x="390" y="561" fill="#d9e7ec" font-size="28" font-weight="600">규칙을 식으로 바꾸는 순서</text>
+  </g>
+  <g transform="translate(860 190)">
+    <rect width="430" height="390" rx="38" fill="#07141f" fill-opacity=".76" stroke="#c7ede6" stroke-opacity=".2" stroke-width="3"/>
+    <g font-family="Pretendard, Noto Sans KR, sans-serif" font-weight="800">
+      <circle cx="74" cy="195" r="42" fill="#5eead4"/><text x="74" y="207" text-anchor="middle" fill="#08202a" font-size="34">a₁</text>
+      <circle cx="215" cy="112" r="42" fill="#93c5fd"/><text x="215" y="124" text-anchor="middle" fill="#10202c" font-size="34">a₂</text>
+      <circle cx="356" cy="195" r="42" fill="#f6c453"/><text x="356" y="207" text-anchor="middle" fill="#10202c" font-size="34">a₃</text>
+    </g>
+    <path d="M114 174L175 135M255 135L316 174M316 216L255 255M175 255L114 216" fill="none" stroke="#e3eef1" stroke-opacity=".68" stroke-width="6" stroke-linecap="round"/>
+    <text x="215" y="304" text-anchor="middle" fill="#dfecee" font-family="Pretendard, Noto Sans KR, sans-serif" font-size="30" font-weight="700">aₙ₊₁ = 2aₙ − 3</text>
+  </g>
+</svg>

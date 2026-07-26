@@ -59,7 +59,7 @@ const HERO_CATEGORIES: HeroCategory[] = [
     navCopy: "학생앱 복습",
     title: "학생은 앱에서 보고, 선생님은 시청 상태를 확인합니다",
     copy: "강의별 영상, 이어보기, 배속과 댓글을 학생앱에서 이용합니다. 선생님은 미시청·시청중·완료 상태와 마지막 재생 위치를 확인합니다.",
-    image: "/promo/student-video-player.png",
+    image: "/promo/student-video-player.webp",
     alt: "학생전용앱 영상 플레이어와 댓글 실제 화면",
     imageWidth: 780,
     imageHeight: 1688,
@@ -90,8 +90,8 @@ const HERO_CATEGORIES: HeroCategory[] = [
   {
     id: "tools",
     label: "PPT · 매치업",
-    navCopy: "두 가지 자료 도구",
-    title: "칠판용 PPT 제작과 매치업을 각각 제공합니다",
+    navCopy: "수업자료 준비·적중 근거",
+    title: "적중 근거를 정리하고 칠판용 PPT를 만듭니다",
     copy: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 실제 시험지와 사전 자료를 문항별로 나눠 유사 후보를 제시하며, 최종 판단은 선생님이 합니다.",
     image: "/promo/ppt-gaepo-setup-20260725.png",
     alt: "칠판용 PPT를 만드는 실제 화면",
@@ -170,7 +170,7 @@ const DETAILED_WORKFLOWS = [
     tone: "video",
     href: "/promo/video-platform",
     cta: "영상 기능 자세히 보기",
-    summary: "영상 등록부터 시청 확인까지 선생님과 학생에게 보이는 흐름이 다릅니다.",
+    summary: "선생님이 영상을 등록하면 학생은 앱에서 이어 보고, 시청 기록은 관리 화면에 남습니다.",
     stages: [
       {
         mode: "선생님 준비",
@@ -201,7 +201,7 @@ const DETAILED_WORKFLOWS = [
     tone: "alimtalk",
     href: "/promo/features#alimtalk-guide",
     cta: "자동·직접 발송 범위 보기",
-    summary: "모든 안내가 자동으로 나가는 것이 아닙니다. 업무 성격에 따라 발송 방법을 나눕니다.",
+    summary: "계정 안내는 처리와 함께 발송하고, 수업 관련 안내는 대상과 문구를 확인한 뒤 보냅니다.",
     stages: [
       {
         mode: "항상 자동",
@@ -231,8 +231,8 @@ const DETAILED_WORKFLOWS = [
     icon: Presentation,
     tone: "tools",
     href: "/promo/matchup-ppt",
-    cta: "두 기능 자세히 보기",
-    summary: "수업 전 자료 준비와 시험 후 적중 근거 정리를 서로 다른 두 도구로 제공합니다.",
+    cta: "매치업·PPT 자세히 보기",
+    summary: "시험 후에는 매치업으로 적중 근거를 정리하고, 수업 전에는 칠판용 PPT를 준비합니다.",
     stages: [],
   },
   {
@@ -485,7 +485,7 @@ function HeroCategoryNavigator() {
               loading="eager"
             />
           )}
-          <span>{active.visualPair ? "두 기능 · 실제 화면" : "실제 화면 · 예시 자료"}</span>
+          <span>{active.visualPair ? "매치업·PPT 실제 화면" : "실제 화면 · 예시 자료"}</span>
         </div>
         <div className={styles.categoryCopy}>
           <span>
@@ -579,7 +579,7 @@ function FoundationSection() {
             </p>
           </header>
           <Link to="/promo/features#class-management" className={styles.textLink}>
-            전체 기능 구조 보기
+            운영 기능 전체 보기
             <ArrowRight size={ICON.sm} aria-hidden="true" />
           </Link>
         </div>
@@ -618,11 +618,11 @@ function StrengthSection() {
     <section className={styles.strengthSection} aria-labelledby="strength-title">
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
-          <span>기능별 업무 구분</span>
-          <h2 id="strength-title">자동으로 처리되는 일과 선생님이 확인하는 일을 나눴습니다</h2>
+          <span>업무별 처리 방식</span>
+          <h2 id="strength-title">자동 처리 범위와 선생님 확인 절차를 함께 안내합니다</h2>
           <p>
-            자동이라는 말만 앞세우지 않습니다. 어떤 정보가 자동으로 남고,
-            어디서 선생님이 판단하는지 실제 사용 순서대로 보여드립니다.
+            시청 기록과 문항 분리처럼 자동으로 처리되는 부분, 성적 확정과 발송처럼
+            선생님 확인이 필요한 부분을 실제 사용 순서대로 안내합니다.
           </p>
         </header>
 
@@ -694,7 +694,7 @@ function FlowSection() {
         <header className={styles.sectionHead}>
           <span>수업 전후의 흐름</span>
           <h2 id="flow-title">한 번 남긴 기록을 다음 업무에 이어서 사용합니다</h2>
-          <p>기능을 많이 펼쳐놓기보다, 실제 선생님이 일하는 순서에 맞춰 연결했습니다.</p>
+          <p>수업 준비부터 복습, 기록 확인과 학부모 안내까지 실제 업무 순서대로 이어집니다.</p>
         </header>
         <ol className={styles.flowList}>
           {OPERATING_FLOW.map((item, index) => (

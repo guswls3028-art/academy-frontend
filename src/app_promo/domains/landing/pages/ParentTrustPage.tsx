@@ -54,7 +54,7 @@ const USE_CASES = [
     icon: Smartphone,
     title: "영상 복습 관리",
     body: "누가 영상을 안 봤는지, 어디까지 봤는지를 확인해 복습 안내와 상담 근거로 활용합니다.",
-    image: "/promo/student-video-player.png",
+    image: "/promo/student-video-player.webp",
     alt: "학생전용앱 영상 플레이어 화면",
     imageWidth: 780,
     imageHeight: 1688,

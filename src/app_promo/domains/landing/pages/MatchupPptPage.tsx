@@ -72,7 +72,7 @@ const GUIDE_STEPS: GuideStep[] = [
     label: "자료 분할",
     icon: Presentation,
     title: "PDF 문항을 나누고 준비한 이미지를 배치합니다",
-    body: "PPT 생성기는 매치업과 별도로 사용합니다. PDF는 문항을 자동으로 나누고, 문제·개념별로 준비한 이미지는 한 장씩 슬라이드로 배치해 수업 순서를 정합니다.",
+    body: "PDF는 문항을 자동으로 나누고, 문제·개념별로 준비한 이미지는 한 장씩 슬라이드로 배치해 수업 순서를 정합니다.",
     points: [
       "이미지·PDF 수업자료 업로드",
       "PDF 문항 자동 분리·이미지별 슬라이드",
@@ -231,7 +231,7 @@ export default function MatchupPptPage() {
             </div>
             <div className={styles.heroPptCard}>
               <Presentation size={23} />
-              <span>별도 수업자료 기능</span>
+              <span>수업자료 준비</span>
               <strong>흑백반전 칠판 PPT</strong>
               <ArrowRight size={17} />
             </div>
@@ -239,7 +239,7 @@ export default function MatchupPptPage() {
         </div>
 
         <a href="#guide" className={styles.scrollCue}>
-          두 기능 따라보기
+          사용 과정 보기
           <ArrowDown size={17} />
         </a>
       </section>
@@ -273,10 +273,10 @@ export default function MatchupPptPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>기능별 사용 방법</span>
-            <h2 id="guide-title">두 기능은 목적이 다릅니다</h2>
+            <h2 id="guide-title">매치업과 칠판용 PPT 사용 과정</h2>
             <p>
-              매치업은 적중 근거를 남기고, PPT 생성기는 칠판 수업자료를 만듭니다.
-              적중 보고서 예시와 실제 PPT 생성 화면으로 각 기능의 사용 방법을 안내합니다.
+              시험 후에는 매치업으로 실제 시험과 사전 자료를 비교합니다. 수업 전에는
+              PDF와 이미지를 칠판용 PPT로 준비합니다.
             </p>
           </header>
 
@@ -355,7 +355,7 @@ export default function MatchupPptPage() {
           <div className={styles.exampleHead}>
             <span>수업 전후 활용 예시</span>
             <h2 id="class-example-title">시험이 끝난 뒤부터 다음 수업까지 활용합니다</h2>
-            <p>시험 후에는 적중 근거를 남기고, 수업 전에는 칠판용 PPT를 따로 준비합니다.</p>
+            <p>시험 후에는 적중 근거를 남기고, 다음 수업 전에는 칠판용 PPT를 준비합니다.</p>
           </div>
           <div className={styles.exampleGrid}>
             {CLASS_PREP_EXAMPLE.map((item, index) => (

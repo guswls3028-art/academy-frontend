@@ -76,7 +76,7 @@ export default function FaqPage() {
             <span className={styles.eyebrow}>자주 묻는 질문</span>
             <h1 id="faq-title">사용하기 전에 확인할 질문을 모았습니다</h1>
             <p>
-              영상, 알림톡, 자동채점과 가격 기준을 항목별로 나눴습니다.
+              영상 시청 기록, 알림톡 발송 범위, 자동채점과 요금 기준을 정리했습니다.
               필요한 내용이 정해져 있으면 전화로도 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
@@ -125,8 +125,8 @@ export default function FaqPage() {
                 <MessageCircle size={16} />
                 확인 기준
               </span>
-              <h2 id="faq-list-title">상담 전에 꼭 짚을 기준</h2>
-              <p>기능 설명보다 상담 전에 확인할 기준을 앞에 두었습니다.</p>
+              <h2 id="faq-list-title">상담 전에 확인할 내용</h2>
+              <p>요금, 알림톡 발송 범위와 실제 학생 화면을 미리 확인하실 수 있습니다.</p>
               <ul className={styles.faqQuickList}>
                 {QUICK_CHECKS.map((item) => {
                   const Icon = item.icon;
@@ -160,8 +160,8 @@ export default function FaqPage() {
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} data-tone="video">
             <div className={`${styles.proofVisual} ${styles.proofPhoneVisual}`}>
               <PromoEvidenceImage
-                src="/promo/student-video-player.png"
-                alt="학생전용앱 영상 플레이어 화면"
+                src="/promo/student-video-course.webp"
+                alt="학생전용앱에서 강의의 차시와 영상 수를 확인하는 화면"
                 width={780}
                 height={1688}
                 loading="lazy"
@@ -172,8 +172,8 @@ export default function FaqPage() {
                 <CheckCircle2 size={15} />
                 학생앱 화면
               </span>
-              <h3 id="faq-proof-title">학생앱의 영상 이용 화면을 확인하세요</h3>
-              <p>학생이 앱에서 강의 목록을 확인하고 영상을 이어 보는 화면입니다.</p>
+              <h3 id="faq-proof-title">학생앱에서 강의와 차시를 확인하는 화면입니다</h3>
+              <p>학생은 수강 중인 강의를 고르고, 차시별 영상 목록으로 이동합니다.</p>
               <Link to="/promo/video-platform" className={styles.textButton}>
                 학생앱 영상 자세히 보기
                 <ArrowRight size={16} />

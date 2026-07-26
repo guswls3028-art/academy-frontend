@@ -35,7 +35,7 @@ test.describe("promo business readiness", () => {
     await expect(page.getByRole("link", { name: "내 학원 기준으로 확인" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "프로그램의 중심은 매일 반복되는 학원 관리입니다" })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "자동으로 처리되는 일과 선생님이 확인하는 일을 나눴습니다" }),
+      page.getByRole("heading", { name: "자동 처리 범위와 선생님 확인 절차를 함께 안내합니다" }),
     ).toBeVisible();
     await expect(page.getByText("학생별 미리보기 후 직접 발송", { exact: true })).toBeVisible();
 
@@ -65,7 +65,7 @@ test.describe("promo business readiness", () => {
 
     await categoryTabs.getByRole("tab", { name: /PPT · 매치업/ }).click();
     const toolsPanel = page.getByRole("tabpanel");
-    await expect(toolsPanel.getByRole("heading", { name: "칠판용 PPT 제작과 매치업을 각각 제공합니다" })).toBeVisible();
+    await expect(toolsPanel.getByRole("heading", { name: "적중 근거를 정리하고 칠판용 PPT를 만듭니다" })).toBeVisible();
     await expect(toolsPanel.getByText(/문항별로 나눠 유사 후보를 제시/)).toBeVisible();
     await expect(toolsPanel.getByText("매치업", { exact: true }).first()).toBeVisible();
     await expect(toolsPanel.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
@@ -99,12 +99,12 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo/features`, { waitUntil: "load" });
 
     await expect(
-      page.getByRole("heading", { name: "학원 운영의 기본과 네 가지 핵심 영역을 나눠서 확인하세요" }),
+      page.getByRole("heading", { name: "매일 쓰는 학원 관리와 주요 기능을 한곳에서 이용합니다" }),
     ).toBeVisible();
     await expect(page.getByText("학원 운영 대시보드", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "학원 홈페이지", exact: true })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "무엇이 자동이고, 무엇을 선생님이 확인하는지 구분했습니다" }),
+      page.getByRole("heading", { name: "알림톡마다 발송 시점과 확인 범위가 정해져 있습니다" }),
     ).toBeVisible();
     await expect(page.getByText("현재 ‘내 번호로 테스트 받아보기’는 별도 기능으로 제공하지 않습니다.")).toBeVisible();
     await expect(page.getByText("가입·비밀번호 안내", { exact: true }).first()).toBeVisible();
@@ -129,6 +129,14 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo/faq`, { waitUntil: "load" });
     await page.getByText("발송 전에 학생별 알림톡 문구를 볼 수 있나요?", { exact: true }).click();
     await expect(page.getByText(/실제 성공·실패는 발송 내역에서 확인합니다/)).toBeVisible();
+
+    await page.goto(`${BASE}/promo/video-platform`, { waitUntil: "load" });
+    const studentJourney = page.getByRole("region", { name: "홈에서 영상을 찾아 복습하는 과정입니다" });
+    await expect(studentJourney.locator("figure")).toHaveCount(4);
+    await expect(studentJourney.locator('img[src="/promo/student-app-home.webp"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-app.webp"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-list.webp"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-player.webp"]')).toBeVisible();
   });
 
   test("requires explicit privacy consent and preserves first-touch UTM data in the lead", async ({ page }) => {
@@ -252,7 +260,7 @@ test.describe("promo business readiness", () => {
       await page.goto(`${BASE}${route}`, { waitUntil: "load" });
       const copy = await page.locator("body").innerText();
       expect(copy, `${route} should avoid software-industry wording`).not.toMatch(
-        /SaaS|제품 UI|제품 화면|표준 기능|좌석 과금|단일 요금제|도입 범위/,
+        /SaaS|제품 UI|제품 화면|표준 기능|좌석 과금|단일 요금제|도입 범위|두 기능은 (?:완전히 )?(?:다릅니다|목적이 다릅니다)/,
       );
     }
   });

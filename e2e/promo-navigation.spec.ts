@@ -69,7 +69,7 @@ test.describe("promo navigation", () => {
     await sidebarVideoLink.click();
     await expect(page).toHaveURL(/\/promo\/video-platform$/);
     await expect(
-      page.getByRole("heading", { name: "학생전용앱에서 복습 영상을 이어서 볼 수 있습니다" }),
+      page.getByRole("heading", { name: "학생앱에서 복습 영상을 이어 봅니다" }),
     ).toBeVisible();
 
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });

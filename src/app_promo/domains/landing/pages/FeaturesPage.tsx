@@ -63,7 +63,7 @@ const PROOF_CARDS: ProofCard[] = [
     badge: "학생전용앱 실제 화면",
     title: "수강생은 앱에서 영상을 이어 보고, 선생님은 시청 이력으로 챙깁니다",
     body: "외부 링크를 따로 보내지 않아도 학생전용앱 안에서 강의 목록, 재생, 댓글, 이어보기가 됩니다.",
-    image: "/promo/student-video-player.png",
+    image: "/promo/student-video-player.webp",
     alt: "학생전용앱 영상 플레이어와 댓글 화면",
     imageWidth: 780,
     imageHeight: 1688,
@@ -103,8 +103,8 @@ const PROOF_CARDS: ProofCard[] = [
   },
   {
     id: "matchup-ppt",
-    badge: "두 가지 자료 도구 · 실제 화면",
-    title: "칠판용 PPT 제작과 매치업을 각각 제공합니다",
+    badge: "매치업·PPT 실제 화면",
+    title: "적중 근거를 정리하고 칠판용 PPT를 만듭니다",
     body: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 시험지와 사전 자료를 문항별로 나눠 유사 후보를 보여주고, 선생님이 적중 근거를 확정하도록 돕습니다.",
     image: "/promo/matchup-gaepo-candidates-20260725.png",
     alt: "실제 시험지 문항과 사전 자료의 유사 후보를 보여주는 매치업 실제 화면",
@@ -117,7 +117,7 @@ const PROOF_CARDS: ProofCard[] = [
       width: 1280,
       height: 720,
     },
-    points: ["매치업: 문항 자동 분리·유사 후보 제공", "PPT: 슬라이드 구성·흑백반전", "두 기능 모두 선생님 확인 후 결과물 저장"],
+    points: ["매치업: 문항 자동 분리·유사 후보 제공", "매치업: 비교 자료와 적중 근거 저장", "PPT: 슬라이드 구성·흑백반전 후 내려받기"],
     ctaPath: "/promo/matchup-ppt",
     ctaLabel: "PPT · 매치업 자세히 보기",
     tone: "matchup",
@@ -128,7 +128,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   {
     id: "matchup-ppt-flow",
     title: "적중 매치업·칠판용 PPT",
-    kicker: "두 가지 자료 도구",
+    kicker: "매치업·칠판용 PPT",
     body: "매치업은 실제 시험과 사전 대비 자료를 비교해 적중 근거를 남기고, 칠판용 PPT 도구는 수업자료를 빔프로젝터용 슬라이드로 만듭니다.",
     icon: Presentation,
     accentBg: "#dce8ff",
@@ -348,7 +348,7 @@ function AlimtalkGuideSection() {
             <BellRing size={16} />
             알림톡 사용 범위
           </span>
-          <h2 id="alimtalk-guide-title">무엇이 자동이고, 무엇을 선생님이 확인하는지 구분했습니다</h2>
+          <h2 id="alimtalk-guide-title">알림톡마다 발송 시점과 확인 범위가 정해져 있습니다</h2>
           <p>
             모든 안내를 자동으로 보내지 않습니다. 계정 안내, 설정된 자동 안내,
             선생님 확인이 필요한 수업 안내를 서로 다른 방식으로 처리합니다.
@@ -457,14 +457,14 @@ export default function FeaturesPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>학원 운영 기능 · 실제 화면 안내</span>
-            <h1 id="features-title">학원 운영의 기본과 네 가지 핵심 영역을 나눠서 확인하세요</h1>
+            <h1 id="features-title">매일 쓰는 학원 관리와 주요 기능을 한곳에서 이용합니다</h1>
             <p>
               강의·수강생·출결·성적·보강 관리가 중심입니다. 학생앱 영상, 알림톡,
-              칠판용 PPT·매치업과 학원 홈페이지는 목적별로 따로 정리했습니다.
+              칠판용 PPT·매치업과 학원 홈페이지까지 수업 전후에 필요한 기능을 제공합니다.
             </p>
             <div className={styles.heroActions}>
               <a href="#feature-catalog-title" className={styles.primaryCta}>
-                기능 구조 보기
+                업무별 기능 보기
                 <LayoutDashboard size={18} />
               </a>
               <Link to="/promo/video-platform" className={styles.secondaryCta}>
@@ -573,8 +573,8 @@ export default function FeaturesPage() {
       <section className={styles.catalogSection} aria-labelledby="feature-catalog-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
-            <span>기능 목록</span>
-            <h2 id="feature-catalog-title">선생님이 일하는 순서대로 나눴습니다</h2>
+            <span>업무별 기능</span>
+            <h2 id="feature-catalog-title">수업 준비부터 학부모 안내까지</h2>
             <p>수업 준비부터 학부모 안내까지 사용하는 순서대로 정리했습니다.</p>
           </header>
 
