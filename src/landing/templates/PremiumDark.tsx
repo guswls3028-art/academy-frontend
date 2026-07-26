@@ -1045,6 +1045,10 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
           .pd-hero-media img {
             transform: none !important;
           }
+          .pd-instructor-portrait-image.is-fallback-crop {
+            transform: none !important;
+            object-position: 78% 60% !important;
+          }
           .pd-hero-rail {
             grid-template-columns: 1fr !important;
           }
@@ -1837,7 +1841,7 @@ function InstructorPortrait({
   const showPhoto = Boolean(photo && !failed);
 
   return (
-    <div style={{
+    <div className="pd-instructor-portrait" style={{
       position: "relative",
       width,
       height,
@@ -1856,6 +1860,7 @@ function InstructorPortrait({
     }}>
       {showPhoto ? (
         <img
+          className={`pd-instructor-portrait-image${isHeroPosterCrop ? " is-fallback-crop" : ""}`}
           src={photo}
           alt={name}
           onError={() => setFailed(true)}
