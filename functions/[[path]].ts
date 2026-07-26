@@ -42,12 +42,12 @@ const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
-    title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",
-    description: "실제 시험과 사전 대비 자료를 비교하는 적중 매치업, 흑백반전 칠판용 PPT, 출결·성적·영상·알림톡을 확인하세요.",
+    title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",
+    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.",
   },
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
-    description: "적중 매치업·칠판용 PPT, 시험·성적, 학생앱 영상, 알림톡, 보강 관리의 실제 사용 화면을 확인하세요.",
+    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 목적별로 확인하세요.",
   },
   "/promo/matchup-ppt": {
     title: "적중 매치업과 칠판용 PPT | 학원플러스",
@@ -79,7 +79,7 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   },
   "/promo/demo": {
     title: "내 자료로 데모 요청 | 학원플러스",
-    description: "현재 쓰는 시험지와 수업자료로 적중 매치업·칠판용 PPT와 학원 운영 화면을 직접 확인해보세요.",
+    description: "현재 수업과 관리 방식을 기준으로 영상, 알림톡, 학생 관리, 자료 제작과 학원 홈페이지 화면을 확인해보세요.",
   },
 };
 
@@ -243,8 +243,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",  description: "적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",  description: "적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },

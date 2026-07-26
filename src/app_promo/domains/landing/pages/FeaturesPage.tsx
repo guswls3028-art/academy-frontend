@@ -3,12 +3,13 @@ import {
   ArrowRight,
   BellRing,
   BookOpenCheck,
-  Camera,
   CheckCircle2,
   ClipboardCheck,
+  Globe2,
   GraduationCap,
+  LayoutDashboard,
+  PlayCircle,
   Presentation,
-  ScanSearch,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -31,9 +32,8 @@ type ProofCard = {
   points: string[];
   ctaPath: string;
   ctaLabel: string;
-  tone: "video" | "alimtalk" | "admin" | "matchup";
+  tone: "video" | "alimtalk" | "website" | "matchup";
   phone?: boolean;
-  featured?: boolean;
 };
 
 type FeatureGroup = {
@@ -47,21 +47,6 @@ type FeatureGroup = {
 };
 
 const PROOF_CARDS: ProofCard[] = [
-  {
-    id: "matchup-ppt",
-    badge: "적중 매치업 보고서 예시",
-    title: "실제 시험과 사전 대비 자료를 비교해 유사 문항을 확인합니다",
-    body: "선생님이 실제 출제 문제와 시험 전에 다룬 학원 자료를 나란히 확인합니다. 칠판용 PPT는 별도 기능으로 제공합니다.",
-    image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
-    alt: "실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서 예시",
-    imageWidth: 1263,
-    imageHeight: 893,
-    points: ["실제 시험 ↔ 사전 대비 자료 비교", "유사도는 후보 정렬에 활용", "선생님이 비교 결과를 최종 확인"],
-    ctaPath: "/promo/matchup-ppt",
-    ctaLabel: "매치업·칠판 PPT 실제 화면 보기",
-    tone: "matchup",
-    featured: true,
-  },
   {
     id: "student-video",
     badge: "학생전용앱 실제 화면",
@@ -90,6 +75,34 @@ const PROOF_CARDS: ProofCard[] = [
     ctaPath: "/promo/features#communication",
     ctaLabel: "알림톡 기능 보기",
     tone: "alimtalk",
+  },
+  {
+    id: "academy-homepage",
+    badge: "학원 홈페이지 예시",
+    title: "학원 소개와 공개 자료를 우리 학원 홈페이지에 정리합니다",
+    body: "학원명, 수업 소개, 강사 소개, 후기와 상담 정보를 편집하고 적중 보고서와 공개 게시글을 함께 보여줄 수 있습니다.",
+    image: "/promo/landing-daechi-preview-20260527.png",
+    alt: "학원 소개와 적중 보고서를 함께 보여주는 학원 홈페이지 예시",
+    imageWidth: 1080,
+    imageHeight: 956,
+    points: ["4가지 홈페이지 형식", "소개·후기·상담 정보 편집", "적중 보고서·공개 글 게시"],
+    ctaPath: "/promo/landing-samples",
+    ctaLabel: "홈페이지 형식 보기",
+    tone: "website",
+  },
+  {
+    id: "matchup-ppt",
+    badge: "자료 제작 실제 화면",
+    title: "반복되는 수업자료 작업을 줄이는 도구입니다",
+    body: "수업자료는 문제·개념 단위로 나누고 흑백반전한 칠판용 PPT로 만듭니다. 매치업은 실제 시험과 시험 전에 다룬 자료를 비교하는 별도 기능입니다.",
+    image: "/promo/ppt-gaepo-setup-20260725.png",
+    alt: "문제 자료를 나누고 흑백반전해 칠판용 PPT를 만드는 실제 화면",
+    imageWidth: 1280,
+    imageHeight: 720,
+    points: ["문제·개념 단위 분할", "흑백반전·PPT 내려받기", "실제 시험과 사전 자료 비교"],
+    ctaPath: "/promo/matchup-ppt",
+    ctaLabel: "자료 제작 기능 보기",
+    tone: "matchup",
   },
 ];
 
@@ -179,6 +192,20 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     ],
   },
   {
+    id: "academy-homepage-flow",
+    title: "학원 홈페이지",
+    kicker: "학원 소개·공개",
+    body: "학원에 맞는 홈페이지 형식을 고르고 수업 소개, 강사 정보, 후기와 상담 내용을 직접 관리합니다.",
+    icon: Globe2,
+    accentBg: "#dff3eb",
+    items: [
+      { title: "4가지 홈페이지 형식", desc: "학원 분위기와 안내 목적에 맞는 형식을 골라 시작합니다." },
+      { title: "소개 내용 편집", desc: "학원명, 수업 소개, 강사, 후기, 자주 묻는 질문과 상담 정보를 수정합니다." },
+      { title: "공개 자료 게시", desc: "적중 보고서와 공개 게시글을 학원 홈페이지에서 보여줄 수 있습니다." },
+      { title: "학생앱 연결", desc: "학원 홈페이지에서 학생·선생님 로그인과 수업 화면으로 이어집니다." },
+    ],
+  },
+  {
     id: "clinic",
     title: "보강·클리닉·후속 조치",
     kicker: "수업 후 조치",
@@ -194,11 +221,27 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   },
 ];
 
+const FEATURE_GROUP_ORDER = [
+  "class-management",
+  "exam-score",
+  "student-video-flow",
+  "communication",
+  "academy-homepage-flow",
+  "clinic",
+  "matchup-ppt-flow",
+  "parent-report",
+];
+
+const ORDERED_FEATURE_GROUPS = FEATURE_GROUP_ORDER.map((id) => FEATURE_GROUPS.find((group) => group.id === id)).filter(
+  (group): group is FeatureGroup => Boolean(group),
+);
+
 const NAV_LINKS = [
-  { label: "매치업·칠판 PPT", href: "#matchup-ppt-flow" },
-  { label: "학부모 상담 자료", href: "#parent-report" },
+  { label: "강의·학생 관리", href: "#class-management" },
   { label: "학생앱 영상", href: "#student-video-flow" },
   { label: "알림톡 안내", href: "#communication" },
+  { label: "학원 홈페이지", href: "#academy-homepage-flow" },
+  { label: "자료 제작", href: "#matchup-ppt-flow" },
   { label: "시험·성적", href: "#exam-score" },
   { label: "보강·클리닉", href: "#clinic" },
 ];
@@ -210,46 +253,46 @@ export default function FeaturesPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>학원 운영 기능 · 실제 화면 안내</span>
-            <h1 id="features-title">수업 준비와 학원 운영에 필요한 기능을 확인하세요</h1>
+            <h1 id="features-title">학원 운영의 기본과 네 가지 핵심 영역을 나눠서 확인하세요</h1>
             <p>
-              실제 시험과 사전 자료 비교, 칠판용 PPT 제작부터 출결, 성적, 영상, 알림톡, 보강까지.
-              실제 사용하는 순서에 따라 기능과 화면을 정리했습니다.
+              강의·수강생·출결·성적·보강 관리가 중심입니다. 학생앱 영상, 알림톡,
+              자료 제작과 학원 홈페이지는 목적별로 따로 정리했습니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/matchup-ppt" className={styles.primaryCta}>
-                매치업·칠판 PPT 보기
-                <Presentation size={18} />
-              </Link>
-              <a href="#matchup-ppt-flow" className={styles.secondaryCta}>
-                기능별 안내 보기
-                <ScanSearch size={18} />
+              <a href="#feature-catalog-title" className={styles.primaryCta}>
+                기능 구조 보기
+                <LayoutDashboard size={18} />
               </a>
+              <Link to="/promo/video-platform" className={styles.secondaryCta}>
+                학생앱 영상 보기
+                <Smartphone size={18} />
+              </Link>
             </div>
           </div>
 
-          <aside className={styles.heroProofStack} aria-label="핵심 기능 미리보기">
+          <aside className={styles.heroProofStack} aria-label="학원 운영 실제 화면 미리보기">
             <figure className={styles.heroScreen}>
               <PromoEvidenceImage
-                src="/promo/ppt-gaepo-setup-20260725.png"
-                alt="개포고 문제 자료를 나누고 흑백반전 칠판용 PPT로 구성하는 실제 화면"
-                width={1280}
-                height={720}
+                src="/promo/admin-home.png"
+                alt="강의, 시험, 제출과 질문 현황을 확인하는 학원플러스 대시보드 실제 화면"
+                width={1440}
+                height={820}
               />
               <figcaption className={styles.heroScreenCaption}>
-                <strong>문항 분할 · 반전 설정</strong>
-                <span>실제 화면 · 슬라이드 2장 · 16:9 설정</span>
+                <strong>학원 운영 대시보드</strong>
+                <span>강의 · 시험 · 제출 · 질문</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
               <article>
-                <Camera size={16} />
-                <strong>적중 매치업</strong>
-                <p>실제 시험과 우리 학원 사전 자료를 비교합니다.</p>
+                <PlayCircle size={16} />
+                <strong>학생앱 영상</strong>
+                <p>학생은 앱에서 복습하고 선생님은 시청 상태를 확인합니다.</p>
               </article>
               <article>
-                <ScanSearch size={16} />
-                <strong>칠판용 PPT</strong>
-                <p>자료를 나누고 흑백반전해 수업에 씁니다.</p>
+                <BellRing size={16} />
+                <strong>알림톡 안내</strong>
+                <p>수업 기록을 확인한 뒤 필요한 내용을 안내합니다.</p>
               </article>
             </div>
           </aside>
@@ -265,8 +308,7 @@ export default function FeaturesPage() {
             </span>
             <h2 id="proof-title">주요 기능을 실제 화면으로 확인하세요</h2>
             <p>
-              기능 이름만 나열하지 않았습니다. 매치업, PPT, 학생앱, 관리자 화면을 실제 수업에서
-              언제 쓰는지와 함께 보여드립니다.
+              영상, 알림톡, 홈페이지와 자료 제작을 각각 언제 쓰는지 실제 화면과 함께 보여드립니다.
             </p>
           </header>
 
@@ -275,7 +317,7 @@ export default function FeaturesPage() {
               <article
                 key={card.id}
                 id={card.id}
-                className={`${styles.proofCard} ${card.featured ? styles.proofCardFeatured : ""}`}
+                className={styles.proofCard}
                 data-tone={card.tone}
               >
                 <div className={`${styles.proofVisual} ${card.phone ? styles.proofPhoneVisual : ""}`}>
@@ -330,7 +372,7 @@ export default function FeaturesPage() {
             </aside>
 
             <div className={styles.groupStack}>
-              {FEATURE_GROUPS.map((group) => {
+              {ORDERED_FEATURE_GROUPS.map((group) => {
                 const Icon = group.icon;
                 return (
                   <article key={group.id} id={group.id} className={styles.groupCard}>
@@ -362,9 +404,9 @@ export default function FeaturesPage() {
 
       <CtaSection
         title="현재 관리 방식에 맞는 기능을 확인해 보세요"
-        subtitle="시험지와 수업자료를 기준으로 매치업, 칠판용 PPT와 운영 화면을 안내합니다."
-        secondaryPath="/promo/matchup-ppt"
-        secondaryLabel="매치업·칠판용 PPT 보기"
+        subtitle="강의·학생 관리부터 영상, 알림톡, 자료 제작과 학원 홈페이지까지 필요한 화면을 안내합니다."
+        secondaryPath="/promo/video-platform"
+        secondaryLabel="학생앱 영상 보기"
       />
     </div>
   );

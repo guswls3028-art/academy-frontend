@@ -25,7 +25,7 @@ import styles from "./PromoLayout.module.css";
 const NAV_ITEMS = [
   { label: "홈", path: "/promo", icon: Home, note: "처음 보는 분을 위한 안내" },
   { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
-  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·칠판 PPT와 실제 화면" },
+  { label: "기능", path: "/promo/features", icon: ClipboardList, note: "운영·영상·알림톡·홈페이지" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
@@ -247,7 +247,7 @@ function Header() {
               <Sparkles size={ICON.sm} />
               내 수업 기준으로 확인
             </span>
-            <p>현재 쓰는 시험지와 관리 방식을 기준으로 필요한 화면만 보여드립니다.</p>
+            <p>현재 수업과 관리 방식을 기준으로 필요한 화면만 보여드립니다.</p>
             <Link to="/promo/demo">
               내 자료로 데모 요청
               <PanelLeftOpen size={ICON.sm} />
@@ -333,16 +333,17 @@ function Footer() {
               <small>학원 관리</small>
             </span>
           </Link>
-          <p>수업자료 제작과 학원 운영에 필요한 기능을 한곳에서 제공합니다.</p>
+          <p>수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어갑니다.</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
         <nav aria-label="주요 기능">
           <h2>주요 기능</h2>
-          <Link to="/promo/parent-trust">학부모 상담 자료</Link>
           <Link to="/promo/features">기능 소개</Link>
-          <Link to="/promo/matchup-ppt">매치업·칠판 PPT</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
+          <Link to="/promo/features#communication">알림톡 안내</Link>
+          <Link to="/promo/landing-samples">학원 홈페이지</Link>
+          <Link to="/promo/matchup-ppt">자료 제작 도구</Link>
           <Link to="/promo/ai-grading">채점 보조</Link>
         </nav>
 

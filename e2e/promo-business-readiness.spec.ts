@@ -24,26 +24,72 @@ test.describe("promo business readiness", () => {
     await stubPromoBootstrap(page);
   });
 
-  test("presents matchup evidence and classroom PPT as distinct workflows", async ({ page }) => {
+  test("presents the operating system first and groups the four core strengths", async ({ page }) => {
     await page.goto(`${BASE}/promo?utm_source=teacher-referral&utm_campaign=matchup-ppt`, {
       waitUntil: "load",
     });
 
     await expect(
-      page.getByRole("heading", { name: "수업 준비부터 학원 운영까지, 한곳에서 편리하게 관리합니다." }),
+      page.getByRole("heading", { name: "학원의 수업과 운영을 한 흐름으로 관리합니다." }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "내 자료로 데모 요청" }).first()).toBeVisible();
-    await expect(page.getByText("실제 사용 화면", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/실제 시험과 사전 대비 자료를 비교/).first()).toBeVisible();
-    await expect(page.getByText(/수업자료를 흑백반전한 PPT로 만들고 리모컨으로 넘겨가며 수업/)).toBeVisible();
-    await expect(page.getByText("서로 다른 두 기능")).toBeVisible();
-    await expect(page.getByText(/학교와의 제휴를 의미하지 않음/)).toBeVisible();
-    await expect(page).toHaveTitle("학원플러스 | 수업 준비와 학원 운영을 한곳에서");
+    await expect(page.getByRole("link", { name: "내 학원 기준으로 확인" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "프로그램의 중심은 매일 반복되는 학원 관리입니다" })).toBeVisible();
+
+    const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
+    await expect(categoryTabs.getByRole("tab", { name: /영상 수업/ })).toHaveAttribute("aria-selected", "true");
+    await expect(categoryTabs.getByRole("tab", { name: /알림톡 안내/ })).toBeVisible();
+    await expect(categoryTabs.getByRole("tab", { name: /자료 제작/ })).toBeVisible();
+    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeVisible();
+
+    await categoryTabs.getByRole("tab", { name: /영상 수업/ }).focus();
+    await page.keyboard.press("End");
+    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeFocused();
+    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toHaveAttribute("aria-selected", "true");
+
+    await categoryTabs.getByRole("tab", { name: /학원 홈페이지/ }).click();
+    await expect(page.getByRole("tabpanel").getByRole("heading", { name: "우리 학원에 맞는 홈페이지를 함께 운영합니다" })).toBeVisible();
+    await expect(page.getByRole("tabpanel").getByRole("link", { name: "홈페이지 형식 보기" })).toBeVisible();
+
+    await categoryTabs.getByRole("tab", { name: /자료 제작/ }).click();
+    await expect(page.getByRole("tabpanel").getByRole("heading", { name: "반복되는 수업자료 작업을 줄입니다" })).toBeVisible();
+    await expect(page.getByRole("tabpanel").getByText(/자료를 문제·개념 단위로 나누고 흑백반전/)).toBeVisible();
+    await expect(page.getByRole("tabpanel").getByText(/매치업에서는 실제 시험과 시험 전에 다룬 자료/)).toBeVisible();
+
+    await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${BASE}/promo`);
 
     const productImages = page.locator('img[src^="/promo/"]');
     await expect(productImages.first()).toBeVisible();
     await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(5600);
+
+    await page.goto(`${BASE}/promo/matchup-ppt`, { waitUntil: "load" });
+    await expect(page.getByText(/매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교/).first()).toBeVisible();
+    await expect(page.getByText(/PPT 생성기는 자료를 문제·개념 단위로 나누고/).first()).toBeVisible();
+  });
+
+  test("orders the full feature guide around operations, video, communication, homepage, then tools", async ({ page }) => {
+    await page.goto(`${BASE}/promo/features`, { waitUntil: "load" });
+
+    await expect(
+      page.getByRole("heading", { name: "학원 운영의 기본과 네 가지 핵심 영역을 나눠서 확인하세요" }),
+    ).toBeVisible();
+    await expect(page.getByText("학원 운영 대시보드", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "학원 홈페이지", exact: true })).toBeVisible();
+
+    const positions = await page.evaluate(() => {
+      const findTop = (id: string) => document.getElementById(id)?.getBoundingClientRect().top ?? Number.MAX_SAFE_INTEGER;
+      return {
+        video: findTop("student-video-flow"),
+        communication: findTop("communication"),
+        website: findTop("academy-homepage-flow"),
+        tools: findTop("matchup-ppt-flow"),
+      };
+    });
+    expect(positions.video).toBeLessThan(positions.communication);
+    expect(positions.communication).toBeLessThan(positions.website);
+    expect(positions.website).toBeLessThan(positions.tools);
   });
 
   test("requires explicit privacy consent and preserves first-touch UTM data in the lead", async ({ page }) => {
@@ -60,7 +106,7 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo?utm_source=kakao&utm_medium=message&utm_campaign=teacher-ppt`, {
       waitUntil: "load",
     });
-    await page.getByRole("link", { name: "내 자료로 데모 요청" }).first().click();
+    await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().click();
     await expect(page).toHaveURL(/\/promo\/demo$/);
 
     await page.getByLabel("이름 *").fill("홍길동");

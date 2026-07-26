@@ -293,6 +293,12 @@
     linear-gradient(135deg, #ffffff, #edf4ff);
 }
 
+.proofCard[data-tone="website"] {
+  border-color: rgba(36, 135, 111, 0.18);
+  background:
+    linear-gradient(135deg, #ffffff, #edf9f4);
+}
+
 .proofVisual {
   overflow: hidden;
   min-height: 300px;
@@ -361,6 +367,11 @@
 .proofCard[data-tone="matchup"] .proofBadge {
   color: #174fb9;
   background: #dce8ff;
+}
+
+.proofCard[data-tone="website"] .proofBadge {
+  color: #165b4b;
+  background: #dff3eb;
 }
 
 .proofText h3 {
@@ -726,6 +737,7 @@
     grid-column: span 1;
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 760px) {
