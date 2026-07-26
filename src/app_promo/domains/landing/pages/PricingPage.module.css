@@ -139,13 +139,18 @@
   margin-top: 20px;
 }
 
-.priceBriefOption > span {
+.priceBriefOption > div {
+  display: grid;
+  gap: 9px;
+}
+
+.priceBriefOption span {
   color: rgba(248, 250, 252, 0.64);
   font-size: 12px;
   font-weight: 850;
 }
 
-.priceBriefOption > strong {
+.priceBriefOption strong {
   color: #fff;
   font-size: 38px;
   font-weight: 930;
@@ -153,15 +158,23 @@
   letter-spacing: -0.045em;
 }
 
-.priceBriefOption > small {
+.priceBriefOption small {
   color: rgba(248, 250, 252, 0.54);
   font-size: 11px;
   font-weight: 800;
 }
 
-.priceBriefOption[data-highlight="true"] > span,
-.priceBriefOption[data-highlight="true"] > small {
+.priceBriefOption div[data-highlight="true"] > span,
+.priceBriefOption div[data-highlight="true"] > small {
   color: #a5f3fc;
+}
+
+.priceBreakdown {
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.5;
 }
 
 .priceBrief p {

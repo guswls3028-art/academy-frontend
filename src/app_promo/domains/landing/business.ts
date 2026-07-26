@@ -3,15 +3,20 @@
 const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
 export const CONSULT_PHONE_LABEL = "전화 문의";
+export const MONTHLY_VAT_RATE_PERCENT = 10;
 export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
-export const POST_AUGUST_MONTHLY_SUPPLY_AMOUNT = 160000;
+export const AUGUST_MONTHLY_TAX_AMOUNT = 14500;
+export const AUGUST_MONTHLY_TOTAL_AMOUNT = 159500;
+export const POST_AUGUST_MONTHLY_SUPPLY_AMOUNT = 180000;
+export const POST_AUGUST_MONTHLY_TAX_AMOUNT = 18000;
+export const POST_AUGUST_MONTHLY_TOTAL_AMOUNT = 198000;
 export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 혜택";
 export const AUGUST_MONTHLY_SAVINGS =
   POST_AUGUST_MONTHLY_SUPPLY_AMOUNT - AUGUST_MONTHLY_SUPPLY_AMOUNT;
 export const AUGUST_PRICE_GUARANTEE =
-  "2026년 8월 1일부터 31일까지 가입한 학원은 월 14만 5천원(부가세 별도)으로 이용할 수 있으며, 해당 요금은 이용 기간 동안 계속 적용됩니다.";
+  "2026년 8월 1일부터 31일까지 가입한 학원은 월 14만 5천원(부가세 10% 별도, 결제금액 15만 9,500원)으로 이용하며, 해당 공급가는 이용 기간 동안 계속 적용됩니다.";
 export const POST_AUGUST_PRICE_POLICY =
-  "2026년 9월 1일부터 가입하는 학원은 월 16만원(부가세 별도)입니다.";
+  "2026년 9월 1일부터 가입하는 학원은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다.";
 
 export function getConsultPhoneTelHref() {
   return `tel:${CONSULT_PHONE_PARTS.join("")}`;
@@ -29,7 +34,11 @@ export interface PromoPlanDef {
   name: string;
   key: string;
   monthlySupplyAmount: number;
+  monthlyTaxAmount: number;
+  monthlyTotalAmount: number;
   postAugustMonthlySupplyAmount: number;
+  postAugustMonthlyTaxAmount: number;
+  postAugustMonthlyTotalAmount: number;
   monthlySavings: number;
   target: string;
   positioning: string;
@@ -49,11 +58,15 @@ export const PROMO_PLANS: PromoPlanDef[] = [
     name: "학원플러스 기본 요금",
     key: "all",
     monthlySupplyAmount: AUGUST_MONTHLY_SUPPLY_AMOUNT,
+    monthlyTaxAmount: AUGUST_MONTHLY_TAX_AMOUNT,
+    monthlyTotalAmount: AUGUST_MONTHLY_TOTAL_AMOUNT,
     postAugustMonthlySupplyAmount: POST_AUGUST_MONTHLY_SUPPLY_AMOUNT,
+    postAugustMonthlyTaxAmount: POST_AUGUST_MONTHLY_TAX_AMOUNT,
+    postAugustMonthlyTotalAmount: POST_AUGUST_MONTHLY_TOTAL_AMOUNT,
     monthlySavings: AUGUST_MONTHLY_SAVINGS,
     target: "2026년 8월 1일~31일 가입 학원",
     positioning: "2026년 8월 가입 요금",
-    verdict: "8월에 가입하면 월 14만 5천원 요금이 이용 기간 동안 유지됩니다.",
+    verdict: "8월에 가입하면 월 14만 5천원의 공급가가 이용 기간 동안 유지됩니다.",
     studentLimit: "학생 수에 따른 추가 요금 없음",
     adminLimit: "계정 수에 따른 추가 요금 없음",
     storage: "200GB 포함",
@@ -84,5 +97,6 @@ export function formatKoreanPrice(value: number) {
 
   if (remainder === 0) return `${tenThousands}만원`;
   if (remainder % 1000 === 0) return `${tenThousands}만 ${remainder / 1000}천원`;
+  if (tenThousands > 0) return `${tenThousands}만 ${formatWon(remainder)}원`;
   return `${formatWon(value)}원`;
 }

@@ -6,7 +6,12 @@ import {
   AUGUST_PRICE_GUARANTEE,
   AUGUST_PROMOTION_LABEL,
   AUGUST_MONTHLY_SUPPLY_AMOUNT,
+  AUGUST_MONTHLY_TAX_AMOUNT,
+  AUGUST_MONTHLY_TOTAL_AMOUNT,
   POST_AUGUST_MONTHLY_SUPPLY_AMOUNT,
+  POST_AUGUST_MONTHLY_TAX_AMOUNT,
+  POST_AUGUST_MONTHLY_TOTAL_AMOUNT,
+  MONTHLY_VAT_RATE_PERCENT,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
   formatKoreanPrice,
@@ -22,6 +27,31 @@ function PlanAction({ href, label, popular, phone }: { href: string; label: stri
   return <Link to={href} className={className}>{label}</Link>;
 }
 
+function PriceOption({
+  label,
+  supplyAmount,
+  taxAmount,
+  totalAmount,
+  highlighted,
+}: {
+  label: string;
+  supplyAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  highlighted?: boolean;
+}) {
+  return (
+    <div data-highlight={highlighted ? "true" : undefined}>
+      <span>{label}</span>
+      <strong>{formatKoreanPrice(supplyAmount)}</strong>
+      <small>월 요금 · 부가세 {MONTHLY_VAT_RATE_PERCENT}% 별도</small>
+      <em className={styles.priceBreakdown}>
+        부가세 {formatKoreanPrice(taxAmount)} · 결제금액 {formatKoreanPrice(totalAmount)}
+      </em>
+    </div>
+  );
+}
+
 export default function PricingPage() {
   return (
     <>
@@ -31,11 +61,11 @@ export default function PricingPage() {
             <span className={styles.eyebrow}>{AUGUST_PROMOTION_LABEL}</span>
             <h1 id="pricing-title">
               8월 가입 {formatKoreanPrice(AUGUST_MONTHLY_SUPPLY_AMOUNT)}
-              <small>월 요금 · 부가세 별도</small>
+              <small>월 요금 · 부가세 {MONTHLY_VAT_RATE_PERCENT}% 별도</small>
             </h1>
             <p>
-              2026년 8월 1일부터 31일까지 가입하면 월 14만 5천원 요금이 이용 기간 동안
-              유지됩니다. 8월 이후 가입 요금은 월 16만원입니다.
+              2026년 8월에 가입하면 월 14만 5천원의 공급가가 이용 기간 동안 유지됩니다.
+              9월 이후 가입 공급가는 월 18만원입니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -46,15 +76,22 @@ export default function PricingPage() {
           </div>
 
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
-            <div className={styles.priceBriefOption} data-highlight="true">
-              <span>2026년 8월 가입</span>
-              <strong>{formatKoreanPrice(AUGUST_MONTHLY_SUPPLY_AMOUNT)}</strong>
-              <small>월 요금 · 부가세 별도</small>
+            <div className={styles.priceBriefOption}>
+              <PriceOption
+                label="2026년 8월 가입"
+                supplyAmount={AUGUST_MONTHLY_SUPPLY_AMOUNT}
+                taxAmount={AUGUST_MONTHLY_TAX_AMOUNT}
+                totalAmount={AUGUST_MONTHLY_TOTAL_AMOUNT}
+                highlighted
+              />
             </div>
             <div className={styles.priceBriefOption}>
-              <span>2026년 8월 이후 가입</span>
-              <strong>{formatKoreanPrice(POST_AUGUST_MONTHLY_SUPPLY_AMOUNT)}</strong>
-              <small>월 요금 · 부가세 별도</small>
+              <PriceOption
+                label="2026년 9월 이후 가입"
+                supplyAmount={POST_AUGUST_MONTHLY_SUPPLY_AMOUNT}
+                taxAmount={POST_AUGUST_MONTHLY_TAX_AMOUNT}
+                totalAmount={POST_AUGUST_MONTHLY_TOTAL_AMOUNT}
+              />
             </div>
             <p>8월 가입 요금은 서비스를 이용하는 동안 계속 적용됩니다.</p>
           </aside>
@@ -87,16 +124,19 @@ export default function PricingPage() {
 
                 <div className={styles.priceLine}>
                   <div className={styles.priceComparison}>
-                    <div data-highlight="true">
-                      <span>8월 가입</span>
-                      <strong>{formatKoreanPrice(plan.monthlySupplyAmount)}</strong>
-                      <small>월 요금 · 부가세 별도</small>
-                    </div>
-                    <div>
-                      <span>8월 이후 가입</span>
-                      <strong>{formatKoreanPrice(plan.postAugustMonthlySupplyAmount)}</strong>
-                      <small>월 요금 · 부가세 별도</small>
-                    </div>
+                    <PriceOption
+                      label="8월 가입"
+                      supplyAmount={plan.monthlySupplyAmount}
+                      taxAmount={plan.monthlyTaxAmount}
+                      totalAmount={plan.monthlyTotalAmount}
+                      highlighted
+                    />
+                    <PriceOption
+                      label="9월 이후 가입"
+                      supplyAmount={plan.postAugustMonthlySupplyAmount}
+                      taxAmount={plan.postAugustMonthlyTaxAmount}
+                      totalAmount={plan.postAugustMonthlyTotalAmount}
+                    />
                   </div>
                   <div className={styles.savingsLine}>
                     8월 가입 시 월 {formatKoreanPrice(plan.monthlySavings)} 차이
