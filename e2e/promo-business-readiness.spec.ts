@@ -59,7 +59,7 @@ test.describe("promo business readiness", () => {
 
     await categoryTabs.getByRole("tab", { name: /자료 제작/ }).click();
     await expect(page.getByRole("tabpanel").getByRole("heading", { name: "반복되는 수업자료 작업을 줄입니다" })).toBeVisible();
-    await expect(page.getByRole("tabpanel").getByText(/자료를 문제·개념 단위로 나누고 흑백반전/)).toBeVisible();
+    await expect(page.getByRole("tabpanel").getByText(/PDF 문항을 자동으로 나누거나 문제·개념별로 준비한 이미지/)).toBeVisible();
     await expect(page.getByRole("tabpanel").getByText(/매치업에서는 실제 시험과 시험 전에 다룬 자료/)).toBeVisible();
 
     await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
@@ -73,7 +73,7 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/matchup-ppt`, { waitUntil: "load" });
     await expect(page.getByText(/매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교/).first()).toBeVisible();
-    await expect(page.getByText(/PPT 생성기는 자료를 문제·개념 단위로 나누고/).first()).toBeVisible();
+    await expect(page.getByText(/PPT 생성기는 자료를 PDF 문항으로 나누거나 준비한 이미지별로 배치해/).first()).toBeVisible();
   });
 
   test("orders the full feature guide around operations, video, communication, homepage, then tools", async ({ page }) => {

@@ -72,11 +72,11 @@ const GUIDE_STEPS: GuideStep[] = [
     number: "03",
     label: "자료 분할",
     icon: Presentation,
-    title: "수업자료를 문제·개념 단위로 나눕니다",
-    body: "PPT 생성기는 매치업과 별도로 사용합니다. 이미지나 PDF 자료를 문제 또는 개념 단위로 나누고 수업 순서대로 배치합니다.",
+    title: "PDF 문항을 나누고 준비한 이미지를 배치합니다",
+    body: "PPT 생성기는 매치업과 별도로 사용합니다. PDF는 문항을 자동으로 나누고, 문제·개념별로 준비한 이미지는 한 장씩 슬라이드로 배치해 수업 순서를 정합니다.",
     points: [
       "이미지·PDF 수업자료 업로드",
-      "문제·개념별 슬라이드 분할",
+      "PDF 문항 자동 분리·이미지별 슬라이드",
       "16:9·4:3 화면 비율 선택",
     ],
     image: "/promo/ppt-gaepo-setup-20260725.png",
@@ -114,7 +114,7 @@ const CLASS_PREP_EXAMPLE = [
   {
     time: "수업 전",
     title: "자료 분할·순서 정리",
-    body: "문제와 개념 단위로 자료를 나누고 슬라이드 순서를 정합니다.",
+    body: "PDF 문항을 자동으로 나누거나 준비한 이미지를 한 장씩 배치해 슬라이드 순서를 정합니다.",
   },
   {
     time: "강의실",
@@ -154,7 +154,7 @@ export default function MatchupPptPage() {
             </h1>
             <p>
               매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교합니다. PPT 생성기는 자료를
-              문제·개념 단위로 나누고 흑백반전한 칠판용 PPT로 만듭니다.
+              PDF 문항으로 나누거나 준비한 이미지별로 배치해 흑백반전 칠판용 PPT로 만듭니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
@@ -217,7 +217,7 @@ export default function MatchupPptPage() {
             {[
               { icon: Camera, title: "실제 시험", desc: "출제 문항 등록" },
               { icon: ScanSearch, title: "적중 근거", desc: "사전 자료 비교" },
-              { icon: Star, title: "자료 분할", desc: "문제·개념 단위" },
+              { icon: Star, title: "자료 분할", desc: "PDF 문항·준비 이미지" },
               { icon: Presentation, title: "칠판 PPT", desc: "흑백반전·리모컨" },
             ].map((item, index) => {
               const Icon = item.icon;
@@ -338,7 +338,7 @@ export default function MatchupPptPage() {
             <FolderOpen size={22} />
             <div>
               <span>PPT 만들기</span>
-              <strong>문제·개념 단위 분할</strong>
+              <strong>PDF 문항·이미지별 슬라이드</strong>
             </div>
             <ArrowRight size={18} />
             <Presentation size={22} />

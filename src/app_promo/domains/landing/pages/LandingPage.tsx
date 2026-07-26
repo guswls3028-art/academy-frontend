@@ -84,7 +84,7 @@ const HERO_CATEGORIES: HeroCategory[] = [
     label: "자료 제작",
     navCopy: "반복 작업 절감",
     title: "반복되는 수업자료 작업을 줄입니다",
-    copy: "자료를 문제·개념 단위로 나누고 흑백반전한 칠판용 PPT로 만듭니다. 매치업에서는 실제 시험과 시험 전에 다룬 자료를 나란히 확인합니다.",
+    copy: "PDF 문항을 자동으로 나누거나 문제·개념별로 준비한 이미지를 수업 순서대로 배치해 흑백반전 칠판용 PPT로 만듭니다. 매치업에서는 실제 시험과 시험 전에 다룬 자료를 나란히 확인합니다.",
     image: "/promo/ppt-gaepo-setup-20260725.png",
     alt: "문제 자료를 나누고 흑백반전해 칠판용 PPT를 만드는 실제 화면",
     imageWidth: 1280,
@@ -94,7 +94,7 @@ const HERO_CATEGORIES: HeroCategory[] = [
     icon: Presentation,
     tone: "tools",
     kind: "desktop",
-    highlights: ["문제·개념 단위 분할", "흑백반전·PPT 내려받기", "실제 시험과 사전 자료 비교"],
+    highlights: ["PDF 문항 자동 분리", "흑백반전·PPT 내려받기", "실제 시험과 사전 자료 비교"],
   },
   {
     id: "website",
