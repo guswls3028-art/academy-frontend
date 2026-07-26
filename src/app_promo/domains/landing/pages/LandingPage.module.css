@@ -665,7 +665,7 @@
 .strengthGrid article {
   position: relative;
   overflow: hidden;
-  min-height: 360px;
+  min-height: 590px;
   border: 1px solid #cfdfdf;
   border-radius: 14px;
   padding: 28px;
@@ -727,29 +727,52 @@
   word-break: keep-all;
 }
 
-.strengthGrid ul {
+.responsibilityFlow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
   margin: 22px 0;
   padding: 0;
+  border-top: 1px solid #e0eaea;
+  flex-direction: column;
   list-style: none;
 }
 
-.strengthGrid li {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 999px;
-  padding: 7px 9px;
-  color: #38515a;
-  font-size: 11px;
-  font-weight: 780;
-  background: #f0f6f5;
+.responsibilityFlow li {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 13px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid #e0eaea;
 }
 
-.strengthGrid li svg {
+.responsibilityFlow li > span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, #dce7e7);
+  border-radius: 999px;
+  padding: 0 8px;
   color: var(--card-accent);
+  font-size: 10px;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--card-accent) 7%, #fff);
+  white-space: nowrap;
+}
+
+.responsibilityFlow strong {
+  display: block;
+  color: #213b45;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.responsibilityFlow p {
+  margin: 4px 0 0;
+  color: #667b83;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: keep-all;
 }
 
 .strengthGrid article > a {
@@ -1146,6 +1169,10 @@
 
   .strengthGrid article {
     min-height: 0;
+  }
+
+  .responsibilityFlow li {
+    grid-template-columns: 78px minmax(0, 1fr);
   }
 
   .flowList li,

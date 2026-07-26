@@ -66,8 +66,8 @@ const HERO_CATEGORIES: HeroCategory[] = [
     id: "alimtalk",
     label: "알림톡 안내",
     navCopy: "반복 연락 정리",
-    title: "출결과 수업 결과를 확인한 뒤 알림톡으로 안내합니다",
-    copy: "가입, 출결, 시험, 클리닉처럼 반복되는 안내는 승인된 양식을 사용합니다. 대상과 선생님 메모는 발송 전에 다시 확인합니다.",
+    title: "알림톡은 자동과 직접 발송 범위를 나눠 사용합니다",
+    copy: "가입·비밀번호 안내는 처리와 함께 발송됩니다. 클리닉·답변 알림은 설정된 항목만 자동으로 보내고, 출결·성적·수업 결과는 학생별 최종 문구를 미리 본 뒤 직접 발송합니다.",
     image: "/promo/admin-alimtalk-auto-send.png",
     alt: "학원플러스 관리자 알림톡 발송 설정 실제 화면",
     imageWidth: 1440,
@@ -77,7 +77,7 @@ const HERO_CATEGORIES: HeroCategory[] = [
     icon: BellRing,
     tone: "alimtalk",
     kind: "desktop",
-    highlights: ["승인된 공용 양식", "자동·수동 발송 구분", "보내기 전 대상·내용 확인"],
+    highlights: ["가입·비밀번호 안내 자동", "클리닉·답변 알림은 설정 후 자동", "학생별 미리보기 후 직접 발송"],
   },
   {
     id: "tools",
@@ -137,6 +137,133 @@ const BASIC_OPERATIONS = [
     copy: "성적과 과제, 영상 기록을 보고 후속 관리가 필요한 학생을 정합니다.",
   },
 ];
+
+const DETAILED_WORKFLOWS = [
+  {
+    id: "video",
+    label: "영상 수업",
+    icon: PlayCircle,
+    tone: "video",
+    href: "/promo/video-platform",
+    cta: "영상 기능 자세히 보기",
+    summary: "영상 등록부터 시청 확인까지 선생님과 학생에게 보이는 흐름이 다릅니다.",
+    stages: [
+      {
+        mode: "선생님 준비",
+        title: "차시별 영상 등록",
+        copy: "복습 영상을 강의와 차시에 연결하고 공개할 수강생을 정합니다.",
+      },
+      {
+        mode: "자동 기록",
+        title: "재생 위치와 시청 상태",
+        copy: "학생이 본 시간, 마지막 재생 위치와 미시청·시청중·완료 상태가 남습니다.",
+      },
+      {
+        mode: "선생님 확인",
+        title: "챙길 학생 선택",
+        copy: "미시청 학생을 확인하고 필요한 경우 복습 안내 알림톡을 직접 보냅니다.",
+      },
+      {
+        mode: "학생 화면",
+        title: "앱에서 이어보기",
+        copy: "학생은 학생전용앱에서 마지막 위치부터 이어 보고 댓글을 남깁니다.",
+      },
+    ],
+  },
+  {
+    id: "alimtalk",
+    label: "알림톡 안내",
+    icon: BellRing,
+    tone: "alimtalk",
+    href: "/promo/features#alimtalk-guide",
+    cta: "자동·직접 발송 범위 보기",
+    summary: "모든 안내가 자동으로 나가는 것이 아닙니다. 업무 성격에 따라 발송 방법을 나눕니다.",
+    stages: [
+      {
+        mode: "항상 자동",
+        title: "가입·비밀번호 안내",
+        copy: "학생·학부모 계정 안내와 비밀번호 변경 안내는 계정 처리와 함께 발송됩니다.",
+      },
+      {
+        mode: "설정 후 자동",
+        title: "클리닉·답변 알림",
+        copy: "승인 양식과 학원 설정이 준비된 예약·변경·입실·답변 알림만 자동으로 보냅니다.",
+      },
+      {
+        mode: "선생님 확인",
+        title: "출결·성적·수업 결과",
+        copy: "대상별 최종 문구와 제외 대상을 미리 본 뒤 직접 발송합니다.",
+      },
+      {
+        mode: "받는 화면",
+        title: "카카오톡 수신·발송 결과",
+        copy: "학생·학부모는 카카오톡으로 받고, 선생님은 실제 성공·실패를 발송 내역에서 확인합니다.",
+      },
+    ],
+  },
+  {
+    id: "tools",
+    label: "자료 제작",
+    icon: Presentation,
+    tone: "tools",
+    href: "/promo/matchup-ppt",
+    cta: "자료 제작 과정 보기",
+    summary: "기계가 나누는 단계와 선생님이 판단하는 단계를 분리해 반복 작업만 줄입니다.",
+    stages: [
+      {
+        mode: "선생님 준비",
+        title: "PDF·이미지 등록",
+        copy: "PDF 또는 문제·개념별로 준비한 이미지를 올리고 수업 자료를 선택합니다.",
+      },
+      {
+        mode: "자동 처리",
+        title: "PDF 문항 분리",
+        copy: "PDF 문항은 자동으로 나누고 준비한 이미지는 한 장씩 슬라이드로 배치합니다.",
+      },
+      {
+        mode: "선생님 확인",
+        title: "순서·반전·화면 비율",
+        copy: "슬라이드 순서와 흑백반전, 밝기·대비, 16:9·4:3 비율을 확인합니다.",
+      },
+      {
+        mode: "수업 결과",
+        title: "PPT 내려받기",
+        copy: "칠판에 띄울 PPT를 내려받아 리모컨으로 넘기며 수업합니다.",
+      },
+    ],
+  },
+  {
+    id: "website",
+    label: "학원 홈페이지",
+    icon: Globe2,
+    tone: "website",
+    href: "/promo/landing-samples",
+    cta: "홈페이지 운영 방식 보기",
+    summary: "처음 제작해 드린 뒤 학원에서 바뀌는 내용을 직접 관리할 수 있습니다.",
+    stages: [
+      {
+        mode: "처음 준비",
+        title: "형식과 소개 내용 결정",
+        copy: "네 가지 형식 중 학원에 맞는 구성을 고르고 수업·강사·상담 정보를 준비합니다.",
+      },
+      {
+        mode: "학원에서 편집",
+        title: "소개·후기·자주 묻는 질문",
+        copy: "운영 중 바뀌는 소개와 상담 내용을 관리자 화면에서 직접 수정합니다.",
+      },
+      {
+        mode: "공개 반영",
+        title: "적중 보고서·게시글",
+        copy: "공개로 정한 적중 보고서와 글을 학원 홈페이지에 게시합니다.",
+      },
+      {
+        mode: "방문자 화면",
+        title: "상담·로그인 연결",
+        copy: "방문자는 학원 정보를 보고 상담하거나 학생·선생님 서비스로 이동합니다.",
+      },
+    ],
+  },
+] as const;
 
 const OPERATING_FLOW = [
   {
@@ -448,32 +575,38 @@ function StrengthSection() {
     <section className={styles.strengthSection} aria-labelledby="strength-title">
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
-          <span>네 가지 핵심 영역</span>
-          <h2 id="strength-title">자주 쓰고, 만족도가 높은 기능을 목적별로 나눴습니다</h2>
-          <p>각 기능은 따로 떨어진 서비스가 아니라 강의와 학생 기록을 기준으로 함께 이어집니다.</p>
+          <span>기능별 업무 구분</span>
+          <h2 id="strength-title">자동으로 처리되는 일과 선생님이 확인하는 일을 나눴습니다</h2>
+          <p>
+            자동이라는 말만 앞세우지 않습니다. 어떤 정보가 자동으로 남고,
+            어디서 선생님이 판단하는지 실제 사용 순서대로 보여드립니다.
+          </p>
         </header>
 
         <div className={styles.strengthGrid}>
-          {HERO_CATEGORIES.map((category, index) => {
-            const Icon = category.icon;
+          {DETAILED_WORKFLOWS.map((workflow, index) => {
+            const Icon = workflow.icon;
             return (
-              <article key={category.id} data-tone={category.tone}>
+              <article key={workflow.id} data-tone={workflow.tone}>
                 <div className={styles.strengthIndex}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <Icon size={ICON.lg} aria-hidden="true" />
                 </div>
-                <h3>{category.label}</h3>
-                <p>{category.copy}</p>
-                <ul>
-                  {category.highlights.map((highlight) => (
-                    <li key={highlight}>
-                      <Check size={ICON.sm} aria-hidden="true" />
-                      {highlight}
+                <h3>{workflow.label}</h3>
+                <p>{workflow.summary}</p>
+                <ol className={styles.responsibilityFlow}>
+                  {workflow.stages.map((stage) => (
+                    <li key={stage.title}>
+                      <span>{stage.mode}</span>
+                      <div>
+                        <strong>{stage.title}</strong>
+                        <p>{stage.copy}</p>
+                      </div>
                     </li>
                   ))}
-                </ul>
-                <Link to={category.href}>
-                  {category.cta}
+                </ol>
+                <Link to={workflow.href}>
+                  {workflow.cta}
                   <ArrowRight size={ICON.sm} aria-hidden="true" />
                 </Link>
               </article>

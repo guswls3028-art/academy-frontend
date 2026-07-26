@@ -34,16 +34,22 @@ test.describe("promo business readiness", () => {
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "내 학원 기준으로 확인" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "프로그램의 중심은 매일 반복되는 학원 관리입니다" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "자동으로 처리되는 일과 선생님이 확인하는 일을 나눴습니다" }),
+    ).toBeVisible();
+    await expect(page.getByText("학생별 미리보기 후 직접 발송", { exact: true })).toBeVisible();
 
     const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
     const autoplayToggle = page.getByRole("button", { name: "자동 전환 멈춤" });
     await expect(autoplayToggle).toHaveAttribute("aria-pressed", "false");
     await autoplayToggle.click();
     await expect(page.getByRole("button", { name: "자동 전환 켜기" })).toHaveAttribute("aria-pressed", "true");
+    const pausedTabId = await categoryTabs.locator('[role="tab"][aria-selected="true"]').getAttribute("id");
+    expect(pausedTabId).toBeTruthy();
     await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().focus();
     // eslint-disable-next-line no-restricted-syntax -- prove pause persists across the 5.6s autoplay boundary
     await page.waitForTimeout(5_800);
-    await expect(categoryTabs.getByRole("tab", { name: /영상 수업/ })).toHaveAttribute("aria-selected", "true");
+    await expect(categoryTabs.locator(`#${pausedTabId}`)).toHaveAttribute("aria-selected", "true");
     await expect(categoryTabs.getByRole("tab", { name: /알림톡 안내/ })).toBeVisible();
     await expect(categoryTabs.getByRole("tab", { name: /자료 제작/ })).toBeVisible();
     await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeVisible();
@@ -84,6 +90,15 @@ test.describe("promo business readiness", () => {
     ).toBeVisible();
     await expect(page.getByText("학원 운영 대시보드", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "학원 홈페이지", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "무엇이 자동이고, 무엇을 선생님이 확인하는지 구분했습니다" }),
+    ).toBeVisible();
+    await expect(page.getByText("현재 ‘내 번호로 테스트 받아보기’는 별도 기능으로 제공하지 않습니다.")).toBeVisible();
+    await expect(page.getByText("가입·비밀번호 안내", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("학생별 미리보기", { exact: true }).first()).toBeVisible();
+
+    const featureWorkflows = page.locator("ol").filter({ has: page.locator("small", { hasText: "직접 준비" }) });
+    await expect(featureWorkflows.first()).toBeVisible();
 
     const positions = await page.evaluate(() => {
       const findTop = (id: string) => document.getElementById(id)?.getBoundingClientRect().top ?? Number.MAX_SAFE_INTEGER;
@@ -97,6 +112,10 @@ test.describe("promo business readiness", () => {
     expect(positions.video).toBeLessThan(positions.communication);
     expect(positions.communication).toBeLessThan(positions.website);
     expect(positions.website).toBeLessThan(positions.tools);
+
+    await page.goto(`${BASE}/promo/faq`, { waitUntil: "load" });
+    await page.getByText("발송 전에 학생별 알림톡 문구를 볼 수 있나요?", { exact: true }).click();
+    await expect(page.getByText(/실제 성공·실패는 발송 내역에서 확인합니다/)).toBeVisible();
   });
 
   test("requires explicit privacy consent and preserves first-touch UTM data in the lead", async ({ page }) => {

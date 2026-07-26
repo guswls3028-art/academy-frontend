@@ -5,14 +5,18 @@ import {
   BookOpenCheck,
   CheckCircle2,
   ClipboardCheck,
+  Eye,
   Globe2,
   GraduationCap,
   LayoutDashboard,
+  MessageSquareText,
   PlayCircle,
   Presentation,
+  Settings2,
   ShieldCheck,
   Smartphone,
   Sparkles,
+  UserCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -65,15 +69,15 @@ const PROOF_CARDS: ProofCard[] = [
   {
     id: "alimtalk",
     badge: "관리자 알림톡 화면",
-    title: "승인된 알림톡 양식으로 반복 안내를 정리합니다",
-    body: "가입, 출결, 시험, 클리닉처럼 자주 보내는 연락을 양식별로 관리하고 발송 전 내용을 확인합니다.",
+    title: "알림톡은 항상 자동·설정 후 자동·확인 후 발송으로 나뉩니다",
+    body: "가입·비밀번호 안내는 처리와 함께 발송됩니다. 클리닉·답변 알림은 설정된 항목만 자동으로 보내며, 수업 관련 안내는 학생별 최종 문구를 미리 본 뒤 발송합니다.",
     image: "/promo/admin-alimtalk-auto-send.png",
     alt: "관리자 알림톡 발송 설정 화면",
     imageWidth: 1440,
     imageHeight: 820,
-    points: ["승인된 공용 알림톡 양식 사용", "자동·수동 발송 상태를 화면에서 구분", "대상과 선생님 메모를 발송 전에 확인"],
-    ctaPath: "/promo/features#communication",
-    ctaLabel: "알림톡 기능 보기",
+    points: ["가입·비밀번호 안내는 항상 자동", "클리닉·답변 알림은 설정 후 자동", "대상·제외 인원·학생별 문구 미리보기"],
+    ctaPath: "/promo/features#alimtalk-guide",
+    ctaLabel: "자동·직접 발송 범위 보기",
     tone: "alimtalk",
   },
   {
@@ -181,14 +185,14 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     id: "communication",
     title: "알림톡·학부모 커뮤니케이션",
     kicker: "학부모 안내",
-    body: "자주 보내는 안내는 승인된 양식으로 관리하고, 수업 피드백은 선생님이 확인한 뒤 발송합니다.",
+    body: "알림톡은 승인된 공용 양식을 사용하며, 업무 성격에 따라 항상 자동·설정 후 자동·확인 후 발송으로 나뉩니다.",
     icon: BellRing,
     accentBg: "#ffe7ef",
     items: [
-      { title: "승인된 알림톡 양식", desc: "가입, 출결, 시험, 클리닉 등 상황에 맞는 공용 승인 양식을 사용합니다." },
-      { title: "입실·결석 안내", desc: "출결 안내가 설정된 경우 발송 상태를 화면에서 확인합니다." },
-      { title: "수업결과 알림톡", desc: "저장된 성적과 피드백을 보고 선생님이 내용을 확인한 뒤 보냅니다." },
-      { title: "질문 응답", desc: "학생 질문과 강사 답변을 남겨 수업 이후 대화가 흩어지지 않게 합니다." },
+      { title: "계정 안내 자동 발송", desc: "학생·학부모 가입과 비밀번호 변경 안내는 계정 처리와 함께 발송됩니다." },
+      { title: "설정 가능한 자동 안내", desc: "클리닉 예약·변경·입실과 질문 답변 등 준비된 항목만 설정에 따라 자동 발송합니다." },
+      { title: "학생별 발송 미리보기", desc: "출결·성적·수업 결과는 발송 가능·제외 대상과 학생별 최종 문구를 확인합니다." },
+      { title: "수신 화면·발송 결과", desc: "학부모는 카카오톡으로 받고, 선생님은 실제 성공·실패를 발송 내역에서 확인합니다." },
     ],
   },
   {
@@ -221,6 +225,57 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   },
 ];
 
+const FEATURE_WORKFLOWS: Record<string, { mode: string; title: string; desc: string }[]> = {
+  "class-management": [
+    { mode: "직접 준비", title: "강의·차시·수강생 등록", desc: "학원의 실제 수업 구조와 담당 학생을 먼저 정합니다." },
+    { mode: "자동 연결", title: "학생 기록을 강의 기준으로 모음", desc: "출결·시험·과제·영상 기록이 수강생과 강의에 연결됩니다." },
+    { mode: "선생님 확인", title: "출결과 수업 메모", desc: "입실·결석·보강 필요 여부와 수업 내용을 직접 남깁니다." },
+    { mode: "운영 결과", title: "오늘 할 일 확인", desc: "질문·제출·시험처럼 먼저 처리할 업무를 대시보드에서 봅니다." },
+  ],
+  "exam-score": [
+    { mode: "직접 준비", title: "문항·정답·배점 설정", desc: "시험 성격에 맞춰 객관식·OX·단답형·서술형을 구성합니다." },
+    { mode: "자동 처리", title: "정답이 명확한 문항 채점", desc: "객관식·OX형과 지원 범위의 수학 단답형은 정답과 대조합니다." },
+    { mode: "선생님 확인", title: "서술형 채점·피드백", desc: "서술형 점수와 최종 피드백은 선생님이 확인해 확정합니다." },
+    { mode: "운영 결과", title: "성적·취약 문항·후속 조치", desc: "시험 결과를 보고 재시험과 보강 대상을 정합니다." },
+  ],
+  "student-video-flow": [
+    { mode: "직접 준비", title: "차시별 영상 등록", desc: "복습 영상을 강의와 차시에 연결하고 공개 대상을 정합니다." },
+    { mode: "학생 사용", title: "앱에서 재생·이어보기", desc: "학생은 학생전용앱 안에서 마지막 위치부터 이어 봅니다." },
+    { mode: "자동 기록", title: "시청 시간·상태 저장", desc: "마지막 위치와 미시청·시청중·완료 상태가 남습니다." },
+    { mode: "선생님 확인", title: "미시청 학생 후속 안내", desc: "시청 이력을 확인해 필요한 학생에게 복습을 안내합니다." },
+  ],
+  communication: [
+    { mode: "항상 자동", title: "가입·비밀번호 안내", desc: "계정 생성과 비밀번호 변경 안내는 처리와 함께 발송됩니다." },
+    { mode: "설정 후 자동", title: "클리닉·답변 알림", desc: "승인 양식과 학원 설정이 준비된 항목만 자동으로 발송합니다." },
+    { mode: "선생님 확인", title: "출결·성적·수업 결과", desc: "기본은 대상별 최종 문구를 미리 본 뒤 직접 발송합니다." },
+    { mode: "발송 결과", title: "성공·실패 내역 확인", desc: "발송 요청 후 실제 성공·실패를 발송 내역에서 확인합니다." },
+  ],
+  "academy-homepage-flow": [
+    { mode: "처음 준비", title: "형식·소개 내용 결정", desc: "네 가지 형식 중 학원에 맞는 구성과 공개 정보를 정합니다." },
+    { mode: "학원에서 편집", title: "소개·후기·상담 정보", desc: "운영 중 바뀌는 내용을 관리자 화면에서 직접 수정합니다." },
+    { mode: "공개 반영", title: "적중 보고서·게시글 게시", desc: "공개로 정한 자료와 글을 학원 홈페이지에 보여줍니다." },
+    { mode: "방문자 화면", title: "상담·서비스 연결", desc: "방문자는 학원을 확인하고 상담 또는 로그인 화면으로 이동합니다." },
+  ],
+  clinic: [
+    { mode: "선생님 판단", title: "보강·클리닉 대상 선정", desc: "성적·과제·영상 기록을 보고 후속 관리할 학생을 정합니다." },
+    { mode: "직접 준비", title: "일정·장소·학생 예약", desc: "클리닉 시간과 장소를 잡고 참여 학생을 등록합니다." },
+    { mode: "설정 후 자동", title: "예약·변경·입실 안내", desc: "승인 양식과 설정이 준비되면 상태 변경에 맞춰 안내합니다." },
+    { mode: "선생님 확인", title: "참석·결과·메모 기록", desc: "실제 참여와 보강 결과는 선생님이 확인해 남깁니다." },
+  ],
+  "matchup-ppt-flow": [
+    { mode: "직접 준비", title: "시험지·수업자료 등록", desc: "실제 시험과 시험 전에 다룬 자료 또는 PPT용 자료를 올립니다." },
+    { mode: "자동 보조", title: "유사 후보·PDF 문항 분리", desc: "매치업 후보를 찾고 PPT용 PDF 문항을 나눠 확인 순서를 줄입니다." },
+    { mode: "선생님 확인", title: "적중 근거·슬라이드 확정", desc: "유사 문제 여부와 슬라이드 순서·반전 설정을 직접 확인합니다." },
+    { mode: "결과물", title: "적중 보고서·칠판용 PPT", desc: "목적이 다른 두 결과물을 각각 저장하고 수업·상담에 사용합니다." },
+  ],
+  "parent-report": [
+    { mode: "기록 연결", title: "출결·성적·영상·보강 확인", desc: "학생별로 남아 있는 수업 전후 기록을 한데 모아 봅니다." },
+    { mode: "선생님 판단", title: "이번에 안내할 내용 선택", desc: "상담에서 설명할 변화와 다음 조치를 선생님이 정합니다." },
+    { mode: "발송 전 확인", title: "대상·학생별 문구 미리보기", desc: "학생별로 실제 적용된 문구와 제외 대상을 확인합니다." },
+    { mode: "학부모 확인", title: "알림톡·상담 자료로 확인", desc: "학부모는 안내를 받고 필요한 경우 기록을 보며 상담합니다." },
+  ],
+};
+
 const FEATURE_GROUP_ORDER = [
   "class-management",
   "exam-score",
@@ -245,6 +300,141 @@ const NAV_LINKS = [
   { label: "시험·성적", href: "#exam-score" },
   { label: "보강·클리닉", href: "#clinic" },
 ];
+
+function AlimtalkGuideSection() {
+  const modes = [
+    {
+      label: "항상 자동",
+      title: "계정 안내",
+      desc: "학생·학부모 가입 안내와 비밀번호 변경 안내는 계정 처리와 함께 발송됩니다.",
+      tone: "system",
+      icon: Settings2,
+    },
+    {
+      label: "설정 후 자동",
+      title: "클리닉·답변 안내",
+      desc: "클리닉 예약·변경·입실과 질문 답변 등 승인 양식과 설정이 준비된 항목만 자동으로 발송합니다.",
+      tone: "configured",
+      icon: BellRing,
+    },
+    {
+      label: "확인 후 직접",
+      title: "출결·성적·수업 결과",
+      desc: "기본은 선생님이 대상, 학생별 최종 문구와 제외 대상을 확인한 뒤 직접 발송합니다.",
+      tone: "manual",
+      icon: UserCheck,
+    },
+  ] as const;
+
+  return (
+    <section id="alimtalk-guide" className={styles.alimtalkGuideSection} aria-labelledby="alimtalk-guide-title">
+      <div className={styles.sectionWrap}>
+        <header className={styles.sectionHead}>
+          <span>
+            <BellRing size={16} />
+            알림톡 사용 범위
+          </span>
+          <h2 id="alimtalk-guide-title">무엇이 자동이고, 무엇을 선생님이 확인하는지 구분했습니다</h2>
+          <p>
+            모든 안내를 자동으로 보내지 않습니다. 계정 안내, 설정된 자동 안내,
+            선생님 확인이 필요한 수업 안내를 서로 다른 방식으로 처리합니다.
+          </p>
+        </header>
+
+        <div className={styles.alimtalkGuideLayout}>
+          <div className={styles.alimtalkModeList}>
+            {modes.map((mode) => {
+              const Icon = mode.icon;
+              return (
+                <article key={mode.label} data-tone={mode.tone}>
+                  <span className={styles.alimtalkModeIcon}>
+                    <Icon size={19} />
+                  </span>
+                  <div>
+                    <span>{mode.label}</span>
+                    <h3>{mode.title}</h3>
+                    <p>{mode.desc}</p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className={styles.alimtalkPreviewBoard}>
+            <div className={styles.alimtalkPreviewSteps}>
+              <span>직접 발송 화면</span>
+              <ol>
+                <li>
+                  <strong>01</strong>
+                  <div>
+                    <span>대상 확인</span>
+                    <p>발송 가능 인원과 연락처 없음·대상 변경으로 제외된 인원을 구분합니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <strong>02</strong>
+                  <div>
+                    <span>학생별 미리보기</span>
+                    <p>학생을 누르면 이름·강의·차시가 들어간 실제 최종 문구로 바뀝니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <strong>03</strong>
+                  <div>
+                    <span>확인 후 발송</span>
+                    <p>대상과 학생별 최종 문구를 확인한 뒤 발송합니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <strong>04</strong>
+                  <div>
+                    <span>발송 결과 확인</span>
+                    <p>발송 요청 후 실제 성공·실패를 발송 내역에서 확인합니다.</p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div className={styles.kakaoReceivePreview} aria-label="학부모가 받는 알림톡 예시">
+              <header>
+                <span>알림톡</span>
+                <strong>학원플러스</strong>
+              </header>
+              <div>
+                <span>출석 안내</span>
+                <p>
+                  홍길동 학생의 출석 안내입니다.
+                  <br />
+                  강의&nbsp;&nbsp;수학 심화반
+                  <br />
+                  차시&nbsp;&nbsp;3회차
+                  <br />
+                  날짜&nbsp;&nbsp;7월 26일
+                  <br />
+                  시간&nbsp;&nbsp;14:00
+                </p>
+                <small>학생 이름·강의·차시·날짜·시간은 기록에서 자동으로 채워집니다.</small>
+              </div>
+              <footer>
+                <MessageSquareText size={14} />
+                학부모가 카카오톡에서 받는 형태
+              </footer>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.alimtalkBoundary}>
+          <Eye size={18} />
+          <p>
+            <strong>발송 전 미리보기는 제공합니다.</strong>
+            현재 ‘내 번호로 테스트 받아보기’는 별도 기능으로 제공하지 않습니다.
+            학생별 최종 문구를 화면에서 확인한 뒤 발송하고, 실제 성공·실패는 발송 내역에서 확인합니다.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function FeaturesPage() {
   return (
@@ -352,6 +542,8 @@ export default function FeaturesPage() {
         </div>
       </section>
 
+      <AlimtalkGuideSection />
+
       <section className={styles.catalogSection} aria-labelledby="feature-catalog-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
@@ -386,6 +578,18 @@ export default function FeaturesPage() {
                         <p>{group.body}</p>
                       </div>
                     </div>
+                    <ol className={styles.featureWorkflow} aria-label={`${group.title} 사용 흐름`}>
+                      {(FEATURE_WORKFLOWS[group.id] ?? []).map((step, index) => (
+                        <li key={step.title}>
+                          <span>{String(index + 1).padStart(2, "0")}</span>
+                          <div>
+                            <small>{step.mode}</small>
+                            <strong>{step.title}</strong>
+                            <p>{step.desc}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
                     <div className={styles.featureGrid}>
                       {group.items.map((item) => (
                         <div key={item.title} className={styles.featureItem}>

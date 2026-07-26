@@ -228,6 +228,7 @@
 }
 
 .proofSection,
+.alimtalkGuideSection,
 .catalogSection,
 .workflowSection,
 .faqSection {
@@ -236,6 +237,268 @@
 
 .proofSection {
   background: #f4f8f8;
+}
+
+.alimtalkGuideSection {
+  color: #eef6ff;
+  background:
+    linear-gradient(rgba(125, 211, 252, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.055) 1px, transparent 1px),
+    #101c2e;
+  background-size: 32px 32px;
+}
+
+.alimtalkGuideSection .sectionHead {
+  max-width: 900px;
+}
+
+.alimtalkGuideSection .sectionHead span {
+  color: #91ddff;
+}
+
+.alimtalkGuideSection .sectionHead h2 {
+  color: #fff;
+}
+
+.alimtalkGuideSection .sectionHead p {
+  color: rgba(232, 241, 250, 0.72);
+}
+
+.alimtalkGuideLayout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.72fr) minmax(560px, 1.28fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.alimtalkModeList {
+  display: grid;
+  gap: 10px;
+}
+
+.alimtalkModeList article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  padding: 17px;
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.alimtalkModeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  color: #9de6ff;
+  background: rgba(125, 211, 252, 0.11);
+}
+
+.alimtalkModeList article[data-tone="configured"] .alimtalkModeIcon {
+  color: #85e5c0;
+  background: rgba(86, 204, 153, 0.12);
+}
+
+.alimtalkModeList article[data-tone="manual"] .alimtalkModeIcon {
+  color: #ffd78b;
+  background: rgba(255, 190, 75, 0.12);
+}
+
+.alimtalkModeList article div > span {
+  color: #8ed8f8;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.alimtalkModeList article[data-tone="configured"] div > span {
+  color: #85e5c0;
+}
+
+.alimtalkModeList article[data-tone="manual"] div > span {
+  color: #ffd78b;
+}
+
+.alimtalkModeList h3 {
+  margin: 4px 0 0;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.alimtalkModeList p {
+  margin: 7px 0 0;
+  color: rgba(232, 241, 250, 0.66);
+  font-size: 12px;
+  line-height: 1.62;
+  word-break: keep-all;
+}
+
+.alimtalkPreviewBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.075);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.18);
+}
+
+.alimtalkPreviewSteps {
+  min-width: 0;
+}
+
+.alimtalkPreviewSteps > span {
+  display: block;
+  margin-bottom: 14px;
+  color: #8ed8f8;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.alimtalkPreviewSteps ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alimtalkPreviewSteps li {
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr);
+  gap: 11px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.alimtalkPreviewSteps li > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(142, 216, 248, 0.28);
+  border-radius: 50%;
+  color: #8ed8f8;
+  font-size: 9px;
+}
+
+.alimtalkPreviewSteps li div > span {
+  color: #f8fbff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.alimtalkPreviewSteps p {
+  margin: 4px 0 0;
+  color: rgba(232, 241, 250, 0.6);
+  font-size: 11px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.kakaoReceivePreview {
+  align-self: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  color: #172133;
+  background: #b8cee1;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+}
+
+.kakaoReceivePreview header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 13px;
+  background: #f7d94c;
+}
+
+.kakaoReceivePreview header span {
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #5c4e0a;
+  font-size: 9px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.kakaoReceivePreview header strong {
+  font-size: 11px;
+}
+
+.kakaoReceivePreview > div {
+  margin: 13px;
+  border-radius: 9px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(39, 58, 80, 0.12);
+}
+
+.kakaoReceivePreview > div > span {
+  display: block;
+  color: #7a5f00;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.kakaoReceivePreview > div p {
+  margin: 9px 0 0;
+  color: #2b3544;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.kakaoReceivePreview > div small {
+  display: block;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid #edf0f3;
+  color: #76808f;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.kakaoReceivePreview footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 12px 12px;
+  color: #40556a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.alimtalkBoundary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: 14px;
+  border: 1px solid rgba(255, 215, 139, 0.24);
+  border-radius: 11px;
+  padding: 14px 16px;
+  color: #ffd78b;
+  background: rgba(255, 190, 75, 0.075);
+}
+
+.alimtalkBoundary p {
+  margin: 0;
+  color: rgba(248, 243, 228, 0.73);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.alimtalkBoundary strong {
+  margin-right: 5px;
+  color: #fff2d4;
 }
 
 .catalogSection,
@@ -496,6 +759,65 @@
   font-size: 30px;
 }
 
+.featureWorkflow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 24px 0 0;
+  padding: 0;
+  border-top: 1px solid #dfe7ea;
+  border-bottom: 1px solid #dfe7ea;
+  list-style: none;
+}
+
+.featureWorkflow li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  min-width: 0;
+  padding: 17px 14px;
+  border-right: 1px solid #dfe7ea;
+}
+
+.featureWorkflow li:last-child {
+  border-right: 0;
+}
+
+.featureWorkflow li > span {
+  color: #77909b;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.featureWorkflow li div {
+  min-width: 0;
+}
+
+.featureWorkflow small {
+  display: block;
+  color: #0a878d;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.featureWorkflow strong {
+  display: block;
+  margin-top: 5px;
+  color: #1d2d37;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.featureWorkflow p {
+  margin: 7px 0 0;
+  color: #64737d;
+  font-size: 10px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
 .featureGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -702,6 +1024,7 @@
   .heroInner,
   .catalogLayout,
   .workflowLayout,
+  .alimtalkGuideLayout,
   .faqShell {
     grid-template-columns: 1fr;
   }
@@ -731,6 +1054,18 @@
   .rangeGrid,
   .proofGrid {
     grid-template-columns: 1fr;
+  }
+
+  .featureWorkflow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .featureWorkflow li:nth-child(2) {
+    border-right: 0;
+  }
+
+  .featureWorkflow li:nth-child(-n + 2) {
+    border-bottom: 1px solid #dfe7ea;
   }
 
   .proofCardFeatured {
@@ -784,11 +1119,13 @@
 
   .miniProofGrid,
   .featureGrid,
+  .featureWorkflow,
   .processList {
     grid-template-columns: 1fr;
   }
 
   .proofSection,
+  .alimtalkGuideSection,
   .catalogSection,
   .workflowSection,
   .faqSection {
@@ -806,6 +1143,24 @@
   .proofPhoneVisual img {
     max-width: min(320px, 100%);
     height: auto;
+  }
+
+  .alimtalkPreviewBoard {
+    grid-template-columns: 1fr;
+  }
+
+  .kakaoReceivePreview {
+    max-width: 360px;
+  }
+
+  .featureWorkflow li,
+  .featureWorkflow li:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid #dfe7ea;
+  }
+
+  .featureWorkflow li:last-child {
+    border-bottom: 0;
   }
 
   .proofText,
