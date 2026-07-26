@@ -77,7 +77,11 @@ test.describe("promo business readiness", () => {
 
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(5600);
 
-    await page.goto(`${BASE}/promo/matchup-ppt`, { waitUntil: "load" });
+    const workflowCards = page.locator("a[data-workflow-card]");
+    await expect(workflowCards).toHaveCount(4);
+    const materialCard = page.locator('a[data-workflow-card="tools"]');
+    await materialCard.getByRole("heading", { name: "자료 제작" }).click();
+    await expect(page).toHaveURL(`${BASE}/promo/matchup-ppt`);
     await expect(page.getByText(/매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교/).first()).toBeVisible();
     await expect(page.getByText(/PPT 생성기는 자료를 PDF 문항으로 나누거나 준비한 이미지별로 배치해/).first()).toBeVisible();
   });
@@ -211,9 +215,10 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByRole("heading", { name: "8월에 가입하면 월 159,000원이 계속 적용됩니다" }),
+      page.getByRole("heading", { name: "8월 가입 월 145,000원 (부가세 별도)" }),
     ).toBeVisible();
-    await expect(page.getByText(/서비스를 이용하는 동안 월 159,000원이 계속 적용/).first()).toBeVisible();
+    await expect(page.getByText(/부가세 포함 실제 월 결제 금액은 159,000원/).first()).toBeVisible();
+    await expect(page.getByText(/실제 월 결제 159,000원이 이용 기간 동안 계속 적용/).first()).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });
 

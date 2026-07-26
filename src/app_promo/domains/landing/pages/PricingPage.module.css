@@ -54,6 +54,15 @@
   text-wrap: balance;
 }
 
+.hero h1 small {
+  display: block;
+  margin-top: 14px;
+  color: #a5f3fc;
+  font-size: 0.34em;
+  font-weight: 880;
+  letter-spacing: -0.02em;
+}
+
 .hero p {
   max-width: 670px;
   margin: 0;
@@ -158,6 +167,14 @@
   color: rgba(248, 250, 252, 0.76);
   font-size: 12px;
   font-weight: 800;
+}
+
+.priceBrief .taxAside {
+  display: block;
+  margin-top: 8px;
+  color: #a5f3fc;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .priceBrief p {
@@ -351,11 +368,35 @@
   font-weight: 800;
 }
 
-.priceLine strong {
+.priceLine > strong {
   color: inherit;
   font-size: 44px;
   font-weight: 940;
   line-height: 1;
+}
+
+.paymentTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+  padding-top: 15px;
+}
+
+.paymentTotal span {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.64);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.paymentTotal strong {
+  flex: 0 0 auto;
+  color: #bae6fd;
+  font-size: 20px;
+  font-weight: 930;
 }
 
 .priceLine span {
@@ -630,8 +671,14 @@
     margin-bottom: 18px;
   }
 
-  .priceLine strong {
+  .priceLine > strong {
     font-size: 38px;
+  }
+
+  .paymentTotal {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .planSpecs {

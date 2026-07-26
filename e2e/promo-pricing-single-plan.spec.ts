@@ -29,12 +29,16 @@ test("pricing presents one plan with clear August terms and separate-cost bounda
   });
 
   await expect(
-    page.getByRole("heading", { name: "8월에 가입하면 월 159,000원이 계속 적용됩니다" }),
+    page.getByRole("heading", { name: "8월 가입 월 145,000원 (부가세 별도)" }),
   ).toBeVisible();
-  await expect(page.getByText("2026년 8월 가입 월 159,000원", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("2026년 8월 가입 월 145,000원 (부가세 별도)", { exact: true }).first(),
+  ).toBeVisible();
   await expect(page.getByText("기본 월 요금", { exact: true })).toBeVisible();
-  await expect(page.getByText("기본 요금과 월 39,000원 차이", { exact: true })).toBeVisible();
-  await expect(page.getByText(/서비스를 이용하는 동안 월 159,000원이 계속 적용/).first()).toBeVisible();
+  await expect(page.getByText("기본 요금 대비", { exact: true })).toBeVisible();
+  await expect(page.getByText("월 39,000원 낮음", { exact: true })).toBeVisible();
+  await expect(page.getByText(/부가세 포함 실제 월 결제 금액은 159,000원/).first()).toBeVisible();
+  await expect(page.getByText(/실제 월 결제 159,000원이 이용 기간 동안 계속 적용/).first()).toBeVisible();
   await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
 
   const plans = page.locator("article[data-plan]");
@@ -43,7 +47,9 @@ test("pricing presents one plan with clear August terms and separate-cost bounda
   await expect(plans.getByRole("heading", { name: "학원플러스 기본 요금" })).toBeVisible();
   await expect(plans).toContainText("기본 월 198,000원");
   await expect(plans).toContainText("공급가 180,000원 + 부가가치세 18,000원");
-  await expect(plans).toContainText("159,000원 / 월");
+  await expect(plans).toContainText("145,000원 / 월");
+  await expect(plans).toContainText("(부가세 별도)");
+  await expect(plans).toContainText("부가세 14,000원 포함 실제 월 결제159,000원");
   await expect(plans).toContainText("기본 요금 대비 월 39,000원 차이");
   await expect(plans).toContainText("수강생학생 수에 따른 추가 요금 없음");
   await expect(plans).toContainText("계정계정 수에 따른 추가 요금 없음");
@@ -52,12 +58,12 @@ test("pricing presents one plan with clear August terms and separate-cost bounda
     "평소 월 요금보다 39,000원 낮습니다",
   );
   await expect(plans).toContainText(
-    "2026년 8월 1일부터 31일까지 가입한 학원은 서비스를 이용하는 동안 월 159,000원이 계속 적용됩니다.",
+    "2026년 8월 1일부터 31일까지 가입한 학원은 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 이용 기간 동안 계속 적용됩니다.",
   );
   await expect(page.getByText(/알림톡 발송비, 저장공간 초과, 대량 데이터 이전, 커스텀 개발은 별도 협의/)).toBeVisible();
 
   await expect(page.getByText(/Standard|Pro|Max/, { exact: false })).toHaveCount(0);
-  await expect(page).toHaveTitle("요금 안내 | 기본 198,000원 · 8월 가입 159,000원 | 학원플러스");
+  await expect(page).toHaveTitle("요금 안내 | 8월 가입 월 145,000원(부가세 별도) | 학원플러스");
 });
 
 test("null VAT metadata preserves the fixed single-plan breakdown", () => {

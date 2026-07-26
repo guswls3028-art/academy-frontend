@@ -302,7 +302,7 @@ const START_POINTS = [
   {
     icon: ShieldCheck,
     title: "월 요금과 별도 비용을 안내합니다",
-    copy: "평소 월 요금은 198,000원입니다. 2026년 8월에 가입하면 이용하는 동안 월 159,000원이 계속 적용됩니다.",
+    copy: "평소 월 결제 금액은 198,000원입니다. 2026년 8월 가입 시 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 계속 적용됩니다.",
   },
 ];
 
@@ -588,26 +588,33 @@ function StrengthSection() {
             const Icon = workflow.icon;
             return (
               <article key={workflow.id} data-tone={workflow.tone}>
-                <div className={styles.strengthIndex}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <Icon size={ICON.lg} aria-hidden="true" />
-                </div>
-                <h3>{workflow.label}</h3>
-                <p>{workflow.summary}</p>
-                <ol className={styles.responsibilityFlow}>
-                  {workflow.stages.map((stage) => (
-                    <li key={stage.title}>
-                      <span>{stage.mode}</span>
-                      <div>
-                        <strong>{stage.title}</strong>
-                        <p>{stage.copy}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <Link to={workflow.href}>
-                  {workflow.cta}
-                  <ArrowRight size={ICON.sm} aria-hidden="true" />
+                <Link
+                  to={workflow.href}
+                  className={styles.strengthCardLink}
+                  data-workflow-card={workflow.id}
+                  aria-label={`${workflow.label} 상세 보기`}
+                >
+                  <div className={styles.strengthIndex}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <Icon size={ICON.lg} aria-hidden="true" />
+                  </div>
+                  <h3>{workflow.label}</h3>
+                  <p>{workflow.summary}</p>
+                  <ol className={styles.responsibilityFlow}>
+                    {workflow.stages.map((stage) => (
+                      <li key={stage.title}>
+                        <span>{stage.mode}</span>
+                        <div>
+                          <strong>{stage.title}</strong>
+                          <p>{stage.copy}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <span className={styles.strengthCardAction}>
+                    {workflow.cta}
+                    <ArrowRight size={ICON.sm} aria-hidden="true" />
+                  </span>
                 </Link>
               </article>
             );

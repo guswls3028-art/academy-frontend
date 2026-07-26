@@ -6,6 +6,9 @@ import {
   AUGUST_PRICE_GUARANTEE,
   AUGUST_PROMOTION_LABEL,
   AUGUST_MONTHLY_SAVINGS,
+  AUGUST_MONTHLY_SUPPLY_AMOUNT,
+  AUGUST_MONTHLY_TAX_AMOUNT,
+  AUGUST_MONTHLY_TOTAL_AMOUNT,
   PRICE_POLICY_NOTES,
   PROMO_PLANS,
   STANDARD_MONTHLY_TOTAL_AMOUNT,
@@ -29,10 +32,13 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>{AUGUST_PROMOTION_LABEL}</span>
-            <h1 id="pricing-title">8월에 가입하면 월 159,000원이 계속 적용됩니다</h1>
+            <h1 id="pricing-title">
+              8월 가입 월 {formatWon(AUGUST_MONTHLY_SUPPLY_AMOUNT)}원
+              <small>(부가세 별도)</small>
+            </h1>
             <p>
-              가입 기간은 2026년 8월 1일부터 31일까지입니다. 평소 요금은 월 198,000원이며,
-              포함 기능과 별도 비용은 아래에서 확인할 수 있습니다.
+              가입 기간은 2026년 8월 1일부터 31일까지입니다. 부가세 포함 실제 월 결제 금액은
+              {" "}{formatWon(AUGUST_MONTHLY_TOTAL_AMOUNT)}원이며, 서비스를 이용하는 동안 계속 적용됩니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -47,14 +53,17 @@ export default function PricingPage() {
               <span>기본 월 요금</span>
               <strong>{formatWon(STANDARD_MONTHLY_TOTAL_AMOUNT)}원</strong>
             </div>
-            <span>8월 가입 월 요금</span>
-            <strong>159,000원</strong>
-            <span className={styles.priceDifference}>기본 요금과 월 {formatWon(AUGUST_MONTHLY_SAVINGS)}원 차이</span>
-            <p>부가가치세 포함 · 서비스를 이용하는 동안 유지</p>
+            <span>8월 가입 월 공급가</span>
+            <strong>{formatWon(AUGUST_MONTHLY_SUPPLY_AMOUNT)}원</strong>
+            <span className={styles.taxAside}>(부가세 별도)</span>
+            <span className={styles.priceDifference}>
+              부가세 {formatWon(AUGUST_MONTHLY_TAX_AMOUNT)}원 · 월 결제 {formatWon(AUGUST_MONTHLY_TOTAL_AMOUNT)}원
+            </span>
+            <p>2026년 8월 가입 시 서비스를 이용하는 동안 유지됩니다.</p>
             <dl>
               <div>
-                <dt>월 결제 금액</dt>
-                <dd>159,000원</dd>
+                <dt>기본 요금 대비</dt>
+                <dd>월 {formatWon(AUGUST_MONTHLY_SAVINGS)}원 낮음</dd>
               </div>
             </dl>
           </aside>
@@ -93,9 +102,15 @@ export default function PricingPage() {
                     </small>
                   </div>
                   <div className={styles.savingsLine}>기본 요금 대비 월 {formatWon(plan.monthlySavings)}원 차이</div>
-                  <strong>{formatWon(plan.monthlyTotalAmount)}</strong>
+                  <strong>{formatWon(plan.monthlySupplyAmount)}</strong>
                   <span>원 / 월</span>
-                  <small>부가가치세 포함</small>
+                  <small>(부가세 별도)</small>
+                  <div className={styles.paymentTotal}>
+                    <span>
+                      부가세 {formatWon(plan.monthlyTaxAmount)}원 포함 실제 월 결제
+                    </span>
+                    <strong>{formatWon(plan.monthlyTotalAmount)}원</strong>
+                  </div>
                 </div>
 
                 <div className={styles.guaranteeBox}>

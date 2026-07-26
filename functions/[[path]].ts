@@ -66,8 +66,8 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
   },
   "/promo/pricing": {
-    title: "요금 안내 | 기본 198,000원 · 8월 가입 159,000원 | 학원플러스",
-    description: "평소 월 198,000원이며, 2026년 8월에 가입하면 이용하는 동안 월 159,000원이 계속 적용됩니다.",
+    title: "요금 안내 | 8월 가입 월 145,000원(부가세 별도) | 학원플러스",
+    description: "2026년 8월 가입 시 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 이용 기간 동안 계속 적용됩니다.",
   },
   "/promo/faq": {
     title: "자주 묻는 질문 | 학원플러스",
@@ -441,7 +441,7 @@ function injectMeta(
         price: "159000",
         priceCurrency: "KRW",
         priceValidUntil: "2026-08-31",
-        description: "평소 월 198,000원. 2026년 8월 가입 학원은 이용 기간 동안 월 159,000원 유지. 안내된 기능 및 200GB 저장공간 포함",
+        description: "2026년 8월 가입 학원은 공급가 월 145,000원(부가세 별도), 실제 결제 159,000원이 이용 기간 동안 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
       },
     });
     html = html.replace(

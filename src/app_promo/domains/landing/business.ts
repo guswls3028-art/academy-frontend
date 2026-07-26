@@ -3,13 +3,17 @@
 const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
 export const CONSULT_PHONE_LABEL = "전화 문의";
-export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 월 159,000원";
+export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
+export const AUGUST_MONTHLY_TAX_AMOUNT = 14000;
+export const AUGUST_MONTHLY_TOTAL_AMOUNT = 159000;
+export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 월 145,000원 (부가세 별도)";
 export const STANDARD_MONTHLY_SUPPLY_AMOUNT = 180000;
 export const STANDARD_MONTHLY_TAX_AMOUNT = 18000;
 export const STANDARD_MONTHLY_TOTAL_AMOUNT = 198000;
-export const AUGUST_MONTHLY_SAVINGS = 39000;
+export const AUGUST_MONTHLY_SAVINGS =
+  STANDARD_MONTHLY_TOTAL_AMOUNT - AUGUST_MONTHLY_TOTAL_AMOUNT;
 export const AUGUST_PRICE_GUARANTEE =
-  "2026년 8월 1일부터 31일까지 가입한 학원은 서비스를 이용하는 동안 월 159,000원이 계속 적용됩니다.";
+  "2026년 8월 1일부터 31일까지 가입한 학원은 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 이용 기간 동안 계속 적용됩니다.";
 
 export function getConsultPhoneTelHref() {
   return `tel:${CONSULT_PHONE_PARTS.join("")}`;
@@ -17,7 +21,7 @@ export function getConsultPhoneTelHref() {
 
 export const PRICE_POLICY_NOTES = [
   "평소 요금은 월 공급가 180,000원, 부가가치세 18,000원(10%), 총 198,000원입니다.",
-  "2026년 8월 가입 적용 요금은 부가가치세 포함 월 159,000원입니다.",
+  "2026년 8월 가입 적용 요금은 월 공급가 145,000원, 부가가치세 14,000원, 총 159,000원입니다.",
   AUGUST_PRICE_GUARANTEE,
   "안내된 기능을 모두 이용할 수 있으며, 수강생 수나 계정 수에 따른 추가 요금은 없습니다.",
   "기본 저장공간은 200GB입니다. 추가 저장공간이 필요하면 별도 협의합니다.",
@@ -51,15 +55,15 @@ export const PROMO_PLANS: PromoPlanDef[] = [
   {
     name: "학원플러스 기본 요금",
     key: "all",
-    monthlySupplyAmount: 145000,
-    monthlyTaxAmount: 14000,
-    monthlyTotalAmount: 159000,
+    monthlySupplyAmount: AUGUST_MONTHLY_SUPPLY_AMOUNT,
+    monthlyTaxAmount: AUGUST_MONTHLY_TAX_AMOUNT,
+    monthlyTotalAmount: AUGUST_MONTHLY_TOTAL_AMOUNT,
     standardMonthlySupplyAmount: STANDARD_MONTHLY_SUPPLY_AMOUNT,
     standardMonthlyTaxAmount: STANDARD_MONTHLY_TAX_AMOUNT,
     standardMonthlyTotalAmount: STANDARD_MONTHLY_TOTAL_AMOUNT,
     monthlySavings: AUGUST_MONTHLY_SAVINGS,
     target: "2026년 8월 1일~31일 가입 학원",
-    positioning: "2026년 8월 가입 월 요금",
+    positioning: "2026년 8월 가입 월 공급가",
     verdict: "평소 월 요금보다 39,000원 낮습니다",
     studentLimit: "학생 수에 따른 추가 요금 없음",
     adminLimit: "계정 수에 따른 추가 요금 없음",
