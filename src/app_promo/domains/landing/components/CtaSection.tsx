@@ -1,5 +1,6 @@
 // PATH: src/app_promo/domains/landing/components/CtaSection.tsx
 import { Link } from "react-router-dom";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 import PhoneInquiryLink from "./PhoneInquiryLink";
 import styles from "./CtaSection.module.css";
 
@@ -27,7 +28,7 @@ export default function CtaSection({
           <Link to={secondaryPath}>{secondaryLabel}</Link>
         </div>
         <p className={styles.phoneNote}>
-          전화가 편하시면 <PhoneInquiryLink>전화로 문의</PhoneInquiryLink>하실 수 있습니다.
+          전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
         </p>
       </div>
     </section>

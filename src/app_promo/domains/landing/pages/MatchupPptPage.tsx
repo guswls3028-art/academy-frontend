@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./MatchupPptPage.module.css";
@@ -109,7 +110,7 @@ const TOOL_GUIDES = [
     id: "matchup",
     timing: "시험 후",
     title: "매치업",
-    body: "실제 시험지와 학원 사전 자료를 문항 단위로 비교해, 우리 학원이 미리 대비한 유사 문제의 근거를 남깁니다.",
+    body: "학교 시험지와 우리 학원 사전 자료를 문항 단위로 비교해 유사 출제 근거를 남깁니다.",
     steps: GUIDE_STEPS.slice(0, 2),
   },
   {
@@ -127,7 +128,7 @@ const TOOL_ROUTES = [
     icon: ScanSearch,
     timing: "시험 후",
     title: "매치업",
-    body: "실제 시험과 사전 대비 자료의 유사 문항을 확인합니다.",
+    body: "학교 시험지와 우리 학원 사전 자료의 유사 문항을 확인합니다.",
     steps: ["문항 자동 분리", "유사 후보 제공", "선생님 확정"],
   },
   {
@@ -188,7 +189,7 @@ export default function MatchupPptPage() {
               <em>수업자료는 칠판용 PPT로 준비합니다</em>
             </h1>
             <p>
-              매치업은 실제 시험지와 사전 대비 자료를 문항별로 나눠 유사 후보를 제시합니다.
+              매치업은 학교 시험지와 우리 학원 사전 자료를 문항별로 비교해 유사 출제 근거를 정리합니다.
               칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다.
             </p>
             <div className={styles.heroToolGrid} aria-label="두 가지 핵심 자료 도구">
@@ -209,7 +210,7 @@ export default function MatchupPptPage() {
                 <MousePointer2 size={18} />
               </Link>
               <PhoneInquiryLink className={styles.secondaryButton}>
-                전화로 문의
+                전화 상담 {CONSULT_PHONE_DISPLAY}
               </PhoneInquiryLink>
             </div>
           </div>

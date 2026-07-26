@@ -12,6 +12,7 @@ import {
   MousePointer2,
   Smartphone,
 } from "lucide-react";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
@@ -126,7 +127,9 @@ export default function ParentTrustPage() {
                 <ArrowRight size={18} />
               </Link>
             </div>
-            <p className={styles.heroPhone}>전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink></p>
+            <p className={styles.heroPhone}>
+              전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
+            </p>
           </div>
 
           <HeroReportPreview />

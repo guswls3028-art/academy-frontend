@@ -65,8 +65,10 @@ test.describe("promo business readiness", () => {
 
     await categoryTabs.getByRole("tab", { name: /PPT · 매치업/ }).click();
     const toolsPanel = page.getByRole("tabpanel");
-    await expect(toolsPanel.getByRole("heading", { name: "적중 근거를 정리하고 칠판용 PPT를 만듭니다" })).toBeVisible();
-    await expect(toolsPanel.getByText(/문항별로 나눠 유사 후보를 제시/)).toBeVisible();
+    await expect(
+      toolsPanel.getByRole("heading", { name: "학교 시험지와 학원 자료를 비교하고 칠판용 PPT를 만듭니다" }),
+    ).toBeVisible();
+    await expect(toolsPanel.getByText(/학교 시험지와 우리 학원 사전 자료를 문항별로 비교/)).toBeVisible();
     await expect(toolsPanel.getByText("매치업", { exact: true }).first()).toBeVisible();
     await expect(toolsPanel.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
 
@@ -93,6 +95,7 @@ test.describe("promo business readiness", () => {
     await expect(page.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/문항 자동 분리 · 유사 후보 · 선생님 확정/).first()).toBeVisible();
     await expect(page.getByText(/슬라이드 구성 · 흑백반전 · PPT 다운로드/).first()).toBeVisible();
+    await expect(page.getByText(/유사 출제 근거를 정리합니다/).first()).toBeVisible();
   });
 
   test("orders the full feature guide around operations, video, communication, homepage, then tools", async ({ page }) => {
@@ -155,6 +158,8 @@ test.describe("promo business readiness", () => {
     });
     await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().click();
     await expect(page).toHaveURL(/\/promo\/demo$/);
+    await expect(page.getByRole("link", { name: "전화 문의하기" }).first()).toContainText("010-3121-7466");
+    await expect(page.getByText(/상담 후 사용할 기능과 시작일을 확인하고 계정을 설정/)).toBeVisible();
 
     await page.getByLabel("이름 *").fill("홍길동");
     await page.getByLabel("소속/수업명 *").fill("대치 고2 수학");
@@ -188,6 +193,8 @@ test.describe("promo business readiness", () => {
     expect(payload.message).toContain("utm_campaign=teacher-ppt");
 
     await page.goto(`${BASE}/promo/contact`, { waitUntil: "load" });
+    await expect(page.getByRole("link", { name: "전화 문의하기" }).first()).toContainText("010-3121-7466");
+    await expect(page.getByText(/기능과 시작일을 확인한 뒤 학원 계정을 설정/).first()).toBeVisible();
     await expect(
       page.getByText(
         /이름, 연락처, 문의 유형, 문의 내용\(필수\).*이메일, 소속\/수업명, 담당 수강생 수, 유입 정보\(선택\)/,
@@ -275,6 +282,7 @@ test.describe("promo business readiness", () => {
     const close = sidebar.getByRole("button", { name: "메뉴 닫기" });
     const brand = sidebar.getByRole("link", { name: "학원플러스 프로모션 홈" });
     const phone = sidebar.getByRole("link", { name: "전화 문의하기" });
+    await expect(phone).toContainText("010-3121-7466");
     await expect(close).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");

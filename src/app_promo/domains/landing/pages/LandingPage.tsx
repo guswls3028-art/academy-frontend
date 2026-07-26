@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./LandingPage.module.css";
@@ -91,8 +92,8 @@ const HERO_CATEGORIES: HeroCategory[] = [
     id: "tools",
     label: "PPT · 매치업",
     navCopy: "수업자료 준비·적중 근거",
-    title: "적중 근거를 정리하고 칠판용 PPT를 만듭니다",
-    copy: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 실제 시험지와 사전 자료를 문항별로 나눠 유사 후보를 제시하며, 최종 판단은 선생님이 합니다.",
+    title: "학교 시험지와 학원 자료를 비교하고 칠판용 PPT를 만듭니다",
+    copy: "매치업은 학교 시험지와 우리 학원 사전 자료를 문항별로 비교해 유사 출제 근거를 정리합니다. 칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다.",
     image: "/promo/ppt-gaepo-setup-20260725.png",
     alt: "칠판용 PPT를 만드는 실제 화면",
     imageWidth: 1280,
@@ -283,7 +284,7 @@ const TOOL_WORKFLOWS = [
     timing: "시험 후",
     title: "매치업",
     headline: "문항 자동 분리 → 유사 후보",
-    copy: "실제 시험지와 학원 사전 자료를 문항별로 나눠 비교 후보를 제시합니다. 유사 문항과 적중 근거는 선생님이 직접 확인해 확정합니다.",
+    copy: "학교 시험지와 우리 학원 사전 자료를 문항별로 비교해 유사 후보를 보여줍니다. 선생님이 자료를 직접 확인해 유사 출제 근거를 확정합니다.",
   },
 ] as const;
 
@@ -541,7 +542,7 @@ function Hero() {
             </a>
           </div>
           <p className={styles.callLine}>
-            전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>로 현재 관리 방식을 먼저 말씀해주셔도 됩니다.
+            전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
           </p>
           <ul className={styles.heroFacts} aria-label="주요 안내">
             <li>
@@ -766,7 +767,7 @@ function FinalCta() {
           </Link>
         </div>
         <p className={styles.finalCall}>
-          전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
+          전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
         </p>
       </div>
     </section>

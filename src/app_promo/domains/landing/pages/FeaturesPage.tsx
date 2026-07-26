@@ -104,8 +104,8 @@ const PROOF_CARDS: ProofCard[] = [
   {
     id: "matchup-ppt",
     badge: "매치업·PPT 실제 화면",
-    title: "적중 근거를 정리하고 칠판용 PPT를 만듭니다",
-    body: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 시험지와 사전 자료를 문항별로 나눠 유사 후보를 보여주고, 선생님이 적중 근거를 확정하도록 돕습니다.",
+    title: "학교 시험지와 학원 자료를 비교하고 칠판용 PPT를 만듭니다",
+    body: "매치업은 학교 시험지와 우리 학원 사전 자료를 문항별로 비교해 유사 출제 근거를 정리합니다. 칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다.",
     image: "/promo/matchup-gaepo-candidates-20260725.png",
     alt: "실제 시험지 문항과 사전 자료의 유사 후보를 보여주는 매치업 실제 화면",
     imageWidth: 1280,
@@ -129,7 +129,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     id: "matchup-ppt-flow",
     title: "적중 매치업·칠판용 PPT",
     kicker: "매치업·칠판용 PPT",
-    body: "매치업은 실제 시험과 사전 대비 자료를 비교해 적중 근거를 남기고, 칠판용 PPT 도구는 수업자료를 빔프로젝터용 슬라이드로 만듭니다.",
+    body: "매치업은 학교 시험지와 우리 학원 사전 자료를 비교해 유사 출제 근거를 남기고, 칠판용 PPT 도구는 수업자료를 빔프로젝터용 슬라이드로 만듭니다.",
     icon: Presentation,
     accentBg: "#dce8ff",
     items: [

@@ -3,6 +3,7 @@
 const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
 export const CONSULT_PHONE_LABEL = "전화 문의";
+export const CONSULT_PHONE_DISPLAY = CONSULT_PHONE_PARTS.join("-");
 export const MONTHLY_VAT_RATE_PERCENT = 10;
 export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
 export const AUGUST_MONTHLY_TAX_AMOUNT = 14500;

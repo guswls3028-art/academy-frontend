@@ -5,6 +5,7 @@ import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
   AUGUST_PRICE_GUARANTEE,
   AUGUST_PROMOTION_LABEL,
+  CONSULT_PHONE_DISPLAY,
   AUGUST_MONTHLY_SUPPLY_AMOUNT,
   AUGUST_MONTHLY_TAX_AMOUNT,
   AUGUST_MONTHLY_TOTAL_AMOUNT,
@@ -68,7 +69,9 @@ export default function PricingPage() {
               9월 이후 가입 공급가는 월 18만원입니다.
             </p>
             <div className={styles.heroActions}>
-              <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
+              <PhoneInquiryLink className={styles.primaryCta}>
+                전화 상담 {CONSULT_PHONE_DISPLAY}
+              </PhoneInquiryLink>
               <Link to="/promo/demo" className={styles.secondaryCta}>
                 사용할 기능 확인
               </Link>

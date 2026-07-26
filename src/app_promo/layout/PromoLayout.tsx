@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
+import { CONSULT_PHONE_DISPLAY } from "../domains/landing/business";
 import { capturePromoAttribution } from "../domains/landing/promoAttribution";
 import { applyPromoMeta } from "../domains/landing/promoMeta";
 import styles from "./PromoLayout.module.css";
@@ -163,7 +164,7 @@ function Header() {
           <div className={styles.headerActions}>
             <PhoneInquiryLink className={styles.phoneLink}>
               <PhoneCall size={ICON.sm} />
-              전화 문의
+              {CONSULT_PHONE_DISPLAY}
             </PhoneInquiryLink>
             <Link to="/login" className={styles.loginLink}>
               <LogIn size={ICON.sm} />
@@ -253,7 +254,7 @@ function Header() {
               <PanelLeftOpen size={ICON.sm} />
             </Link>
             <PhoneInquiryLink>
-              전화 문의
+              전화 상담 {CONSULT_PHONE_DISPLAY}
               <PhoneCall size={ICON.sm} />
             </PhoneInquiryLink>
           </div>
@@ -334,7 +335,9 @@ function Footer() {
             </span>
           </Link>
           <p>수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어갑니다.</p>
-          <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
+          <PhoneInquiryLink className={styles.footerPhone}>
+            전화 상담 {CONSULT_PHONE_DISPLAY}
+          </PhoneInquiryLink>
         </div>
 
         <nav aria-label="주요 기능">
