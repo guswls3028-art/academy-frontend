@@ -12,11 +12,11 @@ import styles from "./LandingSamplesPage.module.css";
 
 const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; description: string }; config: LandingConfig }> = {
   minimal_tutor: {
-    meta: { name: "Minimal Tutor", mood: "밝음 · 깔끔 · 신뢰", description: "밝은 배경과 넓은 여백으로 깔끔한 인상을 주는 미니멀 디자인. 과외·소규모 학원에 잘 어울립니다." },
+    meta: { name: "Minimal Tutor", mood: "밝음 · 정돈 · 안내", description: "밝은 배경과 넓은 여백으로 수업 정보를 정돈해 보여주는 형식입니다." },
     config: {
       brand_name: "수학의 정석",
       tagline: "체계적인 수학 교육의 시작",
-      subtitle: "15년 경력의 전문 강사가 학생 한 명 한 명을 책임집니다. 기초부터 심화까지 체계적인 커리큘럼으로 실력을 키워갑니다.",
+      subtitle: "15년 경력의 강사가 학생별 학습 상황을 확인합니다. 기초부터 심화까지 단계에 맞춰 수업합니다.",
       primary_color: "#2563EB",
       hero_image_url: "",
       logo_url: "",
@@ -27,7 +27,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
         { type: "hero", enabled: true, order: 0 },
         { type: "features", enabled: true, order: 1, items: [
           { icon: "book", title: "체계적인 커리큘럼", description: "교과서부터 경시대회까지, 수준별 맞춤 학습 로드맵을 제공합니다" },
-          { icon: "chart", title: "실시간 성적 분석", description: "매주 실시되는 테스트와 AI 기반 취약점 분석으로 효율적인 학습" },
+          { icon: "chart", title: "성적 기록 확인", description: "정기 테스트 결과와 취약한 부분을 확인해 다음 학습에 반영합니다" },
           { icon: "users", title: "밀착 관리", description: "소수 정예 수업과 1:1 상담으로 학생 개인에 집중합니다" },
         ] },
         { type: "about", enabled: true, order: 2, title: "선생님 소개", description: "서울대학교 수학교육과를 졸업하고, 15년간 중·고등학생을 가르쳐왔습니다.\n\n학생이 수학을 '이해'하는 것을 넘어 '좋아하게' 되는 수업을 목표로 합니다." },
@@ -44,11 +44,11 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
     },
   },
   premium_dark: {
-    meta: { name: "Premium Dark", mood: "프리미엄 · 세련 · 고급", description: "네이비/다크 기반의 프리미엄 톤으로 전문성과 고급스러움을 강조합니다." },
+    meta: { name: "Premium Dark", mood: "차분 · 집중 · 전문", description: "네이비 배경과 절제된 색상으로 강의 정보와 상담 내용을 차분하게 보여줍니다." },
     config: {
       brand_name: "엘리트 영어",
-      tagline: "최상위권을 위한 영어 교육",
-      subtitle: "Top 1% 학생들이 선택하는 프리미엄 영어 전문 학원. 수능, 내신, 특목고 입시를 동시에 준비합니다.",
+      tagline: "목표에 맞춘 영어 수업",
+      subtitle: "수능, 내신과 특목고 입시를 학생의 현재 수준과 목표에 맞춰 준비합니다.",
       primary_color: "#1E3A5F",
       hero_image_url: "",
       logo_url: "",
@@ -60,27 +60,27 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
         { type: "features", enabled: true, order: 1, items: [
           { icon: "star", title: "원어민 수준 커리큘럼", description: "미국 교과서 기반 리딩과 에세이 작성 중심 수업" },
           { icon: "shield", title: "입시 전략 컨설팅", description: "학생별 맞춤 입시 전략과 로드맵 설계" },
-          { icon: "award", title: "검증된 실적", description: "매년 특목고·자사고 합격생 다수 배출" },
+          { icon: "award", title: "학습 기록 관리", description: "시험 결과와 상담 내용을 바탕으로 다음 학습 계획을 조정합니다" },
         ] },
         { type: "programs", enabled: true, order: 2, items: [
-          { title: "수능 영어 마스터", description: "수능 영어 1등급을 위한 체계적 학습 프로그램", badge: "BEST" },
-          { title: "내신 완성반", description: "학교별 맞춤 내신 대비와 서술형 특강", badge: "NEW" },
+          { title: "수능 영어 과정", description: "수능 영어 목표 등급에 맞춘 학습 과정", badge: "수능" },
+          { title: "내신 대비반", description: "학교별 시험 범위와 서술형을 준비하는 과정", badge: "내신" },
           { title: "특목고 대비반", description: "입학 시험 대비 집중 프로그램", badge: "" },
         ] },
         { type: "testimonials", enabled: true, order: 3, items: [
-          { name: "박OO", text: "영어 1등급을 놓친 적이 없습니다. 체계적인 관리 덕분입니다.", role: "고3 학생" },
-          { name: "최OO 학부모", text: "다른 학원과 차원이 다릅니다. 아이의 변화가 눈에 보입니다.", role: "중3 학부모" },
+          { name: "박OO", text: "시험 범위와 취약 부분을 정리해 주어 공부할 순서가 분명했습니다.", role: "고3 학생" },
+          { name: "최OO 학부모", text: "수업 내용과 다음 학습 계획을 꾸준히 안내받아 아이의 상황을 이해하기 좋았습니다.", role: "중3 학부모" },
         ] },
         { type: "contact", enabled: true, order: 4 },
       ],
     },
   },
   academic_trust: {
-    meta: { name: "Academic Trust", mood: "체계 · 관리 · 성과", description: "성적 관리와 체계적 교육을 시각적으로 전달하는 신뢰형 디자인." },
+    meta: { name: "Academic Trust", mood: "체계 · 기록 · 상담", description: "성적과 수업 기록을 중심으로 교육 과정을 설명하는 형식입니다." },
     config: {
       brand_name: "정석학원",
-      tagline: "데이터로 증명하는 교육",
-      subtitle: "학생 한 명 한 명의 학습 데이터를 분석하여 최적의 학습 경로를 설계합니다.",
+      tagline: "학습 기록으로 확인하는 교육",
+      subtitle: "학생별 학습 기록을 확인하고 현재 수준과 목표에 맞춰 다음 학습 계획을 세웁니다.",
       primary_color: "#4F46E5",
       hero_image_url: "",
       logo_url: "",
@@ -90,10 +90,10 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
       sections: [
         { type: "hero", enabled: true, order: 0 },
         { type: "features", enabled: true, order: 1, items: [
-          { icon: "chart", title: "AI 성적 분석", description: "매주 자동 성적 분석 리포트를 학부모에게 전송합니다" },
+          { icon: "chart", title: "성적 기록 확인", description: "정기 시험 결과와 취약 문항을 확인합니다" },
           { icon: "clock", title: "출석 관리", description: "실시간 출석 알림과 학습 시간 관리" },
-          { icon: "check", title: "클리닉 시스템", description: "오답 분석 기반 맞춤형 보강 수업 자동 편성" },
-          { icon: "users", title: "학부모 소통", description: "상담 기록, 성적 리포트 실시간 공유" },
+          { icon: "check", title: "클리닉 관리", description: "오답과 수업 기록을 바탕으로 필요한 보강을 정합니다" },
+          { icon: "users", title: "학부모 소통", description: "상담 기록과 성적 내용을 확인해 안내합니다" },
         ] },
         { type: "about", enabled: true, order: 2, title: "교육 철학", description: "우리는 '가르치는 것'이 아니라 '학습하게 하는 것'이 교육이라고 믿습니다.\n\n모든 학생은 자신만의 속도가 있습니다. 그 속도를 존중하면서도 목표에 도달할 수 있도록 체계적으로 관리합니다." },
         { type: "faq", enabled: true, order: 3, items: [
@@ -106,7 +106,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
     },
   },
   program_promo: {
-    meta: { name: "Program Promo", mood: "홍보 · 활기 · 행동유도", description: "프로그램 소개와 CTA 중심의 활기찬 홍보형 디자인. 신규 모집에 효과적입니다." },
+    meta: { name: "Program Promo", mood: "프로그램 소개 · 명확한 안내", description: "과정별 대상과 수업 내용을 중심으로 상담 정보를 안내하는 형식입니다." },
     config: {
       brand_name: "코딩랩",
       tagline: "미래를 코딩하는 아이들",
@@ -114,7 +114,7 @@ const SAMPLE_CONFIGS: Record<TemplateKey, { meta: { name: string; mood: string; 
       primary_color: "#F97316",
       hero_image_url: "",
       logo_url: "",
-      cta_text: "무료 체험 신청",
+      cta_text: "체험 수업 문의",
       cta_link: "/login",
       contact: { phone: "070-1234-5678", email: "hello@codinglab.kr", address: "" },
       sections: [
@@ -261,14 +261,14 @@ export default function LandingSamplesPage() {
 
       <div className={styles.hero}>
         <div className={styles.badge}>
-          <span>4종 프리미엄 템플릿</span>
+          <span>4가지 홈페이지 형식</span>
         </div>
         <h1 className={styles.heroTitle}>
           선생님 전용 랜딩 페이지
         </h1>
         <p className={styles.heroCopy}>
           각 템플릿을 클릭하면 실제 페이지를 미리 볼 수 있습니다.
-          <br />설정에서 바로 적용하고 커스터마이즈할 수 있습니다.
+          <br />설정에서 형식을 선택하고 학원에 맞게 내용을 수정할 수 있습니다.
         </p>
       </div>
 
@@ -313,7 +313,7 @@ export default function LandingSamplesPage() {
 
       <div className={styles.bottomCta}>
         <h2 className={styles.bottomTitle}>마음에 드는 템플릿이 있으신가요?</h2>
-        <p className={styles.bottomCopy}>학원플러스에 가입하면 설정에서 바로 적용할 수 있습니다.</p>
+        <p className={styles.bottomCopy}>학원플러스 설정에서 홈페이지 형식을 선택해 사용할 수 있습니다.</p>
         <div className={styles.ctaActions}>
           <Link to="/promo/demo" className={styles.primaryCta}>
             데모 요청하기

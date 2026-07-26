@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/pages/DemoPage.tsx
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
@@ -8,15 +8,19 @@ import { getPromoAttributionLabel } from "../promoAttribution";
 import styles from "./LeadPage.module.css";
 
 const INTEREST_OPTIONS = [
+  "적중 매치업",
+  "칠판용 PPT",
   "수강생 관리",
   "시험/과제",
-  "AI 자동채점",
+  "자동채점·성적 관리",
   "학생앱 영상",
   "알림톡 발송",
   "보강/클리닉",
 ];
 
 export default function DemoPage() {
+  const [searchParams] = useSearchParams();
+  const matchupPptRequested = searchParams.get("interest") === "matchup-ppt";
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +33,7 @@ export default function DemoPage() {
     email: "",
     student_count: "",
     current_workflow: "",
-    interests: [] as string[],
+    interests: matchupPptRequested ? ["적중 매치업", "칠판용 PPT"] : [] as string[],
     message: "",
   });
 
@@ -77,7 +81,7 @@ export default function DemoPage() {
         <div className={styles.resultCard}>
           <span>데모 접수</span>
           <h1>데모 요청이 접수되었습니다</h1>
-          <p>보통 1영업일 이내에 연락드리며, 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
+          <p>접수 내용을 확인한 뒤 연락드리겠습니다. 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
             <Link to="/promo/pricing">요금제 보기</Link>
@@ -106,7 +110,7 @@ export default function DemoPage() {
             <h2>데모에서 확인할 내용</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면</li>
-              <li>모든 기능이 포함된 8월 가입 평생 보장가와 도입 범위</li>
+              <li>월 요금, 별도 비용과 도입 범위</li>
               <li>기존 자료 이전과 시작 일정</li>
             </ol>
             <div className={styles.callBox}>
@@ -232,7 +236,12 @@ export default function DemoPage() {
               checked={privacyAgreed}
               disabled={pending}
               onChange={setPrivacyAgreed}
+              requiredFields="이름, 소속/수업명, 연락처"
             />
+
+            <p className={styles.formNotice}>
+              시험지와 수업자료는 이 화면에 첨부하지 않습니다. 접수 후 자료를 안전하게 전달하는 방법을 안내합니다.
+            </p>
 
             {error && <div className={styles.errorBox}>{error}</div>}
 

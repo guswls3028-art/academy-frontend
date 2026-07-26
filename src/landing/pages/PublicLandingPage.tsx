@@ -87,7 +87,7 @@ export default function PublicLandingPage() {
       const titleStr = titleParts.join(" — ");
       document.title = titleStr;
 
-      const desc = [config.tagline, config.subtitle].filter(Boolean).join(" · ") || `${config.brand_name} — 학원플러스 SaaS`;
+      const desc = [config.tagline, config.subtitle].filter(Boolean).join(" · ") || `${config.brand_name} 학원 안내`;
       setMeta("description", desc);
       setMeta("og:title", titleStr);
       setMeta("og:description", desc);
@@ -151,4 +151,3 @@ function PublicLandingContent({ template: Template, initialConfig, notice }: {
     </>
   );
 }
-

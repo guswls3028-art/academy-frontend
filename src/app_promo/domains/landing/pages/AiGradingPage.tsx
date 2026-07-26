@@ -6,37 +6,37 @@ import {
   FileCheck2,
   ScanSearch,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./PromoPages.module.css";
 
 const TIERS = [
   {
-    level: "1단계",
-    title: "즉시 자동 판정",
-    body: "정답이 분명한 문항은 제출 후 자동 판정해 반복 채점 시간을 줄입니다.",
-    items: ["객관식 자동채점", "OX형 자동채점", "단답형 키워드 일치", "문항별 배점·총점 계산"],
+    level: "자동채점",
+    title: "정답이 명확한 문항",
+    body: "등록한 정답과 제출 답안을 비교해 지원되는 문항을 자동으로 채점합니다.",
+    items: ["객관식·OX형", "지원되는 수치형 단답", "복수 객관 정답", "문항별 배점·총점 계산"],
   },
   {
-    level: "2단계",
-    title: "수업 정책 반영",
-    body: "수업에서 허용할 유사 정답, 부분 점수, 복수 정답을 미리 정해둡니다.",
-    items: ["유사 정답 허용", "오탈자 허용 규칙", "복수 정답", "부분 점수 기준"],
+    level: "직접 채점",
+    title: "서술형 문항",
+    body: "서술형 답안은 선생님이 직접 확인하고 점수를 입력합니다.",
+    items: ["서술형 답안 확인", "문항별 수기 점수", "선생님 최종 확정", "수정 이력 확인"],
   },
   {
-    level: "3단계",
-    title: "AI 보조 평가",
-    body: "서술형은 AI가 초안을 제안하고, 선생님이 확인한 뒤 점수를 확정합니다.",
-    items: ["서술형 초안 점수 제안", "핵심 키워드 포함 분석", "루브릭 기반 추천", "강사용 검수 화면"],
+    level: "성적 관리",
+    title: "확정 점수와 후속 안내",
+    body: "확정한 점수는 시험·수강생별 성적 화면에서 확인하고 후속 관리에 활용합니다.",
+    items: ["시험별 점수 확인", "수강생별 결과 확인", "보강 대상 판단", "학부모 안내에 활용"],
   },
 ];
 
 const WORKFLOW = [
-  { title: "문항별 채점 방식 설정", desc: "시험을 만들 때 자동 채점, 키워드, 검수 필요 여부를 문항별로 정합니다." },
-  { title: "제출 후 자동채점 실행", desc: "분명한 문항은 자동으로 처리하고 애매한 문항은 검수 대상으로 남깁니다." },
-  { title: "이의 가능 문항 검토", desc: "유사 정답, 미응답, 부분 점수 후보를 선생님이 확인합니다." },
-  { title: "선생님 확정 후 성적 반영", desc: "최종 점수는 성적표와 수업 결과 안내에 반영됩니다." },
+  { title: "시험과 정답 등록", desc: "문항 유형, 정답과 배점을 등록합니다." },
+  { title: "답안 제출·OMR 처리", desc: "학생 답안 또는 OMR 결과를 시험에 연결합니다." },
+  { title: "지원 문항 자동채점", desc: "객관식·OX형과 지원되는 수치형 단답을 등록한 정답으로 채점합니다." },
+  { title: "서술형 확인·점수 확정", desc: "서술형은 선생님이 직접 확인하고 최종 점수를 확정합니다." },
 ];
 
 export default function AiGradingPage() {
@@ -45,15 +45,15 @@ export default function AiGradingPage() {
       <section className={`${styles.hero} ${styles.heroAi}`} aria-labelledby="ai-grading-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>채점 보조 원칙</span>
-            <h1 id="ai-grading-title">자동채점은 명확하게, 최종 판단은 선생님이 합니다</h1>
+            <span className={styles.eyebrow}>시험 채점과 성적 관리</span>
+            <h1 id="ai-grading-title">정답이 명확한 문항은 자동으로, 서술형은 선생님이 직접 채점합니다</h1>
             <p>
-              중요한 건 “AI가 다 해준다”는 말이 아닙니다. 어떤 문항은 자동 판정되고
-              어떤 문항은 선생님 확인이 필요한지 분명히 보여야 합니다.
+              객관식·OX형과 지원되는 수치형 단답은 자동채점을 지원합니다.
+              서술형 답안은 선생님이 확인하고 점수를 확정합니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryCta}>
-                채점 화면 데모 요청
+                시험·성적 화면 데모 요청
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features#exam-score" className={styles.secondaryCta}>
@@ -62,27 +62,27 @@ export default function AiGradingPage() {
             </div>
           </div>
 
-          <aside className={styles.heroProofStack} aria-label="AI 채점 화면 미리보기">
+          <aside className={styles.heroProofStack} aria-label="시험 운영 화면 미리보기">
             <figure className={styles.heroScreen}>
-              <img
-                src="/promo/admin-exams.png"
-                alt="관리자 시험 운영 화면"
+              <PromoEvidenceImage
+                src="/promo/admin-exams-authority-20260726.png"
+                alt="예시 시험 세 개의 채점 방식과 대상 수강생을 확인하는 관리자 시험 화면"
                 width={1440}
-                height={820}
+                height={900}
               />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>시험 운영</strong>
-                <span>문항 · 채점 · 검수</span>
+                <span>제품 UI · 예시 시험 3개</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
               <article>
-                <strong>명확한 문항 자동화</strong>
-                <p>객관식, OX형, 단답형은 반복 채점 시간을 줄입니다.</p>
+                <strong>지원 문항 자동채점</strong>
+                <p>객관식·OX형과 지원되는 수치형 단답을 채점합니다.</p>
               </article>
               <article>
-                <strong>서술형은 검수 구조</strong>
-                <p>AI 제안은 초안이고 최종 확정 권한은 선생님에게 있습니다.</p>
+                <strong>서술형 직접 채점</strong>
+                <p>서술형 답안과 점수는 선생님이 직접 확인합니다.</p>
               </article>
             </div>
           </aside>
@@ -96,10 +96,10 @@ export default function AiGradingPage() {
               <ShieldCheck size={16} />
               채점 범위
             </span>
-            <h2 id="ai-definition-title">홍보 문구에서 가장 조심해야 할 지점부터 분리했습니다</h2>
+            <h2 id="ai-definition-title">문항 유형에 따라 채점 방식을 구분합니다</h2>
             <p>
-              AI 자동채점은 모든 답안을 무조건 확정한다는 뜻이 아닙니다. 정답 기준이 분명한 문항은 자동으로 채점하고,
-              해석이 필요한 답안은 AI 제안 뒤에 선생님이 확인합니다.
+              자동채점이 지원되는 문항과 선생님이 직접 채점하는 문항을 나누어 관리합니다.
+              현재 제공 범위는 아래와 같습니다.
             </p>
           </header>
 
@@ -131,14 +131,14 @@ export default function AiGradingPage() {
                 <ClipboardCheck size={16} />
                 검수 과정
               </span>
-              <h2 id="grading-workflow-title">선생님 검수가 남아 있어야 현장에서 안심합니다</h2>
+              <h2 id="grading-workflow-title">자동채점과 직접 채점을 한 성적표에서 관리합니다</h2>
               <p>
-                성적은 민감합니다. 자동채점 결과를 그대로 학부모에게 보내지 않고,
-                선생님이 확인해 확정한 결과만 성적표와 안내에 반영합니다.
+                시험별 채점 결과를 확인하고 서술형 점수를 입력한 뒤,
+                선생님이 확정한 결과를 성적 관리와 안내에 활용합니다.
               </p>
               <div className={styles.principleBox}>
-                <strong>채점 원칙</strong>
-                <p>최종 점수는 선생님이 확정하고, 자동채점 결과는 확인할 수 있게 남깁니다.</p>
+                <strong>제공 범위</strong>
+                <p>서술형 AI 점수 제안은 현재 제공하지 않으며, 선생님이 직접 채점합니다.</p>
               </div>
             </div>
 
@@ -158,39 +158,36 @@ export default function AiGradingPage() {
         <div className={styles.sectionWrap}>
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} id="exam-score">
             <div className={styles.proofVisual}>
-              <img
-                src="/promo/admin-scores.png"
-                alt="관리자 성적 분석 화면"
+              <PromoEvidenceImage
+                src="/promo/admin-scores-authority-20260726.png"
+                alt="예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 관리자 성적 화면"
                 width={1440}
-                height={820}
+                height={900}
                 loading="lazy"
               />
             </div>
             <div className={styles.proofText}>
-              <span className={styles.proofBadge}>
-                <Sparkles size={15} />
-                성적 반영
-              </span>
-              <h3 id="grading-proof-title">채점 결과는 성적 분석과 수업결과 안내로 이어집니다</h3>
+              <span className={styles.proofBadge}>제품 UI · 예시 데이터</span>
+              <h3 id="grading-proof-title">시험과 성적을 강의·차시별로 관리합니다</h3>
               <p>
-                선생님이 확인한 결과만 성적표, 문항 분석, 보강 판단, 학부모 안내에 반영됩니다.
-                그래야 AI 기능을 현장에서 부담 없이 쓸 수 있습니다.
+                강의와 차시를 기준으로 시험, 제출과 성적을 확인합니다.
+                확정된 결과는 보강 판단과 학부모 안내에 활용할 수 있습니다.
               </p>
               <ul>
                 <li>
                   <FileCheck2 size={16} />
-                  문항별 판정 결과와 총점을 한 화면에서 확인
+                  시험별 점수와 처리 상태 확인
                 </li>
                 <li>
                   <ScanSearch size={16} />
-                  검수가 필요한 답안을 따로 골라 확인
+                  서술형 답안은 선생님이 직접 채점
                 </li>
                 <li>
                   <CheckCircle2 size={16} />
-                  확정 결과를 성적표와 알림톡 안내에 반영
+                  확정 결과를 성적 관리와 안내에 활용
                 </li>
               </ul>
-              <Link to="/promo/features#alimtalk" className={styles.textButton}>
+              <Link to="/promo/features#communication" className={styles.textButton}>
                 결과 안내 보기
                 <ArrowRight size={16} />
               </Link>
@@ -199,7 +196,10 @@ export default function AiGradingPage() {
         </div>
       </section>
 
-      <CtaSection />
+      <CtaSection
+        title="현재 사용하는 시험 방식에 맞춰 확인해 보세요"
+        subtitle="문항 유형과 채점 방식을 확인하고 실제 적용 범위를 안내합니다."
+      />
     </div>
   );
 }

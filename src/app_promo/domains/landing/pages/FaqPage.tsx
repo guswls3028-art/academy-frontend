@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./PromoPages.module.css";
 
 const FAQS = [
@@ -30,16 +31,16 @@ const FAQS = [
     a: "가능합니다. 저장된 성적, 피드백, 수업 결과로 안내 템플릿을 만들고, 선생님이 확인한 내용만 발송하는 방식을 권장합니다.",
   },
   {
-    q: "AI 자동채점은 어떤 유형의 문제를 지원하나요?",
-    a: "객관식, OX형, 단답형처럼 정답이 분명한 문항은 자동 판정을 지원합니다. 서술형은 AI가 초안 점수와 판단 이유를 보여주고, 선생님이 최종 확인합니다.",
+    q: "자동채점은 어떤 유형의 문제를 지원하나요?",
+    a: "객관식, OX형과 지원되는 수치형 단답을 자동으로 채점합니다. 서술형은 선생님이 직접 답안을 확인하고 점수를 입력합니다.",
   },
   {
     q: "서술형도 완전 자동으로 채점되나요?",
-    a: "아닙니다. 성적은 민감하기 때문에 서술형은 완전 자동 확정보다 ‘AI 보조 평가 + 선생님 검수’를 기본으로 봐야 합니다. 최종 점수는 선생님이 확정합니다.",
+    a: "아닙니다. 현재 서술형은 자동채점하지 않으며, 선생님이 답안을 직접 확인하고 점수를 확정합니다.",
   },
   {
     q: "가격과 포함 기능은 어떻게 되나요?",
-    a: "평소 요금은 월 공급가 180,000원, 부가가치세 18,000원으로 총 198,000원입니다. 2026년 8월 가입 특별가는 공급가 145,000원, 부가가치세 14,000원으로 총 159,000원이며, 가입 후에도 이 가격을 계속 보장받습니다. 모든 기능을 포함하고 알림톡 발송비와 저장공간 초과, 대량 이전, 커스텀 개발은 별도 협의입니다.",
+    a: "기본 요금은 부가가치세 포함 월 198,000원입니다. 2026년 8월 1일부터 31일까지 가입할 때는 월 159,000원이 적용됩니다. 기본 저장공간은 200GB이며 알림톡 발송비, 저장공간 초과, 대량 이전, 커스텀 개발은 별도 협의합니다. 이후 요금 변경은 계약과 이용약관에 따라 사전에 안내합니다.",
   },
   {
     q: "기존 영상이나 수강생 자료를 이전할 수 있나요?",
@@ -58,8 +59,8 @@ const FAQS = [
 const QUICK_CHECKS = [
   { icon: PlayCircle, text: "학생앱 영상은 실제 화면으로 확인" },
   { icon: BellRing, text: "알림톡은 승인 템플릿과 발송비 별도 확인" },
-  { icon: ReceiptText, text: "평소 198,000원 · 8월 특별가 159,000원 평생 보장" },
-  { icon: ShieldCheck, text: "AI 채점 최종 확정은 선생님 권한" },
+  { icon: ReceiptText, text: "기본 월 198,000원 · 8월 가입 적용 월 159,000원" },
+  { icon: ShieldCheck, text: "서술형은 선생님이 직접 채점" },
 ];
 
 export default function FaqPage() {
@@ -71,11 +72,11 @@ export default function FaqPage() {
             <span className={styles.eyebrow}>자주 묻는 질문</span>
             <h1 id="faq-title">도입 전에 확인할 질문을 모았습니다</h1>
             <p>
-              영상, 알림톡, AI 채점, 가격 기준을 도입 전에 확인할 수 있게 나눴습니다.
+              영상, 알림톡, 자동채점, 가격 기준을 도입 전에 확인할 수 있게 나눴습니다.
               필요한 범위가 정해져 있으면 전화 문의로도 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/features#student-video" className={styles.primaryCta}>
+              <Link to="/promo/features#student-video-flow" className={styles.primaryCta}>
                 학생앱 영상 화면 보기
                 <ArrowRight size={18} />
               </Link>
@@ -87,7 +88,7 @@ export default function FaqPage() {
 
           <aside className={styles.heroProofStack} aria-label="자주 묻는 핵심 화면">
             <figure className={styles.heroScreen}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/admin-alimtalk-auto-send.png"
                 alt="관리자 알림톡 발송 설정 화면"
                 width={1440}
@@ -154,7 +155,7 @@ export default function FaqPage() {
         <div className={styles.sectionWrap}>
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} data-tone="video">
             <div className={`${styles.proofVisual} ${styles.proofPhoneVisual}`}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-player.png"
                 alt="학생전용앱 영상 플레이어 화면"
                 width={780}
@@ -165,13 +166,10 @@ export default function FaqPage() {
             <div className={styles.proofText}>
               <span className={styles.proofBadge}>
                 <CheckCircle2 size={15} />
-                핵심 증거
+                학생앱 화면
               </span>
-              <h3 id="faq-proof-title">영상 기능은 질문 페이지에서도 화면으로 보여줍니다</h3>
-              <p>
-                설명보다 화면이 먼저입니다. 학생이 실제로 보는 앱 화면을
-                다시 보여주어 학생이 실제로 사용할 흐름을 확인합니다.
-              </p>
+              <h3 id="faq-proof-title">학생앱의 영상 이용 화면을 확인하세요</h3>
+              <p>학생이 앱에서 강의 목록을 확인하고 영상을 이어 보는 화면입니다.</p>
               <Link to="/promo/video-platform" className={styles.textButton}>
                 영상 플랫폼 상세 보기
                 <ArrowRight size={16} />

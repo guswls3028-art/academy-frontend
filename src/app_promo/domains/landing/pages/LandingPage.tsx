@@ -14,26 +14,26 @@ import {
   MousePointer2,
   PlayCircle,
   Presentation,
-  ScanSearch,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./LandingPage.module.css";
 
 const AUDIENCES = [
   {
     label: "개인 강사",
-    copy: "시험지와 수업자료 제작 시간을 줄이고 싶은 선생님",
+    copy: "시험지와 수업자료를 체계적으로 준비하고 싶은 선생님",
   },
   {
     label: "학원 원장",
-    copy: "여러 반의 수업 기록과 학부모 안내를 한곳에서 보고 싶은 원장님",
+    copy: "여러 반의 수업 기록과 학부모 안내를 함께 확인하고 싶은 원장님",
   },
   {
     label: "운영 실장",
-    copy: "출결·성적·영상·보강의 누락을 줄이고 싶은 운영 담당자",
+    copy: "출결·성적·영상·보강 현황을 빠짐없이 확인해야 하는 운영 담당자",
   },
 ];
 
@@ -58,23 +58,13 @@ const VALUE_ITEMS = [
 const MATCHUP_STEPS = [
   {
     icon: Camera,
-    title: "적중 · 실제 시험 등록",
-    copy: "학교 시험에 실제로 출제된 문제를 이미지나 PDF로 등록합니다.",
-  },
-  {
-    icon: ScanSearch,
-    title: "적중 · 사전 자료 비교",
-    copy: "우리 학원이 시험 전에 다룬 유사 문제를 나란히 보고 선생님이 근거를 확정합니다.",
+    title: "적중 매치업",
+    copy: "실제 출제 문제와 시험 전에 다룬 학원 자료를 나란히 보고, 선생님이 유사 문항을 확인합니다.",
   },
   {
     icon: CheckCircle2,
-    title: "PPT · 자료 분할",
-    copy: "문제나 개념 단위로 수업자료를 나누고 슬라이드 순서를 정합니다.",
-  },
-  {
-    icon: Presentation,
-    title: "PPT · 흑백반전",
-    copy: "칠판 빔프로젝터에 맞게 반전한 PPT를 내려받아 리모컨으로 넘기며 수업합니다.",
+    title: "칠판용 PPT",
+    copy: "수업자료를 문제·개념 단위로 나누고 흑백반전한 뒤 PPT로 내려받습니다.",
   },
 ];
 
@@ -86,10 +76,10 @@ const OPERATIONS = [
     title: "시험이 끝난 뒤, 다음 조치까지 이어집니다",
     copy: "점수와 미처리 상태를 한 화면에서 확인하고, 취약 문항과 보강이 필요한 학생을 선생님이 판단합니다.",
     bullets: ["수강생별 점수·미처리 확인", "문항별 결과와 취약 지점 확인", "피드백과 보강 기록 연결"],
-    image: "/promo/admin-scores.png",
-    alt: "학원플러스 관리자 성적 관리 실제 화면",
+    image: "/promo/admin-scores-authority-20260726.png",
+    alt: "예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 학원플러스 성적 화면",
     imageWidth: 1440,
-    imageHeight: 820,
+    imageHeight: 900,
     href: "/promo/ai-grading",
     cta: "채점·성적 화면 보기",
     kind: "desktop",
@@ -116,7 +106,7 @@ const OPERATIONS = [
     title: "보내기 전에 선생님이 내용을 확인합니다",
     copy: "가입·출결·시험·클리닉처럼 반복되는 안내는 승인된 양식을 사용하고, 선생님 메모는 발송 전에 최종 확인합니다.",
     bullets: ["승인된 공용 알림톡 양식", "자동·수동 발송 상태 구분", "발송 전 내용과 대상 확인"],
-    image: "/promo/admin-messages.png",
+    image: "/promo/admin-alimtalk-auto-send.png",
     alt: "학원플러스 관리자 알림톡 실제 화면",
     imageWidth: 1440,
     imageHeight: 820,
@@ -129,18 +119,18 @@ const OPERATIONS = [
 const START_POINTS = [
   {
     icon: BookOpenCheck,
-    title: "지금 쓰는 방식부터 듣습니다",
-    copy: "엑셀, 수기, 다른 솔루션을 억지로 한 번에 바꾸지 않고 먼저 줄일 업무를 고릅니다.",
+    title: "현재 운영 방식을 먼저 확인합니다",
+    copy: "엑셀, 수기와 현재 사용 중인 프로그램을 확인하고 필요한 기능부터 적용합니다.",
   },
   {
     icon: FileText,
     title: "실제 자료로 화면을 보여드립니다",
-    copy: "샘플 문구보다 선생님의 시험지와 수업자료로 적중 매치업·칠판용 PPT를 확인합니다.",
+    copy: "선생님의 시험지와 수업자료를 기준으로 적중 매치업과 칠판용 PPT 화면을 안내합니다.",
   },
   {
     icon: ShieldCheck,
-    title: "가격과 별도 비용을 먼저 밝힙니다",
-    copy: "평소 월 198,000원이며, 8월 가입자는 월 159,000원을 평생 보장합니다. 알림톡·추가 용량 등 별도 비용은 상담 전에 안내합니다.",
+    title: "월 요금과 별도 비용을 안내합니다",
+    copy: "기본 월 요금은 198,000원이며, 2026년 8월 가입 적용 요금은 159,000원입니다. 알림톡과 추가 용량 등 별도 비용도 함께 안내합니다.",
   },
 ];
 
@@ -172,7 +162,7 @@ function ProductFrame({
         <strong>{label}</strong>
         <small>{detail}</small>
       </div>
-      <img
+      <PromoEvidenceImage
         src={image}
         alt={alt}
         width={imageWidth}
@@ -190,15 +180,15 @@ function Hero() {
         <div className={styles.heroCopy}>
           <span className={styles.eyebrow}>
             <Sparkles size={ICON.sm} aria-hidden="true" />
-            대치 강사·원장을 위한 학원 운영 SaaS
+            수업자료와 학원 운영
           </span>
           <h1 id="promo-hero-title">
-            <span>수업은 선생님답게.</span>
-            <strong>반복 운영은 한곳에서.</strong>
+            <span>수업 준비부터 학원 운영까지,</span>
+            <strong>한곳에서 편리하게 관리합니다.</strong>
           </h1>
           <p className={styles.heroLead}>
-            실제 시험과 우리 학원 대비 자료를 나란히 기록하고, 문제·개념 자료는 흑백반전해 칠판용
-            PPT로 만듭니다. 출결·성적·영상·알림톡까지 수업 전후의 일을 한곳에서 관리하세요.
+            실제 시험과 사전 대비 자료를 비교하고, 문제·개념 자료는 흑백반전한 칠판용 PPT로
+            준비할 수 있습니다. 출결·성적·영상·알림톡도 같은 화면에서 관리합니다.
           </p>
           <div className={styles.heroActions}>
             <Link to="/promo/demo" className={styles.primaryButton}>
@@ -231,14 +221,14 @@ function Hero() {
 
         <div className={styles.heroWorkbench} aria-label="적중 매치업과 칠판용 PPT 실제 제품 화면">
           <div className={styles.workbenchLabel}>
-            <span>두 가지 수업자료 업무</span>
-            <strong>2026 숙명여고 1학기 중간</strong>
+            <span>수업자료 기능</span>
+            <strong>실제 시험과 사전 대비 자료 비교</strong>
           </div>
           <ProductFrame
             label="적중 매치업"
             detail="실제 시험 ↔ 사전 대비 자료"
             image="/promo/matchup-actual-vs-prepared-q1-20260726.jpg"
-            alt="2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서"
+            alt="실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서 예시"
             imageWidth={1263}
             imageHeight={893}
             eager
@@ -258,8 +248,8 @@ function Hero() {
           <div className={styles.proofStamp}>
             <CheckCircle2 size={ICON.md} aria-hidden="true" />
             <span>
-              <strong>제품 실화면</strong>
-              2026 숙명여고 공개 적중 사례
+              <strong>제품 화면</strong>
+              제공 자료 일부 발췌 · 학교와의 제휴를 의미하지 않음
             </span>
           </div>
         </div>
@@ -274,7 +264,7 @@ function AudienceStrip() {
       <div className={styles.sectionWrap}>
         <header className={styles.audienceHead}>
           <span>누구에게 필요한가요?</span>
-          <h2 id="audience-title">수업은 잘하고 있는데, 운영이 자꾸 수업 시간을 가져갈 때</h2>
+          <h2 id="audience-title">수업자료와 운영 기록을 체계적으로 관리하고 싶을 때</h2>
         </header>
         <div className={styles.audienceGrid}>
           {AUDIENCES.map((item) => (
@@ -294,9 +284,9 @@ function ValueSection() {
     <section className={styles.valueSection} aria-labelledby="value-title">
       <div className={styles.sectionWrap}>
         <header className={styles.sectionHead}>
-          <span>학원플러스가 줄이는 일</span>
-          <h2 id="value-title">기능을 늘리는 대신, 같은 일을 두 번 하지 않게</h2>
-          <p>수업 중 이미 만든 자료와 기록이 다음 업무로 자연스럽게 이어지도록 설계했습니다.</p>
+          <span>업무 연결 방식</span>
+          <h2 id="value-title">수업자료와 기록을 다음 업무에 이어서 사용합니다</h2>
+          <p>한 번 등록한 자료와 기록을 수업 준비, 성적 관리, 학부모 안내에 활용할 수 있습니다.</p>
         </header>
         <div className={styles.valueGrid}>
           {VALUE_ITEMS.map((item) => {
@@ -321,8 +311,8 @@ function MatchupShowcase() {
       <div className={styles.sectionWrap}>
         <div className={styles.matchupIntro}>
           <header className={styles.sectionHead}>
-            <span>가장 먼저 보여드릴 기능</span>
-            <h2 id="matchup-title">적중 근거와 칠판용 PPT, 두 작업을 줄입니다</h2>
+            <span>수업자료 준비</span>
+            <h2 id="matchup-title">유사 문항 확인과 칠판용 PPT 제작</h2>
             <p>
               매치업은 실제 시험 문제와 우리 학원이 사전에 다룬 자료를 비교합니다.
               PPT 생성기는 자료를 문제·개념 단위로 나누고 칠판에 맞게 반전합니다.
@@ -331,8 +321,8 @@ function MatchupShowcase() {
           <div className={styles.teacherNote}>
             <MessageSquareText size={ICON.lg} aria-hidden="true" />
             <p>
-              <strong>현장 강사 요청</strong>
-              “수업자료를 바로 PPT로 만들어 리모컨으로 넘겨 쓰고 싶다”는 수업 방식을 반영했습니다.
+              <strong>강의실 사용 방식</strong>
+              수업자료를 흑백반전한 PPT로 만들고 리모컨으로 넘겨가며 수업할 수 있습니다.
             </p>
           </div>
         </div>
@@ -342,7 +332,7 @@ function MatchupShowcase() {
             label="01 · 적중 자료 확인"
             detail="실제 시험 ↔ 사전 자료"
             image="/promo/matchup-actual-vs-prepared-q2-20260726.jpg"
-            alt="2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서"
+            alt="실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서 예시"
             imageWidth={1263}
             imageHeight={893}
           />
@@ -352,7 +342,7 @@ function MatchupShowcase() {
           <ProductFrame
             label="02 · 칠판용 PPT"
             detail="흑백반전 · 16:9"
-            image="/promo/ppt-gaepo-ready-20260725.png"
+            image="/promo/ppt-gaepo-ready-panel-20260726.png"
             alt="흑백반전한 문제 자료를 칠판용 PPT로 미리 보는 학원플러스 화면"
           />
         </div>
@@ -392,7 +382,7 @@ function OperationsSection() {
         <header className={styles.sectionHead}>
           <span>수업 전후 실제 화면</span>
           <h2 id="operations-title">선생님이 일하는 순서대로 이어집니다</h2>
-          <p>홍보용 예시 화면이 아니라 현재 제품에서 사용하는 관리자·학생 화면입니다.</p>
+          <p>성적, 영상, 알림톡 관리에 사용하는 제품 화면입니다.</p>
         </header>
 
         <div className={styles.operationList}>
@@ -401,14 +391,14 @@ function OperationsSection() {
             return (
               <article key={item.id} className={styles.operationRow} data-kind={item.kind} data-reverse={index % 2 === 1}>
                 <div className={styles.operationVisual}>
-                  <img
+                  <PromoEvidenceImage
                     src={item.image}
                     alt={item.alt}
                     width={item.imageWidth}
                     height={item.imageHeight}
                     loading="lazy"
                   />
-                  <span>실제 제품 화면</span>
+                  <span>제품 UI · 예시 데이터</span>
                 </div>
                 <div className={styles.operationCopy}>
                   <span>
@@ -445,10 +435,10 @@ function StartSection() {
       <div className={styles.sectionWrap}>
         <div className={styles.startLayout}>
           <header className={styles.sectionHead}>
-            <span>편안하게 시작하는 방법</span>
-            <h2 id="start-title">새 시스템을 공부하는 일이 되지 않도록</h2>
+            <span>도입 순서</span>
+            <h2 id="start-title">현재 방식에 맞춰 필요한 기능부터 적용합니다</h2>
             <p>
-              모든 기능을 한 번에 바꾸는 대신, 지금 가장 오래 걸리는 일 하나부터 실제 자료로 확인합니다.
+              현재 자료와 운영 방식을 확인하고, 우선 적용할 기능과 일정을 함께 정합니다.
             </p>
             <Link to="/promo/pricing" className={styles.textLink}>
               요금과 별도 비용 확인
@@ -484,8 +474,8 @@ function FinalCta() {
           <GraduationCap size={ICON.md} aria-hidden="true" />
           선생님의 자료로 확인하세요
         </span>
-        <h2 id="final-cta-title">말로 설명하는 데모보다, 내 시험지로 보는 데모가 빠릅니다</h2>
-        <p>현재 쓰는 자료와 수업 방식을 알려주시면 필요한 화면만 준비해 보여드립니다.</p>
+        <h2 id="final-cta-title">선생님의 시험지와 수업자료를 기준으로 안내합니다</h2>
+        <p>현재 쓰는 자료와 수업 방식을 알려주시면 필요한 기능과 화면을 준비해 보여드립니다.</p>
         <div className={styles.finalActions}>
           <Link to="/promo/demo" className={styles.primaryButton}>
             내 자료로 데모 요청

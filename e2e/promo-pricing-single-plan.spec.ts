@@ -21,7 +21,7 @@ async function stubPromoBootstrap(page: Page) {
   });
 }
 
-test("pricing presents the August lifetime guarantee and one unrestricted plan", async ({ page }) => {
+test("pricing presents one plan with clear August terms and separate-cost boundaries", async ({ page }) => {
   await stubPromoBootstrap(page);
   await page.goto(`${BASE}/promo/pricing`, {
     waitUntil: "load",
@@ -29,35 +29,34 @@ test("pricing presents the August lifetime guarantee and one unrestricted plan",
   });
 
   await expect(
-    page.getByRole("heading", { name: "평소 월 198,000원, 8월 가입은 159,000원" }),
+    page.getByRole("heading", { name: "기본 월 198,000원, 8월 가입 적용 월 159,000원" }),
   ).toBeVisible();
-  await expect(page.getByText("2026년 8월 가입 특별가", { exact: true })).toBeVisible();
-  await expect(page.getByText("8월 가입 평생 보장가")).toBeVisible();
-  await expect(page.getByText("8월 가입자는 가격 인상 없음")).toBeVisible();
-  await expect(page.getByText("평소 월 요금")).toBeVisible();
-  await expect(page.getByText("월 39,000원 할인", { exact: true })).toBeVisible();
+  await expect(page.getByText("2026년 8월 가입 적용 요금", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("기본 월 요금", { exact: true })).toBeVisible();
+  await expect(page.getByText("기본 요금과 월 39,000원 차이", { exact: true })).toBeVisible();
+  await expect(page.getByText(/평생|가격 인상 없음/)).toHaveCount(0);
 
   const plans = page.locator("article[data-plan]");
   await expect(plans).toHaveCount(1);
   await expect(plans).toHaveAttribute("data-plan", "all");
   await expect(plans.getByRole("heading", { name: "전체 기능" })).toBeVisible();
-  await expect(plans).toContainText("평소 198,000원");
+  await expect(plans).toContainText("기본 월 198,000원");
   await expect(plans).toContainText("공급가 180,000원 + 부가가치세 18,000원");
-  await expect(plans).toContainText("공급가 145,000원 + 부가가치세 14,000원");
   await expect(plans).toContainText("159,000원 / 월");
-  await expect(plans).toContainText("월 39,000원 절약");
-  await expect(plans).toContainText("수강생제한 없음");
-  await expect(plans).toContainText("계정제한 없음");
+  await expect(plans).toContainText("기본 요금 대비 월 39,000원 차이");
+  await expect(plans).toContainText("수강생별도 좌석 과금 없음");
+  await expect(plans).toContainText("계정별도 좌석 과금 없음");
   await expect(plans).toContainText("기능모두 포함");
   await expect(plans).toContainText(
-    "8월에만 월 39,000원 할인, 가입 후에는 159,000원 그대로",
+    "기본 월 요금보다 39,000원 낮은 8월 가입 적용 요금",
   );
   await expect(plans).toContainText(
-    "8월 1일부터 31일까지 가입한 학원은 이후 가격이 인상되어도 월 159,000원을 그대로 적용합니다.",
+    "2026년 8월 1일부터 31일까지 가입할 때 적용되는 월 요금입니다. 이후 요금 변경은 계약과 이용약관에 따라 사전에 안내합니다.",
   );
+  await expect(page.getByText(/알림톡 발송비, 저장공간 초과, 대량 데이터 이전, 커스텀 개발은 별도 협의/)).toBeVisible();
 
   await expect(page.getByText(/Standard|Pro|Max/, { exact: false })).toHaveCount(0);
-  await expect(page).toHaveTitle("요금제 | 평소 198,000원 · 8월 특별가 159,000원 | 학원플러스");
+  await expect(page).toHaveTitle("요금 안내 | 기본 198,000원 · 8월 가입 159,000원 | 학원플러스");
 });
 
 test("null VAT metadata preserves the fixed single-plan breakdown", () => {

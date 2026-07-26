@@ -29,10 +29,10 @@ export default function PricingPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>{AUGUST_PROMOTION_LABEL}</span>
-            <h1 id="pricing-title">평소 월 198,000원, 8월 가입은 159,000원</h1>
+            <h1 id="pricing-title">기본 월 198,000원, 8월 가입 적용 월 159,000원</h1>
             <p>
-              8월 한 달만 월 39,000원 할인합니다.
-              8월에 가입하면 할인된 가격으로 모든 기능을 계속 이용합니다.
+              2026년 8월 1일부터 31일까지 가입할 때 적용되는 요금입니다.
+              월 요금에 포함되는 기능과 별도 비용을 아래에서 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
               <PhoneInquiryLink className={styles.primaryCta}>전화 문의</PhoneInquiryLink>
@@ -44,21 +44,17 @@ export default function PricingPage() {
 
           <aside className={styles.priceBrief} aria-label="요금 기준 요약">
             <div className={styles.standardPrice}>
-              <span>평소 월 요금</span>
-              <del>{formatWon(STANDARD_MONTHLY_TOTAL_AMOUNT)}원</del>
+              <span>기본 월 요금</span>
+              <strong>{formatWon(STANDARD_MONTHLY_TOTAL_AMOUNT)}원</strong>
             </div>
-            <span>8월 가입 평생 보장가</span>
+            <span>8월 가입 적용 요금</span>
             <strong>159,000원</strong>
-            <b>월 {formatWon(AUGUST_MONTHLY_SAVINGS)}원 할인</b>
-            <p>모든 기능 포함 · 8월 가입 후 가격 인상 없음</p>
+            <span className={styles.priceDifference}>기본 요금과 월 {formatWon(AUGUST_MONTHLY_SAVINGS)}원 차이</span>
+            <p>부가가치세 포함 · 적용 조건은 아래에 안내</p>
             <dl>
               <div>
-                <dt>공급가</dt>
-                <dd>145,000원</dd>
-              </div>
-              <div>
-                <dt>부가가치세</dt>
-                <dd>14,000원</dd>
+                <dt>월 결제 금액</dt>
+                <dd>159,000원</dd>
               </div>
             </dl>
           </aside>
@@ -69,8 +65,8 @@ export default function PricingPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
             <span>단일 요금제</span>
-            <h2 id="plan-title">필요한 기능을 전부 포함했습니다</h2>
-            <p>수강생 수나 계정 수로 기능을 나누지 않습니다.</p>
+            <h2 id="plan-title">한 요금제에 표준 기능을 포함합니다</h2>
+            <p>수강생 수나 계정 수에 따른 별도 좌석 과금은 없습니다.</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -81,7 +77,7 @@ export default function PricingPage() {
                 data-plan={plan.key}
                 data-popular={plan.popular ? "true" : undefined}
               >
-                {plan.popular && <span className={styles.popularBadge}>모든 기능 포함</span>}
+                {plan.popular && <span className={styles.popularBadge}>단일 요금제</span>}
 
                 <div className={styles.planTop}>
                   <span>{plan.positioning}</span>
@@ -91,21 +87,19 @@ export default function PricingPage() {
 
                 <div className={styles.priceLine}>
                   <div className={styles.standardLedger}>
-                    <span>평소 {formatWon(plan.standardMonthlyTotalAmount)}원</span>
+                    <span>기본 월 {formatWon(plan.standardMonthlyTotalAmount)}원</span>
                     <small>
                       공급가 {formatWon(plan.standardMonthlySupplyAmount)}원 + 부가가치세 {formatWon(plan.standardMonthlyTaxAmount)}원
                     </small>
                   </div>
-                  <div className={styles.savingsLine}>월 {formatWon(plan.monthlySavings)}원 절약</div>
+                  <div className={styles.savingsLine}>기본 요금 대비 월 {formatWon(plan.monthlySavings)}원 차이</div>
                   <strong>{formatWon(plan.monthlyTotalAmount)}</strong>
                   <span>원 / 월</span>
-                  <small>
-                    공급가 {formatWon(plan.monthlySupplyAmount)}원 + 부가가치세 {formatWon(plan.monthlyTaxAmount)}원
-                  </small>
+                  <small>부가가치세 포함</small>
                 </div>
 
                 <div className={styles.guaranteeBox}>
-                  <strong>8월 가입자는 가격 인상 없음</strong>
+                  <strong>8월 가입 적용 기준</strong>
                   <span>{AUGUST_PRICE_GUARANTEE}</span>
                 </div>
 
@@ -156,8 +150,8 @@ export default function PricingPage() {
       </section>
 
       <CtaSection
-        title="8월에 시작하고, 지금 가격을 계속 보장받으세요"
-        subtitle="모든 기능이 포함된 데모와 8월 가입 일정을 함께 정리합니다."
+        title="월 요금과 도입 범위를 확인해 보세요"
+        subtitle="기본 기능, 별도 비용과 시작 일정을 함께 안내합니다."
       />
     </>
   );

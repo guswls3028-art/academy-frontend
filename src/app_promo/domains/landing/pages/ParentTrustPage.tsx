@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./ParentTrustPage.module.css";
 
 const REPORT_FLOW = [
@@ -42,12 +43,12 @@ const REPORT_FLOW = [
 const USE_CASES = [
   {
     icon: GraduationCap,
-    title: "학교별 내신반",
-    body: "학교, 학년, 시험 범위에 맞춰 출결, 응시, 취약 문항을 보여주면 관리 흐름이 분명해집니다.",
-    image: "/promo/landing-daechi-preview-20260527.png",
-    alt: "학교별 수업 소개 페이지 예시",
-    imageWidth: 1080,
-    imageHeight: 956,
+    title: "유사 문항 상담 자료",
+    body: "실제 시험과 시험 전에 다룬 자료를 비교해 학원이 확인한 유사 문항을 상담 자료로 활용합니다.",
+    image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
+    alt: "실제 시험과 사전 대비 자료를 비교한 적중 보고서 예시",
+    imageWidth: 1263,
+    imageHeight: 893,
   },
   {
     icon: Smartphone,
@@ -62,7 +63,7 @@ const USE_CASES = [
     icon: MessageSquareText,
     title: "보강 상담 회수",
     body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
-    image: "/promo/admin-messages.png",
+    image: "/promo/admin-alimtalk-auto-send.png",
     alt: "관리자 알림톡 운영 화면",
     imageWidth: 1440,
     imageHeight: 820,
@@ -71,28 +72,28 @@ const USE_CASES = [
 
 const PACKAGES = [
   {
-    name: "전체 기능",
-    target: "8월 가입 특별가 월 159,000원",
-    body: "모든 기능을 포함하며, 8월 가입 학원은 추후 가격이 올라도 지금 가격을 계속 보장받습니다.",
+    name: "기본 요금제",
+    target: "2026년 8월 가입 월 159,000원",
+    body: "현재 기본 요금제의 표준 기능을 포함합니다. 알림톡, 추가 저장공간 등 별도 비용은 요금 안내에서 확인할 수 있습니다.",
   },
 ];
 
 function HeroReportPreview() {
   return (
-    <aside className={styles.reportPreview} aria-label="성적 관리 실제 제품 화면">
+    <aside className={styles.reportPreview} aria-label="학원 운영 현황 제품 화면">
       <div className={styles.reportTop}>
         <div>
-          <span>상담에 쓸 수업 기록</span>
-          <strong>성적·미처리·보강 확인</strong>
+          <span>수업·시험 운영 현황</span>
+          <strong>시험·제출·문의 확인</strong>
         </div>
-        <small>제품 실화면</small>
+          <small>제품 UI · 예시 데이터</small>
       </div>
       <figure className={styles.reportScreen}>
-        <img
-          src="/promo/admin-scores.png"
-          alt="수강생별 성적과 미처리 상태를 확인하는 학원플러스 관리자 화면"
+        <PromoEvidenceImage
+          src="/promo/admin-scores-authority-20260726.png"
+          alt="예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 학원플러스 관리자 성적 화면"
           width={1440}
-          height={820}
+          height={900}
         />
       </figure>
       <div className={styles.reportActions}>
@@ -110,7 +111,7 @@ export default function ParentTrustPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>학부모 상담 자료</span>
-            <h1 id="parent-trust-title">학부모 상담, 기억 대신 수업 기록으로</h1>
+            <h1 id="parent-trust-title">수업 기록을 확인하며 학부모 상담을 준비합니다</h1>
             <p>
               출결, 성적, 영상, 보강 기록을 화면에서 확인하고 상담에 필요한 내용만 골라 설명하세요.
               알림톡은 선생님이 내용과 대상을 확인한 뒤 보냅니다.
@@ -140,7 +141,7 @@ export default function ParentTrustPage() {
               수업 기록에서 안내까지
             </span>
             <h2 id="trust-flow-title">이미 남긴 기록을 확인하고, 선생님 말로 안내합니다</h2>
-            <p>자동으로 그럴듯한 보고서를 만들지 않습니다. 실제 기록을 보고 필요한 내용만 선생님이 확정합니다.</p>
+            <p>저장된 수업 기록을 확인하고, 상담에 필요한 내용과 안내 대상을 선생님이 정합니다.</p>
           </header>
 
           <ol className={styles.flowGrid}>
@@ -176,7 +177,7 @@ export default function ParentTrustPage() {
               return (
                 <article key={item.title} className={styles.useCaseCard}>
                   <figure>
-                    <img
+                    <PromoEvidenceImage
                       src={item.image}
                       alt={item.alt}
                       width={item.imageWidth}
@@ -211,10 +212,10 @@ export default function ParentTrustPage() {
           <div className={styles.packageLayout}>
             <div className={styles.packageCopy}>
               <span>요금 기준</span>
-              <h2 id="package-title">규모와 관계없이 모든 기능을 함께 씁니다</h2>
+              <h2 id="package-title">기본 요금제에 표준 기능을 포함합니다</h2>
               <p>
-                기능별 등급이나 상위 플랜은 없습니다. 현재 쓰는 수업 방식에 맞춰
-                시작 화면과 도입 순서만 정합니다.
+                계정이나 수강생 수에 따른 별도 좌석 과금은 없습니다. 현재 운영 방식에 맞춰
+                필요한 기능과 도입 순서를 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
                 요금 확인하기

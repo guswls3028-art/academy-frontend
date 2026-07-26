@@ -15,6 +15,7 @@ import {
   Star,
 } from "lucide-react";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./MatchupPptPage.module.css";
 
 type GuideStep = {
@@ -35,7 +36,7 @@ type GuideStep = {
 const GUIDE_STEPS: GuideStep[] = [
   {
     number: "01",
-    label: "EXAM",
+    label: "실제 시험",
     icon: Camera,
     title: "실제 출제 문제를 등록합니다",
     body: "학교 시험이 끝난 뒤 실제 출제 문제를 이미지나 PDF로 올립니다. 학교·학기·시험별로 정리해 적중 근거의 기준으로 씁니다.",
@@ -47,12 +48,12 @@ const GUIDE_STEPS: GuideStep[] = [
     image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
     imageWidth: 1263,
     imageHeight: 893,
-    alt: "2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서",
-    caption: "공개 적중 보고서 · 2026 숙명여고 중간",
+    alt: "실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서 예시",
+    caption: "적중 보고서 예시 · 제공 자료 일부 발췌",
   },
   {
     number: "02",
-    label: "EVIDENCE",
+    label: "자료 비교",
     icon: ScanSearch,
     title: "사전에 다룬 자료를 나란히 확인합니다",
     body: "우리 학원 자료에서 유사 문제 후보를 찾고 실제 출제 문항과 비교합니다. 선생님이 최종 선택한 자료가 적중 보고서의 근거가 됩니다.",
@@ -64,12 +65,12 @@ const GUIDE_STEPS: GuideStep[] = [
     image: "/promo/matchup-actual-vs-prepared-q2-20260726.jpg",
     imageWidth: 1263,
     imageHeight: 893,
-    alt: "2026 숙명여고 실제 시험 문제와 시험 전에 다룬 학원 자료를 비교한 두 번째 적중 사례",
+    alt: "실제 시험 문제와 시험 전에 다룬 학원 자료를 비교한 두 번째 적중 보고서 예시",
     caption: "실제 시험 ↔ 큐레이션 자료 · 선생님 확정",
   },
   {
     number: "03",
-    label: "SPLIT",
+    label: "자료 분할",
     icon: Presentation,
     title: "수업자료를 문제·개념 단위로 나눕니다",
     body: "PPT 생성기는 매치업과 별도로 사용합니다. 이미지나 PDF 자료를 문제 또는 개념 단위로 나누고 수업 순서대로 배치합니다.",
@@ -86,7 +87,7 @@ const GUIDE_STEPS: GuideStep[] = [
   },
   {
     number: "04",
-    label: "PROJECT",
+    label: "PPT 생성",
     icon: Download,
     title: "칠판에 맞게 반전해 PPT로 만듭니다",
     body: "흰 배경·검은 글씨를 검은 배경·흰 글씨로 바꿔 빔프로젝터에 맞춥니다. PPT를 내려받아 리모컨으로 넘기며 수업합니다.",
@@ -131,7 +132,7 @@ function ProductBar({ label }: { label: string }) {
         <i />
       </span>
       <strong>{label}</strong>
-      <em>hakwonplus</em>
+      <em>학원플러스</em>
     </div>
   );
 }
@@ -147,16 +148,16 @@ export default function MatchupPptPage() {
               적중 근거 · 칠판용 PPT
             </span>
             <h1 id="matchup-ppt-page-title">
-              적중은 근거로,
+              실제 시험과 사전 자료를 비교하고,
               <br />
-              <em>수업자료는 칠판용으로</em>
+              <em>수업자료는 칠판용 PPT로 준비합니다</em>
             </h1>
             <p>
               매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교합니다. PPT 생성기는 자료를
-              문제·개념 단위로 나누고 흑백반전해 수업 준비 시간을 줄입니다.
+              문제·개념 단위로 나누고 흑백반전한 칠판용 PPT로 만듭니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/demo" className={styles.primaryButton}>
+              <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
                 내 자료로 데모 요청
                 <MousePointer2 size={18} />
               </Link>
@@ -183,17 +184,17 @@ export default function MatchupPptPage() {
           <div className={styles.heroVisual}>
             <figure className={styles.heroFrame}>
               <ProductBar label="실제 시험 ↔ 사전 대비 자료" />
-              <img
+              <PromoEvidenceImage
                 src="/promo/matchup-actual-vs-prepared-q1-20260726.jpg"
-                alt="2026 숙명여고 실제 시험과 시험 전에 다룬 학원 자료를 비교한 적중 보고서"
+                alt="실제 시험과 시험 전에 다룬 학원 자료를 비교한 적중 보고서 예시"
                 width={1263}
                 height={893}
               />
             </figure>
             <div className={styles.heroTicket}>
-              <span>REAL PRODUCT</span>
-              <strong>제품 실화면</strong>
-              <p>2026 숙명여고 공개 적중 사례</p>
+              <span>제품 화면</span>
+              <strong>적중 보고서 예시</strong>
+              <p>실제 시험과 사전 대비 자료 비교</p>
             </div>
             <div className={styles.heroPptCard}>
               <Presentation size={23} />
@@ -243,11 +244,11 @@ export default function MatchupPptPage() {
       <section id="guide" className={styles.guideSection} aria-labelledby="guide-title">
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
-            <span>FEATURE GUIDE</span>
+            <span>기능별 사용 방법</span>
             <h2 id="guide-title">두 기능은 목적이 다릅니다</h2>
             <p>
               매치업은 적중 근거를 남기고, PPT 생성기는 칠판 수업자료를 만듭니다.
-              공개 적중 보고서와 실제 PPT 생성 화면을 확인해 구성했습니다.
+              적중 보고서 예시와 실제 PPT 생성 화면으로 각 기능의 사용 방법을 안내합니다.
             </p>
           </header>
 
@@ -275,7 +276,7 @@ export default function MatchupPptPage() {
                   </div>
                   <figure className={styles.guideVisual} data-focus={step.focus}>
                     <ProductBar label={`${step.number} · ${step.label}`} />
-                    <img
+                    <PromoEvidenceImage
                       src={step.image}
                       alt={step.alt}
                       width={step.imageWidth}
@@ -298,12 +299,13 @@ export default function MatchupPptPage() {
               <ShieldCheck size={31} />
             </div>
             <div>
-              <span>MATCH SCORE, NOT AN ANSWER</span>
+              <span>유사도 확인 기준</span>
               <h2 id="guardrail-title">유사도는 후보를 보는 순서입니다</h2>
             </div>
             <p>
-              화면의 85%·86%는 확인 순서를 돕는 값입니다. 실제 시험과 사전 대비 자료가
-              같은 유형인지, 적중 근거로 쓸지는 선생님이 직접 결정합니다.
+              화면에 표시된 유사도는 비교할 후보의 순서를 정하는 참고값입니다. 적중 성과나
+              출제 예측률을 뜻하지 않으며, 유사 문항 여부는 선생님이 직접 확인합니다.
+              예시 자료의 학교·출제기관과 학원플러스의 제휴나 공식 인증을 의미하지 않습니다.
             </p>
           </div>
         </div>
@@ -312,8 +314,8 @@ export default function MatchupPptPage() {
       <section className={styles.exampleSection} aria-labelledby="class-example-title">
         <div className={styles.sectionWrap}>
           <div className={styles.exampleHead}>
-            <span>DAECHI CLASS PREP</span>
-            <h2 id="class-example-title">대치 수업에서는 이렇게 씁니다</h2>
+            <span>수업 전후 활용 예시</span>
+            <h2 id="class-example-title">시험이 끝난 뒤부터 다음 수업까지 활용합니다</h2>
             <p>시험 후에는 적중 근거를 남기고, 수업 전에는 칠판용 PPT를 따로 준비합니다.</p>
           </div>
           <div className={styles.exampleGrid}>
@@ -329,19 +331,19 @@ export default function MatchupPptPage() {
           <div className={styles.fileRibbon}>
             <FileImage size={22} />
             <div>
-              <span>MATCHUP</span>
+              <span>적중 매치업</span>
               <strong>실제 시험 ↔ 사전 자료</strong>
             </div>
             <span className={styles.fileRibbonDivider}>별도 기능</span>
             <FolderOpen size={22} />
             <div>
-              <span>PPT MAKER</span>
+              <span>PPT 만들기</span>
               <strong>문제·개념 단위 분할</strong>
             </div>
             <ArrowRight size={18} />
             <Presentation size={22} />
             <div>
-              <span>CLASSROOM</span>
+              <span>강의실</span>
               <strong>흑백반전 칠판 PPT</strong>
             </div>
           </div>
@@ -351,11 +353,11 @@ export default function MatchupPptPage() {
       <section className={styles.finalCta} aria-labelledby="matchup-final-title">
         <div className={styles.sectionWrap}>
           <div className={styles.finalCtaInner}>
-            <span>YOUR MATERIAL, YOUR CLASS</span>
-            <h2 id="matchup-final-title">선생님 자료로 두 기능을 따로 확인해 보세요</h2>
+            <span>자료 기반 데모</span>
+            <h2 id="matchup-final-title">선생님의 시험지와 수업자료로 확인할 수 있습니다</h2>
             <p>실제 시험과 사전 자료로 적중 근거를 확인하고, 수업자료로 칠판용 PPT를 만들어 보여드립니다.</p>
             <div>
-              <Link to="/promo/demo" className={styles.primaryButton}>
+              <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
                 데모 요청
                 <ArrowRight size={18} />
               </Link>

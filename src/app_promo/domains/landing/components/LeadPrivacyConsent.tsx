@@ -5,12 +5,14 @@ type LeadPrivacyConsentProps = {
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
+  requiredFields?: string;
 };
 
 export default function LeadPrivacyConsent({
   checked,
   disabled = false,
   onChange,
+  requiredFields = "이름, 연락처",
 }: LeadPrivacyConsentProps) {
   return (
     <div className={styles.privacyConsent}>
@@ -23,7 +25,7 @@ export default function LeadPrivacyConsent({
           </div>
           <div>
             <dt>항목</dt>
-            <dd>이름, 연락처(필수) / 소속·이메일·문의 내용·유입 경로(선택)</dd>
+            <dd>{requiredFields}(필수) / 그 외 입력 항목·유입 경로(선택)</dd>
           </div>
           <div>
             <dt>보유</dt>

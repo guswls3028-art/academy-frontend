@@ -50,7 +50,7 @@ export default function ProgramPromo({ config }: TemplateProps) {
                       href={config.cta_link || "/login"}
                       style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "16px 36px", background: c, color: "#fff", borderRadius: 12, fontSize: 17, fontWeight: 700, textDecoration: "none", boxShadow: `0 4px 20px rgba(${rgb}, 0.35)` }}
                     >
-                      {config.cta_text || "지금 시작하기"}
+                      {config.cta_text || "상담 문의"}
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </a>
                   </div>

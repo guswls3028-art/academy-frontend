@@ -71,7 +71,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                       {config.tagline || `${config.brand_name}와 함께\n실력을 키워가세요`}
                     </h1>
                     <p style={{ fontSize: "clamp(15px, 1.8vw, 18px)", lineHeight: 1.7, color: "#475569", margin: "0 0 32px", maxWidth: 540, whiteSpace: "pre-line" }}>
-                      {config.subtitle || "체계적인 커리큘럼 · 데이터 기반 성적 관리 · 학부모 실시간 소통.\n학원의 모든 것을 한 곳에서 운영하는 진짜 SaaS."}
+                      {config.subtitle || "수업 안내, 성적 관리와 학부모 소통에 필요한 내용을 한곳에서 확인할 수 있습니다."}
                     </p>
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                       {primaryCta.isInternal ? (
@@ -308,7 +308,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
             const hitItemsArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
             if (hitItemsArr.length === 0) return null;
             const hitDescription = section.description?.includes("본문 PDF")
-              ? "카드를 누르면 실제 시험과 사전 대비 자료의 대표 비교 화면이 바로 열립니다. 전체 문항은 PDF로 확인할 수 있습니다."
+              ? "카드를 선택하면 실제 시험과 사전 대비 자료의 대표 비교 화면을 확인할 수 있습니다. 전체 문항은 PDF로 제공합니다."
               : section.description;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "80px 24px", background: "#fff" }}>
@@ -451,7 +451,7 @@ export default function MinimalTutor({ config }: TemplateProps) {
                       )}
                     </div>
                     <div style={{ padding: 28, borderRadius: 16, background: "#fff", border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f172a" }}>바로 상담 요청 보내기</h3>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#0f172a" }}>상담 요청 보내기</h3>
                       <ConsultRequestForm accent={c} />
                     </div>
                   </div>

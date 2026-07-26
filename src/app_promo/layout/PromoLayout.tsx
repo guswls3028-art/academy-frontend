@@ -27,7 +27,7 @@ const NAV_ITEMS = [
   { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·칠판 PPT와 실제 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
-  { label: "요금제", path: "/promo/pricing", icon: CreditCard, note: "8월 39,000원 할인" },
+  { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
 ];
 
@@ -126,7 +126,7 @@ function Header() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>수업 운영</small>
+              <small>학원 관리</small>
             </span>
           </Link>
 
@@ -214,7 +214,7 @@ function Header() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>수업 운영</small>
+              <small>학원 관리</small>
             </span>
           </Link>
           <button ref={closeButtonRef} type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
@@ -328,10 +328,10 @@ function Footer() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>수업 운영</small>
+              <small>학원 관리</small>
             </span>
           </Link>
-          <p>대치 강사·원장을 위한 수업자료 제작과 학원 운영 도구</p>
+          <p>수업자료 제작과 학원 운영에 필요한 기능을 한곳에서 제공합니다.</p>
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 

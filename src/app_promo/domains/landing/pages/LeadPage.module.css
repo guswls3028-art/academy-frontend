@@ -4,7 +4,7 @@
   color: #f8fafc;
   background:
     linear-gradient(135deg, rgba(8, 16, 24, 0.96), rgba(13, 47, 54, 0.9)),
-    url("/promo/admin-messages.png") center / cover;
+    url("/promo/admin-home.png") center / cover;
 }
 
 .hero::after {
@@ -196,6 +196,16 @@
   width: 1px;
   height: 1px;
   opacity: 0;
+}
+
+.formNotice {
+  margin: -4px 0 0;
+  border-left: 3px solid #0f766e;
+  padding: 10px 12px;
+  color: #425466;
+  background: #f0fdfa;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .formGrid {

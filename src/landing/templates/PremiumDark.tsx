@@ -279,7 +279,7 @@ export default function PremiumDark({ config }: TemplateProps) {
             const hitArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
             if (hitArr.length === 0) return null;
             const hitDescription = section.description?.includes("본문 PDF")
-              ? "카드를 누르면 실제 시험과 사전 대비 자료의 대표 비교 화면이 바로 열립니다. 전체 문항은 PDF로 확인할 수 있습니다."
+              ? "카드를 선택하면 실제 시험과 사전 대비 자료의 대표 비교 화면을 확인할 수 있습니다. 전체 문항은 PDF로 제공합니다."
               : section.description;
             return (
               <section key="hit_reports" data-stype="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
@@ -410,7 +410,7 @@ export default function PremiumDark({ config }: TemplateProps) {
                     {/* 우: 상담 요청 form */}
                     <div style={{ padding: 28, borderRadius: 18, background: cardBg, border: `1px solid ${cardBorder}` }}>
                       <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: textPrimary, letterSpacing: "-0.015em" }}>
-                        바로 상담 요청 보내기
+                        상담 요청 보내기
                       </h3>
                       <ConsultRequestForm accent={gold} dark />
                     </div>
@@ -489,7 +489,7 @@ function buildHeroMainTitle(config: LandingConfig, sections: LandingSection[]): 
   const program = getItems<ProgramItem>(sections, "programs")[0];
   const subject = compactText(program?.title).match(/통합과학|물리|화학|생명과학|지구과학|수학|영어|국어/)?.[0] || "";
   if (instructor?.name && subject) return `${instructor.name} ${subject} 내신대비반`;
-  return compactText(config.tagline) || compactText(config.brand_name) || "프리미엄 내신대비";
+  return compactText(config.tagline) || compactText(config.brand_name) || "내신 대비 안내";
 }
 
 function buildHeroMainBody(config: LandingConfig, sections: LandingSection[]): string {
@@ -622,7 +622,7 @@ function buildPremiumHeroItems({
         key: `carousel-hit-${item.report_id}`,
         kicker: "Matchup",
         title: "학교별 적중 보고서",
-        body: "시험지와 강의 자료를 비교한 적중 근거를 바로 확인할 수 있습니다.",
+        body: "시험지와 강의 자료를 비교한 유사 문항 근거를 확인할 수 있습니다.",
         navTitle: `적중 ${items.length}`,
         ctaLabel: "보고서 보기",
         target: { kind: "route", to: `/landing/reports/${item.report_id}` },
@@ -649,7 +649,7 @@ function buildPremiumHeroItems({
   };
 
   addSection("instructor_profile", "강사 프로필", "Instructor", "강사");
-  addSection("features", "차별화된 강의 시스템", "System", "시스템");
+  addSection("features", "강의 운영 방식", "System", "시스템");
   addSection("management_system", "학생 관리 시스템", "Care", "관리");
   addSection("hit_reports", "최근 학교별 적중 사례", "Matchup", "적중", "보고서 보기", { kind: "route", to: "/landing/reports" });
   addSection("programs", "프로그램 안내", "Class", "프로그램");
@@ -1263,7 +1263,7 @@ function PremiumDecisionBand({
       }} className="pd-decision-band">
         <div>
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0, textTransform: "uppercase", color: gold, marginBottom: 6 }}>Before You Call</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>수강 결정 전에 바로 보는 핵심</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>수강 전에 확인할 내용</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))`, gap: 10 }} className="pd-decision-facts">
           {facts.map((fact) => (

@@ -9,7 +9,7 @@
   color: #f8fafc;
   background:
     linear-gradient(135deg, rgba(6, 16, 24, 0.97), rgba(14, 42, 44, 0.92)),
-    url("/promo/admin-scores.png") left top / cover;
+    url("/promo/admin-scores-authority-20260726.png") left top / cover;
 }
 
 .hero::after {

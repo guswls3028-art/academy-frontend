@@ -38,13 +38,13 @@ test.describe("promo navigation", () => {
   test("aligns cross-page hash links below the fixed promo header", async ({ page }) => {
     await page.goto(`${BASE}/promo/faq`, { waitUntil: "load" });
     await page.getByRole("link", { name: "학생앱 영상 화면 보기" }).click();
-    await expect(page).toHaveURL(/\/promo\/features#student-video$/);
-    await expectHashAligned(page, "student-video");
+    await expect(page).toHaveURL(/\/promo\/features#student-video-flow$/);
+    await expectHashAligned(page, "student-video-flow");
 
     await page.goto(`${BASE}/promo/ai-grading`, { waitUntil: "load" });
     await page.getByRole("link", { name: "결과 안내 보기" }).click();
-    await expect(page).toHaveURL(/\/promo\/features#alimtalk$/);
-    await expectHashAligned(page, "alimtalk");
+    await expect(page).toHaveURL(/\/promo\/features#communication$/);
+    await expectHashAligned(page, "communication");
   });
 
   test("resets scroll on page navigation and closes mobile sidebar after route changes", async ({ page }) => {
@@ -68,7 +68,9 @@ test.describe("promo navigation", () => {
     await expect(sidebarVideoLink).toHaveCount(1);
     await sidebarVideoLink.click();
     await expect(page).toHaveURL(/\/promo\/video-platform$/);
-    await expect(page.getByRole("heading", { name: "수강생이 학생전용앱에서 이어서 보는 영상 학습" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "학생전용앱에서 복습 영상을 이어서 볼 수 있습니다" }),
+    ).toBeVisible();
 
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });
     await expect(menuButton).toHaveCount(1);

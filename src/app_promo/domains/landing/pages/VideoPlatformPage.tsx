@@ -10,6 +10,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./VideoPlatformPage.module.css";
 
 const STUDENT_VISIBLE = [
@@ -39,10 +40,10 @@ export default function VideoPlatformPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span>학생앱 영상</span>
-            <h1 id="video-platform-title">수강생이 학생전용앱에서 이어서 보는 영상 학습</h1>
+            <h1 id="video-platform-title">학생전용앱에서 복습 영상을 이어서 볼 수 있습니다</h1>
             <p>
-              외부 링크만 보내는 방식이 아닙니다. 강의 목록, 이어보기, 댓글, 시청 이력을
-              학생앱 안에서 함께 확인합니다.
+              학생은 강의별 영상 목록, 이어보기와 댓글을 앱에서 이용합니다.
+              선생님은 수강생별 시청 상태와 마지막 재생 위치를 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryButton}>
@@ -57,7 +58,7 @@ export default function VideoPlatformPage() {
 
           <div className={styles.heroScreens} aria-label="학생전용앱 영상 캡처">
             <figure className={`${styles.device} ${styles.deviceFront}`}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-player.png"
                 alt="학생전용앱 영상 플레이어 화면"
                 width={780}
@@ -65,7 +66,7 @@ export default function VideoPlatformPage() {
               />
             </figure>
             <figure className={styles.device}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-list.png"
                 alt="학생전용앱 영상 재생 목록 화면"
                 width={780}
@@ -80,7 +81,7 @@ export default function VideoPlatformPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>실제 학생 화면</span>
-            <h2 id="video-screens-title">학생이 보는 장면을 그대로 보여줍니다</h2>
+            <h2 id="video-screens-title">학생앱의 영상 이용 화면입니다</h2>
             <p>
               영상 기능은 화면에서 흐름을 확인할 수 있습니다. 학생전용앱의 플레이어와 재생 목록을
               학부모에게도 쉽게 보여줄 수 있습니다.
@@ -89,7 +90,7 @@ export default function VideoPlatformPage() {
 
           <div className={styles.evidenceGrid}>
             <figure className={`${styles.evidencePhone} ${styles.evidencePhoneLead}`}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-player.png"
                 alt="학생전용앱 영상 플레이어와 댓글 화면"
                 width={780}
@@ -99,7 +100,7 @@ export default function VideoPlatformPage() {
               <figcaption>학생전용앱 플레이어 · 댓글 · 이어보기</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-list.png"
                 alt="학생전용앱 영상 재생 목록 화면"
                 width={780}
@@ -109,7 +110,7 @@ export default function VideoPlatformPage() {
               <figcaption>재생 목록 · 시청 진도</figcaption>
             </figure>
             <figure className={styles.evidencePhone}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/student-video-app.png"
                 alt="학생전용앱 영상 강의 홈 화면"
                 width={780}
@@ -172,7 +173,7 @@ export default function VideoPlatformPage() {
           <div className={styles.workflowLayout}>
             <div className={styles.workflowCopy}>
               <span>수업 후 안내</span>
-              <h2 id="video-workflow-title">영상만 올려두고 끝내지 않습니다</h2>
+              <h2 id="video-workflow-title">시청 상태를 확인하고 복습을 안내합니다</h2>
               <p>
                 시청 상태가 남으면 아직 보지 않은 학생을 챙길 수 있습니다.
                 필요한 경우 알림톡으로 복습 안내를 다시 보냅니다.
@@ -228,7 +229,7 @@ export default function VideoPlatformPage() {
               ))}
             </div>
             <figure className={styles.alimtalkVisual}>
-              <img
+              <PromoEvidenceImage
                 src="/promo/admin-alimtalk-auto-send.png"
                 alt="관리자 알림톡 발송 설정 화면"
                 width={1440}

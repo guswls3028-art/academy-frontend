@@ -30,14 +30,15 @@ test.describe("promo business readiness", () => {
     });
 
     await expect(
-      page.getByRole("heading", { name: "수업은 선생님답게. 반복 운영은 한곳에서." }),
+      page.getByRole("heading", { name: "수업 준비부터 학원 운영까지, 한곳에서 편리하게 관리합니다." }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "내 자료로 데모 요청" }).first()).toBeVisible();
-    await expect(page.getByText("제품 실화면", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/2026 숙명여고 공개 적중 사례/)).toBeVisible();
-    await expect(page.getByText(/수업자료를 바로 PPT로 만들어 리모컨으로 넘겨 쓰고 싶다/)).toBeVisible();
+    await expect(page.getByText("실제 제품 화면", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/실제 시험과 사전 대비 자료를 비교/).first()).toBeVisible();
+    await expect(page.getByText(/수업자료를 흑백반전한 PPT로 만들고 리모컨으로 넘겨가며 수업/)).toBeVisible();
     await expect(page.getByText("서로 다른 두 기능")).toBeVisible();
-    await expect(page).toHaveTitle("학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS");
+    await expect(page.getByText(/학교와의 제휴를 의미하지 않음/)).toBeVisible();
+    await expect(page).toHaveTitle("학원플러스 | 수업 준비와 학원 운영을 한곳에서");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${BASE}/promo`);
 
     const productImages = page.locator('img[src^="/promo/"]');
@@ -111,6 +112,20 @@ test.describe("promo business readiness", () => {
         `${route} should declare intrinsic image dimensions`,
       ).toBe(true);
     }
+  });
+
+  test("describes grading and pricing without unsupported promises", async ({ page }) => {
+    await page.goto(`${BASE}/promo/ai-grading`, { waitUntil: "load" });
+    await expect(
+      page.getByRole("heading", { name: "정답이 명확한 문항은 자동으로, 서술형은 선생님이 직접 채점합니다" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/서술형 답안은 선생님이 확인하고 점수를 확정합니다/).first(),
+    ).toBeVisible();
+
+    await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
+    await expect(page.getByText(/이후 요금 변경은 계약과 이용약관에 따라 사전에 안내/).first()).toBeVisible();
+    await expect(page.getByText(/평생|가격 인상 없음/)).toHaveCount(0);
   });
 
   test("keeps keyboard focus inside the open mobile menu and restores it on close", async ({ page }) => {

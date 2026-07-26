@@ -121,7 +121,7 @@ test("tenant report opens one static comparison image without a PDF renderer", a
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/landing`, { waitUntil: "load" });
   await expect(
-    page.getByText("카드를 누르면 실제 시험과 사전 대비 자료의 대표 비교 화면이 바로 열립니다. 전체 문항은 PDF로 확인할 수 있습니다."),
+    page.getByText("카드를 선택하면 실제 시험과 사전 대비 자료의 대표 비교 화면을 확인할 수 있습니다. 전체 문항은 PDF로 제공합니다."),
   ).toBeVisible();
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });
 

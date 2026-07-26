@@ -200,6 +200,7 @@ export default function ContactPage() {
               checked={privacyAgreed}
               disabled={pending}
               onChange={setPrivacyAgreed}
+              requiredFields="이름, 연락처, 문의 유형, 문의 내용"
             />
 
             {error && <div className={styles.errorBox}>{error}</div>}
