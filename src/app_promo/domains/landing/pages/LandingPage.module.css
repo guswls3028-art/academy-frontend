@@ -382,6 +382,48 @@
   animation: category-image-in 360ms ease both;
 }
 
+.categoryVisualPair {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.categoryVisualPair figure {
+  position: relative;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.categoryVisualPair figure + figure {
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.categoryVisualPair img {
+  position: absolute;
+  inset: 0;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: left top;
+}
+
+.categoryVisualPair figcaption {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 930;
+  background: rgba(6, 21, 29, 0.84);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
 .categoryVisual[data-kind="phone"] img {
   width: 250px;
   height: 470px;
@@ -799,6 +841,68 @@
   word-break: keep-all;
 }
 
+.toolWorkflowSplit {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.toolWorkflowSplit section {
+  border: 1px solid #dce6f4;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f7faff;
+}
+
+.toolWorkflowSplit section[data-tool="matchup"] {
+  border-color: #d5e8df;
+  background: #f4faf7;
+}
+
+.toolWorkflowSplit section > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4970c8;
+}
+
+.toolWorkflowSplit section[data-tool="matchup"] > div {
+  color: #24876f;
+}
+
+.toolWorkflowSplit section > div span {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 900;
+  background: #fff;
+}
+
+.toolWorkflowSplit h4 {
+  margin: 12px 0 0;
+  color: #17313c;
+  font-size: 17px;
+  font-weight: 930;
+}
+
+.toolWorkflowSplit strong {
+  display: block;
+  margin-top: 6px;
+  color: #385766;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.toolWorkflowSplit p {
+  margin: 7px 0 0;
+  color: #667b83;
+  font-size: 12px;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
 .strengthCardAction {
   margin-top: auto;
   color: var(--card-accent);
@@ -1163,6 +1267,10 @@
     width: 200px;
     height: 350px;
     margin-top: 38px;
+  }
+
+  .categoryVisual[data-pair="true"] {
+    min-height: 390px;
   }
 
   .categoryCopy {

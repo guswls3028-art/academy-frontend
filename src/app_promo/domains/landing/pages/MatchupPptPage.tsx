@@ -12,7 +12,6 @@ import {
   ScanSearch,
   ShieldCheck,
   Sparkles,
-  Star,
 } from "lucide-react";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
@@ -38,38 +37,38 @@ const GUIDE_STEPS: GuideStep[] = [
     number: "01",
     label: "실제 시험",
     icon: Camera,
-    title: "실제 출제 문제를 등록합니다",
-    body: "학교 시험이 끝난 뒤 실제 출제 문제를 이미지나 PDF로 올립니다. 학교·학기·시험별로 정리해 적중 근거의 기준으로 씁니다.",
+    title: "시험지와 사전 자료를 문항별로 나눕니다",
+    body: "학교 시험지와 시험 전에 다룬 학원 자료를 이미지나 PDF로 올립니다. 문항 자동 분리 결과를 확인하고 필요하면 직접 보정합니다.",
     points: [
-      "실제 시험 이미지·PDF 등록",
+      "실제 시험지·사전 대비 자료 등록",
+      "문항 자동 분리·직접 보정",
       "학교·학기·시험별 분류",
-      "출제 문항을 원문 그대로 확인",
     ],
-    image: "/promo/matchup-actual-vs-prepared-q1-20260726.jpg",
-    imageWidth: 1263,
-    imageHeight: 893,
-    alt: "실제 시험 문제와 시험 전에 다룬 학원 자료를 나란히 비교한 적중 보고서 예시",
-    caption: "적중 보고서 예시 · 제공 자료 일부 발췌",
+    image: "/promo/matchup-gaepo-results-20260725.png",
+    imageWidth: 1280,
+    imageHeight: 720,
+    alt: "실제 시험지와 사전 대비 자료를 문항별로 나눈 매치업 실제 화면",
+    caption: "실제 화면 · 시험지와 사전 자료 문항 분리",
   },
   {
     number: "02",
     label: "자료 비교",
     icon: ScanSearch,
-    title: "사전에 다룬 자료를 나란히 확인합니다",
-    body: "우리 학원 자료에서 유사 문제 후보를 찾고 실제 출제 문항과 비교합니다. 선생님이 최종 선택한 자료가 적중 보고서의 근거가 됩니다.",
+    title: "유사 후보를 보고 선생님이 확정합니다",
+    body: "실제 출제 문항마다 학원 자료의 유사 후보를 확인합니다. 후보 점수는 확인 순서에만 쓰며, 선생님이 직접 비교해 선택한 자료가 적중 보고서의 근거가 됩니다.",
     points: [
-      "실제 시험과 사전 대비 자료 비교",
-      "유사도·출처는 확인 순서에만 활용",
-      "선생님이 적중 근거를 최종 확정",
+      "문항별 유사 후보 제공",
+      "실제 시험과 사전 대비 자료 나란히 비교",
+      "선생님이 적중 근거 최종 확정",
     ],
-    image: "/promo/matchup-actual-vs-prepared-q2-20260726.jpg",
-    imageWidth: 1263,
-    imageHeight: 893,
-    alt: "실제 시험 문제와 시험 전에 다룬 학원 자료를 비교한 두 번째 적중 보고서 예시",
-    caption: "실제 시험 ↔ 큐레이션 자료 · 선생님 확정",
+    image: "/promo/matchup-gaepo-candidates-20260725.png",
+    imageWidth: 1280,
+    imageHeight: 720,
+    alt: "실제 시험 문항마다 사전 대비 자료의 유사 후보를 보여주는 매치업 실제 화면",
+    caption: "실제 화면 · 문항별 유사 후보 · 선생님 확인",
   },
   {
-    number: "03",
+    number: "01",
     label: "자료 분할",
     icon: Presentation,
     title: "PDF 문항을 나누고 준비한 이미지를 배치합니다",
@@ -86,7 +85,7 @@ const GUIDE_STEPS: GuideStep[] = [
     caption: "실제 화면 · 문제 단위 2장 구성",
   },
   {
-    number: "04",
+    number: "02",
     label: "PPT 생성",
     icon: Download,
     title: "칠판에 맞게 반전해 PPT로 만듭니다",
@@ -104,6 +103,42 @@ const GUIDE_STEPS: GuideStep[] = [
     focus: "ppt-result",
   },
 ];
+
+const TOOL_GUIDES = [
+  {
+    id: "matchup",
+    timing: "시험 후",
+    title: "매치업",
+    body: "실제 시험지와 학원 사전 자료를 문항 단위로 비교해, 우리 학원이 미리 대비한 유사 문제의 근거를 남깁니다.",
+    steps: GUIDE_STEPS.slice(0, 2),
+  },
+  {
+    id: "ppt",
+    timing: "수업 전",
+    title: "칠판용 PPT 제작",
+    body: "PDF와 이미지를 칠판 화면에 맞는 슬라이드로 구성해, 선생님의 반복 편집 시간을 줄입니다.",
+    steps: GUIDE_STEPS.slice(2),
+  },
+] as const;
+
+const TOOL_ROUTES = [
+  {
+    id: "matchup",
+    icon: ScanSearch,
+    timing: "시험 후",
+    title: "매치업",
+    body: "실제 시험과 사전 대비 자료의 유사 문항을 확인합니다.",
+    steps: ["문항 자동 분리", "유사 후보 제공", "선생님 확정"],
+  },
+  {
+    id: "ppt",
+    icon: Presentation,
+    timing: "수업 전",
+    title: "칠판용 PPT 제작",
+    body: "수업자료를 칠판에 띄울 PPT로 준비합니다.",
+    steps: ["PDF·이미지 등록", "반전·화면비율 확인", "PPT 다운로드"],
+  },
+] as const;
 
 const CLASS_PREP_EXAMPLE = [
   {
@@ -153,9 +188,21 @@ export default function MatchupPptPage() {
               <em>수업자료는 칠판용 PPT로 준비합니다</em>
             </h1>
             <p>
-              매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교합니다. PPT 생성기는 자료를
-              PDF 문항으로 나누거나 준비한 이미지별로 배치해 흑백반전 칠판용 PPT로 만듭니다.
+              매치업은 실제 시험지와 사전 대비 자료를 문항별로 나눠 유사 후보를 제시합니다.
+              칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다.
             </p>
+            <div className={styles.heroToolGrid} aria-label="두 가지 핵심 자료 도구">
+              <div data-tool="matchup">
+                <span>시험 후</span>
+                <strong>매치업</strong>
+                <p>문항 자동 분리 · 유사 후보 · 선생님 확정</p>
+              </div>
+              <div data-tool="ppt">
+                <span>수업 전</span>
+                <strong>칠판용 PPT 제작</strong>
+                <p>슬라이드 구성 · 흑백반전 · PPT 다운로드</p>
+              </div>
+            </div>
             <div className={styles.heroActions}>
               <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
                 내 자료로 데모 요청
@@ -165,36 +212,22 @@ export default function MatchupPptPage() {
                 전화로 문의
               </PhoneInquiryLink>
             </div>
-            <ul className={styles.heroFacts}>
-              <li>
-                <Check size={15} />
-                JPG·PNG·PDF
-              </li>
-              <li>
-                <Check size={15} />
-                시험 ↔ 사전 자료
-              </li>
-              <li>
-                <Check size={15} />
-                흑백반전 PPT
-              </li>
-            </ul>
           </div>
 
           <div className={styles.heroVisual}>
             <figure className={styles.heroFrame}>
-              <ProductBar label="실제 시험 ↔ 사전 대비 자료" />
+              <ProductBar label="매치업 · 문항별 유사 후보" />
               <PromoEvidenceImage
-                src="/promo/matchup-actual-vs-prepared-q1-20260726.jpg"
-                alt="실제 시험과 시험 전에 다룬 학원 자료를 비교한 적중 보고서 예시"
-                width={1263}
-                height={893}
+                src="/promo/matchup-gaepo-candidates-20260725.png"
+                alt="실제 시험 문항과 학원 사전 자료의 유사 후보를 보여주는 매치업 실제 화면"
+                width={1280}
+                height={720}
               />
             </figure>
             <div className={styles.heroTicket}>
               <span>실제 사용 화면</span>
-              <strong>적중 보고서 예시</strong>
-              <p>실제 시험과 사전 대비 자료 비교</p>
+              <strong>매치업</strong>
+              <p>문항 자동 분리 · 유사 후보</p>
             </div>
             <div className={styles.heroPptCard}>
               <Presentation size={23} />
@@ -211,33 +244,28 @@ export default function MatchupPptPage() {
         </a>
       </section>
 
-      <section className={styles.routeSection} aria-label="적중 매치업과 칠판용 PPT 사용 순서">
+      <section className={styles.routeSection} aria-label="매치업과 칠판용 PPT 제작 개요">
         <div className={styles.sectionWrap}>
-          <ol className={styles.routeList}>
-            {[
-              { icon: Camera, title: "실제 시험", desc: "출제 문항 등록" },
-              { icon: ScanSearch, title: "적중 근거", desc: "사전 자료 비교" },
-              { icon: Star, title: "자료 분할", desc: "PDF 문항·준비 이미지" },
-              { icon: Presentation, title: "칠판 PPT", desc: "흑백반전·리모컨" },
-            ].map((item, index) => {
-              const Icon = item.icon;
+          <div className={styles.routeTools}>
+            {TOOL_ROUTES.map((tool) => {
+              const Icon = tool.icon;
               return (
-                <li key={item.title}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <Icon size={22} />
+                <article key={tool.id} data-tool={tool.id}>
+                  <header>
+                    <Icon size={24} />
+                    <span>{tool.timing}</span>
+                  </header>
                   <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.desc}</p>
+                    <h2>{tool.title}</h2>
+                    <p>{tool.body}</p>
                   </div>
-                  {index === 1 ? (
-                    <span className={styles.routeDivider}>별도 기능</span>
-                  ) : index < 3 ? (
-                    <ArrowRight className={styles.routeArrow} size={17} aria-hidden="true" />
-                  ) : null}
-                </li>
+                  <ol>
+                    {tool.steps.map((step) => <li key={step}>{step}</li>)}
+                  </ol>
+                </article>
               );
             })}
-          </ol>
+          </div>
         </div>
       </section>
 
@@ -252,42 +280,53 @@ export default function MatchupPptPage() {
             </p>
           </header>
 
-          <div className={styles.guideStack}>
-            {GUIDE_STEPS.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <article key={step.number} className={styles.guideCard} data-side={index % 2 === 0 ? "left" : "right"}>
-                  <div className={styles.guideCopy}>
-                    <div className={styles.guideIndex}>
-                      <span>{step.number}</span>
-                      <em>{step.label}</em>
-                      <Icon size={22} />
-                    </div>
-                    <h3>{step.title}</h3>
-                    <p>{step.body}</p>
-                    <ul>
-                      {step.points.map((point) => (
-                        <li key={point}>
-                          <Check size={16} />
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <figure className={styles.guideVisual} data-focus={step.focus}>
-                    <ProductBar label={`${step.number} · ${step.label}`} />
-                    <PromoEvidenceImage
-                      src={step.image}
-                      alt={step.alt}
-                      width={step.imageWidth}
-                      height={step.imageHeight}
-                      loading="lazy"
-                    />
-                    <figcaption>{step.caption}</figcaption>
-                  </figure>
-                </article>
-              );
-            })}
+          <div className={styles.toolGuideGroups}>
+            {TOOL_GUIDES.map((guide) => (
+              <section key={guide.id} className={styles.toolGuideGroup} data-tool={guide.id}>
+                <header>
+                  <span>{guide.timing}</span>
+                  <h3>{guide.title}</h3>
+                  <p>{guide.body}</p>
+                </header>
+                <div className={styles.guideStack}>
+                  {guide.steps.map((step, index) => {
+                    const Icon = step.icon;
+                    return (
+                      <article key={`${guide.id}-${step.number}`} className={styles.guideCard} data-side={index % 2 === 0 ? "left" : "right"}>
+                        <div className={styles.guideCopy}>
+                          <div className={styles.guideIndex}>
+                            <span>{step.number}</span>
+                            <em>{step.label}</em>
+                            <Icon size={22} />
+                          </div>
+                          <h3>{step.title}</h3>
+                          <p>{step.body}</p>
+                          <ul>
+                            {step.points.map((point) => (
+                              <li key={point}>
+                                <Check size={16} />
+                                {point}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <figure className={styles.guideVisual} data-focus={step.focus}>
+                          <ProductBar label={`${guide.title} ${step.number} · ${step.label}`} />
+                          <PromoEvidenceImage
+                            src={step.image}
+                            alt={step.alt}
+                            width={step.imageWidth}
+                            height={step.imageHeight}
+                            loading="lazy"
+                          />
+                          <figcaption>{step.caption}</figcaption>
+                        </figure>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       </section>

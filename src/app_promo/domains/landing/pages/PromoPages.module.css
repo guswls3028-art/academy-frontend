@@ -586,6 +586,58 @@
   object-position: left top;
 }
 
+.proofVisualPair {
+  position: relative;
+  display: grid;
+  height: 480px;
+  min-height: 0;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.proofVisualPair::before,
+.proofVisualPair figcaption {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 12px;
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  background: rgba(8, 26, 38, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.proofVisualPair::before {
+  content: "매치업";
+}
+
+.proofVisualPair > img,
+.proofVisualPair > figure {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.proofVisualPair > img {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.proofVisualPair figure {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+}
+
+.proofVisualPair figure img {
+  min-height: 100%;
+}
+
+.proofVisualPair figcaption {
+  margin: 0;
+}
+
 .proofPhoneVisual {
   display: flex;
   align-items: center;

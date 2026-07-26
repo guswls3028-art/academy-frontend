@@ -135,26 +135,47 @@
   transform: translateY(-2px);
 }
 
-.heroFacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 22px 0 0;
-  padding: 0;
-  color: rgba(238, 246, 255, 0.72);
-  font-size: 12px;
-  font-weight: 800;
-  list-style: none;
+.heroToolGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 24px;
 }
 
-.heroFacts li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.heroToolGrid > div {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.heroFacts svg {
-  color: var(--mint);
+.heroToolGrid > div[data-tool="ppt"] {
+  border-color: rgba(255, 194, 71, 0.34);
+}
+
+.heroToolGrid span {
+  color: #9fb7d6;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.heroToolGrid > div[data-tool="ppt"] span {
+  color: #ffd887;
+}
+
+.heroToolGrid strong {
+  display: block;
+  margin-top: 6px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 930;
+}
+
+.heroToolGrid p {
+  margin: 7px 0 0;
+  color: rgba(238, 246, 255, 0.62);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .heroVisual {
@@ -318,75 +339,100 @@
   background: #fff;
 }
 
-.routeList {
+.routeTools {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.routeList li {
-  position: relative;
+.routeTools article {
   display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: center;
-  gap: 11px;
-  min-height: 110px;
-  padding: 18px 24px;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 8px 24px;
+  min-height: 190px;
+  padding: 28px;
   border-left: 1px solid #e4eaf2;
 }
 
-.routeList li:last-child {
+.routeTools article:last-child {
   border-right: 1px solid #e4eaf2;
 }
 
-.routeList li > span {
-  color: #95a3b5;
-  font-size: 9px;
-  font-weight: 900;
-}
-
-.routeList li > svg:not(.routeArrow) {
+.routeTools header {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 9px;
   color: var(--blue);
 }
 
-.routeList strong {
-  display: block;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 920;
+.routeTools article[data-tool="ppt"] header {
+  color: #b67600;
 }
 
-.routeList p {
-  margin: 3px 0 0;
-  color: #708095;
-  font-size: 10px;
-}
-
-.routeArrow {
-  position: absolute;
-  right: -9px;
-  z-index: 2;
-  padding: 3px;
-  border: 1px solid #dce4ef;
-  border-radius: 50%;
-  color: #7d8da3;
-  background: #fff;
-}
-
-.routeDivider {
-  position: absolute;
-  right: -34px;
-  z-index: 3;
-  border: 1px solid #bdd0f5;
+.routeTools header span {
   border-radius: 999px;
   padding: 5px 8px;
-  color: #246bfd !important;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 900;
   background: #eef4ff;
-  font-size: 8px !important;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+}
+
+.routeTools article[data-tool="ppt"] header span {
+  background: #fff4db;
+}
+
+.routeTools h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 940;
+}
+
+.routeTools p {
+  margin: 8px 0 0;
+  color: #708095;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.routeTools ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  counter-reset: route-step;
+  list-style: none;
+}
+
+.routeTools li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #40536b;
+  font-size: 11px;
+  font-weight: 850;
+  counter-increment: route-step;
+}
+
+.routeTools li::before {
+  content: counter(route-step);
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  background: var(--blue);
+}
+
+.routeTools article[data-tool="ppt"] li::before {
+  color: #2b210e;
+  background: var(--amber);
 }
 
 .guideSection {
@@ -423,10 +469,60 @@
   word-break: keep-all;
 }
 
+.toolGuideGroups {
+  display: grid;
+  gap: 88px;
+  margin-top: 60px;
+}
+
+.toolGuideGroup > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px 14px;
+  max-width: 760px;
+  border-left: 4px solid var(--blue);
+  padding-left: 20px;
+}
+
+.toolGuideGroup[data-tool="ppt"] > header {
+  border-left-color: var(--amber);
+}
+
+.toolGuideGroup > header span {
+  align-self: center;
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 900;
+  background: #eaf1ff;
+}
+
+.toolGuideGroup[data-tool="ppt"] > header span {
+  color: #835600;
+  background: #fff1d0;
+}
+
+.toolGuideGroup > header h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 32px;
+  font-weight: 950;
+}
+
+.toolGuideGroup > header p {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  color: #5d6e84;
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
 .guideStack {
   display: grid;
   gap: 34px;
-  margin-top: 58px;
+  margin-top: 26px;
 }
 
 .guideCard {
@@ -751,26 +847,6 @@
     gap: 18px;
   }
 
-  .routeList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .routeList li:nth-child(3) {
-    border-top: 1px solid #e4eaf2;
-  }
-
-  .routeList li:nth-child(4) {
-    border-top: 1px solid #e4eaf2;
-    border-right: 1px solid #e4eaf2;
-  }
-
-  .routeList li:nth-child(2) .routeArrow {
-    display: none;
-  }
-
-  .routeDivider {
-    right: -34px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -794,6 +870,10 @@
 
   .heroCopy > p {
     font-size: 15px;
+  }
+
+  .heroToolGrid {
+    grid-template-columns: 1fr;
   }
 
   .heroActions,
@@ -829,35 +909,25 @@
     display: none;
   }
 
-  .routeList {
+  .routeTools {
     grid-template-columns: 1fr;
   }
 
-  .routeList li {
-    min-height: 86px;
+  .routeTools article {
+    grid-template-columns: 1fr;
+    min-height: 0;
     border-right: 1px solid #e4eaf2;
     border-bottom: 1px solid #e4eaf2;
+    padding: 24px 20px;
   }
 
-  .routeList li:nth-child(3),
-  .routeList li:nth-child(4) {
-    border-top: 0;
+  .routeTools ol {
+    margin-top: 10px;
   }
 
-  .routeArrow {
-    right: 20px;
-    transform: rotate(90deg);
-  }
-
-  .routeList li:nth-child(2) .routeArrow {
-    display: block;
-  }
-
-  .routeDivider {
-    right: auto;
-    bottom: -12px;
-    left: 50%;
-    transform: translateX(-50%);
+  .toolGuideGroups {
+    gap: 64px;
+    margin-top: 42px;
   }
 
   .guideSection,

@@ -16,6 +16,7 @@ import {
   Play,
   PlayCircle,
   Presentation,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -42,6 +43,13 @@ type HeroCategory = {
   tone: "video" | "alimtalk" | "tools" | "website";
   kind: "phone" | "desktop";
   highlights: string[];
+  visualPair?: {
+    label: string;
+    image: string;
+    alt: string;
+    width: number;
+    height: number;
+  }[];
 };
 
 const HERO_CATEGORIES: HeroCategory[] = [
@@ -81,20 +89,36 @@ const HERO_CATEGORIES: HeroCategory[] = [
   },
   {
     id: "tools",
-    label: "자료 제작",
-    navCopy: "반복 작업 절감",
-    title: "반복되는 수업자료 작업을 줄입니다",
-    copy: "PDF 문항을 자동으로 나누거나 문제·개념별로 준비한 이미지를 수업 순서대로 배치해 흑백반전 칠판용 PPT로 만듭니다. 매치업에서는 실제 시험과 시험 전에 다룬 자료를 나란히 확인합니다.",
+    label: "PPT · 매치업",
+    navCopy: "두 가지 자료 도구",
+    title: "칠판용 PPT 제작과 매치업을 각각 제공합니다",
+    copy: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 실제 시험지와 사전 자료를 문항별로 나눠 유사 후보를 제시하며, 최종 판단은 선생님이 합니다.",
     image: "/promo/ppt-gaepo-setup-20260725.png",
-    alt: "문제 자료를 나누고 흑백반전해 칠판용 PPT를 만드는 실제 화면",
+    alt: "칠판용 PPT를 만드는 실제 화면",
     imageWidth: 1280,
     imageHeight: 720,
     href: "/promo/matchup-ppt",
-    cta: "자료 제작 기능 보기",
+    cta: "PPT · 매치업 자세히 보기",
     icon: Presentation,
     tone: "tools",
     kind: "desktop",
-    highlights: ["PDF 문항 자동 분리", "흑백반전·PPT 내려받기", "실제 시험과 사전 자료 비교"],
+    highlights: ["칠판용 PPT 제작", "문항 자동 분리·유사 후보", "선생님이 최종 확인"],
+    visualPair: [
+      {
+        label: "매치업",
+        image: "/promo/matchup-gaepo-candidates-20260725.png",
+        alt: "실제 시험지 문항과 사전 자료의 유사 후보를 보여주는 매치업 실제 화면",
+        width: 1280,
+        height: 720,
+      },
+      {
+        label: "칠판용 PPT 제작",
+        image: "/promo/ppt-gaepo-setup-20260725.png",
+        alt: "PDF와 이미지로 칠판용 PPT를 만드는 실제 화면",
+        width: 1280,
+        height: 720,
+      },
+    ],
   },
   {
     id: "website",
@@ -203,34 +227,13 @@ const DETAILED_WORKFLOWS = [
   },
   {
     id: "tools",
-    label: "자료 제작",
+    label: "칠판용 PPT · 매치업",
     icon: Presentation,
     tone: "tools",
     href: "/promo/matchup-ppt",
-    cta: "자료 제작 과정 보기",
-    summary: "기계가 나누는 단계와 선생님이 판단하는 단계를 분리해 반복 작업만 줄입니다.",
-    stages: [
-      {
-        mode: "선생님 준비",
-        title: "PDF·이미지 등록",
-        copy: "PDF 또는 문제·개념별로 준비한 이미지를 올리고 수업 자료를 선택합니다.",
-      },
-      {
-        mode: "자동 처리",
-        title: "PDF 문항 분리",
-        copy: "PDF 문항은 자동으로 나누고 준비한 이미지는 한 장씩 슬라이드로 배치합니다.",
-      },
-      {
-        mode: "선생님 확인",
-        title: "순서·반전·화면 비율",
-        copy: "슬라이드 순서와 흑백반전, 밝기·대비, 16:9·4:3 비율을 확인합니다.",
-      },
-      {
-        mode: "수업 결과",
-        title: "PPT 내려받기",
-        copy: "칠판에 띄울 PPT를 내려받아 리모컨으로 넘기며 수업합니다.",
-      },
-    ],
+    cta: "두 기능 자세히 보기",
+    summary: "수업 전 자료 준비와 시험 후 적중 근거 정리를 서로 다른 두 도구로 제공합니다.",
+    stages: [],
   },
   {
     id: "website",
@@ -262,6 +265,25 @@ const DETAILED_WORKFLOWS = [
         copy: "방문자는 학원 정보를 보고 상담하거나 학생·선생님 서비스로 이동합니다.",
       },
     ],
+  },
+] as const;
+
+const TOOL_WORKFLOWS = [
+  {
+    id: "ppt",
+    icon: Presentation,
+    timing: "수업 전",
+    title: "칠판용 PPT 제작",
+    headline: "PDF·이미지 → 흑백반전 PPT",
+    copy: "문항을 자동으로 나누거나 준비한 이미지를 슬라이드로 배치합니다. 순서·화면비율·밝기와 대비를 확인한 뒤 PPT로 내려받습니다.",
+  },
+  {
+    id: "matchup",
+    icon: ScanSearch,
+    timing: "시험 후",
+    title: "매치업",
+    headline: "문항 자동 분리 → 유사 후보",
+    copy: "실제 시험지와 학원 사전 자료를 문항별로 나눠 비교 후보를 제시합니다. 유사 문항과 적중 근거는 선생님이 직접 확인해 확정합니다.",
   },
 ] as const;
 
@@ -297,12 +319,12 @@ const START_POINTS = [
   {
     icon: LayoutDashboard,
     title: "필요한 화면부터 실제로 보여드립니다",
-    copy: "영상, 알림톡, 학생 관리, 자료 제작과 홈페이지 중 필요한 기능을 실제 화면으로 확인합니다.",
+    copy: "영상, 알림톡, 학생 관리, 칠판용 PPT·매치업과 홈페이지 중 필요한 기능을 실제 화면으로 확인합니다.",
   },
   {
     icon: ShieldCheck,
     title: "월 요금과 별도 비용을 안내합니다",
-    copy: "평소 월 결제 금액은 198,000원입니다. 2026년 8월 가입 시 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 계속 적용됩니다.",
+    copy: "8월 가입은 월 14만 5천원, 8월 이후 가입은 월 16만원입니다. 두 금액 모두 부가세 별도이며, 8월 가입 요금은 이용 기간 동안 유지됩니다.",
   },
 ];
 
@@ -433,16 +455,37 @@ function HeroCategoryNavigator() {
         aria-labelledby={`promo-category-tab-${active.id}`}
         className={styles.categoryPanel}
       >
-        <div className={styles.categoryVisual} data-kind={active.kind}>
-          <PromoEvidenceImage
-            key={active.image}
-            src={active.image}
-            alt={active.alt}
-            width={active.imageWidth}
-            height={active.imageHeight}
-            loading="eager"
-          />
-          <span>실제 화면 · 예시 자료</span>
+        <div
+          className={styles.categoryVisual}
+          data-kind={active.kind}
+          data-pair={active.visualPair ? "true" : undefined}
+        >
+          {active.visualPair ? (
+            <div className={styles.categoryVisualPair}>
+              {active.visualPair.map((visual) => (
+                <figure key={visual.label}>
+                  <PromoEvidenceImage
+                    src={visual.image}
+                    alt={visual.alt}
+                    width={visual.width}
+                    height={visual.height}
+                    loading="eager"
+                  />
+                  <figcaption>{visual.label}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <PromoEvidenceImage
+              key={active.image}
+              src={active.image}
+              alt={active.alt}
+              width={active.imageWidth}
+              height={active.imageHeight}
+              loading="eager"
+            />
+          )}
+          <span>{active.visualPair ? "두 기능 · 실제 화면" : "실제 화면 · 예시 자료"}</span>
         </div>
         <div className={styles.categoryCopy}>
           <span>
@@ -600,17 +643,36 @@ function StrengthSection() {
                   </div>
                   <h3>{workflow.label}</h3>
                   <p>{workflow.summary}</p>
-                  <ol className={styles.responsibilityFlow}>
-                    {workflow.stages.map((stage) => (
-                      <li key={stage.title}>
-                        <span>{stage.mode}</span>
-                        <div>
-                          <strong>{stage.title}</strong>
-                          <p>{stage.copy}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
+                  {workflow.id === "tools" ? (
+                    <div className={styles.toolWorkflowSplit} aria-label="칠판용 PPT 제작과 매치업">
+                      {TOOL_WORKFLOWS.map((tool) => {
+                        const ToolIcon = tool.icon;
+                        return (
+                          <section key={tool.id} data-tool={tool.id}>
+                            <div>
+                              <ToolIcon size={ICON.md} aria-hidden="true" />
+                              <span>{tool.timing}</span>
+                            </div>
+                            <h4>{tool.title}</h4>
+                            <strong>{tool.headline}</strong>
+                            <p>{tool.copy}</p>
+                          </section>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <ol className={styles.responsibilityFlow}>
+                      {workflow.stages.map((stage) => (
+                        <li key={stage.title}>
+                          <span>{stage.mode}</span>
+                          <div>
+                            <strong>{stage.title}</strong>
+                            <p>{stage.copy}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
                   <span className={styles.strengthCardAction}>
                     {workflow.cta}
                     <ArrowRight size={ICON.sm} aria-hidden="true" />
@@ -693,7 +755,7 @@ function FinalCta() {
           현재 방식부터 확인합니다
         </span>
         <h2 id="final-cta-title">우리 학원에서 먼저 필요한 기능을 실제 화면으로 확인하세요</h2>
-        <p>현재 수업과 관리 방식을 알려주시면 영상, 알림톡, 운영, 자료 제작과 홈페이지 화면을 준비해 보여드립니다.</p>
+        <p>현재 수업과 관리 방식을 알려주시면 영상, 알림톡, 운영, 칠판용 PPT·매치업과 홈페이지 화면을 준비해 보여드립니다.</p>
         <div className={styles.finalActions}>
           <Link to="/promo/demo" className={styles.primaryButton}>
             내 학원 기준으로 확인

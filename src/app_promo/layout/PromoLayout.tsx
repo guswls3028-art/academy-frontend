@@ -343,7 +343,7 @@ function Footer() {
           <Link to="/promo/video-platform">영상 학습</Link>
           <Link to="/promo/features#communication">알림톡 안내</Link>
           <Link to="/promo/landing-samples">학원 홈페이지</Link>
-          <Link to="/promo/matchup-ppt">자료 제작 도구</Link>
+          <Link to="/promo/matchup-ppt">매치업·칠판용 PPT</Link>
           <Link to="/promo/ai-grading">채점 보조</Link>
         </nav>
 

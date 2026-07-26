@@ -51,7 +51,7 @@ test.describe("promo business readiness", () => {
     await page.waitForTimeout(5_800);
     await expect(categoryTabs.locator(`#${pausedTabId}`)).toHaveAttribute("aria-selected", "true");
     await expect(categoryTabs.getByRole("tab", { name: /알림톡 안내/ })).toBeVisible();
-    await expect(categoryTabs.getByRole("tab", { name: /자료 제작/ })).toBeVisible();
+    await expect(categoryTabs.getByRole("tab", { name: /PPT · 매치업/ })).toBeVisible();
     await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeVisible();
 
     await categoryTabs.getByRole("tab", { name: /영상 수업/ }).focus();
@@ -63,10 +63,12 @@ test.describe("promo business readiness", () => {
     await expect(page.getByRole("tabpanel").getByRole("heading", { name: "우리 학원에 맞는 홈페이지를 함께 운영합니다" })).toBeVisible();
     await expect(page.getByRole("tabpanel").getByRole("link", { name: "홈페이지 형식 보기" })).toBeVisible();
 
-    await categoryTabs.getByRole("tab", { name: /자료 제작/ }).click();
-    await expect(page.getByRole("tabpanel").getByRole("heading", { name: "반복되는 수업자료 작업을 줄입니다" })).toBeVisible();
-    await expect(page.getByRole("tabpanel").getByText(/PDF 문항을 자동으로 나누거나 문제·개념별로 준비한 이미지/)).toBeVisible();
-    await expect(page.getByRole("tabpanel").getByText(/매치업에서는 실제 시험과 시험 전에 다룬 자료/)).toBeVisible();
+    await categoryTabs.getByRole("tab", { name: /PPT · 매치업/ }).click();
+    const toolsPanel = page.getByRole("tabpanel");
+    await expect(toolsPanel.getByRole("heading", { name: "칠판용 PPT 제작과 매치업을 각각 제공합니다" })).toBeVisible();
+    await expect(toolsPanel.getByText(/문항별로 나눠 유사 후보를 제시/)).toBeVisible();
+    await expect(toolsPanel.getByText("매치업", { exact: true }).first()).toBeVisible();
+    await expect(toolsPanel.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
 
     await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${BASE}/promo`);
@@ -80,10 +82,17 @@ test.describe("promo business readiness", () => {
     const workflowCards = page.locator("a[data-workflow-card]");
     await expect(workflowCards).toHaveCount(4);
     const materialCard = page.locator('a[data-workflow-card="tools"]');
-    await materialCard.getByRole("heading", { name: "자료 제작" }).click();
+    await expect(materialCard.getByRole("heading", { name: "칠판용 PPT · 매치업" })).toBeVisible();
+    await expect(materialCard.getByRole("heading", { name: "칠판용 PPT 제작" })).toBeVisible();
+    await expect(materialCard.getByRole("heading", { name: "매치업", exact: true })).toBeVisible();
+    await expect(materialCard.getByText("PDF·이미지 → 흑백반전 PPT", { exact: true })).toBeVisible();
+    await expect(materialCard.getByText("문항 자동 분리 → 유사 후보", { exact: true })).toBeVisible();
+    await materialCard.getByRole("heading", { name: "칠판용 PPT · 매치업" }).click();
     await expect(page).toHaveURL(`${BASE}/promo/matchup-ppt`);
-    await expect(page.getByText(/매치업은 실제 시험과 우리 학원 사전 대비 자료를 비교/).first()).toBeVisible();
-    await expect(page.getByText(/PPT 생성기는 자료를 PDF 문항으로 나누거나 준비한 이미지별로 배치해/).first()).toBeVisible();
+    await expect(page.getByText("매치업", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/문항 자동 분리 · 유사 후보 · 선생님 확정/).first()).toBeVisible();
+    await expect(page.getByText(/슬라이드 구성 · 흑백반전 · PPT 다운로드/).first()).toBeVisible();
   });
 
   test("orders the full feature guide around operations, video, communication, homepage, then tools", async ({ page }) => {
@@ -215,10 +224,11 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByRole("heading", { name: "8월 가입 월 145,000원 (부가세 별도)" }),
+      page.getByRole("heading", { name: /8월 가입 14만 5천원/ }),
     ).toBeVisible();
-    await expect(page.getByText(/부가세 포함 실제 월 결제 금액은 159,000원/).first()).toBeVisible();
-    await expect(page.getByText(/실제 월 결제 159,000원이 이용 기간 동안 계속 적용/).first()).toBeVisible();
+    await expect(page.getByText("16만원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/).first()).toBeVisible();
+    await expect(page.getByText("월 요금 · 부가세 별도", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });
 

@@ -33,6 +33,13 @@ type ProofCard = {
   alt: string;
   imageWidth: number;
   imageHeight: number;
+  secondaryVisual?: {
+    label: string;
+    image: string;
+    alt: string;
+    width: number;
+    height: number;
+  };
   points: string[];
   ctaPath: string;
   ctaLabel: string;
@@ -96,16 +103,23 @@ const PROOF_CARDS: ProofCard[] = [
   },
   {
     id: "matchup-ppt",
-    badge: "자료 제작 실제 화면",
-    title: "반복되는 수업자료 작업을 줄이는 도구입니다",
-    body: "PDF 문항을 자동으로 나누거나 문제·개념별로 준비한 이미지를 수업 순서대로 배치해 흑백반전 칠판용 PPT로 만듭니다. 매치업은 실제 시험과 시험 전에 다룬 자료를 비교하는 별도 기능입니다.",
-    image: "/promo/ppt-gaepo-setup-20260725.png",
-    alt: "문제 자료를 나누고 흑백반전해 칠판용 PPT를 만드는 실제 화면",
+    badge: "두 가지 자료 도구 · 실제 화면",
+    title: "칠판용 PPT 제작과 매치업을 각각 제공합니다",
+    body: "칠판용 PPT 도구는 PDF·이미지를 슬라이드로 구성하고 흑백반전합니다. 매치업은 시험지와 사전 자료를 문항별로 나눠 유사 후보를 보여주고, 선생님이 적중 근거를 확정하도록 돕습니다.",
+    image: "/promo/matchup-gaepo-candidates-20260725.png",
+    alt: "실제 시험지 문항과 사전 자료의 유사 후보를 보여주는 매치업 실제 화면",
     imageWidth: 1280,
     imageHeight: 720,
-    points: ["PDF 문항 자동 분리", "이미지별 슬라이드 구성", "흑백반전·PPT 내려받기"],
+    secondaryVisual: {
+      label: "칠판용 PPT 제작",
+      image: "/promo/ppt-gaepo-setup-20260725.png",
+      alt: "PDF와 이미지로 칠판용 PPT를 만드는 실제 화면",
+      width: 1280,
+      height: 720,
+    },
+    points: ["매치업: 문항 자동 분리·유사 후보 제공", "PPT: 슬라이드 구성·흑백반전", "두 기능 모두 선생님 확인 후 결과물 저장"],
     ctaPath: "/promo/matchup-ppt",
-    ctaLabel: "자료 제작 기능 보기",
+    ctaLabel: "PPT · 매치업 자세히 보기",
     tone: "matchup",
   },
 ];
@@ -114,15 +128,15 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   {
     id: "matchup-ppt-flow",
     title: "적중 매치업·칠판용 PPT",
-    kicker: "수업자료 제작",
-    body: "실제 시험과 사전 대비 자료를 비교해 적중 근거를 남기고, 별도로 수업자료를 빔프로젝터용 PPT로 만듭니다.",
+    kicker: "두 가지 자료 도구",
+    body: "매치업은 실제 시험과 사전 대비 자료를 비교해 적중 근거를 남기고, 칠판용 PPT 도구는 수업자료를 빔프로젝터용 슬라이드로 만듭니다.",
     icon: Presentation,
     accentBg: "#dce8ff",
     items: [
-      { title: "실제 시험 등록", desc: "학교 시험에 실제로 출제된 문제를 학교·학기·시험별로 정리합니다." },
-      { title: "사전 자료 비교", desc: "우리 학원이 시험 전에 다룬 유사 문제를 나란히 보고 적중 근거를 확정합니다." },
-      { title: "PPT 자료 구성", desc: "PDF 문항은 자동으로 나누고, 준비한 이미지는 한 장씩 슬라이드로 배치해 순서를 정합니다." },
-      { title: "칠판용 PPT", desc: "흑백반전과 밝기·대비를 적용해 16:9·4:3 PPT로 내려받습니다." },
+      { title: "매치업 · 문항 자동 분리", desc: "실제 시험지와 사전 대비 자료를 문항별로 나눠 비교할 수 있게 준비합니다." },
+      { title: "매치업 · 유사 후보 확인", desc: "문항별 후보를 나란히 보고 선생님이 유사 문항과 적중 근거를 확정합니다." },
+      { title: "칠판용 PPT · 자료 구성", desc: "PDF 문항 또는 준비한 이미지를 한 장씩 슬라이드로 배치해 순서를 정합니다." },
+      { title: "칠판용 PPT · 내려받기", desc: "흑백반전과 밝기·대비를 적용해 16:9·4:3 PPT로 내려받습니다." },
     ],
   },
   {
@@ -263,10 +277,10 @@ const FEATURE_WORKFLOWS: Record<string, { mode: string; title: string; desc: str
     { mode: "선생님 확인", title: "참석·결과·메모 기록", desc: "실제 참여와 보강 결과는 선생님이 확인해 남깁니다." },
   ],
   "matchup-ppt-flow": [
-    { mode: "직접 준비", title: "시험지·수업자료 등록", desc: "실제 시험과 시험 전에 다룬 자료 또는 PPT용 자료를 올립니다." },
-    { mode: "자동 보조", title: "유사 후보·PDF 문항 분리", desc: "매치업 후보를 찾고 PPT용 PDF 문항을 나눠 확인 순서를 줄입니다." },
-    { mode: "선생님 확인", title: "적중 근거·슬라이드 확정", desc: "유사 문제 여부와 슬라이드 순서·반전 설정을 직접 확인합니다." },
-    { mode: "결과물", title: "적중 보고서·칠판용 PPT", desc: "목적이 다른 두 결과물을 각각 저장하고 수업·상담에 사용합니다." },
+    { mode: "매치업", title: "문항 자동 분리", desc: "실제 시험지와 사전 대비 자료를 문항 단위로 나눕니다." },
+    { mode: "매치업", title: "유사 후보·적중 근거 확정", desc: "후보를 나란히 보고 선생님이 유사 문항 여부를 직접 판단합니다." },
+    { mode: "칠판용 PPT", title: "PDF·이미지 슬라이드 구성", desc: "문항 또는 개념 이미지를 수업 순서에 맞게 배치합니다." },
+    { mode: "칠판용 PPT", title: "반전 설정·PPT 다운로드", desc: "화면비율과 흑백반전을 확인한 뒤 수업용 PPT로 내려받습니다." },
   ],
   "parent-report": [
     { mode: "기록 연결", title: "출결·성적·영상·보강 확인", desc: "학생별로 남아 있는 수업 전후 기록을 한데 모아 봅니다." },
@@ -296,7 +310,7 @@ const NAV_LINKS = [
   { label: "학생앱 영상", href: "#student-video-flow" },
   { label: "알림톡 안내", href: "#communication" },
   { label: "학원 홈페이지", href: "#academy-homepage-flow" },
-  { label: "자료 제작", href: "#matchup-ppt-flow" },
+  { label: "매치업·PPT", href: "#matchup-ppt-flow" },
   { label: "시험·성적", href: "#exam-score" },
   { label: "보강·클리닉", href: "#clinic" },
 ];
@@ -446,7 +460,7 @@ export default function FeaturesPage() {
             <h1 id="features-title">학원 운영의 기본과 네 가지 핵심 영역을 나눠서 확인하세요</h1>
             <p>
               강의·수강생·출결·성적·보강 관리가 중심입니다. 학생앱 영상, 알림톡,
-              자료 제작과 학원 홈페이지는 목적별로 따로 정리했습니다.
+              칠판용 PPT·매치업과 학원 홈페이지는 목적별로 따로 정리했습니다.
             </p>
             <div className={styles.heroActions}>
               <a href="#feature-catalog-title" className={styles.primaryCta}>
@@ -498,7 +512,7 @@ export default function FeaturesPage() {
             </span>
             <h2 id="proof-title">주요 기능을 실제 화면으로 확인하세요</h2>
             <p>
-              영상, 알림톡, 홈페이지와 자료 제작을 각각 언제 쓰는지 실제 화면과 함께 보여드립니다.
+              영상, 알림톡, 홈페이지와 칠판용 PPT·매치업을 각각 언제 쓰는지 실제 화면과 함께 보여드립니다.
             </p>
           </header>
 
@@ -510,7 +524,7 @@ export default function FeaturesPage() {
                 className={styles.proofCard}
                 data-tone={card.tone}
               >
-                <div className={`${styles.proofVisual} ${card.phone ? styles.proofPhoneVisual : ""}`}>
+                <div className={`${styles.proofVisual} ${card.phone ? styles.proofPhoneVisual : ""} ${card.secondaryVisual ? styles.proofVisualPair : ""}`}>
                   <PromoEvidenceImage
                     src={card.image}
                     alt={card.alt}
@@ -518,6 +532,18 @@ export default function FeaturesPage() {
                     height={card.imageHeight}
                     loading="lazy"
                   />
+                  {card.secondaryVisual && (
+                    <figure>
+                      <PromoEvidenceImage
+                        src={card.secondaryVisual.image}
+                        alt={card.secondaryVisual.alt}
+                        width={card.secondaryVisual.width}
+                        height={card.secondaryVisual.height}
+                        loading="lazy"
+                      />
+                      <figcaption>{card.secondaryVisual.label}</figcaption>
+                    </figure>
+                  )}
                 </div>
                 <div className={styles.proofText}>
                   <span className={styles.proofBadge}>{card.badge}</span>
@@ -608,7 +634,7 @@ export default function FeaturesPage() {
 
       <CtaSection
         title="현재 관리 방식에 맞는 기능을 확인해 보세요"
-        subtitle="강의·학생 관리부터 영상, 알림톡, 자료 제작과 학원 홈페이지까지 필요한 화면을 안내합니다."
+        subtitle="강의·학생 관리부터 영상, 알림톡, 칠판용 PPT·매치업과 학원 홈페이지까지 필요한 화면을 안내합니다."
         secondaryPath="/promo/video-platform"
         secondaryLabel="학생앱 영상 보기"
       />

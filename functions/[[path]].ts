@@ -43,15 +43,15 @@ const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
     title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",
-    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.",
+    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.",
   },
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
-    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 목적별로 확인하세요.",
+    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 목적별로 확인하세요.",
   },
   "/promo/matchup-ppt": {
     title: "적중 매치업과 칠판용 PPT | 학원플러스",
-    description: "실제 시험과 우리 학원 사전 대비 자료를 비교해 유사 문항을 확인하고, 별도로 문제·개념 자료를 흑백반전 칠판용 PPT로 만드는 과정을 보여드립니다.",
+    description: "매치업의 문항 자동 분리·유사 후보·선생님 확정 과정과 PDF·이미지를 흑백반전 칠판용 PPT로 만드는 과정을 각각 보여드립니다.",
   },
   "/promo/parent-trust": {
     title: "학부모 상담을 위한 수업 기록 | 학원플러스",
@@ -66,8 +66,8 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
   },
   "/promo/pricing": {
-    title: "요금 안내 | 8월 가입 월 145,000원(부가세 별도) | 학원플러스",
-    description: "2026년 8월 가입 시 공급가 월 145,000원(부가세 별도), 실제 월 결제 159,000원이 이용 기간 동안 계속 적용됩니다.",
+    title: "요금 안내 | 8월 14만 5천원·이후 16만원 | 학원플러스",
+    description: "2026년 8월 가입은 월 14만 5천원, 8월 이후 가입은 월 16만원입니다. 두 금액 모두 부가세 별도이며 8월 가입 요금은 이용 기간 동안 유지됩니다.",
   },
   "/promo/faq": {
     title: "자주 묻는 질문 | 학원플러스",
@@ -79,7 +79,7 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   },
   "/promo/demo": {
     title: "내 자료로 데모 요청 | 학원플러스",
-    description: "현재 수업과 관리 방식을 기준으로 영상, 알림톡, 학생 관리, 자료 제작과 학원 홈페이지 화면을 확인해보세요.",
+    description: "현재 수업과 관리 방식을 기준으로 영상, 알림톡, 학생 관리, 칠판용 PPT·매치업과 학원 홈페이지 화면을 확인해보세요.",
   },
 };
 
@@ -243,8 +243,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -438,10 +438,10 @@ function injectMeta(
       description,
       offers: {
         "@type": "Offer",
-        price: "159000",
+        price: "145000",
         priceCurrency: "KRW",
         priceValidUntil: "2026-08-31",
-        description: "2026년 8월 가입 학원은 공급가 월 145,000원(부가세 별도), 실제 결제 159,000원이 이용 기간 동안 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
+        description: "2026년 8월 가입은 월 14만 5천원, 8월 이후 가입은 월 16만원입니다. 두 금액 모두 부가세 별도이며 8월 가입 요금은 이용 기간 동안 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
       },
     });
     html = html.replace(
