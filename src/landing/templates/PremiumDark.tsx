@@ -394,7 +394,7 @@ export default function PremiumDark({ config }: TemplateProps) {
               <section key="contact" data-stype="contact" style={{ padding: "120px 24px", background: bgAlt }}>
                 <div style={{ maxWidth: 1120, margin: "0 auto" }}>
                   <SectionHeader eyebrow="Contact" title="문의" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 32, marginTop: 56 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))", gap: 32, marginTop: 56 }}>
                     {/* 좌: 연락처 카드들 */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                       {config.contact?.phone && (
