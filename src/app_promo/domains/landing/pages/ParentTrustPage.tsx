@@ -73,20 +73,20 @@ const USE_CASES = [
 const PACKAGES = [
   {
     name: "기본 요금제",
-    target: "2026년 8월 가입 월 159,000원",
-    body: "현재 기본 요금제의 표준 기능을 포함합니다. 알림톡, 추가 저장공간 등 별도 비용은 요금 안내에서 확인할 수 있습니다.",
+    target: "2026년 8월 가입 · 이용 기간 동안 월 159,000원",
+    body: "안내된 기능을 모두 포함합니다. 알림톡, 추가 저장공간 등 별도 비용은 요금 안내에서 확인할 수 있습니다.",
   },
 ];
 
 function HeroReportPreview() {
   return (
-    <aside className={styles.reportPreview} aria-label="학원 운영 현황 제품 화면">
+    <aside className={styles.reportPreview} aria-label="학원 운영 현황 실제 화면">
       <div className={styles.reportTop}>
         <div>
           <span>수업·시험 운영 현황</span>
           <strong>시험·제출·문의 확인</strong>
         </div>
-          <small>제품 UI · 예시 데이터</small>
+          <small>실제 화면 · 예시 자료</small>
       </div>
       <figure className={styles.reportScreen}>
         <PromoEvidenceImage
@@ -212,10 +212,10 @@ export default function ParentTrustPage() {
           <div className={styles.packageLayout}>
             <div className={styles.packageCopy}>
               <span>요금 기준</span>
-              <h2 id="package-title">기본 요금제에 표준 기능을 포함합니다</h2>
+              <h2 id="package-title">한 가지 요금으로 안내된 기능을 모두 이용합니다</h2>
               <p>
-                계정이나 수강생 수에 따른 별도 좌석 과금은 없습니다. 현재 운영 방식에 맞춰
-                필요한 기능과 도입 순서를 정합니다.
+                계정이나 수강생 수에 따른 추가 요금은 없습니다. 현재 관리 방식에 맞춰
+                필요한 기능과 시작 순서를 정합니다.
               </p>
               <Link to="/promo/pricing" className={styles.darkCta}>
                 요금 확인하기

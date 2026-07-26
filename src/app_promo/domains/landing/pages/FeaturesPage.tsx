@@ -209,11 +209,11 @@ export default function FeaturesPage() {
       <section className={`${styles.hero} ${styles.heroFeatures}`} aria-labelledby="features-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>학원 운영 기능 · 제품 화면 안내</span>
+            <span className={styles.eyebrow}>학원 운영 기능 · 실제 화면 안내</span>
             <h1 id="features-title">수업 준비와 학원 운영에 필요한 기능을 확인하세요</h1>
             <p>
               실제 시험과 사전 자료 비교, 칠판용 PPT 제작부터 출결, 성적, 영상, 알림톡, 보강까지.
-              실제 사용하는 순서에 따라 기능과 제품 화면을 정리했습니다.
+              실제 사용하는 순서에 따라 기능과 화면을 정리했습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/matchup-ppt" className={styles.primaryCta}>
@@ -221,7 +221,7 @@ export default function FeaturesPage() {
                 <Presentation size={18} />
               </Link>
               <a href="#matchup-ppt-flow" className={styles.secondaryCta}>
-                전체 기능 보기
+                기능별 안내 보기
                 <ScanSearch size={18} />
               </a>
             </div>
@@ -237,7 +237,7 @@ export default function FeaturesPage() {
               />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>문항 분할 · 반전 설정</strong>
-                <span>제품 화면 · 슬라이드 2장 · 16:9 설정</span>
+                <span>실제 화면 · 슬라이드 2장 · 16:9 설정</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
@@ -263,7 +263,7 @@ export default function FeaturesPage() {
               <Sparkles size={16} />
               실제 화면
             </span>
-            <h2 id="proof-title">주요 기능을 제품 화면으로 확인하세요</h2>
+            <h2 id="proof-title">주요 기능을 실제 화면으로 확인하세요</h2>
             <p>
               기능 이름만 나열하지 않았습니다. 매치업, PPT, 학생앱, 관리자 화면을 실제 수업에서
               언제 쓰는지와 함께 보여드립니다.
@@ -361,7 +361,7 @@ export default function FeaturesPage() {
       </section>
 
       <CtaSection
-        title="현재 운영 방식에 맞는 기능을 확인해 보세요"
+        title="현재 관리 방식에 맞는 기능을 확인해 보세요"
         subtitle="시험지와 수업자료를 기준으로 매치업, 칠판용 PPT와 운영 화면을 안내합니다."
         secondaryPath="/promo/matchup-ppt"
         secondaryLabel="매치업·칠판용 PPT 보기"

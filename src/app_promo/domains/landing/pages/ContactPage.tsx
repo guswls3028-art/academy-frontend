@@ -75,7 +75,7 @@ export default function ContactPage() {
     <>
       <section className={styles.hero} aria-labelledby="contact-title">
         <div className={styles.heroInner}>
-          <span>도입 문의</span>
+          <span>사용 상담</span>
           <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
           <p>수업 규모와 필요한 기능을 남겨주시면 확인 후 연락드리겠습니다. 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <PhoneInquiryLink>전화 문의</PhoneInquiryLink>
@@ -201,6 +201,7 @@ export default function ContactPage() {
               disabled={pending}
               onChange={setPrivacyAgreed}
               requiredFields="이름, 연락처, 문의 유형, 문의 내용"
+              optionalFields="이메일, 소속/수업명, 담당 수강생 수, 유입 정보"
             />
 
             {error && <div className={styles.errorBox}>{error}</div>}

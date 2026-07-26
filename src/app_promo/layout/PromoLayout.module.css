@@ -361,7 +361,9 @@
   display: flex;
   width: min(360px, calc(100vw - 34px));
   height: 100vh;
+  height: 100dvh;
   flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid rgba(15, 23, 42, 0.08);
   padding: 16px;
   background: #fff;
@@ -398,10 +400,21 @@
   background: #f8fafc;
 }
 
+.sidebarBody {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-top: 16px;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
 .sidebarNav {
   display: grid;
   gap: 8px;
-  margin-top: 16px;
 }
 
 .sidebarNav a {
@@ -565,6 +578,7 @@
 
   .headerInner {
     height: 64px;
+    justify-content: flex-start;
   }
 
   .footerInner {

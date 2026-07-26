@@ -16,7 +16,7 @@ type PromoEvidenceImageProps = ImgHTMLAttributes<HTMLImageElement> & {
 
 export default function PromoEvidenceImage({
   alt = "",
-  modalCaption = "제품 화면 확대",
+  modalCaption = "실제 화면 크게 보기",
   onClick,
   onKeyDown,
   ...imageProps
@@ -69,7 +69,7 @@ export default function PromoEvidenceImage({
         alt={alt}
         role="button"
         tabIndex={0}
-        aria-label={`${alt || "제품 화면"} 확대해서 보기`}
+        aria-label={`${alt || "실제 화면"} 확대해서 보기`}
         onClick={handleClick}
         onKeyDown={handleImageKeyDown}
       />

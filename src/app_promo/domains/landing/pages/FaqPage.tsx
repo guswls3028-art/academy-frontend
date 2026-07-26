@@ -32,7 +32,7 @@ const FAQS = [
   },
   {
     q: "자동채점은 어떤 유형의 문제를 지원하나요?",
-    a: "객관식, OX형과 지원되는 수치형 단답을 자동으로 채점합니다. 서술형은 선생님이 직접 답안을 확인하고 점수를 입력합니다.",
+    a: "객관식, OX형과 일부 수학 단답형(정답이 0~999 정수인 문항)을 자동으로 채점합니다. 서술형은 선생님이 직접 답안을 확인하고 점수를 입력합니다.",
   },
   {
     q: "서술형도 완전 자동으로 채점되나요?",
@@ -40,11 +40,11 @@ const FAQS = [
   },
   {
     q: "가격과 포함 기능은 어떻게 되나요?",
-    a: "기본 요금은 부가가치세 포함 월 198,000원입니다. 2026년 8월 1일부터 31일까지 가입할 때는 월 159,000원이 적용됩니다. 기본 저장공간은 200GB이며 알림톡 발송비, 저장공간 초과, 대량 이전, 커스텀 개발은 별도 협의합니다. 이후 요금 변경은 계약과 이용약관에 따라 사전에 안내합니다.",
+    a: "평소 요금은 부가가치세 포함 월 198,000원입니다. 2026년 8월 1일부터 31일까지 가입한 학원은 서비스를 이용하는 동안 월 159,000원이 계속 적용됩니다. 기본 저장공간은 200GB이며 알림톡 발송비, 저장공간 초과, 대량 이전, 맞춤 개발은 별도 협의합니다.",
   },
   {
     q: "기존 영상이나 수강생 자료를 이전할 수 있나요?",
-    a: "기존 영상 파일 업로드와 CSV, Excel 기반 수강생 일괄 등록을 지원합니다. 대량 이전이 필요한 경우 자료량과 일정에 따라 지원 범위를 상담에서 확인합니다.",
+    a: "기존 영상 파일을 올릴 수 있고, CSV나 엑셀 파일로 수강생을 한꺼번에 등록할 수 있습니다. 자료가 많으면 분량과 일정에 따라 이전 방법을 상담에서 확인합니다.",
   },
   {
     q: "강사나 스태프 권한을 나눌 수 있나요?",
@@ -59,7 +59,7 @@ const FAQS = [
 const QUICK_CHECKS = [
   { icon: PlayCircle, text: "학생앱 영상은 실제 화면으로 확인" },
   { icon: BellRing, text: "알림톡은 승인 템플릿과 발송비 별도 확인" },
-  { icon: ReceiptText, text: "기본 월 198,000원 · 8월 가입 적용 월 159,000원" },
+  { icon: ReceiptText, text: "평소 월 198,000원 · 8월 가입은 이용 기간 동안 월 159,000원" },
   { icon: ShieldCheck, text: "서술형은 선생님이 직접 채점" },
 ];
 
@@ -70,10 +70,10 @@ export default function FaqPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>자주 묻는 질문</span>
-            <h1 id="faq-title">도입 전에 확인할 질문을 모았습니다</h1>
+            <h1 id="faq-title">사용하기 전에 확인할 질문을 모았습니다</h1>
             <p>
-              영상, 알림톡, 자동채점, 가격 기준을 도입 전에 확인할 수 있게 나눴습니다.
-              필요한 범위가 정해져 있으면 전화 문의로도 확인할 수 있습니다.
+              영상, 알림톡, 자동채점과 가격 기준을 항목별로 나눴습니다.
+              필요한 내용이 정해져 있으면 전화로도 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/features#student-video-flow" className={styles.primaryCta}>
@@ -171,7 +171,7 @@ export default function FaqPage() {
               <h3 id="faq-proof-title">학생앱의 영상 이용 화면을 확인하세요</h3>
               <p>학생이 앱에서 강의 목록을 확인하고 영상을 이어 보는 화면입니다.</p>
               <Link to="/promo/video-platform" className={styles.textButton}>
-                영상 플랫폼 상세 보기
+                학생앱 영상 자세히 보기
                 <ArrowRight size={16} />
               </Link>
             </div>
@@ -181,7 +181,7 @@ export default function FaqPage() {
 
       <CtaSection
         title="더 궁금한 점이 있으신가요?"
-        subtitle="문의 폼 또는 전화 문의로 필요한 범위를 확인합니다."
+        subtitle="문의 양식 또는 전화로 필요한 내용을 확인합니다."
       />
     </div>
   );

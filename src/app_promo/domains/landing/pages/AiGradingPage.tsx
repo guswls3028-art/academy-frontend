@@ -16,7 +16,7 @@ const TIERS = [
     level: "자동채점",
     title: "정답이 명확한 문항",
     body: "등록한 정답과 제출 답안을 비교해 지원되는 문항을 자동으로 채점합니다.",
-    items: ["객관식·OX형", "지원되는 수치형 단답", "복수 객관 정답", "문항별 배점·총점 계산"],
+    items: ["객관식·OX형", "일부 수학 단답형(0~999 정수)", "복수 객관 정답", "문항별 배점·총점 계산"],
   },
   {
     level: "직접 채점",
@@ -35,7 +35,7 @@ const TIERS = [
 const WORKFLOW = [
   { title: "시험과 정답 등록", desc: "문항 유형, 정답과 배점을 등록합니다." },
   { title: "답안 제출·OMR 처리", desc: "학생 답안 또는 OMR 결과를 시험에 연결합니다." },
-  { title: "지원 문항 자동채점", desc: "객관식·OX형과 지원되는 수치형 단답을 등록한 정답으로 채점합니다." },
+  { title: "정답이 명확한 문항 자동채점", desc: "객관식·OX형과 일부 수학 단답형(0~999 정수)을 등록한 정답으로 채점합니다." },
   { title: "서술형 확인·점수 확정", desc: "서술형은 선생님이 직접 확인하고 최종 점수를 확정합니다." },
 ];
 
@@ -48,7 +48,7 @@ export default function AiGradingPage() {
             <span className={styles.eyebrow}>시험 채점과 성적 관리</span>
             <h1 id="ai-grading-title">정답이 명확한 문항은 자동으로, 서술형은 선생님이 직접 채점합니다</h1>
             <p>
-              객관식·OX형과 지원되는 수치형 단답은 자동채점을 지원합니다.
+              객관식·OX형과 일부 수학 단답형(정답이 0~999 정수인 문항)은 자동채점을 지원합니다.
               서술형 답안은 선생님이 확인하고 점수를 확정합니다.
             </p>
             <div className={styles.heroActions}>
@@ -72,13 +72,13 @@ export default function AiGradingPage() {
               />
               <figcaption className={styles.heroScreenCaption}>
                 <strong>시험 운영</strong>
-                <span>제품 UI · 예시 시험 3개</span>
+                <span>실제 화면 · 예시 시험 3개</span>
               </figcaption>
             </figure>
             <div className={styles.miniProofGrid}>
               <article>
-                <strong>지원 문항 자동채점</strong>
-                <p>객관식·OX형과 지원되는 수치형 단답을 채점합니다.</p>
+                <strong>정답이 명확한 문항 자동채점</strong>
+                <p>객관식·OX형과 일부 수학 단답형(0~999 정수)을 채점합니다.</p>
               </article>
               <article>
                 <strong>서술형 직접 채점</strong>
@@ -167,7 +167,7 @@ export default function AiGradingPage() {
               />
             </div>
             <div className={styles.proofText}>
-              <span className={styles.proofBadge}>제품 UI · 예시 데이터</span>
+              <span className={styles.proofBadge}>실제 화면 · 예시 자료</span>
               <h3 id="grading-proof-title">시험과 성적을 강의·차시별로 관리합니다</h3>
               <p>
                 강의와 차시를 기준으로 시험, 제출과 성적을 확인합니다.

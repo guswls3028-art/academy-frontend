@@ -23,12 +23,12 @@ import { applyPromoMeta } from "../domains/landing/promoMeta";
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "홈", path: "/promo", icon: Home, note: "제품과 도입 흐름" },
+  { label: "홈", path: "/promo", icon: Home, note: "처음 보는 분을 위한 안내" },
   { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "매치업·칠판 PPT와 실제 화면" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
-  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "도입 상담" },
+  { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
@@ -120,6 +120,18 @@ function Header() {
     <>
       <header data-promo-header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
         <div className={styles.headerInner}>
+          <button
+            type="button"
+            ref={menuButtonRef}
+            className={styles.mobileMenuButton}
+            aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-expanded={mobileOpen}
+            aria-controls="promo-mobile-sidebar"
+            onClick={() => setMobileOpen((value) => !value)}
+          >
+            {mobileOpen ? <X size={ICON.lg} /> : <Menu size={ICON.lg} />}
+          </button>
+
           <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
             <span className={styles.brandMark} aria-hidden="true">
               <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
@@ -162,18 +174,6 @@ function Header() {
               내 자료로 데모
             </Link>
           </div>
-
-          <button
-            type="button"
-            ref={menuButtonRef}
-            className={styles.mobileMenuButton}
-            aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
-            aria-expanded={mobileOpen}
-            aria-controls="promo-mobile-sidebar"
-            onClick={() => setMobileOpen((value) => !value)}
-          >
-            {mobileOpen ? <X size={ICON.lg} /> : <Menu size={ICON.lg} />}
-          </button>
         </div>
 
         <nav className={styles.mobileTabs} aria-label="프로모션 빠른 메뉴">
@@ -222,39 +222,41 @@ function Header() {
           </button>
         </div>
 
-        <nav className={styles.sidebarNav} aria-label="프로모션 메뉴">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={isActive(location.pathname, item.path) ? styles.isActive : ""}
-              >
-                <Icon size={ICON.md} />
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.note}</small>
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+        <div className={styles.sidebarBody} data-testid="promo-mobile-sidebar-scroll">
+          <nav className={styles.sidebarNav} aria-label="프로모션 메뉴">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={isActive(location.pathname, item.path) ? styles.isActive : ""}
+                >
+                  <Icon size={ICON.md} />
+                  <span>
+                    <strong>{item.label}</strong>
+                    <small>{item.note}</small>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className={styles.sidebarCta}>
-          <span>
-            <Sparkles size={ICON.sm} />
-            내 수업 기준으로 확인
-          </span>
-          <p>현재 쓰는 시험지와 운영 방식을 기준으로 필요한 화면만 보여드립니다.</p>
-          <Link to="/promo/demo">
-            내 자료로 데모 요청
-            <PanelLeftOpen size={ICON.sm} />
-          </Link>
-          <PhoneInquiryLink>
-            전화 문의
-            <PhoneCall size={ICON.sm} />
-          </PhoneInquiryLink>
+          <div className={styles.sidebarCta}>
+            <span>
+              <Sparkles size={ICON.sm} />
+              내 수업 기준으로 확인
+            </span>
+            <p>현재 쓰는 시험지와 관리 방식을 기준으로 필요한 화면만 보여드립니다.</p>
+            <Link to="/promo/demo">
+              내 자료로 데모 요청
+              <PanelLeftOpen size={ICON.sm} />
+            </Link>
+            <PhoneInquiryLink>
+              전화 문의
+              <PhoneCall size={ICON.sm} />
+            </PhoneInquiryLink>
+          </div>
         </div>
       </aside>
     </>
@@ -335,8 +337,8 @@ function Footer() {
           <PhoneInquiryLink className={styles.footerPhone}>전화 문의</PhoneInquiryLink>
         </div>
 
-        <nav aria-label="제품">
-          <h2>제품</h2>
+        <nav aria-label="주요 기능">
+          <h2>주요 기능</h2>
           <Link to="/promo/parent-trust">학부모 상담 자료</Link>
           <Link to="/promo/features">기능 소개</Link>
           <Link to="/promo/matchup-ppt">매치업·칠판 PPT</Link>

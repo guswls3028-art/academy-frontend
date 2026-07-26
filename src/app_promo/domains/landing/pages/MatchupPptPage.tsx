@@ -83,7 +83,7 @@ const GUIDE_STEPS: GuideStep[] = [
     imageWidth: 1280,
     imageHeight: 720,
     alt: "개포고 문제 자료를 슬라이드 단위로 나누고 16대 9 비율을 설정하는 학원플러스 PPT 생성 화면",
-    caption: "제품 실화면 · 문제 단위 2장 구성",
+    caption: "실제 화면 · 문제 단위 2장 구성",
   },
   {
     number: "04",
@@ -100,7 +100,7 @@ const GUIDE_STEPS: GuideStep[] = [
     imageWidth: 460,
     imageHeight: 720,
     alt: "개포고 문제 자료의 그레이스케일, 밝기와 대비를 조정하고 칠판용 PPT를 내려받는 학원플러스 화면",
-    caption: "제품 실화면 · 반전 설정 · 미리보기 · PPT 다운로드",
+    caption: "실제 화면 · 반전 설정 · 미리보기 · PPT 다운로드",
     focus: "ppt-result",
   },
 ];
@@ -162,7 +162,7 @@ export default function MatchupPptPage() {
                 <MousePointer2 size={18} />
               </Link>
               <PhoneInquiryLink className={styles.secondaryButton}>
-                전화로 도입 문의
+                전화로 문의
               </PhoneInquiryLink>
             </div>
             <ul className={styles.heroFacts}>
@@ -192,7 +192,7 @@ export default function MatchupPptPage() {
               />
             </figure>
             <div className={styles.heroTicket}>
-              <span>제품 화면</span>
+              <span>실제 사용 화면</span>
               <strong>적중 보고서 예시</strong>
               <p>실제 시험과 사전 대비 자료 비교</p>
             </div>
@@ -362,7 +362,7 @@ export default function MatchupPptPage() {
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features" className={styles.secondaryButton}>
-                전체 기능 보기
+                다른 기능 보기
               </Link>
             </div>
           </div>

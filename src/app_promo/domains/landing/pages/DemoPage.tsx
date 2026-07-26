@@ -110,7 +110,7 @@ export default function DemoPage() {
             <h2>데모에서 확인할 내용</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면</li>
-              <li>월 요금, 별도 비용과 도입 범위</li>
+              <li>월 요금, 별도 비용과 사용할 기능</li>
               <li>기존 자료 이전과 시작 일정</li>
             </ol>
             <div className={styles.callBox}>
@@ -198,7 +198,7 @@ export default function DemoPage() {
                   disabled={pending}
                   value={form.current_workflow}
                   onChange={(e) => update("current_workflow", e.target.value)}
-                  placeholder="예: 수기 관리, 엑셀, 타 솔루션"
+                  placeholder="예: 수기 관리, 엑셀, 다른 학원 관리 프로그램"
                 />
               </label>
             </div>
@@ -237,6 +237,7 @@ export default function DemoPage() {
               disabled={pending}
               onChange={setPrivacyAgreed}
               requiredFields="이름, 소속/수업명, 연락처"
+              optionalFields="이메일, 담당 수강생 수, 현재 수업 관리 방식, 관심 기능, 요청 사항, 유입 정보"
             />
 
             <p className={styles.formNotice}>

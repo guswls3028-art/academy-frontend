@@ -29,29 +29,30 @@ test("pricing presents one plan with clear August terms and separate-cost bounda
   });
 
   await expect(
-    page.getByRole("heading", { name: "기본 월 198,000원, 8월 가입 적용 월 159,000원" }),
+    page.getByRole("heading", { name: "8월에 가입하면 월 159,000원이 계속 적용됩니다" }),
   ).toBeVisible();
-  await expect(page.getByText("2026년 8월 가입 적용 요금", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("2026년 8월 가입 월 159,000원", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("기본 월 요금", { exact: true })).toBeVisible();
   await expect(page.getByText("기본 요금과 월 39,000원 차이", { exact: true })).toBeVisible();
-  await expect(page.getByText(/평생|가격 인상 없음/)).toHaveCount(0);
+  await expect(page.getByText(/서비스를 이용하는 동안 월 159,000원이 계속 적용/).first()).toBeVisible();
+  await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
 
   const plans = page.locator("article[data-plan]");
   await expect(plans).toHaveCount(1);
   await expect(plans).toHaveAttribute("data-plan", "all");
-  await expect(plans.getByRole("heading", { name: "전체 기능" })).toBeVisible();
+  await expect(plans.getByRole("heading", { name: "학원플러스 기본 요금" })).toBeVisible();
   await expect(plans).toContainText("기본 월 198,000원");
   await expect(plans).toContainText("공급가 180,000원 + 부가가치세 18,000원");
   await expect(plans).toContainText("159,000원 / 월");
   await expect(plans).toContainText("기본 요금 대비 월 39,000원 차이");
-  await expect(plans).toContainText("수강생별도 좌석 과금 없음");
-  await expect(plans).toContainText("계정별도 좌석 과금 없음");
+  await expect(plans).toContainText("수강생학생 수에 따른 추가 요금 없음");
+  await expect(plans).toContainText("계정계정 수에 따른 추가 요금 없음");
   await expect(plans).toContainText("기능모두 포함");
   await expect(plans).toContainText(
-    "기본 월 요금보다 39,000원 낮은 8월 가입 적용 요금",
+    "평소 월 요금보다 39,000원 낮습니다",
   );
   await expect(plans).toContainText(
-    "2026년 8월 1일부터 31일까지 가입할 때 적용되는 월 요금입니다. 이후 요금 변경은 계약과 이용약관에 따라 사전에 안내합니다.",
+    "2026년 8월 1일부터 31일까지 가입한 학원은 서비스를 이용하는 동안 월 159,000원이 계속 적용됩니다.",
   );
   await expect(page.getByText(/알림톡 발송비, 저장공간 초과, 대량 데이터 이전, 커스텀 개발은 별도 협의/)).toBeVisible();
 
@@ -81,6 +82,17 @@ test("standard single-plan billing uses ten percent VAT", () => {
     totalAmount: 198_000,
     vatRatePercent: 10,
   });
+});
+
+test("terms preserve an explicitly promised continuing promotion price", async ({ page }) => {
+  await stubPromoBootstrap(page);
+  await page.goto(`${BASE}/terms`, { waitUntil: "load" });
+
+  await expect(page.getByText("시행일: 2026년 7월 26일 | 버전 1.2")).toBeVisible();
+  await expect(
+    page.getByText("별도 계약이나 가입 행사에서 이용 기간 동안의 요금 유지가 명시된 경우에는 해당 조건이 우선합니다."),
+  ).toBeVisible();
+  await expect(page.getByText(/SaaS|테넌트/)).toHaveCount(0);
 });
 
 test("Cloudflare routing forwards promo image assets", async () => {

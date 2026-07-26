@@ -119,8 +119,8 @@ const OPERATIONS = [
 const START_POINTS = [
   {
     icon: BookOpenCheck,
-    title: "현재 운영 방식을 먼저 확인합니다",
-    copy: "엑셀, 수기와 현재 사용 중인 프로그램을 확인하고 필요한 기능부터 적용합니다.",
+    title: "현재 관리 방식을 먼저 확인합니다",
+    copy: "엑셀, 수기와 지금 쓰는 관리 도구를 확인하고 필요한 기능부터 시작합니다.",
   },
   {
     icon: FileText,
@@ -130,7 +130,7 @@ const START_POINTS = [
   {
     icon: ShieldCheck,
     title: "월 요금과 별도 비용을 안내합니다",
-    copy: "기본 월 요금은 198,000원이며, 2026년 8월 가입 적용 요금은 159,000원입니다. 알림톡과 추가 용량 등 별도 비용도 함께 안내합니다.",
+    copy: "평소 월 요금은 198,000원입니다. 2026년 8월에 가입하면 이용하는 동안 월 159,000원이 계속 적용되며, 별도 비용도 함께 안내합니다.",
   },
 ];
 
@@ -203,10 +203,10 @@ function Hero() {
           <p className={styles.callLine}>
             전화가 편하시면 <PhoneInquiryLink>전화 문의</PhoneInquiryLink>로 필요한 기능만 먼저 확인할 수 있습니다.
           </p>
-          <ul className={styles.heroFacts} aria-label="제품 안내">
+          <ul className={styles.heroFacts} aria-label="주요 안내">
             <li>
               <Check size={ICON.sm} aria-hidden="true" />
-              실제 제품 화면
+              실제 사용 화면
             </li>
             <li>
               <Check size={ICON.sm} aria-hidden="true" />
@@ -214,12 +214,12 @@ function Hero() {
             </li>
             <li>
               <Check size={ICON.sm} aria-hidden="true" />
-              전체 기능 단일 요금
+              한 가지 요금으로 안내된 기능
             </li>
           </ul>
         </div>
 
-        <div className={styles.heroWorkbench} aria-label="적중 매치업과 칠판용 PPT 실제 제품 화면">
+        <div className={styles.heroWorkbench} aria-label="적중 매치업과 칠판용 PPT 실제 사용 화면">
           <div className={styles.workbenchLabel}>
             <span>수업자료 기능</span>
             <strong>실제 시험과 사전 대비 자료 비교</strong>
@@ -248,7 +248,7 @@ function Hero() {
           <div className={styles.proofStamp}>
             <CheckCircle2 size={ICON.md} aria-hidden="true" />
             <span>
-              <strong>제품 화면</strong>
+              <strong>실제 사용 화면</strong>
               제공 자료 일부 발췌 · 학교와의 제휴를 의미하지 않음
             </span>
           </div>
@@ -382,7 +382,7 @@ function OperationsSection() {
         <header className={styles.sectionHead}>
           <span>수업 전후 실제 화면</span>
           <h2 id="operations-title">선생님이 일하는 순서대로 이어집니다</h2>
-          <p>성적, 영상, 알림톡 관리에 사용하는 제품 화면입니다.</p>
+          <p>성적, 영상, 알림톡을 관리할 때 쓰는 실제 화면입니다.</p>
         </header>
 
         <div className={styles.operationList}>
@@ -398,7 +398,7 @@ function OperationsSection() {
                     height={item.imageHeight}
                     loading="lazy"
                   />
-                  <span>제품 UI · 예시 데이터</span>
+                  <span>실제 화면 · 예시 자료</span>
                 </div>
                 <div className={styles.operationCopy}>
                   <span>
@@ -435,10 +435,10 @@ function StartSection() {
       <div className={styles.sectionWrap}>
         <div className={styles.startLayout}>
           <header className={styles.sectionHead}>
-            <span>도입 순서</span>
+            <span>사용 시작 안내</span>
             <h2 id="start-title">현재 방식에 맞춰 필요한 기능부터 적용합니다</h2>
             <p>
-              현재 자료와 운영 방식을 확인하고, 우선 적용할 기능과 일정을 함께 정합니다.
+              현재 자료와 관리 방식을 확인하고, 먼저 사용할 기능과 일정을 함께 정합니다.
             </p>
             <Link to="/promo/pricing" className={styles.textLink}>
               요금과 별도 비용 확인

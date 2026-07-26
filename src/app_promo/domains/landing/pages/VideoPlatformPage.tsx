@@ -51,7 +51,7 @@ export default function VideoPlatformPage() {
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features" className={styles.secondaryButton}>
-                전체 기능 보기
+                모든 기능 보기
               </Link>
             </div>
           </div>

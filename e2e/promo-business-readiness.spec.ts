@@ -33,7 +33,7 @@ test.describe("promo business readiness", () => {
       page.getByRole("heading", { name: "수업 준비부터 학원 운영까지, 한곳에서 편리하게 관리합니다." }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "내 자료로 데모 요청" }).first()).toBeVisible();
-    await expect(page.getByText("실제 제품 화면", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("실제 사용 화면", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/실제 시험과 사전 대비 자료를 비교/).first()).toBeVisible();
     await expect(page.getByText(/수업자료를 흑백반전한 PPT로 만들고 리모컨으로 넘겨가며 수업/)).toBeVisible();
     await expect(page.getByText("서로 다른 두 기능")).toBeVisible();
@@ -70,6 +70,11 @@ test.describe("promo business readiness", () => {
     const consent = page.getByRole("checkbox", { name: /개인정보 수집·이용에 동의/ });
     await expect(consent).not.toBeChecked();
     await expect(consent).toHaveJSProperty("required", true);
+    await expect(
+      page.getByText(
+        /이름, 소속\/수업명, 연락처\(필수\).*이메일, 담당 수강생 수, 현재 수업 관리 방식, 관심 기능, 요청 사항, 유입 정보\(선택\)/,
+      ),
+    ).toBeVisible();
     await consent.check();
     await page.getByRole("button", { name: "데모 요청하기" }).click();
 
@@ -88,6 +93,13 @@ test.describe("promo business readiness", () => {
     expect(payload.message).toContain("utm_source=kakao");
     expect(payload.message).toContain("utm_medium=message");
     expect(payload.message).toContain("utm_campaign=teacher-ppt");
+
+    await page.goto(`${BASE}/promo/contact`, { waitUntil: "load" });
+    await expect(
+      page.getByText(
+        /이름, 연락처, 문의 유형, 문의 내용\(필수\).*이메일, 소속\/수업명, 담당 수강생 수, 유입 정보\(선택\)/,
+      ),
+    ).toBeVisible();
   });
 
   test("reserves intrinsic space for images across the promo journey", async ({ page }) => {
@@ -114,7 +126,7 @@ test.describe("promo business readiness", () => {
     }
   });
 
-  test("describes grading and pricing without unsupported promises", async ({ page }) => {
+  test("describes grading and the continuing August price without unsupported promises", async ({ page }) => {
     await page.goto(`${BASE}/promo/ai-grading`, { waitUntil: "load" });
     await expect(
       page.getByRole("heading", { name: "정답이 명확한 문항은 자동으로, 서술형은 선생님이 직접 채점합니다" }),
@@ -122,10 +134,38 @@ test.describe("promo business readiness", () => {
     await expect(
       page.getByText(/서술형 답안은 선생님이 확인하고 점수를 확정합니다/).first(),
     ).toBeVisible();
+    await expect(page.getByText(/일부 수학 단답형.*0~999 정수/).first()).toBeVisible();
+    await expect(page.getByText("정답이 숫자인 단답형", { exact: true })).toHaveCount(0);
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
-    await expect(page.getByText(/이후 요금 변경은 계약과 이용약관에 따라 사전에 안내/).first()).toBeVisible();
-    await expect(page.getByText(/평생|가격 인상 없음/)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "8월에 가입하면 월 159,000원이 계속 적용됩니다" }),
+    ).toBeVisible();
+    await expect(page.getByText(/서비스를 이용하는 동안 월 159,000원이 계속 적용/).first()).toBeVisible();
+    await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
+  });
+
+  test("uses calm academy language across every promotion page", async ({ page }) => {
+    const routes = [
+      "/promo",
+      "/promo/features",
+      "/promo/matchup-ppt",
+      "/promo/parent-trust",
+      "/promo/ai-grading",
+      "/promo/video-platform",
+      "/promo/pricing",
+      "/promo/faq",
+      "/promo/contact",
+      "/promo/demo",
+    ];
+
+    for (const route of routes) {
+      await page.goto(`${BASE}${route}`, { waitUntil: "load" });
+      const copy = await page.locator("body").innerText();
+      expect(copy, `${route} should avoid software-industry wording`).not.toMatch(
+        /SaaS|제품 UI|제품 화면|표준 기능|좌석 과금|단일 요금제|도입 범위/,
+      );
+    }
   });
 
   test("keeps keyboard focus inside the open mobile menu and restores it on close", async ({ page }) => {
@@ -153,5 +193,32 @@ test.describe("promo business readiness", () => {
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await expect(trigger).toBeFocused();
     await expect(page.locator("#promo-mobile-sidebar")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  test("places the mobile menu on the left and scrolls its contents on a short screen", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto(`${BASE}/promo`, { waitUntil: "load" });
+
+    const trigger = page.locator('button[aria-controls="promo-mobile-sidebar"]');
+    const headerBrand = page.locator("header").getByRole("link", { name: "학원플러스 프로모션 홈" });
+    const [triggerBox, brandBox] = await Promise.all([trigger.boundingBox(), headerBrand.boundingBox()]);
+    expect(triggerBox).not.toBeNull();
+    expect(brandBox).not.toBeNull();
+    expect(triggerBox!.x).toBeLessThan(brandBox!.x);
+    expect(triggerBox!.x).toBeLessThan(40);
+
+    await trigger.click();
+    const scrollRegion = page.getByTestId("promo-mobile-sidebar-scroll");
+    await expect(scrollRegion).toHaveCSS("overflow-y", "auto");
+    expect(
+      await scrollRegion.evaluate((element) => element.scrollHeight > element.clientHeight),
+      "short mobile sidebar should have scrollable content",
+    ).toBe(true);
+
+    await scrollRegion.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+    await expect.poll(() => scrollRegion.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(
+      page.locator("#promo-mobile-sidebar").getByRole("link", { name: "전화 문의하기" }),
+    ).toBeVisible();
   });
 });

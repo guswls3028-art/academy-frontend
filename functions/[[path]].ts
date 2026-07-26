@@ -42,44 +42,44 @@ const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
-    title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",
-    description: "시험지 캡처부터 유사문제 매치업, 수업 PPT, 출결·성적·영상·알림톡까지 실제 수업 흐름으로 확인하세요.",
+    title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",
+    description: "실제 시험과 사전 대비 자료를 비교하는 적중 매치업, 흑백반전 칠판용 PPT, 출결·성적·영상·알림톡을 확인하세요.",
   },
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
-    description: "매치업·PPT, 시험·성적, 학생앱 영상, 알림톡, 보강 관리의 실제 제품 화면과 사용 순서를 확인하세요.",
+    description: "적중 매치업·칠판용 PPT, 시험·성적, 학생앱 영상, 알림톡, 보강 관리의 실제 사용 화면을 확인하세요.",
   },
   "/promo/matchup-ppt": {
-    title: "시험지 매치업에서 수업 PPT까지 | 학원플러스",
-    description: "학교 시험지를 올리고 유사문제 후보를 직접 확인한 뒤, 선택한 문제를 수업용 PPT로 만드는 과정을 보여드립니다.",
+    title: "적중 매치업과 칠판용 PPT | 학원플러스",
+    description: "실제 시험과 우리 학원 사전 대비 자료를 비교해 유사 문항을 확인하고, 별도로 문제·개념 자료를 흑백반전 칠판용 PPT로 만드는 과정을 보여드립니다.",
   },
   "/promo/parent-trust": {
     title: "학부모 상담을 위한 수업 기록 | 학원플러스",
     description: "출결·성적·영상·보강 기록을 확인하고, 선생님이 학부모 안내와 상담에 활용하는 흐름을 확인하세요.",
   },
   "/promo/ai-grading": {
-    title: "AI 채점 보조와 선생님 검수 | 학원플러스",
-    description: "명확한 문항은 빠르게 판정하고, 서술형과 중요한 성적은 선생님이 최종 확인하는 채점 흐름을 소개합니다.",
+    title: "자동채점과 성적 관리 | 학원플러스",
+    description: "객관식·OX형과 일부 수학 단답형(0~999 정수)은 자동으로 채점하고, 서술형은 선생님이 직접 확인하는 성적 관리 흐름을 소개합니다.",
   },
   "/promo/video-platform": {
     title: "학생앱 영상 복습과 시청 이력 | 학원플러스",
     description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
   },
   "/promo/pricing": {
-    title: "요금제 | 평소 198,000원 · 8월 특별가 159,000원 | 학원플러스",
-    description: "평소 월 198,000원인 전체 기능 요금제를 2026년 8월 가입자에게 월 159,000원으로 평생 보장합니다.",
+    title: "요금 안내 | 기본 198,000원 · 8월 가입 159,000원 | 학원플러스",
+    description: "평소 월 198,000원이며, 2026년 8월에 가입하면 이용하는 동안 월 159,000원이 계속 적용됩니다.",
   },
   "/promo/faq": {
     title: "자주 묻는 질문 | 학원플러스",
-    description: "도입 범위, 요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스 도입 전에 자주 묻는 질문을 확인하세요.",
+    description: "요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스를 사용하기 전에 자주 묻는 질문을 확인하세요.",
   },
   "/promo/contact": {
-    title: "도입 문의 | 학원플러스",
-    description: "현재 수업 방식과 필요한 기능을 알려주시면 학원에 맞는 도입 범위와 일정을 함께 정리해드립니다.",
+    title: "사용 상담 | 학원플러스",
+    description: "현재 수업 방식과 필요한 기능을 알려주시면 사용할 내용과 시작 일정을 함께 정리해드립니다.",
   },
   "/promo/demo": {
     title: "내 자료로 데모 요청 | 학원플러스",
-    description: "현재 쓰는 시험지와 수업 방식을 기준으로 매치업·PPT와 학원 운영 화면을 직접 확인해보세요.",
+    description: "현재 쓰는 시험지와 수업자료로 적중 매치업·칠판용 PPT와 학원 운영 화면을 직접 확인해보세요.",
   },
 };
 
@@ -243,8 +243,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",  description: "시험지 매치업·수업 PPT부터 출결·성적·영상·알림톡까지 이어지는 학원 운영 SaaS", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스 | 대치 강사·원장을 위한 학원 운영 SaaS",  description: "시험지 매치업·수업 PPT부터 출결·성적·영상·알림톡까지 이어지는 학원 운영 SaaS", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "hakwonplus.com":     { title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",  description: "적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 수업 준비와 학원 운영을 한곳에서",  description: "적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다.", favicon: "/tenants/hakwonplus/favicon.png", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -441,7 +441,7 @@ function injectMeta(
         price: "159000",
         priceCurrency: "KRW",
         priceValidUntil: "2026-08-31",
-        description: "평소 월 198,000원, 2026년 8월 가입 특별가 월 159,000원. 전체 기능 및 200GB 저장공간 포함",
+        description: "평소 월 198,000원. 2026년 8월 가입 학원은 이용 기간 동안 월 159,000원 유지. 안내된 기능 및 200GB 저장공간 포함",
       },
     });
     html = html.replace(
