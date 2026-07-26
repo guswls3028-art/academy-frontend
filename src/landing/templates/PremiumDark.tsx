@@ -1042,6 +1042,9 @@ function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouse
           .pd-hero-copy {
             padding-top: 18px;
           }
+          .pd-hero-media img {
+            transform: none !important;
+          }
           .pd-hero-rail {
             grid-template-columns: 1fr !important;
           }
