@@ -1,93 +1,545 @@
-.stack {
+.dashboard {
+  --dashboard-ink: #17233a;
+  --dashboard-muted: #64718a;
+  --dashboard-line: #dbe3ef;
+  --dashboard-paper: #f7f9fc;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6, 24px);
-  padding: 0;
+  gap: 22px;
 }
 
-.todoList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.overviewBoard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d5e0f1;
+  border-radius: 20px;
+  background:
+    linear-gradient(rgba(45, 99, 210, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 99, 210, 0.045) 1px, transparent 1px),
+    linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%);
+  background-size: 24px 24px, 24px 24px, auto;
+  box-shadow: 0 18px 45px rgba(35, 66, 119, 0.08);
+  padding: 26px;
 }
 
-.todoRow {
+.overviewBoard::before {
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: #2f66e8;
+  content: "";
+}
+
+.overviewHeader {
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  width: 100%;
-  gap: 16px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 10px;
-  background: var(--color-bg-surface-soft, #f9fafb);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  padding: 14px 18px;
-  text-align: left;
-  transition: background 120ms ease, border-color 120ms ease;
+  gap: 24px;
+  margin-bottom: 22px;
 }
 
-.todoRow:hover {
-  border-color: var(--color-primary);
-  background: var(--color-bg-surface);
-}
-
-.todoLabelGroup {
+.dateLabel {
   display: inline-flex;
   align-items: center;
-  flex: 1;
+  gap: 7px;
+  color: #315ca9;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.overviewHeader h2 {
+  margin: 8px 0 6px;
+  color: var(--dashboard-ink);
+  font-size: clamp(23px, 2.2vw, 31px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.overviewHeader p,
+.sectionHeader p,
+.messageCard p {
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.boardState {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 7px;
+  border: 1px solid #c6e8d7;
+  border-radius: 999px;
+  background: #f0fbf5;
+  color: #16704b;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.boardState[data-error="true"] {
+  border-color: #f2d69a;
+  background: #fff9e8;
+  color: #9a6510;
+}
+
+.metricGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metricCard {
+  display: flex;
   min-width: 0;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 9px 24px rgba(45, 74, 124, 0.07);
+  padding: 16px;
+}
+
+.metricIcon,
+.taskIcon,
+.messageIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #e9f0ff;
+  color: #2f66e8;
+}
+
+.metricCard[data-tone="exam"] .metricIcon,
+.taskCard[data-tone="exam"] .taskIcon {
+  background: #f0ebff;
+  color: #7052c7;
+}
+
+.metricCard[data-tone="submission"] .metricIcon,
+.taskCard[data-tone="submission"] .taskIcon {
+  background: #e4f7ef;
+  color: #16805a;
+}
+
+.metricCard[data-tone="question"] .metricIcon,
+.taskCard[data-tone="question"] .taskIcon {
+  background: #fff1d9;
+  color: #a96b0f;
+}
+
+.taskCard[data-tone="clinic"] .taskIcon {
+  background: #e8f4ff;
+  color: #2676b7;
+}
+
+.metricBody {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.metricBody > span:first-child {
+  color: #53617a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metricBody strong {
+  margin: 3px 0 2px;
+  color: var(--dashboard-ink);
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.metricBody strong small {
+  margin-left: 2px;
+  color: #4f5f78;
+  font-size: 12px;
+}
+
+.metricBody > small {
+  overflow: hidden;
+  color: #7b879b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricLoading,
+.taskLoading {
+  display: inline-block;
+  overflow: hidden;
+  width: 52px;
+  height: 18px;
+  margin: 7px 0 5px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf1f7 25%, #f8fafd 50%, #edf1f7 75%);
+  background-size: 200% 100%;
+  animation: dashboard-loading 1.4s ease infinite;
+}
+
+.metricError,
+.taskError {
+  color: #9b6814 !important;
+  font-size: 13px !important;
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.75fr);
+  gap: 18px;
+}
+
+.taskBoard,
+.flowCard,
+.messageCard {
+  border: 1px solid var(--dashboard-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(35, 53, 83, 0.05);
+}
+
+.taskBoard {
+  padding: 22px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 17px;
+}
+
+.sectionHeader > div > span,
+.compactHeader > span,
+.messageCard > div > span {
+  color: #3561aa;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionHeader h2,
+.compactHeader h2,
+.messageCard h2 {
+  margin: 4px 0 5px;
+  color: var(--dashboard-ink);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.taskGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.todoIcon {
+.taskCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 11px;
+  border: 1px solid #e2e8f1;
+  border-radius: 14px;
+  background: var(--dashboard-paper);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 15px;
+  text-align: left;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.taskCard:hover {
+  border-color: #a9bfe7;
+  box-shadow: 0 8px 18px rgba(41, 74, 128, 0.08);
+  transform: translateY(-1px);
+}
+
+.taskCard:focus-visible {
+  outline: 3px solid rgba(47, 102, 232, 0.23);
+  outline-offset: 2px;
+}
+
+.taskCopy,
+.taskAction {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.taskCopy strong {
+  color: var(--dashboard-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.taskCopy small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: #78849a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskAction {
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 3px;
+}
+
+.taskAction > strong {
+  color: #23395f;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.taskAction > small {
   display: inline-flex;
   align-items: center;
-}
-
-.todoLabel {
-  color: var(--color-text-primary);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.todoSkeleton {
-  flex-shrink: 0;
-  width: 110px;
-  height: 18px;
-  border-radius: 6px;
-}
-
-.todoError {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-size: 13px;
-}
-
-.todoValue {
-  flex-shrink: 0;
-  color: var(--color-primary);
-  font-size: 16px;
+  gap: 3px;
+  color: #2f66e8;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0;
 }
 
-.kpiSkeleton {
-  width: 60px;
-  height: 18px;
-  border-radius: 6px;
+.sideColumn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.kpiError {
-  color: var(--color-text-muted);
-  font-weight: 400;
+.flowCard {
+  padding: 20px;
+}
+
+.compactHeader {
+  margin-bottom: 14px;
+}
+
+.flowList {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  list-style: none;
+}
+
+.flowList li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr);
+  gap: 10px;
+  padding: 0 0 17px;
+}
+
+.flowList li:last-child {
+  padding-bottom: 0;
+}
+
+.flowList li::after {
+  position: absolute;
+  top: 25px;
+  bottom: 3px;
+  left: 13px;
+  width: 1px;
+  background: #dbe4f2;
+  content: "";
+}
+
+.flowList li:last-child::after {
+  display: none;
+}
+
+.flowList li > span {
+  display: inline-flex;
+  z-index: 1;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid #c9d8ef;
+  border-radius: 50%;
+  background: #f5f8fd;
+  color: #3c64a6;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.flowList div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding-top: 2px;
+}
+
+.flowList strong {
+  color: #25334b;
+  font-size: 12px;
+}
+
+.flowList small {
+  margin-top: 2px;
+  color: #7a879b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.messageCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 13px;
+  border-color: #cfe7da;
+  background: linear-gradient(135deg, #f7fffb, #effaf5);
+  padding: 19px;
+}
+
+.messageCard[data-status="disconnected"],
+.messageCard[data-status="loading"] {
+  border-color: #efd79f;
+  background: linear-gradient(135deg, #fffdf7, #fff7e7);
+}
+
+.messageCard[data-status="error"] {
+  border-color: #efcaca;
+  background: linear-gradient(135deg, #fffafa, #fff1f1);
+}
+
+.messageCard .messageIcon {
+  background: #dff4e8;
+  color: #16704b;
+}
+
+.messageCard[data-status="disconnected"] .messageIcon,
+.messageCard[data-status="loading"] .messageIcon {
+  background: #ffedc6;
+  color: #9a6510;
+}
+
+.messageCard[data-status="error"] .messageIcon {
+  background: #ffe0e0;
+  color: #ad3434;
+}
+
+.messageCard :global(.ant-btn) {
+  margin-top: 12px;
+}
+
+@keyframes dashboard-loading {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metricLoading,
+  .taskLoading {
+    animation: none;
+  }
+
+  .taskCard {
+    transition: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sideColumn {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
-  .todoRow {
-    align-items: flex-start;
+  .dashboard {
+    gap: 14px;
+  }
+
+  .overviewBoard,
+  .taskBoard {
+    border-radius: 16px;
+    padding: 17px;
+  }
+
+  .overviewHeader {
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .boardState {
+    align-self: flex-start;
+  }
+
+  .metricGrid,
+  .taskGrid,
+  .sideColumn {
+    grid-template-columns: 1fr;
+  }
+
+  .metricCard {
+    padding: 14px;
+  }
+
+  .taskCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .taskAction {
+    grid-column: 2;
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .taskCopy small {
+    overflow: visible;
+    text-overflow: initial;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 390px) {
+  .metricGrid {
     gap: 8px;
+  }
+
+  .overviewHeader h2 {
+    font-size: 24px;
+  }
+
+  .sectionHeader h2,
+  .compactHeader h2,
+  .messageCard h2 {
+    font-size: 18px;
   }
 }
