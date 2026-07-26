@@ -211,6 +211,7 @@
 }
 
 .heroNavigator {
+  position: relative;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(16, 40, 51, 0.13);
@@ -218,6 +219,48 @@
   color: #fff;
   background: #102833;
   box-shadow: 0 36px 80px rgba(16, 40, 51, 0.2);
+}
+
+.categoryToolbar {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(238, 247, 247, 0.54);
+  background: #071923;
+}
+
+.categoryToolbar > span {
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.categoryToolbar button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 0 9px;
+  color: rgba(238, 247, 247, 0.78);
+  font-size: 10px;
+  font-weight: 850;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.categoryToolbar button:hover,
+.categoryToolbar button:focus-visible,
+.categoryToolbar button[aria-pressed="true"] {
+  border-color: rgba(126, 230, 235, 0.5);
+  outline: none;
+  color: #b9f4f6;
+  background: rgba(34, 196, 213, 0.12);
 }
 
 .categoryTabs {
@@ -1138,7 +1181,8 @@
 @media (prefers-reduced-motion: reduce) {
   .primaryButton,
   .secondaryButton,
-  .categoryTabs button {
+  .categoryTabs button,
+  .categoryToolbar button {
     transition: none;
   }
 

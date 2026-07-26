@@ -12,6 +12,8 @@ import {
   LayoutDashboard,
   MessageSquareText,
   MousePointer2,
+  Pause,
+  Play,
   PlayCircle,
   Presentation,
   ShieldCheck,
@@ -216,20 +218,25 @@ function ProductFrame({
 
 function HeroCategoryNavigator() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [interactionPaused, setInteractionPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
   const active = HERO_CATEGORIES[activeIndex];
   const ActiveIcon = active.icon;
 
   useEffect(() => {
-    if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+    if (
+      interactionPaused ||
+      userPaused ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) return undefined;
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % HERO_CATEGORIES.length);
     }, 5600);
     return () => window.clearInterval(timer);
-  }, [paused]);
+  }, [interactionPaused, userPaused]);
 
   const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInteractionPaused(false);
   };
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -251,11 +258,22 @@ function HeroCategoryNavigator() {
     <div
       className={styles.heroNavigator}
       data-tone={active.tone}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
+      onMouseEnter={() => setInteractionPaused(true)}
+      onMouseLeave={() => setInteractionPaused(false)}
+      onFocusCapture={() => setInteractionPaused(true)}
       onBlurCapture={handleBlur}
     >
+      <div className={styles.categoryToolbar}>
+        <span>네 가지 핵심 영역</span>
+        <button
+          type="button"
+          aria-pressed={userPaused}
+          onClick={() => setUserPaused((current) => !current)}
+        >
+          {userPaused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+          {userPaused ? "자동 전환 켜기" : "자동 전환 멈춤"}
+        </button>
+      </div>
       <div className={styles.categoryTabs} role="tablist" aria-label="학원플러스 핵심 기능">
         {HERO_CATEGORIES.map((category, index) => {
           const Icon = category.icon;

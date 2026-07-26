@@ -36,6 +36,13 @@ test.describe("promo business readiness", () => {
     await expect(page.getByRole("heading", { name: "프로그램의 중심은 매일 반복되는 학원 관리입니다" })).toBeVisible();
 
     const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
+    const autoplayToggle = page.getByRole("button", { name: "자동 전환 멈춤" });
+    await expect(autoplayToggle).toHaveAttribute("aria-pressed", "false");
+    await autoplayToggle.click();
+    await expect(page.getByRole("button", { name: "자동 전환 켜기" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().focus();
+    // eslint-disable-next-line no-restricted-syntax -- prove pause persists across the 5.6s autoplay boundary
+    await page.waitForTimeout(5_800);
     await expect(categoryTabs.getByRole("tab", { name: /영상 수업/ })).toHaveAttribute("aria-selected", "true");
     await expect(categoryTabs.getByRole("tab", { name: /알림톡 안내/ })).toBeVisible();
     await expect(categoryTabs.getByRole("tab", { name: /자료 제작/ })).toBeVisible();
