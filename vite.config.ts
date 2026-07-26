@@ -37,6 +37,7 @@ function resolveBuildVersion(): string {
 
 const buildVersion = resolveBuildVersion();
 const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || "http://localhost:8000";
+const devHost = process.env.VITE_DEV_HOST?.trim() || "127.0.0.1";
 
 export default defineConfig({
   define: {
@@ -52,7 +53,9 @@ export default defineConfig({
   ],
 
   server: {
-    host: "0.0.0.0", // 🔥 외부 접근 허용 (필수)
+    // Loopback is the safe default. A deliberate VITE_DEV_HOST override is
+    // required for LAN binding; Cloudflare Tunnel can connect to loopback.
+    host: devHost,
     port: 5174, // run-dev-single.ps1 / Academy Local Dev 와 동일 포트
     strictPort: true, // 5174 사용 중이면 다른 포트로 넘어가지 않고 에러 (중복 실행 방지)
     allowedHosts: [

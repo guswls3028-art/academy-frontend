@@ -1,5 +1,5 @@
 // ── Vite Plugin: Agent Event Server ──────────────────────────────────────────
-// Adds middleware to Vite dev server for agent monitoring SSE.
+// Adds localhost-only middleware to Vite dev server for agent monitoring SSE.
 //
 // Endpoints:
 //   POST /__agents/event   — Push agent state update (JSON body)
@@ -292,10 +292,32 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
+const LOCAL_AGENT_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function normalizeRequestHost(value: string | undefined): string {
+  const raw = (value || "").trim().toLowerCase();
+  if (raw.startsWith("[")) {
+    const closingBracket = raw.indexOf("]");
+    return closingBracket >= 0 ? raw.slice(1, closingBracket) : raw;
+  }
+  return raw.split(":", 1)[0];
+}
+
+function isLocalAgentRequest(req: IncomingMessage): boolean {
+  if (!LOCAL_AGENT_HOSTS.has(normalizeRequestHost(req.headers.host))) return false;
+
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return LOCAL_AGENT_HOSTS.has(new URL(origin).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 function jsonResponse(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
   });
   res.end(JSON.stringify(data));
 }
@@ -329,10 +351,14 @@ export default function agentEventServerPlugin(): Plugin {
       server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
         const url = req.url || "";
 
+        if (url.startsWith("/__agents/") && !isLocalAgentRequest(req)) {
+          jsonResponse(res, 403, { error: "Agent monitor endpoints are localhost-only" });
+          return;
+        }
+
         // CORS preflight
         if (req.method === "OPTIONS" && url.startsWith("/__agents/")) {
           res.writeHead(204, {
-            "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
           });
@@ -346,7 +372,6 @@ export default function agentEventServerPlugin(): Plugin {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
           });
           // Send current snapshot immediately
           res.write(`data: ${JSON.stringify({ type: "snapshot", payload: getSnapshot() })}\n\n`);
