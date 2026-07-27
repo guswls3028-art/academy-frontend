@@ -1010,6 +1010,7 @@ export default function ProblemStudioPage() {
                 intent="primary"
                 size="md"
                 loading={transferring}
+                disabled={sourceFileBlobs.length === 0 || !externalAiConfirmed}
                 leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >

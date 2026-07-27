@@ -132,8 +132,11 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
 
   let automaticDownloads = 0;
   page.on("download", () => { automaticDownloads += 1; });
+  const transferButton = page.getByRole("button", { name: "AI 타이핑 시작" });
+  await expect(transferButton).toBeDisabled();
   await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
-  await page.getByRole("button", { name: "AI 타이핑 시작" }).click();
+  await expect(transferButton).toBeEnabled();
+  await transferButton.click();
   await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
   await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
   await expect(page.getByText("준비 완료 · AI 1쪽 · 검수 후보 1건", { exact: true })).toBeVisible();
