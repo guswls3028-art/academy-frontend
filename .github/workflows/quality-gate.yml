@@ -102,7 +102,7 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [quality-check, hangul-companion-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -192,7 +192,26 @@ jobs:
             fi
           fi
 
-          for ATTEMPT in $(seq 1 36); do
+          DOMAIN_DETAIL=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${API}/${DOMAIN}")
+          DOMAIN_STATUS=$(jq -r '.result.status // empty' <<<"$DOMAIN_DETAIL")
+          DOMAIN_CREATED_ON=$(jq -r '.result.created_on // empty' <<<"$DOMAIN_DETAIL")
+          if [ "$DOMAIN_STATUS" != "active" ] && [ -n "$DOMAIN_CREATED_ON" ]; then
+            DOMAIN_AGE_SECONDS=$((
+              $(date -u +%s) - $(date -u -d "$DOMAIN_CREATED_ON" +%s)
+            ))
+            if [ "$DOMAIN_AGE_SECONDS" -ge 900 ]; then
+              curl --silent --show-error --fail-with-body \
+                -X DELETE "${AUTH[@]}" "${API}/${DOMAIN}" >/dev/null
+              curl --silent --show-error --fail-with-body \
+                -X POST "${AUTH[@]}" \
+                --data "$(jq -n --arg name "$DOMAIN" '{name: $name}')" \
+                "$API" >/dev/null
+              echo "Recreated stale pending ${DOMAIN} association."
+            fi
+          fi
+
+          for ATTEMPT in $(seq 1 72); do
             RESPONSE=$(curl --silent --show-error --fail-with-body "${AUTH[@]}" "$API")
             STATUS=$(jq -r --arg domain "$DOMAIN" \
               '.result[]? | select(.name == $domain) | .status // empty' <<<"$RESPONSE")
@@ -217,7 +236,7 @@ jobs:
               error: .result.verification_data.error_message
             }
           }' <<<"$DETAIL"
-          echo "::error::${DOMAIN} did not become active within 6 minutes"
+          echo "::error::${DOMAIN} did not become active within 12 minutes"
           exit 1
 
       - name: Deploy to Cloudflare Pages
