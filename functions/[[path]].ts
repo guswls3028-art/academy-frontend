@@ -12,6 +12,62 @@ interface Env {
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
+function createCspNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function contentSecurityPolicy(nonce: string): string {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://js.tosspayments.com https://www.youtube.com`,
+    "script-src-attr 'none'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https: wss:",
+    "media-src 'self' data: blob: https:",
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+async function withSecurityHeaders(response: Response): Promise<Response> {
+  const nonce = createCspNonce();
+  const headers = new Headers(response.headers);
+  headers.set("Content-Security-Policy", contentSecurityPolicy(nonce));
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+
+  const contentType = headers.get("Content-Type") ?? "";
+  if (response.body && contentType.includes("text/html")) {
+    const html = await response.text();
+    const nonceHtml = html.replace(/<script(?=[\s>])/gi, `<script nonce="${nonce}"`);
+    headers.delete("Content-Length");
+    return new Response(nonceHtml, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function isExpectedStaticHtml(pathname: string, html: string): boolean {
   if (STATIC_HTML_PATHS.has(pathname)) {
     return html.includes("OMR 답안지 생성기로 이동")
@@ -453,7 +509,7 @@ function injectMeta(
   return html;
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+const handleRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
@@ -615,3 +671,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     },
   });
 };
+
+export const onRequestGet: PagesFunction<Env> = async (context) => (
+  withSecurityHeaders(await handleRequestGet(context))
+);

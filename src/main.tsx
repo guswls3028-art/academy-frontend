@@ -128,13 +128,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
 
 const AppContent = (
   <ThemeProvider>
-    <BrowserRouter
-      future={{
-        // v7_startTransition: true 는 concurrent 업데이트로 URL만 바뀌고
-        // 메인 영역(Outlet)이 갱신되지 않는 사례가 있어 비활성화함.
-        v7_relativeSplatPath: true,
-      }}
-    >
+    <BrowserRouter>
       <QueryProvider>
         <ProgramProvider>
           <AuthProvider>

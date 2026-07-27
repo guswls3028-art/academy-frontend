@@ -300,6 +300,7 @@ export default function ProblemStudioPage() {
   const [transferResult, setTransferResult] = useState<ProblemStudioTransferJobResult | null>(null);
   const [transferJobId, setTransferJobId] = useState<string | null>(null);
   const [companionDownloading, setCompanionDownloading] = useState(false);
+  const [externalAiConfirmed, setExternalAiConfirmed] = useState(false);
 
   useEffect(() => {
     try {
@@ -435,6 +436,10 @@ export default function ProblemStudioPage() {
       feedback.warning("AI가 타이핑할 원본 파일을 먼저 올려 주세요.");
       return;
     }
+    if (!externalAiConfirmed) {
+      feedback.warning("글로벌 AI 처리 안내를 확인해 주세요.");
+      return;
+    }
     setTransferring(true);
     setGenerationWarnings([]);
     try {
@@ -535,6 +540,10 @@ export default function ProblemStudioPage() {
     const hasDraftText = realQuestions.some((q) => q.prompt.trim() || q.choices.trim() || q.answer.trim() || q.explanation.trim()) || pasteText.trim();
     if (sourceFileBlobs.length === 0 && !hasDraftText) {
       feedback.warning("재작성할 원본 텍스트나 문서 파일을 먼저 넣어 주세요.");
+      return;
+    }
+    if (!externalAiConfirmed) {
+      feedback.warning("글로벌 AI 처리 안내를 확인해 주세요.");
       return;
     }
     setRewriting(true);
@@ -643,6 +652,7 @@ export default function ProblemStudioPage() {
     setGenerationWarnings([]);
     setTransferResult(null);
     setTransferJobId(null);
+    setExternalAiConfirmed(false);
     setGenerationNote("아직 생성 전입니다.");
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
@@ -761,8 +771,21 @@ export default function ProblemStudioPage() {
               </Field>
             </div>
             <p className={styles.privacyNote}>
-              시작하면 텍스트가 없는 이미지 페이지를 외부 AI 처리업체로 전송합니다. 임시 원본 묶음은 작업 종료 시 삭제합니다.
+              텍스트 추출이 어려운 이미지 페이지만 Amazon Bedrock Nova 2 Lite 글로벌 추론으로 암호화 전송되며,
+              전 세계 AWS 상용 리전에서 일시 처리될 수 있습니다. 임시 원본 묶음은 작업 종료 시 삭제되고,
+              AWS는 Nova 입력·출력을 기본적으로 저장하거나 모델 학습에 사용하지 않습니다.
             </p>
+            <label className={styles.aiTransferConsent}>
+              <input
+                type="checkbox"
+                checked={externalAiConfirmed}
+                onChange={(event) => setExternalAiConfirmed(event.target.checked)}
+              />
+              <span>
+                시험지에서 불필요한 개인정보를 가렸고 글로벌 AI 처리 안내를 확인했습니다.{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침 보기</a>
+              </span>
+            </label>
             <div className={styles.generationStatus} data-warning={generationWarnings.length > 0 ? "true" : "false"}>
               <FileCheck2 size={ICON.sm} />
               <div>

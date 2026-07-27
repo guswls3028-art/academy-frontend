@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       <div className={styles.container}>
         <h1 className={styles.title}>개인정보 처리방침</h1>
         <p className={styles.meta}>
-          시행일: 2026년 7월 26일 | 버전 1.2
+          시행일: 2026년 7월 27일 | 버전 1.3
         </p>
 
         <article className={styles.article}>
@@ -50,6 +50,7 @@ export default function PrivacyPage() {
             <li><strong>스태프 관리:</strong> 근태 관리, 급여 정산</li>
             <li><strong>유료 서비스 운영:</strong> 구독 결제 처리, 환불, 이용 요금 정산</li>
             <li><strong>데모·사용 상담:</strong> 실제 화면 데모 준비, 사용할 기능 확인, 문의 답변 및 연락</li>
+            <li><strong>시험지 원문 타이핑:</strong> 사용자가 선택한 시험지 이미지의 원문을 편집 가능한 검수본으로 변환</li>
           </ol>
 
           {/* ── 2. 처리 항목 ── */}
@@ -84,6 +85,10 @@ export default function PrivacyPage() {
               <tr>
                 <td>서비스 이용 과정에서 자동 생성</td>
                 <td>시험 성적, 출결 기록, 수업 영상 시청 기록 (시청 시간, 진도율), 알림톡 발송 이력, 접속 로그</td>
+              </tr>
+              <tr>
+                <td>문항 스튜디오 AI 타이핑</td>
+                <td>사용자가 올린 시험지 중 텍스트 추출이 어려운 이미지 페이지 및 해당 이미지에 포함된 이름·학교·반·시험 내용</td>
               </tr>
               <tr>
                 <td>데모·사용 상담</td>
@@ -206,7 +211,7 @@ export default function PrivacyPage() {
             <tbody>
               <tr>
                 <td>Amazon Web Services, Inc.</td>
-                <td>클라우드 인프라 운영 (EC2 서버, SQS 메시지 큐, ECR 컨테이너)</td>
+                <td>클라우드 인프라 운영 (EC2 서버, SQS 메시지 큐, ECR 컨테이너) 및 Amazon Bedrock을 통한 시험지 이미지 원문 타이핑</td>
                 <td>위탁 계약 종료 시 또는 목적 달성 시</td>
               </tr>
               <tr>
@@ -235,30 +240,42 @@ export default function PrivacyPage() {
                 <th>이전되는 국가</th>
                 <th>이전 항목</th>
                 <th>이전 목적</th>
+                <th>이전 일시·방법</th>
                 <th>보유 기간</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>Amazon Web Services, Inc.</td>
-                <td>대한민국 (서울 리전)</td>
-                <td>서비스 운영에 필요한 모든 개인정보</td>
-                <td>클라우드 서버 운영 및 데이터 저장</td>
-                <td>위탁 계약 종료 시까지</td>
+                <td>
+                  미국, 캐나다, 독일, 스웨덴, 이탈리아, 스페인, 아일랜드, 영국, 프랑스, 이스라엘,
+                  아랍에미리트, 대만, 일본, 대한민국, 인도, 싱가포르, 호주, 인도네시아, 말레이시아,
+                  뉴질랜드, 태국의 AWS 상용 리전 중 요청 시 선택된 리전
+                </td>
+                <td>사용자가 선택한 시험지 이미지 페이지 및 이미지에 포함된 이름·학교·반·시험 내용</td>
+                <td>Amazon Bedrock Nova 2 Lite 글로벌 추론을 이용한 시험지 원문 타이핑</td>
+                <td>사용자가 AI 타이핑 시작을 선택한 때 암호화된 네트워크로 전송</td>
+                <td>
+                  회사의 임시 원본 묶음은 작업 종료 시 삭제. Amazon Bedrock 입력·출력은 기본적으로 저장하지 않으며,
+                  법령 준수 및 자동화된 악용 탐지에 필요한 예외는 AWS 정책에 따름
+                </td>
               </tr>
               <tr>
                 <td>Cloudflare, Inc.</td>
                 <td>미국 (CDN 엣지 노드 경유)</td>
                 <td>IP 주소, 접속 로그, 웹 요청 데이터, 수업 영상 파일</td>
                 <td>CDN 서비스, 파일 스토리지 (R2), 웹 호스팅</td>
+                <td>서비스 접속·파일 업로드 시 암호화된 네트워크로 전송</td>
                 <td>위탁 계약 종료 시까지</td>
               </tr>
             </tbody>
           </table>
           <p>
-            AWS 서울 리전에 저장되는 데이터는 대한민국 내에서 처리됩니다. Cloudflare의 경우 CDN 특성상
-            전 세계 엣지 노드를 통해 콘텐츠가 전송될 수 있으며, 이는 서비스 제공(계약 이행)에 필요한 범위 내의
-            처리입니다.
+            일반 API 서버와 데이터베이스 등 AWS 운영 데이터는 서울 리전에 저장됩니다. 다만, 사용자가 별도 확인란을
+            선택하고 AI 타이핑을 시작한 이미지 페이지만 글로벌 추론 프로필의 지원 리전에서 처리될 수 있습니다.
+            국외 AI 처리를 원하지 않으면 확인란을 선택하지 않고 해당 기능을 사용하지 않을 수 있으며, 그 밖의 기본
+            기능은 계속 이용할 수 있습니다. Cloudflare의 경우 CDN 특성상 전 세계 엣지 노드를 통해 콘텐츠가 전송될
+            수 있으며, 이는 서비스 제공에 필요한 범위 내의 처리입니다.
           </p>
 
           {/* ── 9. 안전성 확보 조치 ── */}
@@ -367,12 +384,13 @@ export default function PrivacyPage() {
                 <li>버전 1.0: 2026년 3월 14일 시행 (최초 수립)</li>
                 <li>버전 1.1: 2026년 3월 14일 시행 (PIPC 2025 작성지침 반영 — 만 14세 미만 아동 조항, 국외 이전 조항, 자동수집장치 조항 추가, 거래기록 보존기간 상세화, 고충처리 부서 추가)</li>
                 <li>버전 1.2: 2026년 7월 26일 시행 (데모·사용 상담 수집 목적·항목·보유 기준 및 웹 성능 정보 처리 안내 추가)</li>
+                <li>버전 1.3: 2026년 7월 27일 시행 (Amazon Bedrock 글로벌 추론의 처리 항목·국가·전송 시점·삭제 기준 및 사용자 선택권 명확화)</li>
               </ul>
             </li>
           </ol>
 
           <h2>제15조 (시행일)</h2>
-          <p>본 개인정보 처리방침은 2026년 7월 26일부터 시행합니다.</p>
+          <p>본 개인정보 처리방침은 2026년 7월 27일부터 시행합니다.</p>
 
           <div className={styles.businessInfo}>
             <p className={styles.businessInfoText}>

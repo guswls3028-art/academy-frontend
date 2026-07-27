@@ -7,8 +7,11 @@
   "pnpm": {
     "overrides": {
       "@jridgewell/gen-mapping": "0.3.7",
+      "brace-expansion@1": "1.1.16",
+      "brace-expansion@2": "2.1.2",
+      "brace-expansion@>=5": "5.0.8",
       "form-data": "4.0.6",
-      "linkify-it": "5.0.1",
+      "linkify-it": "5.0.2",
       "markdown-it": "14.3.0",
       "uuid": "11.1.1"
     }
@@ -58,9 +61,9 @@
     "@tiptap/react": "^2.12.0",
     "@tiptap/starter-kit": "^2.12.0",
     "antd": "^6.2.2",
-    "axios": "^1.16.0",
+    "axios": "^1.18.1",
     "dayjs": "^1.11.19",
-    "dompurify": "^3.4.11",
+    "dompurify": "^3.4.12",
     "exceljs": "^4.4.0",
     "heic2any": "^0.0.4",
     "hls.js": "^1.6.15",
@@ -71,7 +74,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
-    "react-router-dom": "^6.30.4",
+    "react-router-dom": "^7.18.1",
     "recharts": "^3.7.0"
   },
   "devDependencies": {

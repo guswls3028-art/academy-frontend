@@ -27,6 +27,24 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
       await route.fulfill({ status: 204 });
       return;
     }
+    if (pathname.endsWith("/staffs/me/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: {
+          is_authenticated: true,
+          is_superuser: true,
+          is_staff: true,
+          is_payroll_manager: true,
+          is_owner: true,
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/staffs/currently-working/") && request.method() === "GET") {
+      await route.fulfill({ status: 200, contentType: "application/json", json: [] });
+      return;
+    }
     if (pathname.endsWith("/tools/problem-studio/transfer-jobs/") && request.method() === "POST") {
       await route.fulfill({
         status: 202,
@@ -110,9 +128,11 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     buffer: Buffer.from("89504e470d0a1a0a", "hex"),
   });
   await expect(page.getByText("chemistry.png")).toBeVisible();
+  await expect(page.getByText(/전 세계 AWS 상용 리전/)).toBeVisible();
 
   let automaticDownloads = 0;
   page.on("download", () => { automaticDownloads += 1; });
+  await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
   await page.getByRole("button", { name: "AI 타이핑 시작" }).click();
   await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
   await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
@@ -126,6 +146,7 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     mimeType: "image/png",
     buffer: Buffer.from("89504e470d0a1a0a", "hex"),
   });
+  await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
   await page.getByRole("button", { name: "AI 타이핑 시작" }).click();
   await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
 });
