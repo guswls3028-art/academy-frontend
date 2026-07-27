@@ -168,5 +168,6 @@ test("deployment gate owns the developer custom domain lifecycle", () => {
   expect(workflow).toContain('proxied: false');
   expect(workflow).toContain('DOMAIN_AGE_SECONDS');
   expect(workflow).toContain('Recreated stale pending ${DOMAIN} association.');
+  expect(workflow).toContain('https://${DOMAIN}/');
   expect(workflow).toContain("Verify developer console domain isolation");
 });

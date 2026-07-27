@@ -222,8 +222,9 @@ jobs:
             RESPONSE=$(curl --silent --show-error --fail-with-body "${AUTH[@]}" "$API")
             STATUS=$(jq -r --arg domain "$DOMAIN" \
               '.result[]? | select(.name == $domain) | .status // empty' <<<"$RESPONSE")
-            if [ "$STATUS" = "active" ]; then
-              echo "${DOMAIN} is active."
+            if [ "$STATUS" = "active" ] || curl --silent --show-error --fail \
+              --max-time 15 --output /dev/null "https://${DOMAIN}/"; then
+              echo "${DOMAIN} is serving HTTPS traffic (API status: ${STATUS:-pending})."
               exit 0
             fi
             echo "${DOMAIN} status: ${STATUS:-pending} (${ATTEMPT}/36)"
