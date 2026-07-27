@@ -255,6 +255,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                 }
                 chipSize={20}
                 clinicHighlight={row.name_highlight_clinic_target === true}
+                examNotSubmittedCount={row.exam_not_submitted_count}
               />
             </h2>
             <span className="student-scores-drawer__header-id">ID {row.enrollment_id}</span>

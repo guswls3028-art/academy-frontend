@@ -19,6 +19,8 @@ export type ExamResultImportRow = {
   total_score: number;
   max_score: number;
   will_overwrite: boolean;
+  is_not_submitted: boolean;
+  exam_not_submitted_count: number;
 };
 
 export type ExamResultImportIssue = {
@@ -36,6 +38,7 @@ export type ExamResultImportPreview = {
   question_count: number;
   matched_count: number;
   overwrite_count: number;
+  not_submitted_count: number;
   errors: ExamResultImportIssue[];
   warnings: string[];
   rows: ExamResultImportRow[];

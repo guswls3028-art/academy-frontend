@@ -73,6 +73,7 @@ export type SessionScoreRow = {
   progress_completed?: boolean;
   progress_status?: "completed" | "in_progress";
   name_highlight_clinic_target?: boolean;
+  exam_not_submitted_count?: number;
 };
 
 export type SessionScoreMeta = {

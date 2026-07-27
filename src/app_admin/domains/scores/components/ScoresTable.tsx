@@ -1077,6 +1077,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         : null
                     }
                     clinicHighlight={row.name_highlight_clinic_target === true}
+                    examNotSubmittedCount={row.exam_not_submitted_count}
                   />
                 </td>
 

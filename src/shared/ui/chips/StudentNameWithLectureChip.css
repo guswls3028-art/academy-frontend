@@ -65,6 +65,20 @@
   color: var(--color-text-primary, var(--tc-text, #111827));
 }
 
+.student-name-chip__name--exam-absence {
+  display: inline;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text-muted, #64748b) 20%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-text-muted, #64748b) 48%, transparent);
+  box-decoration-break: clone;
+}
+
+.student-name-chip__name--exam-absence.ds-student-name--clinic-highlight {
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 30%, var(--color-bg-surface, #ffffff));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-text-muted, #64748b) 48%, transparent);
+}
+
 .student-name-chip[data-density="compact"] {
   width: 100%;
   flex-wrap: nowrap;

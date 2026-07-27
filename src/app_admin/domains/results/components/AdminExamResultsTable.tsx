@@ -114,6 +114,7 @@ export default function AdminExamResultsTable({
                     profilePhotoUrl={r.profile_photo_url}
                     avatarSize={24}
                     clinicHighlight={r.name_highlight_clinic_target}
+                    examNotSubmittedCount={r.exam_not_submitted_count}
                   />
                 </td>
 

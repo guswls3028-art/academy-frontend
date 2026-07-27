@@ -94,7 +94,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           <div>
             <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
             <p className={styles.description}>
-              직접 채점한 표에서 틀린 문항만 X로 표시하면 객관식·단답형 결과를 함께 반영합니다.
+              틀린 문항은 X, 시험에 오지 않은 학생은 결시로 표시하면 함께 반영합니다.
             </p>
           </div>
         </div>
@@ -114,6 +114,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       <div className={styles.guide}>
         <span><strong>정답</strong> 빈칸 또는 O</span>
         <span><strong>오답</strong> X</span>
+        <span><strong>미응시</strong> 결시 열에서 결시 선택</span>
         <span>기존 엑셀도 이름·연락처·문항 번호 열이 있으면 확인할 수 있어요.</span>
       </div>
 
@@ -145,9 +146,9 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                 <strong>
                   {hasErrors
                     ? "수정이 필요한 항목이 있습니다"
-                    : isApplied
-                      ? "채점 결과를 반영했습니다"
-                      : `${preview.matched_count}명 · ${preview.question_count}문항을 확인했습니다`}
+                      : isApplied
+                        ? "채점 결과를 반영했습니다"
+                      : `${preview.matched_count}명 · ${preview.question_count}문항${preview.not_submitted_count > 0 ? ` · 결시 ${preview.not_submitted_count}명` : ""}을 확인했습니다`}
                 </strong>
                 {!hasErrors && preview.overwrite_count > 0 && !isApplied && (
                   <span>기존 결과가 있는 {preview.overwrite_count}명은 새 내용으로 갱신됩니다.</span>
@@ -218,17 +219,24 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                           }))}
                           density="compact"
                           maxLectureChips={1}
+                          examNotSubmittedCount={row.exam_not_submitted_count}
                         />
                       </td>
-                      <td>{row.correct_count}개</td>
-                      <td>{formatWrongQuestions(row.wrong_questions)}</td>
-                      <td><strong>{formatScore(row.total_score)} / {formatScore(row.max_score)}</strong></td>
+                      <td>{row.is_not_submitted ? "—" : `${row.correct_count}개`}</td>
+                      <td>{row.is_not_submitted ? "미응시" : formatWrongQuestions(row.wrong_questions)}</td>
+                      <td>
+                        <strong>
+                          {row.is_not_submitted
+                            ? "미응시"
+                            : `${formatScore(row.total_score)} / ${formatScore(row.max_score)}`}
+                        </strong>
+                      </td>
                       <td>
                         <Badge
-                          tone={row.will_overwrite ? "warning" : "success"}
+                          tone={row.is_not_submitted ? "neutral" : row.will_overwrite ? "warning" : "success"}
                           size="sm"
                         >
-                          {row.will_overwrite ? "기존 결과 갱신" : "새 결과"}
+                          {row.is_not_submitted ? "결시 반영" : row.will_overwrite ? "기존 결과 갱신" : "새 결과"}
                         </Badge>
                       </td>
                     </tr>

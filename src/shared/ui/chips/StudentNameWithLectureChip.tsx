@@ -29,6 +29,8 @@ type Props = {
   highlight?: (text: string) => React.ReactNode;
   /** 클리닉 대상(미수강) 시 이름만 노란 형광펜 하이라이트 — 백엔드 name_highlight_clinic_target */
   clinicHighlight?: boolean;
+  /** 현재 대표 결과 기준 누적 시험 미응시 횟수. 1회 이상이면 이름에 회색 음영 표시. */
+  examNotSubmittedCount?: number;
   /** enrollment ID — clinicHighlight 미지정 시 전역 컨텍스트에서 자동 조회 */
   enrollmentId?: number | null;
   /** 좁은 표/피커 행에서는 한 줄 높이를 고정해 행 점프를 막는다. */
@@ -55,12 +57,15 @@ export default function StudentNameWithLectureChip({
   className,
   highlight,
   clinicHighlight,
+  examNotSubmittedCount = 0,
   enrollmentId,
   density = "default",
   maxLectureChips,
 }: Props) {
   const contextHighlight = useClinicHighlight(enrollmentId);
   const isClinicHighlight = clinicHighlight ?? contextHighlight;
+  const absenceCount = Math.max(0, Number(examNotSubmittedCount) || 0);
+  const isAbsenceHighlight = absenceCount > 0;
   const list = Array.isArray(lectures) && lectures.length > 0
     ? lectures
     : [];
@@ -79,7 +84,14 @@ export default function StudentNameWithLectureChip({
     className ?? "",
   ].filter(Boolean).join(" ");
   const nameNode = (
-    <span className={`student-name-chip__name ${isClinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
+    <span
+      className={[
+        "student-name-chip__name",
+        isClinicHighlight ? "ds-student-name--clinic-highlight" : "",
+        isAbsenceHighlight ? "student-name-chip__name--exam-absence" : "",
+      ].filter(Boolean).join(" ")}
+      title={isAbsenceHighlight ? `누적 미응시 ${absenceCount}회` : undefined}
+    >
       {highlight ? highlight(name || "-") : (name || "-")}
     </span>
   );

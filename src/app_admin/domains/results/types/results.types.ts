@@ -160,6 +160,7 @@ export type AdminExamResultRow = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   name_highlight_clinic_target?: boolean;
+  exam_not_submitted_count?: number;
 };
 
 // ---------- 3) Exam summary ----------
