@@ -560,6 +560,7 @@ function Hero() {
           </ul>
         </div>
 
+        <TeacherTrustSection />
         <HeroCategoryNavigator />
       </div>
     </section>
@@ -821,7 +822,6 @@ export default function LandingPage() {
   return (
     <>
       <Hero />
-      <TeacherTrustSection />
       <FoundationSection />
       <StrengthSection />
       <FlowSection />

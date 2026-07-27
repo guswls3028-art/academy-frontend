@@ -101,6 +101,14 @@ test.describe("promo navigation", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(teacherTrust).toBeVisible();
+    const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
+    const [trustBox, categoryTabsBox] = await Promise.all([
+      teacherTrust.boundingBox(),
+      categoryTabs.boundingBox(),
+    ]);
+    expect(trustBox).not.toBeNull();
+    expect(categoryTabsBox).not.toBeNull();
+    expect(trustBox!.y).toBeLessThan(categoryTabsBox!.y);
     await expect.poll(async () => page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     )).toBe(true);
