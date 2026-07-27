@@ -94,7 +94,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           <div>
             <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
             <p className={styles.description}>
-              틀린 문항은 X, 시험에 오지 않은 학생은 결시로 표시하면 함께 반영합니다.
+              틀린 문항은 X로 표시하고, 전 문항이 비면 응시 여부를 확인합니다.
             </p>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       <div className={styles.guide}>
         <span><strong>정답</strong> 빈칸 또는 O</span>
         <span><strong>오답</strong> X</span>
-        <span><strong>미응시</strong> 결시 열에서 결시 선택</span>
+        <span><strong>전 문항 공란</strong> 응시 여부에서 응시 또는 결시 선택</span>
         <span>기존 엑셀도 이름·연락처·문항 번호 열이 있으면 확인할 수 있어요.</span>
       </div>
 
