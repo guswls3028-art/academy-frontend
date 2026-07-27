@@ -37,7 +37,7 @@ const ACTIVE_ALIASES: Record<string, string[]> = {
   "/promo/contact": ["/promo/demo"],
 };
 
-const HAKWONPLUS_ICON = "/tenants/hakwonplus/favicon.png";
+const HAKWONPLUS_ICON = "/tenants/hakwonplus/favicon.png?v=20260727";
 
 function isActive(pathname: string, path: string) {
   if (path === "/promo") return pathname === "/promo";

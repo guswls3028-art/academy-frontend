@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 const MANIFEST_HREF = "/dev-manifest.json";
-const ICON_HREF = "/tenants/hakwonplus/apple-touch-icon.png";
+const ICON_HREF = "/tenants/hakwonplus/apple-touch-icon.png?v=20260727";
 const MANAGED = "data-dev-pwa";
 const PREVIOUS = "data-dev-pwa-previous";
 const CREATED = "data-dev-pwa-created";

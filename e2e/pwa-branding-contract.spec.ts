@@ -96,11 +96,11 @@ test("developer manifest is an isolated installable app with HakwonPlus icons", 
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons).toEqual([
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-192.png",
+      src: "/tenants/hakwonplus/pwa-192.png?v=20260727",
       sizes: "192x192",
     }),
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-512.png",
+      src: "/tenants/hakwonplus/pwa-512.png?v=20260727",
       sizes: "512x512",
     }),
   ]);

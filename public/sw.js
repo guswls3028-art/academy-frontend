@@ -85,8 +85,8 @@ self.addEventListener("push", (event) => {
     event.waitUntil(
       self.registration.showNotification(payload.title || "학원플러스", {
         body: payload.body || "",
-        icon: payload.icon || "/tenants/hakwonplus/pwa-192.png",
-        badge: payload.badge || "/tenants/hakwonplus/apple-touch-icon.png",
+        icon: payload.icon || "/tenants/hakwonplus/pwa-192.png?v=20260727",
+        badge: payload.badge || "/tenants/hakwonplus/apple-touch-icon.png?v=20260727",
         tag: payload.tag || "hakwonplus-notification",
         data: { url: payload.url || "/dev/inbox" },
       }),
