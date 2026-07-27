@@ -9,7 +9,7 @@ import styles from "./StaffPasswordModal.module.css";
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** 비밀번호를 변경할 직원 목록 */
+  /** 비밀번호를 변경할 직원 한 명 */
   staffList: { id: number; name: string }[];
 }
 
@@ -35,37 +35,21 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
       return;
     }
 
-    setBusy(true);
-    let successCount = 0;
-    let failCount = 0;
-    const failNames: string[] = [];
-
-    for (const staff of staffList) {
-      try {
-        await changeStaffPassword(staff.id, pw);
-        successCount++;
-      } catch (e: unknown) {
-        failCount++;
-        failNames.push(`${staff.name}: ${extractApiError(e, "변경 실패")}`);
-      }
+    const staff = staffList[0];
+    if (!staff) {
+      feedback.warning("비밀번호를 변경할 직원 한 명을 선택해 주세요.");
+      return;
     }
-
-    setBusy(false);
-
-    if (failCount === 0) {
-      feedback.success(
-        staffList.length === 1
-          ? `${staffList[0].name}의 비밀번호가 변경되었습니다.`
-          : `${successCount}명의 비밀번호가 변경되었습니다.`,
-      );
+    setBusy(true);
+    try {
+      await changeStaffPassword(staff.id, pw);
+      feedback.success(`${staff.name}의 임시 비밀번호가 설정되었습니다.`);
       setPassword("");
       onClose();
-    } else if (successCount === 0) {
-      feedback.error(`비밀번호 변경 실패: ${failNames.join(", ")}`);
-    } else {
-      feedback.warning(`${successCount}명 성공, ${failCount}명 실패: ${failNames.join(", ")}`);
-      setPassword("");
-      onClose();
+    } catch (e: unknown) {
+      feedback.error(extractApiError(e, "비밀번호 변경에 실패했습니다."));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -75,12 +59,8 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
     <AdminModal open onClose={onClose} type="action" onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
-        title="비밀번호 변경"
-        description={
-          staffList.length === 1
-            ? `${names}의 비밀번호를 변경합니다.`
-            : `${names} (${staffList.length}명)의 비밀번호를 일괄 변경합니다.`
-        }
+        title="임시 비밀번호 설정"
+        description={`${names}의 비밀번호를 재설정합니다.`}
       />
       <ModalBody>
         <div className={styles.form}>
@@ -97,8 +77,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
             />
           </div>
           <div className={styles.notice}>
-            선택한 직원 전원에게 동일한 비밀번호가 적용됩니다.
-            변경 후 직원에게 새 비밀번호를 안내해 주세요.
+            기존 로그인은 만료되며, 직원은 다음 로그인에서 비밀번호를 변경해야 합니다.
           </div>
         </div>
       </ModalBody>

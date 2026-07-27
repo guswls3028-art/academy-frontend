@@ -5,7 +5,7 @@ import { Children, type ReactNode, useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Staff } from "../../api/staff.api";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { cx } from "@/shared/utils/cx";
 
@@ -29,7 +29,7 @@ export default function StaffOperationTable({
   year?: number;
   month?: number;
 }) {
-  const { data, isLoading } = useStaffs();
+  const { data, isLoading, isError, refetch } = useStaffs();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [q, setQ] = useState("");
@@ -81,11 +81,24 @@ export default function StaffOperationTable({
         aria-label="직원 검색"
       />
 
-      {isLoading && (
+      {isError && (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="직원 목록을 불러올 수 없습니다"
+          actions={
+            <Button intent="secondary" size="sm" onClick={() => refetch()}>
+              다시 시도
+            </Button>
+          }
+        />
+      )}
+
+      {!isError && isLoading && (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       )}
 
-      {!isLoading && staffs.length === 0 && (
+      {!isError && !isLoading && staffs.length === 0 && (
         <EmptyState
           scope="panel"
           tone="empty"
@@ -94,7 +107,7 @@ export default function StaffOperationTable({
         />
       )}
 
-      {!isLoading && staffs.length > 0 && filtered.length === 0 && (
+      {!isError && !isLoading && staffs.length > 0 && filtered.length === 0 && (
         <EmptyState
           scope="panel"
           tone="empty"
@@ -103,9 +116,9 @@ export default function StaffOperationTable({
         />
       )}
 
-      {!isLoading && filtered.length > 0 && (
+      {!isError && !isLoading && filtered.length > 0 && (
         <div className="space-y-4">
-          <Section title={`활성 (${active.length})`} emptyText="활성 직원이 없습니다.">
+          <Section title={`재직 (${active.length})`} emptyText="재직 직원이 없습니다.">
             {active.map((s) => (
               <Row
                 key={s.id}
@@ -116,7 +129,7 @@ export default function StaffOperationTable({
             ))}
           </Section>
 
-          <Section title={`비활성 (${inactive.length})`} emptyText="비활성 직원이 없습니다.">
+          <Section title={`퇴사 (${inactive.length})`} emptyText="퇴사 직원이 없습니다.">
             {inactive.map((s) => (
               <Row
                 key={s.id}

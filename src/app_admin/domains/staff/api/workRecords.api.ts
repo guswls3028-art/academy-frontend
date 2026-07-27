@@ -28,7 +28,9 @@ export async function fetchWorkRecords(params: {
   date_from: string;
   date_to: string;
 }) {
-  const res = await api.get("/staffs/work-records/", { params });
+  const res = await api.get("/staffs/work-records/", {
+    params: { ...params, page_size: 500 },
+  });
 
   if (Array.isArray(res.data)) return res.data as WorkRecord[];
   if (Array.isArray(res.data?.results)) return res.data.results as WorkRecord[];

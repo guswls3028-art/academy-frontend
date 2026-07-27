@@ -14,6 +14,7 @@ import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/st
 import { staffQueryKeys } from "../../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import "./StaffHomeTable.css";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
@@ -193,6 +194,7 @@ export function StaffHomeTable({
     (owner?.phone ?? "").toLowerCase().includes(needle);
   const hasOwner = !!owner?.name && ownerMatchesSearch;
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const [sort, setSort] = useState("");
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("staff-home", STAFF_HOME_COLUMN_DEFS);
@@ -407,7 +409,7 @@ export function StaffHomeTable({
                 {owner!.phone || "-"}
               </td>
               <td className="align-middle">
-                <Badge variant="solid" actionable status="active">활성</Badge>
+                <Badge variant="solid" actionable status="active">재직</Badge>
               </td>
               <td className="align-middle">
                 <Badge variant="solid" actionable status="active">ON</Badge>
@@ -457,7 +459,7 @@ export function StaffHomeTable({
               </td>
               <td className="align-middle">
                 <Badge variant="solid" actionable status={r.is_active ? "active" : "inactive"}>
-                  {r.is_active ? "활성" : "비활성"}
+                  {r.is_active ? "재직" : "퇴사"}
                 </Badge>
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
@@ -468,7 +470,23 @@ export function StaffHomeTable({
                     actionable
                     status={r.is_manager ? "active" : "inactive"}
                     disabled={pendingManager.has(r.id)}
-                    onClick={() => patchManagerM.mutate({ staffId: r.id, is_manager: !r.is_manager })}
+                    onClick={async () => {
+                      const nextManager = !r.is_manager;
+                      const ok = await confirm({
+                        title: nextManager ? "관리자 권한 부여" : "관리자 권한 해제",
+                        message: nextManager
+                          ? `${r.name}에게 직원·시급·비용·급여 관리 권한을 부여하시겠습니까?`
+                          : `${r.name}의 직원·급여 관리 권한을 해제하시겠습니까?`,
+                        confirmText: nextManager ? "권한 부여" : "권한 해제",
+                        danger: nextManager,
+                      });
+                      if (ok) {
+                        patchManagerM.mutate({
+                          staffId: r.id,
+                          is_manager: nextManager,
+                        });
+                      }
+                    }}
                     ariaLabel={r.is_manager ? "관리자 해제" : "관리자 부여"}
                   >
                     {pendingManager.has(r.id) ? "…" : r.is_manager ? "ON" : "OFF"}
@@ -482,37 +500,33 @@ export function StaffHomeTable({
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {!canManage ? (
                   <Badge variant="solid" tone="neutral">
-                    {r.pay_type === "HOURLY" ? "시급" : "월급"}
+                    {r.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"}
+                  </Badge>
+                ) : r.pay_type === "HOURLY" ? (
+                  <Badge variant="solid" status="active">
+                    시급
                   </Badge>
                 ) : (
-                  <span className="inline-flex gap-1">
+                  <span className="inline-flex flex-wrap gap-1">
                     <Badge
-                      as="button"
                       variant="solid"
-                      actionable
-                      status={r.pay_type === "HOURLY" ? "active" : "inactive"}
-                      disabled={pendingPayType.has(r.id)}
-                      onClick={() => {
-                        if (r.pay_type === "HOURLY") return;
-                        patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
-                      }}
-                      ariaLabel={`${r.name} 시급`}
+                      tone="neutral"
+                      title="월 기본급·일할·공제 정책이 없어 자동 정산되지 않습니다."
                     >
-                      {pendingPayType.has(r.id) ? "…" : "시급"}
+                      월급(수동 확인)
                     </Badge>
                     <Badge
                       as="button"
                       variant="solid"
                       actionable
-                      status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
+                      status="active"
                       disabled={pendingPayType.has(r.id)}
                       onClick={() => {
-                        if (r.pay_type === "MONTHLY") return;
-                        patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
+                        patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
                       }}
-                      ariaLabel={`${r.name} 월급`}
+                      ariaLabel={`${r.name} 시급 정산으로 전환`}
                     >
-                      {pendingPayType.has(r.id) ? "…" : "월급"}
+                      {pendingPayType.has(r.id) ? "전환 중…" : "시급으로 전환"}
                     </Badge>
                   </span>
                 )}

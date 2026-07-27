@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function CreateWorkRecordModal({ open, onClose }: Props) {
-  const { staffId, range, locked } = useWorkMonth();
+  const { staffId, range, writeBlocked } = useWorkMonth();
 
   const { createM } = useWorkRecords({
     staff: staffId,
@@ -60,15 +60,19 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
     }
   }, [open, range.from]);
 
-  if (locked) return null;
+  if (writeBlocked) return null;
 
   const handleSubmit = () => {
     if (!form.work_type || !form.start_time || !form.end_time) {
       feedback.warning("필수 항목을 입력하세요.");
       return;
     }
-    if (form.end_time <= form.start_time) {
-      feedback.warning("종료 시간은 시작 시간보다 늦어야 합니다.");
+    if (form.date < range.from || form.date > range.to) {
+      feedback.warning("현재 선택한 월 안의 날짜를 선택해 주세요.");
+      return;
+    }
+    if (form.end_time === form.start_time) {
+      feedback.warning("종료 시간은 시작 시간과 같을 수 없습니다.");
       return;
     }
     const breakMinutes = form.break_minutes === "" ? 0 : Number(form.break_minutes);
@@ -167,6 +171,11 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
               />
             </Field>
           </div>
+          {form.start_time && form.end_time && form.end_time < form.start_time && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              종료 시간이 더 이르면 다음 날 퇴근으로 계산됩니다.
+            </p>
+          )}
 
           <Field label="휴게시간(분)">
             <input

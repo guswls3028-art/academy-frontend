@@ -4,6 +4,7 @@ import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
 import { LockBadge } from "../../components/StatusBadge";
 import { staffQueryKeys } from "../../queryKeys";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 export default function StaffSummaryTab({ staffId }: { staffId: number }) {
   const now = new Date();
@@ -24,7 +25,28 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
     queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
   });
 
-  if (!summaryQ.data) {
+  if (summaryQ.isError || locksQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="이번 달 직원 요약을 불러올 수 없습니다"
+        actions={
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => {
+              summaryQ.refetch();
+              locksQ.refetch();
+            }}
+          >
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
+  if (!summaryQ.data || locksQ.isLoading) {
     return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   }
 
@@ -57,16 +79,16 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
                 : "text-[var(--color-success)]"
             }`}
           >
-            {locked ? "급여 확정" : "진행중"}
+            {locked ? "정산 고정" : "진행중"}
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Item label="근무시간" value={`${s.work_hours} h`} />
-        <Item label="급여" value={s.work_amount.toLocaleString()} />
-        <Item label="비용" value={s.expense_amount.toLocaleString()} />
-        <Item label="실지급액" value={s.total_amount.toLocaleString()} primary />
+        <Item label="근무기록 금액" value={s.work_amount.toLocaleString()} />
+        <Item label="승인 선결제 환급" value={s.expense_amount.toLocaleString()} />
+        <Item label="공제 전 합계" value={s.total_amount.toLocaleString()} primary />
       </div>
     </div>
   );

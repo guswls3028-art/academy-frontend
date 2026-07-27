@@ -1,13 +1,12 @@
 // PATH: src/app_admin/domains/staff/components/PayrollSummaryCard.tsx
-// 급여 KPI 배너 — 총 근무시간, 기본급, 실지급액을 한눈에 보여주는 상단 카드
+// 정산 KPI 배너 — 서버 집계값만 표시하며 세금·보험 공제는 계산하지 않는다.
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { useWorkMonth } from "../operations/context/workMonthHooks";
 import { staffQueryKeys } from "../queryKeys";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import styles from "./PayrollSummaryCard.module.css";
-
-const TAX_RATE = 0.033;
 
 function KpiBox({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
@@ -27,11 +26,11 @@ function KpiBox({ label, value, sub, accent }: { label: string; value: string; s
   );
 }
 
-function DetailRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className={styles.detailRow}>
-      <span className={styles.detailLabel} data-muted={muted ? "true" : undefined}>{label}</span>
-      <span className={styles.detailValue} data-muted={muted ? "true" : undefined}>{value}</span>
+      <span className={styles.detailLabel}>{label}</span>
+      <span className={styles.detailValue}>{value}</span>
     </div>
   );
 }
@@ -46,6 +45,20 @@ export function PayrollSummaryCard() {
   });
 
   const s = summaryQ.data;
+  if (summaryQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="이번 달 정산 요약을 불러올 수 없습니다"
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => summaryQ.refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
   if (summaryQ.isLoading || !s) {
     return (
       <div className={styles.loadingGrid}>
@@ -59,9 +72,7 @@ export function PayrollSummaryCard() {
   const workHours = Number(s.work_hours) || 0;
   const baseWage = Number(s.work_amount) || 0;
   const allowance = Number(s.expense_amount) || 0;
-  const grossPay = baseWage + allowance;
-  const tax = Math.floor(grossPay * TAX_RATE);
-  const netPay = grossPay - tax;
+  const settlementTotal = Number(s.total_amount) || baseWage + allowance;
 
   return (
     <div className={styles.root}>
@@ -73,14 +84,14 @@ export function PayrollSummaryCard() {
           sub={`${year}년 ${month}월`}
         />
         <KpiBox
-          label="기본급"
+          label="근무기록 금액"
           value={`${baseWage.toLocaleString()}원`}
-          sub={allowance > 0 ? `+ 경비 ${allowance.toLocaleString()}원` : undefined}
+          sub="기록된 시간·단가 기준"
         />
         <KpiBox
-          label="실지급액"
-          value={`${netPay.toLocaleString()}원`}
-          sub={`세금 3.3% 공제 후`}
+          label="정산 합계(공제 전)"
+          value={`${settlementTotal.toLocaleString()}원`}
+          sub={allowance > 0 ? `승인 선결제 환급 ${allowance.toLocaleString()}원 포함` : "승인 선결제 환급 없음"}
           accent
         />
       </div>
@@ -88,18 +99,19 @@ export function PayrollSummaryCard() {
       {/* 상세 내역 (접이식) */}
       <details className={styles.details}>
         <summary className={styles.summary}>
-          급여 상세 내역
+          정산 상세 내역
         </summary>
         <div className={styles.detailBody}>
           <DetailRow label="총 근무시간" value={`${workHours.toFixed(1)} h`} />
-          <DetailRow label="기본급 (근무)" value={`${baseWage.toLocaleString()}원`} />
-          <DetailRow label="수당 · 경비" value={`${allowance.toLocaleString()}원`} />
-          <DetailRow label="총 지급액" value={`${grossPay.toLocaleString()}원`} />
-          <DetailRow label="세금 (3.3%)" value={`-${tax.toLocaleString()}원`} muted />
+          <DetailRow label="근무기록 금액" value={`${baseWage.toLocaleString()}원`} />
+          <DetailRow label="승인 선결제 환급" value={`${allowance.toLocaleString()}원`} />
           <div className={styles.netRow}>
-            <span className={styles.netLabel}>실지급액</span>
-            <span className={styles.netValue}>{netPay.toLocaleString()}원</span>
+            <span className={styles.netLabel}>정산 합계(공제 전)</span>
+            <span className={styles.netValue}>{settlementTotal.toLocaleString()}원</span>
           </div>
+          <p className={styles.kpiSub}>
+            세금·4대보험·기타 공제는 반영하지 않습니다. 실제 지급액은 계약 형태와 공제 내역을 확인해 확정하세요.
+          </p>
         </div>
       </details>
     </div>

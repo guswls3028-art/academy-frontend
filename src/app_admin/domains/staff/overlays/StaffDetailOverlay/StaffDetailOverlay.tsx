@@ -21,9 +21,11 @@ import { staffQueryKeys } from "../../queryKeys";
 
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { Badge, Button, CloseButton } from "@/shared/ui/ds";
+import { Badge, Button, CloseButton, EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useConfirm } from "@/shared/ui/confirm";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -31,7 +33,6 @@ import StaffWorkRecordsTab from "./StaffWorkRecordsTab";
 import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
-import StaffSettingsTab from "./StaffSettingsTab";
 import StaffEditModal from "../../components/StaffEditModal";
 
 function StaffManagerToggle({
@@ -42,12 +43,17 @@ function StaffManagerToggle({
   isManager: boolean;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const mutation = useMutation({
     mutationFn: (payload: { is_manager: boolean }) =>
       patchStaffDetail(staffId, payload),
     onSuccess: () => {
+      feedback.success(isManager ? "관리자 권한을 해제했습니다." : "관리자 권한을 부여했습니다.");
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
+    },
+    onError: (error: unknown) => {
+      feedback.error(extractApiError(error, "관리자 권한 변경에 실패했습니다."));
     },
   });
   return (
@@ -58,7 +64,18 @@ function StaffManagerToggle({
       className="cursor-pointer"
       status={isManager ? "active" : "inactive"}
       disabled={mutation.isPending}
-      onClick={() => mutation.mutate({ is_manager: !isManager })}
+      onClick={async () => {
+        const nextManager = !isManager;
+        const ok = await confirm({
+          title: nextManager ? "관리자 권한 부여" : "관리자 권한 해제",
+          message: nextManager
+            ? "직원·시급·비용·급여 정보를 조회하고 관리할 수 있게 됩니다. 권한을 부여하시겠습니까?"
+            : "직원·급여 관리 접근 권한을 해제하시겠습니까?",
+          confirmText: nextManager ? "권한 부여" : "권한 해제",
+          danger: nextManager,
+        });
+        if (ok) mutation.mutate({ is_manager: nextManager });
+      }}
       ariaLabel={isManager ? "관리자 해제" : "관리자 부여"}
     >
       {mutation.isPending ? "…" : isManager ? "ON" : "OFF"}
@@ -124,7 +141,45 @@ export default function StaffDetailOverlay() {
     enabled: !!sid,
   });
 
-  if (!sid || !staffQ.data) return null;
+  const offboardMutation = useMutation({
+    mutationFn: () => patchStaffDetail(sid, { is_active: false }),
+    onSuccess: () => {
+      feedback.success("퇴사 처리했습니다. 기존 근무·비용·급여 이력은 보존됩니다.");
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(sid) });
+    },
+    onError: (error: unknown) => {
+      feedback.error(extractApiError(error, "퇴사 처리에 실패했습니다."));
+    },
+  });
+
+  if (!sid) return null;
+  if (staffQ.isError || meQ.isError) {
+    return (
+      <div className="ds-overlay-wrap">
+        <div className="ds-overlay-panel ds-overlay-panel--staff-detail">
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="직원 정보를 불러올 수 없습니다"
+            actions={
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={() => {
+                  staffQ.refetch();
+                  meQ.refetch();
+                }}
+              >
+                다시 시도
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+  if (!staffQ.data) return null;
 
   // 권한 확인 완료 전 렌더 차단 — 비관리자에게 급여 데이터 노출 방지
   if (!meQ.data) return null;
@@ -135,6 +190,7 @@ export default function StaffDetailOverlay() {
   const staff = staffQ.data;
   const summary = summaryQ.data;
   const locked = isLockedFromLocks(locksQ.data);
+  const lockFailed = locksQ.isError;
   const canManage = true; // meQ guard 통과 = payroll manager 확정
 
   const tabItems = [
@@ -144,7 +200,6 @@ export default function StaffDetailOverlay() {
     { key: "expenses", label: "비용", children: <StaffExpensesTab staffId={sid} /> },
     { key: "history", label: "급여 히스토리", children: <StaffPayrollHistoryTab /> },
     { key: "report", label: "리포트", children: <StaffReportTab /> },
-    ...(canManage ? [{ key: "settings" as const, label: "설정", children: <StaffSettingsTab /> }] : []),
   ];
 
   return (
@@ -154,6 +209,9 @@ export default function StaffDetailOverlay() {
       <div className="ds-overlay-wrap">
         <div
           className="ds-overlay-panel ds-overlay-panel--staff-detail"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="staff-detail-title"
           onClick={(e) => e.stopPropagation()}
         >
           <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
@@ -167,7 +225,7 @@ export default function StaffDetailOverlay() {
                 <div className="flex items-center gap-2">
                   <LockBadge state="LOCKED" />
                   <span className="text-sm font-semibold text-[var(--color-danger)]">
-                    이번달은 마감되었습니다. (급여 확정)
+                    이번달 근태·환급 정산이 고정되었습니다.
                   </span>
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)]">
@@ -190,7 +248,7 @@ export default function StaffDetailOverlay() {
                   </span>
                 </div>
                 <div className="ds-overlay-header__title-block">
-                  <h1 className="ds-overlay-header__title">{staff.name}</h1>
+                  <h1 id="staff-detail-title" className="ds-overlay-header__title">{staff.name}</h1>
                   <div className="ds-overlay-header__pills">
                     {staff.user_is_staff && (
                       <Badge
@@ -214,9 +272,9 @@ export default function StaffDetailOverlay() {
                   <Badge
                     variant="solid"
                     status={staff.is_active ? "active" : "inactive"}
-                    ariaLabel="활성 상태"
+                    ariaLabel="재직 상태"
                   >
-                    {staff.is_active ? "활성" : "비활성"}
+                    {staff.is_active ? "재직" : "퇴사"}
                   </Badge>
                   {canManage && (
                     <Button
@@ -228,7 +286,27 @@ export default function StaffDetailOverlay() {
                       수정
                     </Button>
                   )}
-                  {canManage && (
+                  {canManage && staff.is_active && (
+                    <Button
+                      type="button"
+                      intent="danger"
+                      size="sm"
+                      disabled={offboardMutation.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "퇴사 처리",
+                          message: `${staff.name}의 로그인을 중지하고 퇴사 처리하시겠습니까?\n기존 근무·비용·급여 이력은 보존됩니다.`,
+                          confirmText: "퇴사 처리",
+                          danger: true,
+                        });
+                        if (!ok) return;
+                        offboardMutation.mutate();
+                      }}
+                    >
+                      {offboardMutation.isPending ? "처리 중…" : "퇴사 처리"}
+                    </Button>
+                  )}
+                  {canManage && !staff.is_active && (
                     <Button
                       type="button"
                       intent="danger"
@@ -236,16 +314,15 @@ export default function StaffDetailOverlay() {
                       disabled={deleteMutation.isPending}
                       onClick={async () => {
                         const ok = await confirm({
-                          title: "직원 삭제",
-                          message: `${staff.name}을(를) 삭제하시겠습니까?\n연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`,
-                          confirmText: "삭제",
+                          title: "잘못 등록한 직원 삭제",
+                          message: `${staff.name}을(를) 영구 삭제하시겠습니까?\n근무·비용·마감·급여 이력이 한 건이라도 있으면 삭제되지 않습니다.`,
+                          confirmText: "영구 삭제",
                           danger: true,
                         });
-                        if (!ok) return;
-                        deleteMutation.mutate(sid);
+                        if (ok) deleteMutation.mutate(sid);
                       }}
                     >
-                      {deleteMutation.isPending ? "삭제 중…" : "삭제"}
+                      {deleteMutation.isPending ? "삭제 중…" : "잘못 등록한 직원 삭제"}
                     </Button>
                   )}
                 </div>
@@ -268,7 +345,7 @@ export default function StaffDetailOverlay() {
                   <div className="ds-overlay-info-rows">
                     <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
                     <InfoRow label="전화번호" value={formatPhone(staff.phone)} />
-                    <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급"} />
+                    <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"} />
                     <InfoRow
                       label="역할"
                       value={
@@ -311,9 +388,9 @@ export default function StaffDetailOverlay() {
                       </div>
                     </div>
                     <div className="ds-overlay-stat-card">
-                      <div className="ds-overlay-stat-card__label">지급액</div>
+                      <div className="ds-overlay-stat-card__label">공제 전 합계</div>
                       <div className="ds-overlay-stat-card__value">
-                        {(summary?.total_amount ?? 0).toLocaleString()}<span className="ds-overlay-stat-card__unit ds-overlay-stat-card__unit--currency">원</span>
+                        {summaryQ.isError ? "—" : (summary?.total_amount ?? 0).toLocaleString()}<span className="ds-overlay-stat-card__unit ds-overlay-stat-card__unit--currency">원</span>
                       </div>
                     </div>
                   </div>
@@ -322,11 +399,11 @@ export default function StaffDetailOverlay() {
                       <span className="ds-overlay-info-row__label">마감상태</span>
                       <span className="ds-overlay-info-row__value">
                         <div className="flex items-center gap-2">
-                          <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />
+                          {!lockFailed && <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />}
                           <span
                             className={`font-semibold ds-overlay-lock-state ${locked ? "is-locked" : "is-open"}`}
                           >
-                            {locked ? "급여 확정" : "진행중"}
+                            {lockFailed ? "확인 실패" : locked ? "정산 고정" : "진행중"}
                           </span>
                         </div>
                       </span>

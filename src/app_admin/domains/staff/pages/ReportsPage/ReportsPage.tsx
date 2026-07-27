@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/pages/ReportsPage/ReportsPage.tsx
 // Report/Statement tab: payroll history and lock history for selected staff. Section-style layout.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PayrollHistoryTable from "./PayrollHistoryTable";
 import WorkMonthLockHistory from "./WorkMonthLockHistory";
@@ -15,7 +15,16 @@ export default function ReportsPage() {
   const [params] = useSearchParams();
   const staffId = params.get("staffId") ? Number(params.get("staffId")) : null;
   const initialYm = useMemo(getThisMonth, []);
-  const [ym, setYm] = useState({ year: initialYm.year, month: initialYm.month });
+  const [ym, setYm] = useState({
+    year: params.get("year") ? Number(params.get("year")) : initialYm.year,
+    month: params.get("month") ? Number(params.get("month")) : initialYm.month,
+  });
+  useEffect(() => {
+    setYm({
+      year: params.get("year") ? Number(params.get("year")) : initialYm.year,
+      month: params.get("month") ? Number(params.get("month")) : initialYm.month,
+    });
+  }, [params, initialYm]);
 
   if (staffId == null) return null;
 
@@ -24,7 +33,7 @@ export default function ReportsPage() {
       <section className="staff-section-card">
         <div className="staff-section-card__header">
           <h2 className="staff-section-card__title">급여 이력</h2>
-          <p className="staff-section-card__desc">선택한 직원의 월별 확정 급여 내역입니다.</p>
+          <p className="staff-section-card__desc">선택한 직원의 월별 근태·선결제 환급 마감 참고 내역입니다.</p>
         </div>
         <div className="staff-section-card__body">
           <PayrollHistoryTable staffId={staffId} />
@@ -64,7 +73,7 @@ export default function ReportsPage() {
           <WorkMonthLockHistory year={ym.year} month={ym.month} />
         </div>
         <div className="staff-section-card__footer">
-          엑셀/PDF 다운로드는 급여 스냅샷 탭에서 기준월 선택 후 사용하세요.
+          엑셀/PDF 다운로드는 정산 참고 탭에서 기준월 선택 후 사용하세요.
         </div>
       </section>
     </div>

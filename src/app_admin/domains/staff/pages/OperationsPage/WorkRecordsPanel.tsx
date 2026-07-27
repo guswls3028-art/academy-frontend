@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
@@ -12,7 +12,14 @@ import CreateWorkRecordModal from "./CreateWorkRecordModal";
 import "../../styles/staff-area.css";
 
 export default function WorkRecordsPanel() {
-  const { staffId, range, locked } = useWorkMonth();
+  const {
+    staffId,
+    range,
+    locked,
+    lockCheckPending,
+    lockCheckFailed,
+    writeBlocked,
+  } = useWorkMonth();
   const { listQ, deleteM } = useWorkRecords({
     staff: staffId,
     date_from: range.from,
@@ -28,6 +35,21 @@ export default function WorkRecordsPanel() {
           <p className="staff-helper">불러오는 중...</p>
         </div>
       </section>
+    );
+  }
+  if (listQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="근무기록을 불러오지 못했습니다"
+        description="연결 상태를 확인한 뒤 다시 시도해 주세요."
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => void listQ.refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
     );
   }
 
@@ -60,8 +82,16 @@ export default function WorkRecordsPanel() {
             intent="primary"
             size="sm"
             leftIcon={<Plus size={14} strokeWidth={2.5} />}
-            disabled={locked}
-            title={locked ? "마감된 월입니다." : undefined}
+            disabled={writeBlocked}
+            title={
+              locked
+                ? "마감된 월입니다."
+                : lockCheckPending
+                  ? "마감 상태를 확인하는 중입니다."
+                  : lockCheckFailed
+                    ? "마감 상태를 확인하지 못해 추가할 수 없습니다."
+                    : undefined
+            }
             onClick={() => setOpen(true)}
           >
             추가
@@ -70,6 +100,11 @@ export default function WorkRecordsPanel() {
         {locked && (
           <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
             마감된 월입니다 · 생성/수정/삭제 불가
+          </p>
+        )}
+        {lockCheckFailed && (
+          <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
+            마감 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.
           </p>
         )}
       </div>
@@ -113,16 +148,20 @@ export default function WorkRecordsPanel() {
                     <Button
                       intent="danger"
                       size="sm"
-                      disabled={locked || deleteM.isPending}
+                      disabled={writeBlocked || deleteM.isPending}
                       title={
                         locked
                           ? "마감된 월입니다."
+                          : lockCheckPending
+                            ? "마감 상태를 확인하는 중입니다."
+                            : lockCheckFailed
+                              ? "마감 상태를 확인하지 못했습니다."
                           : deleteM.isPending
                           ? "처리 중…"
                           : undefined
                       }
                       onClick={() => {
-                        if (locked || deleteM.isPending) return;
+                        if (writeBlocked || deleteM.isPending) return;
                         if (!confirm("이 근무 기록을 삭제할까요?")) return;
                         deleteM.mutate(r.id);
                       }}
@@ -136,7 +175,7 @@ export default function WorkRecordsPanel() {
           </div>
         )}
 
-        {!locked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
+        {!writeBlocked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
       </div>
     </section>
   );

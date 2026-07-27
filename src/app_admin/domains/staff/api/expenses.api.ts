@@ -30,7 +30,9 @@ export async function fetchExpenses(params: {
   date_from: string;
   date_to: string;
 }) {
-  const res = await api.get("/staffs/expense-records/", { params });
+  const res = await api.get("/staffs/expense-records/", {
+    params: { ...params, page_size: 500 },
+  });
 
   if (Array.isArray(res.data)) return res.data as ExpenseRecord[];
   if (Array.isArray(res.data?.results)) return res.data.results as ExpenseRecord[];

@@ -7,7 +7,7 @@ import { staffQueryKeys } from "../queryKeys";
 
 /**
  * 직원 삭제 공통 훅.
- * StaffDetailOverlay 헤더, StaffSettingsTab 모두 이 훅을 사용한다.
+ * StaffDetailOverlay에서 이력 없는 오등록 직원의 영구 삭제에만 사용한다.
  */
 export function useDeleteStaff(opts?: {
   /** 삭제 성공 후 이동할 경로. 기본값: /admin/staff/home */

@@ -10,9 +10,9 @@ import {
 } from "../../api/payrollSnapshots.api";
 import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import { staffQueryKeys } from "../../queryKeys";
-import { Button } from "@/shared/ui/ds";
-
-const TAX_RATE = 0.033;
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 function getThisMonth() {
   const d = new Date();
@@ -48,6 +48,9 @@ export default function PayrollSnapshotPage() {
     setExportingPdf(true);
     try {
       await exportPayrollSnapshotPDF({ staff: staffId, year, month });
+      feedback.success("PDF 명세 다운로드가 시작되었습니다.");
+    } catch (error: unknown) {
+      feedback.error(extractApiError(error, "PDF 명세 다운로드에 실패했습니다."));
     } finally {
       setExportingPdf(false);
     }
@@ -64,11 +67,28 @@ export default function PayrollSnapshotPage() {
     );
   }
 
+  if (listQ.isError) {
+    return (
+      <div className="staff-panel">
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="확정 정산을 불러올 수 없습니다"
+          actions={
+            <Button intent="secondary" size="sm" onClick={() => listQ.refetch()}>
+              다시 시도
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   if (snap == null) {
     return (
       <div className="staff-panel">
         <div className="staff-panel__header">
-          <span className="staff-section-title">급여 스냅샷 · {ymLabel(year, month)}</span>
+          <span className="staff-section-title">근태·환급 정산 참고 · {ymLabel(year, month)}</span>
         </div>
         <div className="staff-panel__body">
           <p className="staff-helper">해당 월은 아직 마감되지 않았거나 스냅샷이 없습니다. 월 마감 탭에서 마감 후 확인하세요.</p>
@@ -77,13 +97,10 @@ export default function PayrollSnapshotPage() {
     );
   }
 
-  const tax = Math.floor(snap.total_amount * TAX_RATE);
-  const net = snap.total_amount - tax;
-
   return (
     <div className="staff-panel">
       <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4">
-        <span className="staff-section-title">확정 급여 · {ymLabel(snap.year, snap.month)}</span>
+        <span className="staff-section-title">마감 정산 참고 · {ymLabel(snap.year, snap.month)}</span>
         <Button intent="secondary" size="sm" disabled={exportingPdf} onClick={handlePdf}>
           {exportingPdf ? "다운로드 중…" : "PDF 명세"}
         </Button>
@@ -96,26 +113,21 @@ export default function PayrollSnapshotPage() {
               <span className="value">{Number(snap.work_hours)} h</span>
             </div>
             <div className="staff-payroll-row">
-              <span className="label">기본급</span>
+              <span className="label">근무기록 금액</span>
               <span className="value">{snap.work_amount.toLocaleString()}원</span>
             </div>
             <div className="staff-payroll-row">
-              <span className="label">승인 경비</span>
+              <span className="label">승인 선결제 환급</span>
               <span className="value">{snap.approved_expense_amount.toLocaleString()}원</span>
             </div>
             <div className="staff-payroll-row">
-              <span className="label">총 지급액</span>
+              <span className="label">정산 합계(공제 전)</span>
               <span className="value">{snap.total_amount.toLocaleString()}원</span>
             </div>
-            <div className="staff-payroll-row">
-              <span className="label">세금(3.3%)</span>
-              <span className="value">-{tax.toLocaleString()}원</span>
-            </div>
-            <div className="staff-payroll-row staff-payroll-row--total">
-              <span className="label">실지급액</span>
-              <span className="value">{net.toLocaleString()}원</span>
-            </div>
           </div>
+        </div>
+        <div className="text-xs text-[var(--color-text-muted)]">
+          세금·4대보험·기타 공제는 반영하지 않습니다. 실제 지급액은 계약 형태와 공제 내역을 확인해 확정하세요.
         </div>
         <div className="text-xs text-[var(--color-text-muted)]">
           확정일시: {snap.created_at ? new Date(snap.created_at).toLocaleString("ko-KR") : "-"}

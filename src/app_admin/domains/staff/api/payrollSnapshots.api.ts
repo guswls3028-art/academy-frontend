@@ -32,12 +32,20 @@ export async function fetchPayrollSnapshots(params: {
   if (params.month != null) cleanParams.month = params.month;
 
   const res = await api.get("/staffs/payroll-snapshots/", {
-    params: cleanParams,
+    params: { ...cleanParams, page_size: 500 },
   });
 
-  if (Array.isArray(res.data)) return res.data as PayrollSnapshot[];
-  if (Array.isArray(res.data?.results)) return res.data.results as PayrollSnapshot[];
-  return [];
+  const rows: PayrollSnapshot[] = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+      ? res.data.results
+      : [];
+  return rows.filter(
+    (row) =>
+      (params.staff == null || row.staff === params.staff) &&
+      (params.year == null || row.year === params.year) &&
+      (params.month == null || row.month === params.month)
+  );
 }
 
 /**

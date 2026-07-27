@@ -9,8 +9,6 @@ import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { Button, Badge } from "@/shared/ui/ds";
 import { staffQueryKeys } from "../queryKeys";
 
-const TAX_RATE = 0.033;
-
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
 }
@@ -45,9 +43,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const workHours = s ? Number(s.work_hours) || 0 : 0;
   const basePay = s ? Number(s.work_amount) || 0 : 0;
   const allowance = s ? Number(s.expense_amount) || 0 : 0;
-  const gross = basePay + allowance;
-  const tax = Math.floor(gross * TAX_RATE);
-  const net = gross - tax;
+  const settlementTotal = s ? Number(s.total_amount) || basePay + allowance : 0;
   const isLoading = summaryQ.isLoading;
 
   const goMonth = (delta: number) => {
@@ -71,7 +67,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
               {staff.role === "TEACHER" ? "강사" : "조교"}
             </Badge>
             <Badge variant="solid" actionable tone="neutral">
-              {staff.pay_type === "HOURLY" ? "시급" : "월급"}
+              {staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"}
             </Badge>
             {primaryWageTag && (
               <span
@@ -98,16 +94,20 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
         {isLoading ? (
           <>
             <span className="staff-chip text-xs opacity-60">총 —h</span>
-            <span className="staff-chip staff-chip--primary text-xs opacity-60">기본급 —</span>
-            <span className="staff-chip text-xs opacity-60">수당 —</span>
-            <span className="staff-chip staff-chip--success text-xs opacity-60">예상 실지급 —</span>
+            <span className="staff-chip staff-chip--primary text-xs opacity-60">근무기록 —</span>
+            <span className="staff-chip text-xs opacity-60">승인 선결제 환급 —</span>
+            <span className="staff-chip staff-chip--success text-xs opacity-60">공제 전 합계 —</span>
           </>
+        ) : summaryQ.isError ? (
+          <Button intent="secondary" size="sm" onClick={() => summaryQ.refetch()}>
+            정산 요약 다시 시도
+          </Button>
         ) : (
           <>
             <span className="staff-chip text-xs">총 {workHours.toFixed(1)}h</span>
-            <span className="staff-chip staff-chip--primary text-xs">기본급 {basePay.toLocaleString()}원</span>
-            <span className="staff-chip text-xs">수당 {allowance.toLocaleString()}원</span>
-            <span className="staff-chip staff-chip--success text-xs">예상 실지급 {net.toLocaleString()}원</span>
+            <span className="staff-chip staff-chip--primary text-xs">근무기록 {basePay.toLocaleString()}원</span>
+            <span className="staff-chip text-xs">승인 선결제 환급 {allowance.toLocaleString()}원</span>
+            <span className="staff-chip staff-chip--success text-xs">공제 전 합계 {settlementTotal.toLocaleString()}원</span>
           </>
         )}
       </div>

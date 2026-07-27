@@ -8,6 +8,28 @@
   font-family: var(--app-font-sans, var(--font-sans, "Pretendard", system-ui, -apple-system, sans-serif));
 }
 
+.staff-area .staff-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: var(--space-6);
+  min-height: 0;
+}
+
+.staff-area .staff-workspace-grid--operations {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
+@media (max-width: 1199px) {
+  .staff-area .staff-workspace-grid,
+  .staff-area .staff-workspace-grid--operations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-area .staff-workspace-grid > .staff-panel:first-child {
+    max-height: 360px;
+  }
+}
+
 .staff-area .staff-page-title {
   font-size: 1.25rem;
   font-weight: 700;

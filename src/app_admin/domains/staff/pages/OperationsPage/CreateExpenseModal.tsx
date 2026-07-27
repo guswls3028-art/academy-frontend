@@ -20,7 +20,7 @@ export default function CreateExpenseModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { staffId, range, locked } = useWorkMonth();
+  const { staffId, range, writeBlocked } = useWorkMonth();
 
   const { createM } = useExpenses({
     staff: staffId,
@@ -46,7 +46,7 @@ export default function CreateExpenseModal({
     }
   }, [open, range.from]);
 
-  if (locked) return null;
+  if (writeBlocked) return null;
 
   const parsedAmount = Number(form.amount);
   const canSubmit = Boolean(form.title.trim()) && Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -54,6 +54,10 @@ export default function CreateExpenseModal({
   const handleSubmit = () => {
     if (!canSubmit) {
       feedback.warning("항목과 금액을 입력하세요.");
+      return;
+    }
+    if (form.date < range.from || form.date > range.to) {
+      feedback.warning("현재 선택한 월 안의 날짜를 선택해 주세요.");
       return;
     }
     if (!createM.isPending) {
@@ -73,8 +77,8 @@ export default function CreateExpenseModal({
   return (
     <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={handleSubmit}>
       <ModalHeader
-        title="비용 추가"
-        description="직원의 비용 항목을 추가합니다."
+        title="선결제 환급 추가"
+        description="직원이 개인 비용으로 먼저 결제한 환급 항목을 추가합니다."
         type="action"
       />
 

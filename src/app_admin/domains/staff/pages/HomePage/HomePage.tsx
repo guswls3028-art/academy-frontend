@@ -11,7 +11,7 @@ import AddWorkTypeBulkModal from "./AddWorkTypeBulkModal";
 import StaffPasswordModal from "../../components/StaffPasswordModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
-import { deleteStaff } from "../../api/staff.api";
+import { patchStaffDetail } from "../../api/staff.detail.api";
 import { exportPayrollSnapshotExcel } from "../../api/payrollSnapshots.api";
 import { downloadStaffExcel } from "../../excel/staffExcel";
 import { staffQueryKeys } from "../../queryKeys";
@@ -28,7 +28,12 @@ export default function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data: staffData, isLoading } = useStaffs();
+  const {
+    data: staffData,
+    isLoading,
+    isError: isStaffError,
+    refetch: refetchStaffs,
+  } = useStaffs();
   const rawStaffs = staffData?.staffs;
   const staffs = useMemo(() => rawStaffs ?? [], [rawStaffs]);
   const meQ = useQuery({
@@ -56,8 +61,9 @@ export default function HomePage() {
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [deleting, setDeleting] = useState(false);
-  const [exportingExcel, setExportingExcel] = useState(false);
+  const [offboarding, setOffboarding] = useState(false);
+  const [exportingRoster, setExportingRoster] = useState(false);
+  const [exportingPayroll, setExportingPayroll] = useState(false);
 
   /** 선택된 직원 ID만 (원장 sentinel 제외) */
   const selectedStaffIds = useMemo(
@@ -98,30 +104,45 @@ export default function HomePage() {
         <Button
           intent="secondary"
           size="sm"
-          disabled={exportingExcel}
+          disabled={exportingRoster}
           onClick={async () => {
-            setExportingExcel(true);
+            setExportingRoster(true);
             try {
-              if (selectedStaffIds.length > 0) {
-                const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
-                await downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
-                feedback.success("엑셀 다운로드가 완료되었습니다.");
-              } else {
-                const now = new Date();
-                await exportPayrollSnapshotExcel({
-                  year: now.getFullYear(),
-                  month: now.getMonth() + 1,
-                });
-                feedback.success("급여 스냅샷 엑셀 다운로드가 시작되었습니다.");
-              }
+              const exportRows = selectedStaffIds.length > 0
+                ? rows.filter((r) => selectedIds.includes(r.id))
+                : rows;
+              await downloadStaffExcel(exportRows, `직원목록_${exportRows.length}명.xlsx`);
+              feedback.success("직원 목록 엑셀 다운로드가 완료되었습니다.");
             } catch (e) {
               feedback.error(e instanceof Error ? e.message : "엑셀 다운로드에 실패했습니다.");
             } finally {
-              setExportingExcel(false);
+              setExportingRoster(false);
             }
           }}
         >
-          {exportingExcel ? "다운로드 중…" : "엑셀 다운로드"}
+          {exportingRoster ? "다운로드 중…" : "직원 목록 엑셀"}
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          disabled={exportingPayroll}
+          onClick={async () => {
+            const now = new Date();
+            setExportingPayroll(true);
+            try {
+              await exportPayrollSnapshotExcel({
+                year: now.getFullYear(),
+                month: now.getMonth() + 1,
+              });
+              feedback.success("이번 달 정산 엑셀 다운로드가 시작되었습니다.");
+            } catch (e: unknown) {
+              feedback.error(extractApiError(e, "정산 엑셀 내보내기에 실패했습니다."));
+            } finally {
+              setExportingPayroll(false);
+            }
+          }}
+        >
+          {exportingPayroll ? "준비 중…" : "이번 달 정산 엑셀"}
         </Button>
         <Button
           intent="secondary"
@@ -140,8 +161,8 @@ export default function HomePage() {
           intent="secondary"
           size="sm"
           onClick={() => {
-            if (selectedStaffIds.length === 0) {
-              feedback.info("직원을 선택한 뒤 비밀번호 변경을 눌러 주세요.");
+            if (selectedStaffIds.length !== 1) {
+              feedback.info("비밀번호를 변경할 직원 한 명만 선택해 주세요.");
               return;
             }
             setOpenPasswordModal(true);
@@ -154,34 +175,39 @@ export default function HomePage() {
       <Button
         intent="danger"
         size="sm"
-        disabled={selectedStaffIds.length === 0 || deleting}
+        disabled={selectedStaffIds.length === 0 || offboarding}
         onClick={async () => {
           if (selectedStaffIds.length === 0) return;
 
-          // Owner sentinel이 선택에 포함되어 있으면 사전 안내
+          const activeTargets = rows.filter(
+            (row) => selectedStaffIds.includes(row.id) && row.is_active
+          );
+          if (activeTargets.length === 0) {
+            feedback.info("선택한 직원은 이미 퇴사 처리되어 있습니다.");
+            return;
+          }
           const hasOwnerSelected = selectedIds.includes(-1);
-          const ownerNote = hasOwnerSelected ? "\n(대표는 삭제 대상에서 제외됩니다)" : "";
+          const ownerNote = hasOwnerSelected ? "\n(대표는 퇴사 처리 대상에서 제외됩니다)" : "";
 
           const ok = await confirm({
-            title: "삭제 확인",
-            message: `선택한 직원 ${selectedStaffIds.length}명을 삭제하시겠습니까?${ownerNote}\n연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`,
+            title: "퇴사 처리 확인",
+            message: `재직 직원 ${activeTargets.length}명의 로그인을 중지하고 퇴사 처리하시겠습니까?${ownerNote}\n기존 근무·비용·급여 이력은 보존됩니다.`,
             danger: true,
-            confirmText: "삭제",
+            confirmText: "퇴사 처리",
           });
           if (!ok) return;
 
-          setDeleting(true);
+          setOffboarding(true);
           const successIds: number[] = [];
           const failNames: string[] = [];
 
-          for (const id of selectedStaffIds) {
+          for (const target of activeTargets) {
             try {
-              await deleteStaff(id);
-              successIds.push(id);
+              await patchStaffDetail(target.id, { is_active: false });
+              successIds.push(target.id);
             } catch (e: unknown) {
-              const staff = rows.find((r) => r.id === id);
-              const reason = extractApiError(e, "삭제 실패");
-              failNames.push(`${staff?.name ?? `ID:${id}`} (${reason})`);
+              const reason = extractApiError(e, "퇴사 처리 실패");
+              failNames.push(`${target.name} (${reason})`);
             }
           }
 
@@ -191,22 +217,24 @@ export default function HomePage() {
           if (successCount > 0) {
             qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
             qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
-            const deletedSet = new Set(successIds);
-            setSelectedIds(selectedIds.filter((sid) => sid <= 0 || !deletedSet.has(sid)));
+            const completedSet = new Set(successIds);
+            setSelectedIds((current) =>
+              current.filter((sid) => sid <= 0 || !completedSet.has(sid))
+            );
           }
 
           if (failCount === 0) {
-            feedback.success(`${successCount}명 삭제되었습니다.`);
+            feedback.success(`${successCount}명을 퇴사 처리했습니다. 기존 이력은 보존됩니다.`);
           } else if (successCount === 0) {
-            feedback.error(`삭제 실패: ${failNames.join(", ")}`);
+            feedback.error(`퇴사 처리 실패: ${failNames.join(", ")}`);
           } else {
-            feedback.warning(`${successCount}명 삭제, ${failCount}명 실패: ${failNames.join(", ")}`);
+            feedback.warning(`${successCount}명 처리, ${failCount}명 실패: ${failNames.join(", ")}`);
           }
 
-          setDeleting(false);
+          setOffboarding(false);
         }}
       >
-        {deleting ? "삭제 중…" : "삭제"}
+        {offboarding ? "처리 중…" : "퇴사 처리"}
       </Button>
     </div>
   );
@@ -254,7 +282,18 @@ export default function HomePage() {
         belowSlot={selectionBar}
       />
 
-      {isLoading ? (
+      {isStaffError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="직원 목록을 불러올 수 없습니다"
+          actions={
+            <Button intent="secondary" size="sm" onClick={() => refetchStaffs()}>
+              다시 시도
+            </Button>
+          }
+        />
+      ) : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : (
         <StaffHomeTable
@@ -284,6 +323,7 @@ export default function HomePage() {
         onClose={() => setOpenPasswordModal(false)}
         staffList={rows
           .filter((r) => selectedStaffIds.includes(r.id))
+          .slice(0, 1)
           .map((r) => ({ id: r.id, name: r.name }))}
       />
     </div>

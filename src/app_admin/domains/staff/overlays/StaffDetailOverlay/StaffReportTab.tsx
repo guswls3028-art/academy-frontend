@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { staffQueryKeys } from "../../queryKeys";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import styles from "./StaffReportTab.module.css";
 
 function todayISO() {
@@ -39,6 +40,21 @@ export default function StaffReportTab() {
     return <div className="text-sm text-[var(--color-text-muted)]">불러오는 중...</div>;
   }
 
+  if (summaryQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="직원 리포트를 불러올 수 없습니다"
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => summaryQ.refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
+
   if (!summaryQ.data) {
     return <div className="text-sm text-[var(--color-text-muted)]">데이터가 없습니다.</div>;
   }
@@ -59,14 +75,14 @@ export default function StaffReportTab() {
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Item label="근무시간" value={`${s.work_hours} h`} />
-          <Item label="급여" value={`${s.work_amount.toLocaleString()} 원`} />
-          <Item label="비용" value={`${s.expense_amount.toLocaleString()} 원`} />
-          <Item label="실 지급액" value={`${s.total_amount.toLocaleString()} 원`} primary />
+          <Item label="근무기록 금액" value={`${s.work_amount.toLocaleString()} 원`} />
+          <Item label="승인 선결제 환급" value={`${s.expense_amount.toLocaleString()} 원`} />
+          <Item label="공제 전 합계" value={`${s.total_amount.toLocaleString()} 원`} primary />
         </div>
       </div>
 
       <div className="text-xs text-[var(--color-text-muted)]">
-        * 리포트 수치는 <b>서버 집계 결과(Summary API)</b> 기준입니다.
+        * 서버 집계 기준이며 세금·4대보험·기타 공제는 반영하지 않습니다.
       </div>
     </div>
   );

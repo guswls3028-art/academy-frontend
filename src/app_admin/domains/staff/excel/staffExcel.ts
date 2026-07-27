@@ -5,7 +5,10 @@ import { downloadArrayWorksheet } from "@/shared/utils/excelWorkbook";
 import type { Staff } from "../api/staff.api";
 
 const ROLE_LABEL: Record<string, string> = { TEACHER: "강사", ASSISTANT: "조교" };
-const PAY_TYPE_LABEL: Record<string, string> = { HOURLY: "시급", MONTHLY: "월급" };
+const PAY_TYPE_LABEL: Record<string, string> = {
+  HOURLY: "시급",
+  MONTHLY: "월급(수동 확인)",
+};
 
 /** 선택한 직원 목록을 엑셀로 다운로드 */
 export function downloadStaffExcel(
@@ -28,7 +31,7 @@ export function downloadStaffExcel(
       ROLE_LABEL[r.role] ?? r.role,
       r.name ?? "",
       r.phone ?? "",
-      r.is_active ? "활성" : "비활성",
+      r.is_active ? "재직" : "퇴사",
       r.is_manager ? "ON" : "OFF",
       PAY_TYPE_LABEL[r.pay_type] ?? r.pay_type,
       (r.staff_work_types ?? [])

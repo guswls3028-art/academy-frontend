@@ -28,7 +28,9 @@ export type StaffWorkType = {
  * GET /staffs/work-types/
  */
 export async function fetchWorkTypes(params?: { is_active?: boolean }) {
-  const res = await api.get("/staffs/work-types/", { params });
+  const res = await api.get("/staffs/work-types/", {
+    params: { ...params, page_size: 500 },
+  });
 
   if (Array.isArray(res.data)) return res.data as WorkType[];
   if (Array.isArray(res.data?.results)) return res.data.results as WorkType[];
@@ -39,7 +41,9 @@ export async function fetchWorkTypes(params?: { is_active?: boolean }) {
  * GET /staffs/staff-work-types/?staff={staffId}
  */
 export async function fetchStaffWorkTypes(staffId: number) {
-  const res = await api.get("/staffs/staff-work-types/", { params: { staff: staffId } });
+  const res = await api.get("/staffs/staff-work-types/", {
+    params: { staff: staffId, page_size: 500 },
+  });
 
   if (Array.isArray(res.data)) return res.data as StaffWorkType[];
   if (Array.isArray(res.data?.results)) return res.data.results as StaffWorkType[];

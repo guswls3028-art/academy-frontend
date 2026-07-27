@@ -122,7 +122,7 @@ export function HeaderCenterStaffClock() {
   const queryClient = useQueryClient();
   const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const staffId = staffMe?.staff_id;
-  const defaultWorkTypeId = staffMe?.default_work_type_id;
+  const assignedWorkTypes = staffMe?.assigned_work_types ?? [];
 
   const { data: workingList = [] } = useQuery({
     queryKey: staffQueryKeys.currentlyWorking,
@@ -149,7 +149,7 @@ export function HeaderCenterStaffClock() {
   };
 
   const startMutation = useMutation({
-    mutationFn: () => startWork(staffId!, defaultWorkTypeId!),
+    mutationFn: (workTypeId: number) => startWork(staffId!, workTypeId),
     onSuccess: () => {
       invalidateCurrentWork();
       invalidateWorkTotals();
@@ -257,7 +257,7 @@ export function HeaderCenterStaffClock() {
           </span>
         </div>
       )}
-      {!staffMe?.is_owner && staffId != null && defaultWorkTypeId != null && (
+      {!staffMe?.is_owner && staffId != null && assignedWorkTypes.length > 0 && (
         <>
           <span className="app-header__centerClockDivider" />
           <div className="app-header__centerClockActions">
@@ -299,15 +299,38 @@ export function HeaderCenterStaffClock() {
                 </Button>
               </>
             ) : (
-              <Button
-                type="button"
-                size="sm"
-                disabled={isStarting}
-                onClick={() => startMutation.mutate()}
-                className="app-header__clockBtn app-header__clockBtn--start"
-              >
-                {isStarting ? "..." : "출근"}
-              </Button>
+              assignedWorkTypes.length === 1 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isStarting}
+                  onClick={() => startMutation.mutate(assignedWorkTypes[0].id)}
+                  className="app-header__clockBtn app-header__clockBtn--start"
+                  title={assignedWorkTypes[0].name}
+                >
+                  {isStarting ? "..." : "출근"}
+                </Button>
+              ) : (
+                <Dropdown
+                  trigger={["click"]}
+                  menu={{
+                    items: assignedWorkTypes.map((workType) => ({
+                      key: String(workType.id),
+                      label: `${workType.name} · ${workType.hourly_wage.toLocaleString()}원`,
+                    })),
+                    onClick: ({ key }) => startMutation.mutate(Number(key)),
+                  }}
+                >
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isStarting}
+                    className="app-header__clockBtn app-header__clockBtn--start"
+                  >
+                    {isStarting ? "..." : "출근 유형 선택"}
+                  </Button>
+                </Dropdown>
+              )
             )}
           </div>
         </>

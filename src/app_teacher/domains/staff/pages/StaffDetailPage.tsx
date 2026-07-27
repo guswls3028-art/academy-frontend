@@ -42,21 +42,41 @@ export default function StaffDetailPage() {
   const [workFormOpen, setWorkFormOpen] = useState(false);
   const [editWork, setEditWork] = useState<WorkRecord | null>(null);
 
-  const { data: staff, isLoading: staffLoading } = useQuery({
+  const {
+    data: staff,
+    isLoading: staffLoading,
+    isError: staffError,
+    refetch: refetchStaff,
+  } = useQuery({
     queryKey: teacherStaffQueryKeys.staffOne(sid),
     queryFn: () => fetchStaffOne(sid),
     enabled: Number.isFinite(sid),
   });
 
-  const { data: locks } = useQuery({
+  const {
+    data: locks,
+    isLoading: locksLoading,
+    isError: locksError,
+    refetch: refetchLocks,
+  } = useQuery({
     queryKey: teacherStaffQueryKeys.locks(sid, month),
     queryFn: () => fetchWorkMonthLocks({ staff: sid, month }),
     enabled: Number.isFinite(sid),
   });
   const isLocked = (locks ?? []).some((lock) => lock.is_locked !== false);
+  const isMonthly = staff?.pay_type === "MONTHLY";
 
   if (staffLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!staff) return <EmptyState scope="panel" tone="error" title="직원 정보를 찾을 수 없습니다" />;
+  if (staffError || !staff) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="직원 정보를 불러올 수 없습니다"
+        actions={<EmptyActionButton onClick={() => void refetchStaff()}>다시 시도</EmptyActionButton>}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -75,7 +95,25 @@ export default function StaffDetailPage() {
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
           className="text-sm flex-1"
           style={{ padding: "8px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }} />
-        <LockButton staffId={sid} month={month} isLocked={isLocked} />
+        {isMonthly ? (
+          <button type="button" disabled aria-disabled
+            title="월급 직원은 근로계약·수당·공제를 별도로 확인해야 합니다."
+            className="flex items-center gap-1 text-xs font-semibold"
+            style={{ padding: "7px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-warn)", background: "var(--tc-warn-bg)", color: "var(--tc-warn)" }}>
+            월급 수동 확인
+          </button>
+        ) : locksError ? (
+          <EmptyActionButton variant="secondary" onClick={() => void refetchLocks()}>
+            마감 상태 다시 확인
+          </EmptyActionButton>
+        ) : (
+          <LockButton
+            staffId={sid}
+            month={month}
+            isLocked={isLocked}
+            disabled={locksLoading}
+          />
+        )}
       </div>
 
       {/* Tabs */}
@@ -90,12 +128,19 @@ export default function StaffDetailPage() {
       />
 
       {tab === "work" && (
-        <WorkTab staffId={sid} month={month} isLocked={isLocked}
+        <WorkTab staffId={sid} month={month} isLocked={isLocked || locksError || locksLoading}
           onAdd={() => { setEditWork(null); setWorkFormOpen(true); }}
           onEdit={(r) => { setEditWork(r); setWorkFormOpen(true); }} />
       )}
-      {tab === "expense" && <ExpenseTab staffId={sid} month={month} isLocked={isLocked} />}
-      {tab === "payroll" && <PayrollTab staffId={sid} month={month} isLocked={isLocked} />}
+      {tab === "expense" && <ExpenseTab staffId={sid} month={month} isLocked={isLocked || locksError || locksLoading} />}
+      {tab === "payroll" && (
+        <PayrollTab
+          staffId={sid}
+          month={month}
+          isLocked={isLocked}
+          payType={staff.pay_type}
+        />
+      )}
 
       <WorkFormSheet open={workFormOpen} onClose={() => { setWorkFormOpen(false); setEditWork(null); }}
         staffId={sid} month={month} editData={editWork} />
@@ -104,7 +149,7 @@ export default function StaffDetailPage() {
 }
 
 /* ─── Lock Button ─── */
-function LockButton({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
+function LockButton({ staffId, month, isLocked, disabled = false }: { staffId: number; month: string; isLocked: boolean; disabled?: boolean }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const lockMut = useMutation({
@@ -113,7 +158,12 @@ function LockButton({ staffId, month, isLocked }: { staffId: number; month: stri
       qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.locks(staffId, month) });
       teacherToast.success("월이 마감되었습니다.");
     },
-    onError: () => teacherToast.error("마감에 실패했습니다."),
+    onError: (error) => teacherToast.error(
+      extractApiError(
+        error,
+        "마감에 실패했습니다. 진행 중 근무와 대기 환급을 확인해 주세요.",
+      ),
+    ),
   });
 
   if (isLocked) {
@@ -126,7 +176,7 @@ function LockButton({ staffId, month, isLocked }: { staffId: number; month: stri
     );
   }
   return (
-    <button onClick={async () => {
+    <button disabled={disabled || lockMut.isPending} onClick={async () => {
         const ok = await confirm({ title: "월 마감", message: `${month} 월을 마감하시겠습니까? 마감 후에는 내역을 수정할 수 없습니다.`, confirmText: "마감" });
         if (ok) lockMut.mutate();
       }}
@@ -144,7 +194,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data: records, isLoading } = useQuery({
+  const { data: records, isLoading, isError, refetch } = useQuery({
     queryKey: teacherStaffQueryKeys.work(staffId, month),
     queryFn: () => fetchWorkRecords({ staff: staffId, month }),
   });
@@ -162,6 +212,16 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
   const totalAmount = (records ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="근태 기록을 불러올 수 없습니다"
+        actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -244,7 +304,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
 function ExpenseTab({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: teacherStaffQueryKeys.expense(staffId, month),
     queryFn: () => fetchExpenseRecords({ staff: staffId, month }),
   });
@@ -265,6 +325,16 @@ function ExpenseTab({ staffId, month, isLocked }: { staffId: number; month: stri
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="비용 기록을 불러올 수 없습니다"
+        actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+      />
+    );
+  }
   if (!data || data.length === 0) {
     return (
       <EmptyState
@@ -341,9 +411,19 @@ function StatusBadge({ status }: { status?: string }) {
 }
 
 /* ─── Payroll Tab ─── */
-function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: string; isLocked: boolean }) {
+function PayrollTab({
+  staffId,
+  month,
+  isLocked,
+  payType,
+}: {
+  staffId: number;
+  month: string;
+  isLocked: boolean;
+  payType?: "HOURLY" | "MONTHLY";
+}) {
   const [year, m] = month.split("-").map(Number);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: teacherStaffQueryKeys.payroll(staffId, year, m),
     // 백엔드는 year / month 분리 파라미터
     queryFn: () => fetchPayrollSnapshots({ staff: staffId, year, month: m }),
@@ -351,12 +431,36 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
 
   const snap = data?.[0];
 
+  if (payType === "MONTHLY") {
+    return (
+      <Card>
+        <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+          월급 직원은 수동 확인이 필요합니다
+        </div>
+        <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+          근로계약, 연장·야간·휴일수당, 세금·4대보험과 공제 내역을 확인해 별도 정산하세요.
+        </div>
+      </Card>
+    );
+  }
+
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="확정 정산을 불러올 수 없습니다"
+        actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+      />
+    );
+  }
   if (!snap && !isLocked) {
     return (
       <Card>
         <div className="flex flex-col items-center gap-1.5 py-3">
           <Lock size={ICON.md} style={{ color: "var(--tc-text-muted)" }} />
-          <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>월을 마감하면 급여가 확정됩니다</div>
+          <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>월을 마감하면 근태·환급 정산이 고정됩니다</div>
           <div className="text-[11px] text-center" style={{ color: "var(--tc-text-muted)" }}>
             위의 <span style={{ fontWeight: 600 }}>월 마감</span> 버튼을 눌러 확정하세요.
           </div>
@@ -365,14 +469,13 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
     );
   }
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!snap) {
     return (
       <EmptyState
         scope="panel"
         tone="empty"
-        title="급여 데이터가 없습니다"
-        description="월 마감 후 급여 계산 데이터가 생성되면 확정 금액이 표시됩니다."
+        title="정산 참고 데이터가 없습니다"
+        description="월 마감 후 근태·환급 합계가 생성되면 참고 금액이 표시됩니다."
       />
     );
   }
@@ -380,17 +483,17 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
   return (
     <Card>
       <div className="text-[13px] font-bold mb-2" style={{ color: "var(--tc-text)" }}>
-        {snap.year}년 {snap.month}월 확정 급여
+        {snap.year}년 {snap.month}월 근태·환급 정산
       </div>
       <div className="flex flex-col gap-1.5">
         <Row label="근무 시간" value={`${Number(snap.work_hours ?? 0).toFixed(1)}시간`} />
         <Row label="근무 금액" value={`${Number(snap.work_amount ?? 0).toLocaleString()}원`} />
         {Number(snap.approved_expense_amount) > 0 && (
-          <Row label="승인된 비용" value={`+${Number(snap.approved_expense_amount).toLocaleString()}원`} />
+          <Row label="승인 선결제 환급" value={`+${Number(snap.approved_expense_amount).toLocaleString()}원`} />
         )}
         <div className="flex items-center justify-between py-2 mt-1.5"
           style={{ borderTop: "1px solid var(--tc-border-subtle)" }}>
-          <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>총 지급액</span>
+          <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>정산 합계(공제 전)</span>
           <span className="text-[17px] font-bold" style={{ color: "var(--tc-primary)" }}>
             {Number(snap.total_amount ?? 0).toLocaleString()}원
           </span>
@@ -400,6 +503,9 @@ function PayrollTab({ staffId, month, isLocked }: { staffId: number; month: stri
             확정자: {snap.generated_by_name}
           </div>
         )}
+        <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+          내부 참고 합계이며 법정 임금명세서가 아닙니다. 세금·4대보험·연장·야간·휴일수당 등은 별도 확인하세요.
+        </div>
       </div>
     </Card>
   );
@@ -430,6 +536,24 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
   );
   const [memo, setMemo] = useState(editData?.memo || "");
 
+  useEffect(() => {
+    if (!open) return;
+    const [year, monthValue] = month.split("-").map(Number);
+    const lastDay = new Date(year, monthValue, 0).getDate();
+    const safeDay = Math.min(new Date().getDate(), lastDay);
+    setDate(
+      editData?.date
+      || `${month}-${String(safeDay).padStart(2, "0")}`,
+    );
+    setStartTime(editData?.start_time?.slice(0, 5) || "09:00");
+    setEndTime(editData?.end_time?.slice(0, 5) || "18:00");
+    setBreakMin(String(editData?.break_minutes ?? 0));
+    setWorkTypeId(
+      typeof editData?.work_type === "number" ? editData.work_type : null,
+    );
+    setMemo(editData?.memo || "");
+  }, [open, editData, month]);
+
   const { data: workTypes } = useQuery({
     queryKey: teacherStaffQueryKeys.workTypes,
     queryFn: fetchWorkTypes,
@@ -446,6 +570,12 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
   const mutation = useMutation({
     mutationFn: () => {
       if (workTypeId == null) throw new Error("근무 유형을 선택하세요.");
+      if (!date.startsWith(`${month}-`)) {
+        throw new Error("선택한 기준월 안의 날짜를 입력해 주세요.");
+      }
+      if (startTime === endTime) {
+        throw new Error("시작 시간과 종료 시간은 같을 수 없습니다.");
+      }
       const payload = {
         staff: staffId,
         date,

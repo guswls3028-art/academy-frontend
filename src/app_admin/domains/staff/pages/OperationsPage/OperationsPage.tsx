@@ -34,10 +34,10 @@ export default function OperationsPage() {
     <div className="flex flex-col gap-4">
       <SectionHeader
         title="작업"
-        description={`${monthText} · 근무 기록, 비용 입력, 월 마감을 처리합니다.`}
+        description={`${monthText} · 근무 기록, 선결제 환급, 월 마감을 처리합니다.`}
       />
 
-      <div className="grid grid-cols-[320px_1fr] gap-6">
+      <div className="staff-workspace-grid staff-workspace-grid--operations">
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
@@ -80,7 +80,7 @@ export default function OperationsPage() {
                 scope="panel"
                 tone="empty"
                 title="직원이 선택되지 않았습니다."
-                description="좌측 직원 선택에서 직원을 클릭하면, 이 영역에 월 마감·근무 기록·비용 작업 패널이 활성화됩니다. 마감된 월은 생성/수정/삭제가 불가능합니다."
+                description="좌측 직원 선택에서 직원을 클릭하면, 이 영역에 월 마감·근무 기록·선결제 환급 작업 패널이 활성화됩니다. 마감된 월은 생성/수정/삭제가 불가능합니다."
               />
             </div>
           ) : (

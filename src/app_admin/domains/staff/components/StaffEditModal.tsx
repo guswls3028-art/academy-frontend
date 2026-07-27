@@ -28,6 +28,7 @@ export default function StaffEditModal({
     name: "",
     phone: "",
     pay_type: "HOURLY" as "HOURLY" | "MONTHLY",
+    role: "ASSISTANT" as "TEACHER" | "ASSISTANT",
     is_active: true,
   });
 
@@ -37,6 +38,7 @@ export default function StaffEditModal({
       name: staff.name ?? "",
       phone: staff.phone ?? "",
       pay_type: staff.pay_type ?? "HOURLY",
+      role: staff.role === "TEACHER" ? "TEACHER" : "ASSISTANT",
       is_active: !!staff.is_active,
     });
   }, [open, staff]);
@@ -49,12 +51,14 @@ export default function StaffEditModal({
     }
     setBusy(true);
     try {
-      await patchStaffDetail(staff.id, {
+      const payload: Partial<StaffDetail> = {
         name: form.name.trim(),
         phone: form.phone.trim() || undefined,
         pay_type: form.pay_type,
         is_active: form.is_active,
-      });
+      };
+      if (form.is_active) payload.role = form.role;
+      await patchStaffDetail(staff.id, payload);
       feedback.success("저장되었습니다.");
       onSuccess();
       onClose();
@@ -72,7 +76,7 @@ export default function StaffEditModal({
       <ModalHeader
         type="action"
         title="직원 수정"
-        description="이름·전화·급여유형·활성 상태를 수정할 수 있습니다."
+        description="연락처·역할·재직 상태를 실제 인사 상태와 맞춰 주세요."
       />
 
       <ModalBody>
@@ -118,26 +122,43 @@ export default function StaffEditModal({
                 type="button"
                 className={`ds-choice-btn ds-choice-btn--primary${form.pay_type === "MONTHLY" ? " is-selected" : ""}`}
                 aria-pressed={form.pay_type === "MONTHLY"}
-                onClick={() => setForm((p) => ({ ...p, pay_type: "MONTHLY" }))}
-                disabled={busy}
+                disabled
+                title="월 기본급·일할·공제 정책이 준비되기 전에는 새로 선택할 수 없습니다."
               >
-                월급
+                월급(수동 확인)
               </button>
             </div>
+            <p className="staff-helper">
+              현재 자동 정산은 시급만 지원합니다. 기존 월급 표시는 계산 기준으로 사용되지 않습니다.
+            </p>
           </div>
 
           <div className="modal-form-group">
             <label className="modal-section-label">역할</label>
-            <div className={`ds-input ${styles.readonlyRole}`}>
-              {(staff as { role?: string })?.role === "OWNER" ? "대표" : (staff as { role?: string })?.role === "TEACHER" ? "강사" : "조교"}
-              <span className={styles.roleNote}>
-                (역할은 생성 시에만 설정 가능)
-              </span>
+            <div className={`modal-form-row modal-form-row--1-auto ${styles.payTypeRow}`}>
+              <button
+                type="button"
+                className={`ds-choice-btn ds-choice-btn--primary${form.role === "TEACHER" ? " is-selected" : ""}`}
+                aria-pressed={form.role === "TEACHER"}
+                onClick={() => setForm((p) => ({ ...p, role: "TEACHER" }))}
+                disabled={busy}
+              >
+                강사
+              </button>
+              <button
+                type="button"
+                className={`ds-choice-btn ds-choice-btn--primary${form.role === "ASSISTANT" ? " is-selected" : ""}`}
+                aria-pressed={form.role === "ASSISTANT"}
+                onClick={() => setForm((p) => ({ ...p, role: "ASSISTANT" }))}
+                disabled={busy}
+              >
+                조교
+              </button>
             </div>
           </div>
 
           <div className="modal-form-group modal-form-group--neutral">
-            <label className="modal-section-label">활성 상태</label>
+            <label className="modal-section-label">재직 상태</label>
             <Badge
               as="button"
               variant="solid"
@@ -146,8 +167,11 @@ export default function StaffEditModal({
               onClick={() => setForm((p) => ({ ...p, is_active: !p.is_active }))}
               disabled={busy}
             >
-              {form.is_active ? "활성" : "비활성"}
+              {form.is_active ? "재직" : "퇴사"}
             </Badge>
+            <p className="staff-helper">
+              퇴사 처리하면 로그인과 관리자 권한이 중지되며 기존 근무·비용·급여 이력은 보존됩니다.
+            </p>
           </div>
         </div>
       </ModalBody>

@@ -43,29 +43,52 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
 
   const canManage = !!meQ.data?.is_payroll_manager;
   const locked = isLockedFromLocks(locksQ.data);
+  const writeBlocked = locked || locksQ.isLoading || locksQ.isError;
   const rows = expenses.listQ.data ?? [];
 
   return (
     <div className="space-y-3 max-w-[740px]">
       <div className="flex justify-between items-center">
-        <div className="text-sm font-semibold">비용</div>
+        <div className="text-sm font-semibold">직원 선결제 환급</div>
         {locked && <LockBadge state="LOCKED" />}
       </div>
 
       {locked && (
         <div className="text-xs text-[var(--color-danger)]">
-          * 마감된 월은 비용 변경(승인/반려 포함)이 불가능합니다.
+          * 마감된 월은 선결제 환급 변경(승인/반려 포함)이 불가능합니다.
         </div>
       )}
 
-      {rows.length === 0 && (
-        <div className="text-sm text-[var(--text-muted)]">비용 없음</div>
+      {locksQ.isError && (
+        <div className="text-xs text-[var(--color-danger)]">
+          마감 상태를 확인하지 못해 변경을 막았습니다.{" "}
+          <button type="button" onClick={() => void locksQ.refetch()} className="underline">
+            다시 확인
+          </button>
+        </div>
       )}
 
-      <div className={locked ? "opacity-95" : ""}>
+      {expenses.listQ.isError && (
+        <div className="text-xs text-[var(--color-danger)]">
+          선결제 환급 내역을 불러오지 못했습니다.{" "}
+          <button type="button" onClick={() => void expenses.listQ.refetch()} className="underline">
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {expenses.listQ.isLoading && (
+        <div className="text-sm text-[var(--text-muted)]">선결제 환급 확인 중…</div>
+      )}
+
+      {!expenses.listQ.isLoading && !expenses.listQ.isError && rows.length === 0 && (
+        <div className="text-sm text-[var(--text-muted)]">선결제 환급 없음</div>
+      )}
+
+      <div className={writeBlocked ? "opacity-95" : ""}>
         {rows.map((e) => {
           const isPending = e.status === "PENDING";
-          const actionDisabled = locked || expenses.patchM.isPending;
+          const actionDisabled = writeBlocked || expenses.patchM.isPending;
 
           return (
             <div
@@ -102,7 +125,11 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
                     size="xs"
                     disabledReason={
                       actionDisabled
-                        ? locked
+                        ? locksQ.isLoading
+                          ? "마감 상태 확인 중입니다."
+                          : locksQ.isError
+                            ? "마감 상태를 확인할 수 없습니다."
+                            : locked
                           ? "마감된 월입니다."
                           : "처리 중입니다."
                         : !isPending
@@ -123,7 +150,11 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
                     size="xs"
                     disabledReason={
                       actionDisabled
-                        ? locked
+                        ? locksQ.isLoading
+                          ? "마감 상태 확인 중입니다."
+                          : locksQ.isError
+                            ? "마감 상태를 확인할 수 없습니다."
+                            : locked
                           ? "마감된 월입니다."
                           : "처리 중입니다."
                         : !isPending
@@ -146,7 +177,7 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
       </div>
 
       <div className="text-[11px] text-[var(--text-muted)]">
-        * 비용 상태/승인은 서버 기준이며, 프론트는 표시/액션만 수행합니다.
+        * 직원이 개인 비용으로 먼저 결제한 환급 대상만 등록하세요.
       </div>
     </div>
   );

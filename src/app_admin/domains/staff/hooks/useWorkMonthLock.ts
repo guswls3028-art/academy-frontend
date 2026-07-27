@@ -9,6 +9,8 @@ import {
   isLockedFromLocks,
 } from "../api/workMonthLocks.api"; // ??? IA  NOTE: legacy comment removed (encoding issue)
 import { staffQueryKeys } from "../queryKeys";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 export function useWorkMonthLock(params: { staff: number; year: number; month: number }) {
   const qc = useQueryClient();
@@ -33,12 +35,25 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
       qc.invalidateQueries({ queryKey: staffQueryKeys.workRecordsForStaff(params.staff) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.expensesForStaff(params.staff) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
-      import("@/shared/ui/feedback/feedback").then(({ feedback }) => feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`));
+      feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`);
+    },
+    onError: (error: unknown) => {
+      feedback.error(
+        extractApiError(
+          error,
+          "월 마감에 실패했습니다. 진행 중 근무와 대기 비용을 확인해 주세요."
+        )
+      );
     },
   });
 
-  return { locksQ, locked, lockM };
+  return {
+    locksQ,
+    locked,
+    lockCheckPending: locksQ.isLoading,
+    lockCheckFailed: locksQ.isError,
+    lockM,
+  };
 }
-
 
 

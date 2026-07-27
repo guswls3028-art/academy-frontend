@@ -34,7 +34,7 @@ export function StaffWorkspace() {
   const basePath = getBasePath(location.pathname);
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-6 min-h-0" data-no-internal-header>
+    <div className="staff-workspace-grid" data-no-internal-header>
       {/* LEFT: Staff list */}
       <div className="staff-panel flex flex-col min-h-0">
         <div className="staff-panel__header">

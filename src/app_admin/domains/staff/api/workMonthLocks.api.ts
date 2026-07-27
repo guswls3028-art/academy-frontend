@@ -16,14 +16,15 @@ export type WorkMonthLock = {
 
 /**
  * GET /staffs/work-month-locks/
- * ⚠️ backend는 staff/year/month 필터를 지원하지 않음
  */
 export async function fetchWorkMonthLocks(params: {
   staff?: number;
   year: number;
   month: number;
 }) {
-  const res = await api.get("/staffs/work-month-locks/");
+  const res = await api.get("/staffs/work-month-locks/", {
+    params: { ...params, page_size: 500 },
+  });
 
   const rows: WorkMonthLock[] = Array.isArray(res.data)
     ? res.data
@@ -31,7 +32,8 @@ export async function fetchWorkMonthLocks(params: {
     ? res.data.results
     : [];
 
-  // 🔒 필터링은 계산이 아니라 "선택" → 허용
+  // 서버 필터가 계약의 정본이며, 이 검사는 잘못된 응답이 잠금을
+  // 미마감으로 보이게 하지 않도록 하는 클라이언트 방어선입니다.
   return rows.filter(
     (r) =>
       r.year === params.year &&

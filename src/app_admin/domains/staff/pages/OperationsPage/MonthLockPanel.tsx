@@ -8,10 +8,26 @@ import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import "../../styles/staff-area.css";
 
 export default function MonthLockPanel() {
-  const { year, month, locked, canManage, lockM } = useWorkMonth();
+  const {
+    year,
+    month,
+    locked,
+    lockCheckPending,
+    lockCheckFailed,
+    retryLockCheck,
+    canManage,
+    payType,
+    lockM,
+  } = useWorkMonth();
 
-  const disabledReason = locked
+  const disabledReason = payType === "MONTHLY"
+    ? "월급 직원은 근로계약·수당·공제를 별도로 확인해야 합니다."
+    : locked
     ? "이미 마감된 월입니다."
+    : lockCheckPending
+    ? "마감 상태를 확인하는 중입니다."
+    : lockCheckFailed
+    ? "마감 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요."
     : !canManage
     ? "마감은 관리자만 가능합니다."
     : "";
@@ -36,10 +52,12 @@ export default function MonthLockPanel() {
         <div>
           <h2 className="staff-section-card__title flex items-center gap-2">
             월 마감
-            <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+            {!lockCheckFailed && !lockCheckPending && (
+              <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+            )}
           </h2>
           <p className="staff-section-card__desc">
-            {year}년 {month}월 · 마감 시 해당 월 급여가 확정됩니다.
+            {year}년 {month}월 · 근태와 승인 선결제 환급을 고정합니다.
           </p>
         </div>
         <div className="shrink-0">
@@ -49,13 +67,13 @@ export default function MonthLockPanel() {
             disabled={!!disabledReason || lockM.isPending}
             title={
               disabledReason ||
-              (lockM.isPending ? "처리 중입니다." : "이번 달 근무·비용을 확정합니다. 마감 후에는 수정할 수 없습니다.")
+              (lockM.isPending ? "처리 중입니다." : "이번 달 근태·환급 기록을 고정합니다. 마감 후에는 수정할 수 없습니다.")
             }
             onClick={() => {
               if (disabledReason || lockM.isPending) return;
               if (
                 !confirm(
-                  `${year}년 ${month}월을 마감할까요?\n\n마감 후에는 근무·비용 수정이 불가능합니다.`
+                  `${year}년 ${month}월을 마감할까요?\n\n마감 후에는 근무·환급 기록 수정이 불가능합니다.`
                 )
               )
                 return;
@@ -77,9 +95,20 @@ export default function MonthLockPanel() {
               마감된 월은 수정할 수 없습니다.
             </p>
           </div>
+        ) : lockCheckFailed ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="staff-helper text-[var(--color-danger)]">
+              마감 상태를 확인하지 못해 안전을 위해 작업을 막았습니다.
+            </p>
+            <Button intent="secondary" size="sm" onClick={retryLockCheck}>
+              다시 확인
+            </Button>
+          </div>
         ) : (
           <p className="staff-helper">
-            마감 전까지 근무·비용을 수정할 수 있습니다. 마감하면 해당 월 급여가 확정됩니다.
+            {payType === "MONTHLY"
+              ? "월급 직원은 자동 마감하지 않습니다. 근로계약·수당·공제를 별도로 확인해 주세요."
+              : "마감 전까지 근태·환급 기록을 수정할 수 있습니다. 마감하면 해당 월 참고 합계가 고정됩니다."}
           </p>
         )}
       </div>

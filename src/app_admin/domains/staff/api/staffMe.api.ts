@@ -14,8 +14,14 @@ export type StaffMe = {
   owner_phone?: string | null;
   /** 직원(Staff)으로 로그인한 경우: 출근/퇴근용 */
   staff_id?: number;
-  /** 출근 시 사용할 기본 work_type id (직원의 첫 번째 시급 유형) */
+  /** 활성 배정이 정확히 하나일 때만 제공되는 기본 work_type id */
   default_work_type_id?: number;
+  /** 현재 테넌트에서 본인에게 배정된 활성 근무 유형 */
+  assigned_work_types?: Array<{
+    id: number;
+    name: string;
+    hourly_wage: number;
+  }>;
 };
 
 /**

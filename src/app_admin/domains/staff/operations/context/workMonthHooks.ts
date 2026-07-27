@@ -7,7 +7,12 @@ export type WorkMonthContextValue = {
   month: number;
   range: { from: string; to: string };
   locked: boolean;
+  lockCheckPending: boolean;
+  lockCheckFailed: boolean;
+  writeBlocked: boolean;
+  retryLockCheck: () => void;
   canManage: boolean;
+  payType?: "HOURLY" | "MONTHLY";
   lockM: ReturnType<typeof useWorkMonthLock>["lockM"];
 };
 

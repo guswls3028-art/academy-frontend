@@ -27,6 +27,7 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
   });
 
   const locked = isLockedFromLocks(locksQ.data);
+  const writeBlocked = locked || locksQ.isLoading || locksQ.isError;
   const rows = recordsQ.listQ.data ?? [];
 
   return (
@@ -44,11 +45,33 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
         </div>
       )}
 
-      {rows.length === 0 && (
+      {locksQ.isError && (
+        <div className="text-xs text-[var(--color-danger)]">
+          마감 상태를 확인하지 못해 변경을 막았습니다.{" "}
+          <button type="button" onClick={() => void locksQ.refetch()} className="underline">
+            다시 확인
+          </button>
+        </div>
+      )}
+
+      {recordsQ.listQ.isError && (
+        <div className="text-xs text-[var(--color-danger)]">
+          근무기록을 불러오지 못했습니다.{" "}
+          <button type="button" onClick={() => void recordsQ.listQ.refetch()} className="underline">
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {recordsQ.listQ.isLoading && (
+        <div className="text-sm text-[var(--text-muted)]">근무기록 확인 중…</div>
+      )}
+
+      {!recordsQ.listQ.isLoading && !recordsQ.listQ.isError && rows.length === 0 && (
         <div className="text-sm text-[var(--text-muted)]">기록 없음</div>
       )}
 
-      <div className={`space-y-2 ${locked ? "opacity-95" : ""}`}>
+      <div className={`space-y-2 ${writeBlocked ? "opacity-95" : ""}`}>
         {rows.map((r) => (
           <div
             key={r.id}
@@ -71,9 +94,17 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
               <ActionButton
                 variant="danger-outline"
                 size="xs"
-                disabledReason={locked ? "마감된 월입니다." : ""}
+                disabledReason={
+                  locksQ.isLoading
+                    ? "마감 상태 확인 중입니다."
+                    : locksQ.isError
+                      ? "마감 상태를 확인할 수 없습니다."
+                      : locked
+                        ? "마감된 월입니다."
+                        : ""
+                }
                 onClick={() => {
-                  if (locked) return;
+                  if (writeBlocked) return;
                   if (!confirm("이 근무 기록을 삭제할까요?")) return;
                   recordsQ.deleteM.mutate(r.id);
                 }}

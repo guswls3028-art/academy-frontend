@@ -12,6 +12,7 @@ export interface StaffMember {
   phone?: string;
   role?: string;
   is_active?: boolean;
+  pay_type?: "HOURLY" | "MONTHLY";
 }
 
 export interface WorkRecord {
@@ -162,12 +163,22 @@ export async function deleteExpenseRecord(id: number): Promise<void> {
 export async function fetchPayrollSnapshots(params: { staff?: number; year?: number; month?: number }): Promise<PayrollSnapshot[]> {
   const res = await api.get("/staffs/payroll-snapshots/", { params: { ...params, page_size: 200 } });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  const rows: PayrollSnapshot[] = Array.isArray(raw?.results)
+    ? raw.results
+    : Array.isArray(raw)
+      ? raw
+      : [];
+  return rows.filter(
+    (row) =>
+      (params.staff == null || Number(row.staff) === Number(params.staff)) &&
+      (params.year == null || Number(row.year) === params.year) &&
+      (params.month == null || Number(row.month) === params.month)
+  );
 }
 
 /* ─── Month Lock ─── */
 export async function fetchWorkMonthLocks(params: { staff?: number; month?: string }): Promise<WorkMonthLock[]> {
-  const q: Record<string, unknown> = { staff: params.staff };
+  const q: Record<string, unknown> = { staff: params.staff, page_size: 500 };
   let range: ReturnType<typeof monthRange> | null = null;
   if (params.month) {
     range = monthRange(params.month);

@@ -55,7 +55,7 @@ export async function fetchStaffs(params?: {
   const res = await api.get<
     Staff[] | { results?: Staff[]; owner?: StaffListOwner | null }
   >("/staffs/", {
-    params,
+    params: { ...params, page_size: 500 },
   });
 
   const raw = res.data;

@@ -7,6 +7,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { StaffWorkspace } from "./components/StaffWorkspace";
 import { fetchStaffMe } from "./api/staffMe.api";
 import { staffQueryKeys } from "./queryKeys";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 const STAFF_MAIN_TABS = [
   { key: "home", label: "홈", path: "/admin/staff/home" },
@@ -35,17 +36,39 @@ function isPayrollRoute(pathname: string) {
 
 export default function StaffLayout() {
   const location = useLocation();
-  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
+  const {
+    data: staffMe,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const payroll = isPayrollRoute(location.pathname);
 
-  if (staffMe && !staffMe.is_payroll_manager) {
+  if (isLoading) {
+    return <EmptyState scope="page" tone="loading" title="직원 관리 권한을 확인하는 중…" />;
+  }
+  if (isError || !staffMe) {
+    return (
+      <EmptyState
+        scope="page"
+        tone="error"
+        title="직원 관리 권한을 확인할 수 없습니다"
+        actions={
+          <Button intent="secondary" onClick={() => refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
+  if (!staffMe.is_payroll_manager) {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
   return (
     <DomainLayout
       title="직원 관리"
-      description="홈 · 급여(근태 · 비용/경비 · 월 마감 · 급여 스냅샷 · 리포트/명세)"
+      description="홈 · 직원 운영(근태 · 선결제 환급 · 월 마감 · 정산 참고 · 리포트)"
       tabs={STAFF_MAIN_TABS}
     >
       <div className="staff-area">

@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useExpenses } from "../../hooks/useExpenses";
 import CreateExpenseModal from "./CreateExpenseModal";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
 import { cx } from "@/shared/utils/cx";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -20,7 +20,15 @@ function fmtDateTime(v?: string | null) {
 }
 
 export default function ExpensesPanel() {
-  const { staffId, range, locked, canManage } = useWorkMonth();
+  const {
+    staffId,
+    range,
+    locked,
+    lockCheckPending,
+    lockCheckFailed,
+    writeBlocked,
+    canManage,
+  } = useWorkMonth();
 
   const { listQ, patchM } = useExpenses({
     staff: staffId,
@@ -41,6 +49,21 @@ export default function ExpensesPanel() {
       </section>
     );
   }
+  if (listQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="선결제 환급 내역을 불러오지 못했습니다"
+        description="연결 상태를 확인한 뒤 다시 시도해 주세요."
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => void listQ.refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <section
@@ -58,7 +81,7 @@ export default function ExpensesPanel() {
       >
         <div>
           <h2 className="staff-section-card__title flex items-center gap-2">
-            비용 · 경비
+            직원 선결제 환급
             {locked && <LockBadge state="LOCKED" />}
           </h2>
           <p className="staff-section-card__desc">
@@ -70,8 +93,16 @@ export default function ExpensesPanel() {
             intent="primary"
             size="sm"
             leftIcon={<Plus size={14} strokeWidth={2.5} />}
-            disabled={locked}
-            title={locked ? "마감된 월입니다." : undefined}
+            disabled={writeBlocked}
+            title={
+              locked
+                ? "마감된 월입니다."
+                : lockCheckPending
+                  ? "마감 상태를 확인하는 중입니다."
+                  : lockCheckFailed
+                    ? "마감 상태를 확인하지 못해 추가할 수 없습니다."
+                    : undefined
+            }
             onClick={() => setOpen(true)}
           >
             추가
@@ -82,18 +113,23 @@ export default function ExpensesPanel() {
             마감된 월입니다. 추가·수정·승인할 수 없습니다.
           </p>
         )}
+        {lockCheckFailed && (
+          <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
+            마감 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.
+          </p>
+        )}
       </div>
 
       <div className={cx("staff-section-card__body", locked && "opacity-95")}>
         {rows.length === 0 ? (
           <div className="staff-section-card__empty">
-            <div className="staff-section-title">비용 없음</div>
+            <div className="staff-section-title">선결제 환급 없음</div>
           </div>
         ) : (
           <div className="space-y-3">
             {rows.map((r) => {
               const isPending = r.status === "PENDING";
-              const actionDisabled = locked || patchM.isPending;
+              const actionDisabled = writeBlocked || patchM.isPending;
 
               return (
                 <div
@@ -109,7 +145,8 @@ export default function ExpensesPanel() {
                         <ExpenseStatusBadge status={r.status} />
                         {r.status !== "PENDING" && (
                           <span className="staff-helper">
-                            승인: {r.approved_by_name ?? "-"} · {fmtDateTime(r.approved_at)}
+                            {r.status === "APPROVED" ? "승인" : "반려"}:{" "}
+                            {r.approved_by_name ?? "-"} · {fmtDateTime(r.approved_at)}
                           </span>
                         )}
                       </div>
@@ -146,7 +183,7 @@ export default function ExpensesPanel() {
                           }
                           onClick={() => {
                             if (actionDisabled || !isPending) return;
-                            if (!confirm("이 비용을 승인할까요?")) return;
+                            if (!confirm("이 선결제 환급을 승인할까요?")) return;
                             patchM.mutate({ id: r.id, payload: { status: "APPROVED" } });
                           }}
                         >
@@ -170,7 +207,7 @@ export default function ExpensesPanel() {
                           }
                           onClick={() => {
                             if (actionDisabled || !isPending) return;
-                            if (!confirm("이 비용을 반려할까요?")) return;
+                            if (!confirm("이 선결제 환급을 반려할까요?")) return;
                             patchM.mutate({ id: r.id, payload: { status: "REJECTED" } });
                           }}
                         >
@@ -211,7 +248,7 @@ export default function ExpensesPanel() {
           </div>
         )}
 
-        {!locked && <CreateExpenseModal open={open} onClose={() => setOpen(false)} />}
+        {!writeBlocked && <CreateExpenseModal open={open} onClose={() => setOpen(false)} />}
       </div>
     </section>
   );

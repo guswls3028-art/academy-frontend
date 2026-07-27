@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/staff/pages/StaffManagePage.tsx
-// 직원 관리 — 목록 + 등록 + 편집/삭제 + 시급태그 + 비밀번호 + 메시지
+// 직원 관리 — 목록 + 등록 + 편집/퇴사 처리 + 시급태그 + 비밀번호
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ import { teacherStaffQueryKeys } from "../queryKeys";
 
 /* ─── API (복수형 /staffs/ — 백엔드 실제 엔드포인트) ─── */
 async function fetchStaff(search?: string) {
-  const res = await api.get("/staffs/", { params: { page_size: 100, search: search || undefined } });
+  const res = await api.get("/staffs/", { params: { page_size: 500, search: search || undefined } });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
@@ -31,10 +31,6 @@ async function createStaff(payload: { name: string; phone?: string; role?: strin
 async function updateStaff(id: number, payload: Record<string, unknown>) {
   const res = await api.patch(`/staffs/${id}/`, payload);
   return res.data;
-}
-
-async function deleteStaff(id: number) {
-  await api.delete(`/staffs/${id}/`);
 }
 
 async function resetStaffPassword(id: number, password: string) {
@@ -56,10 +52,13 @@ export default function StaffManagePage() {
     queryFn: () => fetchStaff(search || undefined),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteStaff,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff }); teacherToast.info("직원이 삭제되었습니다."); },
-    onError: (e) => teacherToast.error(extractApiError(e, "직원을 삭제하지 못했습니다.")),
+  const offboardMut = useMutation({
+    mutationFn: (id: number) => updateStaff(id, { is_active: false }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff });
+      teacherToast.info("퇴사 처리했습니다. 기존 근무·비용·급여 이력은 보존됩니다.");
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "퇴사 처리하지 못했습니다.")),
   });
 
   return (
@@ -120,6 +119,9 @@ export default function StaffManagePage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>{s.name || s.username}</span>
                         <Badge tone="neutral" size="xs">{s.role === "TEACHER" ? "강사" : s.role === "owner" ? "원장" : "조교"}</Badge>
+                        <Badge tone={s.is_active === false ? "danger" : "success"} size="xs">
+                          {s.is_active === false ? "퇴사" : "재직"}
+                        </Badge>
                       </div>
                       {s.phone && <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>{s.phone}</div>}
                     </div>
@@ -127,11 +129,18 @@ export default function StaffManagePage() {
                   <div className="flex gap-1 shrink-0">
                     <button type="button" aria-label={`${s.name || s.username} 직원 수정`} onClick={() => setEditTarget(s)} className="flex p-1.5 cursor-pointer"
                       style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
-                    <button type="button" aria-label={`${s.name || s.username} 직원 삭제`} onClick={async () => {
-                        const ok = await confirm({ title: "직원 삭제", message: `${s.name}을(를) 삭제할까요? 연결된 근무기록, 비용 등 모든 데이터가 함께 삭제됩니다.`, confirmText: "삭제", danger: true });
-                        if (ok) deleteMut.mutate(s.id);
-                      }}
-                      className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
+                    {s.is_active !== false && (
+                      <button type="button" aria-label={`${s.name || s.username} 퇴사 처리`} onClick={async () => {
+                          const ok = await confirm({
+                            title: "퇴사 처리",
+                            message: `${s.name}의 로그인을 중지하고 퇴사 처리할까요? 기존 근무·비용·급여 이력은 보존됩니다.`,
+                            confirmText: "퇴사 처리",
+                            danger: true,
+                          });
+                          if (ok) offboardMut.mutate(s.id);
+                        }}
+                        className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -172,21 +181,31 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
   const [username, setUsername] = useState(editData?.username || "");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(editData?.role || "ASSISTANT");
+  const [isActive, setIsActive] = useState(editData?.is_active !== false);
   const canSubmit = isEdit
     ? !!name.trim()
     : !!name.trim() && !!username.trim() && password.trim().length >= 4;
   const canResetPassword = isEdit && password.trim().length >= 4;
 
   const createMut = useMutation({
-    mutationFn: () => isEdit
-      ? updateStaff(editData.id, { name: name.trim(), phone: phone.trim() || undefined })
-      : createStaff({
+    mutationFn: () => {
+      if (isEdit) {
+        const payload: Record<string, unknown> = {
+          name: name.trim(),
+          phone: phone.trim() || undefined,
+          is_active: isActive,
+        };
+        if (isActive) payload.role = role;
+        return updateStaff(editData.id, payload);
+      }
+      return createStaff({
           name: name.trim(),
           phone: phone.trim() || undefined,
           username: username.trim(),
           password: password.trim(),
           role,
-        }),
+        });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherStaffQueryKeys.staff });
       teacherToast.success(isEdit ? "직원 정보가 수정되었습니다." : `${name} 직원이 등록되었습니다.`);
@@ -217,29 +236,43 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
 
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>역할</label>
-          {isEdit ? (
-            <div className="text-[12px] font-semibold"
-              style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
-              {role === "TEACHER" ? "강사" : role === "OWNER" || role === "owner" ? "원장" : "조교"}
-              <span className="ml-1" style={{ color: "var(--tc-text-muted)", fontWeight: 400 }}>생성 후 변경 불가</span>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              {[["TEACHER", "강사"], ["ASSISTANT", "조교"]].map(([v, l]) => (
-                <button key={v} type="button" onClick={() => setRole(v)}
-                  className="flex-1 text-[12px] font-semibold py-2 cursor-pointer text-center"
-                  style={{
-                    borderRadius: "var(--tc-radius)",
-                    border: role === v ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
-                    background: role === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
-                    color: role === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
-                  }}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex gap-2">
+            {[["TEACHER", "강사"], ["ASSISTANT", "조교"]].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setRole(v)}
+                className="flex-1 text-[12px] font-semibold py-2 cursor-pointer text-center"
+                style={{
+                  borderRadius: "var(--tc-radius)",
+                  border: role === v ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
+                  background: role === v ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                  color: role === v ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                }}>
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {isEdit && (
+          <div>
+            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>재직 상태</label>
+            <button
+              type="button"
+              onClick={() => setIsActive((value) => !value)}
+              className="w-full text-[12px] font-semibold py-2 cursor-pointer text-center"
+              style={{
+                borderRadius: "var(--tc-radius)",
+                border: `1px solid ${isActive ? "var(--tc-success)" : "var(--tc-danger)"}`,
+                background: isActive ? "var(--tc-success-bg)" : "var(--tc-danger-bg)",
+                color: isActive ? "var(--tc-success)" : "var(--tc-danger)",
+              }}
+            >
+              {isActive ? "재직" : "퇴사"}
+            </button>
+            <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+              퇴사 처리 시 로그인은 중지되고 기존 이력은 보존됩니다.
+            </div>
+          </div>
+        )}
 
         <button onClick={() => createMut.mutate()} disabled={!canSubmit || createMut.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"

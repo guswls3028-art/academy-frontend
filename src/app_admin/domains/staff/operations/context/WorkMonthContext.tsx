@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { WorkMonthContext, type WorkMonthContextValue } from "./workMonthHooks";
 import { staffQueryKeys } from "../../queryKeys";
+import { useStaffs } from "../../hooks/useStaffs";
 
 function monthRange(year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -20,7 +21,13 @@ export function WorkMonthProvider({
   month,
   children,
 }: React.PropsWithChildren<{ staffId: number; year: number; month: number }>) {
-  const { locked, lockM } = useWorkMonthLock({ staff: staffId, year, month });
+  const {
+    locksQ,
+    locked,
+    lockCheckPending,
+    lockCheckFailed,
+    lockM,
+  } = useWorkMonthLock({ staff: staffId, year, month });
 
   const meQ = useQuery({
     queryKey: staffQueryKeys.me,
@@ -28,6 +35,10 @@ export function WorkMonthProvider({
   });
 
   const canManage = !!meQ.data?.is_payroll_manager;
+  const staffsQ = useStaffs();
+  const payType = staffsQ.data?.staffs.find(
+    (staff) => staff.id === staffId,
+  )?.pay_type;
 
   const range = useMemo(() => monthRange(year, month), [year, month]);
 
@@ -38,10 +49,29 @@ export function WorkMonthProvider({
       month,
       range,
       locked,
+      lockCheckPending,
+      lockCheckFailed,
+      writeBlocked: locked || lockCheckPending || lockCheckFailed,
+      retryLockCheck: () => {
+        void locksQ.refetch();
+      },
       canManage,
+      payType,
       lockM,
     }),
-    [staffId, year, month, range, locked, canManage, lockM]
+    [
+      staffId,
+      year,
+      month,
+      range,
+      locked,
+      lockCheckPending,
+      lockCheckFailed,
+      locksQ,
+      canManage,
+      payType,
+      lockM,
+    ]
   );
 
   return <WorkMonthContext.Provider value={value}>{children}</WorkMonthContext.Provider>;
