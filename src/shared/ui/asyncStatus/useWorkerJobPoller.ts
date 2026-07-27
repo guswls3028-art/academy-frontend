@@ -113,6 +113,40 @@ function pollExcelJob(
             if (failedCount > 0) msgs.push(`실패 ${failedCount}명`);
             feedback.error(`학생 등록 결과: ${msgs.join(", ")}`);
           }
+          const credentials = Array.isArray(result.credentials)
+            ? result.credentials.flatMap((item) => {
+                if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+                const record = item as Record<string, unknown>;
+                if (
+                  typeof record.name !== "string"
+                  || typeof record.login_id !== "string"
+                  || typeof record.password !== "string"
+                ) {
+                  return [];
+                }
+                return [{
+                  name: record.name,
+                  login_id: record.login_id,
+                  password: record.password,
+                }];
+              })
+            : [];
+          if (credentials.length > 0) {
+            asyncStatusStore.setStudentInitialPasswordDownload(taskId, credentials);
+            const task = asyncStatusStore.getState().find((item) => item.id === taskId);
+            if (!task?.meta?.suppressCredentialAutoDownload) {
+              void import("@/shared/product/students/studentExcel")
+                .then(({ downloadStudentInitialPasswordCredentials }) =>
+                  downloadStudentInitialPasswordCredentials(credentials)
+                )
+                .then(() => {
+                  feedback.success("학생별 초기 비밀번호 목록을 내려받았습니다.");
+                })
+                .catch(() => {
+                  feedback.error("자동 다운로드에 실패했습니다. 작업박스의 ‘비밀번호 목록’ 버튼을 눌러 주세요.");
+                });
+            }
+          }
         }
         asyncStatusStore.completeTask(taskId, "success");
       }

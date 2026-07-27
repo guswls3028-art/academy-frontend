@@ -25,14 +25,6 @@
   color: var(--color-text-muted);
 }
 
-.requiredMark {
-  color: var(--color-error);
-}
-
-.passwordInput {
-  max-width: 280px;
-}
-
 .plannedCount,
 .footerHint {
   margin-bottom: 0;

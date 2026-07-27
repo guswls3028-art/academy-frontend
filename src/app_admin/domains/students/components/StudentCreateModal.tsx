@@ -9,10 +9,20 @@ import { SessionBlockView } from "@/shared/ui/session-block";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents, mapStudent, type ClientStudent } from "../api/students.api";
-import { downloadStudentExcelTemplate } from "../excel/studentExcel";
+import {
+  downloadStudentExcelTemplate,
+  parseStudentExcel,
+  type ParseStudentExcelResult,
+} from "../excel/studentExcel";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import {
+  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
+  isStudentInitialPasswordReady,
+  type StudentInitialPasswordSettings,
+} from "@/shared/product/students/initialPassword";
 import styles from "./StudentCreateModal.module.css";
 
 interface Props {
@@ -120,8 +130,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const slm = useSchoolLevelMode();
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
-  const [excelBulkPassword, setExcelBulkPassword] = useState("");
+  const [excelPasswordSettings, setExcelPasswordSettings] = useState<StudentInitialPasswordSettings>(
+    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
+  );
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  const [parsedExcel, setParsedExcel] = useState<ParseStudentExcelResult | null>(null);
   const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm } | null>(null);
 
   const [form, setForm] = useState<StudentCreateForm>(() =>
@@ -133,13 +146,28 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     setMode("choice");
     setBusy(false);
     onBulkProgress?.(null);
-    setExcelBulkPassword("");
+    setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     setSelectedExcelFile(null);
+    setParsedExcel(null);
     setForm(createInitialForm(slm.defaultSchoolType));
   }, [open, onBulkProgress, slm.defaultSchoolType]);
 
-  function handleExcelFileSelect(file: File) {
-    setSelectedExcelFile(file);
+  async function handleExcelFileSelect(file: File) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const parsed = await parseStudentExcel(file);
+      if (!parsed.rows.length) {
+        feedback.error("등록할 학생 데이터가 없습니다.");
+        return;
+      }
+      setSelectedExcelFile(file);
+      setParsedExcel(parsed);
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -306,23 +334,35 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   }
 
   async function handleExcelRegister() {
-    if (busy || !selectedExcelFile) return;
-    const pwd = String(excelBulkPassword || "").trim();
-    if (!pwd || pwd.length < 4) {
-      feedback.error("초기 비밀번호를 4자 이상 입력해 주세요.");
+    if (busy || !selectedExcelFile || !parsedExcel) return;
+    const invalidStudentPhoneNames = parsedExcel.rows
+      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+      .map((row) => row.name || "(이름 없음)");
+    if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length)) {
+      feedback.error(
+        excelPasswordSettings.mode === "fixed"
+          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
+          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+      );
       return;
     }
     setBusy(true);
     try {
       const { job_id } = await uploadStudentBulkFromExcel(
         selectedExcelFile,
-        pwd,
+        excelPasswordSettings,
       );
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
+      asyncStatusStore.addWorkerJob(
+        "학생 일괄 등록",
+        job_id,
+        "excel_parsing",
+        undefined,
+        { expectsCredentialDownload: excelPasswordSettings.mode === "random" },
+      );
       feedback.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess();
       onClose();
@@ -355,6 +395,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         : mode === "excel" && selectedExcelFile
           ? handleExcelRegister
           : undefined;
+  const invalidExcelStudentPhoneNames = parsedExcel?.rows
+    .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+    .map((row) => row.name || "(이름 없음)") ?? [];
+  const excelPasswordReady = isStudentInitialPasswordReady(
+    excelPasswordSettings,
+    invalidExcelStudentPhoneNames.length,
+  );
 
   return (
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={enterConfirm}>
@@ -635,22 +682,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
 
           <div className={`modal-form-row modal-form-row--1-auto ${styles.excelPasswordRow}`}>
-            <div>
-              <label className="modal-section-label">초기 비밀번호 (일괄)</label>
-              <input
-                type="password"
-                placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
-                value={excelBulkPassword ?? ""}
-                onChange={(e) => setExcelBulkPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" || busy || !selectedExcelFile) return;
-                  e.preventDefault();
-                  void handleExcelRegister();
-                }}
-                className={`ds-input ${styles.fullWidth}`}
-                disabled={busy}
-              />
-            </div>
+            <InitialPasswordMethodSelector
+              value={excelPasswordSettings}
+              onChange={setExcelPasswordSettings}
+              disabled={busy}
+              invalidStudentPhoneNames={invalidExcelStudentPhoneNames}
+            />
             <Button
               intent="secondary"
               onClick={() => {
@@ -665,13 +702,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           <ExcelUploadZone
             onFileSelect={handleExcelFileSelect}
             selectedFile={selectedExcelFile}
-            onClearFile={() => setSelectedExcelFile(null)}
+            onClearFile={() => {
+              setSelectedExcelFile(null);
+              setParsedExcel(null);
+            }}
             disabled={busy}
           />
 
           <div className={`modal-hint ${styles.excelHint}`}>
             학생 아이디는 자동 부여됩니다.<br />
-            학부모 아이디는 학부모 전화번호이며, 신규 계정 초기 비밀번호는 전화번호 뒤 4자리입니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.<br />
+            학부모 아이디는 학부모 전화번호이며, 신규 학생 초기 비밀번호는 위에서 선택한 방식으로 설정됩니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.<br />
             업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
           </div>
         </div>
@@ -684,7 +724,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         left={
           mode === "choice" ? null : mode === "excel" ? (
             <span className={`modal-hint ${styles.footerHint}`}>
-              {selectedExcelFile ? "초기 비밀번호 입력 후 등록" : "엑셀 파일 선택 후 등록"}
+              {selectedExcelFile ? "초기 비밀번호 방식 확인 후 등록" : "엑셀 파일 선택 후 등록"}
             </span>
           ) : null
         }
@@ -699,7 +739,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               </Button>
             )}
             {mode === "excel" && selectedExcelFile && (
-              <Button intent="primary" onClick={handleExcelRegister} disabled={busy}>
+              <Button intent="primary" onClick={handleExcelRegister} disabled={busy || !excelPasswordReady}>
                 {busy ? "등록 중…" : "등록"}
               </Button>
             )}

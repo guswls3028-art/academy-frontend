@@ -5,6 +5,7 @@ import {
   fetchSessionEnrollments as fetchSharedSessionEnrollments,
   type SessionEnrollmentRow,
 } from "@/shared/api/contracts/sessionEnrollments";
+import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 
 export type LectureEnrollmentStudent = {
   id: number | null;
@@ -108,13 +109,17 @@ export async function bulkCreateEnrollments(
 export async function lectureEnrollFromExcelUpload(
   lectureId: number,
   file: File,
-  initialPassword: string,
+  passwordSettings: StudentInitialPasswordSettings,
   options?: { sessionId?: number }
 ) {
   const form = new FormData();
   form.append("file", file);
   form.append("lecture_id", String(lectureId));
-  form.append("initial_password", initialPassword);
+  form.append("password_mode", passwordSettings.mode);
+  form.append(
+    "initial_password",
+    passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword.trim() : "",
+  );
   if (options?.sessionId != null) {
     form.append("session_id", String(options.sessionId));
   }

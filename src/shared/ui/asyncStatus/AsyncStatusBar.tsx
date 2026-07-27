@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInProgressVideos, getRetryErrorMessage, fetchVideoDetail } from "@/shared/api/contracts/videos";
 import { fetchSession } from "@/shared/api/contracts/sessions";
@@ -182,6 +182,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     task.meta?.jobId &&
     task.status === "error";
   const canCancel = task.status === "pending" && task.meta?.jobId;
+  const canDownloadStudentPasswords =
+    task.status === "success"
+    && task.download?.kind === "student_initial_passwords"
+    && task.download.credentials.length > 0;
   const [retrying, setRetrying] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [navigating, setNavigating] = useState(false);
@@ -309,6 +313,19 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
   };
 
+  const handleStudentPasswordDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canDownloadStudentPasswords || !task.download) return;
+    try {
+      const { downloadStudentInitialPasswordCredentials } = await import(
+        "@/shared/product/students/studentExcel"
+      );
+      await downloadStudentInitialPasswordCredentials(task.download.credentials);
+    } catch {
+      feedback.error("초기 비밀번호 목록 다운로드에 실패했습니다.");
+    }
+  };
+
   return (
     <div
       className={`async-status-bar__item${navigating ? " async-status-bar__item--navigating" : ""}`}
@@ -382,6 +399,18 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
             </>
           )}
           {/* ✅ 완료(success) 작업: 목록에서만 제거(휴지통만). 재시도 노출 안 함 */}
+          {canDownloadStudentPasswords && (
+            <button
+              type="button"
+              className="async-status-bar__item-btn"
+              onClick={handleStudentPasswordDownload}
+              title="학생별 초기 비밀번호 목록 내려받기"
+              aria-label="학생별 초기 비밀번호 목록 내려받기"
+            >
+              <Download size={ICON.sm} />
+              <span>비밀번호 목록</span>
+            </button>
+          )}
           {/* ✅ 실패(error) 작업: 재시도 + 목록에서 제거 */}
           {canRetry && (
             <>
@@ -601,7 +630,11 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function AsyncStatusBar() {
+export default function AsyncStatusBar({
+  hideWhenEmpty = false,
+}: {
+  hideWhenEmpty?: boolean;
+} = {}) {
   const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
   const workbox = useWorkbox();
@@ -687,6 +720,10 @@ export default function AsyncStatusBar() {
         : errorCount > 0
           ? `실패 ${errorCount}건`
           : `${displayTasks.length}건 완료`;
+
+  if (hideWhenEmpty && displayTasks.length === 0) {
+    return null;
+  }
 
   // 항상 우하단에 진행 상황 표시 (작업 없을 때도 접힌 상태로 유지)
   // 앵커 모드: 헤더 버튼으로 열리면 우상단에 패널만 표시

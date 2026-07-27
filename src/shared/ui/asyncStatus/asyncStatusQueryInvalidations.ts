@@ -11,6 +11,7 @@ const asyncStatusQueryKeys = {
   sessions: ["sessions"] as const,
   lecture: ["lecture"] as const,
   students: ["students"] as const,
+  teacherStudents: ["students-mobile"] as const,
   matchupDocuments: ["matchup-documents"] as const,
   matchupProblems: ["matchup-problems"] as const,
   adminStorageInventory: ["storage-inventory", "admin"] as const,
@@ -44,12 +45,14 @@ export function invalidateExcelSuccessCaches(queryClient: QueryClient) {
     asyncStatusQueryKeys.sessions,
     asyncStatusQueryKeys.lecture,
     asyncStatusQueryKeys.students,
+    asyncStatusQueryKeys.teacherStudents,
   ]);
 }
 
 export function invalidateExcelProgressCaches(queryClient: QueryClient) {
   invalidateMany(queryClient, [
     asyncStatusQueryKeys.students,
+    asyncStatusQueryKeys.teacherStudents,
     asyncStatusQueryKeys.lectureEnrollments,
     asyncStatusQueryKeys.sessions,
   ]);

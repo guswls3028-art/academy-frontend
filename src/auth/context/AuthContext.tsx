@@ -12,6 +12,7 @@ import api, { clearTokens, isSessionEnding, saveReturnPath } from "@/shared/api/
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
   getSessionItem,
   removeSessionItem,
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuth = useCallback(() => {
     clearTokens();
+    asyncStatusStore.clearAll();
     clearSentryUser();
     setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)
     queryClient.clear();

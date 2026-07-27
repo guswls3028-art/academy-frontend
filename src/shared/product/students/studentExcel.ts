@@ -446,6 +446,32 @@ export interface StudentExportRow {
   tags: { name: string }[];
 }
 
+export interface StudentInitialPasswordCredential {
+  name: string;
+  login_id: string;
+  password: string;
+}
+
+/** 학생별 랜덤 초기 비밀번호 목록 다운로드. 워커 완료 직후 한 번만 호출한다. */
+export async function downloadStudentInitialPasswordCredentials(
+  credentials: StudentInitialPasswordCredential[],
+): Promise<void> {
+  if (!credentials.length) return;
+  await downloadArrayWorksheet({
+    filename: `학생_초기비밀번호_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    sheetName: "초기비밀번호",
+    rows: [
+      ["이름", "학생 아이디", "초기 비밀번호"],
+      ...credentials.map((credential) => [
+        credential.name,
+        credential.login_id,
+        credential.password,
+      ]),
+    ],
+    columnWidths: [14, 18, 16],
+  });
+}
+
 /** 선택한 학생 목록을 엑셀로 다운로드 */
 export async function downloadStudentsExcel(rows: StudentExportRow[], filename = "학생목록.xlsx"): Promise<void> {
   const headers = ["이름", "학부모 전화", "학생 전화", "학교", "학년", "반", "계열", "성별", "식별코드", "등록일", "태그"];

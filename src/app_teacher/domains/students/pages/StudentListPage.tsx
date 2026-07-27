@@ -23,6 +23,16 @@ import CreateStudentSheet from "../components/CreateStudentSheet";
 import { teacherStudentsQueryKeys } from "../queryKeys";
 import { preflightMessage, sendMessage, type MessageSendPreflight } from "@teacher/domains/comms/api";
 import { useConfirm } from "@/shared/ui/confirm";
+import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import {
+  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
+  isStudentInitialPasswordReady,
+  type StudentInitialPasswordSettings,
+} from "@/shared/product/students/initialPassword";
+import {
+  parseStudentExcel,
+  type ParseStudentExcelResult,
+} from "@/shared/product/students/studentExcel";
 
 type FilterState = {
   grade?: string;
@@ -382,8 +392,14 @@ export default function StudentListPage() {
         open={!!excelImportFile}
         file={excelImportFile}
         onClose={() => setExcelImportFile(null)}
-        onDone={async (jobId) => {
-          asyncStatusStore.addWorkerJob("학생 일괄 등록", jobId, "excel_parsing");
+        onDone={async (jobId, expectsCredentialDownload) => {
+          asyncStatusStore.addWorkerJob(
+            "학생 일괄 등록",
+            jobId,
+            "excel_parsing",
+            undefined,
+            { expectsCredentialDownload },
+          );
           await qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
         }}
       />
@@ -403,14 +419,46 @@ export default function StudentListPage() {
 }
 
 function ExcelImportSheet({ open, file, onClose, onDone }: {
-  open: boolean; file: File | null; onClose: () => void; onDone: (jobId: string) => Promise<void>;
+  open: boolean;
+  file: File | null;
+  onClose: () => void;
+  onDone: (jobId: string, expectsCredentialDownload: boolean) => Promise<void>;
 }) {
-  const [password, setPassword] = useState("0000");
+  const [passwordSettings, setPasswordSettings] = useState<StudentInitialPasswordSettings>(
+    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
+  );
+  const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
+  const [parseError, setParseError] = useState("");
+  const [parsing, setParsing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open || !file) return;
-    setPassword("0000");
+    let cancelled = false;
+    setPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
+    setParsed(null);
+    setParseError("");
+    setParsing(true);
+    void parseStudentExcel(file)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.rows.length) {
+          setParseError("등록할 학생 데이터가 없습니다.");
+          return;
+        }
+        setParsed(result);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setParseError(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setParsing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [file, open]);
 
   if (!file) return null;
@@ -421,20 +469,30 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   };
 
   const handleSubmit = async () => {
-    const initialPassword = password.trim();
-    if (initialPassword.length < 4) {
-      teacherToast.error("초기 비밀번호를 4자 이상 입력해 주세요.");
+    if (!parsed) {
+      teacherToast.error(parseError || "엑셀 파일을 확인하고 있습니다.");
+      return;
+    }
+    const invalidStudentPhoneNames = parsed.rows
+      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+      .map((row) => row.name || "(이름 없음)");
+    if (!isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length)) {
+      teacherToast.error(
+        passwordSettings.mode === "fixed"
+          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
+          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+      );
       return;
     }
     setSubmitting(true);
     try {
-      const { job_id } = await uploadStudentBulkExcel(file, initialPassword, true);
+      const { job_id } = await uploadStudentBulkExcel(file, passwordSettings, true);
       if (!job_id) {
         teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      await onDone(job_id);
-      teacherToast.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 우상단 작업박스에서 확인할 수 있습니다.");
+      await onDone(job_id, passwordSettings.mode === "random");
+      teacherToast.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 작업박스에서 확인할 수 있습니다.");
       onClose();
     } catch (err) {
       teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다."));
@@ -443,7 +501,14 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     }
   };
 
-  const canSubmit = password.trim().length >= 4 && !submitting;
+  const invalidStudentPhoneNames = parsed?.rows
+    .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+    .map((row) => row.name || "(이름 없음)") ?? [];
+  const canSubmit =
+    parsed != null
+    && !parsing
+    && !submitting
+    && isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length);
 
   return (
     <BottomSheet open={open} onClose={handleClose} title="엑셀 가져오기">
@@ -467,29 +532,26 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
           </div>
         </div>
 
-        <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
-            초기 비밀번호
-          </label>
-          <input
-            type="text"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="0000"
-            className="w-full text-sm"
-            style={{
-              padding: "10px 12px",
-              borderRadius: "var(--tc-radius-sm)",
-              border: "1px solid var(--tc-border-strong)",
-              background: "var(--tc-surface-soft)",
-              color: "var(--tc-text)",
-              outline: "none",
-            }}
-          />
-        </div>
+        <InitialPasswordMethodSelector
+          value={passwordSettings}
+          onChange={setPasswordSettings}
+          disabled={submitting || parsing}
+          invalidStudentPhoneNames={invalidStudentPhoneNames}
+        />
+
+        {parsing ? (
+          <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
+            학생 정보를 확인하고 있습니다…
+          </div>
+        ) : null}
+        {parseError ? (
+          <div className="text-[11px] leading-5" style={{ color: "var(--tc-danger)" }} role="alert">
+            {parseError}
+          </div>
+        ) : null}
 
         <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
-          업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
+          업로드 후에는 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
         </div>
 
         <div className="flex items-center justify-between"

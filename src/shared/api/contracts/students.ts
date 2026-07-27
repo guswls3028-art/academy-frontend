@@ -1,5 +1,6 @@
 // PATH: src/shared/api/contracts/students.ts
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 
 /* ===============================
  * Types
@@ -468,12 +469,16 @@ export async function bulkCreateStudents(
 /** 학생 엑셀 일괄 등록 — 워커 전담. 파일 업로드 → excel_parsing job → 폴링으로 완료 대기 */
 export async function uploadStudentBulkFromExcel(
   file: File,
-  initialPassword: string,
+  passwordSettings: StudentInitialPasswordSettings,
   sendWelcomeMessage = true
 ): Promise<{ job_id: string; status: string }> {
   const form = new FormData();
   form.append("file", file);
-  form.append("initial_password", initialPassword);
+  form.append("password_mode", passwordSettings.mode);
+  form.append(
+    "initial_password",
+    passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword.trim() : "",
+  );
   form.append("send_welcome_message", String(sendWelcomeMessage));
   const res = await api.post("/students/bulk_create_from_excel/", form);
   return res.data as { job_id: string; status: string };

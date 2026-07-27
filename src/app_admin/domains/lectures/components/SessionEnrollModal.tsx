@@ -15,7 +15,11 @@ import StudentCreateModal from "@admin/domains/students/components/StudentCreate
 import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
-import { downloadStudentExcelTemplate } from "@admin/domains/students/excel/studentExcel";
+import {
+  downloadStudentExcelTemplate,
+  parseStudentExcel,
+  type ParseStudentExcelResult,
+} from "@admin/domains/students/excel/studentExcel";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
@@ -24,6 +28,12 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import {
+  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
+  isStudentInitialPasswordReady,
+  type StudentInitialPasswordSettings,
+} from "@/shared/product/students/initialPassword";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 import { adminLectureQueryKeys } from "../queryKeys";
@@ -224,8 +234,10 @@ export default function SessionEnrollModal({
   const [excelUploading, setExcelUploading] = useState(false);
   const [excelStatusByStudentId, setExcelStatusByStudentId] = useState<Record<number, string>>({});
   const [excelPendingFile, setExcelPendingFile] = useState<File | null>(null);
-  // 학원장이 한 번 확인하고 그대로 진행하는 흐름. 정책 자체는 4자 이상 유지.
-  const [excelInitialPassword, setExcelInitialPassword] = useState("1234");
+  const [excelParsed, setExcelParsed] = useState<ParseStudentExcelResult | null>(null);
+  const [excelPasswordSettings, setExcelPasswordSettings] = useState<StudentInitialPasswordSettings>(
+    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
+  );
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
   const [copyFromLectureLoading, setCopyFromLectureLoading] = useState(false);
 
@@ -615,48 +627,81 @@ export default function SessionEnrollModal({
     });
   }, [isCurrentPageAllSelected, studentsToShow]);
 
-  const handleExcelFileSelect = useCallback((file: File) => {
+  const handleExcelFileSelect = useCallback(async (file: File) => {
     if (excelUploading) return;
-    setExcelPendingFile(file);
-    setExcelInitialPassword("");
+    setExcelUploading(true);
+    try {
+      const parsed = await parseStudentExcel(file);
+      if (!parsed.rows.length) {
+        feedback.error("등록할 학생 데이터가 없습니다.");
+        return;
+      }
+      setExcelPendingFile(file);
+      setExcelParsed(parsed);
+      setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
+    } finally {
+      setExcelUploading(false);
+    }
   }, [excelUploading]);
 
   const handleExcelEnrollSubmit = useCallback(async () => {
-    if (!excelPendingFile || excelUploading) return;
-    const pwd = excelInitialPassword.trim();
-    if (pwd.length < 4) {
-      feedback.error("초기 비밀번호는 4자 이상이어야 합니다. (신규 생성 학생 로그인용)");
+    if (!excelPendingFile || !excelParsed || excelUploading) return;
+    const invalidStudentPhoneNames = excelParsed.rows
+      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+      .map((row) => row.name || "(이름 없음)");
+    if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length)) {
+      feedback.error(
+        excelPasswordSettings.mode === "fixed"
+          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
+          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+      );
       return;
     }
     setExcelUploading(true);
     try {
-      const { job_id } = await lectureEnrollFromExcelUpload(lectureId, excelPendingFile, pwd, {
+      const { job_id } = await lectureEnrollFromExcelUpload(lectureId, excelPendingFile, excelPasswordSettings, {
         sessionId,
       });
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
+      asyncStatusStore.addWorkerJob(
+        "엑셀 수강등록",
+        job_id,
+        "excel_parsing",
+        undefined,
+        { expectsCredentialDownload: excelPasswordSettings.mode === "random" },
+      );
       feedback.success("작업이 백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess?.();
       onClose();
       setExcelPendingFile(null);
-      setExcelInitialPassword("1234");
+      setExcelParsed(null);
+      setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
     } finally {
       setExcelUploading(false);
     }
-  }, [excelPendingFile, excelUploading, excelInitialPassword, lectureId, sessionId, onSuccess, onClose]);
+  }, [excelPendingFile, excelParsed, excelUploading, excelPasswordSettings, lectureId, sessionId, onSuccess, onClose]);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
+      const target = e.target as HTMLElement | null;
+      const isFormControl = Boolean(
+        target
+        && (
+          ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName)
+          || target.isContentEditable
+        )
+      );
+      if (e.key === "Enter" && !isFormControl && !excelPendingFile && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
         e.preventDefault();
         addByStudentMutation.mutate({
           studentIds: idsToAdd,
@@ -673,6 +718,7 @@ export default function SessionEnrollModal({
     addByStudentMutation,
     copyFromLectureLoading,
     copyFromPrevLoading,
+    excelPendingFile,
     onClose,
   ]);
 
@@ -1146,29 +1192,31 @@ export default function SessionEnrollModal({
                     <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate text-center" title={excelPendingFile.name}>
                       {excelPendingFile.name}
                     </p>
-                    <label className="text-[12px] font-medium text-[var(--color-text-secondary)]">
-                      신규 학생 초기 비밀번호
-                    </label>
-                    <input
-                      type="text"
-                      value={excelInitialPassword}
-                      onChange={(e) => setExcelInitialPassword(e.target.value)}
-                      placeholder="4자 이상"
-                      className="ds-input w-full text-[13px]"
-                      minLength={4}
-                      autoComplete="off"
-                      aria-label="신규 학생 초기 비밀번호"
+                    <InitialPasswordMethodSelector
+                      value={excelPasswordSettings}
+                      onChange={setExcelPasswordSettings}
+                      disabled={excelUploading}
+                      invalidStudentPhoneNames={
+                        excelParsed?.rows
+                          .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+                          .map((row) => row.name || "(이름 없음)") ?? []
+                      }
                     />
-                    <span className="text-[10.5px] text-[var(--color-text-muted)] leading-snug">
-                      엑셀에 새로 만들 학생 로그인 비밀번호입니다. 기본값 그대로도 OK.
-                    </span>
                     <div className="flex gap-2">
                       <Button
                         type="button"
                         intent="primary"
                         size="sm"
                         onClick={handleExcelEnrollSubmit}
-                        disabled={excelUploading || excelInitialPassword.trim().length < 4}
+                        disabled={
+                          excelUploading
+                          || !isStudentInitialPasswordReady(
+                            excelPasswordSettings,
+                            excelParsed?.rows.filter(
+                              (row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone),
+                            ).length ?? 0,
+                          )
+                        }
                       >
                         {excelUploading ? "등록 중…" : "엑셀로 일괄 등록"}
                       </Button>
@@ -1176,7 +1224,11 @@ export default function SessionEnrollModal({
                         type="button"
                         intent="secondary"
                         size="sm"
-                        onClick={() => { setExcelPendingFile(null); setExcelInitialPassword(""); }}
+                        onClick={() => {
+                          setExcelPendingFile(null);
+                          setExcelParsed(null);
+                          setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
+                        }}
                         disabled={excelUploading}
                       >
                         취소

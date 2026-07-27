@@ -62,6 +62,7 @@ export function clearTokens() {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("parent_selected_student_id");
+    localStorage.removeItem("hakwonplus:excel-job-recovery:v1");
     // tenant-scoped parent selection keys cleanup
     for (let i = localStorage.length - 1; i >= 0; i -= 1) {
       const k = localStorage.key(i);

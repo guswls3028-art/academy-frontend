@@ -9,6 +9,7 @@ import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useTeacherSW } from "../shared/hooks/useTeacherSW";
+import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import TeacherTopBar from "./TeacherTopBar";
 import TeacherTabBar from "./TeacherTabBar";
 import TeacherDrawer from "./TeacherDrawer";
@@ -59,6 +60,11 @@ export default function TeacherLayout() {
 
       {/* Drawer (More menu) */}
       <TeacherDrawer open={drawerOpen} onClose={closeDrawer} persistent={!isMobile} />
+
+      {/* 엑셀 등록 등 백그라운드 작업 진행·결과 */}
+      <div className={styles.asyncStatus}>
+        <AsyncStatusBar hideWhenEmpty />
+      </div>
     </div>
   );
 }

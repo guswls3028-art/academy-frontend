@@ -15,6 +15,12 @@ import { lectureEnrollFromExcelUpload } from "../api/enrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import {
+  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
+  isStudentInitialPasswordReady,
+  type StudentInitialPasswordSettings,
+} from "@/shared/product/students/initialPassword";
 import styles from "./LectureEnrollExcelModal.module.css";
 
 interface Props {
@@ -37,15 +43,15 @@ export default function LectureEnrollExcelModal({
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  // 학원장이 한 번 확인하고 그대로 진행하는 흐름. 정책 자체는 그대로(4자 이상) 유지.
-  const DEFAULT_INITIAL_PASSWORD = "1234";
-  const [initialPassword, setInitialPassword] = useState(DEFAULT_INITIAL_PASSWORD);
+  const [passwordSettings, setPasswordSettings] = useState<StudentInitialPasswordSettings>(
+    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
+  );
 
   useEffect(() => {
     if (open) {
       setParsed(null);
       setSelectedFile(null);
-      setInitialPassword(DEFAULT_INITIAL_PASSWORD);
+      setPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     }
   }, [open]);
 
@@ -70,19 +76,35 @@ export default function LectureEnrollExcelModal({
 
   const handleConfirmAndRegister = async () => {
     if (busy || !selectedFile || !parsed?.rows.length) return;
-    const pwd = initialPassword.trim();
-    if (pwd.length < 4) {
-      feedback.error("초기 비밀번호는 4자 이상이어야 합니다. (신규 생성 학생 로그인용)");
+    const invalidStudentPhoneNames = parsed.rows
+      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+      .map((row) => row.name || "(이름 없음)");
+    if (!isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length)) {
+      feedback.error(
+        passwordSettings.mode === "fixed"
+          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
+          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+      );
       return;
     }
     setBusy(true);
     try {
-      const { job_id } = await lectureEnrollFromExcelUpload(lectureId, selectedFile, pwd);
+      const { job_id } = await lectureEnrollFromExcelUpload(
+        lectureId,
+        selectedFile,
+        passwordSettings,
+      );
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
+      asyncStatusStore.addWorkerJob(
+        "엑셀 수강등록",
+        job_id,
+        "excel_parsing",
+        undefined,
+        { expectsCredentialDownload: passwordSettings.mode === "random" },
+      );
       feedback.success("작업이 백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess?.();
       onClose();
@@ -98,9 +120,16 @@ export default function LectureEnrollExcelModal({
   if (!open) return null;
 
   const isConfirmStep = parsed != null && parsed.rows.length > 0;
+  const invalidStudentPhoneNames = parsed?.rows
+    .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
+    .map((row) => row.name || "(이름 없음)") ?? [];
+  const passwordReady = isStudentInitialPasswordReady(
+    passwordSettings,
+    invalidStudentPhoneNames.length,
+  );
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={520} onEnterConfirm={isConfirmStep && !busy && initialPassword.trim().length >= 4 ? handleConfirmAndRegister : undefined}>
+    <AdminModal open onClose={onClose} type="action" width={520} onEnterConfirm={isConfirmStep && !busy && passwordReady ? handleConfirmAndRegister : undefined}>
       <ModalHeader
         type="action"
         title="수강생 엑셀 업로드"
@@ -149,27 +178,18 @@ export default function LectureEnrollExcelModal({
                     </div>
                   </div>
                   <p className={`mt-2 text-[13px] ${styles.confirmHint}`}>
-                    다른 강의 엑셀을 올리지 않았는지 확인한 뒤, 맞으면 아래에서 초기 비밀번호를 입력하고 등록해 주세요.
+                    다른 강의 엑셀을 올리지 않았는지 확인한 뒤, 맞으면 아래에서 초기 비밀번호 방식을 선택해 주세요.
                   </p>
                 </div>
               </div>
 
               <div className={`modal-form-group ${styles.compactGroup}`}>
-                <label className={`modal-section-label ${styles.sectionLabelCompact}`}>
-                  신규 학생 초기 비밀번호 <span className={styles.requiredMark}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className={`ds-input ${styles.passwordInput}`}
-                  value={initialPassword}
-                  onChange={(e) => setInitialPassword(e.target.value)}
-                  placeholder="4자 이상"
+                <InitialPasswordMethodSelector
+                  value={passwordSettings}
+                  onChange={setPasswordSettings}
                   disabled={busy}
-                  autoComplete="off"
+                  invalidStudentPhoneNames={invalidStudentPhoneNames}
                 />
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                  엑셀에 새로 만들 학생의 로그인 비밀번호입니다. 학생들에게 안내해 주세요. 기본값 그대로 두셔도 됩니다.
-                </p>
               </div>
 
               <div className="flex items-center justify-between">
@@ -207,7 +227,7 @@ export default function LectureEnrollExcelModal({
               <Button
                 intent="primary"
                 onClick={handleConfirmAndRegister}
-                disabled={busy || initialPassword.trim().length < 4}
+                disabled={busy || !passwordReady}
               >
                 {busy ? "업로드 중…" : "맞아요, 등록하기"}
               </Button>

@@ -40,6 +40,13 @@
   padding: var(--tc-space-3);
 }
 
+@media (max-width: 1023px) {
+  .asyncStatus :global(.async-status-bar) {
+    right: var(--tc-space-3);
+    bottom: calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + var(--tc-space-3));
+  }
+}
+
 @media (min-width: 1024px) {
   .shell {
     min-height: 100dvh;

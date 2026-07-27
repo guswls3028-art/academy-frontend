@@ -8,6 +8,7 @@ import {
   uploadStudentBulkFromExcel,
 } from "@/shared/api/contracts/students";
 import type { ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
+import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 import {
   fetchAdminStudentGrades,
   type StudentExamGrade,
@@ -145,10 +146,10 @@ export async function exportStudentsExcel() {
 /* ─── 엑셀 벌크 업로드 ─── */
 export async function uploadStudentBulkExcel(
   file: File,
-  initialPassword: string,
+  passwordSettings: StudentInitialPasswordSettings,
   sendWelcomeMessage = true,
 ) {
-  return uploadStudentBulkFromExcel(file, initialPassword, sendWelcomeMessage);
+  return uploadStudentBulkFromExcel(file, passwordSettings, sendWelcomeMessage);
 }
 
 /* ─── 학생 삭제 (soft delete) ─── */
