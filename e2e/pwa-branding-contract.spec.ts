@@ -163,5 +163,7 @@ test("deployment gate owns the developer custom domain lifecycle", () => {
 
   expect(workflow).toContain('DOMAIN="dev.hakwonplus.com"');
   expect(workflow).toContain("/pages/projects/${CLOUDFLARE_PROJECT_NAME}/domains");
+  expect(workflow).toContain("/zones/${ZONE_ID}/dns_records");
+  expect(workflow).toContain('DNS_TARGET="${CLOUDFLARE_PROJECT_NAME}.pages.dev"');
   expect(workflow).toContain("Verify developer console domain isolation");
 });

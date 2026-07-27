@@ -154,6 +154,44 @@ jobs:
             echo "Created ${DOMAIN} custom domain."
           fi
 
+          ZONE_RESPONSE=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" \
+            "https://api.cloudflare.com/client/v4/zones?name=hakwonplus.com&account.id=${CLOUDFLARE_ACCOUNT_ID}&status=active")
+          ZONE_ID=$(jq -r '.result[0].id // empty' <<<"$ZONE_RESPONSE")
+          if [ -z "$ZONE_ID" ]; then
+            echo "::error::Could not resolve the active hakwonplus.com Cloudflare zone"
+            exit 1
+          fi
+
+          DNS_API="https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records"
+          DNS_RESPONSE=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${DNS_API}?name=${DOMAIN}")
+          DNS_RECORD_ID=$(jq -r '.result[0].id // empty' <<<"$DNS_RESPONSE")
+          DNS_RECORD_TYPE=$(jq -r '.result[0].type // empty' <<<"$DNS_RESPONSE")
+          DNS_TARGET="${CLOUDFLARE_PROJECT_NAME}.pages.dev"
+          DNS_PAYLOAD=$(jq -n \
+            --arg name "$DOMAIN" \
+            --arg content "$DNS_TARGET" \
+            '{type: "CNAME", name: $name, content: $content, ttl: 1, proxied: true}')
+
+          if [ -n "$DNS_RECORD_ID" ] && [ "$DNS_RECORD_TYPE" != "CNAME" ]; then
+            echo "::error::${DOMAIN} already has a non-CNAME DNS record"
+            exit 1
+          elif [ -z "$DNS_RECORD_ID" ]; then
+            curl --silent --show-error --fail-with-body \
+              -X POST "${AUTH[@]}" --data "$DNS_PAYLOAD" "$DNS_API" >/dev/null
+            echo "Created ${DOMAIN} DNS record."
+          else
+            CURRENT_TARGET=$(jq -r '.result[0].content // empty' <<<"$DNS_RESPONSE")
+            CURRENT_PROXIED=$(jq -r '.result[0].proxied // false' <<<"$DNS_RESPONSE")
+            if [ "$CURRENT_TARGET" != "$DNS_TARGET" ] || [ "$CURRENT_PROXIED" != "true" ]; then
+              curl --silent --show-error --fail-with-body \
+                -X PUT "${AUTH[@]}" --data "$DNS_PAYLOAD" \
+                "${DNS_API}/${DNS_RECORD_ID}" >/dev/null
+              echo "Updated ${DOMAIN} DNS record."
+            fi
+          fi
+
           for ATTEMPT in $(seq 1 36); do
             RESPONSE=$(curl --silent --show-error --fail-with-body "${AUTH[@]}" "$API")
             STATUS=$(jq -r --arg domain "$DOMAIN" \
