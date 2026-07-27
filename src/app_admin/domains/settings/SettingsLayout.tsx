@@ -20,7 +20,7 @@ const NAV: NavItem[] = [
   { key: "appearance", label: "테마", icon: FiMonitor, path: "/admin/settings/appearance" },
   { key: "landing", label: "홈페이지", icon: FiGlobe, path: "/admin/settings/landing", roles: ["owner", "admin"] },
   { key: "consult", label: "상담 수신함", icon: FiInbox, path: "/admin/settings/consult", roles: ["owner", "admin"] },
-  { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/admin/settings/billing" },
+  { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/admin/settings/billing", roles: ["owner"] },
 ];
 
 export default function SettingsLayout() {
@@ -32,7 +32,12 @@ export default function SettingsLayout() {
       {/* ── Sidebar ── */}
       <nav className={styles.sidebar} aria-label="설정 메뉴">
         <p className={styles.sidebarLabel}>Settings</p>
-        {NAV.filter((item) => !item.roles || (role && item.roles.includes(role))).map(({ key, label, icon: Icon, path }) => (
+        {NAV.filter(
+          (item) =>
+            !item.roles ||
+            user?.is_superuser ||
+            (role && item.roles.includes(role)),
+        ).map(({ key, label, icon: Icon, path }) => (
           <NavLink
             key={key}
             to={path}

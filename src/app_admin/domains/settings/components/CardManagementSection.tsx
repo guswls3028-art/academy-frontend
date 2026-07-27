@@ -14,7 +14,11 @@ import { requestBillingAuth } from "@/shared/payments/tossBilling";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./CardManagementSection.module.css";
 
-export default function CardManagementSection() {
+export default function CardManagementSection({
+  allowRegistration = true,
+}: {
+  allowRegistration?: boolean;
+}) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const [registerError, setRegisterError] = useState<string | null>(null);
@@ -110,7 +114,9 @@ export default function CardManagementSection() {
       <div className={styles.sectionHeader}>
         <h3 className={styles.sectionTitle}>결제 카드</h3>
         <p className={styles.sectionDescription}>
-          자동결제에 사용할 카드를 관리합니다.
+          {allowRegistration
+            ? "자동결제에 사용할 카드를 관리합니다."
+            : "저장된 카드는 계좌이체 모드에서 자동 청구되지 않습니다. 필요하면 삭제할 수 있습니다."}
         </p>
       </div>
 
@@ -149,9 +155,11 @@ export default function CardManagementSection() {
             <CreditCardIcon />
           </span>
           <p className={styles.emptyText}>등록된 카드가 없습니다.</p>
-          <p className={styles.emptySubtext}>
-            자동결제를 위해 카드를 등록해 주세요.
-          </p>
+          {allowRegistration && (
+            <p className={styles.emptySubtext}>
+              자동결제를 위해 카드를 등록해 주세요.
+            </p>
+          )}
         </div>
       )}
 
@@ -164,21 +172,23 @@ export default function CardManagementSection() {
       )}
 
       {/* ── 카드 등록 버튼 ── */}
-      <button
-        type="button"
-        className={styles.registerBtn}
-        onClick={handleRegister}
-        disabled={registerMut.isPending}
-      >
-        {registerMut.isPending ? (
-          <span className={styles.registerBtnLoading}>준비 중...</span>
-        ) : (
-          <>
-            <PlusIcon />
-            카드 등록
-          </>
-        )}
-      </button>
+      {allowRegistration && (
+        <button
+          type="button"
+          className={styles.registerBtn}
+          onClick={handleRegister}
+          disabled={registerMut.isPending}
+        >
+          {registerMut.isPending ? (
+            <span className={styles.registerBtnLoading}>준비 중...</span>
+          ) : (
+            <>
+              <PlusIcon />
+              카드 등록
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }

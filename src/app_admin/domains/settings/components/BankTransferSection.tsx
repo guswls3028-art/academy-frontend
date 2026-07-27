@@ -12,8 +12,10 @@ import {
   fetchBankTransferSummary,
   saveBusinessProfile,
   submitBankTransferNotice,
+  type BankTransferNotice,
   type BusinessProfile,
 } from "../api/billing.api";
+import { useConfirm } from "@/shared/ui/confirm/useConfirm";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BankTransferSection.module.css";
 
@@ -42,7 +44,6 @@ function formatWon(value: number): string {
 function errorMessage(error: unknown): string {
   const candidate = error as {
     response?: { data?: { detail?: string; [key: string]: unknown } };
-    message?: string;
   };
   const detail = candidate.response?.data?.detail;
   if (typeof detail === "string" && detail) return detail;
@@ -52,12 +53,14 @@ function errorMessage(error: unknown): string {
   if (Array.isArray(fieldError) && typeof fieldError[0] === "string") {
     return fieldError[0];
   }
-  return candidate.message || "요청을 처리하지 못했습니다.";
+  return "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
 export default function BankTransferSection() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const profileHydrated = useRef(false);
+  const rejectedNoticeHydrated = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [depositorName, setDepositorName] = useState("");
   const [depositedAt, setDepositedAt] = useState(localDateTimeValue);
@@ -94,21 +97,49 @@ export default function BankTransferSection() {
     });
   }, [data?.business_profile]);
 
-  const activeInvoice = useMemo(
+  const payableInvoice = useMemo(
     () =>
       data?.invoices.find((invoice) =>
         ["PENDING", "OVERDUE"].includes(invoice.status),
-      ) ?? data?.invoices[0],
+      ),
     [data?.invoices],
   );
-  const notice = activeInvoice?.bank_transfer_notice;
+  const latestNoticeInvoice = useMemo(
+    () => data?.invoices.find((invoice) => invoice.bank_transfer_notice),
+    [data?.invoices],
+  );
+  const notice =
+    data?.billing_mode === "INVOICE_REQUEST"
+      ? payableInvoice
+        ? payableInvoice.bank_transfer_notice
+        : latestNoticeInvoice?.bank_transfer_notice
+      : null;
   const guideStep =
     data?.billing_mode !== "INVOICE_REQUEST" ? 1 : notice ? 3 : 2;
-  const guideComplete = notice?.status === "CONFIRMED";
-  const canSubmit =
-    activeInvoice &&
-    ["PENDING", "OVERDUE"].includes(activeInvoice.status) &&
-    (!notice || notice.status === "REJECTED");
+  const guideComplete =
+    notice?.status === "SUBMITTED" || notice?.status === "CONFIRMED";
+  const guidePaused =
+    data?.billing_mode === "INVOICE_REQUEST" && !payableInvoice && !notice;
+  const canSubmit = Boolean(
+    payableInvoice && (!notice || notice.status === "REJECTED"),
+  );
+  const canTransfer =
+    data?.billing_mode === "INVOICE_REQUEST" &&
+    Boolean(payableInvoice) &&
+    !notice;
+
+  useEffect(() => {
+    if (
+      notice?.status !== "REJECTED" ||
+      rejectedNoticeHydrated.current === notice.id
+    ) {
+      return;
+    }
+    rejectedNoticeHydrated.current = notice.id;
+    setDepositorName(notice.depositor_name);
+    setDepositedAt(localDateTimeValue(new Date(notice.deposited_at)));
+    setTaxInvoiceRequested(notice.tax_invoice_requested);
+  }, [notice]);
 
   const activateMutation = useMutation({
     mutationFn: activateBankTransfer,
@@ -129,12 +160,12 @@ export default function BankTransferSection() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      if (!activeInvoice) throw new Error("입금할 청구서가 없습니다.");
+      if (!payableInvoice) throw new Error("입금할 청구서가 없습니다.");
       if (taxInvoiceRequested) {
         await saveBusinessProfile(profile);
       }
       return submitBankTransferNotice({
-        invoice_id: activeInvoice.id,
+        invoice_id: payableInvoice.id,
         depositor_name: depositorName.trim(),
         deposited_at: new Date(depositedAt).toISOString(),
         tax_invoice_requested: taxInvoiceRequested,
@@ -181,6 +212,20 @@ export default function BankTransferSection() {
     event.preventDefault();
     setMessage(null);
     submitMutation.mutate();
+  }
+
+  async function handleActivate() {
+    const accepted = await confirm({
+      title: "계좌이체로 변경",
+      message:
+        "앞으로 이용료 청구 방식이 계좌이체로 변경됩니다. 기존에 등록한 카드는 삭제되지 않지만 계좌이체 모드에서는 자동 청구되지 않습니다.",
+      confirmText: "계좌이체로 변경",
+      cancelText: "취소",
+    });
+    if (accepted) {
+      setMessage(null);
+      activateMutation.mutate();
+    }
   }
 
   if (isLoading) {
@@ -233,39 +278,19 @@ export default function BankTransferSection() {
         </div>
       ) : (
         <>
-          <div className={styles.accountSlip}>
-            <div className={styles.accountBank}>
-              <span>입금 은행</span>
-              <strong>{data.bank_account.bank_name}</strong>
-            </div>
-            <div className={styles.accountNumber}>
-              <span>계좌번호</span>
-              <strong>{data.bank_account.account_number}</strong>
-            </div>
-            <div className={styles.accountHolder}>
-              <span>예금주</span>
-              <strong>{data.bank_account.account_holder}</strong>
-            </div>
-            <button
-              type="button"
-              className={styles.copyButton}
-              onClick={copyAccount}
-              aria-label="계좌번호 복사"
-            >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? "복사됨" : "번호 복사"}
-            </button>
-          </div>
-
           <ol className={styles.paymentGuide} aria-label="계좌이체 납부 순서">
             {[
-              ["계좌이체 선택", "이번 달 청구서를 준비합니다."],
+              ["계좌이체 선택", "납부할 청구서를 먼저 준비합니다."],
               ["정확한 금액 이체", "안내 계좌로 이용료를 보냅니다."],
               ["입금 정보 제출", "입금자명과 이체 시각을 알려주세요."],
             ].map(([title, description], index) => {
               const step = index + 1;
               const state = guideComplete
                 ? "done"
+                : guidePaused
+                  ? step === 1
+                    ? "done"
+                    : "upcoming"
                 : step < guideStep
                   ? "done"
                   : step === guideStep
@@ -290,13 +315,13 @@ export default function BankTransferSection() {
               <div>
                 <strong>앞으로 계좌이체로 납부할게요</strong>
                 <p>
-                  선택하면 이번 달 납부 금액이 표시됩니다. 이 단계에서 돈이
-                  빠져나가지는 않습니다.
+                  선택하면 이번 납부 대상 금액이 표시됩니다. 이 단계에서
+                  돈이 빠져나가지는 않습니다.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => activateMutation.mutate()}
+                onClick={handleActivate}
                 disabled={activateMutation.isPending}
               >
                 {activateMutation.isPending
@@ -306,32 +331,71 @@ export default function BankTransferSection() {
             </div>
           )}
 
-          {activeInvoice && data.billing_mode === "INVOICE_REQUEST" && (
+          {payableInvoice && data.billing_mode === "INVOICE_REQUEST" && (
             <div className={styles.invoiceBand}>
               <div>
-                <span>이번에 보내실 금액</span>
-                <strong>{formatWon(activeInvoice.total_amount)}</strong>
+                <span>이번 납부 대상 금액</span>
+                <strong>{formatWon(payableInvoice.total_amount)}</strong>
                 <small>
-                  공급가 {formatWon(activeInvoice.supply_amount)} · 부가세{" "}
-                  {formatWon(activeInvoice.tax_amount)}
+                  공급가 {formatWon(payableInvoice.supply_amount)} · 부가세{" "}
+                  {formatWon(payableInvoice.tax_amount)}
                 </small>
               </div>
               <dl>
                 <div>
+                  <dt>청구 기간</dt>
+                  <dd>
+                    {payableInvoice.period_start} ~ {payableInvoice.period_end}
+                  </dd>
+                </div>
+                <div>
                   <dt>청구번호</dt>
-                  <dd>{activeInvoice.invoice_number}</dd>
+                  <dd>{payableInvoice.invoice_number}</dd>
                 </div>
                 <div>
                   <dt>납부기한</dt>
-                  <dd>{activeInvoice.due_date}</dd>
+                  <dd>{payableInvoice.due_date}</dd>
                 </div>
               </dl>
             </div>
           )}
 
-          {!activeInvoice && data.billing_mode === "INVOICE_REQUEST" && (
+          {canTransfer && (
+            <div className={styles.accountSlip}>
+              <div className={styles.accountBank}>
+                <span>입금 은행</span>
+                <strong>{data.bank_account.bank_name}</strong>
+              </div>
+              <div className={styles.accountNumber}>
+                <span>계좌번호</span>
+                <strong>{data.bank_account.account_number}</strong>
+              </div>
+              <div className={styles.accountHolder}>
+                <span>예금주</span>
+                <strong>{data.bank_account.account_holder}</strong>
+              </div>
+              <button
+                type="button"
+                className={styles.copyButton}
+                onClick={copyAccount}
+                aria-label={
+                  copied
+                    ? "계좌번호가 복사되었습니다"
+                    : "계좌번호 복사"
+                }
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                <span aria-live="polite">
+                  {copied ? "복사됨" : "번호 복사"}
+                </span>
+              </button>
+            </div>
+          )}
+
+          {!payableInvoice && data.billing_mode === "INVOICE_REQUEST" && (
             <div className={styles.unavailable}>
-              현재 납부할 청구서가 없습니다. 다음 청구일에 자동으로 표시됩니다.
+              현재 납부할 청구서가 없습니다. 계좌로 송금하지 마시고, 다음
+              청구서가 표시된 뒤 이체해 주세요.
             </div>
           )}
 
@@ -344,7 +408,7 @@ export default function BankTransferSection() {
             />
           )}
 
-          {canSubmit && (
+          {canSubmit && payableInvoice && (
             <form
               className={styles.form}
               onSubmit={handleSubmit}
@@ -362,13 +426,27 @@ export default function BankTransferSection() {
               </div>
 
               <div className={styles.transferReminder}>
-                <strong>
-                  {formatWon(activeInvoice.total_amount)}을 먼저 이체해 주세요.
-                </strong>
-                <span>
-                  금액을 다르게 보내셨다면 입금 확인을 요청하기 전에 운영팀에
-                  문의해 주세요.
-                </span>
+                {notice?.status === "REJECTED" ? (
+                  <>
+                    <strong>추가로 이체하지 말고 입금 정보만 고쳐 주세요.</strong>
+                    <span>
+                      반려 사유를 확인해 실제 입금자명과 이체 시각을 다시
+                      입력해 주세요. 실제 송금하지 않았다면 운영팀에 먼저
+                      문의해 주세요.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong>
+                      {formatWon(payableInvoice.total_amount)}을 먼저 이체해
+                      주세요.
+                    </strong>
+                    <span>
+                      금액을 다르게 보내셨다면 입금 확인을 요청하기 전에
+                      운영팀에 문의해 주세요.
+                    </span>
+                  </>
+                )}
               </div>
 
               <div className={styles.fieldGrid}>
@@ -565,8 +643,8 @@ export default function BankTransferSection() {
                   : "입금 확인 요청하기"}
               </button>
               <p className={styles.submitHelp}>
-                운영팀이 실제 입금 내역을 확인하면 이용 기간과 세금계산서
-                상태가 이 화면에 반영됩니다.
+                운영팀이 실제 입금 내역을 확인하면 수납 및 세금계산서 상태가
+                이 화면에 반영됩니다.
               </p>
             </form>
           )}
@@ -595,12 +673,13 @@ function NoticeStatus({
 }: {
   status: "SUBMITTED" | "CONFIRMED" | "REJECTED";
   taxRequested: boolean;
-  taxStatus: string;
+  taxStatus: BankTransferNotice["tax_invoice_status"];
   rejectionReason: string;
 }) {
   const isRejected = status === "REJECTED";
   const isConfirmed = status === "CONFIRMED";
   const taxIssued = taxStatus === "ISSUED";
+  const taxFailed = taxStatus === "FAILED";
   return (
     <div
       className={styles.statusPanel}
@@ -631,9 +710,11 @@ function NoticeStatus({
             : isConfirmed
               ? taxRequested
                 ? taxIssued
-                  ? "이용 기간 반영과 전자세금계산서 발행이 모두 완료되었습니다."
-                  : "이용 기간에 반영되었고, 전자세금계산서 발행을 준비하고 있습니다."
-                : "구독 기간에 결제가 반영되었습니다."
+                  ? "입금 수납과 전자세금계산서 발행이 모두 완료되었습니다."
+                  : taxFailed
+                    ? "입금은 수납 처리되었지만 전자세금계산서 발행 중 문제가 발생했습니다. 운영팀이 다시 확인합니다."
+                    : "입금은 수납 처리되었고, 전자세금계산서 발행을 준비하고 있습니다."
+                : "입금이 수납 처리되었습니다."
               : "운영팀이 계좌 내역을 확인 중입니다. 결과는 이 화면에 표시됩니다."}
         </p>
       </div>

@@ -5,7 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
+import useAuth from "@/auth/hooks/useAuth";
 import BankTransferSection from "../components/BankTransferSection";
+import CardManagementSection from "../components/CardManagementSection";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BillingSettingsPage.module.css";
 
@@ -49,12 +51,15 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
-  AUTO_CARD: "계좌이체 선택 전",
+  AUTO_CARD: "카드 자동결제",
   INVOICE_REQUEST: "계좌이체 청구",
 };
 
 export default function BillingSettingsPage() {
-  const { data, isLoading, isError } = useQuery({
+  const { user } = useAuth();
+  const canManageBilling =
+    user?.tenantRole === "owner" || Boolean(user?.is_superuser);
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminSettingsQueryKeys.subscriptionInfo,
     queryFn: fetchSubscription,
     staleTime: 30_000,
@@ -63,16 +68,22 @@ export default function BillingSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className={styles.root}>
+      <div className={styles.root} role="status" aria-live="polite" aria-busy>
         <div className={styles.skeleton} />
+        <span className={styles.srOnly}>구독 정보를 불러오는 중...</span>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className={styles.root}>
-        <p className={styles.error}>구독 정보를 불러오지 못했습니다.</p>
+      <div className={styles.root} role="alert">
+        <div className={styles.error}>
+          <p>구독 정보를 불러오지 못했습니다.</p>
+          <button type="button" onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? "다시 불러오는 중..." : "다시 불러오기"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -216,8 +227,22 @@ export default function BillingSettingsPage() {
         )}
       </div>
 
-      {/* Immediate no-PG collection path */}
-      <BankTransferSection />
+      {canManageBilling ? (
+        <>
+          {/* Immediate no-PG collection path */}
+          <BankTransferSection />
+
+          {/* Keep saved-card controls available even after switching modes. */}
+          <CardManagementSection
+            allowRegistration={data.billing_mode === "AUTO_CARD"}
+          />
+        </>
+      ) : (
+        <div className={styles.ownerOnlyNotice}>
+          결제 방식 변경과 결제 정보 관리는 학원 소유자 계정에서 할 수
+          있습니다.
+        </div>
+      )}
 
       {/* Expired Warning */}
       {isExpired && (
