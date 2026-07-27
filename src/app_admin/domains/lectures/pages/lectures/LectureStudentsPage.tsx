@@ -4,7 +4,7 @@
 // TODO(R-11 cleanup): 인라인 style → className/DS token, useMemo deps 정리. baseline 동결 위해 file-level disable.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
@@ -72,6 +72,7 @@ function LectureStudentsSortableTh({
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
@@ -326,7 +327,9 @@ export default function LectureStudentsPage() {
                     {sortedFiltered.map((row) => (
                       <tr
                         key={row.student_id}
-                        onClick={() => navigate(`/admin/students/${row.student_id}`)}
+                        onClick={() => navigate(`/admin/students/${row.student_id}`, {
+                          state: { backgroundLocation: location },
+                        })}
                         tabIndex={0}
                         role="button"
                         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(row.student_id) ? "ds-row-selected" : ""}`}

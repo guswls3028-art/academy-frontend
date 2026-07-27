@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -22,7 +22,7 @@ import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 
 const AppLayoutMobile = lazy(() => import("./AppLayoutMobile"));
 
-function AppLayoutContent() {
+function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   const isMobile = useIsMobile();
   const location = useLocation();
   useFavicon();
@@ -117,11 +117,12 @@ function AppLayoutContent() {
     </div>
     </WorkboxProvider>
       )}
+      {overlay}
     </>
   );
 }
 
-export default function AppLayout() {
+export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
   return (
     <TeacherViewProvider>
       <ProgramProvider>
@@ -180,7 +181,7 @@ export default function AppLayout() {
             <GuideTourProvider>
             <ClinicHighlightProvider>
             <SendMessageModalProvider>
-              <AppLayoutContent />
+              <AppLayoutContent overlay={overlay} />
               <GuideTourOverlay />
             </SendMessageModalProvider>
             </ClinicHighlightProvider>

@@ -197,10 +197,10 @@ test.describe("4. 인벤토리 삭제 모달 z-index", () => {
   });
 });
 
-// ─── 5. 학생 상세 페이지 스크롤 ───
+// ─── 5. 학생 상세 팝업 스크롤 ───
 
-test.describe("5. 학생 상세 페이지 스크롤", () => {
-  test("학생 상세 페이지 → 본문 스크롤 → 목록 복귀 후 스크롤 정상", async ({ page }) => {
+test.describe("5. 학생 상세 팝업 스크롤", () => {
+  test("학생 상세 팝업 → 본문 스크롤 → 닫은 후 배경 스크롤 정상", async ({ page }) => {
     await loginViaUI(page, "admin");
     await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
 
@@ -210,22 +210,22 @@ test.describe("5. 학생 상세 페이지 스크롤", () => {
     if (await firstRow.isVisible({ timeout: 5000 }).catch(() => false)) {
       await firstRow.click();
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-      const detailPage = page.getByTestId("student-detail-page");
-      await expect(detailPage).toBeVisible({ timeout: 10_000 });
-      await page.screenshot({ path: `${SS}/5-detail-page-open.png` });
+      const detailOverlay = page.getByTestId("student-detail-overlay");
+      await expect(detailOverlay).toBeVisible({ timeout: 10_000 });
+      await page.screenshot({ path: `${SS}/5-detail-overlay-open.png` });
 
-      const mainScroller = page.locator("main").first();
-      const canScroll = await mainScroller.evaluate((element) => element.scrollHeight > element.clientHeight);
+      const detailScroller = page.getByTestId("student-detail-scroll");
+      const canScroll = await detailScroller.evaluate((element) => element.scrollHeight > element.clientHeight);
       if (canScroll) {
-        await mainScroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
-        await expect.poll(() => mainScroller.evaluate((element) => element.scrollTop > 0)).toBe(true);
+        await detailScroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+        await expect.poll(() => detailScroller.evaluate((element) => element.scrollTop > 0)).toBe(true);
       }
 
-      await detailPage.getByRole("button", { name: "학생 목록" }).click();
+      await detailOverlay.getByRole("button", { name: "닫기" }).click();
       await expect(page).toHaveURL(/\/admin\/students(?:\/home)?(?:\?.*)?$/);
 
       const scrollAfterClose = await page.evaluate(() => document.body.style.overflow);
-      await page.screenshot({ path: `${SS}/5-detail-page-closed.png` });
+      await page.screenshot({ path: `${SS}/5-detail-overlay-closed.png` });
 
       expect(
         scrollAfterClose === "" || scrollAfterClose === "auto" || scrollAfterClose === "visible" || scrollAfterClose === scrollBefore,

@@ -3,7 +3,15 @@
 
 import { Suspense, type ComponentType } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  matchPath,
+  useLocation,
+  useParams,
+  type Location,
+} from "react-router-dom";
 import { default as AppLayout } from "@admin/layout/AppLayout";
 import RouteFallback from "@/core/router/RouteFallback";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
@@ -18,7 +26,7 @@ const StudentsHomePage = lazy(() => import("@admin/domains/students/pages/Studen
 import StudentsRequestsPage from "@admin/domains/students/pages/StudentsRequestsPage";
 const StudentsDetailOverlay = lazy(
   () => import("@admin/domains/students/overlays/StudentsDetailOverlay"),
-) as ComponentType<{ presentation?: "overlay" | "page" }>;
+) as ComponentType<{ studentId?: number; onClose?: () => void }>;
 
 /* ================= Lazy: Lectures ================= */
 const LecturesLayout = lazy(() => import("@admin/domains/lectures/LecturesLayout"));
@@ -122,9 +130,22 @@ function QnaReadRedirect() {
 }
 
 export default function AdminRouter() {
+  const location = useLocation();
+  const backgroundLocation = (
+    location.state as { backgroundLocation?: Location } | null
+  )?.backgroundLocation;
+  const studentDetailMatch = matchPath("/admin/students/:studentId", location.pathname);
+  const modalStudentId = Number(studentDetailMatch?.params.studentId);
+  const studentDetailOverlay =
+    backgroundLocation && Number.isInteger(modalStudentId) && modalStudentId > 0 ? (
+      <Suspense fallback={<RouteFallback />}>
+        <StudentsDetailOverlay studentId={modalStudentId} />
+      </Suspense>
+    ) : undefined;
+
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
+    <Routes location={backgroundLocation ?? location}>
+      <Route element={<AppLayout overlay={studentDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
 
@@ -134,10 +155,16 @@ export default function AdminRouter() {
           <Route path="home" element={renderLazyRoute(StudentsHomePage)} />
           <Route path="requests" element={<Suspense fallback={<RouteFallback />}><StudentsRequestsPage /></Suspense>} />
           <Route path="deleted" element={renderLazyRoute(StudentsHomePage)} />
+          <Route
+            path=":studentId"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <StudentsHomePage />
+                <StudentsDetailOverlay />
+              </Suspense>
+            }
+          />
         </Route>
-
-        {/* 학생 상세: 독립 URL에서는 페이지로, 다른 업무 화면 안에서는 오버레이로 재사용 */}
-        <Route path="students/:studentId" element={<Suspense fallback={<RouteFallback />}><StudentsDetailOverlay presentation="page" /></Suspense>} />
 
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
         <Route path="lectures" element={renderLazyRoute(LecturesLayout)}>

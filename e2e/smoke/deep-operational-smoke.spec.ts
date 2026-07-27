@@ -193,7 +193,7 @@ test.describe("심층 운영 동선 검증", () => {
     expect(criticalErrors).toEqual([]);
   });
 
-  test("학생 상세 페이지", async ({ page }) => {
+  test("학생 상세 팝업", async ({ page }) => {
     const { errors } = collectErrors(page);
 
     await visit(page, "/admin/students");

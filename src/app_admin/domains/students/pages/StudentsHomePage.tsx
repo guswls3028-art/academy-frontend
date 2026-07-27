@@ -467,7 +467,13 @@ export default function StudentsHomePage() {
               search={search}
               sort={sort}
               onSortChange={handleSortChange}
-              onRowClick={(id) => !isDeletedTab && navigate(`/admin/students/${id}`)}
+              onRowClick={(id) => {
+                if (!isDeletedTab) {
+                  navigate(`/admin/students/${id}`, {
+                    state: { backgroundLocation: location },
+                  });
+                }
+              }}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               isDeletedTab={isDeletedTab}

@@ -112,7 +112,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
   });
 
   // ─── 4. 학생 상세 ───
-  test("4. 학생 상세 - 클릭 → 상세 페이지 → 탭 확인", async ({ page }) => {
+  test("4. 학생 상세 - 클릭 → 팝업 → 탭 확인", async ({ page }) => {
     await gotoAndSettle(page, `${DNB_BASE}/admin/students/home`, { settleMs: 1500 });
 
     const studentItem = page.locator(
@@ -123,7 +123,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
       await studentItem.click();
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
-      const detail = page.getByTestId("student-detail-page");
+      const detail = page.getByTestId("student-detail-overlay");
 
       if (await detail.isVisible({ timeout: 5000 }).catch(() => false)) {
         // 탭이 있다면 0개가 아니어야 한다 (상세 패널 정상 렌더 회귀).
@@ -133,7 +133,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
       await page.screenshot({ path: `e2e/screenshots/dnb-04-student-detail-${TS}.png`, fullPage: true });
 
-      const backBtn = page.getByRole("button", { name: "학생 목록" });
+      const backBtn = detail.getByRole("button", { name: "닫기" });
       if (await backBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await backBtn.click();
       } else {

@@ -396,7 +396,7 @@
   padding: var(--space-5);
 }
 
-/* 학생 상세: 고정 높이 모달 — body가 남은 높이를 채움, 내부 그리드가 독립 스크롤 */
+/* 학생 상세: 헤더는 고정하고 body 하나만 스크롤 */
 .ds-overlay-panel--student-detail {
   display: flex;
   flex-direction: column;
@@ -406,7 +406,37 @@
   padding-top: var(--space-3);
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.ds-overlay-panel--student-detail .ds-overlay-body__grid {
+  height: auto;
+  min-width: 0;
+  align-items: start;
+  overflow-x: clip;
+}
+
+.ds-overlay-panel--student-detail .ds-overlay-sidebar,
+.ds-overlay-panel--student-detail .ds-overlay-content-panel,
+.ds-overlay-panel--student-detail .ds-overlay-content-panel__scrollable {
+  min-width: 0;
+  max-width: 100%;
+  overflow-y: visible;
+  overflow-x: clip;
+}
+
+.ds-overlay-panel--student-detail .ds-overlay-content-panel__scrollable {
+  flex: none;
+}
+
+.ds-overlay-panel--student-detail .ds-overlay-content-panel__scrollable > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 직원 상세: 탭 많아서 패널 너비 확대 + 높이 제한으로 하단 잘림 방지 */
@@ -474,21 +504,29 @@
 
   .ds-overlay-panel--student-detail .ds-overlay-body {
     padding: 12px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .ds-overlay-panel--student-detail .ds-overlay-body__grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ds-overlay-panel--student-detail .ds-overlay-content-panel {
     order: -1;
-    overflow: visible;
+    overflow-y: visible;
+    overflow-x: clip;
   }
 
   .ds-overlay-panel--student-detail .ds-overlay-content-panel__scrollable {
     overflow-y: visible;
+    overflow-x: clip;
   }
 
   .ds-overlay-panel--student-detail .ds-overlay-sidebar {
     padding-right: 0;
-    overflow: visible;
+    overflow-y: visible;
+    overflow-x: clip;
   }
 }
 

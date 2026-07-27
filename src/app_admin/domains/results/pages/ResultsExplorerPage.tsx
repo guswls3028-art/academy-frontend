@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
@@ -183,6 +183,7 @@ function reportedTrendPoints(student: StudentPerformanceRow, source: "school" | 
 
 export default function ResultsExplorerPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [source, setSource] = useState<StudentPerformanceSource>("overall");
   const [reportedSubject, setReportedSubject] = useState("");
@@ -501,7 +502,9 @@ export default function ResultsExplorerPage() {
                   isLoading={source === "academy" && gradesQuery.isLoading}
                   isError={source === "academy" && gradesQuery.isError}
                   onRetry={() => { void gradesQuery.refetch(); }}
-                  onOpenStudent={() => navigate(`/admin/students/${selectedStudent.student_id}`)}
+                  onOpenStudent={() => navigate(`/admin/students/${selectedStudent.student_id}`, {
+                    state: { backgroundLocation: location },
+                  })}
                   onVoid={(row) => { setVoidTarget(row); setVoidNote(""); }}
                 />
               ) : (
