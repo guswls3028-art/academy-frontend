@@ -21,6 +21,9 @@ export default function CardRegisterCallbackPage() {
 
   const authKey = searchParams.get("authKey");
   const customerKey = searchParams.get("customerKey");
+  const callbackStatus = searchParams.get("status");
+  const failureCode = searchParams.get("code");
+  const failureMessage = searchParams.get("message");
 
   const callbackMut = useMutation({
     mutationFn: processCardCallback,
@@ -43,6 +46,16 @@ export default function CardRegisterCallbackPage() {
   }, [authKey, customerKey]);
 
   const getResult = (): CallbackResult => {
+    if (callbackStatus === "fail") {
+      const canceled = failureCode === "PAY_PROCESS_CANCELED";
+      return {
+        status: "error",
+        message: canceled
+          ? "카드 등록이 취소되었습니다."
+          : failureMessage || "카드 정보를 확인하지 못했습니다. 다시 시도해 주세요.",
+      };
+    }
+
     if (!authKey || !customerKey) {
       return {
         status: "error",
