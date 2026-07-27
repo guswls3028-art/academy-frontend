@@ -168,7 +168,14 @@ jobs:
             "${AUTH[@]}" "${DNS_API}?name=${DOMAIN}")
           DNS_RECORD_ID=$(jq -r '.result[0].id // empty' <<<"$DNS_RESPONSE")
           DNS_RECORD_TYPE=$(jq -r '.result[0].type // empty' <<<"$DNS_RESPONSE")
-          DNS_TARGET="${CLOUDFLARE_PROJECT_NAME}.pages.dev"
+          PROJECT_RESPONSE=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}")
+          DNS_TARGET=$(jq -r '.result.subdomain // empty' <<<"$PROJECT_RESPONSE")
+          if [ -z "$DNS_TARGET" ]; then
+            echo "::error::Could not resolve the Cloudflare Pages project subdomain"
+            exit 1
+          fi
           DNS_PAYLOAD=$(jq -n \
             --arg name "$DOMAIN" \
             --arg content "$DNS_TARGET" \
