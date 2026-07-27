@@ -1,10 +1,11 @@
 // PATH: src/app_admin/domains/students/overlays/StudentsDetailOverlay.tsx
-// 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
+// 학생 상세 공유 화면 — 독립 라우트는 페이지, 업무 화면 안에서는 오버레이
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { lazy, Suspense, useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
+import { ArrowLeft, FolderOpen } from "lucide-react";
 import api from "@/shared/api/axios";
 
 import {
@@ -29,7 +30,7 @@ import {
   type StudentGradesResponse,
   type StudentHomeworkGrade,
 } from "@/shared/api/contracts/studentGrades";
-import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
+import { EmptyState, Button, CloseButton, Badge, ICON_FOR_BUTTON, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
@@ -78,22 +79,30 @@ type StudentsDetailOverlayProps = {
   /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
   studentId?: number;
   onClose?: () => void;
+  presentation?: "overlay" | "page";
 };
 
 export default function StudentsDetailOverlay({
   studentId,
   onClose: closeOverride,
+  presentation = "overlay",
 }: StudentsDetailOverlayProps = {}) {
   const routeParams = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isPage = presentation === "page";
   const id = studentId ?? Number(routeParams.studentId);
   const onClose = useCallback(() => {
     if (closeOverride) {
       closeOverride();
       return;
     }
+    if (location.key === "default") {
+      navigate("/admin/students/home", { replace: true });
+      return;
+    }
     navigate(-1);
-  }, [closeOverride, navigate]);
+  }, [closeOverride, location.key, navigate]);
   const qc = useQueryClient();
   const studentQueryKey = ["student", id] as const;
   const studentsQueryKey = ["students"] as const;
@@ -107,12 +116,13 @@ export default function StudentsDetailOverlay({
 
   // Escape 키로 오버레이 닫기
   useEffect(() => {
+    if (isPage) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [isPage, onClose]);
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const { data: student, isLoading, isError } = useQuery({
@@ -196,52 +206,42 @@ export default function StudentsDetailOverlay({
   // 에러 상태 (존재하지 않는 학생 ID 등)
   if (isError || (!isLoading && !student && !!id)) {
     return (
-      <>
-        <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-        <div className="ds-overlay-wrap">
-          <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
-            <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
-            <div className={`ds-overlay-body ${styles.bodyPadded}`}>
-              <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
-              <div className={styles.centerAction}>
-                <Button intent="secondary" size="sm" onClick={onClose}>닫기</Button>
-              </div>
-            </div>
+      <StudentDetailShell presentation={presentation} onClose={onClose}>
+        <div className={`ds-overlay-body ${styles.bodyPadded}`}>
+          <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
+          <div className={styles.centerAction}>
+            <Button intent="secondary" size="sm" onClick={onClose}>
+              {isPage ? "학생 목록" : "닫기"}
+            </Button>
           </div>
         </div>
-      </>
+      </StudentDetailShell>
     );
   }
 
   // 로딩 스켈레톤
   if (isLoading || !student) {
     return (
-      <>
-        <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-        <div className="ds-overlay-wrap">
-          <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
-            <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
-            <header className="ds-overlay-header">
-              <div className="ds-overlay-header__inner">
-                <div className="ds-overlay-header__left">
-                  <div className="ds-overlay-header__avatar-wrap" aria-hidden>
-                    <span className={`ds-overlay-header__avatar ${styles.skeletonAvatar}`}>
-                      &nbsp;
-                    </span>
-                  </div>
-                  <div className="ds-overlay-header__title-block">
-                    <div className={styles.skeletonTitle} />
-                    <div className={styles.skeletonSubtitle} />
-                  </div>
-                </div>
+      <StudentDetailShell presentation={presentation} onClose={onClose}>
+        <header className="ds-overlay-header">
+          <div className="ds-overlay-header__inner">
+            <div className="ds-overlay-header__left">
+              <div className="ds-overlay-header__avatar-wrap" aria-hidden>
+                <span className={`ds-overlay-header__avatar ${styles.skeletonAvatar}`}>
+                  &nbsp;
+                </span>
               </div>
-            </header>
-            <div className={`ds-overlay-body ${styles.bodyPadded}`}>
-              <EmptyState scope="panel" tone="loading" title="학생 정보를 불러오는 중..." />
+              <div className="ds-overlay-header__title-block">
+                <div className={styles.skeletonTitle} />
+                <div className={styles.skeletonSubtitle} />
+              </div>
             </div>
           </div>
+        </header>
+        <div className={`ds-overlay-body ${styles.bodyPadded}`}>
+          <EmptyState scope="panel" tone="loading" title="학생 정보를 불러오는 중..." />
         </div>
-      </>
+      </StudentDetailShell>
     );
   }
 
@@ -250,14 +250,7 @@ export default function StudentsDetailOverlay({
 
   return (
     <>
-      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-
-      <div className="ds-overlay-wrap">
-        <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
-          <CloseButton
-            className="ds-overlay-panel__close"
-            onClick={onClose}
-          />
+      <StudentDetailShell presentation={presentation} onClose={onClose}>
           <header className="ds-overlay-header">
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
@@ -315,6 +308,17 @@ export default function StudentsDetailOverlay({
                   <Button type="button" intent="danger" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
                     삭제
                   </Button>
+                  {isPage && (
+                    <Button
+                      type="button"
+                      intent="secondary"
+                      size="sm"
+                      leftIcon={<FolderOpen size={ICON_FOR_BUTTON.sm} />}
+                      onClick={() => setInventoryOpen(true)}
+                    >
+                      인벤토리
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -490,19 +494,20 @@ export default function StudentsDetailOverlay({
           </div>
 
           {/* 우하단 인벤토리 트리거 — 아이콘만 큼지막하게, 클릭 시 좌측 패널 */}
-          <div className="ds-overlay-inventory-wrap">
-            <button
-              type="button"
-              className="ds-inventory-trigger-btn"
-              onClick={() => setInventoryOpen(true)}
-              title="인벤토리"
-              aria-label="인벤토리 열기"
-            >
-              📁
-            </button>
-          </div>
-        </div>
-      </div>
+          {!isPage && (
+            <div className="ds-overlay-inventory-wrap">
+              <button
+                type="button"
+                className="ds-inventory-trigger-btn"
+                onClick={() => setInventoryOpen(true)}
+                title="인벤토리"
+                aria-label="인벤토리 열기"
+              >
+                📁
+              </button>
+            </div>
+          )}
+      </StudentDetailShell>
 
       {inventoryOpen &&
         createPortal(
@@ -578,6 +583,61 @@ export default function StudentsDetailOverlay({
           />
         </Suspense>
       )}
+    </>
+  );
+}
+
+function StudentDetailShell({
+  presentation,
+  onClose,
+  children,
+}: {
+  presentation: "overlay" | "page";
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const isPage = presentation === "page";
+  const panel = (
+    <div
+      className={[
+        "ds-overlay-panel",
+        "ds-overlay-panel--student-detail",
+        isPage ? styles.routePanel : "",
+      ].filter(Boolean).join(" ")}
+      role={isPage ? undefined : "dialog"}
+      aria-modal={isPage ? undefined : true}
+      aria-label="학생 상세"
+      onClick={isPage ? undefined : (e) => e.stopPropagation()}
+    >
+      {!isPage && <CloseButton className="ds-overlay-panel__close" onClick={onClose} />}
+      {children}
+    </div>
+  );
+
+  if (isPage) {
+    return (
+      <section className={styles.routePage} data-testid="student-detail-page">
+        <div className={styles.routeToolbar}>
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            leftIcon={<ArrowLeft size={ICON_FOR_BUTTON.sm} />}
+            onClick={onClose}
+          >
+            학생 목록
+          </Button>
+          <span className={styles.routeContext}>학생 정보와 학습 기록</span>
+        </div>
+        {panel}
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
+      <div className="ds-overlay-wrap">{panel}</div>
     </>
   );
 }

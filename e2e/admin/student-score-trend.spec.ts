@@ -522,6 +522,10 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(page).toHaveURL(/\/admin\/students\/home/);
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
     await expect(page).toHaveURL(/\/admin\/students\/101/);
+    const detailPage = page.getByTestId("student-detail-page");
+    await expect(detailPage).toBeVisible();
+    await expect(detailPage.getByRole("button", { name: "학생 목록" })).toBeVisible();
+    await expect(page.locator(".ds-overlay-backdrop")).toHaveCount(0);
     const examTab = page.getByRole("tab", { name: /^시험/ });
     await expect(examTab).toContainText("합격 100%");
     await examTab.click();
@@ -542,7 +546,20 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await page.setViewportSize({ width: 1100, height: 820 });
     await expect(component).toBeVisible();
-    await page.screenshot({ path: "test-results/student-score-trend/admin-1100.png", fullPage: true });
+    const mainScroller = page.locator("main").first();
+    await expect.poll(() => mainScroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    await mainScroller.evaluate((element) => element.scrollTo({ top: 0 }));
+    await page.screenshot({ path: "test-results/student-score-trend/admin-detail-1100-top.png" });
+    await mainScroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+    await expect.poll(() => mainScroller.evaluate((element) => element.scrollTop > 0)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/admin-detail-1100-bottom.png" });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mainScroller.evaluate((element) => element.scrollTo({ top: 0 }));
+    await expect.poll(() => mainScroller.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/admin-detail-390-top.png" });
+    await detailPage.getByRole("button", { name: "학생 목록" }).click();
+    await expect(page).toHaveURL(/\/admin\/students\/home/);
   });
 
   test("성적 콘솔 오류를 검토 대상 0건으로 표시하지 않는다", async ({ page }) => {

@@ -8,6 +8,66 @@
   margin-top: 16px;
 }
 
+.routePage {
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  padding-bottom: var(--space-6);
+}
+
+.routeToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 40px;
+  margin-bottom: var(--space-3);
+}
+
+.routeContext {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.routePanel {
+  max-width: none;
+  max-height: none;
+}
+
+.routePanel :global(.ds-overlay-body) {
+  flex: none;
+  overflow: visible;
+}
+
+.routePanel :global(.ds-overlay-body__grid) {
+  height: auto;
+  align-items: start;
+}
+
+.routePanel :global(.ds-overlay-sidebar),
+.routePanel :global(.ds-overlay-content-panel),
+.routePanel :global(.ds-overlay-content-panel__scrollable) {
+  overflow: visible;
+}
+
+.routePanel :global(.ds-overlay-content-panel__scrollable) {
+  flex: none;
+}
+
+@media (max-width: 768px) {
+  .routePage {
+    padding-bottom: var(--space-4);
+  }
+
+  .routeToolbar {
+    margin-bottom: var(--space-2);
+  }
+
+  .routeContext {
+    display: none;
+  }
+}
+
 .skeletonAvatar,
 .skeletonTitle,
 .skeletonSubtitle {

@@ -16,7 +16,9 @@ const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout
 const StudentsHomePage = lazy(() => import("@admin/domains/students/pages/StudentsHomePage"));
 // StudentsRequestsPage: 동적 import 시 청크 fetch 실패(404) 방지를 위해 정적 import (#310 동일 대응)
 import StudentsRequestsPage from "@admin/domains/students/pages/StudentsRequestsPage";
-const StudentsDetailOverlay = lazy(() => import("@admin/domains/students/overlays/StudentsDetailOverlay"));
+const StudentsDetailOverlay = lazy(
+  () => import("@admin/domains/students/overlays/StudentsDetailOverlay"),
+) as ComponentType<{ presentation?: "overlay" | "page" }>;
 
 /* ================= Lazy: Lectures ================= */
 const LecturesLayout = lazy(() => import("@admin/domains/lectures/LecturesLayout"));
@@ -134,8 +136,8 @@ export default function AdminRouter() {
           <Route path="deleted" element={renderLazyRoute(StudentsHomePage)} />
         </Route>
 
-        {/* 학생 상세 (Overlay / Layout 밖) */}
-        <Route path="students/:studentId" element={<Suspense fallback={<RouteFallback />}><StudentsDetailOverlay /></Suspense>} />
+        {/* 학생 상세: 독립 URL에서는 페이지로, 다른 업무 화면 안에서는 오버레이로 재사용 */}
+        <Route path="students/:studentId" element={<Suspense fallback={<RouteFallback />}><StudentsDetailOverlay presentation="page" /></Suspense>} />
 
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
         <Route path="lectures" element={renderLazyRoute(LecturesLayout)}>

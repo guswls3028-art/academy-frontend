@@ -197,10 +197,10 @@ test.describe("4. 인벤토리 삭제 모달 z-index", () => {
   });
 });
 
-// ─── 5. 중첩 오버레이 스크롤 복원 ───
+// ─── 5. 학생 상세 페이지 스크롤 ───
 
-test.describe("5. 중첩 오버레이 스크롤", () => {
-  test("학생 상세 오버레이 → 내부 확인 다이얼로그 → 닫기 후 스크롤 정상", async ({ page }) => {
+test.describe("5. 학생 상세 페이지 스크롤", () => {
+  test("학생 상세 페이지 → 본문 스크롤 → 목록 복귀 후 스크롤 정상", async ({ page }) => {
     await loginViaUI(page, "admin");
     await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
 
@@ -209,16 +209,23 @@ test.describe("5. 중첩 오버레이 스크롤", () => {
     const firstRow = page.locator("table tbody tr").first();
     if (await firstRow.isVisible({ timeout: 5000 }).catch(() => false)) {
       await firstRow.click();
-      // 학생 상세 오버레이가 열릴 때까지 — overlay/dialog/sheet 어떤 형태든.
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-      await page.screenshot({ path: `${SS}/5-overlay-open.png` });
+      const detailPage = page.getByTestId("student-detail-page");
+      await expect(detailPage).toBeVisible({ timeout: 10_000 });
+      await page.screenshot({ path: `${SS}/5-detail-page-open.png` });
 
-      await page.keyboard.press("Escape");
-      // ESC 후 잠금 해제 시간 — networkidle settle.
-      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
+      const mainScroller = page.locator("main").first();
+      const canScroll = await mainScroller.evaluate((element) => element.scrollHeight > element.clientHeight);
+      if (canScroll) {
+        await mainScroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+        await expect.poll(() => mainScroller.evaluate((element) => element.scrollTop > 0)).toBe(true);
+      }
+
+      await detailPage.getByRole("button", { name: "학생 목록" }).click();
+      await expect(page).toHaveURL(/\/admin\/students(?:\/home)?(?:\?.*)?$/);
 
       const scrollAfterClose = await page.evaluate(() => document.body.style.overflow);
-      await page.screenshot({ path: `${SS}/5-overlay-closed.png` });
+      await page.screenshot({ path: `${SS}/5-detail-page-closed.png` });
 
       expect(
         scrollAfterClose === "" || scrollAfterClose === "auto" || scrollAfterClose === "visible" || scrollAfterClose === scrollBefore,
