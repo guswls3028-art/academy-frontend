@@ -28,6 +28,7 @@ import ParentChildSwitcher from "./ParentChildSwitcher";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
+import { useStudentPwa } from "@student/shared/hooks/useStudentPwa";
 
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
@@ -63,6 +64,7 @@ function StudentLayoutInner() {
   const { isDark } = useStudentTheme();
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
+  useStudentPwa();
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
   const useYmathTheme = tenantCode != null && YMATH_THEME_TENANTS.includes(String(tenantCode));
   const useSsweTheme = tenantCode != null && SSWE_THEME_TENANTS.includes(String(tenantCode));

@@ -83,7 +83,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
       const link = document.querySelector('link[rel="apple-touch-icon"][data-teacher]');
       return link?.getAttribute("href");
     });
-    expect(appleIcon).toBe("/tenants/tchul/icon.png");
+    expect(appleIcon).toBe("/tenants/tchul/apple-touch-icon.png");
 
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-02-home-with-manifest.png", fullPage: false });
   });
@@ -113,7 +113,16 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     expect(manifest.short_name).toBe("박철 과학");
     expect(manifest.start_url).toBe("/teacher");
     expect(manifest.display).toBe("standalone");
-    expect(manifest.icons?.[0]?.src).toBe("/tenants/tchul/icon.png");
+    expect(manifest.icons?.[0]?.src).toBe("/tenants/tchul/pwa-192.png");
+    expect(manifest.icons?.[1]?.src).toBe("/tenants/tchul/pwa-512.png");
+
+    const studentManifestResp = await page.request.get(`${TCHUL}/student-manifest.json`);
+    expect(studentManifestResp.status()).toBe(200);
+    const studentManifest = await studentManifestResp.json();
+    expect(studentManifest.name).toBe("박철 과학 학생");
+    expect(studentManifest.start_url).toBe("/student");
+    expect(studentManifest.scope).toBe("/student");
+    expect(studentManifest.icons?.[0]?.src).toBe("/tenants/tchul/pwa-192.png");
 
     // SW 파일 직접 접근 검증
     const swResp = await page.request.get(`${TCHUL}/teacher-sw.js`);
@@ -122,7 +131,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     expect(swText).toContain("teacher-app-shell");
 
     // 아이콘 접근 검증
-    const iconResp = await page.request.get(`${TCHUL}/tenants/tchul/icon.png`);
+    const iconResp = await page.request.get(`${TCHUL}/tenants/tchul/pwa-192.png`);
     expect(iconResp.status()).toBe(200);
   });
 });

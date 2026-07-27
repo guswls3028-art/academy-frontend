@@ -29,6 +29,7 @@ import {
   useInboxItems,
   useUpdateInboxItem,
 } from "@dev/domains/inbox/hooks/useInbox";
+import { DevPushControl } from "@dev/domains/inbox/components/DevPushControl";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import layout from "@dev/layout/DevLayout.module.css";
 import styles from "./InboxPage.module.css";
@@ -175,15 +176,18 @@ export default function InboxPage() {
             <h1>문의 운영함</h1>
             <p>도입 문의, 버그 제보, 개선 의견을 한곳에서 확인하고 처리합니다.</p>
           </div>
-          <button
-            type="button"
-            className={styles.refreshButton}
-            onClick={() => inboxQuery.refetch()}
-            disabled={inboxQuery.isFetching}
-          >
-            <RefreshCw size={ICON.sm} className={inboxQuery.isFetching ? styles.spinning : undefined} />
-            새로고침
-          </button>
+          <div className={styles.pageActions}>
+            <DevPushControl />
+            <button
+              type="button"
+              className={styles.refreshButton}
+              onClick={() => inboxQuery.refetch()}
+              disabled={inboxQuery.isFetching}
+            >
+              <RefreshCw size={ICON.sm} className={inboxQuery.isFetching ? styles.spinning : undefined} />
+              새로고침
+            </button>
+          </div>
         </section>
 
         <div className={styles.summaryGrid} aria-label="문의 현황">

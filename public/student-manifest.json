@@ -1,9 +1,10 @@
 {
-  "name": "학원 선생님",
+  "name": "학원 학생",
   "short_name": "학원",
-  "description": "선생님 전용 모바일 앱 — 출석, 성적, 학생 관리",
-  "start_url": "/teacher",
-  "scope": "/teacher",
+  "description": "학생 전용 모바일 앱 — 수업, 과제, 성적 확인",
+  "id": "/student",
+  "start_url": "/student",
+  "scope": "/student",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#3b82f6",
@@ -22,7 +23,7 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
+  "categories": ["education"],
   "lang": "ko",
   "dir": "ltr"
 }

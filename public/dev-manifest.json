@@ -1,0 +1,28 @@
+{
+  "name": "학원플러스 개발자 콘솔",
+  "short_name": "학원플러스 콘솔",
+  "description": "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔",
+  "id": "/dev/inbox",
+  "start_url": "/dev/inbox",
+  "scope": "/dev",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0f172a",
+  "background_color": "#f4f7fb",
+  "icons": [
+    {
+      "src": "/tenants/hakwonplus/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/tenants/hakwonplus/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ko"
+}

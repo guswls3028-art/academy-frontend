@@ -204,7 +204,7 @@ async function trimCache(cache, maxEntries) {
   }
 }
 
-// === Push (Phase 2 준비 — 현재는 알림 표시만) ===
+// === Push ===
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
@@ -213,8 +213,8 @@ self.addEventListener("push", (event) => {
     event.waitUntil(
       self.registration.showNotification(payload.title || "학원플러스", {
         body: payload.body || "",
-        icon: "/teacher-icons/icon-192.svg",
-        badge: "/teacher-icons/icon-192.svg",
+        icon: payload.icon || "/teacher-icons/icon-192.svg",
+        badge: payload.badge || payload.icon || "/teacher-icons/icon-192.svg",
         tag: payload.tag || "teacher-notification",
         data: { url: payload.url || "/teacher" },
       })
@@ -226,7 +226,13 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/teacher";
+  const requestedUrl = new URL(
+    event.notification.data?.url || "/teacher",
+    self.location.origin,
+  );
+  const targetUrl = requestedUrl.origin === self.location.origin
+    ? requestedUrl.toString()
+    : new URL("/teacher", self.location.origin).toString();
 
   event.waitUntil(
     self.clients

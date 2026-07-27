@@ -34,20 +34,21 @@
         /* 테넌트별 브라우저 제목·설명·파비콘·키워드·구조화데이터 SSOT (index.html 초기 렌더용)
            t=title, d=description, f=favicon, i=ogImage, w=width, h=height, a=appleTouchIcon, tc=themeColor, k=keywords, s=schema.org */
         var tenants = {
-          "tchul.com":       { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
-          "www.tchul.com":   { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
+          "tchul.com":       { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", a: "/tenants/tchul/apple-touch-icon.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
+          "www.tchul.com":   { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", a: "/tenants/tchul/apple-touch-icon.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
           "hakwonplus.com":  { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
           "www.hakwonplus.com": { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
-          "limglish.kr":     { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
-          "www.limglish.kr": { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
-          "ymath.co.kr":     { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
-          "www.ymath.co.kr": { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
-          "sswe.co.kr":      { t: "SSWE", d: "SSWE – 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/sswe/favicon.png", i: "/tenants/sswe/og-image.png", w: 800, h: 380, k: "SSWE,학원,학습플랫폼,sswe", s: { name: "SSWE", url: "https://sswe.co.kr", desc: "SSWE 학습 플랫폼" } },
-          "www.sswe.co.kr":  { t: "SSWE", d: "SSWE – 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/sswe/favicon.png", i: "/tenants/sswe/og-image.png", w: 800, h: 380, k: "SSWE,학원,학습플랫폼,sswe", s: { name: "SSWE", url: "https://sswe.co.kr", desc: "SSWE 학습 플랫폼" } },
-          "dnbacademy.co.kr":     { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } },
-          "www.dnbacademy.co.kr": { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } }
+          "limglish.kr":     { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
+          "www.limglish.kr": { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
+          "ymath.co.kr":     { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", a: "/tenants/ymath/apple-touch-icon.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
+          "www.ymath.co.kr": { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", a: "/tenants/ymath/apple-touch-icon.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
+          "sswe.co.kr":      { t: "SSWE", d: "SSWE – 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/sswe/favicon.png", i: "/tenants/sswe/og-image.png", a: "/tenants/sswe/apple-touch-icon.png", w: 800, h: 380, k: "SSWE,학원,학습플랫폼,sswe", s: { name: "SSWE", url: "https://sswe.co.kr", desc: "SSWE 학습 플랫폼" } },
+          "www.sswe.co.kr":  { t: "SSWE", d: "SSWE – 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/sswe/favicon.png", i: "/tenants/sswe/og-image.png", a: "/tenants/sswe/apple-touch-icon.png", w: 800, h: 380, k: "SSWE,학원,학습플랫폼,sswe", s: { name: "SSWE", url: "https://sswe.co.kr", desc: "SSWE 학습 플랫폼" } },
+          "dnbacademy.co.kr":     { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", a: "/tenants/dnb/apple-touch-icon.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } },
+          "www.dnbacademy.co.kr": { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", a: "/tenants/dnb/apple-touch-icon.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } }
         };
-        var cfg = tenants[host] || { t: "HakwonPlus", d: "학원 관리·학생 학습 플랫폼", k: "학원플러스,학원관리,학습플랫폼" };
+        var fallbackName = (host.split(".")[0] || "학원").replace(/[-_]+/g, " ");
+        var cfg = tenants[host] || { t: fallbackName, d: fallbackName + " 학습 플랫폼", k: "학원,학습플랫폼" };
         document.title = cfg.t;
         function setMeta(sel, val) { var el = document.querySelector(sel); if (el) el.setAttribute("content", val); }
         function setAttr(sel, attr, val) { var el = document.querySelector(sel); if (el) el.setAttribute(attr, val); }
@@ -61,6 +62,12 @@
         setMeta('meta[name="twitter:title"]', cfg.t);
         setMeta('meta[name="twitter:description"]', cfg.d);
         if (cfg.tc) setMeta('meta[name="theme-color"]', cfg.tc);
+        var manifest = document.querySelector('link[rel="manifest"]');
+        if (manifest) {
+          if (location.pathname.indexOf("/teacher") === 0) manifest.setAttribute("href", "/teacher-manifest.json");
+          else if (location.pathname.indexOf("/student") === 0) manifest.setAttribute("href", "/student-manifest.json");
+          else if (location.pathname.indexOf("/dev") === 0) manifest.setAttribute("href", "/dev-manifest.json");
+        }
         /* canonical + og:url */
         var pageUrl = typeof location !== "undefined" ? (location.origin + location.pathname) : "";
         setAttr('link[rel="canonical"]', "href", pageUrl);

@@ -56,6 +56,12 @@
   letter-spacing: 0.12em;
 }
 
+.pageActions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
 .refreshButton {
   align-items: center;
   background: var(--dev-surface);

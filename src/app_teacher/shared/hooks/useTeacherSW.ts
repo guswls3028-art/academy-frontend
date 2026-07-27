@@ -6,32 +6,19 @@
  * - manifest link도 동적 주입 (/teacher 경로에서만)
  */
 import { useEffect } from "react";
-import { getTenantDefByHostname } from "@/shared/tenant/tenants";
+import {
+  getTenantPwaBrand,
+  resolveTenantPwaBrand,
+} from "@/shared/pwa/tenantPwaMeta";
 
 const TEACHER_MANIFEST_HREF = "/teacher-manifest.json";
 const DEFAULT_TEACHER_APP_TITLE = "학원플러스 선생님";
 const DEFAULT_TEACHER_APP_ICON = "/teacher-icons/icon-192.svg";
-const HAKWONPLUS_TEACHER_APP_ICON = "/tenants/hakwonplus/pwa-192.png";
 const TEACHER_THEME_COLOR = "#3b82f6";
 const DATA_TEACHER = "data-teacher";
 const DATA_TEACHER_CREATED = "data-teacher-created";
 const DATA_PREVIOUS_HREF = "data-teacher-previous-href";
 const DATA_PREVIOUS_CONTENT = "data-teacher-previous-content";
-
-const TEACHER_APP_ICON_BY_HOST: Record<string, string> = {
-  "tchul.com": "/tenants/tchul/icon.png",
-  "www.tchul.com": "/tenants/tchul/icon.png",
-  "ymath.co.kr": "/tenants/ymath/icon.png",
-  "www.ymath.co.kr": "/tenants/ymath/icon.png",
-  "limglish.kr": "/tenants/limglish/icon.png",
-  "www.limglish.kr": "/tenants/limglish/icon.png",
-  "hakwonplus.com": HAKWONPLUS_TEACHER_APP_ICON,
-  "www.hakwonplus.com": HAKWONPLUS_TEACHER_APP_ICON,
-  "sswe.co.kr": "/tenants/sswe/icon.png",
-  "www.sswe.co.kr": "/tenants/sswe/icon.png",
-  "dnbacademy.co.kr": "/tenants/dnb/logo.png",
-  "www.dnbacademy.co.kr": "/tenants/dnb/logo.png",
-};
 
 type TeacherInstallMeta = {
   title: string;
@@ -52,6 +39,14 @@ export function useTeacherSW() {
 
     // apple-mobile-web-app 메타 태그 주입 (iOS PWA 지원)
     injectAppleMeta(installMeta);
+    let active = true;
+    void resolveTenantPwaBrand().then((brand) => {
+      if (!active) return;
+      injectAppleMeta({
+        title: `${brand.title} 선생님`,
+        iconHref: brand.iconHref,
+      });
+    });
 
     // SW 등록
     navigator.serviceWorker
@@ -78,6 +73,7 @@ export function useTeacherSW() {
       });
 
     return () => {
+      active = false;
       // cleanup: manifest link 제거 (다른 앱으로 이동 시)
       removeManifestLink();
       removeThemeColor();
@@ -87,23 +83,11 @@ export function useTeacherSW() {
 }
 
 function getTeacherInstallMeta(): TeacherInstallMeta {
-  const hostname = window.location.hostname.toLowerCase();
-  const tenant = getTenantDefByHostname(hostname);
-  const brandTitle =
-    tenant?.branding.windowTitle ||
-    tenant?.branding.loginTitle ||
-    tenant?.name ||
-    "학원플러스";
-  const iconHref =
-    TEACHER_APP_ICON_BY_HOST[hostname] ||
-    tenant?.branding.headerLogoUrl ||
-    tenant?.branding.faviconUrl ||
-    tenant?.branding.logoUrl ||
-    DEFAULT_TEACHER_APP_ICON;
+  const tenant = getTenantPwaBrand();
 
   return {
-    title: `${brandTitle} 선생님`,
-    iconHref,
+    title: `${tenant.title} 선생님`,
+    iconHref: tenant.iconHref,
   };
 }
 

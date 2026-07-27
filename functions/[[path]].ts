@@ -92,6 +92,9 @@ interface TenantMeta {
   image?: string;
   imageWidth?: number;
   imageHeight?: number;
+  pwaIcon192?: string;
+  pwaIcon512?: string;
+  appleTouchIcon?: string;
 }
 
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
@@ -170,7 +173,7 @@ interface WebManifestIcon {
   purpose: string;
 }
 
-interface TeacherWebManifest {
+interface AppWebManifest {
   name: string;
   short_name: string;
   description: string;
@@ -308,18 +311,18 @@ const FALLBACK_META: Record<string, TenantMeta> = {
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
-  "tchul.com":          { title: "박철 과학", icon: "/tenants/tchul/icon.png" },
-  "www.tchul.com":      { title: "박철 과학", icon: "/tenants/tchul/icon.png" },
-  "ymath.co.kr":        { title: "Y_math", icon: "/tenants/ymath/icon.png" },
-  "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/icon.png" },
-  "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
-  "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/icon.png" },
+  "tchul.com":          { title: "박철 과학", icon: "/tenants/tchul/pwa-192.png", icon512: "/tenants/tchul/pwa-512.png" },
+  "www.tchul.com":      { title: "박철 과학", icon: "/tenants/tchul/pwa-192.png", icon512: "/tenants/tchul/pwa-512.png" },
+  "ymath.co.kr":        { title: "Y_math", icon: "/tenants/ymath/pwa-192.png", icon512: "/tenants/ymath/pwa-512.png" },
+  "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/pwa-192.png", icon512: "/tenants/ymath/pwa-512.png" },
+  "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
+  "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
   "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png", icon512: "/tenants/hakwonplus/pwa-512.png", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
   "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png", icon512: "/tenants/hakwonplus/pwa-512.png", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
-  "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/icon.png" },
-  "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/icon.png" },
-  "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/logo.png" },
-  "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/logo.png" },
+  "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
+  "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
+  "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
+  "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
 };
 
 function iconContentType(icon: string): string {
@@ -328,36 +331,63 @@ function iconContentType(icon: string): string {
   return "image/png";
 }
 
-function teacherPwaMetaForHost(host: string): TenantPwaMeta {
+async function pwaMetaForHost(host: string): Promise<TenantPwaMeta> {
   const fallback = FALLBACK_META[host];
-  return FALLBACK_TEACHER_PWA[host] ?? {
-    title: fallback?.title ?? "학원플러스",
-    icon: fallback?.favicon ?? "/teacher-icons/icon-192.svg",
+  const known = FALLBACK_TEACHER_PWA[host];
+  if (known) return known;
+
+  const apiMeta = await fetchOgMeta(host);
+  const neutralIcon = "/teacher-icons/icon-192.svg";
+  return {
+    title: apiMeta?.title ?? fallback?.title ?? host.split(".")[0] ?? "학원",
+    icon:
+      apiMeta?.pwaIcon192
+      ?? apiMeta?.favicon
+      ?? fallback?.favicon
+      ?? neutralIcon,
+    icon512: apiMeta?.pwaIcon512 ?? apiMeta?.pwaIcon192 ?? neutralIcon,
   };
 }
 
-function buildTeacherManifest(host: string): TeacherWebManifest {
-  const meta = teacherPwaMetaForHost(host);
+async function buildAppManifest(
+  host: string,
+  audience: "teacher" | "student",
+): Promise<AppWebManifest> {
+  const meta = await pwaMetaForHost(host);
   const icon = normalizeImagePath(meta.icon);
   const icon512 = normalizeImagePath(meta.icon512 ?? meta.icon);
   const iconType = iconContentType(icon);
   const icon512Type = iconContentType(icon512);
-  const name = `${meta.title} 선생님`;
+  const isTeacher = audience === "teacher";
+  const audienceLabel = isTeacher ? "선생님" : "학생";
+  const startUrl = isTeacher ? "/teacher" : "/student";
 
   return {
-    name,
+    name: `${meta.title} ${audienceLabel}`,
     short_name: meta.title,
-    description: `${meta.title} 선생님 전용 모바일 앱 - 출석, 성적, 학생 관리`,
-    id: "/teacher",
-    start_url: "/teacher",
-    scope: "/teacher",
+    description: isTeacher
+      ? `${meta.title} 선생님 전용 모바일 앱 - 출석, 성적, 학생 관리`
+      : `${meta.title} 학생 전용 모바일 앱 - 수업, 과제, 성적 확인`,
+    id: startUrl,
+    start_url: startUrl,
+    scope: startUrl,
     display: "standalone",
     orientation: "portrait",
     theme_color: meta.themeColor ?? "#3b82f6",
     background_color: meta.backgroundColor ?? "#f8fafc",
     icons: [
-      { src: icon, sizes: "192x192", type: iconType, purpose: "any" },
-      { src: icon512, sizes: "512x512", type: icon512Type, purpose: "any maskable" },
+      {
+        src: icon,
+        sizes: icon.includes("/pwa-192.") ? "192x192" : "any",
+        type: iconType,
+        purpose: "any",
+      },
+      {
+        src: icon512,
+        sizes: icon512.includes("/pwa-512.") ? "512x512" : "any",
+        type: icon512Type,
+        purpose: "any maskable",
+      },
     ],
     categories: ["education", "productivity"],
     lang: "ko",
@@ -380,12 +410,24 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
       cf: { cacheTtl: 300 } as RequestInitCfProperties,
     });
     if (!res.ok) return null;
-    const json = await res.json() as { title?: string; description?: string; image?: string };
+    const json = await res.json() as {
+      title?: string;
+      description?: string;
+      image?: string;
+      favicon?: string;
+      pwa_icon_192?: string;
+      pwa_icon_512?: string;
+      apple_touch_icon?: string;
+    };
     if (!json.title) return null;
     const meta: TenantMeta = {
       title: json.title,
       description: json.description || `${json.title} 학습 플랫폼`,
       image: json.image || undefined,
+      favicon: json.favicon || undefined,
+      pwaIcon192: json.pwa_icon_192 || undefined,
+      pwaIcon512: json.pwa_icon_512 || undefined,
+      appleTouchIcon: json.apple_touch_icon || undefined,
     };
     ogCache[host] = { data: meta, ts: Date.now() };
     return meta;
@@ -565,8 +607,9 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
     });
   }
 
-  if (pathname === "/teacher-manifest.json") {
-    return new Response(JSON.stringify(buildTeacherManifest(host), null, 2), {
+  if (pathname === "/teacher-manifest.json" || pathname === "/student-manifest.json") {
+    const audience = pathname.startsWith("/teacher") ? "teacher" : "student";
+    return new Response(JSON.stringify(await buildAppManifest(host, audience), null, 2), {
       status: 200,
       headers: {
         "Content-Type": "application/manifest+json; charset=utf-8",

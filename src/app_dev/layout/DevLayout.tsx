@@ -5,6 +5,7 @@ import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";
 import { CommandPalette } from "@dev/shared/components/CommandPalette";
 import { useCommandPaletteHotkey } from "@dev/shared/components/useCommandPaletteHotkey";
+import { useDevPwa } from "@dev/shared/hooks/useDevPwa";
 import s from "./DevLayout.module.css";
 
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ export default function DevLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandPaletteHotkey(setPaletteOpen);
+  useDevPwa();
 
   // 백엔드 OWNER_TENANT_ID(SSOT). isPlatformAdmin 미지원 백엔드는 tenantCode로 폴백.
   if (program) {

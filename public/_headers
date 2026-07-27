@@ -15,3 +15,16 @@
 /teacher-sw.js
   Cache-Control: no-cache
   Service-Worker-Allowed: /teacher
+
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+/dev-manifest.json
+  Cache-Control: no-cache
+
+/student-manifest.json
+  Cache-Control: no-cache
+
+/teacher-manifest.json
+  Cache-Control: no-cache
