@@ -48,10 +48,26 @@ export async function downloadExamResultTemplate(
   examId: number,
   examTitle: string,
 ): Promise<void> {
-  const response = await api.get<Blob>(
-    `/results/admin/exams/${examId}/result-import/template/`,
-    { responseType: "blob", timeout: 60_000 },
-  );
+  let response;
+  try {
+    response = await api.get<Blob>(
+      `/results/admin/exams/${examId}/result-import/template/`,
+      { responseType: "blob", timeout: 60_000 },
+    );
+  } catch (error) {
+    const data = (error as { response?: { data?: unknown } })?.response?.data;
+    if (data instanceof Blob) {
+      let detail = "";
+      try {
+        const payload = JSON.parse(await data.text()) as { detail?: unknown };
+        detail = typeof payload.detail === "string" ? payload.detail : "";
+      } catch {
+        // Keep the original request error when the response is not JSON.
+      }
+      if (detail) throw new Error(detail);
+    }
+    throw error;
+  }
   const safeTitle = String(examTitle || "시험")
     .replace(/[\\/:*?"<>|]/g, "_")
     .trim();

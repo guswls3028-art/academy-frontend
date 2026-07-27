@@ -311,12 +311,13 @@ export default function CreateRegularExamModal({
         if (Number(item.pass_score) > Number(item.max_score)) {
           throw new Error("합격 점수가 만점을 초과합니다.");
         }
-        // Create new exam in current session (copy — no template link)
+        // Create an independent exam while preserving the source question structure.
         const res = await api.post("/exams/", {
           title: item.title,
           description: "",
           exam_type: "regular",
           session_id: sessionId,
+          source_exam_id: item.id,
           max_score: item.max_score,
           pass_score: item.pass_score,
           answer_visibility: "hidden",
