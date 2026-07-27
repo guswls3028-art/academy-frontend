@@ -10,9 +10,17 @@ import {
   useBillingInvoices,
   useExtendSubscription,
   useMarkInvoicePaid,
+  useBankTransferNotices,
+  useConfirmBankTransferNotice,
+  useRejectBankTransferNotice,
+  useMarkTaxInvoiceIssued,
 } from "@dev/domains/billing/hooks/useBilling";
 import { useDevToast } from "@dev/shared/components/useDevToast";
-import type { TenantSubscriptionDto, InvoiceDto } from "@dev/domains/billing/api/billing.api";
+import type {
+  TenantSubscriptionDto,
+  InvoiceDto,
+  BankTransferNoticeDto,
+} from "@dev/domains/billing/api/billing.api";
 import { dottedDateText, wonText } from "@/shared/utils/displayText";
 import { formatLocalDate } from "@/shared/utils/localDate";
 import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
@@ -68,10 +76,10 @@ const PLAN_LABELS: Record<string, string> = {
 
 const BILLING_MODE_LABELS: Record<string, string> = {
   AUTO_CARD: "카드 자동",
-  MANUAL_INVOICE: "수동 청구",
+  INVOICE_REQUEST: "계좌이체 청구",
 };
 
-type Tab = "tenants" | "invoices";
+type Tab = "tenants" | "invoices" | "bankTransfers";
 
 const EXTEND_PRESETS = [
   { days: 30, label: "+30일", caption: "1개월" },
@@ -93,6 +101,7 @@ export default function BillingPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [expiringOnly, setExpiringOnly] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState("");
+  const [bankTransferPage, setBankTransferPage] = useState(1);
 
   // Queries
   const { data: tenants, isLoading: tenantsLoading } = useBillingTenants();
@@ -100,10 +109,19 @@ export default function BillingPage() {
   const { data: invoicesData, isLoading: invoicesLoading } = useBillingInvoices(
     invoiceStatus ? { status: invoiceStatus } : undefined,
   );
+  const {
+    data: bankTransfers,
+    isLoading: bankTransfersLoading,
+    isError: bankTransfersError,
+    refetch: refetchBankTransfers,
+  } = useBankTransferNotices(bankTransferPage);
 
   // Mutations
   const extendMut = useExtendSubscription();
   const markPaidMut = useMarkInvoicePaid();
+  const confirmTransferMut = useConfirmBankTransferNotice();
+  const rejectTransferMut = useRejectBankTransferNotice();
+  const markTaxIssuedMut = useMarkTaxInvoiceIssued();
 
   // Modal state
   const [extendModal, setExtendModal] = useState<TenantSubscriptionDto | null>(null);
@@ -172,6 +190,71 @@ export default function BillingPage() {
     }
   }
 
+  async function handleConfirmTransfer(notice: BankTransferNoticeDto) {
+    const accepted = confirm(
+      `${notice.invoice_number} 입금을 확인하시겠습니까?\n` +
+      `테넌트: ${notice.tenant_name || notice.tenant_code}\n` +
+      `입금자: ${notice.depositor_name}\n` +
+      `금액: ${wonText(notice.amount)}\n\n` +
+      "[LIVE] 확인 즉시 실제 구독 기간과 수납 장부에 반영됩니다.",
+    );
+    if (!accepted) return;
+    try {
+      await confirmTransferMut.mutateAsync(notice.id);
+      setBankTransferPage(1);
+      toast(`${notice.invoice_number} 입금 확인 완료`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast(
+        "입금 확인 실패: " +
+          (err.response?.data?.detail || String(error)),
+        "error",
+      );
+    }
+  }
+
+  async function handleRejectTransfer(notice: BankTransferNoticeDto) {
+    const reason = prompt("고객에게 표시할 반려 사유를 입력하세요.");
+    if (!reason?.trim()) return;
+    try {
+      await rejectTransferMut.mutateAsync({
+        noticeId: notice.id,
+        reason: reason.trim(),
+      });
+      setBankTransferPage(1);
+      toast(`${notice.invoice_number} 입금 신고 반려 완료`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast(
+        "반려 실패: " + (err.response?.data?.detail || String(error)),
+        "error",
+      );
+    }
+  }
+
+  async function handleTaxIssued(notice: BankTransferNoticeDto) {
+    if (!notice.tax_invoice_issue_id) return;
+    const issueNumber = prompt(
+      "홈택스에서 발행한 국세청 승인번호를 입력하세요.",
+    );
+    if (!issueNumber?.trim()) return;
+    try {
+      await markTaxIssuedMut.mutateAsync({
+        issueId: notice.tax_invoice_issue_id,
+        issueNumber: issueNumber.trim(),
+      });
+      setBankTransferPage(1);
+      toast(`${notice.invoice_number} 세금계산서 발행 기록 완료`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast(
+        "발행 기록 실패: " +
+          (err.response?.data?.detail || String(error)),
+        "error",
+      );
+    }
+  }
+
   return (
     <>
       <header className={s.header}>
@@ -199,6 +282,12 @@ export default function BillingPage() {
         <div className={b.tabBar}>
           <TabBtn active={tab === "tenants"} onClick={() => setTab("tenants")}>테넌트 구독</TabBtn>
           <TabBtn active={tab === "invoices"} onClick={() => setTab("invoices")}>인보이스</TabBtn>
+          <TabBtn active={tab === "bankTransfers"} onClick={() => setTab("bankTransfers")}>
+            입금 신고
+            {(bankTransfers?.count ?? 0) > 0 && (
+              <span className={b.tabDot} aria-label="처리 대기 건 있음" />
+            )}
+          </TabBtn>
         </div>
 
         {/* ── Tenants Tab ── */}
@@ -427,6 +516,176 @@ export default function BillingPage() {
             </div>
           </>
         )}
+
+        {/* ── Bank Transfer Notices Tab ── */}
+        {tab === "bankTransfers" && (
+          <div className={s.card}>
+            {bankTransfersError ? (
+              <div className={b.queueError} role="alert">
+                <strong>입금 신고 목록을 불러오지 못했습니다.</strong>
+                <button
+                  type="button"
+                  className={`${s.btn} ${s.btnSm}`}
+                  onClick={() => refetchBankTransfers()}
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : bankTransfersLoading ? (
+              <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
+            ) : (
+              <>
+                <div className={b.tableScroller}>
+                  <table className={s.table}>
+                  <thead>
+                    <tr>
+                      <th>요청 시각</th>
+                      <th>테넌트 / 청구서</th>
+                      <th>입금자</th>
+                      <th>금액</th>
+                      <th>이체 시각</th>
+                      <th>상태</th>
+                      <th>세금계산서</th>
+                      <th>조작</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bankTransfers?.results.map((notice) => (
+                      <tr key={notice.id}>
+                        <td className={b.mutedSmallCell}>
+                          {notice.submitted_at.replace("T", " ").slice(0, 16)}
+                        </td>
+                        <td>
+                          <strong className={b.noticeTenant}>
+                            {notice.tenant_name || notice.tenant_code}
+                          </strong>
+                          <span className={b.noticeInvoice}>
+                            {notice.invoice_number}
+                          </span>
+                        </td>
+                        <td>{notice.depositor_name}</td>
+                        <td className={b.numericCell}>
+                          {wonText(notice.amount)}
+                        </td>
+                        <td className={b.mutedSmallCell}>
+                          {notice.deposited_at.replace("T", " ").slice(0, 16)}
+                        </td>
+                        <td>
+                          <NoticeStatusBadge status={notice.status} />
+                          {notice.rejection_reason && (
+                            <span className={b.rejectionReason}>
+                              {notice.rejection_reason}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <TaxStatusBadge
+                            requested={notice.tax_invoice_requested}
+                            status={notice.tax_invoice_status}
+                          />
+                          {notice.tax_invoice_requested && (
+                            <details className={b.taxDetails}>
+                              <summary>발행정보</summary>
+                              <div>
+                                <strong>
+                                  {notice.business_profile_snapshot.business_name ||
+                                    "-"}
+                                </strong>
+                                <span>
+                                  {notice.business_profile_snapshot.business_registration_number ||
+                                    "-"}
+                                </span>
+                                <span>
+                                  {notice.business_profile_snapshot.tax_invoice_email ||
+                                    "-"}
+                                </span>
+                                <span>
+                                  {notice.business_profile_snapshot.representative_name ||
+                                    "-"}
+                                </span>
+                              </div>
+                            </details>
+                          )}
+                        </td>
+                        <td>
+                          <div className={b.rowActions}>
+                            {notice.status === "SUBMITTED" && (
+                              <>
+                                <button
+                                  className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`}
+                                  onClick={() => handleConfirmTransfer(notice)}
+                                  disabled={confirmTransferMut.isPending}
+                                >
+                                  입금 확인
+                                </button>
+                                <button
+                                  className={`${s.btn} ${s.btnSm}`}
+                                  onClick={() => handleRejectTransfer(notice)}
+                                  disabled={rejectTransferMut.isPending}
+                                >
+                                  반려
+                                </button>
+                              </>
+                            )}
+                            {notice.tax_invoice_status === "READY" &&
+                              notice.tax_invoice_issue_id && (
+                                <button
+                                  className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`}
+                                  onClick={() => handleTaxIssued(notice)}
+                                  disabled={markTaxIssuedMut.isPending}
+                                >
+                                  발행 완료 기록
+                                </button>
+                              )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!bankTransfers?.results ||
+                      bankTransfers.results.length === 0) && (
+                      <tr>
+                        <td colSpan={8} className={b.emptyCell}>
+                          입금 확인 요청이 없습니다.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  </table>
+                </div>
+                {bankTransfers && bankTransfers.count > 0 && (
+                  <div className={b.pagination}>
+                    <span>
+                      전체 {bankTransfers.count.toLocaleString()}건 ·{" "}
+                      {bankTransferPage}페이지
+                    </span>
+                    <div>
+                      <button
+                        type="button"
+                        className={`${s.btn} ${s.btnSm}`}
+                        disabled={!bankTransfers.previous}
+                        onClick={() =>
+                          setBankTransferPage((page) => Math.max(1, page - 1))
+                        }
+                      >
+                        이전
+                      </button>
+                      <button
+                        type="button"
+                        className={`${s.btn} ${s.btnSm}`}
+                        disabled={!bankTransfers.next}
+                        onClick={() =>
+                          setBankTransferPage((page) => page + 1)
+                        }
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Extend Modal ── */}
@@ -531,6 +790,41 @@ function InvoiceStatusBadge({ status }: { status: string }) {
   };
   return (
     <span className={b.invoiceStatusBadge} data-status={statusKey(status)}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+function NoticeStatusBadge({ status }: { status: string }) {
+  const labels: Record<string, string> = {
+    SUBMITTED: "확인 대기",
+    CONFIRMED: "입금 확인",
+    REJECTED: "반려",
+  };
+  return (
+    <span className={b.invoiceStatusBadge} data-status={statusKey(status)}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+function TaxStatusBadge({
+  requested,
+  status,
+}: {
+  requested: boolean;
+  status: string;
+}) {
+  if (!requested) return <span className={b.mutedSmallCell}>미요청</span>;
+  const labels: Record<string, string> = {
+    REQUESTED: "입금 대기",
+    READY: "발행 필요",
+    ISSUED: "발행 완료",
+    FAILED: "발행 실패",
+    NOT_REQUESTED: "미요청",
+  };
+  return (
+    <span className={b.taxStatusBadge} data-status={statusKey(status)}>
       {labels[status] || status}
     </span>
   );

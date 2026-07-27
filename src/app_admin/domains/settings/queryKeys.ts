@@ -4,6 +4,7 @@ import { legalQueryKeys } from "@/shared/api/queryKeys/legal";
 
 export const adminSettingsQueryKeys = {
   billingCards: ["billing-cards"] as const,
+  bankTransfer: ["billing-bank-transfer"] as const,
   subscriptionInfo: ["subscription-info"] as const,
   legalConfig: legalQueryKeys.config,
 };

@@ -28,6 +28,70 @@ export type CardRegistrationParams = {
   failUrl: string;
 };
 
+export type BusinessProfile = {
+  id: number | null;
+  business_name: string;
+  representative_name: string;
+  business_registration_number: string;
+  address: string;
+  business_type: string;
+  business_item: string;
+  tax_invoice_email: string;
+  manager_name: string;
+  manager_phone: string;
+  manager_email: string;
+};
+
+export type BankTransferNotice = {
+  id: number;
+  invoice: number;
+  invoice_number: string;
+  invoice_status: string;
+  amount: number;
+  supply_amount: number;
+  tax_amount: number;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  depositor_name: string;
+  deposited_at: string;
+  status: "SUBMITTED" | "CONFIRMED" | "REJECTED";
+  tax_invoice_requested: boolean;
+  tax_invoice_issue_id: number | null;
+  tax_invoice_status: "NOT_REQUESTED" | "REQUESTED" | "READY" | "ISSUED" | "FAILED";
+  tax_invoice_issue_number: string;
+  submitted_at: string;
+  reviewed_at: string | null;
+  rejection_reason: string;
+};
+
+export type BankTransferInvoice = {
+  id: number;
+  invoice_number: string;
+  billing_mode: string;
+  total_amount: number;
+  supply_amount: number;
+  tax_amount: number;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  status: string;
+  status_display: string;
+  bank_transfer_notice: BankTransferNotice | null;
+};
+
+export type BankTransferSummary = {
+  bank_account: {
+    enabled: boolean;
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
+  };
+  billing_mode: string;
+  business_profile: BusinessProfile | null;
+  invoices: BankTransferInvoice[];
+};
+
 // ── API Functions ──
 
 /** 등록된 카드 목록 조회 */
@@ -71,5 +135,40 @@ export async function processCardCallback(params: {
   const res = await api.post("/billing/card/register/callback/", {
     authKey: params.authKey,
   });
+  return res.data;
+}
+
+export async function fetchBankTransferSummary(): Promise<BankTransferSummary> {
+  const res = await api.get<BankTransferSummary>("/billing/bank-transfer/");
+  return res.data;
+}
+
+export async function activateBankTransfer(): Promise<BankTransferSummary> {
+  const res = await api.post<BankTransferSummary>(
+    "/billing/bank-transfer/activate/",
+  );
+  return res.data;
+}
+
+export async function saveBusinessProfile(
+  data: Omit<BusinessProfile, "id">,
+): Promise<BusinessProfile> {
+  const res = await api.patch<BusinessProfile>(
+    "/billing/business-profile/",
+    data,
+  );
+  return res.data;
+}
+
+export async function submitBankTransferNotice(data: {
+  invoice_id: number;
+  depositor_name: string;
+  deposited_at: string;
+  tax_invoice_requested: boolean;
+}): Promise<BankTransferNotice> {
+  const res = await api.post<BankTransferNotice>(
+    "/billing/bank-transfer/notices/",
+    data,
+  );
   return res.data;
 }

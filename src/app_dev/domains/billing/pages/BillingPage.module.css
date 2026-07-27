@@ -73,6 +73,16 @@
   font-weight: 600;
 }
 
+.tabDot {
+  background: var(--dev-danger);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: 1px;
+  width: 6px;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -243,6 +253,129 @@
 .invoiceStatusBadge[data-status="pending"] {
   background: #eff6ff;
   color: #3b82f6;
+}
+
+.invoiceStatusBadge[data-status="submitted"] {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning);
+}
+
+.invoiceStatusBadge[data-status="confirmed"] {
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+}
+
+.invoiceStatusBadge[data-status="rejected"] {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.noticeTenant,
+.noticeInvoice {
+  display: block;
+}
+
+.noticeTenant {
+  color: var(--dev-text);
+  font-size: 12px;
+}
+
+.noticeInvoice {
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.rejectionReason {
+  color: var(--dev-danger);
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+  max-width: 180px;
+}
+
+.taxStatusBadge {
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #475569;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+.taxStatusBadge[data-status="ready"] {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning);
+}
+
+.taxStatusBadge[data-status="issued"] {
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+}
+
+.taxStatusBadge[data-status="failed"] {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.taxDetails {
+  margin-top: 5px;
+}
+
+.taxDetails summary {
+  color: var(--dev-primary);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.taxDetails div {
+  background: var(--dev-surface);
+  border: 1px solid var(--dev-border);
+  border-radius: 6px;
+  box-shadow: var(--dev-shadow-sm);
+  display: grid;
+  gap: 2px;
+  margin-top: 5px;
+  min-width: 190px;
+  padding: 8px;
+}
+
+.taxDetails strong,
+.taxDetails span {
+  color: var(--dev-text);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.taxDetails span {
+  color: var(--dev-text-muted);
+}
+
+.queueError {
+  align-items: center;
+  color: var(--dev-danger);
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.pagination {
+  align-items: center;
+  border-top: 1px solid var(--dev-border);
+  color: var(--dev-text-muted);
+  display: flex;
+  font-size: 11px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.pagination > div {
+  display: flex;
+  gap: 6px;
 }
 
 .invoiceStatusBadge[data-status="paid"] {

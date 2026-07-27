@@ -1,0 +1,475 @@
+.section {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 20px 22px 18px;
+}
+
+.eyebrow {
+  color: var(--color-primary, #4f46e5);
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin-bottom: 5px;
+}
+
+.header h3,
+.section > h3 {
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.header p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+
+.secureBadge {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-primary, #4f46e5) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #4f46e5) 20%, transparent);
+  border-radius: 999px;
+  color: var(--color-primary, #4f46e5);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 5px;
+  padding: 5px 9px;
+}
+
+.accountSlip {
+  align-items: center;
+  background: #111827;
+  color: #fff;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 0.8fr 1.55fr 0.8fr auto;
+  padding: 18px 22px;
+  position: relative;
+}
+
+.accountSlip::before {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.12) 0,
+    rgba(255, 255, 255, 0.12) 5px,
+    transparent 5px,
+    transparent 9px
+  );
+  content: "";
+  height: 2px;
+  left: 22px;
+  position: absolute;
+  right: 22px;
+  top: 0;
+}
+
+.accountSlip span {
+  color: #94a3b8;
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.accountSlip strong {
+  color: #fff;
+  display: block;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.accountNumber strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.035em;
+}
+
+.copyButton {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.copyButton:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.activation {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 20px 22px;
+}
+
+.activation strong {
+  color: var(--color-text-primary);
+  display: block;
+  font-size: 14px;
+}
+
+.activation p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.activation button,
+.submitButton {
+  background: var(--color-primary, #4f46e5);
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.activation button:disabled,
+.submitButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.invoiceBand {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-divider);
+  display: flex;
+  gap: 22px;
+  justify-content: space-between;
+  padding: 20px 22px;
+}
+
+.invoiceBand > div > span {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 650;
+  margin-bottom: 3px;
+}
+
+.invoiceBand > div > strong {
+  color: var(--color-text-primary);
+  display: block;
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.invoiceBand small {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.invoiceBand dl {
+  border-left: 1px solid var(--color-border-divider);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 210px;
+  padding-left: 20px;
+}
+
+.invoiceBand dl div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.invoiceBand dt {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.invoiceBand dd {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  margin: 0;
+}
+
+.form {
+  padding: 22px;
+}
+
+.formHeading {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stepNumber {
+  align-items: center;
+  background: #111827;
+  border-radius: 7px;
+  color: #fff;
+  display: flex;
+  flex: 0 0 26px;
+  font-size: 11px;
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+}
+
+.formHeading h4 {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  margin: 1px 0 3px;
+}
+
+.formHeading p {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: 13px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fieldGrid label {
+  min-width: 0;
+}
+
+.fieldGrid label > span {
+  color: var(--color-text-secondary);
+  display: block;
+  font-size: 11px;
+  font-weight: 650;
+  margin-bottom: 6px;
+}
+
+.fieldGrid input {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  height: 40px;
+  outline: none;
+  padding: 0 11px;
+  width: 100%;
+}
+
+.fieldGrid input:focus {
+  border-color: var(--color-primary, #4f46e5);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4f46e5) 12%, transparent);
+}
+
+.wideField {
+  grid-column: 1 / -1;
+}
+
+.taxToggle {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--color-primary, #4f46e5) 5%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary, #4f46e5) 17%, var(--color-border-divider));
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 13px 14px;
+}
+
+.taxToggle > input {
+  margin: 3px 0 0;
+}
+
+.taxToggle > span {
+  display: grid;
+  gap: 2px 8px;
+  grid-template-columns: auto 1fr;
+}
+
+.taxToggle svg {
+  color: var(--color-primary, #4f46e5);
+  grid-row: 1 / 3;
+}
+
+.taxToggle strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.taxToggle small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.businessPanel {
+  border-top: 1px solid var(--color-border-divider);
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.businessPanel .stepNumber {
+  background: var(--color-primary, #4f46e5);
+}
+
+.submitButton {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.statusPanel {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--color-semantic-warning, #f59e0b) 7%, var(--color-bg-surface));
+  border-bottom: 1px solid var(--color-border-divider);
+  display: flex;
+  gap: 11px;
+  padding: 17px 22px;
+}
+
+.statusPanel[data-status="confirmed"] {
+  background: color-mix(in srgb, var(--color-semantic-success, #22c55e) 7%, var(--color-bg-surface));
+}
+
+.statusPanel[data-status="rejected"] {
+  background: color-mix(in srgb, var(--color-semantic-danger, #ef4444) 7%, var(--color-bg-surface));
+}
+
+.statusIcon {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--color-semantic-warning, #f59e0b);
+  display: flex;
+  flex: 0 0 30px;
+  font-size: 15px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+}
+
+[data-status="confirmed"] .statusIcon {
+  color: var(--color-semantic-success, #22c55e);
+}
+
+[data-status="rejected"] .statusIcon {
+  color: var(--color-semantic-danger, #ef4444);
+}
+
+.statusPanel strong {
+  color: var(--color-text-primary);
+  display: block;
+  font-size: 13px;
+  margin-top: 1px;
+}
+
+.statusPanel p {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.feedback,
+.errorBox,
+.unavailable {
+  border-top: 1px solid var(--color-border-divider);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin: 0;
+  padding: 13px 22px;
+}
+
+.feedback[data-tone="success"] {
+  color: var(--color-semantic-success, #16a34a);
+}
+
+.feedback[data-tone="error"],
+.errorBox {
+  color: var(--color-semantic-danger, #dc2626);
+}
+
+.loading {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-bottom: 20px;
+  padding: 28px 22px;
+}
+
+@media (max-width: 680px) {
+  .header,
+  .activation,
+  .invoiceBand {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .secureBadge {
+    align-self: flex-start;
+  }
+
+  .accountSlip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .accountNumber {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .copyButton {
+    grid-column: 1 / -1;
+  }
+
+  .invoiceBand dl {
+    border-left: 0;
+    border-top: 1px solid var(--color-border-divider);
+    min-width: 0;
+    padding-left: 0;
+    padding-top: 14px;
+  }
+
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .wideField {
+    grid-column: auto;
+  }
+}

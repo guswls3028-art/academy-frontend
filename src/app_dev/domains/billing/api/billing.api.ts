@@ -73,6 +73,41 @@ export type DashboardDto = {
   total_tenants: number;
 };
 
+export type BankTransferNoticeDto = {
+  id: number;
+  tenant_code: string;
+  tenant_name: string;
+  invoice: number;
+  invoice_number: string;
+  invoice_status: string;
+  supply_amount: number;
+  tax_amount: number;
+  amount: number;
+  due_date: string;
+  depositor_name: string;
+  deposited_at: string;
+  status: "SUBMITTED" | "CONFIRMED" | "REJECTED";
+  tax_invoice_requested: boolean;
+  tax_invoice_issue_id: number | null;
+  tax_invoice_status: string;
+  tax_invoice_issue_number: string;
+  business_profile_snapshot: {
+    business_name?: string;
+    representative_name?: string;
+    business_registration_number?: string;
+    address?: string;
+    business_type?: string;
+    business_item?: string;
+    tax_invoice_email?: string;
+    manager_name?: string;
+    manager_phone?: string;
+    manager_email?: string;
+  };
+  submitted_at: string;
+  reviewed_at: string | null;
+  rejection_reason: string;
+};
+
 // ── API calls ──
 
 export async function getTenantSubscriptions(): Promise<TenantSubscriptionDto[]> {
@@ -103,5 +138,57 @@ export async function markInvoicePaid(invoiceId: number): Promise<InvoiceDto> {
 
 export async function getDashboard(): Promise<DashboardDto> {
   const res = await api.get<DashboardDto>("/billing/admin/dashboard/");
+  return res.data;
+}
+
+export async function getBankTransferNotices(params?: {
+  page?: number;
+  actionable?: boolean;
+}): Promise<{
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: BankTransferNoticeDto[];
+}> {
+  const res = await api.get<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: BankTransferNoticeDto[];
+  }>(
+    "/billing/admin/bank-transfer/notices/",
+    { params },
+  );
+  return res.data;
+}
+
+export async function confirmBankTransferNotice(
+  noticeId: number,
+): Promise<BankTransferNoticeDto> {
+  const res = await api.post<BankTransferNoticeDto>(
+    `/billing/admin/bank-transfer/notices/${noticeId}/confirm/`,
+  );
+  return res.data;
+}
+
+export async function rejectBankTransferNotice(
+  noticeId: number,
+  reason: string,
+): Promise<BankTransferNoticeDto> {
+  const res = await api.post<BankTransferNoticeDto>(
+    `/billing/admin/bank-transfer/notices/${noticeId}/reject/`,
+    { reason },
+  );
+  return res.data;
+}
+
+export async function markTaxInvoiceIssued(
+  issueId: number,
+  issueNumber: string,
+): Promise<BankTransferNoticeDto> {
+  const res = await api.post<BankTransferNoticeDto>(
+    `/billing/admin/tax-invoices/${issueId}/mark-issued/`,
+    { issue_number: issueNumber },
+  );
   return res.data;
 }
