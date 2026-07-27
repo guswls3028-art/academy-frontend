@@ -172,7 +172,7 @@ jobs:
           DNS_PAYLOAD=$(jq -n \
             --arg name "$DOMAIN" \
             --arg content "$DNS_TARGET" \
-            '{type: "CNAME", name: $name, content: $content, ttl: 1, proxied: true}')
+            '{type: "CNAME", name: $name, content: $content, ttl: 1, proxied: false}')
 
           if [ -n "$DNS_RECORD_ID" ] && [ "$DNS_RECORD_TYPE" != "CNAME" ]; then
             echo "::error::${DOMAIN} already has a non-CNAME DNS record"
@@ -184,7 +184,7 @@ jobs:
           else
             CURRENT_TARGET=$(jq -r '.result[0].content // empty' <<<"$DNS_RESPONSE")
             CURRENT_PROXIED=$(jq -r '.result[0].proxied // false' <<<"$DNS_RESPONSE")
-            if [ "$CURRENT_TARGET" != "$DNS_TARGET" ] || [ "$CURRENT_PROXIED" != "true" ]; then
+            if [ "$CURRENT_TARGET" != "$DNS_TARGET" ] || [ "$CURRENT_PROXIED" != "false" ]; then
               curl --silent --show-error --fail-with-body \
                 -X PUT "${AUTH[@]}" --data "$DNS_PAYLOAD" \
                 "${DNS_API}/${DNS_RECORD_ID}" >/dev/null
@@ -204,6 +204,19 @@ jobs:
             sleep 10
           done
 
+          DETAIL=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${API}/${DOMAIN}")
+          jq -c '{
+            status: .result.status,
+            validation: {
+              status: .result.validation_data.status,
+              error: .result.validation_data.error_message
+            },
+            verification: {
+              status: .result.verification_data.status,
+              error: .result.verification_data.error_message
+            }
+          }' <<<"$DETAIL"
           echo "::error::${DOMAIN} did not become active within 6 minutes"
           exit 1
 
