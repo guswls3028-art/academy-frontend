@@ -566,6 +566,49 @@ function Hero() {
   );
 }
 
+function TeacherTrustSection() {
+  return (
+    <section
+      className={styles.teacherTrustSection}
+      aria-labelledby="teacher-trust-title"
+      data-testid="promo-teacher-trust"
+    >
+      <div className={styles.teacherTrustInner}>
+        <header className={styles.teacherTrustCopy}>
+          <span>현장에서 이어지는 선택</span>
+          <h2 id="teacher-trust-title">입시 현장의 선생님들도 사용하고 있습니다</h2>
+          <p>두각 · 대성마이맥 · 대치메카 소속 일부 선생님의 실제 사용 사례입니다.</p>
+        </header>
+
+        <div className={styles.teacherTrustEvidence}>
+          <ul className={styles.teacherLogos} aria-label="사용 선생님 소속 기관">
+            <li data-institution="doogak">
+              <img src="/promo/teacher-logo-doogak.svg" alt="두각" width="97" height="37" />
+            </li>
+            <li data-institution="daesung-mimac">
+              <img
+                src="/promo/teacher-logo-daesung-mimac.svg"
+                alt="대성마이맥"
+                width="140"
+                height="17"
+              />
+            </li>
+            <li data-institution="daechi-mecca">
+              <img
+                src="/promo/teacher-logo-daechi-mecca.png"
+                alt="대치메카"
+                width="187"
+                height="50"
+              />
+            </li>
+          </ul>
+          <p>각 기관의 공식 제휴나 추천을 의미하지 않습니다.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FoundationSection() {
   return (
     <section id="core-system" className={styles.foundationSection} aria-labelledby="foundation-title">
@@ -778,6 +821,7 @@ export default function LandingPage() {
   return (
     <>
       <Hero />
+      <TeacherTrustSection />
       <FoundationSection />
       <StrengthSection />
       <FlowSection />

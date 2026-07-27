@@ -1,4 +1,5 @@
 .hero,
+.teacherTrustSection,
 .foundationSection,
 .strengthSection,
 .flowSection,
@@ -208,6 +209,101 @@
 
 .heroFacts svg {
   color: var(--teal);
+}
+
+.teacherTrustSection {
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.teacherTrustInner {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(520px, 1.28fr);
+  gap: 48px;
+  width: min(1160px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 32px 0;
+  align-items: center;
+}
+
+.teacherTrustCopy > span {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.teacherTrustCopy h2 {
+  margin: 8px 0 0;
+  color: var(--ink-deep);
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: 920;
+  line-height: 1.22;
+  letter-spacing: -0.04em;
+  word-break: keep-all;
+}
+
+.teacherTrustCopy > p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.teacherTrustEvidence {
+  min-width: 0;
+}
+
+.teacherLogos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  padding: 1px;
+  border: 1px solid #d4e2e2;
+  border-radius: 12px;
+  background: #d4e2e2;
+  list-style: none;
+}
+
+.teacherLogos li {
+  display: flex;
+  min-width: 0;
+  min-height: 78px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px;
+  background: #fff;
+}
+
+.teacherLogos img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.teacherLogos li[data-institution="doogak"] img {
+  width: 104px;
+}
+
+.teacherLogos li[data-institution="daesung-mimac"] img {
+  width: 150px;
+}
+
+.teacherLogos li[data-institution="daechi-mecca"] img {
+  width: 164px;
+}
+
+.teacherTrustEvidence > p {
+  margin: 7px 2px 0;
+  color: #7a8e94;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: right;
+  word-break: keep-all;
 }
 
 .heroNavigator {
@@ -1176,6 +1272,11 @@
 }
 
 @media (max-width: 900px) {
+  .teacherTrustInner {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
   .foundationIntro {
     align-items: start;
     flex-direction: column;
@@ -1201,7 +1302,8 @@
 
 @media (max-width: 720px) {
   .sectionWrap,
-  .heroInner {
+  .heroInner,
+  .teacherTrustInner {
     width: min(100% - 28px, 1160px);
   }
 
@@ -1220,6 +1322,28 @@
 
   .heroLead {
     font-size: 16px;
+  }
+
+  .teacherTrustInner {
+    gap: 20px;
+    padding: 28px 0;
+  }
+
+  .teacherTrustCopy h2 {
+    font-size: 23px;
+  }
+
+  .teacherTrustCopy > p {
+    font-size: 12px;
+  }
+
+  .teacherLogos li {
+    min-height: 68px;
+    padding: 12px;
+  }
+
+  .teacherTrustEvidence > p {
+    text-align: left;
   }
 
   .heroActions,

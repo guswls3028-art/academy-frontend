@@ -86,4 +86,23 @@ test.describe("promo navigation", () => {
     await expect.poll(async () => page.evaluate(() => document.body.style.overflow)).toBe("");
     await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
+
+  test("shows teacher usage evidence without implying an institutional partnership", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/promo`, { waitUntil: "load" });
+
+    const teacherTrust = page.getByTestId("promo-teacher-trust");
+    await expect(teacherTrust).toBeVisible();
+    await expect(teacherTrust).toContainText("소속 일부 선생님의 실제 사용 사례");
+    await expect(teacherTrust).toContainText("공식 제휴나 추천을 의미하지 않습니다");
+    await expect(teacherTrust.getByRole("img", { name: "두각" })).toBeVisible();
+    await expect(teacherTrust.getByRole("img", { name: "대성마이맥" })).toBeVisible();
+    await expect(teacherTrust.getByRole("img", { name: "대치메카" })).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(teacherTrust).toBeVisible();
+    await expect.poll(async () => page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    )).toBe(true);
+  });
 });
