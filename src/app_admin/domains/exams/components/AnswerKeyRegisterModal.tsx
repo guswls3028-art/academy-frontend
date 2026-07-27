@@ -51,6 +51,7 @@ type ExplanationState = {
   problemImageKey: string | null;
   imageUrl: string | null;
   imageKey: string | null;
+  dirty: boolean;
 };
 
 const EMPTY_QUESTIONS: ExamQuestion[] = [];
@@ -516,7 +517,7 @@ export default function AnswerKeyRegisterModal({
       }
       for (const q of sortedQuestions) {
         // 이미 사용자가 수동 수정한 draft가 있으면 유지
-        if (prev[q.id] && (prev[q.id].text || prev[q.id].problemImageUrl || prev[q.id].imageUrl)) continue;
+        if (prev[q.id]?.dirty) continue;
         const apiExpl = explByQuestionId[q.id];
         const candidate = {
           text: apiExpl?.text ?? "",
@@ -524,6 +525,7 @@ export default function AnswerKeyRegisterModal({
           problemImageKey: q.image_key ?? null,
           imageUrl: apiExpl?.image_url ?? null,
           imageKey: apiExpl?.image_key ?? null,
+          dirty: false,
         };
         const current = prev[q.id];
         if (
@@ -531,7 +533,8 @@ export default function AnswerKeyRegisterModal({
           current?.problemImageUrl === candidate.problemImageUrl &&
           current?.problemImageKey === candidate.problemImageKey &&
           current?.imageUrl === candidate.imageUrl &&
-          current?.imageKey === candidate.imageKey
+          current?.imageKey === candidate.imageKey &&
+          current?.dirty === candidate.dirty
         ) {
           continue;
         }
@@ -838,13 +841,26 @@ export default function AnswerKeyRegisterModal({
       const items = sortedQuestions
         .filter((q) => {
           const d = explanationDraft[q.id];
-          return d && (d.text || d.imageUrl || d.imageKey);
+          return d && (
+            d.text ||
+            d.imageUrl ||
+            d.imageKey ||
+            d.problemImageUrl ||
+            d.problemImageKey ||
+            (q.image_key && !d.problemImageKey)
+          );
         })
         .map((q) => {
           const d = explanationDraft[q.id];
-          const item: { question_id: number; text: string; image_key?: string } = {
+          const item: {
+            question_id: number;
+            text: string;
+            image_key?: string;
+            problem_image_key?: string;
+          } = {
             question_id: q.id,
             text: d?.text ?? "",
+            problem_image_key: d?.problemImageKey ?? "",
           };
           if (d?.imageKey) item.image_key = d.imageKey;
           return item;
@@ -854,9 +870,19 @@ export default function AnswerKeyRegisterModal({
         return;
       }
       await saveExplanationsBulk(examId, items);
-      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) });
-      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
-      feedback.success(`해설 ${items.length}건 저장 완료`);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) }),
+      ]);
+      setExplanationDraft((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([questionId, value]) => [
+            questionId,
+            { ...value, dirty: false },
+          ]),
+        ),
+      );
+      feedback.success(`이미지·해설 ${items.length}건 저장 완료`);
     } catch (error: unknown) {
       feedback.error(extractApiError(error, "해설 저장 실패"));
     } finally {
@@ -1342,6 +1368,10 @@ export default function AnswerKeyRegisterModal({
                 </div>
               ) : (
                 <>
+                <div className="answer-key-image-tab__note">
+                  <strong>문제 이미지는 오답노트에 자동으로 들어갑니다.</strong>
+                  <span>문항별로 잘라 올리면 학생의 틀린 문제만 모아 PDF로 만들 수 있습니다.</span>
+                </div>
                 <div className="answer-key-explanation-table-wrap">
                   <table className="answer-key-explanation-table">
                     <thead>
@@ -1358,9 +1388,12 @@ export default function AnswerKeyRegisterModal({
                           key={q.id}
                           question={q}
                           examId={examId}
-                          explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, problemImageKey: null, imageUrl: null, imageKey: null }}
+                          explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, problemImageKey: null, imageUrl: null, imageKey: null, dirty: false }}
                           onChange={(next) =>
-                            setExplanationDraft((prev) => ({ ...prev, [q.id]: next }))
+                            setExplanationDraft((prev) => ({
+                              ...prev,
+                              [q.id]: { ...next, dirty: true },
+                            }))
                           }
                         />
                       ))}
@@ -1410,7 +1443,7 @@ export default function AnswerKeyRegisterModal({
                 loading={explanationSaveBusy}
                 onClick={handleSaveExplanations}
               >
-                해설 저장
+                이미지·해설 저장
               </Button>
             )}
           </>
@@ -1662,7 +1695,7 @@ function ImageCell({
       const { image_url, image_key } = await uploadExamImage(examId, file);
       onImageChange(image_url, image_key);
     } catch {
-      onImageChange(URL.createObjectURL(file));
+      feedback.error("이미지를 업로드하지 못했습니다. 다시 시도해 주세요.");
     } finally {
       setUploading(false);
     }
@@ -1682,11 +1715,7 @@ function ImageCell({
     e.target.value = "";
   }, [uploadAndSet]);
 
-  const handleClick = useCallback(() => {
-    containerRef.current?.focus();
-  }, []);
-
-  const handleDoubleClick = useCallback(() => {
+  const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
@@ -1696,16 +1725,27 @@ function ImageCell({
         ref={containerRef}
         className="answer-key-explanation-cell answer-key-explanation-cell--image"
         tabIndex={0}
+        aria-label={`${label} 붙여넣기 영역`}
         onPaste={handlePaste}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
       >
-        <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="ds-sr-only"
+          aria-label={`${label} 파일 선택`}
+          onChange={handleFile}
+        />
         <div className="answer-key-explanation-cell__image-wrap">
           <img src={imageUrl} alt={label} className="answer-key-explanation-cell__img" />
-          <Button type="button" intent="ghost" size="sm" onClick={onClear}>
-            변경
-          </Button>
+          <div className="answer-key-explanation-cell__image-actions">
+            <Button type="button" intent="ghost" size="sm" onClick={openFilePicker}>
+              변경
+            </Button>
+            <Button type="button" intent="ghost" size="sm" onClick={onClear}>
+              삭제
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -1716,11 +1756,17 @@ function ImageCell({
       ref={containerRef}
       className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap"
       tabIndex={0}
+      aria-label={`${label} 붙여넣기 영역`}
       onPaste={handlePaste}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
-      <input ref={fileInputRef} type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="ds-sr-only"
+        aria-label={`${label} 파일 선택`}
+        onChange={handleFile}
+      />
       <div className="answer-key-explanation-cell__placeholder answer-key-explanation-cell__placeholder--no-label">
         {uploading ? (
           <span className="answer-key-explanation-cell__placeholder-text answer-key-explanation-cell__placeholder-text--uploading">업로드 중…</span>
@@ -1728,10 +1774,11 @@ function ImageCell({
           <>
             <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
             <span className="answer-key-explanation-cell__placeholder-hint">
-              클릭 후 Ctrl+V 붙여넣기
-              <br />
-              더블클릭으로 파일 선택
+              Ctrl+V로 붙여넣거나
             </span>
+            <Button type="button" intent="ghost" size="sm" onClick={openFilePicker}>
+              파일 선택
+            </Button>
           </>
         )}
       </div>
@@ -1751,7 +1798,7 @@ function ExplanationRow({
   onChange: (next: ExplanationState) => void;
 }) {
   const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
-  const problemUrl = explanation.problemImageUrl ?? question.image_url ?? question.image ?? null;
+  const problemUrl = explanation.problemImageUrl;
   const explanationUrl = explanation.imageUrl;
 
   return (

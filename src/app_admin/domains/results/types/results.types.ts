@@ -209,12 +209,17 @@ export type TopWrongQuestion = {
 // ---------- 6) Wrong notes ----------
 export type WrongNoteItem = {
   exam_id: number;
+  exam_title: string;
+  session_order: number | null;
+  session_title: string;
   attempt_id: number;
   attempt_created_at: string | null;
 
   question_id: number;
   question_number: number | null;
   answer_type: string;
+  question_image_url: string;
+  has_question_image: boolean;
 
   student_answer: string;
   correct_answer: string;

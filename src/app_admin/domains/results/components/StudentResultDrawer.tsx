@@ -9,7 +9,14 @@
  * 편집 모드: 2단 레이아웃 (선택형 | 서술형), sticky 총점, 하단 완료 버튼
  */
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+  type KeyboardEvent,
+} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import CloseButton from "@/shared/ui/ds/CloseButton";
@@ -100,6 +107,14 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
   const [scanExpanded, setScanExpanded] = useState(false);
+  const handleMainTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextTab =
+      event.key === "ArrowLeft" || event.key === "Home" ? "answer" : "wrong";
+    setMainTab(nextTab);
+    document.getElementById(`srd-tab-${nextTab}`)?.focus();
+  };
 
   const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
     queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId),
@@ -390,9 +405,33 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           {/* ── 메인 탭 (답안지/오답노트) — 1차 + 읽기 모드 ── */}
           {selectedAttempt === 1 && !isEditMode && hasData && (
             <div className="srd-modal__tabs">
-              <div className="srd-modal__tab-bar">
-                <button type="button" className={`srd-modal__tab ${mainTab === "answer" ? "srd-modal__tab--active" : ""}`} onClick={() => setMainTab("answer")}>답안지</button>
-                <button type="button" className={`srd-modal__tab ${mainTab === "wrong" ? "srd-modal__tab--active" : ""}`} onClick={() => setMainTab("wrong")}>오답노트</button>
+              <div className="srd-modal__tab-bar" role="tablist" aria-label="성적 상세 보기">
+                <button
+                  type="button"
+                  id="srd-tab-answer"
+                  role="tab"
+                  aria-selected={mainTab === "answer"}
+                  aria-controls="srd-main-tabpanel"
+                  tabIndex={mainTab === "answer" ? 0 : -1}
+                  className={`srd-modal__tab ${mainTab === "answer" ? "srd-modal__tab--active" : ""}`}
+                  onClick={() => setMainTab("answer")}
+                  onKeyDown={handleMainTabKeyDown}
+                >
+                  답안지
+                </button>
+                <button
+                  type="button"
+                  id="srd-tab-wrong"
+                  role="tab"
+                  aria-selected={mainTab === "wrong"}
+                  aria-controls="srd-main-tabpanel"
+                  tabIndex={mainTab === "wrong" ? 0 : -1}
+                  className={`srd-modal__tab ${mainTab === "wrong" ? "srd-modal__tab--active" : ""}`}
+                  onClick={() => setMainTab("wrong")}
+                  onKeyDown={handleMainTabKeyDown}
+                >
+                  오답노트 만들기
+                </button>
               </div>
             </div>
           )}
@@ -419,7 +458,18 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           )}
 
           {/* ── Body ── */}
-          <div className="srd-modal__body">
+          <div
+            className="srd-modal__body"
+            id={selectedAttempt === 1 && !isEditMode && hasData ? "srd-main-tabpanel" : undefined}
+            role={selectedAttempt === 1 && !isEditMode && hasData ? "tabpanel" : undefined}
+            aria-labelledby={
+              selectedAttempt === 1 && !isEditMode && hasData
+                ? mainTab === "answer"
+                  ? "srd-tab-answer"
+                  : "srd-tab-wrong"
+                : undefined
+            }
+          >
             {selectedAttempt === 1 && mainTab === "answer" && (
               <>
                 {detailLoading && <div className="srd-modal__loading">불러오는 중…</div>}

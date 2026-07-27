@@ -17,7 +17,11 @@ export const adminResultsQueryKeys = {
 
   examAttempts: (examId: number, enrollmentId: number) => ["exam-attempts", examId, enrollmentId] as const,
   attemptHistoryExam: (examId: number, enrollmentId: number) => ["attempt-history", "exam", examId, enrollmentId] as const,
-  wrongNotes: (enrollmentId: number, examId: number | undefined) => ["wrong-notes", enrollmentId, examId] as const,
+  wrongNotes: (
+    enrollmentId: number,
+    scope: "exam" | "lecture",
+    examId: number | undefined,
+  ) => ["wrong-notes", enrollmentId, scope, examId] as const,
 
   omrReviewList: (examId: number) => ["omr-review-list", examId] as const,
   omrReviewDetail: (submissionId: number | null | undefined) => ["omr-review-detail", submissionId] as const,

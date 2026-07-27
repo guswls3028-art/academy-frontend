@@ -19,6 +19,7 @@ export interface BulkExplanationItem {
   question_id: number;
   text: string;
   image_key?: string;
+  problem_image_key?: string;
 }
 
 /** 시험 문항 해설 전체 조회 */
