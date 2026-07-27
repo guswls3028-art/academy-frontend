@@ -320,35 +320,44 @@
 }
 
 .postReply {
-  display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+  border-left: 2px solid var(--color-brand-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
   gap: 4px;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
+  padding: 8px 10px;
   font-size: 11px;
-  font-weight: 600;
   color: var(--color-brand-primary);
 }
 
-.postDeleteBtn {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  padding: 4px;
-  border: none;
+.postReply > div {
+  display: grid;
+  gap: 2px;
+}
+
+.postReply strong {
+  font-size: 11px;
+}
+
+.postReply span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.retryButton {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-muted);
+  color: var(--color-brand-primary);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.12s, color 0.12s;
-}
-
-.postCard:hover .postDeleteBtn {
-  opacity: 1;
-}
-
-.postDeleteBtn:hover {
-  color: var(--color-danger-text, #dc2626);
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: var(--space-2);
+  padding: 6px 10px;
 }
 
 /* ══════════ 패치노트 타임라인 ══════════ */

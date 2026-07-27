@@ -18,6 +18,19 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "V1.2.1",
+    codename: "운영 문의함",
+    date: "2026-07-27",
+    summary: "실제 도입 문의와 비공개 지원 티켓을 한곳에서 처리하고 개발팀 답변을 다시 확인할 수 있습니다.",
+    entries: [
+      { category: "new", text: "개발자 문의 운영함 — 도입 문의·버그·개선 의견·빠른 신고 통합 조회, 검색, 상태 필터, 내부 메모" },
+      { category: "new", text: "비공개 지원 티켓 — 학원장·선생님이 보낸 문의와 개발팀 답변을 보낸 내역에서 함께 확인" },
+      { category: "improve", text: "처리 상태와 미처리 건수를 실제 문의 데이터 기준으로 통일" },
+      { category: "improve", text: "사용하지 않는 에이전트 모니터와 개발 브릿지 제거" },
+      { category: "security", text: "지원 문의를 일반 커뮤니티 목록과 공개 랜딩 경로에서 분리" },
+    ],
+  },
+  {
     version: "V1.2.0",
     codename: "매치업 + RDS Proxy + 헥사고날",
     date: "2026-04-30",

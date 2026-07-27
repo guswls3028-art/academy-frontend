@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { to: "/dev/billing", label: "결제", icon: IconBilling },
   { to: "/dev/inbox", label: "문의함", icon: IconInbox },
   { to: "/dev/automation", label: "자동화", icon: IconAutomation },
-  { to: "/dev/agents", label: "에이전트", icon: IconAgents },
 ];
 
 export default function DevLayout() {
@@ -226,17 +225,6 @@ function IconInbox({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 10l3-7h8l3 7" />
       <path d="M2 10v4.5A1.5 1.5 0 003.5 16h11a1.5 1.5 0 001.5-1.5V10h-4l-1 2H7l-1-2H2z" />
-    </svg>
-  );
-}
-
-function IconAgents({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="6" cy="5" r="2.5" />
-      <circle cx="13" cy="5" r="2" />
-      <path d="M1 15v-1.5A3.5 3.5 0 014.5 10h3A3.5 3.5 0 0111 13.5V15" />
-      <path d="M11 11.5a2.5 2.5 0 015 0V13" />
     </svg>
   );
 }

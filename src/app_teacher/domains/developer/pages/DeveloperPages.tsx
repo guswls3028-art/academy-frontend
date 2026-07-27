@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { ImagePlus, Trash2, Send } from "@teacher/shared/ui/Icons";
 import {
-  createDeveloperCommunityPost,
+  createDeveloperSupportTicket,
+  getDeveloperSupportTickets,
   uploadDeveloperPostAttachments,
 } from "../api/communityFeedback";
 import {
@@ -18,6 +19,8 @@ import {
   type PatchNote,
   type NoteCategory,
 } from "@/shared/product/patchNotesData";
+import { supportText } from "@/shared/api/contracts/supportTickets";
+import { createClientRequestKey } from "@/shared/api/contracts/community";
 import { teacherDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPages.module.css";
 
@@ -144,14 +147,21 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
   const [content, setContent] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [pendingAttachmentTicketId, setPendingAttachmentTicketId] = useState<number | null>(null);
+  const [pendingAttachmentUploadKey, setPendingAttachmentUploadKey] = useState<string | null>(null);
+  const ticketRequestKeyRef = useRef(createClientRequestKey());
   const previewUrlsRef = useRef<string[]>([]);
 
   const isBug = kind === "bug";
   const heading = isBug ? "버그 제보" : "피드백";
-  const titlePrefix = isBug ? "[BUG]" : "[FEEDBACK]";
   const placeholder = isBug
     ? "어떤 버그인지 간단히 (예: 출석 저장이 안 됩니다)"
     : "제목 (예: 바로가기에 수납 추가 요청)";
+
+  const ticketsQuery = useQuery({
+    queryKey: [...teacherDeveloperQueryKeys.posts, kind],
+    queryFn: () => getDeveloperSupportTickets(kind),
+  });
 
   const addImage = (file: File) => {
     const previewUrl = URL.createObjectURL(file);
@@ -178,28 +188,71 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
   const submitMut = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
-      const post = await createDeveloperCommunityPost({
-        post_type: "board",
-        title: `${titlePrefix} ${title.trim()}`,
+      const attachmentUploadKey = images.length > 0 ? createClientRequestKey() : null;
+      const post = await createDeveloperSupportTicket({
+        type: kind,
+        subject: title.trim(),
         content: content.trim(),
-        node_ids: [],
+        idempotency_key: ticketRequestKeyRef.current,
       });
-      if (images.length > 0) {
-        await uploadDeveloperPostAttachments(post.id, images);
+      let attachmentFailed = false;
+      if (images.length > 0 && attachmentUploadKey) {
+        try {
+          await uploadDeveloperPostAttachments(
+            post.id,
+            images,
+            attachmentUploadKey,
+          );
+        } catch {
+          attachmentFailed = true;
+        }
       }
-      return post;
+      return { post, attachmentFailed, attachmentUploadKey };
     },
-    onSuccess: () => {
-      teacherToast.success(isBug ? "버그 제보가 등록되었습니다." : "피드백이 등록되었습니다.");
+    onSuccess: ({ post, attachmentFailed, attachmentUploadKey }) => {
+      ticketRequestKeyRef.current = createClientRequestKey();
       setTitle("");
       setContent("");
+      qc.invalidateQueries({ queryKey: teacherDeveloperQueryKeys.posts });
+      if (attachmentFailed) {
+        setPendingAttachmentTicketId(post.id);
+        setPendingAttachmentUploadKey(attachmentUploadKey);
+        teacherToast.info("문의는 등록됐지만 첨부 업로드가 실패했습니다. 첨부만 다시 시도해 주세요.");
+        return;
+      }
+      teacherToast.success(isBug ? "버그 제보가 등록되었습니다." : "피드백이 등록되었습니다.");
       previewUrlsRef.current.forEach(URL.revokeObjectURL);
       previewUrlsRef.current = [];
       setImages([]);
       setPreviews([]);
-      qc.invalidateQueries({ queryKey: teacherDeveloperQueryKeys.posts });
     },
     onError: (e: Error) => teacherToast.error(e.message),
+  });
+
+  const retryAttachmentMut = useMutation({
+    mutationFn: async () => {
+      if (
+        pendingAttachmentTicketId == null
+        || pendingAttachmentUploadKey == null
+        || images.length === 0
+      ) return;
+      await uploadDeveloperPostAttachments(
+        pendingAttachmentTicketId,
+        images,
+        pendingAttachmentUploadKey,
+      );
+    },
+    onSuccess: () => {
+      teacherToast.success("첨부파일을 등록했습니다.");
+      previewUrlsRef.current.forEach(URL.revokeObjectURL);
+      previewUrlsRef.current = [];
+      setImages([]);
+      setPreviews([]);
+      setPendingAttachmentTicketId(null);
+      setPendingAttachmentUploadKey(null);
+      qc.invalidateQueries({ queryKey: teacherDeveloperQueryKeys.posts });
+    },
+    onError: () => teacherToast.error("첨부 업로드에 다시 실패했습니다."),
   });
 
   return (
@@ -226,7 +279,10 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            ticketRequestKeyRef.current = createClientRequestKey();
+          }}
           placeholder={placeholder}
           className={`${styles.field} w-full text-sm`}
         />
@@ -238,7 +294,10 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
         </label>
         <textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            ticketRequestKeyRef.current = createClientRequestKey();
+          }}
           placeholder={isBug ? "언제·무엇을 했을 때 어떤 현상이 나타났는지" : "자유롭게 작성해 주세요"}
           rows={6}
           className={`${styles.field} ${styles.textarea} w-full text-sm`}
@@ -277,6 +336,7 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
                   type="button"
                   onClick={() => removeImage(i)}
                   className={`${styles.removeImageButton} absolute cursor-pointer`}
+                  aria-label={`첨부 이미지 ${i + 1} 제거`}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -289,12 +349,55 @@ function SubmissionForm({ kind }: { kind: "bug" | "feedback" }) {
       <button
         type="button"
         onClick={() => submitMut.mutate()}
-        disabled={submitMut.isPending || !title.trim()}
+        disabled={submitMut.isPending || pendingAttachmentTicketId != null || !title.trim()}
         className={`${styles.submitButton} flex items-center justify-center gap-2 text-sm font-bold cursor-pointer w-full disabled:opacity-50`}
       >
         <Send size={ICON.xs} />
         {submitMut.isPending ? "전송 중…" : "보내기"}
       </button>
+      {pendingAttachmentTicketId != null && (
+        <button
+          type="button"
+          onClick={() => retryAttachmentMut.mutate()}
+          disabled={retryAttachmentMut.isPending || images.length === 0}
+          className={`${styles.retryAttachmentButton} flex items-center justify-center gap-2 text-sm font-bold cursor-pointer w-full disabled:opacity-50`}
+        >
+          <ImagePlus size={ICON.xs} />
+          {retryAttachmentMut.isPending ? "첨부 재시도 중…" : "첨부만 다시 올리기"}
+        </button>
+      )}
+
+      <section className={styles.ticketHistory}>
+        <h2>우리 학원 {isBug ? "제보" : "피드백"} 내역</h2>
+        {ticketsQuery.isLoading ? (
+          <p className={styles.ticketEmpty}>불러오는 중…</p>
+        ) : ticketsQuery.isError ? (
+          <button type="button" className={styles.ticketRetry} onClick={() => ticketsQuery.refetch()}>
+            내역을 불러오지 못했습니다. 다시 시도
+          </button>
+        ) : (ticketsQuery.data?.results.length ?? 0) === 0 ? (
+          <p className={styles.ticketEmpty}>아직 보낸 내역이 없습니다.</p>
+        ) : (
+          ticketsQuery.data?.results.map((ticket) => (
+            <article key={ticket.id} className={styles.ticketCard}>
+              <div className={styles.ticketHeader}>
+                <Badge tone={ticket.status === "resolved" ? "success" : "warning"}>
+                  {ticket.status === "resolved" ? "답변 완료" : "답변 대기"}
+                </Badge>
+                <strong>{ticket.subject}</strong>
+                <time>{new Date(ticket.created_at).toLocaleDateString("ko-KR")}</time>
+              </div>
+              {ticket.content && <p className={styles.ticketContent}>{supportText(ticket.content)}</p>}
+              {ticket.replies.filter((reply) => reply.is_platform_reply).map((reply) => (
+                <div key={reply.id} className={styles.ticketReply}>
+                  <strong>개발팀 답변</strong>
+                  <p>{supportText(reply.content)}</p>
+                </div>
+              ))}
+            </article>
+          ))
+        )}
+      </section>
     </div>
   );
 }

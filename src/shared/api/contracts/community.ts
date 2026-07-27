@@ -459,15 +459,29 @@ export async function uploadCommunityPostAttachments(
   client: CommunityHttpClient,
   postId: number,
   files: File[],
+  idempotencyKey?: string,
 ): Promise<PostAttachment[]> {
   const formData = new FormData();
   for (const file of files) formData.append("files", file);
+  if (idempotencyKey) formData.append("idempotency_key", idempotencyKey);
   const res = await client.post<PostAttachment[]>(
     `${COMMUNITY_PREFIX}/posts/${postId}/attachments/`,
     formData,
     { headers: { "Content-Type": "multipart/form-data" } },
   );
   return Array.isArray(res.data) ? res.data : [];
+}
+
+export function createClientRequestKey(): string {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === "function") {
+    return webCrypto.randomUUID();
+  }
+  if (typeof webCrypto?.getRandomValues === "function") {
+    const bytes = webCrypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-request`;
 }
 
 export async function getCommunityAttachmentDownloadUrl(

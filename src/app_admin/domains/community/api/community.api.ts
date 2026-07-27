@@ -148,8 +148,12 @@ export function deleteReply(postId: number, replyId: number) {
   return deleteCommunityReply(api, postId, replyId);
 }
 
-export function uploadPostAttachments(postId: number, files: File[]) {
-  return uploadCommunityPostAttachments(api, postId, files);
+export function uploadPostAttachments(
+  postId: number,
+  files: File[],
+  idempotencyKey?: string,
+) {
+  return uploadCommunityPostAttachments(api, postId, files, idempotencyKey);
 }
 
 export function getAttachmentDownloadUrl(postId: number, attId: number) {

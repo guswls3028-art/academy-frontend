@@ -76,6 +76,27 @@ test.describe("/dev 운영 콘솔 V2", () => {
     await expect(page.getByText("운영 알림 룰 점검", { exact: true })).toBeVisible();
   });
 
+  test("문의 운영함 — 실제 미처리 문의 목록과 상세 확인", async ({ page }) => {
+    await page.goto(`${ADMIN_BASE}/dev/inbox`, { waitUntil: "load" });
+
+    await expect(page.getByRole("heading", { name: "문의 운영함" })).toBeVisible();
+    await expect(page.getByTestId("inbox-summary-open")).toBeVisible();
+    await expect(page.getByRole("link", { name: "에이전트" })).toHaveCount(0);
+
+    const firstInquiry = page.locator('[data-testid^="inbox-item-"]').first();
+    await Promise.race([
+      firstInquiry.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined),
+      page.getByText("처리할 문의가 없습니다", { exact: true }).waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined),
+    ]);
+    if (await firstInquiry.isVisible().catch(() => false)) {
+      await firstInquiry.click();
+      await expect(page.getByTestId("inbox-detail")).toBeVisible();
+      await expect(page.getByText("문의 내용", { exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText("처리할 문의가 없습니다", { exact: true })).toBeVisible();
+    }
+  });
+
   test("테넌트 상세 — 사용량/활동 탭 + admin 점프 + R2 storage card", async ({ page }) => {
     await page.goto(`${ADMIN_BASE}/dev/tenants`, { waitUntil: "load" });
     await expect(page.getByRole("heading", { name: "테넌트" })).toBeVisible();

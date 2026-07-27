@@ -94,7 +94,7 @@ app_{name}/domains/{domain-name}/
   - `@/` = `src/` — 공용 모듈: `@/shared/...`, `@/auth/...`, `@/landing/...`, `@/core/...`
   - `@admin/` = `src/app_admin/` — 선생앱: `@admin/domains/clinic/...`
   - `@student/` = `src/app_student/` — 학생앱: `@student/domains/video/...`
-  - `@dev/` = `src/app_dev/` — 개발자앱: `@dev/domains/agent/...`
+  - `@dev/` = `src/app_dev/` — 개발자앱: `@dev/domains/inbox/...`
   - `@promo/` = `src/app_promo/` — 프로모앱: `@promo/domains/landing/...`
 
 ## UI 안내 문구

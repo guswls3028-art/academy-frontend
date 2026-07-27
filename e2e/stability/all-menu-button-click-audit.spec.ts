@@ -262,7 +262,6 @@ const DEV_ROUTES: AuditRoute[] = [
   { path: "/dev/billing", label: "결제" },
   { path: "/dev/inbox", label: "문의함" },
   { path: "/dev/automation", label: "자동화" },
-  { path: "/dev/agents", label: "에이전트" },
 ];
 
 function selectedRoutes(routes: AuditRoute[]): AuditRoute[] {

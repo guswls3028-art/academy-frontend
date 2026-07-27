@@ -8,6 +8,7 @@
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
+| [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
 
 ## 관련 위치
 
@@ -29,7 +30,6 @@ scripts/
 ├── ensure-spa-mode.js             ← SPA 모드 보장 (빌드)
 ├── lint-id-safety.cjs             ← ID 안전성 린트
 ├── verify-student-routes.mjs      ← 학생 라우트 검증
-├── agent-bridge.mjs               ← 에이전트 브릿지
 ├── assets/                        ← 이미지/아이콘 처리 도구
 └── dev/                           ← 로컬 개발 유틸
 ```

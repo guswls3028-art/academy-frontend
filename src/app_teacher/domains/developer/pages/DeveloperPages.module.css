@@ -89,3 +89,100 @@
   background: var(--tc-primary);
   color: #fff;
 }
+
+.retryAttachmentButton {
+  min-height: var(--tc-touch-min);
+  padding: 12px;
+  border: 1px solid var(--tc-primary);
+  border-radius: var(--tc-radius);
+  background: var(--tc-surface);
+  color: var(--tc-primary);
+}
+
+.ticketHistory {
+  border-top: 1px solid var(--tc-border);
+  display: grid;
+  gap: var(--tc-space-2);
+  margin-top: var(--tc-space-3);
+  padding-top: var(--tc-space-4);
+}
+
+.ticketHistory > h2 {
+  color: var(--tc-text);
+  font-size: 13px;
+  margin: 0 0 var(--tc-space-1);
+}
+
+.ticketCard {
+  background: var(--tc-surface);
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  padding: var(--tc-space-3);
+}
+
+.ticketHeader {
+  align-items: center;
+  display: flex;
+  gap: var(--tc-space-2);
+}
+
+.ticketHeader strong {
+  color: var(--tc-text);
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.ticketHeader time {
+  color: var(--tc-text-muted);
+  font-size: 10px;
+}
+
+.ticketContent {
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: var(--tc-space-2) 0 0;
+  white-space: pre-wrap;
+}
+
+.ticketReply {
+  background: var(--tc-surface-soft);
+  border-left: 2px solid var(--tc-primary);
+  border-radius: var(--tc-radius-sm);
+  margin-top: var(--tc-space-2);
+  padding: 8px 10px;
+}
+
+.ticketReply strong {
+  color: var(--tc-primary);
+  font-size: 11px;
+}
+
+.ticketReply p {
+  color: var(--tc-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+}
+
+.ticketRetry {
+  background: none;
+  border: 0;
+  color: var(--tc-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.ticketRetry {
+  text-align: left;
+}
+
+.ticketEmpty {
+  color: var(--tc-text-muted);
+  font-size: 12px;
+  margin: 0;
+  padding: var(--tc-space-3);
+  text-align: center;
+}

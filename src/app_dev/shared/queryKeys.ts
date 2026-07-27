@@ -6,6 +6,5 @@ export const devQueryKeys = {
   auditLog: (filters: unknown) => ["dev", "audit", filters] as const,
   cron: ["dev", "cron"] as const,
   inbox: ["dev-platform-inbox"] as const,
-  inboxPosts: (type?: "bug" | "feedback" | "all") =>
-    ["dev-platform-inbox", type ?? "all"] as const,
+  inboxItems: (filters: unknown) => ["dev-platform-inbox", filters] as const,
 };

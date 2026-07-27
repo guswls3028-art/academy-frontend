@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import agentEventServer from "./vite-plugins/agentEventServer";
 
 function versionJsonPlugin(buildVersion: string) {
   return {
@@ -48,7 +47,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    agentEventServer(),
     versionJsonPlugin(buildVersion),
   ],
 

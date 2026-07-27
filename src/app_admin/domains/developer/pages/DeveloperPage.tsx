@@ -7,13 +7,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bug, MessageSquare, ImagePlus, Send, Trash2, Paperclip, X, Zap, Wrench, Shield, ArrowUpCircle } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import api from "@/shared/api/axios";
+import { createClientRequestKey } from "@/shared/api/contracts/community";
 import {
-  createPost,
   uploadPostAttachments,
-  fetchAdminPosts,
-  deletePost,
-  type PostEntity,
 } from "@admin/domains/community/api/community.api";
+import {
+  createSupportTicket,
+  listSupportTickets,
+  supportText,
+  type SupportTicket,
+} from "@/shared/api/contracts/supportTickets";
 import { adminDeveloperQueryKeys } from "../queryKeys";
 import styles from "./DeveloperPage.module.css";
 import { PATCH_NOTES, type PatchNote, type NoteCategory } from "./patchNotesData";
@@ -152,16 +156,16 @@ export function BugReportPage() {
   const [content, setContent] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [pendingAttachmentTicketId, setPendingAttachmentTicketId] = useState<number | null>(null);
+  const [pendingAttachmentUploadKey, setPendingAttachmentUploadKey] = useState<string | null>(null);
+  const ticketRequestKeyRef = useRef(createClientRequestKey());
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const bugPostsQueryKey = adminDeveloperQueryKeys.posts("bug_report");
 
-  const { data: posts } = useQuery({
+  const postsQuery = useQuery({
     queryKey: bugPostsQueryKey,
-    queryFn: async () => {
-      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
-      return { results: results.filter((p) => p.title?.startsWith("[BUG]")), count: 0 };
-    },
+    queryFn: () => listSupportTickets(api, "bug"),
   });
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -209,36 +213,65 @@ export function BugReportPage() {
   const submitMut = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
-      const post = await createPost({
-        post_type: "board",
-        title: `[BUG] ${title.trim()}`,
+      const attachmentUploadKey = images.length > 0 ? createClientRequestKey() : null;
+      const post = await createSupportTicket(api, {
+        type: "bug",
+        subject: title.trim(),
         content: content.trim(),
-        node_ids: [],
+        idempotency_key: ticketRequestKeyRef.current,
       });
-      if (images.length > 0) {
-        await uploadPostAttachments(post.id, images);
+      let attachmentFailed = false;
+      if (images.length > 0 && attachmentUploadKey) {
+        try {
+          await uploadPostAttachments(post.id, images, attachmentUploadKey);
+        } catch {
+          attachmentFailed = true;
+        }
       }
-      return post;
+      return { post, attachmentFailed, attachmentUploadKey };
     },
-    onSuccess: () => {
-      feedback.success("버그 제보가 등록되었습니다.");
+    onSuccess: ({ post, attachmentFailed, attachmentUploadKey }) => {
+      ticketRequestKeyRef.current = createClientRequestKey();
       setTitle("");
       setContent("");
+      qc.invalidateQueries({ queryKey: bugPostsQueryKey });
+      if (attachmentFailed) {
+        setPendingAttachmentTicketId(post.id);
+        setPendingAttachmentUploadKey(attachmentUploadKey);
+        feedback.warning("제보는 등록됐지만 첨부 업로드가 실패했습니다. 아래에서 첨부만 다시 시도해 주세요.");
+        return;
+      }
+      feedback.success("버그 제보가 등록되었습니다.");
       previews.forEach(URL.revokeObjectURL);
       setImages([]);
       setPreviews([]);
-      qc.invalidateQueries({ queryKey: bugPostsQueryKey });
     },
     onError: (e: Error) => feedback.error(e.message),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: (postId: number) => deletePost(postId),
+  const retryAttachmentMut = useMutation({
+    mutationFn: async () => {
+      if (
+        pendingAttachmentTicketId == null
+        || pendingAttachmentUploadKey == null
+        || images.length === 0
+      ) return;
+      await uploadPostAttachments(
+        pendingAttachmentTicketId,
+        images,
+        pendingAttachmentUploadKey,
+      );
+    },
     onSuccess: () => {
-      feedback.success("삭제되었습니다.");
+      feedback.success("첨부파일을 등록했습니다.");
+      previews.forEach(URL.revokeObjectURL);
+      setImages([]);
+      setPreviews([]);
+      setPendingAttachmentTicketId(null);
+      setPendingAttachmentUploadKey(null);
       qc.invalidateQueries({ queryKey: bugPostsQueryKey });
     },
-    onError: (e: Error) => feedback.error(e.message),
+    onError: () => feedback.error("첨부 업로드에 다시 실패했습니다."),
   });
 
   return (
@@ -263,7 +296,10 @@ export function BugReportPage() {
           className={styles.titleInput}
           placeholder="버그 제목 (어떤 문제인지 간략히)"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            ticketRequestKeyRef.current = createClientRequestKey();
+          }}
         />
         <div className={styles.contentWrap}>
           <textarea
@@ -271,7 +307,10 @@ export function BugReportPage() {
             className={styles.contentInput}
             placeholder="버그 상세 내용을 입력하세요. Ctrl+V로 스크린샷 붙여넣기 가능"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              ticketRequestKeyRef.current = createClientRequestKey();
+            }}
             onPaste={handlePaste}
             rows={5}
           />
@@ -280,7 +319,12 @@ export function BugReportPage() {
               {previews.map((src, i) => (
                 <div key={i} className={styles.imageThumb}>
                   <img src={src} alt={`첨부 ${i + 1}`} />
-                  <button type="button" className={styles.imageRemove} onClick={() => removeImage(i)}>
+                  <button
+                    type="button"
+                    className={styles.imageRemove}
+                    onClick={() => removeImage(i)}
+                    aria-label={`첨부 이미지 ${i + 1} 제거`}
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -305,19 +349,32 @@ export function BugReportPage() {
             intent="primary"
             size="sm"
             onClick={() => submitMut.mutate()}
-            disabled={submitMut.isPending || !title.trim()}
+            disabled={submitMut.isPending || pendingAttachmentTicketId != null || !title.trim()}
             leftIcon={<Send size={14} />}
           >
             {submitMut.isPending ? "등록 중..." : "제보하기"}
           </Button>
+          {pendingAttachmentTicketId != null && (
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => retryAttachmentMut.mutate()}
+              disabled={retryAttachmentMut.isPending || images.length === 0}
+              leftIcon={<Paperclip size={14} />}
+            >
+              {retryAttachmentMut.isPending ? "첨부 재시도 중..." : "첨부만 다시 올리기"}
+            </Button>
+          )}
         </div>
       </div>
 
       <PostList
-        posts={posts?.results ?? []}
+        posts={postsQuery.data?.results ?? []}
         emptyText="아직 제보한 버그가 없습니다."
-        onDelete={(id) => deleteMut.mutate(id)}
         toneBadge="bug"
+        isLoading={postsQuery.isLoading}
+        isError={postsQuery.isError}
+        onRetry={() => postsQuery.refetch()}
       />
     </div>
   );
@@ -330,15 +387,15 @@ export function FeedbackPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [pendingAttachmentTicketId, setPendingAttachmentTicketId] = useState<number | null>(null);
+  const [pendingAttachmentUploadKey, setPendingAttachmentUploadKey] = useState<string | null>(null);
+  const ticketRequestKeyRef = useRef(createClientRequestKey());
   const fileRef = useRef<HTMLInputElement>(null);
   const feedbackPostsQueryKey = adminDeveloperQueryKeys.posts("dev_feedback");
 
-  const { data: posts } = useQuery({
+  const postsQuery = useQuery({
     queryKey: feedbackPostsQueryKey,
-    queryFn: async () => {
-      const { results } = await fetchAdminPosts({ postType: "board", pageSize: 200 });
-      return { results: results.filter((p) => p.title?.startsWith("[FB]")), count: 0 };
-    },
+    queryFn: () => listSupportTickets(api, "feedback"),
   });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -355,34 +412,61 @@ export function FeedbackPage() {
   const submitMut = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("제목을 입력해주세요.");
-      const post = await createPost({
-        post_type: "board",
-        title: `[FB] ${title.trim()}`,
+      const attachmentUploadKey = files.length > 0 ? createClientRequestKey() : null;
+      const post = await createSupportTicket(api, {
+        type: "feedback",
+        subject: title.trim(),
         content: content.trim(),
-        node_ids: [],
+        idempotency_key: ticketRequestKeyRef.current,
       });
-      if (files.length > 0) {
-        await uploadPostAttachments(post.id, files);
+      let attachmentFailed = false;
+      if (files.length > 0 && attachmentUploadKey) {
+        try {
+          await uploadPostAttachments(post.id, files, attachmentUploadKey);
+        } catch {
+          attachmentFailed = true;
+        }
       }
-      return post;
+      return { post, attachmentFailed, attachmentUploadKey };
     },
-    onSuccess: () => {
-      feedback.success("피드백이 등록되었습니다.");
+    onSuccess: ({ post, attachmentFailed, attachmentUploadKey }) => {
+      ticketRequestKeyRef.current = createClientRequestKey();
       setTitle("");
       setContent("");
-      setFiles([]);
       qc.invalidateQueries({ queryKey: feedbackPostsQueryKey });
+      if (attachmentFailed) {
+        setPendingAttachmentTicketId(post.id);
+        setPendingAttachmentUploadKey(attachmentUploadKey);
+        feedback.warning("피드백은 등록됐지만 첨부 업로드가 실패했습니다. 아래에서 첨부만 다시 시도해 주세요.");
+        return;
+      }
+      feedback.success("피드백이 등록되었습니다.");
+      setFiles([]);
     },
     onError: (e: Error) => feedback.error(e.message),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: (postId: number) => deletePost(postId),
+  const retryAttachmentMut = useMutation({
+    mutationFn: async () => {
+      if (
+        pendingAttachmentTicketId == null
+        || pendingAttachmentUploadKey == null
+        || files.length === 0
+      ) return;
+      await uploadPostAttachments(
+        pendingAttachmentTicketId,
+        files,
+        pendingAttachmentUploadKey,
+      );
+    },
     onSuccess: () => {
-      feedback.success("삭제되었습니다.");
+      feedback.success("첨부파일을 등록했습니다.");
+      setFiles([]);
+      setPendingAttachmentTicketId(null);
+      setPendingAttachmentUploadKey(null);
       qc.invalidateQueries({ queryKey: feedbackPostsQueryKey });
     },
-    onError: (e: Error) => feedback.error(e.message),
+    onError: () => feedback.error("첨부 업로드에 다시 실패했습니다."),
   });
 
   return (
@@ -403,13 +487,19 @@ export function FeedbackPage() {
           className={styles.titleInput}
           placeholder="피드백 제목"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            ticketRequestKeyRef.current = createClientRequestKey();
+          }}
         />
         <textarea
           className={styles.contentInput}
           placeholder="상세 내용을 입력하세요"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            ticketRequestKeyRef.current = createClientRequestKey();
+          }}
           rows={5}
         />
         {files.length > 0 && (
@@ -418,7 +508,12 @@ export function FeedbackPage() {
               <div key={i} className={styles.fileItem}>
                 <Paperclip size={14} />
                 <span className={styles.fileName}>{f.name}</span>
-                <button type="button" className={styles.fileRemoveBtn} onClick={() => removeFile(i)}>
+                <button
+                  type="button"
+                  className={styles.fileRemoveBtn}
+                  onClick={() => removeFile(i)}
+                  aria-label={`${f.name} 첨부 제거`}
+                >
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -441,19 +536,32 @@ export function FeedbackPage() {
             intent="primary"
             size="sm"
             onClick={() => submitMut.mutate()}
-            disabled={submitMut.isPending || !title.trim()}
+            disabled={submitMut.isPending || pendingAttachmentTicketId != null || !title.trim()}
             leftIcon={<Send size={14} />}
           >
             {submitMut.isPending ? "등록 중..." : "보내기"}
           </Button>
+          {pendingAttachmentTicketId != null && (
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => retryAttachmentMut.mutate()}
+              disabled={retryAttachmentMut.isPending || files.length === 0}
+              leftIcon={<Paperclip size={14} />}
+            >
+              {retryAttachmentMut.isPending ? "첨부 재시도 중..." : "첨부만 다시 올리기"}
+            </Button>
+          )}
         </div>
       </div>
 
       <PostList
-        posts={posts?.results ?? []}
+        posts={postsQuery.data?.results ?? []}
         emptyText="아직 보낸 피드백이 없습니다."
-        onDelete={(id) => deleteMut.mutate(id)}
         toneBadge="feedback"
+        isLoading={postsQuery.isLoading}
+        isError={postsQuery.isError}
+        onRetry={() => postsQuery.refetch()}
       />
     </div>
   );
@@ -464,51 +572,62 @@ export function FeedbackPage() {
 function PostList({
   posts,
   emptyText,
-  onDelete,
   toneBadge,
+  isLoading,
+  isError,
+  onRetry,
 }: {
-  posts: PostEntity[];
+  posts: SupportTicket[];
   emptyText: string;
-  onDelete: (id: number) => void;
   toneBadge: "bug" | "feedback";
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
+  if (isLoading) {
+    return <div className={styles.empty}>문의 내역을 불러오는 중입니다.</div>;
+  }
+  if (isError) {
+    return (
+      <div className={styles.empty}>
+        <p>문의 내역을 불러오지 못했습니다.</p>
+        <button type="button" className={styles.retryButton} onClick={onRetry}>다시 시도</button>
+      </div>
+    );
+  }
   if (posts.length === 0) {
     return <div className={styles.empty}>{emptyText}</div>;
   }
   return (
     <div className={styles.postList}>
-      <h3 className={styles.listTitle}>내 {toneBadge === "bug" ? "제보" : "피드백"} 내역</h3>
+      <h3 className={styles.listTitle}>우리 학원 {toneBadge === "bug" ? "제보" : "피드백"} 내역</h3>
       {posts.map((p) => (
         <div key={p.id} className={styles.postCard}>
           <div className={styles.postHeader}>
             <span className={styles.postBadge} data-tone={toneBadge}>
               {toneBadge === "bug" ? "버그" : "피드백"}
             </span>
-            <span className={styles.postTitle}>{p.title}</span>
+            <span className={styles.postTitle}>{p.subject}</span>
             <span className={styles.postDate}>
               {new Date(p.created_at).toLocaleDateString("ko-KR")}
             </span>
           </div>
-          {p.content && <p className={styles.postContent}>{p.content}</p>}
+          {p.content && <p className={styles.postContent}>{supportText(p.content)}</p>}
           {(p.attachments?.length ?? 0) > 0 && (
             <div className={styles.postAttachments}>
               <Paperclip size={12} />
               <span>첨부 {p.attachments!.length}개</span>
             </div>
           )}
-          {(p.replies_count ?? 0) > 0 && (
-            <div className={styles.postReply}>
+          {p.replies.filter((reply) => reply.is_platform_reply).map((reply) => (
+            <div className={styles.postReply} key={reply.id}>
               <MessageSquare size={12} />
-              <span>개발자 응답 {p.replies_count}건</span>
+              <div>
+                <strong>개발팀 답변</strong>
+                <span>{supportText(reply.content)}</span>
+              </div>
             </div>
-          )}
-          <button
-            type="button"
-            className={styles.postDeleteBtn}
-            onClick={() => onDelete(p.id)}
-          >
-            <Trash2 size={12} />
-          </button>
+          ))}
         </div>
       ))}
     </div>
