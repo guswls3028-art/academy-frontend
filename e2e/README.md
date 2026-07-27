@@ -108,7 +108,7 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 | `E2E_BASE_URL` | hakwonplus.com | 프론트 |
 | `E2E_API_URL` | api.hakwonplus.com | 백엔드 |
 | `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` | secrets | Tenant 1 admin |
-| `E2E_STUDENT_USER` / `E2E_STUDENT_PASS` | secrets | Tenant 1 학생 |
+| `E2E_STUDENT_USER` / `E2E_STUDENT_PASS` | secrets | Tenant 1 고정 운영 카나리 학생 |
 | `TCHUL_/DNB_/LIMGLISH_*` | secrets | 멀티 테넌트 |
 | `E2E_LECTURE_ID` / `E2E_SESSION_ID` | 113 / 153 | 메시징 발송용 강의/차시 |
 | `E2E_LECTURE_ID_ALT` / `E2E_SESSION_ID_ALT` | 96 / 158 | 성적 검증용 |
@@ -116,6 +116,10 @@ pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts
 | `E2E_STRICT` | `report` (.env.e2e) / `strict` (quality-gate) | strictTest 모드 |
 | `E2E_REAL_ALIMTALK_CONTROLLED_PHONE` | `01031217466` | 실발송 canary 표시용. 운영 계정 안내 가드는 항상 `01031217466`만 허용 |
 | `E2E_ALLOW_REAL_ALIMTALK` | `0` | `1`일 때만 통제번호 1건 실발송 canary 허용 |
+
+`E2E_STUDENT_*`는 운영 로그인 확인 전용 고정 fixture다. 이 계정을 삭제·개명하거나 파괴적
+spec에서 재사용하지 않는다. 생성·수정·삭제를 검증하는 spec은 `[E2E-{timestamp}]` 태그가 있는
+일회성 학생을 별도로 만들고 종료 시 정리한다.
 
 ## 계정 안내 알림톡 안전 가드
 
