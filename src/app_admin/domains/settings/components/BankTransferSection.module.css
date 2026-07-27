@@ -121,6 +121,90 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+.copyButton:focus-visible,
+.activation button:focus-visible,
+.submitButton:focus-visible,
+.retryButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary, #4f46e5) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.paymentGuide {
+  background: color-mix(in srgb, var(--color-primary, #4f46e5) 3%, var(--color-bg-surface));
+  border-bottom: 1px solid var(--color-border-divider);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 17px 22px;
+}
+
+.paymentGuide li {
+  align-items: flex-start;
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  position: relative;
+}
+
+.paymentGuide li:not(:last-child)::after {
+  background: var(--color-border-divider);
+  content: "";
+  height: 1px;
+  left: calc(100% - 5px);
+  position: absolute;
+  top: 14px;
+  width: 14px;
+}
+
+.guideNumber {
+  align-items: center;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  display: flex;
+  flex: 0 0 28px;
+  font-size: 11px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+}
+
+.paymentGuide li[data-state="current"] .guideNumber {
+  background: var(--color-primary, #4f46e5);
+  border-color: var(--color-primary, #4f46e5);
+  color: #fff;
+}
+
+.paymentGuide li[data-state="done"] .guideNumber {
+  background: color-mix(in srgb, var(--color-semantic-success, #16a34a) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-semantic-success, #16a34a) 35%, var(--color-border-divider));
+  color: var(--color-semantic-success, #16a34a);
+}
+
+.paymentGuide strong {
+  color: var(--color-text-primary);
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 1px;
+}
+
+.paymentGuide small {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 9px;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.paymentGuide li[data-state="upcoming"] strong,
+.paymentGuide li[data-state="upcoming"] small {
+  opacity: 0.62;
+}
+
 .activation {
   align-items: center;
   display: flex;
@@ -245,6 +329,18 @@
   justify-content: center;
 }
 
+.formIcon {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-primary, #4f46e5) 10%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary, #4f46e5) 24%, var(--color-border-divider));
+  border-radius: 7px;
+  color: var(--color-primary, #4f46e5);
+  display: flex;
+  flex: 0 0 26px;
+  height: 26px;
+  justify-content: center;
+}
+
 .formHeading h4 {
   color: var(--color-text-primary);
   font-size: 14px;
@@ -256,6 +352,27 @@
   font-size: 11px;
   line-height: 1.5;
   margin: 0;
+}
+
+.transferReminder {
+  background: color-mix(in srgb, var(--color-primary, #4f46e5) 6%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary, #4f46e5) 18%, var(--color-border-divider));
+  border-radius: 9px;
+  display: grid;
+  gap: 3px;
+  margin-bottom: 16px;
+  padding: 12px 13px;
+}
+
+.transferReminder strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.transferReminder span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .fieldGrid {
@@ -293,6 +410,14 @@
 .fieldGrid input:focus {
   border-color: var(--color-primary, #4f46e5);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4f46e5) 12%, transparent);
+}
+
+.fieldHint {
+  color: var(--color-text-muted);
+  display: block;
+  font-size: 9px;
+  line-height: 1.45;
+  margin-top: 5px;
 }
 
 .wideField {
@@ -342,13 +467,17 @@
   padding-top: 20px;
 }
 
-.businessPanel .stepNumber {
-  background: var(--color-primary, #4f46e5);
-}
-
 .submitButton {
   margin-top: 20px;
   width: 100%;
+}
+
+.submitHelp {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+  text-align: center;
 }
 
 .statusPanel {
@@ -404,13 +533,49 @@
 }
 
 .feedback,
-.errorBox,
 .unavailable {
   border-top: 1px solid var(--color-border-divider);
   color: var(--color-text-secondary);
   font-size: 12px;
   margin: 0;
   padding: 13px 22px;
+}
+
+.errorBox {
+  align-items: flex-start;
+  border-top: 1px solid var(--color-border-divider);
+  color: var(--color-semantic-danger, #dc2626);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 3px;
+  padding: 16px 22px;
+}
+
+.errorBox strong {
+  font-size: 13px;
+}
+
+.errorBox span {
+  color: var(--color-text-muted);
+}
+
+.retryButton {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+}
+
+.retryButton:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .feedback[data-tone="success"] {
@@ -446,6 +611,22 @@
 
   .accountSlip {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .paymentGuide {
+    gap: 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .paymentGuide li:not(:last-child)::after {
+    height: 12px;
+    left: 13px;
+    top: 29px;
+    width: 1px;
+  }
+
+  .paymentGuide small {
+    font-size: 10px;
   }
 
   .accountNumber {

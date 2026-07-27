@@ -69,7 +69,7 @@ export default function BankTransferSection() {
     text: string;
   } | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminSettingsQueryKeys.bankTransfer,
     queryFn: fetchBankTransferSummary,
     staleTime: 15_000,
@@ -102,6 +102,9 @@ export default function BankTransferSection() {
     [data?.invoices],
   );
   const notice = activeInvoice?.bank_transfer_notice;
+  const guideStep =
+    data?.billing_mode !== "INVOICE_REQUEST" ? 1 : notice ? 3 : 2;
+  const guideComplete = notice?.status === "CONFIRMED";
   const canSubmit =
     activeInvoice &&
     ["PENDING", "OVERDUE"].includes(activeInvoice.status) &&
@@ -116,7 +119,7 @@ export default function BankTransferSection() {
       });
       setMessage({
         tone: "success",
-        text: "계좌이체 청구가 준비되었습니다. 아래 계좌로 이체해 주세요.",
+        text: "계좌이체 청구서가 준비되었습니다. 금액을 확인하고 아래 계좌로 이체해 주세요.",
       });
     },
     onError: (error) => {
@@ -143,7 +146,7 @@ export default function BankTransferSection() {
       });
       setMessage({
         tone: "success",
-        text: "입금 확인을 요청했습니다. 확인이 끝나면 구독에 자동 반영됩니다.",
+        text: "입금 확인 요청이 접수되었습니다. 확인 결과는 이 화면에 표시됩니다.",
       });
     },
     onError: (error) => {
@@ -192,7 +195,18 @@ export default function BankTransferSection() {
     return (
       <section className={styles.section}>
         <h3>계좌이체 결제</h3>
-        <p className={styles.errorBox}>계좌이체 정보를 불러오지 못했습니다.</p>
+        <div className={styles.errorBox} role="alert">
+          <strong>계좌이체 정보를 불러오지 못했습니다.</strong>
+          <span>잠시 후 다시 시도해 주세요.</span>
+          <button
+            type="button"
+            className={styles.retryButton}
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? "다시 불러오는 중..." : "다시 불러오기"}
+          </button>
+        </div>
       </section>
     );
   }
@@ -202,8 +216,10 @@ export default function BankTransferSection() {
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>BANK TRANSFER</span>
-          <h3 id="bank-transfer-title">계좌이체 결제</h3>
-          <p>PG 가입비 없이 바로 이체하고, 입금 확인을 요청할 수 있습니다.</p>
+          <h3 id="bank-transfer-title">계좌이체로 이용료 납부</h3>
+          <p>
+            카드 등록 없이 안내 계좌로 보내고, 입금 정보를 알려주시면 됩니다.
+          </p>
         </div>
         <span className={styles.secureBadge}>
           <Landmark size={15} aria-hidden />
@@ -241,11 +257,42 @@ export default function BankTransferSection() {
             </button>
           </div>
 
+          <ol className={styles.paymentGuide} aria-label="계좌이체 납부 순서">
+            {[
+              ["계좌이체 선택", "이번 달 청구서를 준비합니다."],
+              ["정확한 금액 이체", "안내 계좌로 이용료를 보냅니다."],
+              ["입금 정보 제출", "입금자명과 이체 시각을 알려주세요."],
+            ].map(([title, description], index) => {
+              const step = index + 1;
+              const state = guideComplete
+                ? "done"
+                : step < guideStep
+                  ? "done"
+                  : step === guideStep
+                    ? "current"
+                    : "upcoming";
+              return (
+                <li key={title} data-state={state}>
+                  <span className={styles.guideNumber}>
+                    {state === "done" ? <Check size={14} aria-hidden /> : step}
+                  </span>
+                  <div>
+                    <strong>{title}</strong>
+                    <small>{description}</small>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
           {data.billing_mode !== "INVOICE_REQUEST" && (
             <div className={styles.activation}>
               <div>
-                <strong>계좌이체로 납부하시겠어요?</strong>
-                <p>현재 예정된 카드 청구를 계좌이체 청구로 변경합니다.</p>
+                <strong>앞으로 계좌이체로 납부할게요</strong>
+                <p>
+                  선택하면 이번 달 납부 금액이 표시됩니다. 이 단계에서 돈이
+                  빠져나가지는 않습니다.
+                </p>
               </div>
               <button
                 type="button"
@@ -254,7 +301,7 @@ export default function BankTransferSection() {
               >
                 {activateMutation.isPending
                   ? "청구서 준비 중..."
-                  : "계좌이체로 결제하기"}
+                  : "계좌이체 선택하기"}
               </button>
             </div>
           )}
@@ -262,7 +309,7 @@ export default function BankTransferSection() {
           {activeInvoice && data.billing_mode === "INVOICE_REQUEST" && (
             <div className={styles.invoiceBand}>
               <div>
-                <span>납부할 금액</span>
+                <span>이번에 보내실 금액</span>
                 <strong>{formatWon(activeInvoice.total_amount)}</strong>
                 <small>
                   공급가 {formatWon(activeInvoice.supply_amount)} · 부가세{" "}
@@ -304,23 +351,40 @@ export default function BankTransferSection() {
               aria-busy={submitMutation.isPending}
             >
               <div className={styles.formHeading}>
-                <div className={styles.stepNumber}>1</div>
+                <div className={styles.stepNumber}>3</div>
                 <div>
-                  <h4>이체 후 입금 정보를 알려주세요</h4>
-                  <p>실제 계좌 입금 내역과 대조한 뒤 이용 기간이 갱신됩니다.</p>
+                  <h4>이체를 마쳤다면 입금 정보를 알려주세요</h4>
+                  <p>
+                    통장에 실제로 표시된 내용과 같아야 빠르게 확인할 수
+                    있습니다.
+                  </p>
                 </div>
+              </div>
+
+              <div className={styles.transferReminder}>
+                <strong>
+                  {formatWon(activeInvoice.total_amount)}을 먼저 이체해 주세요.
+                </strong>
+                <span>
+                  금액을 다르게 보내셨다면 입금 확인을 요청하기 전에 운영팀에
+                  문의해 주세요.
+                </span>
               </div>
 
               <div className={styles.fieldGrid}>
                 <label>
-                  <span>입금자명</span>
+                  <span>입금자명 (통장 표시 이름)</span>
                   <input
                     value={depositorName}
                     onChange={(event) => setDepositorName(event.target.value)}
                     maxLength={100}
                     required
-                    placeholder="통장에 표시되는 이름"
+                    autoComplete="name"
+                    placeholder="예: 홍길동 또는 OO학원"
                   />
+                  <small className={styles.fieldHint}>
+                    보낸 계좌의 출금 내역에 표시된 이름을 입력해 주세요.
+                  </small>
                 </label>
                 <label>
                   <span>이체 시각</span>
@@ -331,6 +395,9 @@ export default function BankTransferSection() {
                     max={localDateTimeValue()}
                     required
                   />
+                  <small className={styles.fieldHint}>
+                    은행 앱의 이체 완료 시각을 확인해 주세요.
+                  </small>
                 </label>
               </div>
 
@@ -344,18 +411,26 @@ export default function BankTransferSection() {
                 />
                 <span>
                   <ReceiptText size={18} aria-hidden />
-                  <strong>전자세금계산서 발행 요청</strong>
-                  <small>입금 확인 후 아래 이메일로 발행합니다.</small>
+                  <strong>전자세금계산서가 필요해요</strong>
+                  <small>
+                    입금 확인 후 발행을 준비합니다. 필요하지 않으면 체크를
+                    해제하세요.
+                  </small>
                 </span>
               </label>
 
               {taxInvoiceRequested && (
                 <div className={styles.businessPanel}>
                   <div className={styles.formHeading}>
-                    <div className={styles.stepNumber}>2</div>
+                    <div className={styles.formIcon}>
+                      <ReceiptText size={15} aria-hidden />
+                    </div>
                     <div>
-                      <h4>사업자 정보</h4>
-                      <p>국세청 발행 정보이므로 사업자등록증과 같게 입력해 주세요.</p>
+                      <h4>세금계산서 받을 사업자 정보</h4>
+                      <p>
+                        필수 항목은 사업자등록증과 같게 입력해 주세요. 나머지는
+                        선택 사항입니다.
+                      </p>
                     </div>
                   </div>
                   <div className={styles.fieldGrid}>
@@ -367,6 +442,8 @@ export default function BankTransferSection() {
                           updateProfile("business_name", event.target.value)
                         }
                         required
+                        autoComplete="organization"
+                        placeholder="사업자등록증의 상호"
                       />
                     </label>
                     <label>
@@ -380,6 +457,8 @@ export default function BankTransferSection() {
                           )
                         }
                         required
+                        autoComplete="name"
+                        placeholder="사업자등록증의 대표자명"
                       />
                     </label>
                     <label>
@@ -409,19 +488,23 @@ export default function BankTransferSection() {
                           )
                         }
                         required
+                        autoComplete="email"
+                        placeholder="세금계산서를 받을 이메일"
                       />
                     </label>
                     <label className={styles.wideField}>
-                      <span>사업장 주소</span>
+                      <span>사업장 주소 (선택)</span>
                       <input
                         value={profile.address}
                         onChange={(event) =>
                           updateProfile("address", event.target.value)
                         }
+                        autoComplete="street-address"
+                        placeholder="사업자등록증의 사업장 주소"
                       />
                     </label>
                     <label>
-                      <span>업태</span>
+                      <span>업태 (선택)</span>
                       <input
                         value={profile.business_type}
                         onChange={(event) =>
@@ -430,7 +513,7 @@ export default function BankTransferSection() {
                       />
                     </label>
                     <label>
-                      <span>종목</span>
+                      <span>종목 (선택)</span>
                       <input
                         value={profile.business_item}
                         onChange={(event) =>
@@ -439,7 +522,7 @@ export default function BankTransferSection() {
                       />
                     </label>
                     <label>
-                      <span>담당자명</span>
+                      <span>담당자명 (선택)</span>
                       <input
                         value={profile.manager_name}
                         onChange={(event) =>
@@ -448,22 +531,24 @@ export default function BankTransferSection() {
                       />
                     </label>
                     <label>
-                      <span>담당자 연락처</span>
+                      <span>담당자 연락처 (선택)</span>
                       <input
                         value={profile.manager_phone}
                         onChange={(event) =>
                           updateProfile("manager_phone", event.target.value)
                         }
+                        autoComplete="tel"
                       />
                     </label>
                     <label>
-                      <span>담당자 이메일</span>
+                      <span>담당자 이메일 (선택)</span>
                       <input
                         type="email"
                         value={profile.manager_email}
                         onChange={(event) =>
                           updateProfile("manager_email", event.target.value)
                         }
+                        autoComplete="email"
                       />
                     </label>
                   </div>
@@ -477,8 +562,12 @@ export default function BankTransferSection() {
               >
                 {submitMutation.isPending
                   ? "입금 확인 요청 중..."
-                  : "입금 확인 요청"}
+                  : "입금 확인 요청하기"}
               </button>
+              <p className={styles.submitHelp}>
+                운영팀이 실제 입금 내역을 확인하면 이용 기간과 세금계산서
+                상태가 이 화면에 반영됩니다.
+              </p>
             </form>
           )}
         </>
@@ -534,18 +623,18 @@ function NoticeStatus({
             ? "입금 내역을 다시 확인해 주세요"
             : isConfirmed
               ? "입금이 확인되었습니다"
-              : "입금 확인 중입니다"}
+              : "입금 확인 요청이 접수되었습니다"}
         </strong>
         <p>
           {isRejected
-            ? rejectionReason || "입금 내역을 찾지 못했습니다."
+            ? `${rejectionReason || "입금 내역을 찾지 못했습니다."} 사유를 확인한 뒤 입금자명과 이체 시각을 다시 입력해 주세요.`
             : isConfirmed
               ? taxRequested
                 ? taxIssued
-                  ? "전자세금계산서 발행이 완료되었습니다."
-                  : "전자세금계산서 발행을 준비하고 있습니다."
+                  ? "이용 기간 반영과 전자세금계산서 발행이 모두 완료되었습니다."
+                  : "이용 기간에 반영되었고, 전자세금계산서 발행을 준비하고 있습니다."
                 : "구독 기간에 결제가 반영되었습니다."
-              : "운영 계좌 입금 내역과 대조하고 있습니다."}
+              : "운영팀이 계좌 내역을 확인 중입니다. 결과는 이 화면에 표시됩니다."}
         </p>
       </div>
     </div>

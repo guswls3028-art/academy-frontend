@@ -6,7 +6,6 @@ import api from "@/shared/api/axios";
 import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/shared/product/fees/feesFormat";
 import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import BankTransferSection from "../components/BankTransferSection";
-import CardManagementSection from "../components/CardManagementSection";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BillingSettingsPage.module.css";
 
@@ -50,7 +49,7 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
-  AUTO_CARD: "카드 자동결제",
+  AUTO_CARD: "계좌이체 선택 전",
   INVOICE_REQUEST: "계좌이체 청구",
 };
 
@@ -87,7 +86,9 @@ export default function BillingSettingsPage() {
   return (
     <div className={styles.root}>
       <h2 className={styles.title}>결제 / 구독</h2>
-      <p className={styles.subtitle}>현재 요금제와 구독 상태를 확인합니다.</p>
+      <p className={styles.subtitle}>
+        월 이용료와 구독 상태를 확인하고 계좌이체로 납부할 수 있습니다.
+      </p>
 
       {/* Plan Badge */}
       <div className={styles.planSection}>
@@ -217,9 +218,6 @@ export default function BillingSettingsPage() {
 
       {/* Immediate no-PG collection path */}
       <BankTransferSection />
-
-      {/* Card Management */}
-      {data.billing_mode === "AUTO_CARD" && <CardManagementSection />}
 
       {/* Expired Warning */}
       {isExpired && (
