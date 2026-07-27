@@ -17,6 +17,7 @@ import {
 import { THEMES } from "@/shared/theme/themes";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
+import { requestBillingAuth } from "@/shared/payments/tossBilling";
 /* ─── API ─── */
 async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
   const { data } = await api.patch("/core/profile/update_me/", payload);
@@ -424,10 +425,7 @@ function BillingSection() {
   const registerCard = async () => {
     try {
       const res = await api.post("/billing/card/register/prepare/");
-      const { customerKey, clientKey, successUrl, failUrl } = res.data;
-      // Toss SDK redirect — 모바일 브라우저에서 직접 이동
-      const redirectUrl = `https://api.tosspayments.com/v1/brandpay/authorizations?clientKey=${clientKey}&customerKey=${customerKey}&successUrl=${encodeURIComponent(successUrl)}&failUrl=${encodeURIComponent(failUrl)}`;
-      window.location.href = redirectUrl;
+      await requestBillingAuth(res.data);
     } catch {
       setMsg("카드 등록 준비 실패");
     }

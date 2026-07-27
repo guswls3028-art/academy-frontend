@@ -33,6 +33,11 @@ const rules = [
     pattern: /\/students\/password_find\/(?:request|verify)\//,
     message: "Legacy OTP password-find endpoints are sealed; use /auth/account-recovery/dispatch/.",
   },
+  {
+    id: "legacy-toss-brandpay-billing-auth",
+    pattern: /api\.tosspayments\.com\/v1\/brandpay\/authorizations/,
+    message: "Automatic-billing card registration must use the Toss Payments V2 requestBillingAuth SDK flow.",
+  },
 ];
 
 const violations = [];

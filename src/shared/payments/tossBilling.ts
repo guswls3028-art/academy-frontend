@@ -1,15 +1,11 @@
-// PATH: src/app_admin/domains/settings/api/toss.helper.ts
-// Toss Payments SDK v2 헬퍼 — 스크립트 로딩 및 빌링키 인증 요청
+// Toss Payments SDK v2 helper for automatic-billing card authentication.
 
-/** Toss SDK 타입 (v2 billing auth에 필요한 최소 인터페이스) */
 type TossPaymentInstance = {
-  requestBillingAuth: (
-    params: {
-      method: "CARD";
-      successUrl: string;
-      failUrl: string;
-    },
-  ) => Promise<void>;
+  requestBillingAuth: (params: {
+    method: "CARD";
+    successUrl: string;
+    failUrl: string;
+  }) => Promise<void>;
 };
 
 type TossPaymentsInstance = {
@@ -28,10 +24,8 @@ const TOSS_SDK_URL = "https://js.tosspayments.com/v2/standard";
 
 let loadPromise: Promise<void> | null = null;
 
-/** Toss Payments SDK 스크립트를 동적으로 로드 */
 export function loadTossPaymentsSDK(): Promise<void> {
   if (window.TossPayments) return Promise.resolve();
-
   if (loadPromise) return loadPromise;
 
   loadPromise = new Promise<void>((resolve, reject) => {
@@ -49,7 +43,6 @@ export function loadTossPaymentsSDK(): Promise<void> {
   return loadPromise;
 }
 
-/** Toss SDK 인스턴스 생성 후 빌링키 인증 요청 */
 export async function requestBillingAuth(params: {
   clientKey: string;
   customerKey: string;

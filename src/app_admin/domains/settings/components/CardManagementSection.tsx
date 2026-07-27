@@ -10,7 +10,7 @@ import {
   prepareCardRegistration,
   type BillingCard,
 } from "../api/billing.api";
-import { requestBillingAuth } from "../api/toss.helper";
+import { requestBillingAuth } from "@/shared/payments/tossBilling";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./CardManagementSection.module.css";
 
