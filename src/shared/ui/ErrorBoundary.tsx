@@ -2,6 +2,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
+import { isChunkLoadError } from "@/shared/utils/chunkLoadError";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 import { reportClientException } from "@/shared/lib/userIncidentReporter";
 import styles from "./ErrorBoundary.module.css";
@@ -72,23 +73,6 @@ function scheduleChunkRecovery(): boolean {
   return true;
 }
 
-function isChunkLoadError(error: Error, info?: ErrorInfo): boolean {
-  const m = error?.message || "";
-  const stack = error?.stack || "";
-  const componentStack = info?.componentStack || "";
-  return (
-    m.includes("dynamically imported module") ||
-    m.includes("Importing a module script failed") ||
-    m.includes("Failed to fetch") ||
-    m.includes("Loading chunk") ||
-    m.includes("Loading CSS chunk") ||
-    m.includes("LAZY_DEFAULT_UNDEFINED") ||
-    stack.includes("dynamically imported module") ||
-    stack.includes("Importing a module script failed") ||
-    ((m === "Error" || m === "") && componentStack.includes("Lazy"))
-  );
-}
-
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -102,7 +86,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     const url = typeof window !== "undefined" ? sanitizeObservabilityPath(window.location.href) : "";
     const tenantCode = safeGet("tenantCode");
-    const isChunk = isChunkLoadError(error, info);
+    const isChunk = isChunkLoadError(error, info.componentStack || "");
 
     const key = isChunk ? CHUNK_RELOAD_KEY : GENERIC_RELOAD_KEY;
     const cooldown = isChunk ? CHUNK_RELOAD_COOLDOWN_MS : GENERIC_RELOAD_COOLDOWN_MS;
