@@ -3,6 +3,10 @@ import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router-d
 import { Search } from "lucide-react";
 import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";
+import {
+  PRIMARY_APP_ORIGIN,
+  isDeveloperConsoleHost,
+} from "@/shared/constants/origins";
 import { CommandPalette } from "@dev/shared/components/CommandPalette";
 import { useCommandPaletteHotkey } from "@dev/shared/components/useCommandPaletteHotkey";
 import { useDevPwa } from "@dev/shared/hooks/useDevPwa";
@@ -24,6 +28,9 @@ export default function DevLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandPaletteHotkey(setPaletteOpen);
   useDevPwa();
+  const operationsConsoleHref = isDeveloperConsoleHost()
+    ? `${PRIMARY_APP_ORIGIN}/admin`
+    : "/admin";
 
   // 백엔드 OWNER_TENANT_ID(SSOT). isPlatformAdmin 미지원 백엔드는 tenantCode로 폴백.
   if (program) {
@@ -75,10 +82,10 @@ export default function DevLayout() {
         </nav>
 
         <div className={s.sidebarFooter}>
-          <Link to="/admin" className={s.navItem}>
+          <a href={operationsConsoleHref} className={s.navItem}>
             <IconExternal className={s.navIcon} />
             운영 콘솔
-          </Link>
+          </a>
           <button
             type="button"
             className={s.navItem}
@@ -110,10 +117,10 @@ export default function DevLayout() {
       {mobileMenuOpen && (
         <div className={s.mobileMenuOverlay} onClick={() => setMobileMenuOpen(false)}>
           <nav className={s.mobileMenu} onClick={(e) => e.stopPropagation()}>
-            <Link to="/admin" className={s.mobileMenuItem} onClick={() => setMobileMenuOpen(false)}>
+            <a href={operationsConsoleHref} className={s.mobileMenuItem} onClick={() => setMobileMenuOpen(false)}>
               <IconExternal className={s.navIcon} />
               운영 콘솔
-            </Link>
+            </a>
             <button
               type="button"
               className={s.mobileMenuItem}

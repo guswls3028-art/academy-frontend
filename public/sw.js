@@ -9,12 +9,12 @@
 //
 // 캐시 버전 변경 시 CACHE_NAME 숫자 증가 → 오래된 캐시 자동 정리.
 
-const CACHE_NAME = "hakwonplus-shell-v2";
-const APP_SHELL = [
-  "/",
-  "/landing",
-  "/manifest.json",
-];
+const CACHE_NAME = "hakwonplus-shell-v3";
+const IS_DEV_CONSOLE_ORIGIN = self.location.hostname === "dev.hakwonplus.com";
+const APP_SHELL = IS_DEV_CONSOLE_ORIGIN
+  ? ["/dev/inbox", "/dev-manifest.json"]
+  : ["/", "/landing", "/manifest.json"];
+const NAVIGATION_FALLBACK = IS_DEV_CONSOLE_ORIGIN ? "/dev/inbox" : "/landing";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -55,7 +55,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/landing"))),
+        .catch(() => caches.match(req).then((r) => r || caches.match(NAVIGATION_FALLBACK))),
     );
     return;
   }

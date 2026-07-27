@@ -4,7 +4,7 @@
   "description": "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔",
   "id": "/dev/inbox",
   "start_url": "/dev/inbox",
-  "scope": "/dev",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#0f172a",

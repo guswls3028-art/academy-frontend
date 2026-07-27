@@ -98,6 +98,8 @@ interface TenantMeta {
 }
 
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
+const DEV_CONSOLE_HOST = "dev.hakwonplus.com";
+const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
@@ -304,6 +306,7 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "dev.hakwonplus.com": { title: "학원플러스 콘솔", description: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630, appleTouchIcon: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727" },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -445,7 +448,9 @@ function injectMeta(
   pathname: string,
 ): string {
   const { title, description, favicon, image } = meta;
-  const siteName = HAKWONPLUS_HOSTS.has(host) ? "학원플러스" : title;
+  const siteName = HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST
+    ? "학원플러스"
+    : title;
 
   // <title>
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
@@ -516,6 +521,27 @@ function injectMeta(
     );
   }
 
+  if (host === DEV_CONSOLE_HOST) {
+    html = html.replace(
+      /<link rel="manifest" href="[^"]*" \/>/,
+      '<link rel="manifest" href="/dev-manifest.json" />',
+    );
+    html = html.replace(
+      /<meta name="theme-color" content="[^"]*" \/>/,
+      '<meta name="theme-color" content="#0f172a" />',
+    );
+    html = html.replace(
+      /<meta name="apple-mobile-web-app-title" content="[^"]*" \/>/,
+      '<meta name="apple-mobile-web-app-title" content="학원플러스 콘솔" />',
+    );
+    html = html.replace(
+      "</head>",
+      `    <link rel="apple-touch-icon" href="${meta.appleTouchIcon}" />\n`
+        + '    <meta name="robots" content="noindex, nofollow, noarchive" />\n'
+        + "  </head>",
+    );
+  }
+
   // naver-site-verification — 테넌트별 네이버 Search Advisor 인증 코드
   const seo = TENANT_SEO[host];
   if (seo?.naver) {
@@ -555,6 +581,18 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
+
+  if (
+    HAKWONPLUS_HOSTS.has(host)
+    && (pathname === "/dev" || pathname.startsWith("/dev/"))
+  ) {
+    const target = new URL(`${pathname}${url.search}`, DEV_CONSOLE_ORIGIN);
+    return Response.redirect(target.toString(), 308);
+  }
+
+  if (host === DEV_CONSOLE_HOST && pathname === "/") {
+    return Response.redirect(`${DEV_CONSOLE_ORIGIN}/dev/inbox`, 308);
+  }
 
   if (
     HAKWONPLUS_HOSTS.has(host)
@@ -601,6 +639,15 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
 
   // 테넌트별 동적 robots.txt
   if (pathname === "/robots.txt") {
+    if (host === DEV_CONSOLE_HOST) {
+      return new Response("User-agent: *\nDisallow: /\n", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
     return new Response(generateRobots(host), {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" },
@@ -681,7 +728,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   let html = await res.text();
 
   // 테넌트별 메타 치환 — API 우선, 빈 필드는 폴백으로 보완
-  const apiMeta = await fetchOgMeta(host);
+  const apiMeta = host === DEV_CONSOLE_HOST ? null : await fetchOgMeta(host);
   const fallback = FALLBACK_META[host];
   const tenantMeta = apiMeta
     ? {
@@ -705,13 +752,18 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
     html = injectMeta(html, meta, origin, pageUrl, host, pathname);
   }
 
+  const headers = new Headers({
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": res.headers.get("Cache-Control") ?? "no-cache",
+    "Strict-Transport-Security": "max-age=31536000",
+  });
+  if (host === DEV_CONSOLE_HOST) {
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+
   return new Response(html, {
     status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": res.headers.get("Cache-Control") ?? "no-cache",
-      "Strict-Transport-Security": "max-age=31536000",
-    },
+    headers,
   });
 };
 

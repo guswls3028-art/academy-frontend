@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { expect, test } from "./fixtures/strictTest";
 import { onRequestGet } from "../functions/[[path]]";
+import { getTenantCodeFromHostname } from "../src/shared/tenant";
 
 function manifestRequest(host: string, pathname: string) {
   return onRequestGet({
@@ -10,6 +11,21 @@ function manifestRequest(host: string, pathname: string) {
     env: {
       ASSETS: {
         fetch: async () => new Response("not used", { status: 404 }),
+      },
+    },
+  } as never);
+}
+
+function documentRequest(host: string, pathname: string) {
+  const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+  return onRequestGet({
+    request: new Request(`https://${host}${pathname}`),
+    env: {
+      ASSETS: {
+        fetch: async () => new Response(html, {
+          status: 200,
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }),
       },
     },
   } as never);
@@ -74,6 +90,8 @@ test("developer service worker preserves other app caches and focuses only dev c
 
   expect(source).toContain('key.startsWith("hakwonplus-shell-")');
   expect(source).toContain('url.pathname.startsWith("/dev")');
+  expect(source).toContain('self.location.hostname === "dev.hakwonplus.com"');
+  expect(source).toContain('IS_DEV_CONSOLE_ORIGIN ? "/dev/inbox" : "/landing"');
   expect(source).not.toContain("keys.filter((k) => k !== CACHE_NAME)");
 });
 
@@ -92,7 +110,7 @@ test("developer manifest is an isolated installable app with HakwonPlus icons", 
   expect(manifest.name).toContain("학원플러스");
   expect(manifest.id).toBe("/dev/inbox");
   expect(manifest.start_url).toBe("/dev/inbox");
-  expect(manifest.scope).toBe("/dev");
+  expect(manifest.scope).toBe("/");
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons).toEqual([
     expect.objectContaining({
@@ -104,4 +122,46 @@ test("developer manifest is an isolated installable app with HakwonPlus icons", 
       sizes: "512x512",
     }),
   ]);
+});
+
+test("developer custom domain is canonical, non-indexable, and tenant-bound", async () => {
+  const root = await manifestRequest("dev.hakwonplus.com", "/");
+  expect(root.status).toBe(308);
+  expect(root.headers.get("Location")).toBe("https://dev.hakwonplus.com/dev/inbox");
+
+  const legacy = await manifestRequest("hakwonplus.com", "/dev/inbox?from=legacy");
+  expect(legacy.status).toBe(308);
+  expect(legacy.headers.get("Location")).toBe(
+    "https://dev.hakwonplus.com/dev/inbox?from=legacy",
+  );
+
+  const robots = await manifestRequest("dev.hakwonplus.com", "/robots.txt");
+  expect(await robots.text()).toBe("User-agent: *\nDisallow: /\n");
+
+  const document = await documentRequest("dev.hakwonplus.com", "/dev/inbox");
+  const html = await document.text();
+  expect(document.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+  expect(html).toContain("<title>학원플러스 콘솔</title>");
+  expect(html).toContain('<link rel="manifest" href="/dev-manifest.json" />');
+  expect(html).toContain('apple-mobile-web-app-title" content="학원플러스 콘솔"');
+  expect(html).toContain(
+    '<link rel="apple-touch-icon" href="/tenants/hakwonplus/apple-touch-icon.png?v=20260727" />',
+  );
+
+  expect(getTenantCodeFromHostname("dev.hakwonplus.com")).toEqual({
+    ok: true,
+    code: "hakwonplus",
+    source: "hostname",
+  });
+});
+
+test("deployment gate owns the developer custom domain lifecycle", () => {
+  const workflow = readFileSync(
+    resolve(process.cwd(), ".github/workflows/quality-gate.yml"),
+    "utf8",
+  );
+
+  expect(workflow).toContain('DOMAIN="dev.hakwonplus.com"');
+  expect(workflow).toContain("/pages/projects/${CLOUDFLARE_PROJECT_NAME}/domains");
+  expect(workflow).toContain("Verify developer console domain isolation");
 });

@@ -38,6 +38,7 @@
           "www.tchul.com":   { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", a: "/tenants/tchul/apple-touch-icon.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
           "hakwonplus.com":  { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
           "www.hakwonplus.com": { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
+          "dev.hakwonplus.com": { t: "학원플러스 콘솔", d: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#0f172a", k: "학원플러스,개발자콘솔" },
           "limglish.kr":     { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
           "www.limglish.kr": { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
           "ymath.co.kr":     { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", a: "/tenants/ymath/apple-touch-icon.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
@@ -64,9 +65,20 @@
         if (cfg.tc) setMeta('meta[name="theme-color"]', cfg.tc);
         var manifest = document.querySelector('link[rel="manifest"]');
         if (manifest) {
-          if (location.pathname.indexOf("/teacher") === 0) manifest.setAttribute("href", "/teacher-manifest.json");
+          if (host === "dev.hakwonplus.com") manifest.setAttribute("href", "/dev-manifest.json");
+          else if (location.pathname.indexOf("/teacher") === 0) manifest.setAttribute("href", "/teacher-manifest.json");
           else if (location.pathname.indexOf("/student") === 0) manifest.setAttribute("href", "/student-manifest.json");
           else if (location.pathname.indexOf("/dev") === 0) manifest.setAttribute("href", "/dev-manifest.json");
+        }
+        if (host === "dev.hakwonplus.com") {
+          setMeta('meta[name="apple-mobile-web-app-title"]', "학원플러스 콘솔");
+          var robots = document.querySelector('meta[name="robots"]');
+          if (!robots) {
+            robots = document.createElement("meta");
+            robots.setAttribute("name", "robots");
+            document.head.appendChild(robots);
+          }
+          robots.setAttribute("content", "noindex, nofollow, noarchive");
         }
         /* canonical + og:url */
         var pageUrl = typeof location !== "undefined" ? (location.origin + location.pathname) : "";

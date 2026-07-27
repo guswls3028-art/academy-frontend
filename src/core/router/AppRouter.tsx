@@ -17,11 +17,31 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
+import {
+  DEV_CONSOLE_ORIGIN,
+  isDeveloperConsoleHost,
+  isPrimaryAppHost,
+} from "@/shared/constants/origins";
 
 const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const LandingRouter = lazy(() => import("@/landing/app/LandingRouter"));
+
+const DEV_HOST_ALLOWED_PATHS = [
+  "/dev",
+  "/login",
+  "/terms",
+  "/privacy",
+  "/error/tenant-required",
+];
+
+function ExternalRedirect({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return null;
+}
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -112,9 +132,28 @@ function RootRedirect() {
 
 export default function AppRouter() {
   const { program } = useProgram();
+  const location = useLocation();
   const tenantCode = program?.tenantCode;
   const maintenanceExempt = tenantCode === "hakwonplus" || tenantCode === "9999";
   const maintenanceOn = Boolean(program?.feature_flags?.maintenance_mode) && !maintenanceExempt;
+  const pathname = location.pathname || "/";
+
+  if (isPrimaryAppHost() && (pathname === "/dev" || pathname.startsWith("/dev/"))) {
+    return (
+      <ExternalRedirect
+        to={`${DEV_CONSOLE_ORIGIN}${pathname}${location.search}${location.hash}`}
+      />
+    );
+  }
+
+  if (
+    isDeveloperConsoleHost()
+    && !DEV_HOST_ALLOWED_PATHS.some(
+      (allowed) => pathname === allowed || pathname.startsWith(`${allowed}/`),
+    )
+  ) {
+    return <Navigate to="/dev/inbox" replace />;
+  }
 
   return (
     <Routes>

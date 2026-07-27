@@ -47,7 +47,7 @@ pnpm dev
 ```
 
 - Node.js 18+, pnpm 8+
-- **배포**: frontend 레포 `main` push → 품질 게이트 → Cloudflare Pages 배포 → 운영 E2E. GitHub Actions와 Cloudflare Git 빌드는 동일 커밋 SHA를 빌드 버전으로 사용해 청크 해시를 일치시킨다. 로컬 확인은 `pnpm run build` → `dist/`.
+- **배포**: frontend 레포 `main` push → 품질 게이트 → Cloudflare Pages 배포 → 운영 E2E. GitHub Actions와 Cloudflare Git 빌드는 동일 커밋 SHA를 빌드 버전으로 사용해 청크 해시를 일치시킨다. 개발자 콘솔은 같은 Pages 프로젝트의 격리된 `dev.hakwonplus.com` 커스텀 도메인을 사용하며, 배포 게이트가 도메인 활성 상태와 `/dev/inbox` 시작 경로를 검증한다. 로컬 확인은 `pnpm run build` → `dist/`.
 - `pnpm run build`는 route/vendor JavaScript의 raw·gzip 용량 예산도 검사해 번들 회귀를 차단합니다.
 
 ---

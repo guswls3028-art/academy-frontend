@@ -102,7 +102,7 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     needs: [quality-check, hangul-companion-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -119,6 +119,55 @@ jobs:
             exit 1
           fi
           echo "✅ Functions bundle found"
+
+      - name: Ensure developer console custom domain
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: |
+          set -euo pipefail
+          DOMAIN="dev.hakwonplus.com"
+          API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/domains"
+          AUTH=(
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+            -H "Content-Type: application/json"
+          )
+
+          RESPONSE=$(curl --silent --show-error --fail-with-body "${AUTH[@]}" "$API")
+          if ! jq -e '.success == true' >/dev/null <<<"$RESPONSE"; then
+            echo "::error::Could not read Cloudflare Pages custom domains"
+            exit 1
+          fi
+
+          if ! jq -e --arg domain "$DOMAIN" '.result[]? | select(.name == $domain)' >/dev/null <<<"$RESPONSE"; then
+            RESPONSE=$(curl --silent --show-error --fail-with-body \
+              -X POST "${AUTH[@]}" \
+              --data "$(jq -n --arg name "$DOMAIN" '{name: $name}')" \
+              "$API")
+            if ! jq -e '.success == true' >/dev/null <<<"$RESPONSE"; then
+              echo "::error::Could not create Cloudflare Pages custom domain"
+              exit 1
+            fi
+            echo "Created ${DOMAIN} custom domain."
+          fi
+
+          for ATTEMPT in $(seq 1 36); do
+            RESPONSE=$(curl --silent --show-error --fail-with-body "${AUTH[@]}" "$API")
+            STATUS=$(jq -r --arg domain "$DOMAIN" \
+              '.result[]? | select(.name == $domain) | .status // empty' <<<"$RESPONSE")
+            if [ "$STATUS" = "active" ]; then
+              echo "${DOMAIN} is active."
+              exit 0
+            fi
+            echo "${DOMAIN} status: ${STATUS:-pending} (${ATTEMPT}/36)"
+            sleep 10
+          done
+
+          echo "::error::${DOMAIN} did not become active within 6 minutes"
+          exit 1
 
       - name: Deploy to Cloudflare Pages
         run: |
@@ -171,6 +220,42 @@ jobs:
             fi
           done
           echo "✅ OMR compatibility routes verified"
+
+      - name: Verify developer console domain isolation
+        run: |
+          set -euo pipefail
+          DEV_ORIGIN="https://dev.hakwonplus.com"
+
+          ROOT_HEADERS=$(curl --silent --show-error --fail-with-body \
+            --dump-header - --output /dev/null "${DEV_ORIGIN}/")
+          if ! grep -qi '^location: https://dev\.hakwonplus\.com/dev/inbox' <<<"$ROOT_HEADERS"; then
+            echo "::error::Developer console root does not redirect to /dev/inbox"
+            exit 1
+          fi
+
+          LEGACY_HEADERS=$(curl --silent --show-error --fail-with-body \
+            --dump-header - --output /dev/null "https://hakwonplus.com/dev/inbox")
+          if ! grep -qi '^location: https://dev\.hakwonplus\.com/dev/inbox' <<<"$LEGACY_HEADERS"; then
+            echo "::error::Legacy developer path does not redirect to the isolated origin"
+            exit 1
+          fi
+
+          HTML=$(curl --silent --show-error --fail-with-body "${DEV_ORIGIN}/dev/inbox")
+          if ! grep -q '<link rel="manifest" href="/dev-manifest.json"' <<<"$HTML"; then
+            echo "::error::Developer console manifest is not selected at the edge"
+            exit 1
+          fi
+          if ! grep -q 'name="robots" content="noindex, nofollow, noarchive"' <<<"$HTML"; then
+            echo "::error::Developer console must remain out of search indexes"
+            exit 1
+          fi
+
+          MANIFEST=$(curl --silent --show-error --fail-with-body "${DEV_ORIGIN}/dev-manifest.json")
+          if [ "$(jq -r '.start_url' <<<"$MANIFEST")" != "/dev/inbox" ]; then
+            echo "::error::Developer console manifest has the wrong start_url"
+            exit 1
+          fi
+          echo "✅ Developer console domain isolation verified"
 
   # ── 3. E2E 왕복 플로우 + 전체 테넌트 공개 화면 가용성 (배포 후) ──
   e2e-roundtrip:
