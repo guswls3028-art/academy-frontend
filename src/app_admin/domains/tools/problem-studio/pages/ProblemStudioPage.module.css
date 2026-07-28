@@ -461,6 +461,68 @@
   line-height: 1.5;
 }
 
+.voiceProfileBox {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 96%, var(--color-primary) 4%);
+}
+
+.voiceProfileHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.voiceProfileHeader strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.voiceProfileHeader p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.voiceProfileControls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.voiceSampleEditor {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.55fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.voiceRightsCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.voiceRightsCheck input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
 .betaModeGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -517,6 +579,48 @@
   border: 1px solid var(--color-border-divider);
   border-radius: 8px;
   background: var(--bg-surface);
+}
+
+.generationReviewCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 96%, var(--color-primary) 4%);
+}
+
+.generationReviewCard[data-risk="true"] {
+  border-color: color-mix(in srgb, var(--color-warning) 58%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--bg-surface) 91%, var(--color-warning) 9%);
+}
+
+.generationReviewCard > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.generationReviewCard strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.generationReviewCard span,
+.generationReviewCard em {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.generationReviewCard em {
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text-primary));
+  font-style: normal;
+  font-weight: 800;
 }
 
 .questionToolbar,
@@ -1007,8 +1111,15 @@
   .questionSubGrid,
   .attachmentGrid,
   .betaModeGrid,
-  .betaActions {
+  .betaActions,
+  .voiceProfileControls,
+  .voiceSampleEditor {
     grid-template-columns: 1fr;
+  }
+
+  .generationReviewCard {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .fontUploadControls {

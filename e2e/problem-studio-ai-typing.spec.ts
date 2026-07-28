@@ -19,6 +19,9 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, localJwt());
+  let voiceProfileVersion = 1;
+  let reviewSaved = false;
+  let reviewedQuestionIndex: number | null = null;
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -82,6 +85,180 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
         status: 200,
         contentType: "application/json",
         json: { preference: request.postDataJSON() },
+      });
+      return;
+    }
+    if (pathname.endsWith("/tools/problem-studio/voice-profiles/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: { profiles: [] },
+      });
+      return;
+    }
+    if (pathname.endsWith("/tools/problem-studio/voice-profiles/") && request.method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        json: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "내 해설 문체",
+          subject: "수학",
+          style_instructions: "핵심부터 설명",
+          is_default: true,
+          status: "active",
+          version: voiceProfileVersion,
+          style_sample_count: 0,
+          reference_sample_count: 0,
+          updated_at: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+    if (
+      pathname.endsWith("/tools/problem-studio/voice-profiles/11111111-1111-4111-8111-111111111111/samples/")
+      && request.method() === "POST"
+    ) {
+      voiceProfileVersion += 1;
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        json: {
+          created: true,
+          sample: {
+            id: "22222222-2222-4222-8222-222222222222",
+            usage_scope: "style",
+            origin: "teacher_authored",
+            source_label: "선생님 직접 작성 해설",
+            problem_text: "",
+            answer: "",
+            explanation: "핵심 조건을 먼저 확인합니다.",
+            rights_confirmed: true,
+            created_at: new Date().toISOString(),
+          },
+          profile: {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "내 해설 문체",
+            subject: "수학",
+            style_instructions: "핵심부터 설명",
+            is_default: true,
+            status: "active",
+            version: voiceProfileVersion,
+            style_sample_count: 1,
+            reference_sample_count: 0,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/tools/problem-studio/jobs/") && request.method() === "POST") {
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        json: {
+          job_id: "ps-voice-job",
+          status: "PENDING",
+          source_files: [{ name: "chemistry.png", kind: "이미지", sizeLabel: "1KB", extractedChars: 120 }],
+          warnings: [],
+          source_text_chars: 120,
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/tools/problem-studio/jobs/ps-voice-job/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: {
+          job_id: "ps-voice-job",
+          status: "DONE",
+          error: "",
+          result: {
+            generation_engine: "ai",
+            mode: "same-type",
+            mode_label: "유사 유형",
+            variant_count: 1,
+            questions: [
+              {
+                prompt: "광합성에 필요한 기체를 고르시오.",
+                choices: ["① 산소", "② 이산화탄소"],
+                answer: "②",
+                explanation: "핵심 조건을 먼저 확인하면 이산화탄소입니다.",
+                source_index: 1,
+                variant_index: 1,
+                source_evidence: [1],
+                answer_check: "광합성 반응물 확인",
+                confidence: "high",
+                review_status: "teacher_review_required",
+                voice_profile_version: voiceProfileVersion,
+                quality_checks: {
+                  has_answer: true,
+                  has_explanation: true,
+                  has_source_evidence: true,
+                  verbatim_similarity_risk: false,
+                },
+              },
+              {
+                prompt: "광합성 결과 생성되는 기체를 고르시오.",
+                choices: ["① 산소", "② 이산화탄소"],
+                answer: "①",
+                explanation: "핵심 조건을 먼저 확인하면 산소입니다.",
+                source_index: 1,
+                variant_index: 2,
+                source_evidence: [1],
+                answer_check: "광합성 생성물 확인",
+                confidence: "high",
+                review_status: "teacher_review_required",
+                voice_profile_version: voiceProfileVersion,
+                quality_checks: {
+                  has_answer: true,
+                  has_explanation: true,
+                  has_source_evidence: true,
+                  verbatim_similarity_risk: false,
+                },
+              },
+            ],
+            source_files: [{ name: "chemistry.png", kind: "이미지", sizeLabel: "1KB", extractedChars: 120 }],
+            warnings: [],
+            source_text_chars: 120,
+            review_required: true,
+            voice_profile: {
+              id: "11111111-1111-4111-8111-111111111111",
+              name: "내 해설 문체",
+              version: voiceProfileVersion,
+              style_sample_count: 1,
+              reference_sample_count: 0,
+            },
+          },
+        },
+      });
+      return;
+    }
+    if (pathname.endsWith("/tools/problem-studio/jobs/ps-voice-job/reviews/") && request.method() === "POST") {
+      reviewSaved = true;
+      reviewedQuestionIndex = request.postDataJSON().question_index;
+      voiceProfileVersion += 1;
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        json: {
+          review_id: "33333333-3333-4333-8333-333333333333",
+          created: true,
+          learned: true,
+          profile: {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "내 해설 문체",
+            subject: "수학",
+            style_instructions: "핵심부터 설명",
+            is_default: true,
+            status: "active",
+            version: voiceProfileVersion,
+            style_sample_count: 2,
+            reference_sample_count: 0,
+            updated_at: new Date().toISOString(),
+          },
+        },
       });
       return;
     }
@@ -184,6 +361,25 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
   await expect(page.getByText("준비 완료 · AI 1쪽 · 검수 후보 1건", { exact: true })).toBeVisible();
   expect(automaticDownloads).toBe(0);
+
+  await page.getByText("Beta 재작성", { exact: true }).click();
+  await expect(page.getByText("내 해설 문체", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "프로필 만들기" }).click();
+  await expect(page.getByLabel("사용할 문체 프로필")).toHaveValue("11111111-1111-4111-8111-111111111111");
+  await page.getByRole("textbox", { name: "내가 직접 쓴 해설", exact: true }).fill("핵심 조건을 먼저 확인합니다.");
+  await page.getByRole("checkbox", { name: /내가 직접 작성한 해설/ }).check();
+  await page.getByRole("button", { name: "문체 샘플 추가" }).click();
+  await expect(page.getByLabel("사용할 문체 프로필")).toContainText("문체 1 · 참고 0");
+  const generatedDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "후보 만들기" }).click();
+  await generatedDownload;
+  await expect(page.getByText(/AI 검수 정보 · 신뢰도 높음/)).toHaveCount(2);
+  await page.getByRole("button", { name: "문항 삭제" }).first().click();
+  await expect(page.getByText(/AI 검수 정보 · 신뢰도 높음/)).toHaveCount(1);
+  await page.getByRole("button", { name: "검수 승인 후 문체 학습" }).click();
+  await expect(page.getByRole("button", { name: "승인·학습 완료" })).toBeVisible();
+  expect(reviewSaved).toBe(true);
+  expect(reviewedQuestionIndex).toBe(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("heading", { name: "사진만 올리면, 한글 검수본까지" })).toBeVisible();

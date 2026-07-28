@@ -35,15 +35,19 @@ import {
   type HangulSourceFile,
 } from "../utils/worksheetDocument";
 import {
+  addProblemStudioVoiceSample,
   createProblemStudioHangulHandoff,
   createProblemStudioJob,
   createProblemStudioTransferJob,
+  createProblemStudioVoiceProfile,
   deleteProblemStudioFont,
   getProblemStudioHangulCompanionDownload,
   getProblemStudioDocumentStyle,
   getProblemStudioFonts,
   getProblemStudioJob,
   getProblemStudioTransferJob,
+  getProblemStudioVoiceProfiles,
+  reviewProblemStudioGeneration,
   saveProblemStudioDocumentStyle,
   uploadProblemStudioFont,
   type ProblemStudioDocumentStyle,
@@ -53,6 +57,7 @@ import {
   type ProblemStudioGenerateResponse,
   type ProblemStudioTransferJobResult,
   type ProblemStudioTransferJobStatusResponse,
+  type ProblemStudioVoiceProfile,
 } from "../api/problemStudio.api";
 import styles from "./ProblemStudioPage.module.css";
 
@@ -336,6 +341,20 @@ export default function ProblemStudioPage() {
   const [fontUploading, setFontUploading] = useState(false);
   const [fontLicenseBasis, setFontLicenseBasis] = useState<"purchased" | "free" | "academy" | "other">("academy");
   const [fontRightsConfirmed, setFontRightsConfirmed] = useState(false);
+  const [voiceProfiles, setVoiceProfiles] = useState<ProblemStudioVoiceProfile[]>([]);
+  const [selectedVoiceProfileId, setSelectedVoiceProfileId] = useState("");
+  const [voiceProfileName, setVoiceProfileName] = useState("내 해설 문체");
+  const [voiceProfileCreating, setVoiceProfileCreating] = useState(false);
+  const [voiceSampleScope, setVoiceSampleScope] = useState<"style" | "content_reference">("style");
+  const [voiceSampleText, setVoiceSampleText] = useState("");
+  const [voiceSampleRightsConfirmed, setVoiceSampleRightsConfirmed] = useState(false);
+  const [voiceSampleSaving, setVoiceSampleSaving] = useState(false);
+  const [generationJobId, setGenerationJobId] = useState<string | null>(null);
+  const [generationVoiceProfileId, setGenerationVoiceProfileId] = useState<string | null>(null);
+  const [generationDetails, setGenerationDetails] = useState<ProblemStudioGeneratedQuestion[]>([]);
+  const [generationQuestionIndexById, setGenerationQuestionIndexById] = useState<Record<string, number>>({});
+  const [reviewedQuestionIndexes, setReviewedQuestionIndexes] = useState<Set<number>>(() => new Set());
+  const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -350,16 +369,21 @@ export default function ProblemStudioPage() {
     const loadTypography = async () => {
       setStyleLoading(true);
       try {
-        const [fonts, preference] = await Promise.all([
+        const [fonts, preference, profiles] = await Promise.all([
           getProblemStudioFonts(),
           getProblemStudioDocumentStyle(),
+          getProblemStudioVoiceProfiles(),
         ]);
         if (!active) return;
         setFontCatalog(fonts);
         setDocumentStyle(preference);
+        setVoiceProfiles(profiles);
+        setSelectedVoiceProfileId(
+          profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || "",
+        );
       } catch (error) {
         if (active) {
-          feedback.warning(error instanceof Error ? error.message : "문서 글꼴 설정을 불러오지 못했습니다.");
+          feedback.warning(error instanceof Error ? error.message : "문서·문체 설정을 불러오지 못했습니다.");
         }
       } finally {
         if (active) setStyleLoading(false);
@@ -474,6 +498,76 @@ export default function ProblemStudioPage() {
     }
   };
 
+  const handleCreateVoiceProfile = async () => {
+    if (!voiceProfileName.trim()) {
+      feedback.warning("문체 프로필 이름을 입력해 주세요.");
+      return;
+    }
+    setVoiceProfileCreating(true);
+    try {
+      const profile = await createProblemStudioVoiceProfile({
+        name: voiceProfileName.trim(),
+        subject: draft.subject,
+        style_instructions: "핵심 개념을 먼저 설명하고, 오답이 되는 이유를 마지막에 짚습니다.",
+        is_default: voiceProfiles.length === 0,
+      });
+      setVoiceProfiles((prev) => [...prev, profile]);
+      setSelectedVoiceProfileId(profile.id);
+      feedback.success("내 해설 문체 프로필을 만들었습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "문체 프로필을 만들지 못했습니다.");
+    } finally {
+      setVoiceProfileCreating(false);
+    }
+  };
+
+  const handleAddVoiceSample = async () => {
+    if (!selectedVoiceProfileId) {
+      feedback.warning("먼저 내 문체 프로필을 만들어 주세요.");
+      return;
+    }
+    if (!voiceSampleText.trim()) {
+      feedback.warning(
+        voiceSampleScope === "style"
+          ? "직접 작성한 해설을 입력해 주세요."
+          : "내용 참고에 사용할 문제를 입력해 주세요.",
+      );
+      return;
+    }
+    if (!voiceSampleRightsConfirmed) {
+      feedback.warning("자료 사용 권리를 확인해 주세요.");
+      return;
+    }
+    setVoiceSampleSaving(true);
+    try {
+      const result = await addProblemStudioVoiceSample(selectedVoiceProfileId, {
+        usage_scope: voiceSampleScope,
+        origin: voiceSampleScope === "style" ? "teacher_authored" : "publisher_reference",
+        source_label: voiceSampleScope === "style" ? "선생님 직접 작성 해설" : "업로드 자료 내용 참고",
+        problem_text: voiceSampleScope === "content_reference" ? voiceSampleText.trim() : "",
+        explanation: voiceSampleScope === "style" ? voiceSampleText.trim() : "",
+        rights_confirmed: true,
+        rights_note: "문제 제작 화면에서 선생님이 직접 확인",
+      });
+      setVoiceProfiles((prev) => prev.map((profile) => (
+        profile.id === result.profile.id ? result.profile : profile
+      )));
+      setVoiceSampleText("");
+      setVoiceSampleRightsConfirmed(false);
+      feedback.success(
+        result.created
+          ? voiceSampleScope === "style"
+            ? "내 해설 문체 샘플을 추가했습니다."
+            : "자료를 내용 참고 전용으로 추가했습니다."
+          : "이미 등록된 샘플입니다.",
+      );
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "문체 샘플을 추가하지 못했습니다.");
+    } finally {
+      setVoiceSampleSaving(false);
+    }
+  };
+
   const buildQuestionPayload = () => [
     ...realQuestions.map((q) => ({
       prompt: q.prompt,
@@ -489,6 +583,56 @@ export default function ProblemStudioPage() {
       ...prev,
       questions: prev.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)),
     }));
+  };
+
+  const handleApproveGeneratedQuestion = async (question: WorksheetQuestion, index: number) => {
+    if (!generationJobId || !generationVoiceProfileId) {
+      feedback.warning("문체 프로필로 만든 생성 결과만 학습에 반영할 수 있습니다.");
+      return;
+    }
+    const original = generationDetails[index];
+    if (!original) {
+      feedback.warning("원본 생성 결과를 찾을 수 없습니다.");
+      return;
+    }
+    const finalChoices = question.choices
+      .split("\n")
+      .map((choice) => choice.trim())
+      .filter(Boolean);
+    const changed = (
+      question.prompt.trim() !== original.prompt.trim()
+      || question.answer.trim() !== original.answer.trim()
+      || question.explanation.trim() !== original.explanation.trim()
+      || finalChoices.join("\n") !== original.choices.map((choice) => choice.trim()).filter(Boolean).join("\n")
+    );
+    setReviewingQuestionIndex(index);
+    try {
+      const result = await reviewProblemStudioGeneration(generationJobId, {
+        question_index: index,
+        outcome: changed ? "edited" : "approved",
+        final_question: {
+          prompt: question.prompt,
+          choices: finalChoices,
+          answer: question.answer,
+          explanation: question.explanation,
+        },
+        learn_from_this: true,
+        rights_confirmed: true,
+      });
+      setVoiceProfiles((prev) => prev.map((profile) => (
+        profile.id === result.profile.id ? result.profile : profile
+      )));
+      setReviewedQuestionIndexes((prev) => new Set(prev).add(index));
+      feedback.success(
+        result.created
+          ? "검수한 문제·해설을 승인하고 내 문체에 반영했습니다."
+          : "이미 승인한 문항입니다.",
+      );
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "검수 결과를 저장하지 못했습니다.");
+    } finally {
+      setReviewingQuestionIndex(null);
+    }
   };
 
   const addQuestion = () => {
@@ -718,10 +862,16 @@ export default function ProblemStudioPage() {
         use_ai: true,
         transfer_only: false,
         document_style: documentStyle,
+        voice_profile_id: selectedVoiceProfileId || undefined,
         questions: buildQuestionPayload(),
       };
       setGenerationNote("Beta 재작성 후보 생성 중");
       const job = await createProblemStudioJob(payload, sourceFileBlobs);
+      setGenerationJobId(job.job_id);
+      setGenerationVoiceProfileId(null);
+      setGenerationDetails([]);
+      setGenerationQuestionIndexById({});
+      setReviewedQuestionIndexes(new Set());
       const pendingSourceFiles = job.source_files.length > 0 ? toSourceEntries(job.source_files) : sourceFiles;
       setSourceFiles(pendingSourceFiles);
       setGenerationWarnings(job.warnings);
@@ -736,6 +886,11 @@ export default function ProblemStudioPage() {
       };
 
       setDraft(nextDraft);
+      setGenerationDetails(response.questions);
+      setGenerationQuestionIndexById(Object.fromEntries(
+        generated.map((question, index) => [question.id, index]),
+      ));
+      setGenerationVoiceProfileId(response.voice_profile?.id || null);
       setSourceFiles(nextSourceFiles);
       setPasteText("");
       setGenerationWarnings(response.warnings);
@@ -813,6 +968,11 @@ export default function ProblemStudioPage() {
     setGenerationWarnings([]);
     setTransferResult(null);
     setTransferJobId(null);
+    setGenerationJobId(null);
+    setGenerationVoiceProfileId(null);
+    setGenerationDetails([]);
+    setGenerationQuestionIndexById({});
+    setReviewedQuestionIndexes(new Set());
     setExternalAiConfirmed(false);
     setGenerationNote("아직 생성 전입니다.");
     try {
@@ -971,6 +1131,100 @@ export default function ProblemStudioPage() {
               <div className={styles.betaHeader}>
                 <Badge tone="warning" size="sm">Beta</Badge>
                 <p>생성 결과는 초안으로만 저장됩니다. 최종 배포 전 정답과 표현을 확인하세요.</p>
+              </div>
+              <div className={styles.voiceProfileBox}>
+                <div className={styles.voiceProfileHeader}>
+                  <div>
+                    <strong>내 해설 문체</strong>
+                    <p>직접 쓴 해설만 문체로 배우고, 출판 자료는 개념 참고에만 사용합니다.</p>
+                  </div>
+                  {selectedVoiceProfileId && (
+                    <Badge tone="teal" size="sm">
+                      v{voiceProfiles.find((profile) => profile.id === selectedVoiceProfileId)?.version || 1}
+                    </Badge>
+                  )}
+                </div>
+                <div className={styles.voiceProfileControls}>
+                  <Field label="사용할 문체 프로필">
+                    <select
+                      value={selectedVoiceProfileId}
+                      onChange={(event) => setSelectedVoiceProfileId(event.target.value)}
+                    >
+                      <option value="">기본 해설 문체</option>
+                      {voiceProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name} · 문체 {profile.style_sample_count} · 참고 {profile.reference_sample_count}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="새 프로필 이름">
+                    <input
+                      value={voiceProfileName}
+                      onChange={(event) => setVoiceProfileName(event.target.value)}
+                      placeholder="예: 중2 과학 내 해설"
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    loading={voiceProfileCreating}
+                    onClick={handleCreateVoiceProfile}
+                  >
+                    프로필 만들기
+                  </Button>
+                </div>
+                {selectedVoiceProfileId && (
+                  <div className={styles.voiceSampleEditor}>
+                    <Field label="샘플 종류">
+                      <select
+                        value={voiceSampleScope}
+                        onChange={(event) => setVoiceSampleScope(event.target.value as typeof voiceSampleScope)}
+                      >
+                        <option value="style">내가 직접 쓴 해설 · 문체 학습</option>
+                        <option value="content_reference">교재·출판 자료 · 내용 참고만</option>
+                      </select>
+                    </Field>
+                    <Field
+                      label={voiceSampleScope === "style" ? "내가 직접 쓴 해설" : "내용 참고 문제"}
+                      wide
+                    >
+                      <textarea
+                        value={voiceSampleText}
+                        onChange={(event) => setVoiceSampleText(event.target.value)}
+                        rows={3}
+                        placeholder={
+                          voiceSampleScope === "style"
+                            ? "평소 선생님이 직접 작성한 해설을 붙여넣으세요."
+                            : "교재 내용은 문체를 따라 하지 않고 개념·풀이 구조 참고에만 씁니다."
+                        }
+                      />
+                    </Field>
+                    <label className={styles.voiceRightsCheck}>
+                      <input
+                        type="checkbox"
+                        checked={voiceSampleRightsConfirmed}
+                        onChange={(event) => setVoiceSampleRightsConfirmed(event.target.checked)}
+                      />
+                      <span>
+                        {voiceSampleScope === "style"
+                          ? "내가 직접 작성한 해설이며 문체 학습에 사용할 수 있습니다."
+                          : "문제 제작의 내용 참고에 사용할 권리가 있습니다."}
+                      </span>
+                    </label>
+                    <Button
+                      type="button"
+                      intent="secondary"
+                      size="sm"
+                      loading={voiceSampleSaving}
+                      disabled={!voiceSampleText.trim() || !voiceSampleRightsConfirmed}
+                      onClick={handleAddVoiceSample}
+                    >
+                      {voiceSampleScope === "style" ? "문체 샘플 추가" : "내용 참고 추가"}
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className={styles.betaModeGrid} role="radiogroup" aria-label="재작성 방식">
                 {BETA_REWRITE_MODES.map((item) => (
@@ -1216,7 +1470,7 @@ export default function ProblemStudioPage() {
             </div>
           </section>
 
-          <details className={styles.optionalPanel}>
+          <details className={styles.optionalPanel} open={generationDetails.length > 0 ? true : undefined}>
             <summary className={styles.optionalSummary}>
               <span>
                 <strong>검수 편집 옵션</strong>
@@ -1311,6 +1565,62 @@ export default function ProblemStudioPage() {
                           </Field>
                         </div>
                       </div>
+                      {generationQuestionIndexById[question.id] !== undefined
+                        && generationDetails[generationQuestionIndexById[question.id]]
+                        && generationJobId
+                        && generationVoiceProfileId && (
+                        <div
+                          className={styles.generationReviewCard}
+                          data-risk={
+                            generationDetails[generationQuestionIndexById[question.id]]
+                              .quality_checks?.verbatim_similarity_risk
+                              ? "true"
+                              : "false"
+                          }
+                        >
+                          <div>
+                            <strong>
+                              AI 검수 정보 · 신뢰도 {
+                                generationDetails[generationQuestionIndexById[question.id]].confidence === "high"
+                                  ? "높음"
+                                  : generationDetails[generationQuestionIndexById[question.id]].confidence === "medium"
+                                    ? "보통"
+                                    : "낮음"
+                              }
+                            </strong>
+                            <span>
+                              근거 문항 {
+                                generationDetails[generationQuestionIndexById[question.id]].source_evidence?.length
+                                  ? generationDetails[generationQuestionIndexById[question.id]].source_evidence?.join(", ")
+                                  : "확인 필요"
+                              }
+                              {generationDetails[generationQuestionIndexById[question.id]].answer_check
+                                ? ` · 정답 재확인: ${generationDetails[generationQuestionIndexById[question.id]].answer_check}`
+                                : " · 정답 근거 확인 필요"}
+                            </span>
+                            {generationDetails[generationQuestionIndexById[question.id]]
+                              .quality_checks?.verbatim_similarity_risk && (
+                              <em>원문과 표현이 유사할 수 있어 문장을 다시 써 주세요.</em>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            intent="secondary"
+                            size="sm"
+                            loading={reviewingQuestionIndex === generationQuestionIndexById[question.id]}
+                            disabled={reviewedQuestionIndexes.has(generationQuestionIndexById[question.id])}
+                            leftIcon={<FileCheck2 size={ICON_FOR_BUTTON.sm} />}
+                            onClick={() => handleApproveGeneratedQuestion(
+                              question,
+                              generationQuestionIndexById[question.id],
+                            )}
+                          >
+                            {reviewedQuestionIndexes.has(generationQuestionIndexById[question.id])
+                              ? "승인·학습 완료"
+                              : "검수 승인 후 문체 학습"}
+                          </Button>
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>

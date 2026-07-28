@@ -15,6 +15,17 @@ export type ProblemStudioGeneratedQuestion = {
   explanation: string;
   source_index?: number;
   variant_index?: number;
+  source_evidence?: number[];
+  answer_check?: string;
+  confidence?: "high" | "medium" | "low";
+  review_status?: "teacher_review_required" | string;
+  voice_profile_version?: number;
+  quality_checks?: {
+    has_answer: boolean;
+    has_explanation: boolean;
+    has_source_evidence: boolean;
+    verbatim_similarity_risk: boolean;
+  };
 };
 
 export type ProblemStudioGenerateResponse = {
@@ -26,6 +37,14 @@ export type ProblemStudioGenerateResponse = {
   source_files: ProblemStudioSourceFile[];
   warnings: string[];
   source_text_chars: number;
+  review_required?: boolean;
+  voice_profile?: {
+    id: string;
+    name: string;
+    version: number;
+    style_sample_count: number;
+    reference_sample_count: number;
+  } | null;
 };
 
 export type ProblemStudioJobCreateResponse = {
@@ -127,6 +146,37 @@ export type ProblemStudioDocumentStyle = {
   question_spacing_pt: number;
 };
 
+export type ProblemStudioVoiceSample = {
+  id: string;
+  usage_scope: "style" | "content_reference";
+  origin:
+    | "teacher_authored"
+    | "approved_output"
+    | "matchup_comment"
+    | "publisher_reference"
+    | "other_reference";
+  source_label: string;
+  problem_text: string;
+  answer: string;
+  explanation: string;
+  rights_confirmed: boolean;
+  created_at: string | null;
+};
+
+export type ProblemStudioVoiceProfile = {
+  id: string;
+  name: string;
+  subject: string;
+  style_instructions: string;
+  is_default: boolean;
+  status: "active" | "archived";
+  version: number;
+  style_sample_count: number;
+  reference_sample_count: number;
+  updated_at: string | null;
+  samples?: ProblemStudioVoiceSample[];
+};
+
 export type ProblemStudioVariantMode = "copy" | "same-type" | "trap" | "concept";
 
 export type ProblemStudioGeneratePayload = {
@@ -141,6 +191,7 @@ export type ProblemStudioGeneratePayload = {
   transfer_only?: boolean;
   ai_transcription?: boolean;
   document_style?: ProblemStudioDocumentStyle;
+  voice_profile_id?: string;
   questions: Array<{
     prompt: string;
     choices: string;
@@ -148,6 +199,78 @@ export type ProblemStudioGeneratePayload = {
     explanation: string;
   }>;
 };
+
+export async function getProblemStudioVoiceProfiles(): Promise<ProblemStudioVoiceProfile[]> {
+  const { data } = await api.get<{ profiles: ProblemStudioVoiceProfile[] }>(
+    "/tools/problem-studio/voice-profiles/",
+  );
+  return data.profiles;
+}
+
+export async function createProblemStudioVoiceProfile(payload: {
+  name: string;
+  subject?: string;
+  style_instructions?: string;
+  is_default?: boolean;
+}): Promise<ProblemStudioVoiceProfile> {
+  const { data } = await api.post<ProblemStudioVoiceProfile>(
+    "/tools/problem-studio/voice-profiles/",
+    payload,
+  );
+  return data;
+}
+
+export async function addProblemStudioVoiceSample(
+  profileId: string,
+  payload: {
+    usage_scope: "style" | "content_reference";
+    origin: "teacher_authored" | "publisher_reference" | "other_reference";
+    source_label?: string;
+    problem_text?: string;
+    answer?: string;
+    explanation?: string;
+    rights_confirmed: boolean;
+    rights_note?: string;
+  },
+): Promise<{ sample: ProblemStudioVoiceSample; profile: ProblemStudioVoiceProfile; created: boolean }> {
+  const { data } = await api.post<{
+    sample: ProblemStudioVoiceSample;
+    profile: ProblemStudioVoiceProfile;
+    created: boolean;
+  }>(
+    `/tools/problem-studio/voice-profiles/${encodeURIComponent(profileId)}/samples/`,
+    payload,
+  );
+  return data;
+}
+
+export async function reviewProblemStudioGeneration(
+  jobId: string,
+  payload: {
+    question_index: number;
+    outcome: "approved" | "edited" | "rejected";
+    final_question: {
+      prompt: string;
+      choices: string[];
+      answer: string;
+      explanation: string;
+    };
+    feedback_note?: string;
+    learn_from_this: boolean;
+    rights_confirmed: boolean;
+  },
+): Promise<{
+  review_id: string;
+  created: boolean;
+  learned: boolean;
+  profile: ProblemStudioVoiceProfile;
+}> {
+  const { data } = await api.post(
+    `/tools/problem-studio/jobs/${encodeURIComponent(jobId)}/reviews/`,
+    payload,
+  );
+  return data;
+}
 
 export async function getProblemStudioFonts(): Promise<ProblemStudioFontCatalog> {
   const { data } = await api.get<ProblemStudioFontCatalog>("/tools/problem-studio/fonts/");
