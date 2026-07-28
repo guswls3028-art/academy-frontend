@@ -578,7 +578,7 @@ function TeacherTrustSection() {
         <header className={styles.teacherTrustCopy}>
           <span>현장에서 이어지는 선택</span>
           <h2 id="teacher-trust-title">입시 현장의 선생님들도 사용하고 있습니다</h2>
-          <p>두각 · 대성마이맥 · 대치메카 소속 일부 선생님의 실제 사용 사례입니다.</p>
+          <p>두각 · 대성마이맥 · 메가스터디 소속 일부 선생님의 실제 사용 사례입니다.</p>
         </header>
 
         <div className={styles.teacherTrustEvidence}>
@@ -594,11 +594,11 @@ function TeacherTrustSection() {
                 height="17"
               />
             </li>
-            <li data-institution="daechi-mecca">
+            <li data-institution="megastudy">
               <img
-                src="/promo/teacher-logo-daechi-mecca.png"
-                alt="대치메카"
-                width="187"
+                src="/promo/teacher-logo-megastudy.png"
+                alt="메가스터디"
+                width="161"
                 height="50"
               />
             </li>
