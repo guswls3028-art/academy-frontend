@@ -97,7 +97,12 @@ export default function ClinicCalendar({
       const isPast = dateStr < today;
       const isBeforeMin = minDate ? dateStr < minDate : false;
       const isAfterMax = maxDate ? dateStr > maxDate : false;
-      const isSelectable = isCurrentMonth && !isPast && !isBeforeMin && !isAfterMax;
+      const isSelectable =
+        isCurrentMonth &&
+        isAvailable &&
+        !isPast &&
+        !isBeforeMin &&
+        !isAfterMax;
 
       days.push({
         dateStr,
@@ -126,18 +131,14 @@ export default function ClinicCalendar({
   };
 
   const getDateStatus = (dateStr: string, booking?: ClinicBookingRequest): DateCapacityStatus | "booked" | "pending" | null => {
-    // 1) 정원 상태 우선: dateCapacityStatus가 있으면 해당 날짜 색상 사용
-    const capacityStatus = dateCapacityStatus?.[dateStr];
-    if (capacityStatus) return capacityStatus;
-    // 2) 없으면 기존: 내 예약 상태로 색상 (하위 호환)
-    if (!booking) return null;
-    if (booking.status === "booked") {
+    // 내 예약 상태를 먼저 보여줘 이미 잡은 날짜를 다시 찾지 않게 한다.
+    if (booking?.status === "booked") {
       return "booked";
     }
-    if (booking.status === "pending") {
+    if (booking?.status === "pending") {
       return "pending";
     }
-    return null;
+    return dateCapacityStatus?.[dateStr] ?? null;
   };
 
   const weekDays = ["일", "월", "화", "수", "목", "금", "토"];

@@ -1,142 +1,39 @@
-# 클리닉 예약 기능 테스트 가이드
+# 클리닉 예약 검증 가이드
 
-## 백엔드 마이그레이션 완료
-- ✅ `SessionParticipant.Status`에 `PENDING`, `REJECTED` 추가
-- ✅ `SessionParticipant.Source`에 `STUDENT_REQUEST` 추가
-- ✅ 마이그레이션 적용 완료
+## API 계약
 
-## 테스트 시나리오
+- 학생은 자신에게 허용된 현재·미래 세션만 조회합니다.
+- 특정 강의 세션은 해당 강의의 활성 수강생만 예약할 수 있습니다.
+- 정원 계산에는 `pending`과 `booked`가 포함됩니다.
+- 같은 학생의 활성 예약 중복 생성은 거절합니다.
+- 학생 생성 요청의 `student`, `enrollment_id`, `source`, `status`는
+  서버가 권한과 대상 강의에 맞게 결정합니다.
+- 학생은 자신의 `pending` 예약만 취소·변경할 수 있습니다.
+- 관리자는 `pending`을 `booked` 또는 `rejected`로 변경할 수 있습니다.
 
-### 1. 학생이 예약 가능한 클리닉 세션 조회
-**엔드포인트**: `GET /api/v1/clinic/sessions/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD`
-**권한**: 학생 로그인 필요
-**예상 결과**: 
-- 현재 날짜부터 2주 후까지의 클리닉 세션 목록 반환
-- `booked_count`에 `pending` 상태도 포함됨
+## 필수 회귀 시나리오
 
-**테스트 방법**:
-```bash
-# 학생으로 로그인 후
-curl -H "Authorization: Bearer {학생_토큰}" \
-  "http://localhost:8000/api/v1/clinic/sessions/?date_from=2026-02-19&date_to=2026-03-05"
-```
+1. 미통과 대상 생성 후 `/clinic/idcard/`가 강의·차시·사유를 반환한다.
+2. 활성 수강이 여러 개인 학생도 미통과 대상 강의에 맞는
+   `enrollment_id`로 예약된다.
+3. 예약 화면에서 대상 강의와 맞는 세션이 **내 보강 일정**으로 표시된다.
+4. 정원 마감 세션과 세션 없는 날짜는 선택할 수 없다.
+5. 예약 신청 후 `pending` 또는 `booked`가 내 일정에 표시된다.
+6. `pending` 일정 변경 실패 시 기존 예약이 유지된다.
+7. 관리자 직접 배정은 `booked`로 반영되며 학생 일정에 보인다.
+8. 출석 완료만으로 미통과 대상이 해소되지 않는다.
+9. 재시험/과제 통과 후 대상과 인증 패스 상태가 함께 해소된다.
+10. 관리자 대상 선택에서 미통과/전체 학생 탭 전환 시 선택 ID가 섞이지 않는다.
+11. 선배정 인원과 세션 정원이 독립적으로 유지된다.
 
-### 2. 학생이 클리닉 예약 신청
-**엔드포인트**: `POST /api/v1/clinic/participants/`
-**요청 본문**:
-```json
-{
-  "session": 1,
-  "source": "student_request",
-  "status": "pending",
-  "memo": "참고사항"
-}
-```
-**예상 결과**:
-- `student`는 자동으로 현재 로그인한 학생으로 설정됨
-- `enrollment_id`는 자동으로 활성 enrollment로 설정됨
-- `status`는 `pending`으로 설정됨
-- `source`는 `student_request`로 설정됨
+## 자동화
 
-**테스트 방법**:
-```bash
-curl -X POST \
-  -H "Authorization: Bearer {학생_토큰}" \
-  -H "Content-Type: application/json" \
-  -d '{"session": 1, "source": "student_request", "status": "pending", "memo": "테스트"}' \
-  "http://localhost:8000/api/v1/clinic/participants/"
-```
+- API 권한·다중 수강 연결:
+  `backend/apps/domains/clinic/tests.py::StudentClinicPermissionAPITest`
+- 관리자 주간 예약·대상 선택:
+  `e2e/flows/clinic-weekly-schedule.spec.ts`
+- 대상 생성부터 예약·출석·재시험 해소까지:
+  `e2e/student/clinic-remediation-realuse.spec.ts`
 
-### 3. 학생이 자신의 예약 신청 목록 조회
-**엔드포인트**: `GET /api/v1/clinic/participants/`
-**권한**: 학생 로그인 필요
-**예상 결과**: 
-- 현재 로그인한 학생의 예약 신청만 반환
-- `status`가 `pending`, `booked`, `rejected`인 것만 표시
-
-**테스트 방법**:
-```bash
-curl -H "Authorization: Bearer {학생_토큰}" \
-  "http://localhost:8000/api/v1/clinic/participants/"
-```
-
-### 4. 학생이 예약 신청 취소
-**엔드포인트**: `PATCH /api/v1/clinic/participants/{id}/set_status/`
-**요청 본문**:
-```json
-{
-  "status": "cancelled"
-}
-```
-**예상 결과**:
-- `status`가 `pending`인 경우에만 취소 가능
-- 자신의 예약 신청만 취소 가능
-
-**테스트 방법**:
-```bash
-curl -X PATCH \
-  -H "Authorization: Bearer {학생_토큰}" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "cancelled"}' \
-  "http://localhost:8000/api/v1/clinic/participants/1/set_status/"
-```
-
-### 5. 선생이 예약 신청 승인/거부
-**엔드포인트**: `PATCH /api/v1/clinic/participants/{id}/set_status/`
-**요청 본문** (승인):
-```json
-{
-  "status": "booked"
-}
-```
-**요청 본문** (거부):
-```json
-{
-  "status": "rejected"
-}
-```
-**예상 결과**:
-- 선생만 승인/거부 가능
-- `status`가 `pending`인 경우에만 승인/거부 가능
-
-**테스트 방법**:
-```bash
-# 승인
-curl -X PATCH \
-  -H "Authorization: Bearer {선생_토큰}" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "booked"}' \
-  "http://localhost:8000/api/v1/clinic/participants/1/set_status/"
-
-# 거부
-curl -X PATCH \
-  -H "Authorization: Bearer {선생_토큰}" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "rejected"}' \
-  "http://localhost:8000/api/v1/clinic/participants/1/set_status/"
-```
-
-## 프론트엔드 테스트 체크리스트
-
-### 학생 앱 (`/student/clinic/booking`)
-- [ ] 예약 가능한 클리닉 세션 목록이 표시되는가?
-- [ ] 세션을 선택하고 예약 신청할 수 있는가?
-- [ ] 예약 신청 후 "승인 대기" 상태로 표시되는가?
-- [ ] 내 예약 신청 현황에 신청한 예약이 표시되는가?
-- [ ] 승인 대기 중인 예약을 취소할 수 있는가?
-- [ ] 이미 신청한 세션은 예약 가능 목록에서 제외되는가?
-- [ ] 정원이 마감된 세션은 표시되지 않는가?
-
-### 선생 앱 (`/admin/clinic/bookings`)
-- [ ] 학생의 예약 신청(`status: "pending"`)이 표시되는가?
-- [ ] 예약 신청을 승인(`status: "pending"` → `status: "booked"`)할 수 있는가?
-- [ ] 예약 신청을 거부(`status: "pending"` → `status: "rejected"`)할 수 있는가?
-
-## 주의사항
-
-1. **권한 체크**: 학생은 자신의 예약만 조회/취소 가능
-2. **상태 전이**: 
-   - 학생 신청: `pending` → (선생 승인) → `booked`
-   - 학생 신청: `pending` → (학생 취소) → `cancelled`
-   - 학생 신청: `pending` → (선생 거부) → `rejected`
-3. **정원 계산**: `booked_count`에 `pending` 상태도 포함되므로 정원 체크 시 주의
+프로덕션 실사용 검증은 Tenant 1과 통제 연락처만 사용하고, 생성한
+세션·시험·수강·학생을 종료 시 정리합니다.

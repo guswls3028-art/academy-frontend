@@ -141,6 +141,16 @@
   color: var(--stu-text, #0f172a);
 }
 
+.idcard-page__name .student-name-chip {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.idcard-page__name .student-name-chip__name {
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  font-weight: 800;
+}
+
 /* ---------- 프로필 사진 (신원 확인용) — 좌측 상단 ---------- */
 .idcard-page__profile-photo {
   position: absolute;
@@ -258,6 +268,35 @@
   max-width: 420px;
 }
 
+.idcard-page__history-groups {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.idcard-page__history-group {
+  padding: 12px;
+  border: 1px solid var(--stu-border, #e2e8f0);
+  border-radius: var(--stu-radius-md, 12px);
+  background: color-mix(in srgb, var(--stu-surface-1, #fff) 92%, transparent);
+}
+
+.idcard-page__history-lecture {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--stu-text, #0f172a);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.idcard-page__history-group .idcard-page__history-grid {
+  max-width: none;
+}
+
 .idcard-page__history-empty {
   grid-column: 1 / -1;
   text-align: center;
@@ -299,11 +338,34 @@
 }
 
 .idcard-page__clinic-notice {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
   margin-top: 28px;
+  border: 1px solid var(--stu-danger-border, rgba(239, 68, 68, 0.24));
+  border-radius: var(--stu-radius-md, 12px);
+  background: color-mix(in srgb, var(--stu-danger, #ef4444) 8%, var(--stu-surface-1, #fff));
   color: var(--stu-danger-text, #b91c1c);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
+  word-break: keep-all;
+}
+
+.idcard-page__clinic-link {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--stu-danger, #ef4444);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 /* ---------- 레거시 클래스 (호환) ---------- */

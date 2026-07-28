@@ -1,120 +1,43 @@
-# 학생 앱 클리닉 예약 기능
+# 학생 앱 클리닉
 
-## 구조
+학생이 자신의 미통과 항목을 확인하고, 맞는 클리닉 세션을 예약하며,
+승인 상태와 일정을 확인하는 도메인입니다.
 
-1. **학생이 예약 신청**: 학생이 예약 가능한 클리닉 세션을 선택하고 신청 (status: "pending")
-2. **선생이 승인**: 선생이 예약 신청을 확인하고 승인 (status: "pending" → "booked")
+## 사용자 흐름
 
-## 백엔드 API 확장 필요 사항
+1. `GET /clinic/idcard/`에서 활성 수강 전체의 `current_targets`를 조회합니다.
+2. 예약 화면은 미통과 강의·차시·사유를 먼저 보여줍니다.
+3. `GET /clinic/sessions/`의 `target_lecture_names`와 대상 강의를 비교해
+   맞는 세션에 **내 보강 일정**을 표시합니다. 대상 강의를 제한하지 않은
+   공용 세션도 추천할 수 있습니다.
+4. 학생이 `POST /clinic/participants/`로 신청하면 학원 설정에 따라
+   `pending` 또는 `booked`가 됩니다.
+5. `pending` 예약은 학생이 취소하거나 다른 세션으로 변경할 수 있습니다.
+   `booked` 예약의 변경·취소는 관리자에게 요청합니다.
 
-### 1. 클리닉 세션 조회 API 확장
+## 수강 연결 규칙
 
-**기존 API**: `GET /clinic/sessions/`
-- 현재: 선생만 조회 가능
-- **확장 필요**: 학생도 조회 가능하도록 권한 추가
+- `enrollment_id`와 `student_id`는 같은 ID가 아니며 섞어 보내지 않습니다.
+- 학생에게 활성 수강이 여러 개 있으면 백엔드가 세션의 대상 강의와
+  미해결 `ClinicLink`를 함께 확인해 예약 소유 수강을 정합니다.
+- 특정 강의 대상 세션과 맞는 활성 수강이 없으면 다른 최신 수강으로
+  임의 연결하지 않고 예약을 거절합니다.
 
-**파라미터**:
-- `date_from`: 시작 날짜 (YYYY-MM-DD)
-- `date_to`: 종료 날짜 (YYYY-MM-DD)
-- `available`: true일 경우 예약 가능한 세션만 (정원이 남은 세션)
+## 상태의 단일 진실
 
-**응답**: 기존과 동일
-```json
-{
-  "id": 1,
-  "date": "2026-02-20",
-  "start_time": "14:00:00",
-  "end_time": "15:00:00",
-  "location": "101호",
-  "participant_count": 5,
-  "booked_count": 3,
-  "max_participants": 10
-}
-```
+- 예약 상태: `pending → booked → attended/no_show`, 또는
+  `pending → cancelled/rejected`.
+- 예약과 출석은 일정·출결 상태이며 `ClinicLink`를 해소하지 않습니다.
+- 시험 통과, 과제 통과, 관리자 수동 통과/면제만 미통과 대상을 해소합니다.
+- 예약 변경은 새 예약 생성과 기존 예약 취소를 하나의 백엔드 트랜잭션으로
+  처리해 실패 시 기존 예약을 보존합니다.
 
-### 2. 클리닉 참가자 생성 API 확장
+## 주요 화면과 계약
 
-**기존 API**: `POST /clinic/participants/`
-- 현재: 선생이 직접 추가 (source: "manual", status: "booked")
-- **확장 필요**: 학생이 신청 가능하도록 확장
+- 학생 예약: `/student/clinic`
+- 클리닉 인증 패스: `/student/clinic-idcard`
+- 관리자 예약 일정: `/admin/clinic/schedule`
+- 관리자 승인·미통과 관리: `/admin/clinic/bookings`
+- 관리자 당일 운영: `/admin/clinic/operations`
 
-**요청 본문**:
-```json
-{
-  "session": 1,
-  "source": "student_request",  // 신규 필드: 학생 신청 구분
-  "status": "pending",          // 신규: 승인 대기 상태
-  "memo": "참고사항"            // 선택
-}
-```
-
-**주의사항**:
-- `enrollment_id`는 현재 로그인한 학생의 enrollment_id로 자동 설정
-- `source: "student_request"`인 경우 `status`는 반드시 `"pending"`이어야 함
-- 선생이 직접 추가할 때는 `source: "manual"`, `status: "booked"` 사용
-
-### 3. 학생의 예약 신청 조회 API
-
-**기존 API**: `GET /clinic/participants/`
-- 현재: 선생이 모든 참가자 조회
-- **확장 필요**: 학생이 자신의 예약 신청만 조회 가능
-
-**파라미터**:
-- `student: "me"`: 현재 로그인한 학생의 예약 신청만 조회
-
-**응답**: 기존과 동일하지만, 학생은 자신의 예약 신청만 조회 가능
-
-### 4. 예약 신청 취소 API
-
-**기존 API**: `PATCH /clinic/participants/{id}/set_status/`
-- 현재: 선생이 상태 변경
-- **확장 필요**: 학생이 자신의 예약 신청(status: "pending")만 취소 가능
-
-**요청 본문**:
-```json
-{
-  "status": "cancelled"
-}
-```
-
-**권한 체크**:
-- 학생은 자신의 예약 신청만 취소 가능
-- `status`가 `"pending"`인 경우에만 취소 가능
-- 이미 `"booked"`로 승인된 경우 취소 불가 (선생에게 문의 필요)
-
-### 5. 선생의 예약 신청 승인/거부 API
-
-**기존 API**: `PATCH /clinic/participants/{id}/set_status/`
-- 현재: 선생이 상태 변경 가능
-- **확장 필요**: `status: "pending"`인 예약 신청을 `"booked"`로 승인하거나 `"rejected"`로 거부
-
-**요청 본문**:
-```json
-{
-  "status": "booked"  // 또는 "rejected"
-}
-```
-
-**권한 체크**:
-- 선생만 승인/거부 가능
-- `status`가 `"pending"`인 경우에만 승인/거부 가능
-
-## 선생앱에서 승인하는 방법
-
-선생앱의 클리닉 관리 페이지(`/admin/clinic/bookings`)에서:
-1. 예약 신청자 목록 확인 (status: "pending")
-2. 각 신청에 대해 승인/거부 버튼 클릭
-3. 승인 시 `PATCH /clinic/participants/{id}/set_status/` 호출하여 `status: "booked"`로 변경
-
-## 데이터베이스 스키마 확인 사항
-
-1. `clinic_participants` 테이블에 `source` 필드 추가 필요 (또는 확인)
-   - 값: `"manual"` (선생 직접 추가), `"student_request"` (학생 신청)
-
-2. `clinic_participants` 테이블의 `status` 필드에 `"pending"` 상태 추가 필요 (또는 확인)
-   - 기존: `"booked"`, `"attended"`, `"no_show"`, `"cancelled"`
-   - 추가: `"pending"` (승인 대기), `"rejected"` (거부)
-
-3. 권한 체크 로직 추가 필요
-   - 학생: 자신의 예약 신청만 조회/취소 가능
-   - 선생: 모든 참가자 조회 및 상태 변경 가능
+학생 이름은 공통 `StudentNameWithLectureChip` 규칙을 따릅니다.

@@ -411,6 +411,24 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     expect(target.cutline_score).toBe(80);
     expect(target.name_highlight_clinic_target).toBe(true);
 
+    const idcardBeforeBooking = await expectApi<any>(
+      request,
+      "GET",
+      "/clinic/idcard/",
+      studentTokens.access,
+    );
+    expect(idcardBeforeBooking.current_result).toBe("FAIL");
+    expect(idcardBeforeBooking.current_targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clinic_link_id: created.clinicLinkId,
+          enrollment_id: created.enrollmentId,
+          lecture_id: created.lectureId,
+          source_type: "exam",
+        }),
+      ]),
+    );
+
     await seedStudentBrowser(page, studentTokens);
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
     await expect(page.getByRole("heading", { name: "시험 결과" })).toBeVisible({ timeout: 10_000 });
@@ -435,11 +453,15 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(page).toHaveURL(/\/student\/clinic/);
     await expect(page.getByRole("button", { name: "예약" })).toBeVisible();
+    await expect(page.getByText("보강이 필요한 항목 1개")).toBeVisible();
+    await expect(page.getByText(SESSION_TITLE)).toBeVisible();
+    await expect(page.getByText("시험 보강")).toBeVisible();
 
     await page.getByRole("button", { name: String(Number(CLINIC_DATE.slice(-2))), exact: true }).click();
     await expect(page.getByText(`${CLINIC_DATE} 예약하기`)).toBeVisible();
     const clinicSessionButton = page.locator("button").filter({ hasText: CLINIC_TITLE }).first();
     await expect(clinicSessionButton).toBeVisible();
+    await expect(clinicSessionButton.getByText("내 보강 일정")).toBeVisible();
     await clinicSessionButton.click();
     await page.getByPlaceholder("예약 시 참고사항을 입력해주세요.").fill("E2E 보강 예약 중복/반영 검증");
 

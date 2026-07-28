@@ -243,6 +243,18 @@ export default function ClinicTargetSelectModal({
   const studentTotalCount = studentsQ.data?.count ?? 0;
   const studentTotalPages = Math.max(1, Math.ceil(studentTotalCount / PAGE_SIZE));
 
+  const switchMode = (nextMode: "targets" | "students") => {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    setKeyword("");
+    setDebouncedSearch("");
+    setPage(1);
+    // enrollment_id와 student_id는 서로 다른 식별자다. 한 선택
+    // 결과에 섞지 않고, 사용자가 현재 보고 있는 목록만 확정한다.
+    setSelectedIds([]);
+    setSelectedIdToName(new Map());
+  };
+
   // ── 통합 ──
   const rows = mode === "targets" ? targetPageRows : studentRows;
   const totalCount = mode === "targets" ? allTargetRows.length : studentTotalCount;
@@ -252,6 +264,17 @@ export default function ClinicTargetSelectModal({
     (mode === "students" && studentsQ.isLoading);
 
   const allChecked = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
+
+  useEffect(() => {
+    const visibleRows = mode === "targets" ? allTargetRows : studentRows;
+    setSelectedIdToName((prev) => {
+      const next = new Map(prev);
+      visibleRows.forEach((row) => {
+        if (selectedIds.includes(row.id)) next.set(row.id, row.name);
+      });
+      return next;
+    });
+  }, [allTargetRows, mode, selectedIds, studentRows]);
 
   // 페이지 변경 시 테이블 스크롤 맨 위로
   useEffect(() => {
@@ -337,7 +360,7 @@ export default function ClinicTargetSelectModal({
       <ModalHeader
         type="action"
         title="대상자 선택"
-        description="예약 대상자 또는 전체 학생 중 클리닉 대상자를 선택하세요."
+        description="미통과 대상자 또는 전체 학생에서 이번 클리닉에 참여할 학생을 선택하세요."
       />
 
       <ModalBody>
@@ -350,27 +373,15 @@ export default function ClinicTargetSelectModal({
               <button
                 type="button"
                 className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "targets" ? "is-selected" : ""}`}
-                onClick={() => {
-                  setMode("targets");
-                  setKeyword("");
-                  setDebouncedSearch("");
-                  setPage(1);
-                  // 선택 상태 유지 — 탭 전환 시 초기화하지 않음
-                }}
+                onClick={() => switchMode("targets")}
                 aria-pressed={mode === "targets"}
               >
-                예약 대상자
+                미통과 대상자
               </button>
               <button
                 type="button"
                 className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "students" ? "is-selected" : ""}`}
-                onClick={() => {
-                  setMode("students");
-                  setKeyword("");
-                  setDebouncedSearch("");
-                  setPage(1);
-                  // 선택 상태 유지 — 탭 전환 시 초기화하지 않음
-                }}
+                onClick={() => switchMode("students")}
                 aria-pressed={mode === "students"}
               >
                 전체 학생
@@ -379,7 +390,7 @@ export default function ClinicTargetSelectModal({
 
             <div className="flex items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                {mode === "targets" ? "예약 대상자 명단" : "전체 학생 명단"}
+                {mode === "targets" ? "미통과 대상자 명단" : "전체 학생 명단"}
               </span>
               {selectedIds.length > 0 && (
                 <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
@@ -456,7 +467,7 @@ export default function ClinicTargetSelectModal({
                   <table
                     className="clinic-target-select-modal__table w-full border-collapse"
                     role="grid"
-                    aria-label={mode === "targets" ? "예약 대상자 명단" : "전체 학생 명단"}
+                    aria-label={mode === "targets" ? "미통과 대상자 명단" : "전체 학생 명단"}
                   >
                     <colgroup>
                       <col width={TABLE_COL.checkbox} />

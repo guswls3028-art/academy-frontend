@@ -269,6 +269,7 @@ export default function ClinicCreatePanel({
       : selection
         ? selectedFromSelection
         : internalSelected;
+  const selectedCount = new Set(selected).size;
 
   const setSelected = (next: number[] | ((prev: number[]) => number[])) => {
     const resolved =
@@ -283,6 +284,11 @@ export default function ClinicCreatePanel({
 
   const handleTargetModalConfirm = (result: ClinicTargetSelectResult) => {
     setSelection(result);
+    const nextIds =
+      result.kind === "enrollment"
+        ? [...result.enrollmentIds]
+        : [...result.studentIds];
+    setMaxParticipants((current) => Math.max(current, new Set(nextIds).size));
     if (result.kind === "enrollment" && onChangeSelectedTargetEnrollmentIds) {
       onChangeSelectedTargetEnrollmentIds([...result.enrollmentIds]);
     } else if (result.kind === "student") {
@@ -399,7 +405,7 @@ export default function ClinicCreatePanel({
     }
 
     const uniqueSelected = Array.from(new Set(selected));
-    const cap = uniqueSelected.length > 0 ? uniqueSelected.length : maxParticipants;
+    const cap = Math.max(maxParticipants, uniqueSelected.length);
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
 
     try {
@@ -662,18 +668,18 @@ export default function ClinicCreatePanel({
               <button
                 type="button"
                 className="clinic-capacity-stepper__btn"
-                onClick={() => setMaxParticipants((p) => Math.max(1, p - 1))}
-                disabled={selected.length > 0}
+                onClick={() => setMaxParticipants((p) => Math.max(Math.max(1, selectedCount), p - 1))}
+                disabled={maxParticipants <= Math.max(1, selectedCount)}
                 aria-label="정원 1 감소"
               >−</button>
               <span className="clinic-capacity-stepper__value">
-                {selected.length > 0 ? selected.length : maxParticipants}
+                {maxParticipants}
               </span>
               <button
                 type="button"
                 className="clinic-capacity-stepper__btn"
                 onClick={() => setMaxParticipants((p) => Math.min(999, p + 1))}
-                disabled={selected.length > 0}
+                disabled={maxParticipants >= 999}
                 aria-label="정원 1 증가"
               >+</button>
             </div>
@@ -851,8 +857,8 @@ export default function ClinicCreatePanel({
             대상자 추가
           </Button>
           <span className="clinic-create__target-count">
-            {selected.length > 0
-              ? `${mode === "targets" ? "예약 대상자" : "전체 학생"} ${selected.length}명 선택됨`
+            {selectedCount > 0
+              ? `${mode === "targets" ? "미통과 대상자" : "전체 학생"} ${selectedCount}명 선택 · 추가 예약 ${Math.max(0, maxParticipants - selectedCount)}명 가능`
               : "아직 선택 안 됨"}
           </span>
         </div>
@@ -888,8 +894,8 @@ export default function ClinicCreatePanel({
         ? "지난 날짜입니다"
         : isEdit
           ? "클리닉 수정"
-          : selected.length > 0
-            ? `${selected.length}명 클리닉 만들기`
+          : selectedCount > 0
+            ? `${selectedCount}명 배정하고 클리닉 만들기`
             : `클리닉 만들기 (정원 ${maxParticipants}명)`}
     </Button>
   );

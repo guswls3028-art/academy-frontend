@@ -12,6 +12,7 @@ export type ClinicBookingStatus = "pending" | "rejected" | "cancelled" | "booked
 type ClinicParticipantRaw = {
   id: number;
   session: number | null;
+  session_title?: string;
   session_date: string;
   session_start_time: string;
   session_location: string | null;
@@ -39,6 +40,12 @@ export type ClinicSession = {
   max_participants?: number;
   /** 백엔드가 내려주면 사용, 없으면 booked_count >= max_participants로 계산 */
   is_full?: boolean;
+  target_lecture_names?: Array<{
+    id: number;
+    title: string;
+    color?: string | null;
+    chip_label?: string | null;
+  }>;
 };
 
 /**
@@ -47,6 +54,7 @@ export type ClinicSession = {
 export type ClinicBookingRequest = {
   id: number;
   session: number | null; // ✅ 세션이 없을 수 있음
+  session_title?: string;
   session_date: string;
   session_start_time: string;
   session_location: string | null; // ✅ 세션이 없으면 null
@@ -125,6 +133,7 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
     .map(({ raw, status }) => ({
       id: raw.id,
       session: raw.session ?? null, // ✅ 세션이 없을 수 있음
+      session_title: raw.session_title,
       session_date: raw.session_date,
       session_start_time: raw.session_start_time,
       session_location: raw.session_location ?? null, // ✅ 세션이 없으면 null
@@ -161,6 +170,7 @@ export async function createClinicBookingRequest(data: {
   return {
     id: res.data.id,
     session: res.data.session,
+    session_title: res.data.session_title,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,
@@ -204,6 +214,7 @@ export async function changeClinicBooking(
   return {
     id: res.data.id,
     session: res.data.session,
+    session_title: res.data.session_title,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,

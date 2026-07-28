@@ -48,8 +48,8 @@ import { clinicQueryKeys } from "../../queryKeys";
 /* ── Types ── */
 
 type StudentGroup = {
+  key: string;
   studentName: string;
-  enrollmentId: number;
   items: ClinicTarget[];
   openCount: number;
 };
@@ -99,8 +99,30 @@ function formatScoreDisplay(item: ClinicTarget): string {
 
 function requestScheduleText(row: ClinicParticipant): string {
   const time = hhmmText(row.session_start_time, "-");
+  const title = row.session_title ? `${row.session_title} · ` : "";
   const location = row.session_location ? ` · ${row.session_location}` : "";
-  return `${row.session_date} ${time}${location}`;
+  return `${title}${row.session_date} ${time}${location}`;
+}
+
+function targetStudentKey(target: ClinicTarget): string {
+  return target.student_id
+    ? `student:${target.student_id}`
+    : `enrollment:${target.enrollment_id}`;
+}
+
+function targetLectures(items: ClinicTarget[]) {
+  const seen = new Set<string>();
+  return items.flatMap((item) => {
+    if (!item.lecture_title) return [];
+    const key = `${item.lecture_id ?? ""}:${item.lecture_title}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{
+      lectureName: item.lecture_title,
+      color: item.lecture_color,
+      chipLabel: item.lecture_chip_label,
+    }];
+  });
 }
 
 /* ══════════════════════════════════════════ */
@@ -169,7 +191,20 @@ export default function ClinicBookingsPage() {
                   return (
                     <li key={row.id} className="clinic-bookings__pending-item">
                       <div className="clinic-bookings__pending-item-info">
-                        <span className="clinic-bookings__pending-item-name">{row.student_name}</span>
+                        <StudentNameWithLectureChip
+                          name={row.student_name}
+                          lectures={row.lecture_title ? [{
+                            lectureName: row.lecture_title,
+                            color: row.lecture_color,
+                            chipLabel: row.lecture_chip_label,
+                          }] : undefined}
+                          clinicHighlight={row.name_highlight_clinic_target}
+                          profilePhotoUrl={row.profile_photo_url}
+                          enrollmentId={row.enrollment_id}
+                          avatarSize={20}
+                          density="compact"
+                          className="clinic-bookings__pending-item-name"
+                        />
                         <span className="clinic-bookings__pending-item-meta">
                           <Clock size={13} aria-hidden />
                           {requestScheduleText(row)}
@@ -220,7 +255,7 @@ function RemediationWorkspace() {
   const [search, setSearch] = useState("");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("all");
   const [showResolved, setShowResolved] = useState(false);
-  const [expandedStudents, setExpandedStudents] = useState<Set<number>>(new Set());
+  const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
 
   /* ── Mutations ── */
   const invalidateAll = () => {
@@ -290,16 +325,17 @@ function RemediationWorkspace() {
 
   /* ── Student groups ── */
   const studentGroups = useMemo(() => {
-    const map = new Map<number, StudentGroup>();
+    const map = new Map<string, StudentGroup>();
     for (const t of filtered) {
-      const existing = map.get(t.enrollment_id);
+      const key = targetStudentKey(t);
+      const existing = map.get(key);
       if (existing) {
         existing.items.push(t);
         if (!t.resolved_at) existing.openCount++;
       } else {
-        map.set(t.enrollment_id, {
+        map.set(key, {
+          key,
           studentName: t.student_name,
-          enrollmentId: t.enrollment_id,
           items: [t],
           openCount: t.resolved_at ? 0 : 1,
         });
@@ -312,7 +348,7 @@ function RemediationWorkspace() {
   const kpi = useMemo(() => {
     const openItems = targets.filter((t) => !t.resolved_at);
     const scoreItems = openItems.filter((t) => t.reason === "score");
-    const uniqueStudents = new Set(openItems.map((t) => t.enrollment_id));
+    const uniqueStudents = new Set(openItems.map(targetStudentKey));
     return {
       totalStudents: uniqueStudents.size,
       totalItems: openItems.length,
@@ -321,11 +357,11 @@ function RemediationWorkspace() {
   }, [targets]);
 
   /* ── Toggle student expand ── */
-  function toggleStudent(enrollmentId: number) {
+  function toggleStudent(key: string) {
     setExpandedStudents((prev) => {
       const next = new Set(prev);
-      if (next.has(enrollmentId)) next.delete(enrollmentId);
-      else next.add(enrollmentId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
@@ -483,16 +519,16 @@ function RemediationWorkspace() {
           /* ═══ STUDENT VIEW ═══ */
           <div className="clinic-hub__student-list">
             {studentGroups.map((group) => {
-              const isExpanded = expandedStudents.has(group.enrollmentId);
+              const isExpanded = expandedStudents.has(group.key);
               return (
                 <div
-                  key={group.enrollmentId}
+                  key={group.key}
                   className={`clinic-hub__student-card ${isExpanded ? "clinic-hub__student-card--expanded" : ""}`}
                 >
                   <button
                     type="button"
                     className="clinic-hub__student-header"
-                    onClick={() => toggleStudent(group.enrollmentId)}
+                    onClick={() => toggleStudent(group.key)}
                   >
                     <span className="clinic-hub__student-expand">
                       {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -500,9 +536,10 @@ function RemediationWorkspace() {
                     <span className="clinic-hub__student-name">
                       <StudentNameWithLectureChip
                         name={group.studentName}
-                        lectures={group.items[0]?.lecture_title ? [{ lectureName: group.items[0].lecture_title, color: group.items[0].lecture_color, chipLabel: group.items[0].lecture_chip_label }] : undefined}
+                        lectures={targetLectures(group.items)}
                         clinicHighlight={group.items.some(i => i.name_highlight_clinic_target)}
                         profilePhotoUrl={group.items[0]?.profile_photo_url}
+                        enrollmentId={group.items[0]?.enrollment_id}
                         avatarSize={20}
                       />
                     </span>

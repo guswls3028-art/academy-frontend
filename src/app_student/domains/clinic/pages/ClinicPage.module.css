@@ -26,6 +26,116 @@
   gap: var(--stu-space-4);
 }
 
+.targetSummary {
+  padding: var(--stu-space-4);
+  border: 1px solid var(--stu-border);
+  border-left: 4px solid var(--stu-success);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface);
+}
+
+.targetSummaryRequired {
+  border-left-color: var(--stu-warn, #f59e0b);
+  background: color-mix(in srgb, var(--stu-warn-bg, #fffbeb) 72%, var(--stu-surface));
+}
+
+.targetSummaryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+}
+
+.targetSummaryEyebrow {
+  margin: 0 0 4px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.targetSummaryTitle {
+  margin: 0;
+  color: var(--stu-text);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.targetSummaryCount {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.targetSummaryDescription,
+.targetMore {
+  margin: var(--stu-space-3) 0 0;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.targetSummaryError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  margin-top: var(--stu-space-3);
+}
+
+.targetSummaryError .targetSummaryDescription {
+  margin: 0;
+}
+
+.targetRetry {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.targetList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: var(--stu-space-3);
+  margin-top: var(--stu-space-3);
+  border-top: 1px solid var(--stu-border);
+}
+
+.targetItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.targetItemTitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--stu-text);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.targetItemReason {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--stu-danger);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .tabBar {
   display: flex;
   gap: 0;
@@ -169,10 +279,29 @@
   font-size: 12px;
 }
 
+.sessionLectures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
 .sessionAside {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.recommendedBadge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stu-primary) 12%, transparent);
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .fullBadge {
@@ -267,6 +396,12 @@
   justify-content: space-between;
 }
 
+.requestSessionTitle {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--stu-text);
+}
+
 .cancelButton {
   flex-shrink: 0;
   padding: 4px 10px;
@@ -291,4 +426,27 @@
 .rejectedPill {
   background: var(--stu-danger-bg, rgba(239, 68, 68, 0.08));
   color: var(--stu-danger);
+}
+
+@media (max-width: 520px) {
+  .targetSummaryHeader,
+  .targetItem {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .targetSummaryCount {
+    order: 2;
+  }
+
+  .targetItemReason {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 26px;
+  }
+
+  .targetSummaryError {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

@@ -71,6 +71,27 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
         ]),
       });
     });
+    await page.route("**/api/v1/students/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          count: 1,
+          results: [
+            {
+              id: 802002,
+              name: "전체학생검증",
+              parent_phone: "01012345678",
+              phone: "",
+              school_type: "HIGH",
+              high_school: "테스트고",
+              grade: 1,
+              enrollments: [],
+            },
+          ],
+        }),
+      });
+    });
 
     await page.goto(`${BASE}/admin/clinic/schedule`);
     await page.waitForLoadState("networkidle").catch(() => undefined);
@@ -87,7 +108,7 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
     await page.locator(".ant-modal-close").click();
 
     await sessionCard.getByRole("button", { name: "학생 추가", exact: true }).click();
-    await expect(page.getByRole("grid", { name: "예약 대상자 명단" })).toBeVisible();
+    await expect(page.getByRole("grid", { name: "미통과 대상자 명단" })).toBeVisible();
     const targetNames = (await page
       .locator(".clinic-target-select-modal__table tbody .modal-inner-table__name")
       .allTextContents())
@@ -96,7 +117,25 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
     expect(targetNames).toHaveLength(1);
     expect(targetNames[0]).toContain("중복검증학생");
     expect(new Set(targetNames).size).toBe(targetNames.length);
+    await page.getByRole("checkbox", { name: "중복검증학생 선택" }).check();
+    await expect(page.locator(".clinic-target-select-modal__selected-count")).toHaveText("1명 선택됨");
+    await page.getByRole("button", { name: "전체 학생", exact: true }).click();
+    await expect(page.getByRole("grid", { name: "전체 학생 명단" })).toBeVisible();
+    await expect(page.locator(".clinic-target-select-modal__selected-count")).toHaveText("0명 선택됨");
+    await expect(page.getByRole("checkbox", { name: "전체학생검증 선택" })).toBeVisible();
+    await page.getByRole("button", { name: "미통과 대상자", exact: true }).click();
+    await expect(page.getByRole("grid", { name: "미통과 대상자 명단" })).toBeVisible();
+    await expect(page.locator(".clinic-target-select-modal__selected-count")).toHaveText("0명 선택됨");
     await page.locator(".ant-modal-close").click();
+
+    await page.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+    const createDialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
+    await createDialog.getByRole("button", { name: "대상자 추가", exact: true }).click();
+    await page.getByRole("checkbox", { name: "중복검증학생 선택" }).check();
+    await page.getByRole("button", { name: "선택 확정 (1명)" }).click();
+    await expect(createDialog.locator(".clinic-capacity-stepper__value")).toHaveText("10");
+    await expect(createDialog.getByText("미통과 대상자 1명 선택 · 추가 예약 9명 가능")).toBeVisible();
+    await page.locator(".ant-modal-close").last().click();
 
     if (process.env.CAPTURE_CLINIC_SCHEDULE === "1") {
       await page.screenshot({

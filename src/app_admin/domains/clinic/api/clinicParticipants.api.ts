@@ -22,6 +22,7 @@ export type ClinicParticipant = {
   clinic_reason?: "exam" | "homework" | "both";
 
   session_date: string;
+  session_title?: string | null;
   session_start_time: string;
   session_end_time?: string;
   session_location: string;

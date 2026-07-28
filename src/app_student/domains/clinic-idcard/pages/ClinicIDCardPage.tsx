@@ -5,8 +5,11 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchClinicIdcard } from "../api/idcard";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import "../styles/idcard.css";
 
 /** 실시간 시각 문자열 (초 단위) — 위조/스크린샷 시 초가 멈춰 보이므로 판별용 */
@@ -80,6 +83,15 @@ export default function ClinicIDCardPage() {
 
   const seconds = liveNow.getSeconds();
   const timeToneClass = seconds % 2 === 0 ? "idcard-page__time--even" : "idcard-page__time--odd";
+  const historiesByLecture = Array.from(
+    (data.histories ?? []).reduce((groups, history) => {
+      const key = history.enrollment_id ?? history.lecture_id ?? 0;
+      const existing = groups.get(key);
+      if (existing) existing.push(history);
+      else groups.set(key, [history]);
+      return groups;
+    }, new Map<number, typeof data.histories>()),
+  );
 
   return (
     <div
@@ -103,7 +115,20 @@ export default function ClinicIDCardPage() {
       </div>
 
       {/* 학생 이름 */}
-      <div className="idcard-page__name">{data.student_name || "-"}</div>
+      <div className="idcard-page__name">
+        <StudentNameWithLectureChip
+          name={data.student_name || "-"}
+          profilePhotoUrl={data.profile_photo_url}
+          avatarSize={32}
+          lectures={data.lectures.map((lecture) => ({
+            lectureName: lecture.title,
+            color: lecture.color,
+            chipLabel: lecture.chip_label,
+          }))}
+          clinicHighlight={isClinicTarget}
+          maxLectureChips={3}
+        />
+      </div>
 
       {/* 패스카드: 합격 / 클리닉 예약 대상자 — 큼지막하게 한 줄로 */}
       <div
@@ -116,27 +141,49 @@ export default function ClinicIDCardPage() {
 
       {/* 차시별 이력 (1~n) — 읽기 전용 */}
       <div className="idcard-page__history-label">차시별 이력 (합격/클리닉 대상)</div>
-      <div className="idcard-page__history-grid">
-        {(data.histories?.length ?? 0) === 0 ? (
-          <div className="idcard-page__history-empty">차시 이력이 없습니다.</div>
-        ) : (
-          (data.histories ?? []).map((h) => (
-            <div
-              key={h.session_order}
-              className={`idcard-page__history-item ${h.clinic_required ? "idcard-page__history-item--clinic" : "idcard-page__history-item--pass"}`}
-            >
-              {h.session_order}차시
-              <div className="idcard-page__history-item-sub">
-                {h.clinic_required ? "클리닉 대상" : "합격"}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      {(data.histories?.length ?? 0) === 0 ? (
+        <div className="idcard-page__history-empty">차시 이력이 없습니다.</div>
+      ) : (
+        <div className="idcard-page__history-groups">
+          {historiesByLecture.map(([groupKey, histories]) => {
+            const first = histories[0];
+            return (
+              <section key={groupKey} className="idcard-page__history-group">
+                {first?.lecture_title && (
+                  <div className="idcard-page__history-lecture">
+                    <LectureChip
+                      lectureName={first.lecture_title}
+                      color={first.lecture_color ?? undefined}
+                      chipLabel={first.lecture_chip_label}
+                    />
+                    <span>{first.lecture_title}</span>
+                  </div>
+                )}
+                <div className="idcard-page__history-grid">
+                  {histories.map((history) => (
+                    <div
+                      key={`${history.enrollment_id ?? 0}-${history.session_id ?? history.session_order}`}
+                      className={`idcard-page__history-item ${history.clinic_required ? "idcard-page__history-item--clinic" : "idcard-page__history-item--pass"}`}
+                    >
+                      {history.session_order}차시
+                      <div className="idcard-page__history-item-sub">
+                        {history.clinic_required ? "클리닉 대상" : "합격"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       {isClinicTarget && (
         <div className="idcard-page__clinic-notice">
-          선생님 안내에 따라 클리닉 참여해 주세요.
+          <span>보강 항목에 맞는 클리닉 일정을 예약해 주세요.</span>
+          <Link to="/student/clinic" className="idcard-page__clinic-link">
+            예약하러 가기
+          </Link>
         </div>
       )}
     </div>

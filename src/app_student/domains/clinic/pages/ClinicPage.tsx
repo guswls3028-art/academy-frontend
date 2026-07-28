@@ -5,7 +5,7 @@
  * - 내 예약 현황: 승인 대기 / 승인됨 실데이터
  * - 캘린더 + 예약 신청
  */
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 
@@ -20,12 +20,44 @@ import {
   createClinicBookingRequest,
   cancelClinicBookingRequest,
   changeClinicBooking,
+  type ClinicSession,
 } from "../api/clinicBooking.api";
+import {
+  fetchClinicIdcard,
+  type ClinicCurrentTarget,
+} from "@student/domains/clinic-idcard/api/idcard";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import EmptyState from "@student/layout/EmptyState";
 import { studentClinicQueryKeys } from "../queryKeys";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import styles from "./ClinicPage.module.css";
+
+function isSessionFull(session: ClinicSession): boolean {
+  if (typeof session.is_full === "boolean") return session.is_full;
+  return (
+    session.max_participants != null &&
+    (session.booked_count ?? 0) >= session.max_participants
+  );
+}
+
+function sessionMatchesTargets(
+  session: ClinicSession,
+  targetLectureIds: ReadonlySet<number>,
+): boolean {
+  if (targetLectureIds.size === 0) return false;
+  const sessionLectureIds = (session.target_lecture_names ?? []).map(
+    (lecture) => lecture.id,
+  );
+  return (
+    sessionLectureIds.length === 0 ||
+    sessionLectureIds.some((lectureId) => targetLectureIds.has(lectureId))
+  );
+}
+
+function targetReasonLabel(target: ClinicCurrentTarget): string {
+  return target.source_type === "homework" ? "과제 보강" : "시험 보강";
+}
 
 export default function ClinicPage() {
   const qc = useQueryClient();
@@ -55,6 +87,26 @@ export default function ClinicPage() {
       });
     },
   });
+  const {
+    data: clinicStatus,
+    isLoading: clinicStatusLoading,
+    isError: clinicStatusError,
+    refetch: refetchClinicStatus,
+  } = useQuery({
+    queryKey: studentClinicQueryKeys.idcard,
+    queryFn: fetchClinicIdcard,
+    staleTime: 30_000,
+  });
+  const currentTargets = useMemo(
+    () => clinicStatus?.current_targets ?? [],
+    [clinicStatus],
+  );
+  const currentTargetLectureIds = useMemo(
+    () => new Set(currentTargets.map((target) => target.lecture_id)),
+    [currentTargets],
+  );
+  const hasClinicRequirement =
+    currentTargets.length > 0 || clinicStatus?.current_result === "FAIL";
 
   // 예약 신청 mutation
   const bookingMutation = useMutation({
@@ -129,15 +181,64 @@ export default function ClinicPage() {
     },
   });
 
+  // 첫 화면에서 가장 가까운 예약 가능 날짜를 바로 열어 불필요한 달력 탐색을 줄인다.
+  // 미통과 대상 강의와 맞는 세션을 같은 날짜 안에서 우선한다.
+  useEffect(() => {
+    if (selectedDate || clinicStatusLoading || sessions.length === 0) return;
+
+    const activeBooking = myRequests.find(
+      (request) =>
+        request.session_date >= todayYmd() &&
+        (request.status === "pending" || request.status === "booked"),
+    );
+    if (activeBooking) {
+      setSelectedDate(activeBooking.session_date);
+      setSelectedSessionId(activeBooking.session);
+      return;
+    }
+
+    const nextSession = [...sessions]
+      .filter((session) => !isSessionFull(session))
+      .sort((a, b) => {
+        const dateDiff = a.date.localeCompare(b.date);
+        if (dateDiff !== 0) return dateDiff;
+        const recommendedDiff =
+          Number(sessionMatchesTargets(b, currentTargetLectureIds)) -
+          Number(sessionMatchesTargets(a, currentTargetLectureIds));
+        if (recommendedDiff !== 0) return recommendedDiff;
+        return a.start_time.localeCompare(b.start_time);
+      })[0];
+    if (!nextSession) return;
+    setSelectedDate(nextSession.date);
+    setSelectedSessionId(nextSession.id);
+  }, [
+    clinicStatusLoading,
+    currentTargetLectureIds,
+    myRequests,
+    selectedDate,
+    sessions,
+  ]);
+
   // 날짜 선택 핸들러
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
-    setSelectedSessionId(null);
 
     const existingBooking = myRequests.find((r) => r.session_date === date);
     if (existingBooking && (existingBooking.status === "pending" || existingBooking.status === "booked")) {
       setSelectedSessionId(existingBooking.session ?? null);
+      return;
     }
+
+    const firstOpenSession = sessions
+      .filter((session) => session.date === date && !isSessionFull(session))
+      .sort((a, b) => {
+        const recommendedDiff =
+          Number(sessionMatchesTargets(b, currentTargetLectureIds)) -
+          Number(sessionMatchesTargets(a, currentTargetLectureIds));
+        if (recommendedDiff !== 0) return recommendedDiff;
+        return a.start_time.localeCompare(b.start_time);
+      })[0];
+    setSelectedSessionId(firstOpenSession?.id ?? null);
   };
 
   // 예약 신청 핸들러 — 등록 가능한 클리닉(세션)만 신청 가능
@@ -246,8 +347,16 @@ export default function ClinicPage() {
   // 선택한 날짜의 세션 정보
   const selectedDateSessions = useMemo(() => {
     if (!selectedDate) return [];
-    return sessions.filter((s) => s.date === selectedDate);
-  }, [selectedDate, sessions]);
+    return sessions
+      .filter((s) => s.date === selectedDate)
+      .sort((a, b) => {
+        const recommendedDiff =
+          Number(sessionMatchesTargets(b, currentTargetLectureIds)) -
+          Number(sessionMatchesTargets(a, currentTargetLectureIds));
+        if (recommendedDiff !== 0) return recommendedDiff;
+        return a.start_time.localeCompare(b.start_time);
+      });
+  }, [currentTargetLectureIds, selectedDate, sessions]);
 
   // 선택한 세션이 정원 마감인지
   const selectedSessionIsFull = useMemo(() => {
@@ -340,14 +449,96 @@ export default function ClinicPage() {
 
         {/* ===== 예약 탭 ===== */}
         {activeTab === "book" && (<>
+        <section
+          className={`${styles.targetSummary} ${
+            hasClinicRequirement ? styles.targetSummaryRequired : ""
+          }`}
+          aria-label="내 클리닉 대상 현황"
+        >
+          <div className={styles.targetSummaryHeader}>
+            <div>
+              <p className={styles.targetSummaryEyebrow}>내 보강 현황</p>
+              <h2 className={styles.targetSummaryTitle}>
+                {clinicStatusLoading
+                  ? "보강 항목을 확인하고 있어요"
+                  : clinicStatusError
+                    ? "보강 항목을 불러오지 못했어요"
+                    : currentTargets.length > 0
+                      ? `보강이 필요한 항목 ${currentTargets.length}개`
+                      : hasClinicRequirement
+                        ? "보강이 필요한 항목이 있어요"
+                        : "현재 보강이 필요한 항목이 없어요"}
+              </h2>
+            </div>
+            {hasClinicRequirement && !clinicStatusError && (
+              <span className={styles.targetSummaryCount}>
+                {currentTargets.length > 0 ? "예약할 일정 선택" : "학원 안내 확인"}
+              </span>
+            )}
+          </div>
+
+          {clinicStatusError ? (
+            <div className={styles.targetSummaryError}>
+              <p className={styles.targetSummaryDescription}>
+                네트워크 연결을 확인한 뒤 다시 불러와 주세요.
+              </p>
+              <button
+                type="button"
+                className={`stu-btn stu-btn--secondary ${styles.targetRetry}`}
+                onClick={() => refetchClinicStatus()}
+              >
+                다시 불러오기
+              </button>
+            </div>
+          ) : !clinicStatusLoading && currentTargets.length > 0 ? (
+            <div className={styles.targetList}>
+              {currentTargets.slice(0, 3).map((target) => (
+                <div key={target.clinic_link_id} className={styles.targetItem}>
+                  <LectureChip
+                    lectureName={target.lecture_title}
+                    color={target.lecture_color ?? undefined}
+                    chipLabel={target.lecture_chip_label}
+                  />
+                  <span className={styles.targetItemTitle}>
+                    {target.session_title || `${target.session_order}차시`}
+                  </span>
+                  <span className={styles.targetItemReason}>
+                    {targetReasonLabel(target)}
+                  </span>
+                </div>
+              ))}
+              {currentTargets.length > 3 && (
+                <p className={styles.targetMore}>
+                  보강 항목 {currentTargets.length - 3}개가 더 있어요.
+                </p>
+              )}
+            </div>
+          ) : !clinicStatusLoading ? (
+            <p className={styles.targetSummaryDescription}>
+              {hasClinicRequirement
+                ? "학원에서 안내받은 강의에 맞춰 아래 열린 일정을 선택해 주세요."
+                : "학원에서 별도로 안내받은 경우 아래 열린 일정에서 예약할 수 있어요."}
+            </p>
+          ) : null}
+        </section>
+
         {/* 달력 */}
-        <ClinicCalendar
-          selectedDate={selectedDate}
-          onDateSelect={handleDateSelect}
-          bookings={myRequests}
-          availableDates={availableDates}
-          dateCapacityStatus={dateCapacityStatus}
-        />
+        {sessions.length > 0 ? (
+          <ClinicCalendar
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            bookings={myRequests}
+            availableDates={availableDates}
+            dateCapacityStatus={dateCapacityStatus}
+          />
+        ) : (
+          <div className="stu-section stu-section--nested">
+            <EmptyState
+              title="지금 예약 가능한 일정이 없습니다"
+              description="학원에서 클리닉 일정을 열면 이곳에서 바로 예약할 수 있어요."
+            />
+          </div>
+        )}
 
         {/* 선택한 날짜의 예약 필드 */}
         {selectedDate && (
@@ -393,11 +584,13 @@ export default function ClinicPage() {
                   ) : (
                     <div className={styles.sessionList}>
                       {selectedDateSessions.map((session) => {
-                        const isFull =
-                          session.max_participants != null &&
-                          (session.booked_count ?? 0) >= session.max_participants;
+                        const isFull = isSessionFull(session);
                         const isSelected = selectedSessionId === session.id;
                         const isDisabled = isFull || bookingChangeLocked;
+                        const isRecommended = sessionMatchesTargets(
+                          session,
+                          currentTargetLectureIds,
+                        );
                         const remaining =
                           session.max_participants != null
                             ? Math.max(0, session.max_participants - (session.booked_count ?? 0))
@@ -430,8 +623,25 @@ export default function ClinicPage() {
                                   {session.location}
                                   {session.target_grade ? ` · ${session.target_grade}학년` : ""}
                                 </div>
+                                {(session.target_lecture_names?.length ?? 0) > 0 && (
+                                  <div className={styles.sessionLectures}>
+                                    {session.target_lecture_names?.map((lecture) => (
+                                      <LectureChip
+                                        key={lecture.id}
+                                        lectureName={lecture.title}
+                                        color={lecture.color ?? undefined}
+                                        chipLabel={lecture.chip_label}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className={styles.sessionAside}>
+                                {isRecommended && (
+                                  <span className={styles.recommendedBadge}>
+                                    내 보강 일정
+                                  </span>
+                                )}
                                 {isFull ? (
                                   <span className={styles.fullBadge}>
                                     정원 마감
@@ -542,6 +752,11 @@ export default function ClinicPage() {
                     <div className={styles.requestRow}>
                       <div>
                         <div className={styles.requestTitle}>
+                          {request.session_title && (
+                            <span className={styles.requestSessionTitle}>
+                              {request.session_title}
+                            </span>
+                          )}
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
                         <div className={`stu-muted ${styles.smallMuted}`}>
@@ -583,6 +798,11 @@ export default function ClinicPage() {
                     <div className={styles.requestRow}>
                       <div>
                         <div className={styles.requestTitle}>
+                          {request.session_title && (
+                            <span className={styles.requestSessionTitle}>
+                              {request.session_title}
+                            </span>
+                          )}
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
                         <div className={`stu-muted ${styles.smallMuted}`}>
@@ -614,6 +834,11 @@ export default function ClinicPage() {
                     <div className={styles.requestRow}>
                       <div>
                         <div className={styles.requestTitle}>
+                          {request.session_title && (
+                            <span className={styles.requestSessionTitle}>
+                              {request.session_title}
+                            </span>
+                          )}
                           {formatYmd(request.session_date)} {formatTime(request.session_start_time)}
                         </div>
                         {request.session_location && (

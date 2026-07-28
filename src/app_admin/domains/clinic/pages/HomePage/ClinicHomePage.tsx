@@ -27,7 +27,7 @@ function todayISO() {
 
 function weekRangeISO(base: string) {
   const d = dayjs(base);
-  const start = d.startOf("week"); // ko locale: 월요일
+  const start = d.subtract((d.day() + 6) % 7, "day").startOf("day");
   const end = start.add(6, "day"); // 월~일
   return { from: start.format("YYYY-MM-DD"), to: end.format("YYYY-MM-DD") };
 }
@@ -52,15 +52,17 @@ function groupBySession(rows: ClinicParticipant[]) {
     map.set(r.session, [...(map.get(r.session) ?? []), r]);
   });
   const items = Array.from(map.entries()).map(([sessionId, rs]) => {
-    const first = rs[0];
+    const activeRows = rs.filter((row) => row.status !== "cancelled" && row.status !== "rejected");
+    const first = activeRows[0] ?? rs[0];
     const time = hhmmText(first?.session_start_time, "-");
     const end = hhmmText(first?.session_end_time);
     const location = first?.session_location || "";
     const booked = rs.filter((x) => x.status === "booked").length;
+    const pending = rs.filter((x) => x.status === "pending").length;
     const attended = rs.filter((x) => x.status === "attended").length;
     const noShow = rs.filter((x) => x.status === "no_show").length;
-    const total = rs.length;
-    return { sessionId, time, end, location, total, booked, attended, noShow };
+    const reserved = activeRows.length;
+    return { sessionId, time, end, location, reserved, booked, pending, attended, noShow };
   });
   items.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
   return items;
@@ -152,11 +154,11 @@ export default function ClinicHomePage() {
         time: hhmmText(s.start_time, "-"),
         end: "",
         location: s.location || "",
-        total: pg?.total ?? s.booked_count ?? 0,
+        reserved: pg?.reserved ?? s.booked_count ?? 0,
         booked: pg?.booked ?? s.booked_confirmed_count ?? Math.max(0, (s.booked_count ?? 0) - (s.pending_count ?? 0)),
         attended: pg?.attended ?? 0,
         noShow: pg?.noShow ?? s.no_show_count ?? 0,
-        approvalPending: s.pending_count ?? 0,
+        approvalPending: pg?.pending ?? s.pending_count ?? 0,
         maxParticipants: s.max_participants ?? null,
         sectionLabel: s.section_label ?? null,
       };
@@ -174,7 +176,7 @@ export default function ClinicHomePage() {
 
   // 오늘 출석 요약 계산
   const todaySummary = useMemo(() => {
-    const active = todayRows.filter((r) => r.status !== "cancelled");
+    const active = todayRows.filter((r) => r.status !== "cancelled" && r.status !== "rejected");
     const total = active.length;
     const attended = active.filter((r) => r.status === "attended").length;
     return { total, attended };
@@ -334,10 +336,10 @@ export default function ClinicHomePage() {
               <button
                 type="button"
                 className="clinic-home__empty-sessions-cta"
-                onClick={() => nav("/admin/clinic/operations")}
+                onClick={() => nav("/admin/clinic/schedule")}
               >
                 <CalendarPlus size={15} aria-hidden />
-                클리닉 진행에서 만들기
+                예약 일정에서 만들기
               </button>
             </div>
           )}
@@ -373,7 +375,7 @@ export default function ClinicHomePage() {
                           <span className="clinic-home__timeline-card-location">{s.location}</span>
                         )}
                         <span className="clinic-home__timeline-card-fill">
-                          {s.booked}/{s.total}명
+                          예약 {s.reserved}{s.maxParticipants != null ? `/${s.maxParticipants}` : ""}명
                           {s.approvalPending > 0 && (
                             <span className="clinic-home__timeline-card-alert"> · 승인 대기 {s.approvalPending}</span>
                           )}
