@@ -20,6 +20,8 @@ const TENANT_APP_ICON_BY_HOST: Record<string, string> = {
   "www.dnbacademy.co.kr": "/tenants/dnb/apple-touch-icon.png",
 };
 
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
+
 export function getTenantPwaBrand(
   hostname = window.location.hostname,
 ): TenantPwaBrand {
@@ -49,7 +51,7 @@ export async function resolveTenantPwaBrand(
 
   try {
     const response = await fetch(
-      `https://api.hakwonplus.com/api/v1/core/og-meta/?hostname=${encodeURIComponent(hostname)}`,
+      `${API_BASE}/api/v1/core/og-meta/?hostname=${encodeURIComponent(hostname)}`,
       { headers: { Accept: "application/json" } },
     );
     if (!response.ok) return fallback;

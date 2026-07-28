@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -35,10 +35,21 @@ function resolveBuildVersion(): string {
 }
 
 const buildVersion = resolveBuildVersion();
-const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || "http://localhost:8000";
-const devHost = process.env.VITE_DEV_HOST?.trim() || "127.0.0.1";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const runtimeEnv = loadEnv(mode, process.cwd(), "");
+  const devProxyTarget = (
+    process.env.VITE_DEV_PROXY_TARGET ||
+    runtimeEnv.VITE_DEV_PROXY_TARGET ||
+    "http://localhost:8000"
+  ).trim();
+  const devHost = (
+    process.env.VITE_DEV_HOST ||
+    runtimeEnv.VITE_DEV_HOST ||
+    "127.0.0.1"
+  ).trim();
+
+  return {
   define: {
     // Keep the historical global name while using a deterministic build ID.
     __BUILD_TIMESTAMP__: JSON.stringify(buildVersion),
@@ -136,4 +147,5 @@ export default defineConfig({
   optimizeDeps: {
     include: ["react", "react-dom"],
   },
+  };
 });

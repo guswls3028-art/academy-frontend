@@ -3,6 +3,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
+  getSessionItem,
+  removeSessionItem,
+  setSessionItem,
+} from "@/shared/utils/safeSessionStorage";
+import {
   createWrongNotePDF,
   fetchWrongNotePDFStatus,
   fetchWrongNotes,
@@ -26,6 +31,37 @@ type WrongNoteGroup = {
   items: WrongNoteItem[];
 };
 
+type PersistedPdfJob = {
+  job: WrongNotePDFCreateResponse;
+  fingerprint: string;
+};
+
+const PDF_POLL_LIMIT = 200;
+const PDF_URL_REFRESH_MS = 50 * 60 * 1000;
+
+function pdfJobStorageKey(context: string): string {
+  const tenant = getSessionItem("tenantCode") || "current";
+  return `hakwonplus:wrong-note-pdf:v1:${tenant}:${context}`;
+}
+
+function readPersistedPdfJob(key: string): PersistedPdfJob | null {
+  const raw = getSessionItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedPdfJob>;
+    if (
+      !parsed.job ||
+      !Number.isFinite(parsed.job.job_id) ||
+      typeof parsed.fingerprint !== "string"
+    ) {
+      return null;
+    }
+    return parsed as PersistedPdfJob;
+  } catch {
+    return null;
+  }
+}
+
 function sessionLabel(item: WrongNoteItem): string {
   if (item.session_order != null && item.session_title) {
     return `${item.session_order}주차 · ${item.session_title}`;
@@ -39,13 +75,20 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const [pdfJob, setPdfJob] = useState<WrongNotePDFCreateResponse | null>(null);
   const [pdfFileUrl, setPdfFileUrl] = useState("");
   const [pdfError, setPdfError] = useState("");
+  const [pdfUrlFetchedAt, setPdfUrlFetchedAt] = useState(0);
+  const [pollRevision, setPollRevision] = useState(0);
+  const [pdfAnnouncement, setPdfAnnouncement] = useState("");
+  const panelRef = useRef<HTMLElement | null>(null);
+  const shouldFocusDownloadRef = useRef(false);
 
   const queryExamId = scope === "exam" ? examId : undefined;
   const requestContext = `${enrollmentId}:${queryExamId ?? "lecture"}:${scope}`;
+  const storageKey = pdfJobStorageKey(requestContext);
   const requestContextRef = useRef(requestContext);
   const mutationContextRef = useRef("");
+  const mutationFingerprintRef = useRef("");
   requestContextRef.current = requestContext;
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: adminResultsQueryKeys.wrongNotes(enrollmentId, scope, queryExamId),
     queryFn: () =>
       fetchWrongNotes({
@@ -59,6 +102,27 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
 
   const wrongList = useMemo(() => data?.results ?? [], [data]);
   const totalWrongCount = data?.count ?? wrongList.length;
+  const wrongListFingerprint = useMemo(
+    () =>
+      JSON.stringify([
+        totalWrongCount,
+        ...wrongList.map((item) => [
+          item.exam_id,
+          item.exam_title,
+          item.question_id,
+          item.question_number,
+          item.session_order,
+          item.session_title,
+          item.student_answer,
+          item.correct_answer,
+          item.score,
+          item.is_correct,
+          item.has_question_image,
+          item.question_image_url,
+        ]),
+      ]),
+    [totalWrongCount, wrongList],
+  );
   const isPreviewLimited = totalWrongCount > wrongList.length;
   const exceedsPdfLimit = totalWrongCount > MAX_WRONG_NOTE_PDF_ITEMS;
   const groups = useMemo<WrongNoteGroup[]>(() => {
@@ -93,7 +157,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
 
   const pdfMutation = useMutation({
     mutationFn: () => {
+      shouldFocusDownloadRef.current = true;
       mutationContextRef.current = requestContext;
+      mutationFingerprintRef.current = wrongListFingerprint;
       return createWrongNotePDF({
         enrollment_id: enrollmentId,
         exam_id: queryExamId,
@@ -101,10 +167,19 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       });
     },
     onSuccess: (response) => {
-      if (requestContextRef.current !== mutationContextRef.current) return;
+      const completedContext = mutationContextRef.current;
+      setSessionItem(
+        pdfJobStorageKey(completedContext),
+        JSON.stringify({
+          job: response,
+          fingerprint: mutationFingerprintRef.current,
+        } satisfies PersistedPdfJob),
+      );
+      if (requestContextRef.current !== completedContext) return;
       setPdfJob(response);
       setPdfFileUrl("");
       setPdfError("");
+      setPdfAnnouncement("PDF 생성 요청이 접수되었습니다.");
     },
     onError: (mutationError: unknown) => {
       if (requestContextRef.current !== mutationContextRef.current) return;
@@ -116,7 +191,31 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
     setPdfJob(null);
     setPdfFileUrl("");
     setPdfError("");
+    setPdfUrlFetchedAt(0);
+    setPdfAnnouncement("");
   }, [requestContext]);
+
+  useEffect(() => {
+    if (error) {
+      setPdfJob(null);
+      setPdfFileUrl("");
+      setPdfUrlFetchedAt(0);
+      return;
+    }
+    if (isFetching || !data) return;
+    const persisted = readPersistedPdfJob(storageKey);
+    if (!persisted) return;
+    if (persisted.fingerprint !== wrongListFingerprint) {
+      removeSessionItem(storageKey);
+      setPdfJob(null);
+      setPdfFileUrl("");
+      setPdfError("");
+      setPdfUrlFetchedAt(0);
+      setPdfAnnouncement("");
+      return;
+    }
+    setPdfJob(persisted.job);
+  }, [data, error, isFetching, storageKey, wrongListFingerprint]);
 
   useEffect(() => {
     if (!pdfJob?.job_id) return;
@@ -135,21 +234,25 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         if (status.status === "DONE") {
           if (status.file_url) {
             setPdfFileUrl(status.file_url);
+            setPdfUrlFetchedAt(Date.now());
             setPdfError("");
+            setPdfAnnouncement("오답노트 PDF 다운로드가 준비되었습니다.");
           } else {
-            setPdfError("PDF는 만들어졌지만 다운로드 주소를 열지 못했습니다. 다시 만들어 주세요.");
+            setPdfError("PDF는 만들어졌지만 다운로드 주소를 확인하지 못했습니다.");
           }
           return;
         }
 
         if (status.status === "FAILED") {
+          removeSessionItem(storageKey);
+          setPdfJob(null);
           setPdfError(status.error_message || "오답노트 PDF를 만들지 못했습니다.");
           return;
         }
 
         attempts += 1;
-        if (attempts >= 40) {
-          setPdfError("PDF 생성이 오래 걸리고 있습니다. 잠시 후 다시 만들어 주세요.");
+        if (attempts >= PDF_POLL_LIMIT) {
+          setPdfError("PDF 생성이 오래 걸리고 있습니다. 잠시 후 상태를 다시 확인해 주세요.");
           return;
         }
         timer = setTimeout(tick, 1500);
@@ -169,12 +272,54 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [pdfJob, requestContext]);
+  }, [pdfJob, pollRevision, requestContext, storageKey]);
+
+  useEffect(() => {
+    if (!pdfFileUrl || !pdfUrlFetchedAt) return;
+    const remaining = PDF_URL_REFRESH_MS - (Date.now() - pdfUrlFetchedAt);
+    const timer = setTimeout(() => {
+      shouldFocusDownloadRef.current = false;
+      setPdfFileUrl("");
+      setPdfUrlFetchedAt(0);
+      setPollRevision((revision) => revision + 1);
+    }, Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [pdfFileUrl, pdfUrlFetchedAt]);
+
+  useEffect(() => {
+    if (!pdfFileUrl || !shouldFocusDownloadRef.current) return;
+    shouldFocusDownloadRef.current = false;
+    panelRef.current
+      ?.querySelector<HTMLButtonElement>('[data-testid="wrong-note-download"]')
+      ?.focus();
+  }, [pdfFileUrl]);
 
   const isCreating = pdfMutation.isPending || Boolean(pdfJob && !pdfFileUrl && !pdfError);
+  const retryPdf = () => {
+    setPdfError("");
+    setPdfAnnouncement("");
+    if (pdfJob) {
+      shouldFocusDownloadRef.current = true;
+      setPollRevision((revision) => revision + 1);
+      return;
+    }
+    pdfMutation.mutate();
+  };
+  const downloadPdf = () => {
+    if (Date.now() - pdfUrlFetchedAt >= PDF_URL_REFRESH_MS) {
+      setPdfFileUrl("");
+      setPdfUrlFetchedAt(0);
+      setPollRevision((revision) => revision + 1);
+      return;
+    }
+    window.open(pdfFileUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
-    <section className="wrong-note" data-testid="wrong-note-builder">
+    <section ref={panelRef} className="wrong-note" data-testid="wrong-note-builder">
+      <span className="ds-sr-only" role="status" aria-live="polite">
+        {pdfAnnouncement}
+      </span>
       <div className="wrong-note__hero">
         <div className="wrong-note__paper-stack" aria-hidden>
           <span />
@@ -200,6 +345,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           type="button"
           className={scope === "exam" ? "is-active" : ""}
           aria-pressed={scope === "exam"}
+          disabled={isCreating}
           onClick={() => setScope("exam")}
         >
           이번 시험
@@ -209,6 +355,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           type="button"
           className={scope === "lecture" ? "is-active" : ""}
           aria-pressed={scope === "lecture"}
+          disabled={isCreating}
           onClick={() => setScope("lecture")}
         >
           강의 누적
@@ -316,7 +463,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         {pdfFileUrl ? (
           <Button
             intent="primary"
-            onClick={() => window.open(pdfFileUrl, "_blank", "noopener,noreferrer")}
+            onClick={downloadPdf}
             data-testid="wrong-note-download"
           >
             PDF 다운로드
@@ -338,8 +485,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       {pdfError && (
         <div className="wrong-note__pdf-error" role="alert">
           <span>{pdfError}</span>
-          <button type="button" onClick={() => { setPdfJob(null); setPdfError(""); }}>
-            다시 시도
+          <button type="button" onClick={retryPdf}>
+            {pdfJob ? "상태 다시 확인" : "다시 시도"}
           </button>
         </div>
       )}

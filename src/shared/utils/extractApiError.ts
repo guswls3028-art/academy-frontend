@@ -28,6 +28,16 @@ const FIELD_LABELS: Record<string, string> = {
   non_field_errors: "",
 };
 
+const SAFE_TRANSPORT_ERROR_CODES = new Set([
+  "ECONNABORTED",
+  "ERR_NETWORK",
+  "ENOTFOUND",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ERR_INTERNET_DISCONNECTED",
+]);
+
 function extractMessage(value: unknown): string | null {
   if (typeof value === "string" && value) return value;
   if (value && typeof value === "object" && "msg" in value) {
@@ -50,10 +60,10 @@ export function extractApiError(
         ? (e as { code?: unknown; message?: unknown })
         : undefined;
     if (
-      transportError?.code === "ECONNABORTED" ||
-      transportError?.code === "ETIMEDOUT" ||
+      (typeof transportError?.code === "string" &&
+        SAFE_TRANSPORT_ERROR_CODES.has(transportError.code)) ||
       (typeof transportError?.message === "string" &&
-        transportError.message.toLowerCase().includes("timeout"))
+        /timeout|network error|failed to fetch/i.test(transportError.message))
     ) {
       return fallback;
     }

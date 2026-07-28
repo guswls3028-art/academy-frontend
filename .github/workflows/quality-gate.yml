@@ -84,6 +84,29 @@ jobs:
           echo "$CHANGED"
           pnpm exec eslint --max-warnings 0 $CHANGED
 
+      - name: Wrong-note async lifecycle contract
+        run: |
+          set -euo pipefail
+          pnpm exec playwright install chromium
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/wrong-note-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:5174/e2e-wrong-note-harness.html > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              cat /tmp/wrong-note-vite.log
+              exit 1
+            fi
+            sleep 1
+          done
+          E2E_BASE_URL=http://127.0.0.1:5174 \
+            pnpm exec playwright test \
+              e2e/admin/wrong-note-generation-contract.mock.spec.ts \
+              --project=chromium \
+              --reporter=list
+
       # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
         run: pnpm build

@@ -7,7 +7,7 @@ import type {
 } from "../types/results.types";
 
 export const MAX_WRONG_NOTE_PDF_ITEMS = 100;
-export const WRONG_NOTE_PDF_CREATE_TIMEOUT_MS = 120_000;
+export const WRONG_NOTE_PDF_CREATE_TIMEOUT_MS = 30_000;
 
 export type {
   WrongNoteItem,

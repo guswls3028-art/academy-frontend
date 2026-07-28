@@ -17,7 +17,7 @@ import {
   useEffect,
   type KeyboardEvent,
 } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { fetchAdminExamResultDetail, type ExamResultItem } from "../api/adminExamResultDetail";
@@ -43,6 +43,7 @@ import {
   isChoiceAnswer,
   requiredChoiceTokens,
 } from "../utils/choiceAnswerMatching";
+import { appendSerialTask } from "../utils/serialSaveQueue";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
   return t === "warn" ? "warning" : t;
@@ -219,6 +220,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.wrongNotesEnrollment(enrollmentId) });
   }, [qc, examId, enrollmentId]);
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
@@ -515,6 +517,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     correctAnswers={correctAnswersMap}
                     qNumMap={qNumMap}
                     onDone={exitEdit}
+                    onSaveSuccess={invalidateAll}
                   />
                 )}
               </>
@@ -698,7 +701,7 @@ function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptE
 /* 편집 모드 — 2단 (선택형 | 서술형) + sticky 총점       */
 /* ═══════════════════════════════════════════════════ */
 
-function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone }: {
+function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone, onSaveSuccess }: {
   sessionId?: number;
   examId: number;
   enrollmentId: number;
@@ -708,6 +711,7 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
   correctAnswers: Record<string, string>;
   qNumMap: Map<number, number>;
   onDone: () => void;
+  onSaveSuccess: () => void;
 }) {
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     const init: Record<number, string> = {};
@@ -721,14 +725,21 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
   });
 
   const scoreRefs = useRef<Record<number, HTMLInputElement | null>>({});
-
-  const saveMutation = useMutation({
-    mutationFn: (params: { questionId: number; score: number; answer?: string }) =>
+  const saveTailRef = useRef<Promise<void>>(Promise.resolve());
+  const enqueueSave = useCallback(
+    (params: { questionId: number; score: number; answer?: string }) => {
+      saveTailRef.current = appendSerialTask(
+        saveTailRef.current,
+        () =>
       sessionId == null
         ? Promise.reject(new Error("차시 성적 화면에서 수정해 주세요."))
         : patchExamItemScore({ sessionId, examId, enrollmentId, questionId: params.questionId, score: params.score, answer: params.answer }),
-    onError: () => feedback.error("저장에 실패했습니다."),
-  });
+        onSaveSuccess,
+        () => feedback.error("저장에 실패했습니다."),
+      );
+    },
+    [enrollmentId, examId, onSaveSuccess, sessionId],
+  );
 
   const getCorrectAnswer = (qid: number) => correctAnswers[String(qid)] ?? "";
 
@@ -749,16 +760,16 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
     else if (choiceAnswerMatches(newAnswer, correct)) newScore = maxScore;
     else newScore = 0;
     setScores((prev) => ({ ...prev, [qid]: newScore }));
-    saveMutation.mutate({ questionId: qid, score: newScore, answer: newAnswer });
-  }, [answers, correctAnswers, allItems, scores, saveMutation]);
+    enqueueSave({ questionId: qid, score: newScore, answer: newAnswer });
+  }, [answers, correctAnswers, allItems, scores, enqueueSave]);
 
   const handleEssayBlur = useCallback((qid: number) => {
-    saveMutation.mutate({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
-  }, [answers, scores, saveMutation]);
+    enqueueSave({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
+  }, [answers, scores, enqueueSave]);
 
   const handleScoreBlur = useCallback((qid: number) => {
-    saveMutation.mutate({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
-  }, [answers, scores, saveMutation]);
+    enqueueSave({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
+  }, [answers, scores, enqueueSave]);
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
   const totalMax = allItems.reduce((a, it) => a + it.max_score, 0);

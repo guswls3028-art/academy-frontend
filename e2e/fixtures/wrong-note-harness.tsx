@@ -7,10 +7,12 @@ import "@/app_admin/domains/results/components/StudentResultDrawer.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false },
+    queries: { retry: false, staleTime: 10_000 },
     mutations: { retry: false },
   },
 });
+
+Object.assign(window, { __wrongNoteQueryClient: queryClient });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

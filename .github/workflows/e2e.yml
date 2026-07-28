@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/**'
       - 'e2e/**'
+      - 'e2e-wrong-note-harness.html'
       - 'index.html'
       - 'package.json'
       - 'playwright.config.ts'
