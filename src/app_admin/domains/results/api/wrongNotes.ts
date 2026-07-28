@@ -6,6 +6,9 @@ import type {
   WrongNotePdfStatusResponse as WrongNotePDFStatusResponse,
 } from "../types/results.types";
 
+export const MAX_WRONG_NOTE_PDF_ITEMS = 100;
+export const WRONG_NOTE_PDF_CREATE_TIMEOUT_MS = 120_000;
+
 export type {
   WrongNoteItem,
   WrongNoteListResponse as WrongNoteResponse,
@@ -31,7 +34,9 @@ export async function createWrongNotePDF(payload: {
   lecture_id?: number;
   from_session_order?: number;
 }) {
-  const res = await api.post("/results/wrong-notes/pdf/", payload);
+  const res = await api.post("/results/wrong-notes/pdf/", payload, {
+    timeout: WRONG_NOTE_PDF_CREATE_TIMEOUT_MS,
+  });
   return res.data as WrongNotePDFCreateResponse;
 }
 

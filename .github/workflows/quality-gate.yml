@@ -227,7 +227,7 @@ jobs:
               echo "${DOMAIN} is serving HTTPS traffic (API status: ${STATUS:-pending})."
               exit 0
             fi
-            echo "${DOMAIN} status: ${STATUS:-pending} (${ATTEMPT}/36)"
+            echo "${DOMAIN} status: ${STATUS:-pending} (${ATTEMPT}/72)"
             sleep 10
           done
 

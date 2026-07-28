@@ -6,6 +6,7 @@ import {
   createWrongNotePDF,
   fetchWrongNotePDFStatus,
   fetchWrongNotes,
+  MAX_WRONG_NOTE_PDF_ITEMS,
   type WrongNoteItem,
   type WrongNotePDFCreateResponse,
 } from "../api/wrongNotes";
@@ -59,6 +60,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const wrongList = useMemo(() => data?.results ?? [], [data]);
   const totalWrongCount = data?.count ?? wrongList.length;
   const isPreviewLimited = totalWrongCount > wrongList.length;
+  const exceedsPdfLimit = totalWrongCount > MAX_WRONG_NOTE_PDF_ITEMS;
   const groups = useMemo<WrongNoteGroup[]>(() => {
     const grouped = new Map<string, WrongNoteGroup>();
     for (const item of wrongList) {
@@ -293,10 +295,23 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       <div className="wrong-note__action-bar">
         <div>
           <strong>{scope === "exam" ? "이번 시험 오답노트" : "강의 누적 오답노트"}</strong>
-          <span>
-            {totalWrongCount}문항 전체를 수록합니다. 문제 이미지가 없는 문항도 답안 정보와 함께
-            들어갑니다.
-          </span>
+          {exceedsPdfLimit ? (
+            <span
+              className="wrong-note__limit-guidance"
+              id="wrong-note-limit-guidance"
+              data-testid="wrong-note-limit-guidance"
+            >
+              한 번에 최대 {MAX_WRONG_NOTE_PDF_ITEMS}문항까지 만들 수 있습니다.{" "}
+              {scope === "lecture"
+                ? "‘이번 시험’으로 범위를 좁혀 주세요."
+                : `오답이 ${MAX_WRONG_NOTE_PDF_ITEMS}문항을 넘는 단일 시험은 PDF 생성을 지원하지 않습니다.`}
+            </span>
+          ) : (
+            <span>
+              {totalWrongCount}문항 전체를 수록합니다. 문제 이미지가 없는 문항도 답안 정보와 함께
+              들어갑니다.
+            </span>
+          )}
         </div>
         {pdfFileUrl ? (
           <Button
@@ -310,8 +325,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           <Button
             intent="primary"
             onClick={() => pdfMutation.mutate()}
-            disabled={wrongList.length === 0 || isCreating}
+            disabled={wrongList.length === 0 || exceedsPdfLimit || isCreating}
             loading={isCreating}
+            aria-describedby={exceedsPdfLimit ? "wrong-note-limit-guidance" : undefined}
             data-testid="wrong-note-create"
           >
             {isCreating ? "PDF 만드는 중" : "오답노트 PDF 만들기"}

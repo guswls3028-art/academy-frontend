@@ -45,6 +45,18 @@ export function extractApiError(
     ?.response?.data;
 
   if (!data || typeof data !== "object") {
+    const transportError =
+      e && typeof e === "object"
+        ? (e as { code?: unknown; message?: unknown })
+        : undefined;
+    if (
+      transportError?.code === "ECONNABORTED" ||
+      transportError?.code === "ETIMEDOUT" ||
+      (typeof transportError?.message === "string" &&
+        transportError.message.toLowerCase().includes("timeout"))
+    ) {
+      return fallback;
+    }
     if (e instanceof Error) return e.message;
     return fallback;
   }

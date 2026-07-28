@@ -897,6 +897,12 @@
   white-space: nowrap;
 }
 
+.wrong-note__action-bar .wrong-note__limit-guidance {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .wrong-note__action-bar .ds-button {
   flex-shrink: 0;
   white-space: nowrap;
