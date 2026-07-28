@@ -110,6 +110,8 @@ export default defineConfig(({ mode }) => {
             if (normalized.includes("/exceljs/")) return "vendor-excel";
             if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
             if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
+            if (normalized.includes("/html2canvas/")) return "vendor-html-canvas";
+            if (normalized.includes("/jspdf/")) return "vendor-pdf-generate";
             if (normalized.includes("hls.js")) return "vendor-hls";
             if (
               normalized.includes("@tiptap/") ||

@@ -1,0 +1,794 @@
+import type {
+  ScoreBlock,
+  SessionScoreMeta,
+  SessionScoreRow,
+} from "@/shared/api/contracts/sessionScores";
+import type {
+  StudentExamGrade,
+  StudentExamTrendPoint,
+  StudentGradesResponse,
+} from "@/shared/api/contracts/studentGrades";
+import { deriveFinalPass } from "@/shared/scoring/achievement";
+import {
+  ALL_LECTURES,
+  filterStudentScoreTrend,
+  summarizeStudentScoreTrend,
+} from "@/shared/scoring/studentScoreTrend";
+import { downloadBlob } from "@/shared/utils/safeDownload";
+import { getScoreBlockOmrReviewStatus } from "./sessionScoreRowVerdict";
+
+export type StudentScoreReportMode = "summary" | "detailed";
+
+export type StudentScoreReportParams = {
+  row: SessionScoreRow;
+  meta: SessionScoreMeta;
+  grades?: StudentGradesResponse | null;
+  sessionTitle: string;
+  lectureTitle: string;
+  attendanceStatus?: string | null;
+  date?: string;
+  tenantName?: string;
+  mode?: StudentScoreReportMode;
+};
+
+const ATTENDANCE_LABEL: Record<string, string> = {
+  PRESENT: "출석",
+  ONLINE: "영상",
+  LATE: "지각",
+  ABSENT: "결석",
+  EARLY_LEAVE: "조퇴",
+  SUPPLEMENT: "보강",
+  RUNAWAY: "출튀",
+  MATERIAL: "자료",
+  INACTIVE: "부재",
+  SECESSION: "퇴원",
+};
+
+const REPORT_STYLE = `
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #dfe5ec;
+    color: #172033;
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .student-report-page {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto 8mm;
+    padding: 13mm 14mm 12mm;
+    overflow: hidden;
+    background: #fff;
+    page-break-after: always;
+  }
+  .student-report-page:last-child { margin-bottom: 0; page-break-after: auto; }
+  .report-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 4mm;
+    border-bottom: 0.4mm solid #1d4ed8;
+    color: #516078;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+  }
+  .report-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.5mm;
+    font-weight: 800;
+    color: #1d4ed8;
+  }
+  .report-brand-mark {
+    width: 7mm;
+    height: 7mm;
+    border-radius: 1.8mm;
+    background: #1d4ed8;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    letter-spacing: -0.04em;
+  }
+  .report-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8mm;
+    padding: 6mm 0 5mm;
+  }
+  .report-eyebrow {
+    margin-bottom: 1.5mm;
+    color: #1d4ed8;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 25px;
+    line-height: 1.1;
+    letter-spacing: -0.045em;
+  }
+  .report-student-meta {
+    margin-top: 2.5mm;
+    color: #667085;
+    font-size: 10px;
+  }
+  .report-session-stamp {
+    min-width: 47mm;
+    padding: 3mm 4mm;
+    border: 0.3mm solid #cbd5e1;
+    border-radius: 2mm;
+    text-align: right;
+    color: #334155;
+  }
+  .report-session-stamp strong {
+    display: block;
+    margin-bottom: 1mm;
+    color: #172033;
+    font-size: 11px;
+  }
+  .report-session-stamp span { font-size: 9px; }
+  .flow-band {
+    display: grid;
+    grid-template-columns: 34mm repeat(4, 1fr);
+    min-height: 22mm;
+    margin-bottom: 6mm;
+    border-top: 0.35mm solid #172033;
+    border-bottom: 0.35mm solid #172033;
+  }
+  .flow-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-right: 4mm;
+  }
+  .flow-label strong { font-size: 11px; }
+  .flow-label span { margin-top: 1mm; color: #7b8798; font-size: 8px; }
+  .flow-metric {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 4mm;
+    border-left: 0.25mm solid #d9e0e8;
+  }
+  .flow-metric span { color: #718096; font-size: 8px; }
+  .flow-metric strong {
+    margin-top: 1mm;
+    color: #172033;
+    font-size: 17px;
+    letter-spacing: -0.03em;
+  }
+  .flow-metric strong.positive { color: #0f766e; }
+  .flow-metric strong.negative { color: #c2413b; }
+  .section { margin-top: 5mm; }
+  .section-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4mm;
+    margin-bottom: 2.5mm;
+  }
+  .section-heading h2 {
+    margin: 0;
+    color: #172033;
+    font-size: 12px;
+    letter-spacing: -0.02em;
+  }
+  .section-heading span { color: #7b8798; font-size: 8px; }
+  .current-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 47mm;
+    border-top: 0.45mm solid #172033;
+    border-bottom: 0.25mm solid #cbd5e1;
+  }
+  .assessment-list { min-width: 0; }
+  .assessment-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 23mm 24mm;
+    align-items: center;
+    min-height: 11mm;
+    border-bottom: 0.25mm solid #e2e8f0;
+    font-size: 9px;
+  }
+  .assessment-row:last-child { border-bottom: 0; }
+  .assessment-title { padding: 0 3mm; min-width: 0; }
+  .assessment-title strong {
+    display: block;
+    overflow: hidden;
+    color: #1f2937;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .assessment-title span { color: #8a96a8; font-size: 8px; }
+  .assessment-score {
+    color: #172033;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .assessment-score small { color: #8a96a8; font-size: 7px; font-weight: 500; }
+  .status {
+    justify-self: end;
+    min-width: 18mm;
+    padding: 1.1mm 1.6mm;
+    border-radius: 99px;
+    background: #edf2f7;
+    color: #516078;
+    font-size: 7.5px;
+    font-weight: 800;
+    text-align: center;
+  }
+  .status--pass { background: #dcfce7; color: #166534; }
+  .status--warn { background: #fff1e8; color: #b54708; }
+  .status--missing { background: #f1f5f9; color: #64748b; }
+  .session-summary {
+    display: grid;
+    align-content: start;
+    border-left: 0.25mm solid #cbd5e1;
+    background: #f7f9fc;
+  }
+  .session-fact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 9mm;
+    padding: 0 3mm;
+    border-bottom: 0.25mm solid #e2e8f0;
+    color: #68758a;
+    font-size: 8px;
+  }
+  .session-fact:last-child { border-bottom: 0; }
+  .session-fact strong { color: #172033; font-size: 9px; }
+  .trend-panel {
+    min-height: 67mm;
+    padding: 4mm 4mm 2mm;
+    border: 0.25mm solid #d9e0e8;
+    background: #fbfcfe;
+  }
+  .trend-empty {
+    display: flex;
+    min-height: 55mm;
+    align-items: center;
+    justify-content: center;
+    color: #8a96a8;
+    font-size: 9px;
+  }
+  .trend-chart { width: 100%; height: 52mm; overflow: visible; }
+  .trend-chart text { font-family: "Malgun Gothic", sans-serif; }
+  .trend-note {
+    margin-top: 1mm;
+    color: #7b8798;
+    font-size: 7.5px;
+    text-align: right;
+  }
+  .history-table, .item-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 0.45mm solid #172033;
+    font-size: 8px;
+  }
+  .history-table th, .item-table th {
+    padding: 2.2mm 2mm;
+    border-bottom: 0.3mm solid #94a3b8;
+    background: #f3f6fa;
+    color: #516078;
+    font-weight: 800;
+    text-align: left;
+  }
+  .history-table td, .item-table td {
+    padding: 2.2mm 2mm;
+    border-bottom: 0.22mm solid #e2e8f0;
+    color: #334155;
+  }
+  .history-table th.num, .history-table td.num,
+  .item-table th.num, .item-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .history-table td strong, .item-table td strong { color: #172033; }
+  .history-result { font-weight: 800; }
+  .history-result--pass { color: #15803d; }
+  .history-result--warn { color: #c2413b; }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 6mm;
+  }
+  .coaching-box {
+    margin-top: 5mm;
+    padding: 4mm 5mm;
+    border-left: 1.2mm solid #1d4ed8;
+    background: #f3f6fb;
+  }
+  .coaching-box h3 {
+    margin: 0 0 2mm;
+    color: #1d4ed8;
+    font-size: 10px;
+  }
+  .coaching-box ul {
+    margin: 0;
+    padding-left: 4mm;
+    color: #40506a;
+    font-size: 8.5px;
+    line-height: 1.65;
+  }
+  .empty-cell { color: #8a96a8 !important; text-align: center !important; }
+  .report-footer {
+    position: absolute;
+    right: 14mm;
+    bottom: 7mm;
+    left: 14mm;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 2.5mm;
+    border-top: 0.25mm solid #cbd5e1;
+    color: #7b8798;
+    font-size: 7.5px;
+  }
+  @media print {
+    body { background: #fff; }
+    .student-report-page { margin: 0; }
+  }
+`;
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatNumber(value: number | null | undefined, digits = 0): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  return value.toLocaleString("ko-KR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function formatPercent(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  return `${formatNumber(value, Number.isInteger(value) ? 0 : 1)}%`;
+}
+
+function resolveDate(date?: string): string {
+  return date || new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function scorePercent(score: number | null | undefined, maxScore: number | null | undefined): number | null {
+  if (score == null || maxScore == null || maxScore <= 0) return null;
+  return Math.round((score / maxScore) * 1000) / 10;
+}
+
+function resultLabel(block: ScoreBlock | null | undefined): { text: string; className: string } {
+  if (!block) return { text: "미응시", className: "status--missing" };
+  if (getScoreBlockOmrReviewStatus(block) === "review") {
+    return { text: "검토중", className: "status--warn" };
+  }
+  if (block.score == null) return { text: "미응시", className: "status--missing" };
+  const finalPass = deriveFinalPass({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    final_pass: block.final_pass ?? null,
+    remediated: block.remediated ?? null,
+    meta_status: block.meta?.status ?? null,
+  });
+  if (block.remediated && finalPass) return { text: "보강통과", className: "status--pass" };
+  if (finalPass === true) return { text: "통과", className: "status--pass" };
+  if (finalPass === false) return { text: "보완필요", className: "status--warn" };
+  return { text: "입력됨", className: "" };
+}
+
+function scopeGrades(grades: StudentGradesResponse | null | undefined, lectureId: number | null | undefined) {
+  if (!grades) return { exams: [], trend: [] };
+  const lectureFilter = lectureId == null ? ALL_LECTURES : lectureId;
+  return {
+    exams: lectureId == null
+      ? grades.exams
+      : grades.exams.filter((item) => item.lecture_id === lectureId),
+    trend: filterStudentScoreTrend(grades.exam_trend, lectureFilter),
+  };
+}
+
+function buildTrendSvg(points: StudentExamTrendPoint[]): string {
+  const ordered = [...points]
+    .sort((a, b) => a.round_index - b.round_index)
+    .slice(-8);
+  if (ordered.length === 0) {
+    return `<div class="trend-empty">누적 시험 점수가 쌓이면 변화 추이가 표시됩니다.</div>`;
+  }
+
+  const width = 640;
+  const height = 178;
+  const left = 38;
+  const right = 18;
+  const top = 15;
+  const bottom = 36;
+  const chartW = width - left - right;
+  const chartH = height - top - bottom;
+  const x = (index: number) => left + (ordered.length === 1 ? chartW / 2 : (index / (ordered.length - 1)) * chartW);
+  const y = (value: number) => top + ((100 - Math.max(0, Math.min(100, value))) / 100) * chartH;
+  const path = ordered.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point.score_pct)}`).join(" ");
+  const guides = [100, 75, 50, 25, 0].map((value) => `
+    <line x1="${left}" y1="${y(value)}" x2="${width - right}" y2="${y(value)}" stroke="#dbe3ed" stroke-width="1" />
+    <text x="${left - 8}" y="${y(value) + 3}" text-anchor="end" fill="#8a96a8" font-size="9">${value}</text>
+  `).join("");
+  const pointsMarkup = ordered.map((point, index) => {
+    const label = point.session_title || `${point.round_index}회`;
+    const shortLabel = label.length > 8 ? `${label.slice(0, 8)}…` : label;
+    return `
+      <circle cx="${x(index)}" cy="${y(point.score_pct)}" r="4" fill="#fff" stroke="#1d4ed8" stroke-width="3" />
+      <text x="${x(index)}" y="${Math.max(10, y(point.score_pct) - 9)}" text-anchor="middle" fill="#1d4ed8" font-size="9" font-weight="700">${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}</text>
+      <text x="${x(index)}" y="${height - 9}" text-anchor="middle" fill="#68758a" font-size="8">${escapeHtml(shortLabel)}</text>
+    `;
+  }).join("");
+
+  return `
+    <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="최근 시험 점수 변화">
+      ${guides}
+      <path d="${path}" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      ${pointsMarkup}
+    </svg>
+    <div class="trend-note">최근 ${ordered.length}회 · 100점 환산 기준</div>
+  `;
+}
+
+function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
+  const examRows = (meta.exams ?? []).map((exam) => {
+    const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
+    const score = entry?.block.score;
+    const maxScore = entry?.block.max_score ?? exam.max_score;
+    const result = resultLabel(entry?.block);
+    return `
+      <div class="assessment-row">
+        <div class="assessment-title"><strong>${escapeHtml(exam.title)}</strong><span>시험 · 통과 ${formatNumber(exam.pass_score)}점</span></div>
+        <div class="assessment-score">${formatNumber(score, score != null && !Number.isInteger(score) ? 1 : 0)} <small>/ ${formatNumber(maxScore)}</small></div>
+        <span class="status ${result.className}">${result.text}</span>
+      </div>
+    `;
+  });
+  const homeworkRows = (meta.homeworks ?? []).map((homework) => {
+    const entry = row.homeworks.find((item) => item.homework_id === homework.homework_id);
+    const score = entry?.block.score;
+    const maxScore = entry?.block.max_score ?? homework.max_score;
+    const result = resultLabel(entry?.block);
+    return `
+      <div class="assessment-row">
+        <div class="assessment-title"><strong>${escapeHtml(homework.title)}</strong><span>과제${homework.unit ? ` · ${escapeHtml(homework.unit)}` : ""}</span></div>
+        <div class="assessment-score">${formatNumber(score, score != null && !Number.isInteger(score) ? 1 : 0)} <small>/ ${formatNumber(maxScore)}</small></div>
+        <span class="status ${result.className}">${result.text}</span>
+      </div>
+    `;
+  });
+  const rows = [...examRows, ...homeworkRows];
+  if (rows.length === 0) {
+    return `<div class="assessment-row"><div class="assessment-title"><strong>등록된 평가가 없습니다.</strong></div></div>`;
+  }
+  const visibleRows = rows.slice(0, 6);
+  if (rows.length > visibleRows.length) {
+    visibleRows[visibleRows.length - 1] = `
+      <div class="assessment-row">
+        <div class="assessment-title"><strong>외 ${rows.length - visibleRows.length + 1}건의 평가</strong><span>전체 점수는 성적 입력 화면에서 확인</span></div>
+        <div class="assessment-score"></div>
+        <span class="status">더보기</span>
+      </div>
+    `;
+  }
+  return visibleRows.join("");
+}
+
+function buildHistoryRows(exams: StudentExamGrade[]): string {
+  const rows = [...exams]
+    .sort((a, b) => {
+      const left = a.recorded_at || a.submitted_at || a.session_date || "";
+      const right = b.recorded_at || b.submitted_at || b.session_date || "";
+      return right.localeCompare(left);
+    })
+    .slice(0, 9);
+  if (rows.length === 0) {
+    return `<tr><td class="empty-cell" colspan="5">누적 시험 기록이 없습니다.</td></tr>`;
+  }
+  return rows.map((exam) => {
+    const pct = scorePercent(exam.total_score, exam.max_score);
+    const passed = exam.final_pass === true || exam.is_pass === true || exam.achievement === "PASS" || exam.achievement === "REMEDIATED";
+    const missing = exam.total_score == null || exam.achievement === "NOT_SUBMITTED";
+    const result = missing ? "미응시" : passed ? "통과" : "보완필요";
+    const resultClass = passed ? "history-result--pass" : missing ? "" : "history-result--warn";
+    return `
+      <tr>
+        <td>${escapeHtml(exam.session_title || "-")}</td>
+        <td><strong>${escapeHtml(exam.title)}</strong></td>
+        <td class="num">${formatNumber(exam.total_score)} / ${formatNumber(exam.max_score)}</td>
+        <td class="num">${formatPercent(pct)}</td>
+        <td class="history-result ${resultClass}">${result}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: string } {
+  const exam = row.exams.find((entry) => (entry.items?.length ?? 0) > 0);
+  const items = exam?.items ?? [];
+  if (!exam || items.length === 0) {
+    return {
+      examTitle: "",
+      rows: `<tr><td class="empty-cell" colspan="4">문항별 채점 데이터가 없습니다.</td></tr>`,
+    };
+  }
+  return {
+    examTitle: exam.title,
+    rows: items
+    .slice()
+    .sort((a, b) => (a.question_number ?? a.question_id) - (b.question_number ?? b.question_id))
+    .slice(0, 16)
+    .map((item) => {
+      const ratio = item.max_score > 0 ? item.score / item.max_score : 0;
+      const result = ratio >= 1 ? "만점" : ratio > 0 ? "부분득점" : "0점";
+      const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
+      return `
+        <tr>
+          <td>${item.question_number ?? item.question_id}번</td>
+          <td>${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
+          <td class="num"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
+          <td class="history-result ${resultClass}">${result}</td>
+        </tr>
+      `;
+    }).join(""),
+  };
+}
+
+function buildCoachingPoints(
+  row: SessionScoreRow,
+  trend: StudentExamTrendPoint[],
+  summary: ReturnType<typeof summarizeStudentScoreTrend>,
+): string[] {
+  const points: string[] = [];
+  const missingCount = [
+    ...row.exams.map((entry) => entry.block.score),
+    ...row.homeworks.map((entry) => entry.block.score),
+  ].filter((score) => score == null).length;
+  const retakeCount = row.exams.reduce((sum, entry) => sum + Math.max(0, Number(entry.attempt_count ?? 0) - 1), 0);
+
+  if (summary.latest != null && summary.average != null) {
+    const gap = summary.latest - summary.average;
+    if (gap >= 5) points.push(`최근 시험이 누적 평균보다 ${formatNumber(gap, 1)}%p 높아 상승 흐름입니다.`);
+    else if (gap <= -5) points.push(`최근 시험이 누적 평균보다 ${formatNumber(Math.abs(gap), 1)}%p 낮아 오답 점검이 필요합니다.`);
+    else points.push("최근 시험 점수가 누적 평균 범위 안에서 안정적으로 유지되고 있습니다.");
+  } else if (trend.length === 1) {
+    points.push("시험 기록이 1회 쌓였습니다. 다음 결과부터 변화 폭을 함께 확인할 수 있습니다.");
+  } else {
+    points.push("누적 시험 기록이 충분하지 않아 현재 차시 결과를 중심으로 확인합니다.");
+  }
+
+  if (missingCount > 0) points.push(`현재 차시에 미응시·미입력 평가가 ${missingCount}건 있습니다.`);
+  if (row.clinic_required) points.push("현재 차시 기준 클리닉 보완 대상으로 표시되어 있습니다.");
+  if (retakeCount > 0) points.push(`현재 차시에서 재응시 ${retakeCount}회가 기록되어 있습니다.`);
+  if (missingCount === 0 && !row.clinic_required && retakeCount === 0) {
+    points.push("현재 차시의 등록된 평가가 모두 입력되어 있습니다.");
+  }
+  return points.slice(0, 4);
+}
+
+function buildFooter(tenantName: string, date: string, page: number, total: number): string {
+  return `
+    <footer class="report-footer">
+      <span>${escapeHtml(tenantName || "Academy")} · 학생 개인 성적표</span>
+      <span>${escapeHtml(date)} · ${page} / ${total}</span>
+    </footer>
+  `;
+}
+
+export function buildStudentScoreReportHtml(params: StudentScoreReportParams): string {
+  const mode = params.mode ?? "detailed";
+  const totalPages = mode === "detailed" ? 2 : 1;
+  const date = resolveDate(params.date);
+  const tenantName = (params.tenantName ?? "").trim();
+  const { row, meta } = params;
+  const scoped = scopeGrades(params.grades, meta.lecture_id);
+  const summary = summarizeStudentScoreTrend(scoped.trend);
+  const itemAnalysis = buildItemAnalysis(row);
+  const currentExamScores = row.exams
+    .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
+    .filter((value): value is number => value != null);
+  const currentExamAverage = currentExamScores.length > 0
+    ? currentExamScores.reduce((sum, value) => sum + value, 0) / currentExamScores.length
+    : null;
+  const currentHomeworkScores = row.homeworks
+    .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
+    .filter((value): value is number => value != null);
+  const currentHomeworkAverage = currentHomeworkScores.length > 0
+    ? currentHomeworkScores.reduce((sum, value) => sum + value, 0) / currentHomeworkScores.length
+    : null;
+  const retakeCount = row.exams.reduce((sum, entry) => sum + Math.max(0, Number(entry.attempt_count ?? 0) - 1), 0);
+  const changeClass = summary.change == null ? "" : summary.change >= 0 ? "positive" : "negative";
+  const changeText = summary.change == null
+    ? "-"
+    : `${summary.change > 0 ? "+" : ""}${formatNumber(summary.change, 1)}%p`;
+  const coachingPoints = buildCoachingPoints(row, scoped.trend, summary);
+
+  const pageOne = `
+    <section class="student-report-page" data-page="1">
+      <div class="report-topline">
+        <div class="report-brand"><span class="report-brand-mark">A</span>${escapeHtml(tenantName || "ACADEMY")}</div>
+        <span>INDIVIDUAL LEARNING REPORT</span>
+      </div>
+      <div class="report-title-row">
+        <div>
+          <div class="report-eyebrow">개인 학습 성적표</div>
+          <h1>${escapeHtml(row.student_name)}</h1>
+          <div class="report-student-meta">${escapeHtml(params.lectureTitle)}</div>
+        </div>
+        <div class="report-session-stamp">
+          <strong>${escapeHtml(params.sessionTitle)}</strong>
+          <span>${escapeHtml(date)} 기준</span>
+        </div>
+      </div>
+      <div class="flow-band">
+        <div class="flow-label"><strong>학습 흐름</strong><span>같은 강의 시험 기준</span></div>
+        <div class="flow-metric"><span>최근</span><strong>${formatPercent(summary.latest)}</strong></div>
+        <div class="flow-metric"><span>평균</span><strong>${formatPercent(summary.average)}</strong></div>
+        <div class="flow-metric"><span>최고</span><strong>${formatPercent(summary.best)}</strong></div>
+        <div class="flow-metric"><span>직전 대비</span><strong class="${changeClass}">${changeText}</strong></div>
+      </div>
+      <div class="section">
+        <div class="section-heading"><h2>현재 차시 결과</h2><span>입력된 원점수와 최종 판정</span></div>
+        <div class="current-grid">
+          <div class="assessment-list">${buildCurrentAssessments(row, meta)}</div>
+          <aside class="session-summary">
+            <div class="session-fact"><span>시험 평균</span><strong>${formatPercent(currentExamAverage)}</strong></div>
+            <div class="session-fact"><span>과제 평균</span><strong>${formatPercent(currentHomeworkAverage)}</strong></div>
+            <div class="session-fact"><span>출결</span><strong>${ATTENDANCE_LABEL[params.attendanceStatus ?? ""] ?? "-"}</strong></div>
+            <div class="session-fact"><span>재응시</span><strong>${retakeCount}회</strong></div>
+          </aside>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-heading"><h2>누적 시험 변화</h2><span>최근 8회, 강의별 데이터</span></div>
+        <div class="trend-panel">${buildTrendSvg(scoped.trend)}</div>
+      </div>
+      ${buildFooter(tenantName, date, 1, totalPages)}
+    </section>
+  `;
+
+  const pageTwo = mode === "detailed" ? `
+    <section class="student-report-page" data-page="2">
+      <div class="report-topline">
+        <div class="report-brand"><span class="report-brand-mark">A</span>${escapeHtml(tenantName || "ACADEMY")}</div>
+        <span>${escapeHtml(row.student_name)} · 상세 분석</span>
+      </div>
+      <div class="section" style="margin-top:7mm">
+        <div class="section-heading"><h2>최근 시험 기록</h2><span>최신순 최대 9건</span></div>
+        <table class="history-table">
+          <thead><tr><th>차시</th><th>시험</th><th class="num">점수</th><th class="num">환산</th><th>판정</th></tr></thead>
+          <tbody>${buildHistoryRows(scoped.exams)}</tbody>
+        </table>
+      </div>
+      <div class="section detail-grid">
+        <div>
+          <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}최대 16문항</span></div>
+          <table class="item-table">
+            <thead><tr><th>문항</th><th>유형</th><th class="num">득점</th><th>결과</th></tr></thead>
+            <tbody>${itemAnalysis.rows}</tbody>
+          </table>
+        </div>
+        <div>
+          <div class="section-heading"><h2>상담 체크포인트</h2><span>입력 데이터 자동 요약</span></div>
+          <div class="coaching-box">
+            <h3>다음 상담에서 확인해 보세요</h3>
+            <ul>${coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
+          </div>
+        </div>
+      </div>
+      ${buildFooter(tenantName, date, 2, totalPages)}
+    </section>
+  ` : "";
+
+  return `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(row.student_name)} 개인 성적표</title>
+    <style>${REPORT_STYLE}</style>
+  </head>
+  <body>${pageOne}${pageTwo}</body>
+</html>`;
+}
+
+function safeFilenamePart(value: string): string {
+  return value
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 60);
+}
+
+async function waitForIframeDocument(doc: Document): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const check = () => {
+      if (doc.readyState === "complete") resolve();
+      else window.setTimeout(check, 50);
+    };
+    check();
+  });
+  if ("fonts" in doc) {
+    await (doc as Document & { fonts: FontFaceSet }).fonts.ready;
+  }
+  await new Promise((resolve) => window.setTimeout(resolve, 150));
+}
+
+export async function downloadStudentScoreReportPdf(params: StudentScoreReportParams): Promise<void> {
+  const html = buildStudentScoreReportHtml(params);
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:2400px;opacity:0;pointer-events:none;z-index:-1";
+  document.body.appendChild(iframe);
+
+  try {
+    const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+    if (!doc) throw new Error("PDF 미리보기 문서를 만들지 못했습니다.");
+    doc.open();
+    doc.write(html);
+    doc.close();
+    await waitForIframeDocument(doc);
+
+    const pageElements = Array.from(doc.querySelectorAll<HTMLElement>(".student-report-page"));
+    if (pageElements.length === 0) throw new Error("PDF로 변환할 성적표 페이지가 없습니다.");
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    for (let index = 0; index < pageElements.length; index += 1) {
+      const canvas = await html2canvas(pageElements[index], {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: doc.documentElement.scrollWidth,
+        windowHeight: doc.documentElement.scrollHeight,
+      });
+      if (index > 0) pdf.addPage();
+      const imageData = canvas.toDataURL("image/png");
+      const ratio = canvas.width / canvas.height;
+      let drawWidth = pdfWidth;
+      let drawHeight = pdfWidth / ratio;
+      if (drawHeight > pdfHeight) {
+        drawHeight = pdfHeight;
+        drawWidth = pdfHeight * ratio;
+      }
+      pdf.addImage(imageData, "PNG", (pdfWidth - drawWidth) / 2, 0, drawWidth, drawHeight);
+    }
+
+    const reportDate = resolveDate(params.date).replace(/[.\s/]/g, "");
+    const filename = [
+      "개인성적표",
+      params.tenantName,
+      params.lectureTitle,
+      params.row.student_name,
+      reportDate,
+    ].filter(Boolean).map((part) => safeFilenamePart(String(part))).join("_");
+    downloadBlob(pdf.output("blob"), `${filename}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}

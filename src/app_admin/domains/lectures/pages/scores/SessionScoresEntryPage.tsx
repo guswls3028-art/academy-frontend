@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, LockKeyhole, MoreVertical, Pencil, Plus, Printer, Trophy, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, LockKeyhole, MoreVertical, Pencil, Plus, Printer, Trophy, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -71,6 +71,7 @@ function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): b
 }
 
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ScorePrintPreviewModal"));
+const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/components/StudentScoreReportModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
 const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/components/AnonymousBillboardPreviewModal"));
 
@@ -113,6 +114,7 @@ export default function SessionScoresEntryPage({
 
   const [enrollingAll, setEnrollingAll] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showStudentReport, setShowStudentReport] = useState(false);
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -123,7 +125,7 @@ export default function SessionScoresEntryPage({
   const isEditModeRef = useRef(false);
   const autoEditAttemptedSessionsRef = useRef(new Set<number>());
   isEditModeRef.current = isEditMode;
-  const shouldLoadPrintData = showPrintPreview || showClinicPreview || showBillboardPreview;
+  const shouldLoadPrintData = showPrintPreview || showStudentReport || showClinicPreview || showBillboardPreview;
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
@@ -902,6 +904,15 @@ export default function SessionScoresEntryPage({
               <Printer size={ICON_FOR_BUTTON.sm} />
               성적표 출력
             </button>
+            <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
+              if (!await saveScoresNow()) return;
+              await refetch();
+              setShowStudentReport(true);
+              setShowMoreMenu(false);
+            }}>
+              <UserRound size={ICON_FOR_BUTTON.sm} />
+              개인 성적표
+            </button>
             {isAnonymousBillboardMode ? (
               <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
                 if (!await saveScoresNow()) return;
@@ -1290,6 +1301,22 @@ export default function SessionScoresEntryPage({
             sessionTitle={sessionTitle}
             lectureTitle={lectureTitle}
             attendanceMap={attendanceMapForPdf}
+          />
+        </Suspense>
+      )}
+
+      {/* 학생 개인 성적표 미리보기 */}
+      {showStudentReport && data?.meta && (
+        <Suspense fallback={null}>
+          <StudentScoreReportModal
+            open={showStudentReport}
+            onClose={() => setShowStudentReport(false)}
+            rows={data.rows}
+            meta={data.meta}
+            sessionTitle={sessionTitle}
+            lectureTitle={lectureTitle}
+            attendanceMap={attendanceMapForPdf}
+            initialEnrollmentId={selectedEnrollmentIds.length === 1 ? selectedEnrollmentIds[0] : null}
           />
         </Suspense>
       )}
