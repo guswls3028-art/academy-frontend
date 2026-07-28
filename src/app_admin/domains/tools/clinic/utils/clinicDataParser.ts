@@ -19,6 +19,7 @@ const INCOMPLETE_STATUS_VALS = new Set(["진행", "진행중", "미완료"]);
 const NAME_RE = /^[가-힣]{2,5}[A-Za-z0-9]?$/;
 const RETRY_COUNT_RE = /^\+\d+$/;
 const PRESENT_ATTENDANCE = new Set(["현장", "지각", "조퇴"]);
+const HEADER_CONTROL_VALS = new Set(["숨김", "공개"]);
 
 /** 미제출/미응시 — 유효한 성적 값으로 인식해야 함 (이전엔 인식 못해 파싱 중단됨) */
 const SPECIAL_VALS = ["미제출", "미응시"];
@@ -32,6 +33,35 @@ const UI_NOISE = new Set([
   "New", "동시 정렬 기능",
 ]);
 const isUiNoise = (v: string) => UI_NOISE.has(v) || /^\d+명을 대상으로$/.test(v);
+
+type AssessmentType = "exam" | "hw" | "unknown";
+
+function inferAssessmentTypeFromHeader(header: string): AssessmentType {
+  if (/신념\s*모의고사/.test(header)) return "exam";
+  if (/교재|부교재|모의고사|과제/.test(header)) return "hw";
+  if (/시험/.test(header)) return "exam";
+  return "unknown";
+}
+
+function extractAssessmentTypesFromHeaders(lines: string[]): AssessmentType[] {
+  const headerStart = lines.findIndex((line, index) =>
+    line === "출석" && index > 0 && lines[index - 1] === "이름"
+  );
+  if (headerStart < 0) return [];
+
+  const firstStudentRow = lines.findIndex((line, index) =>
+    index > headerStart &&
+    /^\d+$/.test(line) &&
+    NAME_RE.test(lines[index + 1] ?? "") &&
+    ATTENDANCE.includes(lines[index + 2] ?? "")
+  );
+  if (firstStudentRow < 0) return [];
+
+  return lines
+    .slice(headerStart + 1, firstStudentRow)
+    .filter((line) => !HEADER_CONTROL_VALS.has(line))
+    .map(inferAssessmentTypeFromHeader);
+}
 
 /** 텍스트에서 탭 구분 행 → 라인별로 전개 */
 function expandTabs(text: string): string[] {
@@ -115,6 +145,7 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
   type RawAssessment = { val: string; isScore: boolean; isPct: boolean; isDash: boolean; isSpecial: boolean; status: string };
   type RawStudentBlock = { name: string; attendance: string; assessments: RawAssessment[] };
   const rawStudents: RawStudentBlock[] = [];
+  const headerColTypes = extractAssessmentTypesFromHeaders(lines);
 
   for (let i = 0; i < lines.length; i++) {
     if (!ATTENDANCE.includes(lines[i])) continue;
@@ -152,7 +183,10 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
 
   // ── 컬럼 타입 추론: 다른 학생의 실제 점수로 각 컬럼이 시험(점)/과제(%) 인지 판별 ──
   const maxCols = Math.max(0, ...rawStudents.map((s) => s.assessments.length));
-  const colTypes: Array<"exam" | "hw" | "unknown"> = Array(maxCols).fill("unknown");
+  const colTypes: AssessmentType[] = Array(maxCols).fill("unknown");
+  for (let c = 0; c < Math.min(maxCols, headerColTypes.length); c++) {
+    colTypes[c] = headerColTypes[c];
+  }
   for (const s of rawStudents) {
     for (let c = 0; c < s.assessments.length; c++) {
       if (colTypes[c] !== "unknown") continue;
@@ -167,15 +201,24 @@ function parseScoreTabFormat(lines: string[]): ParsedClinicData {
     name: rs.name,
     attendance: rs.attendance,
     assessments: rs.assessments.map((a, idx) => {
-      // 실제 점수가 있으면 그대로 사용
+      // 복붙 표의 헤더가 시험/과제 의미의 SSOT다. 외부 표는 시험도 "%"로 표시할 수 있다.
+      const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
+      if (ct !== "unknown") {
+        return {
+          isExam: ct === "exam",
+          isHw: ct === "hw",
+          isDash: a.isDash,
+          status: a.isDash ? "-" : a.status,
+        };
+      }
+      // 헤더가 없는 단순 형식만 값 단위(점/%)로 보정한다.
       if (a.isScore || a.isPct) return { isExam: a.isScore, isHw: a.isPct, isDash: false, status: a.status };
       // "-" 또는 "미제출"/"미응시"인 경우 컬럼 타입으로 보정
-      const ct = idx < colTypes.length ? colTypes[idx] : "unknown";
       // 미제출/미응시도 뒤따르는 최종 상태(진행/완료)를 신뢰한다.
       // 오늘 등록 등으로 값은 미제출이어도 최종 상태가 완료인 학생은 클리닉 대상이 아니다.
       // "-"는 해당 행/열에 적용할 데이터가 없다는 뜻이라 "진행"이 붙어도 미통과로 보지 않는다.
       const effectiveStatus = a.isDash ? "-" : a.status;
-      return { isExam: ct === "exam", isHw: ct === "hw", isDash: a.isDash, status: effectiveStatus };
+      return { isExam: false, isHw: false, isDash: a.isDash, status: effectiveStatus };
     }),
   }));
 

@@ -348,6 +348,29 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
     await expect(frame.locator(".footer-left")).toContainText("클리닉 대상 1명 / 전체 출석 2명");
   });
 
+  test("신념 모의고사만 시험, 나머지 교재와 부교재는 과제로 분류한다", async ({ page }) => {
+    await openClinicTool(page);
+
+    await page.locator("#clinic-paste-ta").fill([
+      "이름", "출석",
+      "교재 지질시대", "숨김", "공개",
+      "부교재 지질시대", "숨김", "공개",
+      "신념 모의고사 지질시대", "숨김", "공개",
+      "1", "허준서", "현장", "70%", "진행", "+1", "80%", "진행", "+1", "58%", "진행", "+1",
+      "2", "고민기", "현장", "100%", "완료", "100%", "완료", "59%", "진행", "+1",
+      "3", "공지호", "현장", "0%", "진행", "+1", "100%", "완료", "100%", "완료",
+    ].join("\n"));
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
+
+    const frame = page.frameLocator("#cprev");
+    await expect(frame.locator(".section-header.both")).toContainText("(1명)", { timeout: 8000 });
+    await expect(frame.locator(".section-header.exam")).toContainText("(1명)");
+    await expect(frame.locator(".section-header.hw")).toContainText("(1명)");
+    await expect(frame.locator('[data-field="both"]')).toContainText("허준서");
+    await expect(frame.locator('[data-field="examOnly"]')).toContainText("고민기");
+    await expect(frame.locator('[data-field="hwOnly"]')).toContainText("공지호");
+  });
+
   test("진행/+1 형식과 동명이인을 파싱하고 실제 PDF를 내려받는다", async ({ page }) => {
     await openClinicTool(page);
 
