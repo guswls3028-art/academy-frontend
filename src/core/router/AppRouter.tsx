@@ -18,7 +18,10 @@ import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 import {
-  DEV_CONSOLE_ORIGIN,
+  resolveDeveloperConsoleDestination,
+  resolveRootDestination,
+} from "./rootDestination";
+import {
   isDeveloperConsoleHost,
   isPrimaryAppHost,
 } from "@/shared/constants/origins";
@@ -78,43 +81,26 @@ function RootRedirect() {
 
     redirectedRef.current = true;
 
-    // 비로그인: 홍보 테넌트(1번/9999)면 홍보 앱, 그 외 로그인
     if (!user) {
-      const tc = program.tenantCode;
-      if (tc === "hakwonplus" || tc === "9999") {
-        navigate("/promo", { replace: true });
-      } else {
-        navigate("/login", { replace: true });
-      }
+      navigate(resolveRootDestination({
+        tenantCode: program.tenantCode,
+        role: null,
+        isAuthenticated: false,
+      }), { replace: true });
       return;
     }
 
-    const role = user.tenantRole;
-
-    // 테넌트 1번(hakwonplus) 및 9999번(로컬 개발) owner는 dev_app(개발자 앱)으로 리다이렉트
-    if ((program.tenantCode === "hakwonplus" || program.tenantCode === "9999") && role === "owner") {
-      navigate("/dev/dashboard", { replace: true });
-      return;
-    }
-
-    if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
-      // 모바일 + staff역할 → 선생님 앱, standalone이면 이미 의도적 접근
-      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone;
-      if (isMobile && !isStandalone && !prefersAdmin()) {
-        navigate("/teacher", { replace: true });
-      } else {
-        navigate("/admin", { replace: true });
-      }
-      return;
-    }
-
-    if (role && ["student", "parent"].includes(role)) {
-      navigate("/student", { replace: true });
-      return;
-    }
-
-    navigate("/login", { replace: true });
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+      || (navigator as Navigator & { standalone?: boolean }).standalone;
+    navigate(resolveRootDestination({
+      tenantCode: program.tenantCode,
+      role: user.tenantRole,
+      isAuthenticated: true,
+      isMobile,
+      isStandalone,
+      prefersAdmin: prefersAdmin(),
+    }), { replace: true });
   }, [programLoading, program, isLoading, authUnavailable, user, navigate]);
 
   if (programLoading) return null;
@@ -137,13 +123,15 @@ export default function AppRouter() {
   const maintenanceExempt = tenantCode === "hakwonplus" || tenantCode === "9999";
   const maintenanceOn = Boolean(program?.feature_flags?.maintenance_mode) && !maintenanceExempt;
   const pathname = location.pathname || "/";
+  const developerConsoleDestination = resolveDeveloperConsoleDestination({
+    isPrimaryApp: isPrimaryAppHost(),
+    pathname,
+    search: location.search,
+    hash: location.hash,
+  });
 
-  if (isPrimaryAppHost() && (pathname === "/dev" || pathname.startsWith("/dev/"))) {
-    return (
-      <ExternalRedirect
-        to={`${DEV_CONSOLE_ORIGIN}${pathname}${location.search}${location.hash}`}
-      />
-    );
+  if (developerConsoleDestination) {
+    return <ExternalRedirect to={developerConsoleDestination} />;
   }
 
   if (
