@@ -452,12 +452,13 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await page.getByRole("link", { name: /보강 클리닉 대상/ }).click();
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(page).toHaveURL(/\/student\/clinic/);
-    await expect(page.getByRole("button", { name: "예약" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "예약", exact: true })).toBeVisible();
     await expect(page.getByText("보강이 필요한 항목 1개")).toBeVisible();
     await expect(page.getByText(SESSION_TITLE)).toBeVisible();
     await expect(page.getByText("시험 보강")).toBeVisible();
 
-    await page.getByRole("button", { name: String(Number(CLINIC_DATE.slice(-2))), exact: true }).click();
+    const clinicDay = String(Number(CLINIC_DATE.slice(-2)));
+    await page.locator("button:not(:disabled)").filter({ hasText: new RegExp(`^${clinicDay}$`) }).click();
     await expect(page.getByText(`${CLINIC_DATE} 예약하기`)).toBeVisible();
     const clinicSessionButton = page.locator("button").filter({ hasText: CLINIC_TITLE }).first();
     await expect(clinicSessionButton).toBeVisible();
