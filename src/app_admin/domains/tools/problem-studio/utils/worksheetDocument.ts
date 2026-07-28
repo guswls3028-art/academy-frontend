@@ -1,7 +1,12 @@
 // PATH: src/app_admin/domains/tools/problem-studio/utils/worksheetDocument.ts
 // 문제 제작 스튜디오: 초안 → 한글/워드 호환 검수 문서(.doc) 다운로드.
 
-import type { WorksheetDraft, WorksheetQuestion } from "./worksheetPdf";
+import {
+  richTextInline,
+  type WorksheetDraft,
+  type WorksheetQuestion,
+  type WorksheetTypography,
+} from "./worksheetPdf";
 
 export type HangulSourceFile = {
   name: string;
@@ -14,6 +19,7 @@ export type HangulDraftOptions = {
   templateName?: string;
   variantLabel: string;
   notePolicy: string;
+  typography?: WorksheetTypography;
 };
 
 function escapeHtml(value: string): string {
@@ -25,10 +31,14 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function cssString(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, "\\3C ").replace(/>/g, "\\3E ").replace(/[\r\n]/g, " ")}"`;
+}
+
 function textBlock(value: string): string {
   return value
     .split(/\r?\n/)
-    .map((line) => escapeHtml(line.trimEnd()))
+    .map((line) => richTextInline(line.trimEnd()))
     .join("<br />");
 }
 
@@ -62,7 +72,7 @@ function renderQuestion(q: WorksheetQuestion, index: number): string {
       }
       ${
         choices.length > 0
-          ? `<ol class="choices">${choices.map((choice) => `<li>${escapeHtml(choice)}</li>`).join("")}</ol>`
+          ? `<ol class="choices">${choices.map((choice) => `<li>${richTextInline(choice)}</li>`).join("")}</ol>`
           : ""
       }
     </section>
@@ -76,7 +86,7 @@ function renderEndnote(q: WorksheetQuestion, index: number): string {
   return `
     <p class="endnote-text">
       <a href="#_ednref${noteNumber}" name="_edn${noteNumber}"><sup>[${noteNumber}]</sup></a>
-      <strong>정답</strong> ${escapeHtml(answer)}
+      <strong>정답</strong> ${richTextInline(answer)}
       <br />
       <strong>해설</strong> ${textBlock(explanation)}
     </p>
@@ -95,6 +105,13 @@ function buildHangulDraftHtml(draft: WorksheetDraft, options: HangulDraftOptions
         </tr>
       `).join("")
     : `<tr><td colspan="3">소스 파일 미등록</td></tr>`;
+  const typography = options.typography;
+  const bodyFamily = cssString(typography?.bodyFontFamily || "함초롬바탕");
+  const titleFamily = cssString(typography?.titleFontFamily || "함초롬돋움");
+  const bodySize = typography?.bodySizePt ?? 10.5;
+  const titleSize = typography?.titleSizePt ?? 20;
+  const lineHeight = (typography?.lineSpacingPercent ?? 155) / 100;
+  const questionSpacing = typography?.questionSpacingPt ?? 10;
 
   return `<!doctype html>
 <html lang="ko" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -106,15 +123,16 @@ function buildHangulDraftHtml(draft: WorksheetDraft, options: HangulDraftOptions
     body {
       margin: 0;
       color: #111827;
-      font-family: "Malgun Gothic", "맑은 고딕", "Batang", "바탕", serif;
-      font-size: 10.5pt;
-      line-height: 1.55;
+      font-family: ${bodyFamily}, "Malgun Gothic", "맑은 고딕", "Batang", "바탕", serif;
+      font-size: ${bodySize}pt;
+      line-height: ${lineHeight};
     }
     h1 {
       margin: 0 0 8pt;
       padding-bottom: 8pt;
       border-bottom: 1.5pt solid #111827;
-      font-size: 20pt;
+      font-family: ${titleFamily}, "Malgun Gothic", "맑은 고딕", sans-serif;
+      font-size: ${titleSize}pt;
       line-height: 1.25;
     }
     h2 {
@@ -147,7 +165,7 @@ function buildHangulDraftHtml(draft: WorksheetDraft, options: HangulDraftOptions
       margin-bottom: 14pt;
     }
     .question {
-      margin: 0 0 15pt;
+      margin: 0 0 ${questionSpacing}pt;
       page-break-inside: avoid;
     }
     .question-title {

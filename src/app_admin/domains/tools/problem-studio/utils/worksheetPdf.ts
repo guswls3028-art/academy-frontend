@@ -31,6 +31,17 @@ export type WorksheetDraft = {
 
 export type WorksheetPdfKind = "questions" | "answers" | "explanations";
 
+export type WorksheetTypography = {
+  titleFontFamily: string;
+  bodyFontFamily: string;
+  titleFontUrl?: string;
+  bodyFontUrl?: string;
+  titleSizePt: number;
+  bodySizePt: number;
+  lineSpacingPercent: number;
+  questionSpacingPt: number;
+};
+
 const KIND_LABEL: Record<WorksheetPdfKind, string> = {
   questions: "문제지",
   answers: "정답표",
@@ -46,9 +57,36 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+const SUBSCRIPT: Record<string, string> = {
+  "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
+  "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
+  "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")",
+};
+const SUPERSCRIPT: Record<string, string> = {
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+  "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+  "⁺": "+", "⁻": "-", "⁼": "=", "⁽": "(", "⁾": ")", "ⁿ": "n",
+};
+
+export function richTextInline(value: string): string {
+  let html = "";
+  let activeTag = "";
+  for (const char of value) {
+    const tag = SUBSCRIPT[char] ? "sub" : SUPERSCRIPT[char] ? "sup" : "";
+    if (tag !== activeTag) {
+      if (activeTag) html += `</${activeTag}>`;
+      if (tag) html += `<${tag}>`;
+      activeTag = tag;
+    }
+    html += escapeHtml(SUBSCRIPT[char] ?? SUPERSCRIPT[char] ?? char);
+  }
+  if (activeTag) html += `</${activeTag}>`;
+  return html;
+}
+
 function textBlock(value: string): string {
   const lines = value.split(/\r?\n/).map((line) => line.trimEnd());
-  return lines.map((line) => escapeHtml(line)).join("<br />");
+  return lines.map((line) => richTextInline(line)).join("<br />");
 }
 
 function nonEmptyLines(value: string): string[] {
@@ -118,7 +156,7 @@ function renderQuestion(q: WorksheetQuestion, index: number, kind: WorksheetPdfK
       ${kind !== "answers" ? renderAttachments(q) : ""}
       ${
         kind !== "answers" && choices.length > 0
-          ? `<ol class="choices">${choices.map((choice) => `<li>${escapeHtml(choice)}</li>`).join("")}</ol>`
+          ? `<ol class="choices">${choices.map((choice) => `<li>${richTextInline(choice)}</li>`).join("")}</ol>`
           : ""
       }
       ${
@@ -136,14 +174,43 @@ function renderAnswerTable(draft: WorksheetDraft): string {
       ${draft.questions.map((q, index) => `
         <div class="answer-cell">
           <span>${index + 1}</span>
-          <strong>${escapeHtml(q.answer.trim() || "-")}</strong>
+          <strong>${richTextInline(q.answer.trim() || "-")}</strong>
         </div>
       `).join("")}
     </section>
   `;
 }
 
-export function buildWorksheetPdfHtml(draft: WorksheetDraft, kind: WorksheetPdfKind): string {
+function cssString(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[<>\r\n]/g, " ")}"`;
+}
+
+function typographyCss(typography?: WorksheetTypography): string {
+  if (!typography) return "";
+  const fontFaces = [
+    typography.titleFontUrl
+      ? `@font-face { font-family: "AcademyTitlePreview"; src: url(${cssString(typography.titleFontUrl)}); font-display: swap; }`
+      : "",
+    typography.bodyFontUrl && typography.bodyFontUrl !== typography.titleFontUrl
+      ? `@font-face { font-family: "AcademyBodyPreview"; src: url(${cssString(typography.bodyFontUrl)}); font-display: swap; }`
+      : "",
+  ].filter(Boolean).join("\n");
+  const titleFamily = typography.titleFontUrl ? "AcademyTitlePreview" : typography.titleFontFamily;
+  const bodyFamily = typography.bodyFontUrl ? "AcademyBodyPreview" : typography.bodyFontFamily;
+  return `
+    ${fontFaces}
+    html, body { font-family: ${cssString(bodyFamily)}, "Malgun Gothic", sans-serif; font-size: ${typography.bodySizePt}pt; }
+    h1 { font-family: ${cssString(titleFamily)}, "Malgun Gothic", sans-serif; font-size: ${typography.titleSizePt}pt; }
+    .prompt, .choices, .explanation p { font-family: ${cssString(bodyFamily)}, "Malgun Gothic", sans-serif; font-size: ${typography.bodySizePt}pt; line-height: ${typography.lineSpacingPercent / 100}; }
+    .question { margin-top: ${typography.questionSpacingPt}pt; }
+  `;
+}
+
+export function buildWorksheetPdfHtml(
+  draft: WorksheetDraft,
+  kind: WorksheetPdfKind,
+  typography?: WorksheetTypography,
+): string {
   const questions = draft.questions.length > 0 ? draft.questions : [];
   const body = kind === "answers"
     ? renderAnswerTable(draft)
@@ -398,6 +465,7 @@ export function buildWorksheetPdfHtml(draft: WorksheetDraft, kind: WorksheetPdfK
       body { background: #fff; }
       .worksheet-doc { margin: 0; box-shadow: none; }
     }
+    ${typographyCss(typography)}
   </style>
 </head>
 <body>
@@ -451,8 +519,12 @@ const PREVIEW_STYLE = `
     }
 `;
 
-export function buildWorksheetPreviewHtml(draft: WorksheetDraft, kind: WorksheetPdfKind): string {
-  return buildWorksheetPdfHtml(draft, kind).replace("</style>", `${PREVIEW_STYLE}\n  </style>`);
+export function buildWorksheetPreviewHtml(
+  draft: WorksheetDraft,
+  kind: WorksheetPdfKind,
+  typography?: WorksheetTypography,
+): string {
+  return buildWorksheetPdfHtml(draft, kind, typography).replace("</style>", `${PREVIEW_STYLE}\n  </style>`);
 }
 
 export function buildWorksheetFilename(draft: WorksheetDraft, kind: WorksheetPdfKind): string {
@@ -490,8 +562,12 @@ async function waitForImages(doc: Document): Promise<void> {
   }));
 }
 
-export async function downloadWorksheetPdf(draft: WorksheetDraft, kind: WorksheetPdfKind): Promise<void> {
-  const html = buildWorksheetPdfHtml(draft, kind);
+export async function downloadWorksheetPdf(
+  draft: WorksheetDraft,
+  kind: WorksheetPdfKind,
+  typography?: WorksheetTypography,
+): Promise<void> {
+  const html = buildWorksheetPdfHtml(draft, kind, typography);
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;pointer-events:none;z-index:-1";
   document.body.appendChild(iframe);
@@ -549,8 +625,12 @@ export async function downloadWorksheetPdf(draft: WorksheetDraft, kind: Workshee
   }
 }
 
-export function openWorksheetPrintWindow(draft: WorksheetDraft, kind: WorksheetPdfKind): void {
-  const html = buildWorksheetPdfHtml(draft, kind);
+export function openWorksheetPrintWindow(
+  draft: WorksheetDraft,
+  kind: WorksheetPdfKind,
+  typography?: WorksheetTypography,
+): void {
+  const html = buildWorksheetPdfHtml(draft, kind, typography);
   const win = window.open("", "_blank", "noopener,noreferrer,width=980,height=1100");
   if (!win) {
     throw new Error("인쇄 창을 열 수 없습니다. 브라우저 팝업 차단을 확인하세요.");

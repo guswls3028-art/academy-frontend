@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$version = "1.0.0"
+$version = "1.1.0"
 $project = Join-Path $PSScriptRoot "Academy.HangulCompanion.csproj"
 $releaseRoot = Join-Path $OutputDirectory "windows-$version"
 $publishDirectory = Join-Path $releaseRoot "publish"

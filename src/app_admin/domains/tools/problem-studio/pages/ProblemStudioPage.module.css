@@ -859,6 +859,126 @@
   line-height: 1.7;
 }
 
+.typographySample {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 96%, var(--color-primary) 4%);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.typographySample strong,
+.typographySample span {
+  display: block;
+}
+
+.typographySample small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.fontUploadBox {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--bg-surface-soft);
+}
+
+.fontUploadBox > div:first-child strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.fontUploadBox > div:first-child p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.fontUploadControls {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.5fr) minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.fontRightsCheck {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.fontRightsCheck input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.customFontList {
+  display: grid;
+  gap: 7px;
+}
+
+.customFontList > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.customFontList span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.customFontList strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.customFontList small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.customFontList button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.customFontList button:hover {
+  background: color-mix(in srgb, #dc2626 9%, transparent);
+  color: #dc2626;
+}
+
 @media (max-width: 900px) {
   .builderHero,
   .panelHeader,
@@ -888,6 +1008,10 @@
   .attachmentGrid,
   .betaModeGrid,
   .betaActions {
+    grid-template-columns: 1fr;
+  }
+
+  .fontUploadControls {
     grid-template-columns: 1fr;
   }
 

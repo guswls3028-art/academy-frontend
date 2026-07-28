@@ -27,6 +27,7 @@ internal static class Program
         Directory.CreateDirectory(tempRoot);
         var hwpxPath = Path.Combine(tempRoot, "검수본.hwpx");
         File.WriteAllText(hwpxPath, "Academy Hangul companion COM integration fixture");
+        Environment.SetEnvironmentVariable("ACADEMY_HWP_ROT_NAME_PREFIX", "HwpObject.Academy.Integration.");
 
         try
         {
@@ -41,6 +42,7 @@ internal static class Program
         finally
         {
             Environment.SetEnvironmentVariable("ACADEMY_HWP_FILE_PATH_MODULE", null);
+            Environment.SetEnvironmentVariable("ACADEMY_HWP_ROT_NAME_PREFIX", null);
             Directory.Delete(tempRoot, recursive: true);
         }
     }
@@ -165,10 +167,10 @@ internal static class Program
         Assert(hwp.Action.ExecuteCalls == 1, "InsertFile must execute exactly once");
         Assert(hwp.Action.ParameterSet.Items.Count == 5, "InsertFile must receive exactly five controlled parameters");
         Assert((string)hwp.Action.ParameterSet.Items["FileName"] == hwpxPath, "FileName must be the extracted HWPX path");
-        Assert((int)hwp.Action.ParameterSet.Items["KeepSection"] == 0, "KeepSection must be disabled");
-        Assert((int)hwp.Action.ParameterSet.Items["KeepCharshape"] == 0, "KeepCharshape must be disabled");
-        Assert((int)hwp.Action.ParameterSet.Items["KeepParashape"] == 0, "KeepParashape must be disabled");
-        Assert((int)hwp.Action.ParameterSet.Items["KeepStyle"] == 0, "KeepStyle must be disabled");
+        Assert((int)hwp.Action.ParameterSet.Items["KeepSection"] == 1, "KeepSection must preserve generated page settings");
+        Assert((int)hwp.Action.ParameterSet.Items["KeepCharshape"] == 1, "KeepCharshape must preserve fonts and equations");
+        Assert((int)hwp.Action.ParameterSet.Items["KeepParashape"] == 1, "KeepParashape must preserve document spacing");
+        Assert((int)hwp.Action.ParameterSet.Items["KeepStyle"] == 1, "KeepStyle must preserve generated styles");
         Assert(hwp.RegisterModuleCalls.Count == 0, "path module must not be registered when it is not configured");
         Assert(hwp.SaveCalls == 0 && hwp.CloseCalls == 0 && hwp.QuitCalls == 0,
             "companion must never save, close, or quit the user's Hangul document");

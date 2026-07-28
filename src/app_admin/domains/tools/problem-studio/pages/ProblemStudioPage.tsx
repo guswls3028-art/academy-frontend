@@ -28,6 +28,7 @@ import {
   type WorksheetDraft,
   type WorksheetPdfKind,
   type WorksheetQuestion,
+  type WorksheetTypography,
 } from "../utils/worksheetPdf";
 import {
   downloadHangulDraft,
@@ -37,9 +38,16 @@ import {
   createProblemStudioHangulHandoff,
   createProblemStudioJob,
   createProblemStudioTransferJob,
+  deleteProblemStudioFont,
   getProblemStudioHangulCompanionDownload,
+  getProblemStudioDocumentStyle,
+  getProblemStudioFonts,
   getProblemStudioJob,
   getProblemStudioTransferJob,
+  saveProblemStudioDocumentStyle,
+  uploadProblemStudioFont,
+  type ProblemStudioDocumentStyle,
+  type ProblemStudioFontCatalog,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
   type ProblemStudioGenerateResponse,
@@ -74,6 +82,25 @@ const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시�
 const JOB_POLL_INTERVAL_MS = 1500;
 const JOB_TIMEOUT_MS = 900_000;
 const TRANSFER_JOB_TIMEOUT_MS = 1_800_000;
+const DEFAULT_DOCUMENT_STYLE: ProblemStudioDocumentStyle = {
+  title_font: "builtin:hamchorom-dotum",
+  body_font: "builtin:hamchorom-batang",
+  title_size_pt: 20,
+  body_size_pt: 10.5,
+  line_spacing_percent: 155,
+  question_spacing_pt: 10,
+};
+const EMPTY_FONT_CATALOG: ProblemStudioFontCatalog = {
+  built_in_fonts: [
+    { key: "hamchorom-batang", label: "함초롬바탕", family_name: "함초롬바탕" },
+    { key: "hamchorom-dotum", label: "함초롬돋움", family_name: "함초롬돋움" },
+    { key: "malgun-gothic", label: "맑은 고딕", family_name: "맑은 고딕" },
+    { key: "batang", label: "바탕", family_name: "바탕" },
+    { key: "dotum", label: "돋움", family_name: "돋움" },
+    { key: "gulim", label: "굴림", family_name: "굴림" },
+  ],
+  custom_fonts: [],
+};
 
 const BETA_REWRITE_MODES: RewriteModeItem[] = [
   { key: "same-type", label: "유사 유형", detail: "같은 풀이 구조" },
@@ -283,6 +310,7 @@ async function waitForProblemStudioTransferJob(
 
 export default function ProblemStudioPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fontInputRef = useRef<HTMLInputElement | null>(null);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [sourceFileBlobs, setSourceFileBlobs] = useState<File[]>([]);
   const [templateName] = useState("매치업 기존 양식");
@@ -301,6 +329,13 @@ export default function ProblemStudioPage() {
   const [transferJobId, setTransferJobId] = useState<string | null>(null);
   const [companionDownloading, setCompanionDownloading] = useState(false);
   const [externalAiConfirmed, setExternalAiConfirmed] = useState(false);
+  const [fontCatalog, setFontCatalog] = useState<ProblemStudioFontCatalog>(EMPTY_FONT_CATALOG);
+  const [documentStyle, setDocumentStyle] = useState<ProblemStudioDocumentStyle>(DEFAULT_DOCUMENT_STYLE);
+  const [styleLoading, setStyleLoading] = useState(true);
+  const [styleSaving, setStyleSaving] = useState(false);
+  const [fontUploading, setFontUploading] = useState(false);
+  const [fontLicenseBasis, setFontLicenseBasis] = useState<"purchased" | "free" | "academy" | "other">("academy");
+  const [fontRightsConfirmed, setFontRightsConfirmed] = useState(false);
 
   useEffect(() => {
     try {
@@ -310,11 +345,133 @@ export default function ProblemStudioPage() {
     }
   }, [draft]);
 
-  const previewHtml = useMemo(() => buildWorksheetPreviewHtml(draft, "questions"), [draft]);
+  useEffect(() => {
+    let active = true;
+    const loadTypography = async () => {
+      setStyleLoading(true);
+      try {
+        const [fonts, preference] = await Promise.all([
+          getProblemStudioFonts(),
+          getProblemStudioDocumentStyle(),
+        ]);
+        if (!active) return;
+        setFontCatalog(fonts);
+        setDocumentStyle(preference);
+      } catch (error) {
+        if (active) {
+          feedback.warning(error instanceof Error ? error.message : "문서 글꼴 설정을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (active) setStyleLoading(false);
+      }
+    };
+    void loadTypography();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const typography = useMemo<WorksheetTypography>(() => {
+    const resolveFont = (selection: string, fallback: string) => {
+      if (selection.startsWith("asset:")) {
+        const asset = fontCatalog.custom_fonts.find((font) => `asset:${font.id}` === selection);
+        if (asset) return { family: asset.family_name, url: asset.preview_url };
+      }
+      const key = selection.replace(/^builtin:/, "");
+      const builtIn = fontCatalog.built_in_fonts.find((font) => font.key === key);
+      return { family: builtIn?.family_name || fallback, url: undefined };
+    };
+    const titleFont = resolveFont(documentStyle.title_font, "함초롬돋움");
+    const bodyFont = resolveFont(documentStyle.body_font, "함초롬바탕");
+    return {
+      titleFontFamily: titleFont.family,
+      bodyFontFamily: bodyFont.family,
+      titleFontUrl: titleFont.url,
+      bodyFontUrl: bodyFont.url,
+      titleSizePt: documentStyle.title_size_pt,
+      bodySizePt: documentStyle.body_size_pt,
+      lineSpacingPercent: documentStyle.line_spacing_percent,
+      questionSpacingPt: documentStyle.question_spacing_pt,
+    };
+  }, [documentStyle, fontCatalog]);
+
+  const previewHtml = useMemo(
+    () => buildWorksheetPreviewHtml(draft, "questions", typography),
+    [draft, typography],
+  );
   const realQuestions = useMemo(() => draft.questions.filter(hasRealQuestion), [draft.questions]);
 
   const patchDraft = (patch: Partial<WorksheetDraft>) => {
     setDraft((prev) => ({ ...prev, ...patch }));
+  };
+
+  const patchDocumentStyle = (patch: Partial<ProblemStudioDocumentStyle>) => {
+    setDocumentStyle((prev) => ({ ...prev, ...patch }));
+    setTransferResult(null);
+    setTransferJobId(null);
+  };
+
+  const handleSaveDocumentStyle = async () => {
+    setStyleSaving(true);
+    try {
+      const saved = await saveProblemStudioDocumentStyle(documentStyle);
+      setDocumentStyle(saved);
+      feedback.success("내 문서 스타일을 저장했습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "문서 스타일을 저장하지 못했습니다.");
+    } finally {
+      setStyleSaving(false);
+    }
+  };
+
+  const handleFontUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!fontRightsConfirmed) {
+      feedback.warning("글꼴 사용 권리를 먼저 확인해 주세요.");
+      return;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    form.append("display_name", file.name.replace(/\.(ttf|otf)$/i, ""));
+    form.append("license_basis", fontLicenseBasis);
+    form.append("rights_confirmed", "true");
+    setFontUploading(true);
+    try {
+      const font = await uploadProblemStudioFont(form);
+      setFontCatalog((prev) => ({
+        ...prev,
+        custom_fonts: [...prev.custom_fonts, font],
+      }));
+      patchDocumentStyle({ body_font: `asset:${font.id}` });
+      setFontRightsConfirmed(false);
+      feedback.success(`${font.display_name}을 내 글꼴에 등록하고 본문 글꼴로 선택했습니다.`);
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "글꼴을 올리지 못했습니다.");
+    } finally {
+      setFontUploading(false);
+    }
+  };
+
+  const handleDeleteFont = async (fontId: string) => {
+    const font = fontCatalog.custom_fonts.find((item) => item.id === fontId);
+    if (!font || !window.confirm(`${font.display_name}을 내 글꼴에서 삭제할까요?`)) return;
+    try {
+      await deleteProblemStudioFont(fontId);
+      setFontCatalog((prev) => ({
+        ...prev,
+        custom_fonts: prev.custom_fonts.filter((item) => item.id !== fontId),
+      }));
+      setDocumentStyle((prev) => ({
+        ...prev,
+        title_font: prev.title_font === `asset:${fontId}` ? DEFAULT_DOCUMENT_STYLE.title_font : prev.title_font,
+        body_font: prev.body_font === `asset:${fontId}` ? DEFAULT_DOCUMENT_STYLE.body_font : prev.body_font,
+      }));
+      feedback.success("내 글꼴에서 삭제했습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "글꼴을 삭제하지 못했습니다.");
+    }
   };
 
   const buildQuestionPayload = () => [
@@ -454,6 +611,7 @@ export default function ProblemStudioPage() {
         use_ai: true,
         transfer_only: true,
         ai_transcription: true,
+        document_style: documentStyle,
         questions: buildQuestionPayload(),
       };
       setGenerationNote("원본을 안전하게 업로드하는 중");
@@ -559,6 +717,7 @@ export default function ProblemStudioPage() {
         note_policy: notePolicy,
         use_ai: true,
         transfer_only: false,
+        document_style: documentStyle,
         questions: buildQuestionPayload(),
       };
       setGenerationNote("Beta 재작성 후보 생성 중");
@@ -586,6 +745,7 @@ export default function ProblemStudioPage() {
         templateName,
         variantLabel: `Beta 재작성 · ${response.mode_label}`,
         notePolicy,
+        typography,
       });
       if (response.generation_engine === "ai") {
         feedback.success("Beta 재작성 후보를 저장했습니다.");
@@ -606,12 +766,12 @@ export default function ProblemStudioPage() {
     }
     setPdfLoading(kind);
     try {
-      await downloadWorksheetPdf(draft, kind);
+      await downloadWorksheetPdf(draft, kind, typography);
       feedback.success("PDF 파일 생성을 시작했습니다.");
     } catch (error) {
       feedback.warning("직접 PDF 생성에 실패해 인쇄 저장 창을 엽니다.");
       try {
-        openWorksheetPrintWindow(draft, kind);
+        openWorksheetPrintWindow(draft, kind, typography);
       } catch {
         feedback.error(error instanceof Error ? error.message : "PDF를 만들 수 없습니다.");
       }
@@ -622,7 +782,7 @@ export default function ProblemStudioPage() {
 
   const handlePrint = (kind: WorksheetPdfKind) => {
     try {
-      openWorksheetPrintWindow(draft, kind);
+      openWorksheetPrintWindow(draft, kind, typography);
     } catch (error) {
       feedback.error(error instanceof Error ? error.message : "인쇄 창을 열 수 없습니다.");
     }
@@ -635,6 +795,7 @@ export default function ProblemStudioPage() {
         templateName,
         variantLabel: "원본 이관 · 편집 초안",
         notePolicy,
+        typography,
       });
       feedback.success("한글 호환 검수 초안을 저장했습니다.");
     } catch (error) {
@@ -883,6 +1044,176 @@ export default function ProblemStudioPage() {
                 </Field>
               </div>
             </details>
+          </section>
+
+          <section className={styles.panel} aria-labelledby="document-style-title">
+            <div className={styles.panelHeader}>
+              <div>
+                <h3 id="document-style-title">4. 내 문서 스타일</h3>
+                <p>제목·본문 글꼴과 간격을 한 번 저장하면 다음 교재와 문제지에도 그대로 씁니다.</p>
+              </div>
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                loading={styleSaving}
+                disabled={styleLoading}
+                onClick={handleSaveDocumentStyle}
+              >
+                내 기본값 저장
+              </Button>
+            </div>
+            <div className={styles.formGrid}>
+              <Field label="제목 글꼴">
+                <select
+                  value={documentStyle.title_font}
+                  disabled={styleLoading}
+                  onChange={(event) => patchDocumentStyle({ title_font: event.target.value })}
+                >
+                  <optgroup label="한글 기본 글꼴">
+                    {fontCatalog.built_in_fonts.map((font) => (
+                      <option key={font.key} value={`builtin:${font.key}`}>{font.label}</option>
+                    ))}
+                  </optgroup>
+                  {fontCatalog.custom_fonts.length > 0 && (
+                    <optgroup label="내가 올린 글꼴">
+                      {fontCatalog.custom_fonts.map((font) => (
+                        <option key={font.id} value={`asset:${font.id}`}>{font.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </Field>
+              <Field label="본문 글꼴">
+                <select
+                  value={documentStyle.body_font}
+                  disabled={styleLoading}
+                  onChange={(event) => patchDocumentStyle({ body_font: event.target.value })}
+                >
+                  <optgroup label="한글 기본 글꼴">
+                    {fontCatalog.built_in_fonts.map((font) => (
+                      <option key={font.key} value={`builtin:${font.key}`}>{font.label}</option>
+                    ))}
+                  </optgroup>
+                  {fontCatalog.custom_fonts.length > 0 && (
+                    <optgroup label="내가 올린 글꼴">
+                      {fontCatalog.custom_fonts.map((font) => (
+                        <option key={font.id} value={`asset:${font.id}`}>{font.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </Field>
+              <Field label="제목 크기(pt)">
+                <input
+                  type="number"
+                  min={14}
+                  max={32}
+                  step={0.5}
+                  value={documentStyle.title_size_pt}
+                  onChange={(event) => patchDocumentStyle({ title_size_pt: Number(event.target.value) || 20 })}
+                />
+              </Field>
+              <Field label="본문 크기(pt)">
+                <input
+                  type="number"
+                  min={8}
+                  max={18}
+                  step={0.5}
+                  value={documentStyle.body_size_pt}
+                  onChange={(event) => patchDocumentStyle({ body_size_pt: Number(event.target.value) || 10.5 })}
+                />
+              </Field>
+              <Field label="줄 간격(%)">
+                <input
+                  type="number"
+                  min={120}
+                  max={220}
+                  step={5}
+                  value={documentStyle.line_spacing_percent}
+                  onChange={(event) => patchDocumentStyle({ line_spacing_percent: Number(event.target.value) || 155 })}
+                />
+              </Field>
+              <Field label="문항 간격(pt)">
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={1}
+                  value={documentStyle.question_spacing_pt}
+                  onChange={(event) => patchDocumentStyle({ question_spacing_pt: Number(event.target.value) || 0 })}
+                />
+              </Field>
+            </div>
+            <div className={styles.typographySample}>
+              <strong>산화·환원 단원 확인</strong>
+              <span>H₂O와 SO₄²⁻의 관계를 설명하시오. 첨자는 HWPX에서 편집 가능한 한글 수식으로 생성됩니다.</span>
+              <small>선택한 글꼴·크기·간격은 오른쪽 출력 미리보기에 즉시 반영됩니다.</small>
+            </div>
+            <div className={styles.fontUploadBox}>
+              <div>
+                <strong>내가 가진 글꼴 올리기</strong>
+                <p>TTF/OTF만 지원합니다. 파일은 내 계정 전용이며 HWPX에 포함하지 않고, 한글에서 열 때 내 PC에 설치 여부를 묻습니다.</p>
+              </div>
+              <div className={styles.fontUploadControls}>
+                <Field label="사용 권한 근거">
+                  <select
+                    value={fontLicenseBasis}
+                    onChange={(event) => setFontLicenseBasis(event.target.value as typeof fontLicenseBasis)}
+                  >
+                    <option value="academy">학원 보유</option>
+                    <option value="purchased">직접 구매</option>
+                    <option value="free">무료 배포</option>
+                    <option value="other">기타</option>
+                  </select>
+                </Field>
+                <label className={styles.fontRightsCheck}>
+                  <input
+                    type="checkbox"
+                    checked={fontRightsConfirmed}
+                    onChange={(event) => setFontRightsConfirmed(event.target.checked)}
+                  />
+                  <span>문서 생성과 내 PC 설치에 사용할 권리가 있습니다.</span>
+                </label>
+                <input
+                  ref={fontInputRef}
+                  className={styles.hiddenInput}
+                  type="file"
+                  accept=".ttf,.otf,font/ttf,font/otf"
+                  onChange={handleFontUpload}
+                />
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  loading={fontUploading}
+                  disabled={!fontRightsConfirmed}
+                  leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
+                  onClick={() => fontInputRef.current?.click()}
+                >
+                  TTF/OTF 선택
+                </Button>
+              </div>
+              {fontCatalog.custom_fonts.length > 0 && (
+                <div className={styles.customFontList}>
+                  {fontCatalog.custom_fonts.map((font) => (
+                    <div key={font.id}>
+                      <span>
+                        <strong>{font.display_name}</strong>
+                        <small>{font.family_name} · {font.supports_hangul ? "한글 지원" : "한글 글리프 제한"} · {formatFileSize(font.size_bytes)}</small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${font.display_name} 삭제`}
+                        onClick={() => handleDeleteFont(font.id)}
+                      >
+                        <Trash2 size={ICON.sm} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
           <details className={styles.optionalPanel}>

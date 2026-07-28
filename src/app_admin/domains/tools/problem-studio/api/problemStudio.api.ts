@@ -88,6 +88,45 @@ export type ProblemStudioHangulCompanionDownload = {
   size_bytes: number;
 };
 
+export type ProblemStudioBuiltInFont = {
+  key: string;
+  label: string;
+  family_name: string;
+};
+
+export type ProblemStudioFontAsset = {
+  id: string;
+  display_name: string;
+  family_name: string;
+  subfamily_name: string;
+  full_name: string;
+  original_name: string;
+  file_format: "ttf" | "otf";
+  size_bytes: number;
+  sha256: string;
+  supports_hangul: boolean;
+  supports_latin: boolean;
+  embedding_permission: "installable" | "editable" | "preview_print" | "restricted" | string;
+  redistribution_allowed: boolean;
+  license_basis: "purchased" | "free" | "academy" | "other";
+  status: "ready" | "disabled";
+  preview_url?: string;
+};
+
+export type ProblemStudioFontCatalog = {
+  built_in_fonts: ProblemStudioBuiltInFont[];
+  custom_fonts: ProblemStudioFontAsset[];
+};
+
+export type ProblemStudioDocumentStyle = {
+  title_font: string;
+  body_font: string;
+  title_size_pt: number;
+  body_size_pt: number;
+  line_spacing_percent: number;
+  question_spacing_pt: number;
+};
+
 export type ProblemStudioVariantMode = "copy" | "same-type" | "trap" | "concept";
 
 export type ProblemStudioGeneratePayload = {
@@ -101,6 +140,7 @@ export type ProblemStudioGeneratePayload = {
   use_ai: boolean;
   transfer_only?: boolean;
   ai_transcription?: boolean;
+  document_style?: ProblemStudioDocumentStyle;
   questions: Array<{
     prompt: string;
     choices: string;
@@ -108,6 +148,44 @@ export type ProblemStudioGeneratePayload = {
     explanation: string;
   }>;
 };
+
+export async function getProblemStudioFonts(): Promise<ProblemStudioFontCatalog> {
+  const { data } = await api.get<ProblemStudioFontCatalog>("/tools/problem-studio/fonts/");
+  return data;
+}
+
+export async function uploadProblemStudioFont(form: FormData): Promise<ProblemStudioFontAsset> {
+  const { data } = await api.post<ProblemStudioFontAsset>(
+    "/tools/problem-studio/fonts/",
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120_000,
+    },
+  );
+  return data;
+}
+
+export async function deleteProblemStudioFont(fontId: string): Promise<void> {
+  await api.delete(`/tools/problem-studio/fonts/${encodeURIComponent(fontId)}/`);
+}
+
+export async function getProblemStudioDocumentStyle(): Promise<ProblemStudioDocumentStyle> {
+  const { data } = await api.get<{ preference: ProblemStudioDocumentStyle }>(
+    "/tools/problem-studio/document-style/",
+  );
+  return data.preference;
+}
+
+export async function saveProblemStudioDocumentStyle(
+  style: ProblemStudioDocumentStyle,
+): Promise<ProblemStudioDocumentStyle> {
+  const { data } = await api.put<{ preference: ProblemStudioDocumentStyle }>(
+    "/tools/problem-studio/document-style/",
+    style,
+  );
+  return data.preference;
+}
 
 export async function createProblemStudioJob(
   payload: ProblemStudioGeneratePayload,

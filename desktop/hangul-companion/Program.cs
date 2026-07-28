@@ -16,7 +16,11 @@ internal static class Program
     private const string AllowedHandoffHost = "api.hakwonplus.com";
     private const string ReviewFile = "03_자체양식_문제검수본.hwpx";
     private const long MaxDownloadBytes = 768L * 1024 * 1024;
+    private const long MaxFontBytes = 32L * 1024 * 1024;
     private const string InstalledFileName = "Academy.HangulCompanion.exe";
+    private const string UserFontsRegistryPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+    private const int WmFontChange = 0x001D;
+    private static readonly IntPtr HwndBroadcast = new(0xffff);
 
     [STAThread]
     private static async Task<int> Main(string[] args)
@@ -40,10 +44,11 @@ internal static class Program
                 throw new InvalidOperationException("Academy 도구에서 '한글에서 열기'를 다시 눌러 주세요.");
 
             var review = await AcquireReviewAsync(args[0]);
+            EnsureFontsReady(review.Fonts);
             if (TryInsertIntoVisibleEditableHangul(review.HwpxPath, out var reason))
             {
                 MessageBox.Show(
-                    "현재 한글 문서의 커서 위치에 검수본을 넣었습니다.\n수식·표·도형은 원본과 대조해 주세요.",
+                    "현재 한글 문서의 커서 위치에 검수본을 넣었습니다.\n편집 가능한 수식과 문서 글꼴·문단 서식을 보존했습니다. 표·도형은 원본과 대조해 주세요.",
                     "Academy 한글 연결",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -142,6 +147,12 @@ internal static class Program
                 hwpx_path = review.HwpxPath,
                 size_bytes = review.SizeBytes,
                 sha256 = review.Sha256,
+                fonts = review.Fonts.Select(font => new
+                {
+                    font.FamilyName,
+                    font.FilePath,
+                    font.Sha256,
+                }),
                 companion_version = GetVersion(),
             });
             return 0;
@@ -185,7 +196,52 @@ internal static class Program
         var sizeBytes = await DownloadAsync(http, handoff.DownloadUrl, zipPath, handoff.SizeBytes);
         var sha256 = VerifySha256(zipPath, handoff.Sha256);
         var hwpxPath = ExtractReviewHwpx(zipPath, tempRoot);
-        return new AcquiredReview(zipPath, hwpxPath, sizeBytes, sha256);
+        var fonts = await DownloadFontsAsync(http, handoff.Fonts, tempRoot);
+        return new AcquiredReview(zipPath, hwpxPath, sizeBytes, sha256, fonts);
+    }
+
+    private static async Task<IReadOnlyList<AcquiredFont>> DownloadFontsAsync(
+        HttpClient http,
+        IReadOnlyList<HandoffFont>? fonts,
+        string tempRoot)
+    {
+        if (fonts is null || fonts.Count == 0) return [];
+        if (fonts.Count > 4)
+            throw new InvalidOperationException("검수본의 글꼴 수가 안전 범위를 벗어났습니다.");
+
+        var output = new List<AcquiredFont>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var font in fonts)
+        {
+            if (string.IsNullOrWhiteSpace(font.Id) || !seen.Add(font.Id))
+                throw new InvalidOperationException("검수본 글꼴 정보가 중복되거나 올바르지 않습니다.");
+            if (font.SizeBytes <= 0 || font.SizeBytes > MaxFontBytes)
+                throw new InvalidOperationException("검수본 글꼴 크기가 안전 범위를 벗어났습니다.");
+            var fileName = SafeFileName(font.FileName, "teacher-font.ttf");
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            if (extension is not (".ttf" or ".otf"))
+                throw new InvalidOperationException("TTF/OTF 글꼴만 설치할 수 있습니다.");
+            var target = Path.Combine(tempRoot, $"font-{SafeFileName(font.Id, "asset")}-{fileName}");
+            await DownloadAsync(http, font.DownloadUrl, target, font.SizeBytes);
+            var sha256 = VerifySha256(target, font.Sha256);
+            ValidateFontFile(target, extension);
+            output.Add(new AcquiredFont(font.FamilyName, fileName, target, sha256));
+        }
+        return output;
+    }
+
+    private static void ValidateFontFile(string path, string extension)
+    {
+        Span<byte> magic = stackalloc byte[4];
+        using var stream = File.OpenRead(path);
+        if (stream.Read(magic) != magic.Length)
+            throw new InvalidOperationException("글꼴 파일이 비어 있습니다.");
+        var isTrueType = magic.SequenceEqual(new byte[] { 0x00, 0x01, 0x00, 0x00 })
+            || magic.SequenceEqual("true"u8)
+            || magic.SequenceEqual("typ1"u8);
+        var isOpenType = magic.SequenceEqual("OTTO"u8);
+        if ((extension == ".ttf" && !isTrueType) || (extension == ".otf" && !isOpenType))
+            throw new InvalidOperationException("글꼴 확장자와 실제 파일 형식이 다릅니다.");
     }
 
     private static Uri ParseHandoffUri(string raw)
@@ -308,6 +364,102 @@ internal static class Program
         }
     }
 
+    private static void EnsureFontsReady(IReadOnlyList<AcquiredFont> fonts)
+    {
+        var missing = fonts
+            .Where(font => !IsFontInstalled(font.FamilyName))
+            .ToList();
+        if (missing.Count == 0) return;
+
+        var families = string.Join("\n", missing.Select(font => $"• {font.FamilyName}"));
+        var choice = MessageBox.Show(
+            $"이 검수본은 아래 선생님 개인 글꼴을 사용합니다.\n\n{families}\n\n현재 Windows 사용자에게 설치할까요?\n글꼴 사용 권리는 업로드한 선생님이 확인한 항목입니다.",
+            "Academy 한글 연결 · 글꼴 설치",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question);
+        if (choice == DialogResult.Cancel)
+            throw new OperationCanceledException("글꼴 설치와 한글 열기를 취소했습니다.");
+        if (choice == DialogResult.No)
+        {
+            MessageBox.Show(
+                "글꼴을 설치하지 않고 계속합니다. 한글에서 대체 글꼴로 표시될 수 있습니다.",
+                "Academy 한글 연결",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        foreach (var font in missing) InstallFontForCurrentUser(font);
+        BroadcastFontChange();
+    }
+
+    private static bool IsFontInstalled(string familyName)
+    {
+        if (string.IsNullOrWhiteSpace(familyName)) return false;
+        return RegistryFontNameExists(Registry.CurrentUser, UserFontsRegistryPath, familyName)
+            || RegistryFontNameExists(Registry.LocalMachine, UserFontsRegistryPath, familyName)
+            || RegistryFontNameExists(
+                Registry.LocalMachine,
+                @"SOFTWARE\WOW6432Node\Microsoft\Windows NT\CurrentVersion\Fonts",
+                familyName);
+    }
+
+    private static bool RegistryFontNameExists(RegistryKey root, string path, string familyName)
+    {
+        try
+        {
+            using var key = root.OpenSubKey(path, writable: false);
+            return key?.GetValueNames().Any(name =>
+                name.Contains(familyName, StringComparison.OrdinalIgnoreCase)) == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void InstallFontForCurrentUser(AcquiredFont font)
+    {
+        var fontsDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "Windows", "Fonts");
+        Directory.CreateDirectory(fontsDirectory);
+        var extension = Path.GetExtension(font.FileName).ToLowerInvariant();
+        var targetName = $"Academy-{font.Sha256[..12]}{extension}";
+        var targetPath = Path.Combine(fontsDirectory, targetName);
+        if (File.Exists(targetPath))
+        {
+            var existingSha = VerifySha256(targetPath, font.Sha256);
+            if (!existingSha.Equals(font.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"{font.FamilyName} 글꼴의 기존 설치 파일을 확인할 수 없습니다.");
+        }
+        else
+        {
+            File.Copy(font.FilePath, targetPath, overwrite: false);
+        }
+
+        using var registry = Registry.CurrentUser.CreateSubKey(UserFontsRegistryPath, writable: true)
+            ?? throw new InvalidOperationException("현재 사용자 글꼴 등록을 만들 수 없습니다.");
+        registry.SetValue(
+            $"{font.FamilyName} (Academy {font.Sha256[..12]})",
+            targetPath,
+            RegistryValueKind.String);
+        if (AddFontResourceEx(targetPath, 0, IntPtr.Zero) == 0)
+            throw new InvalidOperationException($"{font.FamilyName} 글꼴을 Windows에 등록하지 못했습니다.");
+    }
+
+    private static void BroadcastFontChange()
+    {
+        _ = SendMessageTimeout(
+            HwndBroadcast,
+            WmFontChange,
+            IntPtr.Zero,
+            IntPtr.Zero,
+            0x0002,
+            5000,
+            out _);
+    }
+
     private static bool TryInsertIntoVisibleEditableHangul(string hwpxPath, out string reason)
     {
         object? hwp = null;
@@ -329,10 +481,10 @@ internal static class Program
             dynamic set = action.CreateSet();
             action.GetDefault(set);
             set.SetItem("FileName", hwpxPath);
-            set.SetItem("KeepSection", 0);
-            set.SetItem("KeepCharshape", 0);
-            set.SetItem("KeepParashape", 0);
-            set.SetItem("KeepStyle", 0);
+            set.SetItem("KeepSection", 1);
+            set.SetItem("KeepCharshape", 1);
+            set.SetItem("KeepParashape", 1);
+            set.SetItem("KeepStyle", 1);
             if (!(bool)action.Execute(set))
             {
                 reason = "한글이 파일 삽입을 허용하지 않았습니다.";
@@ -354,6 +506,7 @@ internal static class Program
 
     private static object? FindVisibleEditableHangul()
     {
+        var requiredRotPrefix = Environment.GetEnvironmentVariable("ACADEMY_HWP_ROT_NAME_PREFIX");
         GetRunningObjectTable(0, out var rot);
         rot.EnumRunning(out var monikerEnum);
         var monikers = new IMoniker[1];
@@ -362,6 +515,9 @@ internal static class Program
             CreateBindCtx(0, out var bindContext);
             monikers[0].GetDisplayName(bindContext, null, out var name);
             if (!name.StartsWith("!HwpObject", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.IsNullOrWhiteSpace(requiredRotPrefix)
+                && !name.StartsWith($"!{requiredRotPrefix}", StringComparison.OrdinalIgnoreCase))
+                continue;
             rot.GetObject(monikers[0], out var candidate);
             try
             {
@@ -398,11 +554,44 @@ internal static class Program
     [DllImport("ole32.dll")]
     private static extern int CreateBindCtx(int reserved, out IBindCtx bindContext);
 
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int AddFontResourceEx(string fileName, uint flags, IntPtr reserved);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(
+        IntPtr window,
+        int message,
+        IntPtr wParam,
+        IntPtr lParam,
+        uint flags,
+        uint timeout,
+        out IntPtr result);
+
     private sealed record HandoffResponse(
         [property: System.Text.Json.Serialization.JsonPropertyName("download_url")] string DownloadUrl,
         [property: System.Text.Json.Serialization.JsonPropertyName("filename")] string FileName,
         [property: System.Text.Json.Serialization.JsonPropertyName("sha256")] string Sha256,
+        [property: System.Text.Json.Serialization.JsonPropertyName("size_bytes")] long SizeBytes,
+        [property: System.Text.Json.Serialization.JsonPropertyName("fonts")] IReadOnlyList<HandoffFont>? Fonts);
+
+    private sealed record HandoffFont(
+        [property: System.Text.Json.Serialization.JsonPropertyName("id")] string Id,
+        [property: System.Text.Json.Serialization.JsonPropertyName("family_name")] string FamilyName,
+        [property: System.Text.Json.Serialization.JsonPropertyName("file_name")] string FileName,
+        [property: System.Text.Json.Serialization.JsonPropertyName("download_url")] string DownloadUrl,
+        [property: System.Text.Json.Serialization.JsonPropertyName("sha256")] string Sha256,
         [property: System.Text.Json.Serialization.JsonPropertyName("size_bytes")] long SizeBytes);
 
-    private sealed record AcquiredReview(string ZipPath, string HwpxPath, long SizeBytes, string Sha256);
+    private sealed record AcquiredFont(
+        string FamilyName,
+        string FileName,
+        string FilePath,
+        string Sha256);
+
+    private sealed record AcquiredReview(
+        string ZipPath,
+        string HwpxPath,
+        long SizeBytes,
+        string Sha256,
+        IReadOnlyList<AcquiredFont> Fonts);
 }
