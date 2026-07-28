@@ -10,10 +10,12 @@
   --clinic-studio-accent: var(--color-brand-primary, #3f5fcb);
 
   display: flex;
+  width: 100%;
   min-width: 0;
   flex-direction: column;
   gap: 16px;
   color: var(--clinic-studio-ink);
+  container: clinic-printout / inline-size;
 }
 
 .hero {
@@ -220,13 +222,14 @@
 
 .previewScaleBox {
   width: 184.14mm;
-  min-height: 260.4mm;
+  height: var(--clinic-preview-height-62, 260.4mm);
+  overflow: hidden;
   margin: 0 auto;
 }
 
 .previewPaper {
   width: 297mm;
-  min-height: 420mm;
+  height: var(--clinic-preview-height, 420mm);
   overflow: hidden;
   transform: scale(0.62);
   transform-origin: top left;
@@ -238,7 +241,7 @@
 
 .previewIframe {
   width: 100%;
-  height: 420mm;
+  height: 100%;
   border: 0;
 }
 
@@ -604,14 +607,14 @@
   clip-path: inset(50%);
 }
 
-@media (min-width: 1700px) {
+@container clinic-printout (min-width: 1280px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) 388px;
   }
 
   .previewScaleBox {
     width: 213.84mm;
-    min-height: 302.4mm;
+    height: var(--clinic-preview-height-72, 302.4mm);
   }
 
   .previewPaper {
@@ -619,7 +622,7 @@
   }
 }
 
-@media (max-width: 1500px) {
+@container clinic-printout (max-width: 1279px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -638,7 +641,7 @@
 
   .previewScaleBox {
     width: 213.84mm;
-    min-height: 302.4mm;
+    height: var(--clinic-preview-height-72, 302.4mm);
   }
 
   .previewPaper {
@@ -646,7 +649,7 @@
   }
 }
 
-@media (max-width: 1180px) {
+@container clinic-printout (max-width: 1179px) {
   .hero {
     align-items: flex-start;
     flex-direction: column;
@@ -667,7 +670,7 @@
 
   .previewScaleBox {
     width: 172.26mm;
-    min-height: 243.6mm;
+    height: var(--clinic-preview-height-58, 243.6mm);
   }
 
   .previewPaper {
@@ -675,7 +678,25 @@
   }
 }
 
-@media (max-width: 760px) {
+@container clinic-printout (max-width: 839px) {
+  .heroMetrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .heroMetric {
+    align-items: center;
+  }
+
+  .metricDivider {
+    display: none;
+  }
+}
+
+@container clinic-printout (max-width: 600px) {
   .hero {
     border-radius: 12px;
     padding: 18px 16px 18px 20px;
@@ -683,7 +704,6 @@
 
   .heroMetrics {
     gap: 10px;
-    overflow-x: auto;
     padding: 10px 12px;
   }
 
@@ -707,7 +727,7 @@
 
   .previewScaleBox {
     width: 124.74mm;
-    min-height: 176.4mm;
+    height: var(--clinic-preview-height-42, 176.4mm);
   }
 
   .previewPaper {

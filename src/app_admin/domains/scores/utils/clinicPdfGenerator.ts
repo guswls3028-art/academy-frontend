@@ -62,6 +62,46 @@ function printableLength(value: string): number {
   return Array.from(value.trim()).length;
 }
 
+function getClinicPrintGroupCapacity(students: ClinicPrintStudent[]): number {
+  const maxNameLength = Math.max(0, ...students.map((student) => printableLength(student.name)));
+  if (maxNameLength <= 8) return 68;
+  if (maxNameLength <= 12) return 24;
+  if (maxNameLength <= 16) return 18;
+  return 12;
+}
+
+function chunkClinicStudents(students: ClinicPrintStudent[]): ClinicPrintStudent[][] {
+  if (students.length === 0) return [];
+  const capacity = getClinicPrintGroupCapacity(students);
+  const chunks: ClinicPrintStudent[][] = [];
+  for (let index = 0; index < students.length; index += capacity) {
+    chunks.push(students.slice(index, index + capacity));
+  }
+  return chunks;
+}
+
+export function paginateClinicPrintDocument(document: ClinicPrintDocument): ClinicPrintDocument[] {
+  const chunks = {
+    both: chunkClinicStudents(document.groups.both),
+    examOnly: chunkClinicStudents(document.groups.examOnly),
+    hwOnly: chunkClinicStudents(document.groups.hwOnly),
+  };
+  const pageCount = Math.max(1, chunks.both.length, chunks.examOnly.length, chunks.hwOnly.length);
+
+  return Array.from({ length: pageCount }, (_, pageIndex) => ({
+    ...document,
+    groups: {
+      both: chunks.both[pageIndex] ?? [],
+      examOnly: chunks.examOnly[pageIndex] ?? [],
+      hwOnly: chunks.hwOnly[pageIndex] ?? [],
+    },
+  }));
+}
+
+export function getClinicPrintPageCount(document: ClinicPrintDocument): number {
+  return paginateClinicPrintDocument(document).length;
+}
+
 export function getClinicPrintDensity(groups: string[][]): ClinicPrintDensity {
   const names = groups.flat().filter(Boolean);
   const maxGroupCount = Math.max(0, ...groups.map((group) => group.length));
@@ -176,6 +216,7 @@ export const BASE_STYLE = `
       linear-gradient(90deg, var(--clinic-accent) 0 3.2mm, transparent 3.2mm 100%),
       #fff;
   }
+  .page + .page { margin-top: 8mm; }
 
   /* ── Header: a clear clinic roster, readable from the classroom door ── */
   .header {
@@ -400,6 +441,14 @@ export const BASE_STYLE = `
     text-align: right; font-size: 14px; font-weight: 900;
     color: var(--clinic-ink); letter-spacing: 0.02em;
   }
+  .page-number {
+    display: block;
+    margin-top: 0.8mm;
+    color: var(--clinic-muted);
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
 
   .page--compact .header { padding-bottom: 4.2mm; margin-bottom: 3.8mm; }
   .page--compact .header h1 { font-size: 35px; }
@@ -461,7 +510,8 @@ export const BASE_STYLE = `
 
   @media print {
     body { background: #fff; }
-    .page { margin: 0; box-shadow: none; }
+    .page { margin: 0; box-shadow: none; break-after: page; }
+    .page:last-child { break-after: auto; }
   }
 `;
 
@@ -487,28 +537,63 @@ export async function htmlToPdfDownload(html: string, filename: string) {
     // 2) 앱 번들에 포함된 렌더러 로드 — 외부 CDN 장애와 CSP 차단의 영향을 받지 않는다.
     const { html2canvas, jsPDF } = await loadPdfModules();
 
-    // 3) 캡처
-    const pageEl = (doc.querySelector(".page") as HTMLElement | null) ?? doc.body;
-    const canvas = await html2canvas(pageEl, {
-      // 96dpi CSS 캔버스를 2.75배로 캡처해 A3에서도 약 264dpi의 선명도를 확보한다.
-      scale: 2.75,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      windowWidth: pageEl.scrollWidth,
-      windowHeight: pageEl.scrollHeight,
+    // 3) 캡처 전 무손실 검증 — 행이 영역을 넘으면 조용히 잘린 PDF를 만들지 않는다.
+    const pageElements = Array.from(doc.querySelectorAll<HTMLElement>(".page"));
+    if (pageElements.length === 0) throw new Error("PDF 페이지를 찾지 못했습니다.");
+    const expectedStudentCount = Number(doc.body.dataset.clinicStudentCount ?? "0");
+    const renderedStudentCount = doc.querySelectorAll(".name-text").length;
+    if (renderedStudentCount !== expectedStudentCount) {
+      throw new Error("PDF 대상자 수가 원본 명단과 일치하지 않습니다.");
+    }
+    const expectedPageCount = Number(doc.body.dataset.clinicPageCount ?? "0");
+    if (pageElements.length !== expectedPageCount) {
+      throw new Error("PDF 페이지 수가 미리보기와 일치하지 않습니다.");
+    }
+    const layoutOverflowed = pageElements.some((pageEl) => {
+      if (
+        pageEl.scrollHeight > pageEl.clientHeight + 2
+        || pageEl.scrollWidth > pageEl.clientWidth + 2
+      ) {
+        return true;
+      }
+      return Array.from(pageEl.querySelectorAll<HTMLElement>(".name-list")).some((list) => {
+        if (list.scrollHeight > list.clientHeight + 2 || list.scrollWidth > list.clientWidth + 2) {
+          return true;
+        }
+        const listRect = list.getBoundingClientRect();
+        return Array.from(list.querySelectorAll<HTMLElement>(".name-row")).some((row) => {
+          const rowRect = row.getBoundingClientRect();
+          return rowRect.top < listRect.top - 2 || rowRect.bottom > listRect.bottom + 2;
+        });
+      });
     });
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error("PDF 렌더링 결과가 비어 있습니다.");
+    if (layoutOverflowed) {
+      throw new Error("명단 내용이 너무 길어 페이지 안에 안전하게 배치하지 못했습니다.");
     }
 
-    // 4) PDF A3 세로. CSS에서 A3 비율을 고정하므로 PDF도 full-bleed로 고정한다.
+    // 4) PDF A3 세로. 각 HTML 페이지를 한 장씩 캡처해 누락 없이 이어 붙인다.
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: CLINIC_PRINT_PAGE.jsPdfFormat });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
-    // 흰 배경의 인쇄물이라 고품질 JPEG가 글자 선명도를 유지하면서 PNG 대비 파일 크기를 크게 줄인다.
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
+    for (let pageIndex = 0; pageIndex < pageElements.length; pageIndex += 1) {
+      const pageEl = pageElements[pageIndex];
+      const canvas = await html2canvas(pageEl, {
+        // 96dpi CSS 캔버스를 2.75배로 캡처해 A3에서도 약 264dpi의 선명도를 확보한다.
+        scale: 2.75,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: pageEl.scrollWidth,
+        windowHeight: pageEl.scrollHeight,
+      });
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error("PDF 렌더링 결과가 비어 있습니다.");
+      }
+      if (pageIndex > 0) pdf.addPage();
+      // 흰 배경의 인쇄물이라 고품질 JPEG가 글자 선명도를 유지하면서 PNG 대비 파일 크기를 크게 줄인다.
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
+    }
     pdf.save(filename);
   } finally {
     document.body.removeChild(iframe);
@@ -740,34 +825,45 @@ function buildClinicPrintSchedule(document: ClinicPrintDocument, editable: boole
 
 export function buildClinicPrintHtml(document: ClinicPrintDocument, options: ClinicPrintHtmlOptions = {}): string {
   const editable = options.editable === true;
-  const density = getClinicPrintDensity([
-    document.groups.both.map((student) => student.name),
-    document.groups.examOnly.map((student) => student.name),
-    document.groups.hwOnly.map((student) => student.name),
-  ]);
-  const hasAlmostPassed = [
-    ...document.groups.both,
-    ...document.groups.examOnly,
-    ...document.groups.hwOnly,
-  ].some((student) => student.almostPassed);
-  const tipText = hasAlmostPassed
-    ? `아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.<br>★ 표시 학생은 보정 제출로 통과 가능합니다.`
-    : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
   const clinicTotal = getClinicTotal(document);
   const totalPresent = document.totalPresent ?? clinicTotal;
   const date = escapeHtml(document.date);
+  const pages = paginateClinicPrintDocument(document);
+  const pageCount = pages.length;
 
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
-<style>${BASE_STYLE}${editable ? EDITABLE_STYLE : ""}</style></head><body>
-<div class="${getClinicPrintPageClass(density)}">
-  <div class="header"><div class="badge">CLINIC</div><h1>클리닉 대상자 안내</h1><div class="sub">${buildClinicPrintSubTitle(document, editable)}</div></div>
+  const pageHtml = pages.map((pageDocument, pageIndex) => {
+    const density = getClinicPrintDensity([
+      pageDocument.groups.both.map((student) => student.name),
+      pageDocument.groups.examOnly.map((student) => student.name),
+      pageDocument.groups.hwOnly.map((student) => student.name),
+    ]);
+    const hasAlmostPassed = [
+      ...pageDocument.groups.both,
+      ...pageDocument.groups.examOnly,
+      ...pageDocument.groups.hwOnly,
+    ].some((student) => student.almostPassed);
+    const tipText = hasAlmostPassed
+      ? `아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.<br>★ 표시 학생은 보정 제출로 통과 가능합니다.`
+      : "아래 학생들은 클리닉 수업 대상입니다. 해당 시간에 참석하여 미통과 항목을 보완하세요.";
+    const sharedFieldsEditable = editable && pageIndex === 0;
+    const pageNumber = pageCount > 1
+      ? `<span class="page-number">${pageIndex + 1} / ${pageCount}쪽</span>`
+      : "";
+
+    return `<div class="${getClinicPrintPageClass(density)}" data-clinic-page="${pageIndex + 1}">
+  <div class="header"><div class="badge">CLINIC</div><h1>클리닉 대상자 안내</h1><div class="sub">${buildClinicPrintSubTitle(pageDocument, sharedFieldsEditable)}</div></div>
   <div class="tip-box"><div class="icon">!</div><div class="text">${tipText}</div></div>
   <div class="columns">
-    ${CLINIC_PRINT_GROUPS.map((group) => buildClinicPrintSection(document, group, editable)).join("\n    ")}
+    ${CLINIC_PRINT_GROUPS.map((group) => buildClinicPrintSection(pageDocument, group, editable)).join("\n    ")}
   </div>
-  ${buildClinicPrintSchedule(document, editable)}
-  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${editable ? `<span contenteditable="true" data-field="totalPresent">${totalPresent}</span>` : totalPresent}명</div><div class="footer-right">${editable ? `<span contenteditable="true" data-field="date">${date}</span>` : date}</div></div>
-</div></body></html>`;
+  ${buildClinicPrintSchedule(pageDocument, sharedFieldsEditable)}
+  <div class="footer"><div class="footer-left">클리닉 대상 <strong>${clinicTotal}명</strong> / 전체 출석 ${sharedFieldsEditable ? `<span contenteditable="true" data-field="totalPresent">${totalPresent}</span>` : totalPresent}명</div><div class="footer-right">${sharedFieldsEditable ? `<span contenteditable="true" data-field="date">${date}</span>` : date}${pageNumber}</div></div>
+</div>`;
+  }).join("\n");
+
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>클리닉 대상자 안내</title>
+<style>${BASE_STYLE}${editable ? EDITABLE_STYLE : ""}</style></head><body data-clinic-student-count="${clinicTotal}" data-clinic-page-count="${pageCount}">
+${pageHtml}</body></html>`;
 }
 
 // ── Export ──

@@ -26,7 +26,7 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
 
     // 1) 텍스트 딱지(.manual-mark) 완전 부재
     await expect(frame.locator(".manual-mark")).toHaveCount(0);
-    await expect(frame.locator(".columns")).not.toContainText("수동");
+    await expect(frame.locator("body")).not.toContainText("수동");
 
     // 2) 수동 행은 옅은 음영만 (background 톤 차이)
     const bg = await frame.locator(".manual-name").first().evaluate(
@@ -65,7 +65,7 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     await expect(frame.locator(".manual-name").first()).toBeVisible({ timeout: 8000 });
     await expect(frame.locator(".manual-mark")).toHaveCount(0);
     await expect(frame.locator(".manual-name")).toHaveCount(1);
-    await expect(frame.locator(".columns")).not.toContainText("수동");
+    await expect(frame.locator("body")).not.toContainText("수동");
 
     // 수동 셀이 단일 행 높이를 유지 (딱지로 인한 2줄 wrap 없음)
     const rowHeights = await frame.locator(".manual-name").first().evaluate((el) => {
@@ -81,6 +81,6 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     });
     expect(Math.abs(rowHeights.manualHeight - rowHeights.normalHeight)).toBeLessThanOrEqual(2);
 
-    await frame.locator(".page").screenshot({ path: `e2e-out/clinic-manual-2col-${TS}.png` });
+    await frame.locator(".page").first().screenshot({ path: `e2e-out/clinic-manual-2col-${TS}.png` });
   });
 });

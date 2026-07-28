@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/clinic/pages/ClinicPrintoutPage.tsx
 // 클리닉 대상자 인쇄물 도구 — iframe 기반 미리보기 (원본 CSS 100% 동일) + 데이터 복붙 파서 + PDF 다운로드
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, type CSSProperties } from "react";
 import {
   ClipboardPaste,
   Download,
@@ -18,6 +18,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { parseClinicData } from "../utils/clinicDataParser";
 import {
   buildClinicPrintHtml,
+  getClinicPrintPageCount,
   htmlToPdfDownload,
   type ClinicPrintDocument,
   type ClinicPrintStudent,
@@ -41,6 +42,18 @@ function stripNameCellText(text: string): string {
     .replace(/\[수동\]/g, "")
     .replace(/\s*수동\s*$/g, "")
     .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readEditableMultilineText(element: Element | null): string {
+  if (!element) return "";
+  const text = (element as HTMLElement).innerText || element.textContent || "";
+  return text
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -151,9 +164,11 @@ export default function ClinicPrintoutPage() {
       const d = f?.contentDocument;
       if (!d) return;
       const readNames = (field: string): string[] => {
-        const el = d.querySelector(`[data-field="${field}"]`);
-        if (!el) return [];
-        const cells = el.querySelectorAll(".name-cell, .name-row.single");
+        const fields = Array.from(d.querySelectorAll(`[data-field="${field}"]`));
+        if (fields.length === 0) return [];
+        const cells = fields.flatMap((fieldEl) =>
+          Array.from(fieldEl.querySelectorAll(".name-cell, .name-row.single")),
+        );
         if (cells.length > 0) {
           const names: string[] = [];
           cells.forEach((cell) => {
@@ -162,7 +177,7 @@ export default function ClinicPrintoutPage() {
           });
           return names;
         }
-        const text = (el as HTMLElement).innerText || el.textContent || "";
+        const text = fields.map((fieldEl) => readEditableMultilineText(fieldEl)).join("\n");
         return text.split("\n").map(stripNameCellText).filter(Boolean);
       };
       const readText = (field: string) => {
@@ -170,9 +185,7 @@ export default function ClinicPrintoutPage() {
         return el?.textContent?.trim() || "";
       };
       const scheduleEl = d.querySelector('[data-field="schedule"]');
-      const scheduleText = scheduleEl
-        ? scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim()
-        : "";
+      const scheduleText = readEditableMultilineText(scheduleEl);
       const tp = parseInt(readText("totalPresent") || "0", 10);
       setBoth(readNames("both"));
       setExamOnly(readNames("examOnly"));
@@ -183,11 +196,16 @@ export default function ClinicPrintoutPage() {
       setDate(readText("date"));
       setTotalPresent(isNaN(tp) ? 0 : tp);
     };
+    const syncAndRedraw = () => {
+      sync();
+      // 편집이 끝난 시점에만 다시 그려 다중 페이지의 공통 제목·일정과 페이지 수를 맞춘다.
+      setRedrawSeq((seq) => seq + 1);
+    };
     doc.addEventListener("input", sync);
-    doc.addEventListener("blur", sync, true);
+    doc.addEventListener("blur", syncAndRedraw, true);
     return () => {
       doc.removeEventListener("input", sync);
-      doc.removeEventListener("blur", sync, true);
+      doc.removeEventListener("blur", syncAndRedraw, true);
     };
   }, [redrawSeq]);
 
@@ -199,11 +217,13 @@ export default function ClinicPrintoutPage() {
     if (!doc) return null;
 
     const readNames = (field: string): string[] => {
-      const el = doc.querySelector(`[data-field="${field}"]`);
-      if (!el) return [];
+      const fields = Array.from(doc.querySelectorAll(`[data-field="${field}"]`));
+      if (fields.length === 0) return [];
       // name-cell 단위로 읽어야 함 — innerText + split("\n")은
       // display:flex 내부의 <span class="suffix">가 별도 줄로 분리되는 버그 발생
-      const cells = el.querySelectorAll(".name-cell, .name-row.single");
+      const cells = fields.flatMap((fieldEl) =>
+        Array.from(fieldEl.querySelectorAll(".name-cell, .name-row.single")),
+      );
       if (cells.length > 0) {
         const names: string[] = [];
         cells.forEach((cell) => {
@@ -213,7 +233,7 @@ export default function ClinicPrintoutPage() {
         return names;
       }
       // 사용자가 contenteditable에서 직접 편집한 경우 fallback
-      const text = (el as HTMLElement).innerText || el.textContent || "";
+      const text = fields.map((fieldEl) => readEditableMultilineText(fieldEl)).join("\n");
       return text.split("\n").map(stripNameCellText).filter(Boolean);
     };
 
@@ -223,9 +243,7 @@ export default function ClinicPrintoutPage() {
     };
 
     const scheduleEl = doc.querySelector('[data-field="schedule"]');
-    const scheduleText = scheduleEl
-      ? scheduleEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").trim()
-      : "";
+    const scheduleText = readEditableMultilineText(scheduleEl);
 
     const tpText = readText("totalPresent");
     const tp = parseInt(tpText || "0", 10);
@@ -382,7 +400,10 @@ export default function ClinicPrintoutPage() {
       feedback.success("PDF 다운로드 완료");
     } catch (error) {
       console.error("Clinic PDF download failed", error);
-      feedback.error("PDF 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      const message = error instanceof Error && error.message.startsWith("명단 내용이 너무 길어")
+        ? `${error.message} 제목이나 일정을 조금 줄여 주세요.`
+        : "PDF 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      feedback.error(message);
     } finally {
       setPdfLoading(false);
     }
@@ -403,6 +424,25 @@ export default function ClinicPrintoutPage() {
 
   const clinicTotal = both.length + examOnly.length + hwOnly.length;
   const adjustmentTotal = manualTargets.length + removedTargets.length;
+  const clinicPageCount = getClinicPrintPageCount(buildToolPrintDocument({
+    both,
+    examOnly,
+    hwOnly,
+    sessionTitle,
+    lectureTitle,
+    date,
+    schedule,
+    totalPresent,
+    manualNames,
+  }));
+  const previewHeightMm = (clinicPageCount * 420) + (Math.max(0, clinicPageCount - 1) * 8);
+  const previewHeightStyle = {
+    "--clinic-preview-height": `${previewHeightMm}mm`,
+    "--clinic-preview-height-72": `${previewHeightMm * 0.72}mm`,
+    "--clinic-preview-height-62": `${previewHeightMm * 0.62}mm`,
+    "--clinic-preview-height-58": `${previewHeightMm * 0.58}mm`,
+    "--clinic-preview-height-42": `${previewHeightMm * 0.42}mm`,
+  } as CSSProperties;
 
   return (
     <div className={styles.page}>
@@ -443,7 +483,7 @@ export default function ClinicPrintoutPage() {
               <span className={styles.previewStatusDot} aria-hidden />
               <div>
                 <h3 id="clinic-preview-heading">인쇄 미리보기</h3>
-                <span>A3 세로 · 고화질 PDF</span>
+                <span>A3 세로 · {clinicPageCount}쪽 · 고화질 PDF</span>
               </div>
             </div>
             <div className={styles.editHint}>
@@ -452,7 +492,7 @@ export default function ClinicPrintoutPage() {
             </div>
           </div>
           <div className={styles.previewCanvas}>
-            <div className={styles.previewScaleBox}>
+            <div className={styles.previewScaleBox} style={previewHeightStyle}>
               <div className={styles.previewPaper}>
                 <iframe
                   id="cprev"
@@ -655,7 +695,11 @@ export default function ClinicPrintoutPage() {
               <FileCheck2 size={ICON.md} aria-hidden />
               <div>
                 <strong>{clinicTotal > 0 ? `${clinicTotal}명 명단 준비됨` : "명단을 먼저 만들어 주세요"}</strong>
-                <span>{clinicTotal > 0 ? "A3 고화질 PDF로 저장합니다." : "성적표를 붙여넣으면 다운로드할 수 있어요."}</span>
+                <span>
+                  {clinicTotal > 0
+                    ? `A3 고화질 PDF ${clinicPageCount}쪽으로 저장합니다.`
+                    : "성적표를 붙여넣으면 다운로드할 수 있어요."}
+                </span>
               </div>
             </div>
             <Button
