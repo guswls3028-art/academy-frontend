@@ -182,6 +182,19 @@ type Props = {
     target_lecture_ids?: number[];
     section?: number | null;
   };
+  /** Copy mode: pre-fill settings from an existing session while creating a new session */
+  copySession?: {
+    title?: string;
+    date: string;
+    start_time: string;
+    duration_minutes: number;
+    location: string;
+    max_participants: number;
+    target_grade?: number | null;
+    target_school_type?: string | null;
+    target_lecture_ids?: number[];
+    section?: number | null;
+  };
   onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
 };
 
@@ -194,6 +207,7 @@ export default function ClinicCreatePanel({
   onCreated,
   asModal = false,
   editSession,
+  copySession,
   onUpdated,
 }: Props) {
   const { message } = App.useApp();
@@ -210,8 +224,9 @@ export default function ClinicCreatePanel({
     enabled: showSectionPicker,
     staleTime: 60_000,
   });
+  const sourceSession = editSession ?? copySession;
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
-    editSession?.section ?? null
+    sourceSession?.section ?? null
   );
 
   // enrollment_id → clinic_reason 매핑 (참가자 등록 시 사유 전달용)
@@ -226,7 +241,7 @@ export default function ClinicCreatePanel({
     return map;
   }, [clinicTargets]);
 
-  const initialDate = editSession?.date ?? date ?? todayISO();
+  const initialDate = date ?? sourceSession?.date ?? todayISO();
   const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
 
   const isPastDate = (selectedDate.format("YYYY-MM-DD") < todayISO());
@@ -277,24 +292,24 @@ export default function ClinicCreatePanel({
 
   const isEdit = !!editSession;
 
-  const [title, setTitle] = useState(editSession?.title ?? "");
-  const [targetGrade, setTargetGrade] = useState<number | null>(editSession?.target_grade ?? null);
-  const [targetSchoolType, setTargetSchoolType] = useState<string | null>(editSession?.target_school_type ?? null);
-  const [targetLectureIds, setTargetLectureIds] = useState<number[]>(editSession?.target_lecture_ids ?? []);
+  const [title, setTitle] = useState(sourceSession?.title ?? "");
+  const [targetGrade, setTargetGrade] = useState<number | null>(sourceSession?.target_grade ?? null);
+  const [targetSchoolType, setTargetSchoolType] = useState<string | null>(sourceSession?.target_school_type ?? null);
+  const [targetLectureIds, setTargetLectureIds] = useState<number[]>(sourceSession?.target_lecture_ids ?? []);
   const [showFilters, setShowFilters] = useState(false);
   const [timeRange, setTimeRange] = useState(() => {
-    if (!editSession) return "";
-    const st = editSession.start_time.slice(0, 5);
-    const dur = editSession.duration_minutes;
+    if (!sourceSession) return "";
+    const st = sourceSession.start_time.slice(0, 5);
+    const dur = sourceSession.duration_minutes;
     const [h, m] = st.split(":").map(Number);
     const endMin = (h * 60 + m + dur) % 1440;
     const eh = Math.floor(endMin / 60).toString().padStart(2, "0");
     const em = (endMin % 60).toString().padStart(2, "0");
     return `${st} ~ ${eh}:${em}`;
   });
-  const [room, setRoom] = useState(editSession?.location ?? "");
+  const [room, setRoom] = useState(sourceSession?.location ?? "");
   const [memo, setMemo] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState<number>(editSession?.max_participants ?? 10);
+  const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -383,7 +398,8 @@ export default function ClinicCreatePanel({
       return;
     }
 
-    const cap = selected.length > 0 ? selected.length : maxParticipants;
+    const uniqueSelected = Array.from(new Set(selected));
+    const cap = uniqueSelected.length > 0 ? uniqueSelected.length : maxParticipants;
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
 
     try {
@@ -403,9 +419,9 @@ export default function ClinicCreatePanel({
 
       // B-01: 선택된 학생들을 참가자로 등록
       // Dispatch on selection.kind to prevent ID domain confusion
-      if (selected.length > 0 && selection) {
+      if (uniqueSelected.length > 0 && selection) {
         const results = await Promise.allSettled(
-          selected.map((selectedId) => {
+          uniqueSelected.map((selectedId) => {
             const reason = selection.kind === "enrollment" ? targetReasonMap.get(selectedId) : undefined;
             return createClinicParticipant(
               buildParticipantPayload(created.id, selectedId, selection, reason)
@@ -415,10 +431,10 @@ export default function ClinicCreatePanel({
         const failed = results.filter((r) => r.status === "rejected");
         if (failed.length > 0) {
           message.warning(
-            `클리닉이 만들어졌습니다. (${selected.length - failed.length}명 등록, ${failed.length}명 실패)`
+            `클리닉이 만들어졌습니다. (${uniqueSelected.length - failed.length}명 등록, ${failed.length}명 실패)`
           );
         } else {
-          message.success(`클리닉이 만들어졌습니다. (${selected.length}명 등록)`);
+          message.success(`클리닉이 만들어졌습니다. (${uniqueSelected.length}명 등록)`);
         }
       } else {
         message.success("클리닉이 만들어졌습니다.");

@@ -120,6 +120,35 @@ function targetToRow(t: ClinicTarget): UnifiedRow {
   };
 }
 
+function targetRowsByEnrollment(targets: ClinicTarget[]): UnifiedRow[] {
+  const rows = new Map<number, UnifiedRow>();
+
+  for (const target of targets) {
+    const next = targetToRow(target);
+    const existing = rows.get(next.id);
+    if (!existing) {
+      rows.set(next.id, next);
+      continue;
+    }
+
+    const lectureKeys = new Set(
+      existing.lectures.map((lecture) =>
+        [lecture.lectureName, lecture.color, lecture.chipLabel].join("|")
+      )
+    );
+    for (const lecture of next.lectures) {
+      const key = [lecture.lectureName, lecture.color, lecture.chipLabel].join("|");
+      if (!lectureKeys.has(key)) {
+        existing.lectures.push(lecture);
+        lectureKeys.add(key);
+      }
+    }
+    existing.clinicHighlight = existing.clinicHighlight || next.clinicHighlight;
+  }
+
+  return Array.from(rows.values());
+}
+
 /** ClinicStudent → UnifiedRow */
 function studentToRow(s: ClinicStudent): UnifiedRow {
   return {
@@ -180,10 +209,11 @@ export default function ClinicTargetSelectModal({
 
   const allTargetRows: UnifiedRow[] = useMemo(() => {
     const arr = (targetsQ.data ?? []) as ClinicTarget[];
+    const uniqueRows = targetRowsByEnrollment(arr);
     const filtered = debouncedSearch
-      ? arr.filter((t) => (t.student_name || "").includes(debouncedSearch))
-      : arr;
-    return filtered.map(targetToRow);
+      ? uniqueRows.filter((row) => row.name.includes(debouncedSearch))
+      : uniqueRows;
+    return filtered;
   }, [targetsQ.data, debouncedSearch]);
 
   const targetTotalPages = Math.max(1, Math.ceil(allTargetRows.length / PAGE_SIZE));
@@ -252,7 +282,11 @@ export default function ClinicTargetSelectModal({
   };
 
   const toggleOne = (id: number, checked: boolean) => {
-    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+    setSelectedIds((prev) =>
+      checked
+        ? (prev.includes(id) ? prev : [...prev, id])
+        : prev.filter((x) => x !== id)
+    );
     setSelectedIdToName((prev) => {
       const next = new Map(prev);
       if (checked) {
@@ -265,7 +299,7 @@ export default function ClinicTargetSelectModal({
 
   const selectAllTargets = () => {
     if (mode !== "targets") return;
-    const ids = allTargetRows.map((r) => r.id);
+    const ids = Array.from(new Set(allTargetRows.map((r) => r.id)));
     setSelectedIds(ids);
     setSelectedIdToName(() => {
       const next = new Map<number, string>();

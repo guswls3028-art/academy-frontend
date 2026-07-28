@@ -17,6 +17,11 @@ import { clinicQueryKeys } from "../queryKeys";
 
 dayjs.locale("ko");
 
+function mondayOfWeek(value: string) {
+  const date = dayjs(value).startOf("day");
+  return date.subtract((date.day() + 6) % 7, "day");
+}
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -35,8 +40,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
 
   // 이전 주 범위 계산
   const prevWeek = useMemo(() => {
-    const current = dayjs(currentDate);
-    const startOfWeek = current.startOf("week"); // Sunday
+    const startOfWeek = mondayOfWeek(currentDate);
     const prevStart = startOfWeek.subtract(7, "day");
     const prevEnd = prevStart.add(6, "day");
     return {
@@ -73,7 +77,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   // 이번 주 기존 세션의 날짜+시간+장소 키 세트 (중복 감지용)
   const currentWeekKeys = useMemo(() => {
     const keys = new Set<string>();
-    const weekStart = dayjs(currentDate).startOf("week");
+    const weekStart = mondayOfWeek(currentDate);
     const weekEnd = weekStart.add(6, "day").format("YYYY-MM-DD");
     const weekStartStr = weekStart.format("YYYY-MM-DD");
     for (const s of currentWeekSessionsQ.data ?? []) {
@@ -93,8 +97,9 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   // 이전 주 세션 → 이번 주 매핑 날짜 계산 + 중복 여부
   const mapToCurrentWeek = (sessionDate: string) => {
     const prevDay = dayjs(sessionDate);
-    const currentWeekStart = dayjs(currentDate).startOf("week");
-    return currentWeekStart.add(prevDay.day(), "day").format("YYYY-MM-DD");
+    const currentWeekStart = mondayOfWeek(currentDate);
+    const mondayIndex = (prevDay.day() + 6) % 7;
+    return currentWeekStart.add(mondayIndex, "day").format("YYYY-MM-DD");
   };
 
   // 이전 주 날짜에 해당하는 세션만 필터

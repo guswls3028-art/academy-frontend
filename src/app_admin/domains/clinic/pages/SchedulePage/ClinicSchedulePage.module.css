@@ -1,0 +1,345 @@
+.page {
+  min-width: 0;
+}
+
+.shell {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-primary);
+  box-shadow: var(--elevation-1);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.description {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.headerActions,
+.weekControls,
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-surface-secondary);
+}
+
+.range {
+  margin-left: var(--space-2);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.summary {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.summary strong {
+  color: var(--color-text-primary);
+}
+
+.boardViewport {
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(194px, 1fr));
+  min-width: 1358px;
+  min-height: 560px;
+}
+
+.day {
+  min-width: 0;
+  border-right: 1px solid var(--color-border-divider);
+  background: var(--color-surface-primary);
+}
+
+.day:last-child {
+  border-right: 0;
+}
+
+.today {
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-surface-primary));
+}
+
+.dayHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.today .dayHeader {
+  box-shadow: inset 0 3px 0 var(--color-brand-primary);
+}
+
+.dayName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.todayBadge {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.dayDate {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.dayLoad {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dayBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 490px;
+  padding: var(--space-3);
+}
+
+.emptyDay {
+  display: flex;
+  flex: 1;
+  min-height: 120px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.emptyDay:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.sessionCard {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-primary);
+  box-shadow: var(--elevation-1);
+}
+
+.cardTop,
+.time,
+.capacity,
+.location {
+  display: flex;
+  align-items: center;
+}
+
+.cardTop {
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.time {
+  gap: 4px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.capacity {
+  gap: 3px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.capacityFull {
+  color: var(--color-danger);
+}
+
+.sessionTitle {
+  overflow: hidden;
+  margin: var(--space-2) 0 2px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location {
+  gap: 4px;
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  height: 4px;
+  margin: var(--space-3) 0;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-bg-muted);
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand-primary);
+}
+
+.participants {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  gap: 5px;
+  padding-bottom: var(--space-3);
+}
+
+.participants :global(.student-name-chip) {
+  max-width: 100%;
+  font-size: 11px;
+}
+
+.noParticipants,
+.moreParticipants {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.moreParticipants {
+  font-weight: 700;
+}
+
+.cardActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.cardActions > :first-child {
+  grid-column: 1 / -1;
+}
+
+.cardActions > * {
+  width: 100%;
+}
+
+.loading,
+.error {
+  display: flex;
+  min-height: 480px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.createModal {
+  padding-top: var(--space-2);
+}
+
+.createModalHeader {
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.createModalHeader h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.createModalHeader p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .header,
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerActions {
+    justify-content: flex-end;
+  }
+
+  .summary {
+    justify-content: flex-end;
+  }
+}

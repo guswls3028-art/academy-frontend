@@ -6,6 +6,7 @@ import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 const ClinicLayout = lazy(() => import("./ClinicLayout"));
 const ClinicBookingsPage = lazy(() => import("./pages/BookingsPage/ClinicBookingsPage"));
 const ClinicHomePage = lazy(() => import("./pages/HomePage/ClinicHomePage"));
+const ClinicSchedulePage = lazy(() => import("./pages/SchedulePage/ClinicSchedulePage"));
 const ClinicOperationsConsolePage = lazy(() => import("./pages/OperationsConsolePage/ClinicOperationsConsolePage"));
 const ClinicReportsPage = lazy(() => import("./pages/ReportsPage/ClinicReportsPage"));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage/ClinicSettingsPage"));
@@ -17,7 +18,7 @@ export default function ClinicRoutes() {
       <Route element={renderLazyRoute(ClinicLayout)}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={renderLazyRoute(ClinicHomePage)} />
-        <Route path="schedule" element={<Navigate to="/admin/clinic/operations" replace />} />
+        <Route path="schedule" element={renderLazyRoute(ClinicSchedulePage)} />
         <Route path="operations" element={renderLazyRoute(ClinicOperationsConsolePage)} />
         <Route path="bookings" element={renderLazyRoute(ClinicBookingsPage)} />
         <Route path="reports" element={renderLazyRoute(ClinicReportsPage)} />

@@ -118,7 +118,12 @@ export default function ClinicHomePage() {
   const bookedEnrollmentIds = useMemo(() => {
     const set = new Set<number>();
     (weekQ.listQ.data ?? []).forEach((p) => {
-      if (!p.enrollment_id || p.status === "cancelled") return;
+      if (
+        !p.enrollment_id ||
+        p.status === "cancelled" ||
+        p.status === "rejected" ||
+        p.status === "no_show"
+      ) return;
       set.add(p.enrollment_id);
     });
     return set;
@@ -126,7 +131,10 @@ export default function ClinicHomePage() {
 
   const requiredCount = useMemo(() => {
     const targets = targetsQ.data ?? [];
-    return targets.filter((t) => !bookedEnrollmentIds.has(t.enrollment_id)).length;
+    const targetEnrollmentIds = new Set(targets.map((target) => target.enrollment_id));
+    return Array.from(targetEnrollmentIds).filter(
+      (enrollmentId) => !bookedEnrollmentIds.has(enrollmentId)
+    ).length;
   }, [targetsQ.data, bookedEnrollmentIds]);
 
   const pendingList = pendingQ.listQ.data ?? [];
@@ -402,12 +410,12 @@ export default function ClinicHomePage() {
         <button
           type="button"
           className="clinic-home__unbooked-banner"
-          onClick={() => nav("/admin/clinic/bookings?focus=required")}
+          onClick={() => nav("/admin/clinic/schedule")}
         >
           <span className="clinic-home__unbooked-banner-text">
             이번 주 미예약 학생 <strong>{requiredCount}명</strong>
           </span>
-          <span className="clinic-home__unbooked-banner-arrow">예약 탭으로 이동 →</span>
+          <span className="clinic-home__unbooked-banner-arrow">예약 일정으로 이동 →</span>
         </button>
       )}
     </div>

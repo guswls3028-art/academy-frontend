@@ -8,8 +8,9 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const CLINIC_TABS = [
   { key: "home", label: "오늘", path: "/admin/clinic/home" },
-  { key: "operations", label: "클리닉 진행", path: "/admin/clinic/operations" },
-  { key: "bookings", label: "진행중", path: "/admin/clinic/bookings" },
+  { key: "schedule", label: "예약 일정", path: "/admin/clinic/schedule" },
+  { key: "operations", label: "당일 진행", path: "/admin/clinic/operations" },
+  { key: "bookings", label: "미통과 관리", path: "/admin/clinic/bookings" },
   { key: "settings", label: "패스카드", path: "/admin/clinic/settings" },
   { key: "msg-settings", label: "메시지", path: "/admin/clinic/msg-settings" },
 ];
