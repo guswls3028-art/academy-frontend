@@ -334,6 +334,10 @@ export default function VideoPlayerPage() {
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
+  const retryPlayback = useCallback(async () => {
+    const result = await playbackQuery.refetch();
+    if (!result.error) setFatalError(null);
+  }, [playbackQuery]);
 
   /* ─── 자동 다음 재생 ─── */
   const [autoPlayCountdown, setAutoPlayCountdown] = useState<number | null>(null);
@@ -419,8 +423,8 @@ export default function VideoPlayerPage() {
         <div className="vpp-error">
           <EmptyState
             title="재생을 시작할 수 없어요"
-            description={fatalError || loadError || "네트워크 연결을 확인하고 다시 시도해 주세요."}
-            onRetry={() => window.location.reload()}
+            description={fatalError || loadError || "잠시 후 다시 시도해 주세요."}
+            onRetry={() => { void retryPlayback(); }}
           />
           <button type="button" className="vpp-back-btn" onClick={() => nav(-1)} aria-label="뒤로가기">
             <IconChevronRight className="vpp-icon-back" aria-hidden="true" />

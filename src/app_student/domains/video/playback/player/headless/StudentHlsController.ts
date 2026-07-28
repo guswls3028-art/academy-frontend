@@ -625,6 +625,8 @@ export class StudentHlsController {
           const errorCode = data?.response?.code ?? (data as { code?: number })?.code;
           const errorType = data?.type || "";
           const is404 = errorCode === 404 || String(errorMsg).includes("404") || String(errorMsg).includes("Not Found");
+          const isServiceAuthError = errorCode === 401 || errorCode === 403;
+          const isServiceUnavailable = typeof errorCode === "number" && errorCode >= 500;
           const isNetworkError =
             errorType === Hls.ErrorTypes?.NETWORK_ERROR ||
             errorCode === -1 || errorCode === -2 ||
@@ -644,6 +646,18 @@ export class StudentHlsController {
             return;
           }
 
+          // CDN 인증 실패는 같은 URL 재시도로 복구되지 않는다. 학생 네트워크
+          // 문제로 안내하지 말고 페이지가 새 재생 URL을 요청할 수 있게 종료한다.
+          if (isServiceAuthError) {
+            const message = "영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+            this.setState({
+              toast: { text: message, kind: "danger" },
+              reconnecting: false,
+            });
+            this.opts.onFatal?.(message);
+            return;
+          }
+
           // 네트워크/미디어 오류 — 자동 재시도(exponential backoff)
           if ((isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
             this.scheduleReconnect(isMediaError ? "media" : "network");
@@ -651,8 +665,10 @@ export class StudentHlsController {
           }
 
           // 한도 초과 또는 알 수 없는 fatal — 사용자에게 알리고 종료
-          const message = isNetworkError
-            ? "네트워크가 계속 불안정합니다. 인터넷을 확인하고 화면을 새로고침해 주세요."
+          const message = isServiceUnavailable
+            ? "영상 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요."
+            : isNetworkError
+            ? "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요."
             : `재생 오류가 발생했습니다: ${errorMsg}`;
           this.setState({ toast: { text: message, kind: "danger" }, reconnecting: false });
           this.opts.onFatal?.(message);
@@ -798,11 +814,14 @@ export class StudentHlsController {
       const errorCode = elErr?.code || 0;
       const errorMessage = elErr?.message || "";
       this.queueEvent("PLAYER_ERROR", { code: errorCode, message: errorMessage });
+      // hls.js가 연결된 경우 HTTP 상태를 포함한 HLS 오류 이벤트가 더 정확하다.
+      // 브라우저의 일반 MediaError(code=4)로 먼저 오분류하지 않는다.
+      if (this.hls) return;
       let message = "재생 오류가 발생했습니다.";
       if (errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found")) {
-        message = "비디오 파일을 찾을 수 없습니다 (404). 서버에 비디오 파일이 있는지 확인해주세요.";
-        this.opts.onFatal?.("비디오 파일을 찾을 수 없습니다.");
-      } else if (errorCode === 2) message = "네트워크 오류가 발생했습니다. 연결을 확인해주세요.";
+        message = "영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+        this.opts.onFatal?.(message);
+      } else if (errorCode === 2) message = "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.";
       else if (errorCode === 3) message = "비디오 디코딩 오류가 발생했습니다.";
       this.setState({ toast: { text: message, kind: "danger" } });
     };
