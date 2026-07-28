@@ -14,12 +14,12 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     await page.locator("#clinic-paste-ta").fill(
       `시험: [E2E-${TS}]김철수, [E2E-${TS}]이영희\n과제: [E2E-${TS}]박민수`,
     );
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     // 수동 대상 추가: examOnly(시험) 카테고리에 한 명
     await page.getByRole("button", { name: "시험", exact: true }).first().click();
     await page.getByPlaceholder("학생 이름").first().fill(`[E2E-${TS}]정한길`);
-    await page.getByRole("button", { name: "수동 대상 추가" }).click();
+    await page.getByRole("button", { name: "대상 추가", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".manual-name")).toHaveCount(1, { timeout: 8000 });
@@ -55,11 +55,11 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
 
     const many = Array.from({ length: 22 }, (_, i) => `[E2E-${TS}]학생${String(i + 1).padStart(2, "0")}`).join(", ");
     await page.locator("#clinic-paste-ta").fill(`시험: ${many}`);
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     await page.getByRole("button", { name: "시험", exact: true }).first().click();
     await page.getByPlaceholder("학생 이름").first().fill(`[E2E-${TS}]추가학생`);
-    await page.getByRole("button", { name: "수동 대상 추가" }).click();
+    await page.getByRole("button", { name: "대상 추가", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".manual-name").first()).toBeVisible({ timeout: 8000 });

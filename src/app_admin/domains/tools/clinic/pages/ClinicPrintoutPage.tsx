@@ -2,7 +2,17 @@
 // 클리닉 대상자 인쇄물 도구 — iframe 기반 미리보기 (원본 CSS 100% 동일) + 데이터 복붙 파서 + PDF 다운로드
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Plus, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import {
+  ClipboardPaste,
+  Download,
+  FileCheck2,
+  FileText,
+  PencilLine,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { parseClinicData } from "../utils/clinicDataParser";
@@ -370,8 +380,9 @@ export default function ClinicPrintoutPage() {
       const fname = `클리닉대상자_${curSession || "인쇄물"}_${curDate.replace(/\//g, "")}.pdf`;
       await htmlToPdfDownload(html, fname);
       feedback.success("PDF 다운로드 완료");
-    } catch {
-      feedback.error("PDF 다운로드 실패");
+    } catch (error) {
+      console.error("Clinic PDF download failed", error);
+      feedback.error("PDF 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setPdfLoading(false);
     }
@@ -394,216 +405,280 @@ export default function ClinicPrintoutPage() {
   const adjustmentTotal = manualTargets.length + removedTargets.length;
 
   return (
-    <div className="flex min-w-0 gap-4">
-      {/* ── 좌측: iframe 미리보기 (원본 CSS 100% 동일) ── */}
-      <div className="min-w-0 flex-1 overflow-auto rounded-lg bg-slate-200 p-4">
-        <div
-          className={`${styles.previewScaleBox} mx-auto`}
-        >
-          <div
-            className={`${styles.previewPaper} bg-white shadow-lg`}
-          >
-            <iframe
-              id="cprev"
-              ref={iframeRef}
-              title="클리닉 대상자 미리보기"
-              className={styles.previewIframe}
-            />
+    <div className={styles.page}>
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <div className={styles.eyebrow}>
+            <FileText size={ICON.sm} aria-hidden />
+            A3 명단 인쇄
+          </div>
+          <h2>클리닉 대상자 명단 만들기</h2>
+          <p>성적표를 붙여넣으면 미통과 항목별로 정리하고, 바로 인쇄할 수 있는 명단으로 만듭니다.</p>
+        </div>
+        <div className={styles.heroMetrics} aria-label="현재 분류 결과">
+          <div className={styles.heroMetric}>
+            <span>전체 대상</span>
+            <strong>{clinicTotal}<small>명</small></strong>
+          </div>
+          <div className={styles.metricDivider} aria-hidden />
+          <div className={styles.categoryMetric}>
+            <span>시험+과제</span>
+            <strong>{both.length}</strong>
+          </div>
+          <div className={styles.categoryMetric}>
+            <span>시험</span>
+            <strong>{examOnly.length}</strong>
+          </div>
+          <div className={styles.categoryMetric}>
+            <span>과제</span>
+            <strong>{hwOnly.length}</strong>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── 우측: 데이터 입력 패널 ── */}
-      <div
-        className="w-[340px] flex-shrink-0 self-start flex flex-col gap-3"
-      >
-        <section className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 flex flex-col gap-3">
-          <div className="text-sm font-semibold text-[var(--text-primary)]">데이터 붙여넣기</div>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            성적 탭에서 표 전체를 복사하여 아래에 붙여넣으면 자동으로 클리닉 대상자를 분류합니다.
-            미리보기에서 직접 편집도 가능합니다.
-          </p>
-          <textarea
-            id="clinic-paste-ta"
-            className="min-h-[180px] flex-1 rounded border border-[var(--border-divider)] px-3 py-2 text-xs font-mono leading-relaxed resize-none"
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            onPaste={handlePaste}
-            placeholder={"성적 탭 데이터를 붙여넣으세요.\n\n또는 카테고리 형식:\n시험+과제: 이름1, 이름2\n시험: 이름3\n과제: 이름4, 이름5"}
-          />
-          <Button
-            intent="primary"
-            onClick={() => generateFromText(pasteText)}
-            disabled={!pasteText.trim()}
-          >
-            생성
-          </Button>
+      <div className={styles.workspace}>
+        <section className={styles.previewArea} aria-labelledby="clinic-preview-heading">
+          <div className={styles.previewToolbar}>
+            <div className={styles.previewTitle}>
+              <span className={styles.previewStatusDot} aria-hidden />
+              <div>
+                <h3 id="clinic-preview-heading">인쇄 미리보기</h3>
+                <span>A3 세로 · 고화질 PDF</span>
+              </div>
+            </div>
+            <div className={styles.editHint}>
+              <PencilLine size={ICON.sm} aria-hidden />
+              미리보기의 글자를 눌러 바로 수정할 수 있어요
+            </div>
+          </div>
+          <div className={styles.previewCanvas}>
+            <div className={styles.previewScaleBox}>
+              <div className={styles.previewPaper}>
+                <iframe
+                  id="cprev"
+                  ref={iframeRef}
+                  title="클리닉 대상자 미리보기"
+                  className={styles.previewIframe}
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-              <SlidersHorizontal size={ICON.sm} />
-              수동 조정
+        <aside className={styles.editor} aria-label="명단 만들기 설정">
+          <section className={styles.panel}>
+            <div className={styles.panelHeading}>
+              <span className={styles.stepNumber}>1</span>
+              <div>
+                <h3>성적표 붙여넣기</h3>
+                <p>표 전체를 복사해 붙여넣으면 자동으로 분류합니다.</p>
+              </div>
             </div>
-            <span className="text-[11px] font-semibold text-[var(--text-muted)]">
-              {adjustmentTotal > 0 ? `${adjustmentTotal}건` : "대기"}
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-[var(--text-secondary)]">대상 추가</div>
-            <div className="grid grid-cols-3 gap-1">
-              {CATEGORY_ORDER.map((category) => {
-                const active = manualCategory === category;
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setManualCategory(category)}
-                    className={[
-                      "rounded border px-2 py-1.5 text-xs font-semibold transition-colors",
-                      active
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-[var(--border-divider)] bg-[var(--bg-surface)] text-[var(--text-secondary)]",
-                    ].join(" ")}
-                  >
-                    {CATEGORY_META[category].short}
-                  </button>
-                );
-              })}
-            </div>
-            <input
-              className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddManualTarget();
-              }}
-              placeholder="학생 이름"
-            />
-            <input
-              className="rounded border border-[var(--border-divider)] px-3 py-2 text-xs"
-              value={manualNote}
-              onChange={(e) => setManualNote(e.target.value)}
-              placeholder="메모"
+            <label className={styles.srOnly} htmlFor="clinic-paste-ta">성적표 데이터</label>
+            <textarea
+              id="clinic-paste-ta"
+              className={styles.pasteArea}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={"성적 탭 데이터를 붙여넣으세요.\n\n또는 직접 입력:\n시험+과제: 이름1, 이름2\n시험: 이름3\n과제: 이름4, 이름5"}
             />
             <Button
               intent="primary"
-              size="sm"
-              leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
-              onClick={handleAddManualTarget}
-              disabled={!manualName.trim()}
+              leftIcon={<ClipboardPaste size={ICON_FOR_BUTTON.md} />}
+              onClick={() => generateFromText(pasteText)}
+              disabled={!pasteText.trim()}
             >
-              수동 대상 추가
+              명단 만들기
             </Button>
-          </div>
+          </section>
 
-          <div className="my-0.5 h-px bg-[var(--border-divider)]" />
+          <section className={styles.panel}>
+            <div className={styles.panelHeading}>
+              <span className={styles.stepNumber}>2</span>
+              <div>
+                <h3>
+                  <SlidersHorizontal size={ICON.sm} aria-hidden />
+                  명단 조정
+                </h3>
+                <p>자동 분류 결과에 학생을 더하거나 뺄 수 있습니다.</p>
+              </div>
+              <span className={styles.adjustmentCount}>
+                {adjustmentTotal > 0 ? `${adjustmentTotal}건 변경` : "변경 없음"}
+              </span>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-[var(--text-secondary)]">대상 제외</div>
-            <input
-              list="clinic-current-targets"
-              className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm"
-              value={excludeName}
-              onChange={(e) => setExcludeName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleExcludeTarget();
-              }}
-              placeholder="학생 이름"
-            />
-            <datalist id="clinic-current-targets">
-              {currentTargets.map((target) => (
-                <option key={`${target.category}-${target.name}`} value={target.name}>
-                  {CATEGORY_META[target.category].label}
-                </option>
-              ))}
-            </datalist>
-            <Button
-              intent="danger"
-              size="sm"
-              leftIcon={<X size={ICON_FOR_BUTTON.sm} />}
-              onClick={() => handleExcludeTarget()}
-              disabled={!excludeName.trim()}
-            >
-              이번 출력에서 제외
-            </Button>
-            {currentTargets.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className={styles.adjustmentGroup}>
+              <div className={styles.groupTitle}>대상 추가</div>
+              <div className={styles.categoryPicker} aria-label="추가할 분류">
+                {CATEGORY_ORDER.map((category) => {
+                  const active = manualCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setManualCategory(category)}
+                      className={styles.categoryButton}
+                    >
+                      {CATEGORY_META[category].short}
+                    </button>
+                  );
+                })}
+              </div>
+              <label className={styles.fieldLabel}>
+                <span>학생 이름</span>
+                <input
+                  className={styles.textField}
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddManualTarget();
+                  }}
+                  placeholder="학생 이름"
+                />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>메모 <em>선택</em></span>
+                <input
+                  className={styles.textField}
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  placeholder="조정 사유 메모"
+                />
+              </label>
+              <Button
+                intent="secondary"
+                size="sm"
+                leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
+                onClick={handleAddManualTarget}
+                disabled={!manualName.trim()}
+              >
+                대상 추가
+              </Button>
+            </div>
+
+            <div className={styles.panelDivider} />
+
+            <div className={styles.adjustmentGroup}>
+              <div className={styles.groupTitle}>대상 제외</div>
+              <label className={styles.fieldLabel}>
+                <span>학생 이름</span>
+                <input
+                  list="clinic-current-targets"
+                  className={styles.textField}
+                  value={excludeName}
+                  onChange={(e) => setExcludeName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleExcludeTarget();
+                  }}
+                  placeholder="현재 명단에서 선택"
+                />
+              </label>
+              <datalist id="clinic-current-targets">
                 {currentTargets.map((target) => (
-                  <button
-                    key={`${target.category}-${target.name}`}
-                    type="button"
-                    onClick={() => handleExcludeTarget(target.name)}
-                    className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                    title="이번 출력에서 제외"
-                  >
-                    {target.name}
-                  </button>
+                  <option key={`${target.category}-${target.name}`} value={target.name}>
+                    {CATEGORY_META[target.category].label}
+                  </option>
+                ))}
+              </datalist>
+              <Button
+                intent="danger"
+                size="sm"
+                leftIcon={<X size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => handleExcludeTarget()}
+                disabled={!excludeName.trim()}
+              >
+                이번 출력에서 제외
+              </Button>
+              {currentTargets.length > 0 && (
+                <div className={styles.targetChips} aria-label="현재 대상자 바로 제외">
+                  {currentTargets.map((target) => (
+                    <button
+                      key={`${target.category}-${target.name}`}
+                      type="button"
+                      onClick={() => handleExcludeTarget(target.name)}
+                      className={styles.targetChip}
+                      title={`${target.name} 학생을 이번 출력에서 제외`}
+                    >
+                      {target.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {adjustmentTotal > 0 && (
+              <div className={styles.adjustmentLog}>
+                <div className={styles.groupTitle}>이번 변경</div>
+                {manualTargets.map((target) => (
+                  <div key={`manual-${target.name}`} className={styles.adjustmentRow}>
+                    <span>
+                      <b>추가</b> {target.name} · {CATEGORY_META[target.category].label}
+                      {target.note ? ` · ${target.note}` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleExcludeTarget(target.name)}
+                      className={styles.iconButton}
+                      title="수동 추가 취소"
+                      aria-label={`${target.name} 수동 추가 취소`}
+                    >
+                      <X size={ICON.xs} />
+                    </button>
+                  </div>
+                ))}
+                {removedTargets.map((target) => (
+                  <div key={`removed-${target.name}`} className={`${styles.adjustmentRow} ${styles.adjustmentRowMuted}`}>
+                    <span><b>제외</b> {target.name} · {CATEGORY_META[target.category].label}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualName(target.name);
+                        setManualCategory(target.category);
+                        setRemovedTargets((items) => items.filter((item) => item.name !== target.name));
+                      }}
+                      className={styles.iconButton}
+                      title="다시 추가 준비"
+                      aria-label={`${target.name} 다시 추가 준비`}
+                    >
+                      <RotateCcw size={ICON.xs} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
+          </section>
 
-          {adjustmentTotal > 0 && (
-            <div className="flex flex-col gap-1.5 border-t border-[var(--border-divider)] pt-3">
-              {manualTargets.map((target) => (
-                <div key={`manual-${target.name}`} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-[var(--text-primary)]">
-                    + {target.name} · {CATEGORY_META[target.category].label}
-                    {target.note ? ` · ${target.note}` : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleExcludeTarget(target.name)}
-                    className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    title="수동 추가 취소"
-                  >
-                    <X size={ICON.xs} />
-                  </button>
-                </div>
-              ))}
-              {removedTargets.map((target) => (
-                <div key={`removed-${target.name}`} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-[var(--text-muted)]">
-                    - {target.name} · {CATEGORY_META[target.category].label}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManualName(target.name);
-                      setManualCategory(target.category);
-                      setRemovedTargets((items) => items.filter((item) => item.name !== target.name));
-                    }}
-                    className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    title="다시 추가 준비"
-                  >
-                    <RotateCcw size={ICON.xs} />
-                  </button>
-                </div>
-              ))}
+          <section className={styles.downloadPanel}>
+            <div className={styles.downloadReadiness}>
+              <FileCheck2 size={ICON.md} aria-hidden />
+              <div>
+                <strong>{clinicTotal > 0 ? `${clinicTotal}명 명단 준비됨` : "명단을 먼저 만들어 주세요"}</strong>
+                <span>{clinicTotal > 0 ? "A3 고화질 PDF로 저장합니다." : "성적표를 붙여넣으면 다운로드할 수 있어요."}</span>
+              </div>
             </div>
-          )}
-        </section>
-
-        <div className="flex gap-2">
-          <Button
-            intent="primary"
-            onClick={handleDownload}
-            disabled={pdfLoading || clinicTotal === 0}
-            className="flex-1"
-          >
-            {pdfLoading ? "생성 중..." : "PDF 다운로드"}
-          </Button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="rounded border border-[var(--border-divider)] px-3 py-1.5 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            초기화
-          </button>
-        </div>
+            <Button
+              intent="primary"
+              size="lg"
+              loading={pdfLoading}
+              leftIcon={<Download size={ICON_FOR_BUTTON.lg} />}
+              onClick={handleDownload}
+              disabled={clinicTotal === 0}
+              className={styles.downloadButton}
+            >
+              PDF 다운로드
+            </Button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className={styles.resetButton}
+            >
+              <RotateCcw size={ICON.sm} aria-hidden />
+              처음부터 다시
+            </button>
+          </section>
+        </aside>
       </div>
     </div>
   );

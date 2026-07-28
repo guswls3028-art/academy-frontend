@@ -5,7 +5,7 @@ import type {
   SessionScoreRow,
 } from "../api/sessionScores";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
+import { loadPdfModules } from "@/shared/utils/pdfModules";
 
 export type AnonymousBillboardEntry = {
   rank: number;
@@ -353,7 +353,7 @@ export async function htmlToBillboardPdfDownload(html: string, filename: string)
     await doc.fonts?.ready;
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const { html2canvas, jsPDF } = await loadPdfCdnModules();
+    const { html2canvas, jsPDF } = await loadPdfModules();
 
     const pageEls = Array.from(doc.querySelectorAll<HTMLElement>(".billboard-page"));
     if (pageEls.length === 0) return;

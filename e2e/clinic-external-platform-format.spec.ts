@@ -339,7 +339,7 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
       "40점",
       "진행",
     ].join("\n"));
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".columns")).toContainText("김미달", { timeout: 8000 });
@@ -352,7 +352,7 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
     await openClinicTool(page);
 
     await page.locator("#clinic-paste-ta").fill(EXTERNAL_PLATFORM_PASTE);
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".section-header.both")).toContainText("(5명)", { timeout: 8000 });
@@ -393,7 +393,7 @@ test.describe("클리닉 대상자 생성기 — 타 플랫폼 복붙 형식", (
     await openClinicTool(page);
 
     await page.locator("#clinic-paste-ta").fill(EXTERNAL_PLATFORM_PASTE_WITH_TARGET_LABEL);
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".section-header.both")).toContainText("(5명)", { timeout: 8000 });

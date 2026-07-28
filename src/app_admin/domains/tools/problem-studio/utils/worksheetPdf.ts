@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/problem-studio/utils/worksheetPdf.ts
 // 문제 제작 스튜디오: 초안 → 학원 양식 PDF HTML/다운로드.
 
-import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
+import { loadPdfModules } from "@/shared/utils/pdfModules";
 
 export type WorksheetAttachment = {
   id: string;
@@ -507,7 +507,7 @@ export async function downloadWorksheetPdf(draft: WorksheetDraft, kind: Workshee
     await waitForImages(doc);
     await new Promise((resolve) => window.setTimeout(resolve, 180));
 
-    const { html2canvas, jsPDF } = await loadPdfCdnModules();
+    const { html2canvas, jsPDF } = await loadPdfModules();
 
     const target = doc.querySelector(".worksheet-doc") as HTMLElement | null;
     if (!target) throw new Error("PDF 렌더링 대상을 찾을 수 없습니다.");

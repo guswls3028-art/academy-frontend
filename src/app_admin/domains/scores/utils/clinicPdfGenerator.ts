@@ -8,7 +8,7 @@ import type {
 } from "../api/sessionScores";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
-import { loadPdfCdnModules } from "@/shared/utils/cdnModules";
+import { loadPdfModules } from "@/shared/utils/pdfModules";
 import { isSessionRowProgressCompleted } from "./sessionScoreRowVerdict";
 
 // ── 공통 ──
@@ -150,100 +150,124 @@ function buildNameLayoutStyle(students: ClinicPrintStudent[]): string {
 export const BASE_STYLE = `
   @page { size: A3; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --clinic-ink: #17243a;
+    --clinic-accent: #3f5fcb;
+    --clinic-accent-soft: #e9eefc;
+    --clinic-paper-soft: #f5f7fb;
+    --clinic-line: #c8d1df;
+    --clinic-muted: #596579;
+  }
   html, body {
     width: ${CLINIC_PRINT_PAGE.width}; min-height: ${CLINIC_PRINT_PAGE.height};
   }
   body {
     font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
-    color: #000; background: #fff;
+    color: var(--clinic-ink); background: #fff;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    text-rendering: geometricPrecision;
   }
   .page {
     width: ${CLINIC_PRINT_PAGE.width}; height: ${CLINIC_PRINT_PAGE.height}; min-height: ${CLINIC_PRINT_PAGE.height};
-    margin: 0 auto; padding: 11mm 12mm;
+    margin: 0 auto; padding: 10mm 11mm 9mm 14mm;
     display: flex; flex-direction: column;
     overflow: hidden;
     background:
-      linear-gradient(90deg, #000 0 5mm, transparent 5mm 100%),
+      linear-gradient(90deg, var(--clinic-accent) 0 3.2mm, transparent 3.2mm 100%),
       #fff;
   }
 
-  /* ── Header: wall-posting sheet, black/white first ── */
+  /* ── Header: a clear clinic roster, readable from the classroom door ── */
   .header {
     display: grid;
-    grid-template-columns: 39mm minmax(0, 1fr);
+    grid-template-columns: 34mm minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 2mm 7mm;
-    align-items: end;
-    padding: 1.5mm 0 5mm 8mm;
-    margin-bottom: 4.5mm;
-    border-bottom: 0.65mm solid #000;
+    gap: 1.5mm 7mm;
+    align-items: center;
+    padding: 1.5mm 0 5mm;
+    margin-bottom: 4mm;
+    border-bottom: 0.7mm solid var(--clinic-ink);
     text-align: left;
   }
   .header .badge {
     grid-row: 1 / 3;
     align-self: stretch;
-    display: flex; align-items: center; justify-content: center;
-    background: #000; color: #fff;
-    border-radius: 2px;
-    font-size: 12px; font-weight: 900; padding: 0 3mm;
-    letter-spacing: 0.06em;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+    min-height: 19mm;
+    background: var(--clinic-ink); color: #fff;
+    border-radius: 1.8mm;
+    font-size: 12px; font-weight: 900; padding: 3.2mm;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  .header .badge::after {
+    content: "CHECK LIST";
+    color: #bfcaf2;
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
   }
   .header h1 {
     grid-column: 2;
-    font-size: 40px; font-weight: 900; color: #000;
-    line-height: 1.08; letter-spacing: 0;
+    font-size: 40px; font-weight: 900; color: var(--clinic-ink);
+    line-height: 1.06; letter-spacing: -0.035em;
   }
   .header .sub {
     grid-column: 2;
-    font-size: 15px; color: #111; font-weight: 800;
-    line-height: 1.25; letter-spacing: 0;
+    font-size: 14px; color: var(--clinic-muted); font-weight: 750;
+    line-height: 1.3; letter-spacing: -0.01em;
     white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   }
 
   /* ── Tip box ── */
   .tip-box {
-    background: #fff;
-    border: 0.35mm solid #000; border-left: 1.7mm solid #000; border-radius: 2px;
-    padding: 2.6mm 4mm; margin-bottom: 4.5mm;
-    display: flex; align-items: center; gap: 10px;
+    background: var(--clinic-paper-soft);
+    border: 0.3mm solid var(--clinic-line); border-radius: 1.8mm;
+    padding: 2.8mm 3.6mm; margin-bottom: 4mm;
+    display: flex; align-items: center; gap: 3mm;
   }
   .tip-box .icon {
-    flex-shrink: 0; width: 5.8mm; height: 5.8mm;
-    background: #000; border-radius: 50%;
+    flex-shrink: 0; width: 5.7mm; height: 5.7mm;
+    background: var(--clinic-accent); border-radius: 1.5mm;
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 12px; font-weight: 900;
   }
   .tip-box .text {
-    font-size: 13.5px; color: #000; line-height: 1.32; font-weight: 800;
+    font-size: 13px; color: var(--clinic-ink); line-height: 1.36; font-weight: 750;
   }
 
   /* ── Name columns: max visibility ── */
   .columns {
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4.2mm; flex: 1 1 0; min-height: 0;
+    gap: 3.6mm; flex: 1 1 0; min-height: 0;
   }
-  .col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .col {
+    display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    border: 0.3mm solid var(--clinic-line);
+    border-radius: 2mm;
+    overflow: hidden;
+    background: #fff;
+  }
 
   .section-header {
-    text-align: left; padding: 2.8mm 3.3mm; border-radius: 0;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 2mm;
+    text-align: left; padding: 3mm 3.4mm;
     font-size: 15px; font-weight: 900;
-    letter-spacing: 0; border: 0.48mm solid #000; border-bottom: none;
+    letter-spacing: -0.02em; border-bottom: 0.3mm solid var(--clinic-line);
     white-space: normal; word-break: keep-all;
   }
-  .section-header.both { background: #000; color: #fff; border-color: #000; }
-  .section-header.exam { background: #fff; color: #000; border-color: #000; }
-  .section-header.hw { background: #e9e9e9; color: #000; border-color: #000; }
+  .section-header.both { background: var(--clinic-ink); color: #fff; border-color: var(--clinic-ink); }
+  .section-header.exam { background: var(--clinic-accent-soft); color: #243d91; border-color: #c7d1f4; }
+  .section-header.hw { background: #eef1f5; color: #374255; border-color: #d7dde6; }
   .section-header .cnt {
-    font-weight: 900; font-size: 12px; opacity: 1;
-    margin-left: 6px;
+    flex: 0 0 auto;
+    font-weight: 850; font-size: 11.5px; opacity: 0.85;
+    margin-left: 2mm;
   }
 
   .name-list {
     flex: 1 1 auto; min-height: 0;
-    border: 0.48mm solid #000; border-top: none;
-    border-radius: 0; padding: 1mm 0;
+    padding: 1mm 0;
     background: #fff;
     overflow: hidden;
     --row-font-size: 40px;
@@ -254,15 +278,12 @@ export const BASE_STYLE = `
     --row-pad-x: 3.8mm;
     --row-line-height: 1.04;
   }
-  .section-header.exam + .name-list,
-  .section-header.hw + .name-list { border-color: #000; }
-
   /* ── Name rows ── */
   .name-row {
-    display: flex; border-bottom: 0.25mm solid #bdbdbd;
+    display: flex; border-bottom: 0.25mm solid #dde2ea;
   }
   .name-row:last-child { border-bottom: none; }
-  .name-row:nth-child(even) { background: #f0f0f0; }
+  .name-row:nth-child(even) { background: #f7f8fa; }
 
   /* 1명/줄: 기본. 긴 이름과 실제 인쇄 안정성이 가장 좋다. */
   .name-row.single {
@@ -271,8 +292,8 @@ export const BASE_STYLE = `
     align-items: center;
     column-gap: var(--row-gap);
     padding: var(--row-pad-y) var(--row-pad-x);
-    font-size: var(--row-font-size); font-weight: 900;
-    color: #000;
+    font-size: var(--row-font-size); font-weight: 850;
+    color: var(--clinic-ink);
     line-height: var(--row-line-height); white-space: normal;
     text-align: left;
     break-inside: avoid;
@@ -287,8 +308,8 @@ export const BASE_STYLE = `
     align-items: center;
     column-gap: var(--row-gap);
     padding: var(--row-pad-y) var(--row-pad-x);
-    font-size: var(--row-font-size); font-weight: 900;
-    color: #000;
+    font-size: var(--row-font-size); font-weight: 850;
+    color: var(--clinic-ink);
     line-height: var(--row-line-height);
     white-space: normal;
     text-align: left;
@@ -314,69 +335,70 @@ export const BASE_STYLE = `
     align-self: center;
     justify-self: start;
     margin: 0;
-    border: var(--row-check-border) solid #000;
-    border-radius: 1px;
+    border: var(--row-check-border) solid #526077;
+    border-radius: 1mm;
     color: transparent;
   }
   .highlight {
-    background: #e8e8e8 !important;
-    box-shadow: inset 1.1mm 0 0 #000;
+    background: #edf1ff !important;
+    box-shadow: inset 1.1mm 0 0 var(--clinic-accent);
   }
-  .star { flex: 0 0 auto; align-self: center; justify-self: end; color: #000; font-size: 12px; font-weight: 900; margin-left: 0; }
+  .star { flex: 0 0 auto; align-self: center; justify-self: end; color: var(--clinic-accent); font-size: 12px; font-weight: 900; margin-left: 0; }
   /* 수동 지정 학생 — 텍스트 딱지 없이 옅은 음영만. 학생에게 비노출, 선생님 식별용 */
   .manual-name {
-    background: #f2f2f2 !important;
-    box-shadow: inset 0.9mm 0 0 #555;
+    background: #f1f3f6 !important;
+    box-shadow: inset 0.9mm 0 0 #78849a;
   }
   .empty-item {
     display: flex; align-items: center; justify-content: center;
     min-height: 18mm;
     padding: 3mm 4mm;
-    color: #666; font-size: 15px; font-weight: 800;
+    color: #8a94a5; font-size: 14px; font-weight: 750;
   }
 
   /* ── Schedule box ── */
   .schedule-box {
     flex: 0 0 auto;
-    margin-top: 5mm;
-    display: grid; grid-template-columns: 31mm minmax(0, 1fr);
+    margin-top: 4mm;
+    display: grid; grid-template-columns: 32mm minmax(0, 1fr);
     min-height: 20mm;
-    border: 0.48mm solid #000; border-radius: 0;
-    background: #fff;
+    border: 0.3mm solid var(--clinic-line); border-radius: 2mm;
+    background: var(--clinic-paper-soft);
     overflow: hidden;
   }
   .schedule-title {
     display: flex; align-items: center; justify-content: center;
-    background: #000; color: #fff;
+    background: var(--clinic-accent); color: #fff;
     font-size: 13px; font-weight: 900;
     line-height: 1.08;
-    letter-spacing: 0; text-transform: uppercase;
-    padding: 0 3mm 2.2mm;
+    letter-spacing: -0.01em;
+    padding: 0 3mm 1.7mm;
   }
   .schedule-content {
     padding: 3.2mm 4.2mm;
-    font-size: 15px; color: #000; line-height: 1.38; font-weight: 900;
+    font-size: 15px; color: var(--clinic-ink); line-height: 1.38; font-weight: 800;
     white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
   }
   .schedule-empty {
     display: flex; align-items: center;
     padding: 3.2mm 4.2mm;
-    font-size: 14px; color: #666; font-style: normal; font-weight: 800;
+    font-size: 14px; color: var(--clinic-muted); font-style: normal; font-weight: 750;
   }
 
-  /* ── Footer: clean & professional ── */
+  /* ── Footer ── */
   .footer {
     flex: 0 0 auto;
-    margin-top: 3.5mm; padding-top: 2.4mm;
-    border-top: 0.65mm solid #000;
+    margin-top: 3mm; padding-top: 2.5mm;
+    border-top: 0.45mm solid var(--clinic-ink);
     display: flex; justify-content: space-between; align-items: flex-end;
   }
   .footer-left {
-    font-size: 13px; color: #111; line-height: 1.35; font-weight: 800;
+    font-size: 13px; color: var(--clinic-muted); line-height: 1.35; font-weight: 750;
   }
+  .footer-left strong { color: var(--clinic-accent); font-size: 16px; font-weight: 900; }
   .footer-right {
     text-align: right; font-size: 14px; font-weight: 900;
-    color: #000; letter-spacing: 0;
+    color: var(--clinic-ink); letter-spacing: 0.02em;
   }
 
   .page--compact .header { padding-bottom: 4.2mm; margin-bottom: 3.8mm; }
@@ -399,9 +421,7 @@ export const BASE_STYLE = `
   .page--compact .schedule-content { padding: 2.5mm 3.5mm; font-size: 13.2px; line-height: 1.3; }
   .page--compact .footer { margin-top: 3mm; padding-top: 2.2mm; }
 
-  .page--dense {
-    padding: 8.5mm 9.5mm;
-  }
+  .page--dense { padding: 8.5mm 9.5mm 8mm 12.5mm; }
   .page--dense .header {
     grid-template-columns: 30mm minmax(0, 1fr);
     padding: 1mm 0 3mm 6mm;
@@ -452,7 +472,7 @@ export async function htmlToPdfDownload(html: string, filename: string) {
   document.body.appendChild(iframe);
   try {
     const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-    if (!doc) return;
+    if (!doc) throw new Error("PDF 렌더링 화면을 열지 못했습니다.");
     doc.open();
     doc.write(html);
     doc.close();
@@ -464,26 +484,31 @@ export async function htmlToPdfDownload(html: string, filename: string) {
     await doc.fonts?.ready;
     await new Promise((r) => setTimeout(r, 200));
 
-    // 2) CDN 로드
-    const { html2canvas, jsPDF } = await loadPdfCdnModules();
+    // 2) 앱 번들에 포함된 렌더러 로드 — 외부 CDN 장애와 CSP 차단의 영향을 받지 않는다.
+    const { html2canvas, jsPDF } = await loadPdfModules();
 
     // 3) 캡처
     const pageEl = (doc.querySelector(".page") as HTMLElement | null) ?? doc.body;
     const canvas = await html2canvas(pageEl, {
-      scale: 2,
+      // 96dpi CSS 캔버스를 2.75배로 캡처해 A3에서도 약 264dpi의 선명도를 확보한다.
+      scale: 2.75,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
       windowWidth: pageEl.scrollWidth,
       windowHeight: pageEl.scrollHeight,
     });
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error("PDF 렌더링 결과가 비어 있습니다.");
+    }
 
     // 4) PDF A3 세로. CSS에서 A3 비율을 고정하므로 PDF도 full-bleed로 고정한다.
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: CLINIC_PRINT_PAGE.jsPdfFormat });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
-    const imgData = canvas.toDataURL("image/png");
-    pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+    // 흰 배경의 인쇄물이라 고품질 JPEG가 글자 선명도를 유지하면서 PNG 대비 파일 크기를 크게 줄인다.
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
     pdf.save(filename);
   } finally {
     document.body.removeChild(iframe);
@@ -664,12 +689,12 @@ const CLINIC_PRINT_GROUPS: Array<{
 ];
 
 const EDITABLE_STYLE = `
-    [contenteditable]:hover { outline: 1px dashed #94a3b8; outline-offset: 2px; border-radius: 4px; cursor: text; }
-    [contenteditable]:focus { outline: 2px solid #111827; outline-offset: 2px; border-radius: 4px; background: #f5f5f5; }
+    [contenteditable]:hover { outline: 1px dashed #7084c7; outline-offset: 2px; border-radius: 4px; cursor: text; }
+    [contenteditable]:focus { outline: 2px solid var(--clinic-accent); outline-offset: 2px; border-radius: 4px; background: #f5f7ff; }
     .sub [contenteditable] { display: inline; min-width: 40px; }
-    [data-placeholder]:empty:before { content: attr(data-placeholder); color: #737373; font-style: italic; }
+    [data-placeholder]:empty:before { content: attr(data-placeholder); color: #7a8496; font-style: normal; font-weight: 650; }
     .name-list[contenteditable] { min-height: 40px; cursor: text; }
-    .name-list[contenteditable]:empty:before { content: "해당 없음"; color: #737373; font-size: 14px; font-weight: 500; padding: 7px 8px; display: flex; align-items: center; justify-content: center; }
+    .name-list[contenteditable]:empty:before { content: "해당 없음"; color: #8a94a5; font-size: 14px; font-weight: 650; padding: 7px 8px; display: flex; align-items: center; justify-content: center; }
 `;
 
 function getClinicTotal(document: ClinicPrintDocument): number {

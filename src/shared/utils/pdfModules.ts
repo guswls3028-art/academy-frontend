@@ -1,6 +1,4 @@
-function importCdnModule<T>(url: string): Promise<T> {
-  return import(/* @vite-ignore */ url) as Promise<T>;
-}
+// PATH: src/shared/utils/pdfModules.ts
 
 type Html2Canvas = (
   element: HTMLElement,
@@ -39,20 +37,16 @@ type JsPdfConstructor = new (options: {
   format: string;
 }) => JsPdfDocument;
 
-const HTML2CANVAS_CDN_URL =
-  "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm";
-const JSPDF_CDN_URL = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm";
-
-export async function loadPdfCdnModules(): Promise<{
+export async function loadPdfModules(): Promise<{
   html2canvas: Html2Canvas;
   jsPDF: JsPdfConstructor;
 }> {
   const [html2canvasModule, jsPdfModule] = await Promise.all([
-    importCdnModule<{ default: Html2Canvas }>(HTML2CANVAS_CDN_URL),
-    importCdnModule<{ jsPDF: JsPdfConstructor }>(JSPDF_CDN_URL),
+    import("html2canvas"),
+    import("jspdf"),
   ]);
   return {
-    html2canvas: html2canvasModule.default,
-    jsPDF: jsPdfModule.jsPDF,
+    html2canvas: html2canvasModule.default as Html2Canvas,
+    jsPDF: jsPdfModule.jsPDF as unknown as JsPdfConstructor,
   };
 }

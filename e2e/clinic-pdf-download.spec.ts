@@ -279,9 +279,10 @@ async function openScoreClinicPreviewWithLocalStubs(page: Page) {
 
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
   test("도구탭과 성적탭은 공통 출력 renderer를 공유한다", async () => {
-    const [toolSource, rendererSource] = await Promise.all([
+    const [toolSource, rendererSource, moduleLoaderSource] = await Promise.all([
       readFile(path.resolve("src/app_admin/domains/tools/clinic/pages/ClinicPrintoutPage.tsx"), "utf8"),
       readFile(path.resolve("src/app_admin/domains/scores/utils/clinicPdfGenerator.ts"), "utf8"),
+      readFile(path.resolve("src/shared/utils/pdfModules.ts"), "utf8"),
     ]);
 
     expect(rendererSource).toContain("export function buildClinicPrintHtml");
@@ -290,9 +291,63 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(toolSource).not.toContain('<div class="columns"');
     expect(toolSource).not.toContain('<div class="schedule-box"');
     expect(toolSource).not.toContain('class="name-row single');
+    expect(moduleLoaderSource).toContain('import("html2canvas")');
+    expect(moduleLoaderSource).toContain('import("jspdf")');
+    expect(moduleLoaderSource).not.toContain("cdn.jsdelivr.net");
   });
 
-  test("게시용 흑백 인쇄에서 짧은 이름을 크게 보여준다", async ({ page }) => {
+  test("생성기 작업 흐름이 1366px과 1100px에서 겹치거나 잘리지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await openClinicTool(page);
+    await page.locator("#clinic-paste-ta").fill([
+      "시험+과제: 김민준, 이서연",
+      "시험: 박도윤",
+      "과제: 최하은, 정시우",
+    ].join("\n"));
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
+
+    await expect(page.getByRole("heading", { name: "클리닉 대상자 명단 만들기", exact: true })).toBeVisible();
+    await expect(page.getByText("5명 명단 준비됨", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "PDF 다운로드", exact: true })).toBeEnabled();
+    await expect(page.frameLocator("#cprev").locator(".name-text").filter({ hasText: "김민준" })).toBeVisible();
+
+    const inspectLayout = () => page.evaluate(() => {
+      const preview = document.querySelector<HTMLElement>("[aria-labelledby='clinic-preview-heading']");
+      const editor = document.querySelector<HTMLElement>("[aria-label='명단 만들기 설정']");
+      const previewRect = preview?.getBoundingClientRect();
+      const editorRect = editor?.getBoundingClientRect();
+      return {
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        previewWidth: previewRect?.width ?? 0,
+        editorWidth: editorRect?.width ?? 0,
+        overlaps: !!previewRect && !!editorRect && !(
+          previewRect.right <= editorRect.left ||
+          editorRect.right <= previewRect.left ||
+          previewRect.bottom <= editorRect.top ||
+          editorRect.bottom <= previewRect.top
+        ),
+      };
+    });
+
+    await mkdir("e2e-out", { recursive: true });
+    const layout1366 = await inspectLayout();
+    expect(layout1366.documentWidth).toBeLessThanOrEqual(layout1366.viewportWidth + 1);
+    expect(layout1366.previewWidth).toBeGreaterThan(600);
+    expect(layout1366.editorWidth).toBeGreaterThan(600);
+    expect(layout1366.overlaps).toBe(false);
+    await page.screenshot({ path: `e2e-out/clinic-generator-1366-${TS}.png`, fullPage: true });
+
+    await page.setViewportSize({ width: 1100, height: 900 });
+    const layout1100 = await inspectLayout();
+    expect(layout1100.documentWidth).toBeLessThanOrEqual(layout1100.viewportWidth + 1);
+    expect(layout1100.previewWidth).toBeGreaterThan(500);
+    expect(layout1100.editorWidth).toBeGreaterThan(500);
+    expect(layout1100.overlaps).toBe(false);
+    await page.screenshot({ path: `e2e-out/clinic-generator-1100-${TS}.png`, fullPage: true });
+  });
+
+  test("게시용 명단에서 분류를 구분하고 짧은 이름을 크게 보여준다", async ({ page }) => {
     await openClinicTool(page);
 
     const makeNames = (prefix: string, count: number) =>
@@ -306,20 +361,12 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
       `시험: ${examNames.join(", ")}`,
       `과제: ${hwNames.join(", ")}`,
     ].join("\n"));
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".name-text").filter({ hasText: bothNames[0] }).first()).toBeVisible({ timeout: 8000 });
     const visibility = await frame.locator(".page").evaluate((node, expectedNames) => {
       const pageEl = node as HTMLElement;
-      const parseRgb = (value: string) => {
-        const m = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-        return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
-      };
-      const isGray = (value: string) => {
-        const rgb = parseRgb(value);
-        return !!rgb && Math.abs(rgb[0] - rgb[1]) <= 2 && Math.abs(rgb[1] - rgb[2]) <= 2;
-      };
       const clipped = Array.from(pageEl.querySelectorAll(".name-text"))
         .filter((textNode) => expectedNames.includes((textNode.textContent || "").trim()))
         .filter((textNode) => {
@@ -366,17 +413,14 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
           maxLineRightOverflow: Math.max(...lineRects.map((rect) => rect.right - textRect.right)),
         };
       }).filter((metric): metric is { centerDelta: number; gap: number; minLineLeftGap: number; maxLineRightOverflow: number } => metric != null);
-      const sampleColors = [
+      const sectionBackgrounds = [
         ".section-header.both",
         ".section-header.exam",
         ".section-header.hw",
-        ".name-row:nth-child(even)",
-        ".checkbox",
       ].flatMap((selector) => {
         const el = pageEl.querySelector(selector) as HTMLElement | null;
         if (!el) return [];
-        const cs = getComputedStyle(el);
-        return [cs.color, cs.backgroundColor, cs.borderTopColor];
+        return [getComputedStyle(el).backgroundColor];
       });
       return {
         pageClass: pageEl.className,
@@ -391,7 +435,7 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
           minLineLeftGap: Math.min(...alignmentMetrics.map((metric) => metric.minLineLeftGap)),
           maxLineRightOverflow: Math.max(0, ...alignmentMetrics.map((metric) => metric.maxLineRightOverflow)),
         },
-        allSampleColorsGray: sampleColors.every(isGray),
+        distinctSectionBackgrounds: new Set(sectionBackgrounds).size,
         clippedCount: clipped.length,
       };
     }, allNames);
@@ -406,7 +450,7 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     expect(visibility.alignment.minGap).toBeGreaterThanOrEqual(0);
     expect(visibility.alignment.minLineLeftGap).toBeGreaterThanOrEqual(0);
     expect(visibility.alignment.maxLineRightOverflow).toBeLessThanOrEqual(1);
-    expect(visibility.allSampleColorsGray).toBe(true);
+    expect(visibility.distinctSectionBackgrounds).toBe(3);
     expect(visibility.clippedCount).toBe(0);
   });
 
@@ -418,7 +462,7 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
       "시험: 박철",
       "과제: 김민수, 김민수2",
     ].join("\n"));
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".name-text").filter({ hasText: "박철2" }).first()).toBeVisible({ timeout: 8000 });
@@ -488,7 +532,7 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
       `[E2E-${TS}]김가나다라마바사아자${String(i + 1).padStart(2, "0")}`,
     );
     await page.locator("#clinic-paste-ta").fill(`시험: ${longNames.join(", ")}`);
-    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await page.getByRole("button", { name: "명단 만들기", exact: true }).click();
 
     const frame = page.frameLocator("#cprev");
     await expect(frame.locator(".name-text").filter({ hasText: longNames[0] }).first()).toBeVisible({ timeout: 8000 });
@@ -595,5 +639,6 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
     const pdf = await readFile(pdfPath);
     expect(pdf.subarray(0, 5).toString("utf8")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(20_000);
+    expect(pdf.length).toBeLessThan(5_000_000);
   });
 });
