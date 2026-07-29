@@ -123,6 +123,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           item.correct_answer,
           item.score,
           item.is_correct,
+          item.include_in_wrong_note,
           item.has_question_image,
           item.question_image_url,
         ]),
@@ -334,8 +335,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         </div>
         <div className="wrong-note__hero-copy">
           <span className="wrong-note__eyebrow">자동 문항 선별</span>
-          <h2>틀린 문제만 모아, 다시 풀 수 있게</h2>
-          <p>최신 채점 결과에서 오답만 골라 주차 순서대로 PDF 한 권에 묶습니다.</p>
+          <h2>틀린 문제와 다시 볼 문제를 한 권에</h2>
+          <p>최신 채점 결과의 오답과 복습 지정 문항을 주차 순서대로 묶습니다.</p>
         </div>
         <div className="wrong-note__summary" aria-label="오답노트 준비 상태">
           <strong>{totalWrongCount}</strong>
@@ -381,8 +382,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
 
       {!isLoading && !error && wrongList.length === 0 && (
         <div className="wrong-note__empty">
-          <strong>{scope === "exam" ? "이번 시험은 틀린 문항이 없습니다." : "누적된 오답이 없습니다."}</strong>
-          <span>채점이 끝나고 오답이 생기면 이곳에서 바로 PDF로 만들 수 있습니다.</span>
+          <strong>{scope === "exam" ? "이번 시험은 복습할 문항이 없습니다." : "누적된 복습 문항이 없습니다."}</strong>
+          <span>오답이나 숫자 0으로 지정한 문항이 생기면 바로 PDF로 만들 수 있습니다.</span>
         </div>
       )}
 
@@ -415,7 +416,12 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
                       )}
                     </div>
                     <div className="wrong-note__question-copy">
-                      <strong>{questionLabel(item)}</strong>
+                      <strong>
+                        {questionLabel(item)}
+                        {item.is_correct && item.include_in_wrong_note && (
+                          <span className="wrong-note__review-badge">정답 · 복습 지정</span>
+                        )}
+                      </strong>
                       <dl>
                         <div>
                           <dt>학생 답</dt>

@@ -9,6 +9,7 @@ export type ExamResultImportLecture = {
 };
 
 export type ExamResultImportRow = {
+  sheet: string;
   row: number;
   enrollment_id: number;
   student_name: string;
@@ -16,6 +17,8 @@ export type ExamResultImportRow = {
   correct_count: number;
   wrong_count: number;
   wrong_questions: number[];
+  review_count: number;
+  review_questions: number[];
   total_score: number;
   max_score: number;
   will_overwrite: boolean;
@@ -24,6 +27,7 @@ export type ExamResultImportRow = {
 };
 
 export type ExamResultImportIssue = {
+  sheet?: string;
   row: number | null;
   field: string;
   message: string;
@@ -35,6 +39,7 @@ export type ExamResultImportPreview = {
   exam_id: number;
   exam_title: string;
   filename: string;
+  worksheet_names: string[];
   question_count: number;
   matched_count: number;
   overwrite_count: number;

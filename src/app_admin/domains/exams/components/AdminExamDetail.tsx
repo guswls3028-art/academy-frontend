@@ -35,6 +35,33 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
     <div className="space-y-6">
       <ExamHeader exam={exam} sessionId={sessionId} />
 
+      {exam.segmentation_status === "processing" && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800" role="status">
+          <strong>시험지에서 문항 이미지를 분리하고 있습니다.</strong>
+          <span className="ml-2">완료되면 문항·답안 설정에서 번호와 배점을 확인해 주세요.</span>
+        </div>
+      )}
+      {exam.segmentation_status === "failed" && (
+        <button
+          type="button"
+          className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-800"
+          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+        >
+          <strong>문항 자동 분리를 완료하지 못했습니다.</strong>
+          <span className="ml-2">원본 파일을 확인하고 다시 올려 주세요.</span>
+        </button>
+      )}
+      {exam.segmentation_status === "conversion_required" && (
+        <button
+          type="button"
+          className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900"
+          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+        >
+          <strong>HWP 원본은 보관되었습니다.</strong>
+          <span className="ml-2">수식과 쪽 배치를 보존하도록 PDF로 저장해 추가로 올려 주세요.</span>
+        </button>
+      )}
+
       <ExamTabs
         activeTab={tab}
         onChange={setTab}

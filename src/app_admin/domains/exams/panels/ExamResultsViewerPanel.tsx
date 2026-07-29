@@ -15,6 +15,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
+import ManualExamGradingGrid from "@admin/domains/results/components/ManualExamGradingGrid";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamResultsViewerPanel.module.css";
@@ -145,8 +146,14 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ========== OMR 검토 진입 (운영자 첫 시야) ========== */}
-      <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
+      {/* ========== 시험 채점 방식에 맞는 주 동선 ========== */}
+      {exam?.grading_mode !== "written" && (
+        <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
+      )}
+
+      {exam?.grading_mode !== "choice" && (
+        <ManualExamGradingGrid examId={examId} />
+      )}
 
       <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
 

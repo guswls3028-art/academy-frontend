@@ -1,5 +1,12 @@
 import { isApiRecord } from "@/shared/api/response";
-import type { AnswerVisibility, Exam, ExamType } from "../types";
+import type {
+  AnswerVisibility,
+  Exam,
+  ExamGradingMode,
+  ExamSegmentationStatus,
+  ExamType,
+  ManualGradingMethod,
+} from "../types";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
@@ -30,6 +37,26 @@ function normalizeAnswerVisibility(value: unknown): AnswerVisibility {
     : "hidden";
 }
 
+function normalizeGradingMode(value: unknown): ExamGradingMode {
+  return value === "written" || value === "mixed" || value === "choice"
+    ? value
+    : "choice";
+}
+
+function normalizeManualGradingMethod(value: unknown): ManualGradingMethod {
+  return value === "correctness" || value === "score" ? value : "score";
+}
+
+function normalizeSegmentationStatus(value: unknown): ExamSegmentationStatus {
+  return value === "processing" ||
+    value === "ready" ||
+    value === "failed" ||
+    value === "conversion_required" ||
+    value === "none"
+    ? value
+    : "none";
+}
+
 export function normalizeExam(raw: unknown): Exam {
   const data = isApiRecord(raw) ? raw : {};
 
@@ -49,6 +76,15 @@ export function normalizeExam(raw: unknown): Exam {
 
     pass_score: numberOr(data.pass_score, 0),
     max_score: numberOr(data.max_score, 100),
+    grading_mode: normalizeGradingMode(data.grading_mode),
+    manual_grading_method: normalizeManualGradingMethod(
+      data.manual_grading_method,
+    ),
+    choice_question_count: numberOr(data.choice_question_count, 0),
+    segmentation_status: normalizeSegmentationStatus(
+      data.segmentation_status,
+    ),
+    source_filename: text(data.source_filename),
     display_order: numberOr(data.display_order, 0),
 
     open_at: nullableText(data.open_at),

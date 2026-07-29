@@ -1,6 +1,14 @@
 export type ExamType = "template" | "regular";
 
 export type AnswerVisibility = "hidden" | "after_closed" | "always";
+export type ExamGradingMode = "choice" | "written" | "mixed";
+export type ManualGradingMethod = "correctness" | "score";
+export type ExamSegmentationStatus =
+  | "none"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "conversion_required";
 
 export type ExamTabKey =
   | "setup"
@@ -28,6 +36,11 @@ export type Exam = {
 
   pass_score: number;
   max_score: number;
+  grading_mode: ExamGradingMode;
+  manual_grading_method: ManualGradingMethod;
+  choice_question_count: number;
+  segmentation_status: ExamSegmentationStatus;
+  source_filename: string;
   display_order: number;
 
   open_at: string | null;
