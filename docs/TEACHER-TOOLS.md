@@ -17,6 +17,19 @@
 [강사 AI 문제 풀이 백엔드 문서](../../backend/docs/domain/teacher-problem-solver.md)가
 소유한다.
 
+### 배포 호환 경계
+
+위 `/workspace/mobile` 경로는 현재 소스 정본이다. 이 route 전환
+revision이 아직 운영 승격되지 않았거나 배포 gate에서 차단된 환경은
+직전 안전 revision의 `/teacher/tools...`를 실제 진입점으로 계속
+사용할 수 있다. `version.json`의 배포 SHA와 해당 revision의
+`toolCatalog.ts`, `TeacherRouter.tsx`가 실행 중인 경로의 최종 증거다.
+
+SPA shell의 HTTP 200만으로 route 전환 완료를 판단하지 않는다. 실제
+강사 인증 상태에서 도구 drawer, URL, 화면 DOM을 함께 검증해야 한다.
+새 revision의 배포 gate가 실패하면 기존 운영 revision을 유지하며,
+문서 변경만으로 route 전환을 강제하거나 배포를 우회하지 않는다.
+
 ## 도구 등록 계약
 
 `src/app_teacher/domains/tools/toolCatalog.ts`의 `TEACHER_TOOLS`가 도구
