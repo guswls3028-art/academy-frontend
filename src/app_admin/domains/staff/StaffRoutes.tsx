@@ -19,7 +19,7 @@ export default function StaffRoutes() {
       <Route element={renderLazyRoute(StaffLayout)}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={renderLazyRoute(HomePage)} />
-        <Route path="operations" element={<Navigate to="/admin/staff/attendance" replace />} />
+        <Route path="operations" element={<Navigate to="/workspace/staff/attendance" replace />} />
         <Route path="attendance" element={renderLazyRoute(AttendancePage)} />
         <Route path="expenses" element={renderLazyRoute(ExpensesPage)} />
         <Route path="month-lock" element={renderLazyRoute(MonthLockPage)} />

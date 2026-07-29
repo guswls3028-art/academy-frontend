@@ -104,7 +104,7 @@ export default function LectureDetailPage() {
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
                   <Pencil size={ICON.xs} /> 편집
                 </button>
-                <button onClick={() => { navigate(`/teacher/classes/${lid}/attendance-matrix`); setMenuOpen(false); }}
+                <button onClick={() => { navigate(`/workspace/mobile/classes/${lid}/attendance-matrix`); setMenuOpen(false); }}
                   className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                   style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)", borderTop: "1px solid var(--tc-border-subtle)" }}>
                   <Download size={ICON.xs} /> 출석 현황 (매트릭스)
@@ -197,7 +197,7 @@ export default function LectureDetailPage() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => navigate(`/teacher/classes/${lectureId}/sessions/${s.id}`)}
+                  onClick={() => navigate(`/workspace/mobile/classes/${lectureId}/sessions/${s.id}`)}
                   className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
                   style={{
                     padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -277,7 +277,7 @@ export default function LectureDetailPage() {
                 return (
                   <button
                     key={e.id}
-                    onClick={() => studentId && navigate(`/teacher/students/${studentId}`)}
+                    onClick={() => studentId && navigate(`/workspace/mobile/students/${studentId}`)}
                     className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
                     style={{
                       padding: "var(--tc-space-3) var(--tc-space-4)",

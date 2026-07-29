@@ -11,16 +11,16 @@ const STORAGE_TABS: DomainTab[] = [
     label: "매치업",
     badge: "BETA",
     badgeTitle: "매치업은 현재 베타 기능입니다.",
-    path: "/admin/storage/matchup",
+    path: "/workspace/storage/matchup",
   },
   {
     key: "files",
     label: "저장소",
-    path: "/admin/storage/files",
-    activePaths: ["/admin/storage/files", "/admin/storage/students"],
+    path: "/workspace/storage/files",
+    activePaths: ["/workspace/storage/files", "/workspace/storage/students"],
   },
-  { key: "hit-reports", label: "적중 보고서", path: "/admin/storage/hit-reports" },
-  { key: "proposals", label: "분리 검수", path: "/admin/storage/proposals" },
+  { key: "hit-reports", label: "적중 보고서", path: "/workspace/storage/hit-reports" },
+  { key: "proposals", label: "분리 검수", path: "/workspace/storage/proposals" },
 ];
 
 export default function StorageLayout() {

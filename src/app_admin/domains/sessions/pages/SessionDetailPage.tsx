@@ -76,7 +76,7 @@ export default function SessionDetailPage() {
   }, [searchParams]);
 
   /* 탭 상태: pathname 기준 (훅 개수 일정 유지 위해 모든 훅을 early return 위에 배치) */
-  const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
+  const basePath = `/workspace/lectures/${lecId}/sessions/${sId}`;
   const activeTab = useMemo((): SessionTab => {
     const p = location.pathname;
     const isIndex = p === basePath || p === basePath + "/";

@@ -142,7 +142,7 @@ export default function StudentInventoryPage() {
                     검색 초기화
                   </EmptyActionButton>
                 ) : (
-                  <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/students")}>
+                  <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/students")}>
                     학생 관리
                   </EmptyActionButton>
                 )

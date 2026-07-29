@@ -369,7 +369,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
               onClick={() => {
                 setInstructorPopoverOpen(false);
                 onClose();
-                navigate("/admin/staff");
+                navigate("/workspace/staff");
               }}
             >
               직원 관리로 이동
@@ -413,7 +413,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 onClick={() => {
                   setInstructorPopoverOpen(false);
                   onClose();
-                  navigate("/admin/staff");
+                  navigate("/workspace/staff");
                 }}
               >
                 직원 관리로 이동

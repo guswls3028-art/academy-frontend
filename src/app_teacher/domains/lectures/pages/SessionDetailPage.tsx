@@ -105,7 +105,7 @@ export default function SessionDetailPage() {
         chipLabel: session.lecture_chip_label,
       }
     : undefined;
-  const lecturePath = session?.lecture ? `/teacher/classes/${session.lecture}` : "/teacher/classes";
+  const lecturePath = session?.lecture ? `/workspace/mobile/classes/${session.lecture}` : "/workspace/mobile/classes";
 
   return (
     <div className="flex flex-col gap-3">
@@ -148,12 +148,12 @@ export default function SessionDetailPage() {
         <ActionBtn
           label="출석 체크"
           color="var(--tc-success)"
-          onClick={() => navigate(`/teacher/attendance/${sessionId}`)}
+          onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}`)}
         />
         <ActionBtn
           label="성적 입력"
           color="var(--tc-primary)"
-          onClick={() => navigate(`/teacher/scores/${sessionId}`)}
+          onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}
         />
       </div>
 
@@ -239,7 +239,7 @@ function ExamsTab({ exams, navigate, lecturePath }: { exams: any[]; navigate: an
       {exams.map((e: any) => (
         <button
           key={e.id}
-          onClick={() => navigate(`/teacher/exams/${e.id}`)}
+          onClick={() => navigate(`/workspace/mobile/exams/${e.id}`)}
           className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
           style={{
             padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -290,7 +290,7 @@ function HomeworksTab({ homeworks, navigate, lecturePath }: { homeworks: any[]; 
         return (
         <button
           key={h.id}
-          onClick={() => navigate(`/teacher/homeworks/${h.id}`)}
+          onClick={() => navigate(`/workspace/mobile/homeworks/${h.id}`)}
           className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
           style={{
             padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -372,7 +372,7 @@ function ClinicTab({
         title="이 차시에서 클리닉 대상 학생이 없습니다"
         description="미통과 또는 수동 추천 학생이 생기면 클리닉 대상자로 표시됩니다."
         actions={
-          <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/clinic")}>
+          <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/clinic")}>
             클리닉 확인
           </EmptyActionButton>
         }
@@ -404,7 +404,7 @@ function ClinicTab({
           return (
             <button
               key={l.id}
-              onClick={() => navigate(`/teacher/clinic`)}
+              onClick={() => navigate(`/workspace/mobile/clinic`)}
               className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
               style={{
                 padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -508,7 +508,7 @@ function StudentsTab({
         return (
           <button
             key={e.id}
-            onClick={() => studentId && navigate(`/teacher/students/${studentId}`)}
+            onClick={() => studentId && navigate(`/workspace/mobile/students/${studentId}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",
@@ -546,7 +546,7 @@ function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { atte
         title="출석 데이터가 없습니다"
         description="출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다."
         actions={
-          <EmptyActionButton onClick={() => navigate(`/teacher/attendance/${sessionId}`)}>
+          <EmptyActionButton onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}`)}>
             출석 체크
           </EmptyActionButton>
         }
@@ -704,7 +704,7 @@ function ScoresTab({
               })}
             </div>
             <button
-              onClick={() => navigate(`/teacher/scores/${sessionId}`)}
+              onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}
               className="text-[13px] font-semibold py-2.5 rounded-xl cursor-pointer"
               style={{
                 background: "var(--tc-primary)",
@@ -722,7 +722,7 @@ function ScoresTab({
             title="결과가 없습니다"
             description="아직 입력된 점수가 없습니다. 점수 입력 화면에서 학생별 점수를 저장하세요."
             actions={
-              <EmptyActionButton onClick={() => navigate(`/teacher/scores/${sessionId}`)}>
+              <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}>
                 점수 입력
               </EmptyActionButton>
             }
@@ -745,7 +745,7 @@ function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any
         title="이 차시에 영상이 없습니다"
         description="영상을 업로드하고 차시에 연결하면 시청 현황을 추적할 수 있습니다."
         actions={
-          <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/videos")}>
+          <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/videos")}>
             영상 관리
           </EmptyActionButton>
         }
@@ -769,7 +769,7 @@ function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any
         return (
           <button
             key={v.id}
-            onClick={() => v.status === "READY" && navigate(`/teacher/videos/${v.id}`)}
+            onClick={() => v.status === "READY" && navigate(`/workspace/mobile/videos/${v.id}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",

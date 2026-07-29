@@ -1,0 +1,46 @@
+# 프런트엔드 라우트 규칙
+
+## 공개 URL 계약
+
+최상위 경로는 권한명이 아니라 사용자가 진입하는 제품 화면을 나타낸다.
+
+| 경로 | 화면 | 접근 역할 |
+|------|------|-----------|
+| `/workspace/*` | 통합 업무 화면 | `owner`, `admin`, `teacher`, `staff` |
+| `/workspace/mobile/*` | 모바일 최적화 업무 화면 | `owner`, `admin`, `teacher`, `staff` |
+| `/student/*` | 학생·학부모 화면 | `student`, `parent` |
+| `/dev/*` | 플랫폼 개발자 콘솔 | 별도 플랫폼 권한 |
+
+`admin`, `teacher` 같은 역할명은 인증·인가에만 사용한다. URL만으로 권한을
+표현하거나 추론하지 않는다. 통합 업무와 모바일 업무는 같은 테넌트 데이터와
+백엔드 권한 계약을 사용하며 화면 구성만 다르다.
+
+## 호환 경로
+
+- `/admin/*`은 같은 하위 경로를 유지해 `/workspace/*`로 이동한다.
+- `/teacher/*`은 같은 하위 경로를 유지해 `/workspace/mobile/*`로 이동한다.
+- 리다이렉트는 query, hash, navigation state를 보존한다.
+- 새 코드와 새 문서는 호환 경로를 링크로 만들지 않는다.
+
+기존 설치형 모바일 앱의 identity를 유지하기 위해 teacher manifest의 `id`는
+`/teacher`로 보존한다. 실제 `start_url`과 `scope`는 `/workspace/mobile`이다.
+`/teacher-manifest.json`, `/teacher-sw.js`, `/teacher-app/*` 같은 자산·백엔드
+계약 이름은 브라우저 라우트가 아니므로 이 규칙의 변경 대상이 아니다.
+
+## 구현 경계
+
+- canonical 경로와 호환 경로의 단일 기준은
+  `src/core/router/workspaceRoutes.ts`이다.
+- `app_admin`과 `app_teacher` 디렉터리명은 기존 구현 경계를 나타내는 내부
+  이름이다. 공개 URL이나 사용자 역할 계약으로 사용하지 않는다.
+- 하위 페이지 링크는 canonical 경로만 생성한다.
+- 모바일 자동 전환은 통합 업무 홈에만 적용한다. 명시적인 상세 딥링크는
+  모바일에서도 해당 통합 업무 경로를 유지한다.
+
+## 검증
+
+```powershell
+node scripts/guard-workspace-route-names.mjs
+pnpm exec playwright test e2e/root-routing-contract.spec.ts e2e/pwa-branding-contract.spec.ts
+pnpm typecheck
+```

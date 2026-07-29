@@ -31,7 +31,7 @@ export default function SessionLayout() {
 
   const base =
     lectureId && sessionId
-      ? `/admin/lectures/${lectureId}/sessions/${sessionId}`
+      ? `/workspace/lectures/${lectureId}/sessions/${sessionId}`
       : "";
   const isScoresRoute = base
     ? location.pathname === `${base}/scores` || location.pathname.startsWith(`${base}/scores/`)
@@ -83,8 +83,8 @@ export default function SessionLayout() {
     : "";
   const sessionHeading = formatSessionBlockLabel(session) + sectionSuffix;
   const breadcrumbs = [
-    { label: "강의", to: "/admin/lectures" },
-    { label: lectureTitle, to: `/admin/lectures/${lectureId}` },
+    { label: "강의", to: "/workspace/lectures" },
+    { label: lectureTitle, to: `/workspace/lectures/${lectureId}` },
     { label: sessionHeading },
   ];
 

@@ -327,7 +327,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     await visit(page, "/teacher/desktop-only");
 
     await expect(page.getByRole("heading", { name: /PC에서 처리/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /데스크톱 버전으로 이동/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /통합 업무 화면으로 이동/ })).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/desktop-only.png`, fullPage: true });
     logNet("desktop-only", cap);

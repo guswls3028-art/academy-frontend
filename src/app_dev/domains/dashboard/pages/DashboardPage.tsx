@@ -278,7 +278,7 @@ function QuickActionsCard() {
         <Link to="/dev/inbox" className={`${s.btn} ${s.btnSecondary}`} style={{ textDecoration: "none", justifyContent: "flex-start" }}>
           📬 문의함
         </Link>
-        <Link to="/admin" className={`${s.btn} ${s.btnSecondary}`} style={{ textDecoration: "none", justifyContent: "flex-start" }}>
+        <Link to="/workspace" className={`${s.btn} ${s.btnSecondary}`} style={{ textDecoration: "none", justifyContent: "flex-start" }}>
           🔗 운영 콘솔 열기
         </Link>
       </div>

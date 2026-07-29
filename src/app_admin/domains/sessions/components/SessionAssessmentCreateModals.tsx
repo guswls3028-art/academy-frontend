@@ -29,7 +29,7 @@ export default function SessionAssessmentCreateModals({
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+  const base = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });

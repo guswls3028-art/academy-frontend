@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
-import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import {
@@ -53,36 +53,36 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
       {
         title: "오늘 업무",
         items: [
-          { label: "대시보드", path: "/teacher", icon: <Home size={ICON.md} /> },
-          { label: "알림 센터", path: "/teacher/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications },
-          { label: "커뮤니티", path: "/teacher/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications },
-          { label: "제출함", path: "/teacher/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions },
+          { label: "대시보드", path: "/workspace/mobile", icon: <Home size={ICON.md} /> },
+          { label: "알림 센터", path: "/workspace/mobile/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications },
+          { label: "커뮤니티", path: "/workspace/mobile/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications },
+          { label: "제출함", path: "/workspace/mobile/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions },
         ],
       },
       {
         title: "수업 운영",
         items: [
-          { label: "학생", path: "/teacher/students", icon: <Users size={ICON.md} /> },
-          { label: "강의", path: "/teacher/classes", icon: <BookOpen size={ICON.md} /> },
-          { label: "시험", path: "/teacher/exams", icon: <ClipboardList size={ICON.md} /> },
-          { label: "성적", path: "/teacher/results", icon: <Award size={ICON.md} /> },
-          { label: "영상", path: "/teacher/videos", icon: <Video size={ICON.md} /> },
-          { label: "클리닉", path: "/teacher/clinic", icon: <Activity size={ICON.md} /> },
-          { label: "클리닉 리모컨", path: "/teacher/clinic/remote", icon: <RefreshCw size={ICON.md} /> },
-          { label: "클리닉 보고서", path: "/teacher/clinic/reports", icon: <Calendar size={ICON.md} /> },
+          { label: "학생", path: "/workspace/mobile/students", icon: <Users size={ICON.md} /> },
+          { label: "강의", path: "/workspace/mobile/classes", icon: <BookOpen size={ICON.md} /> },
+          { label: "시험", path: "/workspace/mobile/exams", icon: <ClipboardList size={ICON.md} /> },
+          { label: "성적", path: "/workspace/mobile/results", icon: <Award size={ICON.md} /> },
+          { label: "영상", path: "/workspace/mobile/videos", icon: <Video size={ICON.md} /> },
+          { label: "클리닉", path: "/workspace/mobile/clinic", icon: <Activity size={ICON.md} /> },
+          { label: "클리닉 리모컨", path: "/workspace/mobile/clinic/remote", icon: <RefreshCw size={ICON.md} /> },
+          { label: "클리닉 보고서", path: "/workspace/mobile/clinic/reports", icon: <Calendar size={ICON.md} /> },
         ],
       },
       {
         title: "자료·메시지",
         items: [
-          { label: "상담 메모", path: "/teacher/counseling", icon: <FileText size={ICON.md} /> },
-          { label: "발송 내역", path: "/teacher/message-log", icon: <Send size={ICON.md} /> },
-          { label: "템플릿 저장", path: "/teacher/message-templates", icon: <FileText size={ICON.md} /> },
-          { label: "시험 템플릿", path: "/teacher/exams/templates", icon: <FileText size={ICON.md} /> },
-          { label: "시험 묶음", path: "/teacher/exams/bundles", icon: <FolderPlus size={ICON.md} /> },
-          { label: "자료 저장소", path: "/teacher/storage", icon: <FolderPlus size={ICON.md} /> },
-          { label: "학생 인벤토리", path: "/teacher/storage/inventory", icon: <Users size={ICON.md} /> },
-          ...(isOwnerOrAdmin ? [{ label: "메시지 설정", path: "/teacher/messaging-settings", icon: <Settings size={ICON.md} /> }] : []),
+          { label: "상담 메모", path: "/workspace/mobile/counseling", icon: <FileText size={ICON.md} /> },
+          { label: "발송 내역", path: "/workspace/mobile/message-log", icon: <Send size={ICON.md} /> },
+          { label: "템플릿 저장", path: "/workspace/mobile/message-templates", icon: <FileText size={ICON.md} /> },
+          { label: "시험 템플릿", path: "/workspace/mobile/exams/templates", icon: <FileText size={ICON.md} /> },
+          { label: "시험 묶음", path: "/workspace/mobile/exams/bundles", icon: <FolderPlus size={ICON.md} /> },
+          { label: "자료 저장소", path: "/workspace/mobile/storage", icon: <FolderPlus size={ICON.md} /> },
+          { label: "학생 인벤토리", path: "/workspace/mobile/storage/inventory", icon: <Users size={ICON.md} /> },
+          ...(isOwnerOrAdmin ? [{ label: "메시지 설정", path: "/workspace/mobile/messaging-settings", icon: <Settings size={ICON.md} /> }] : []),
         ],
       },
       {
@@ -90,29 +90,29 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
         items: [
           ...(isOwnerOrAdmin && feesEnabled
             ? [
-                { label: "수납", path: "/teacher/fees", icon: <Award size={ICON.md} /> },
-                { label: "청구서", path: "/teacher/fees/invoices", icon: <FileText size={ICON.md} /> },
+                { label: "수납", path: "/workspace/mobile/fees", icon: <Award size={ICON.md} /> },
+                { label: "청구서", path: "/workspace/mobile/fees/invoices", icon: <FileText size={ICON.md} /> },
               ]
             : []),
-          ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/teacher/staff", icon: <Users size={ICON.md} /> }] : []),
-          { label: "근태 / 지출", path: "/teacher/my-records", icon: <Clock size={ICON.md} /> },
-          { label: "프로필", path: "/teacher/profile", icon: <User size={ICON.md} /> },
-          ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/teacher/billing", icon: <Award size={ICON.md} /> }] : []),
-          ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/teacher/settings/organization", icon: <Settings size={ICON.md} /> }] : []),
-          { label: "테마", path: "/teacher/settings/appearance", icon: <Settings size={ICON.md} /> },
-          { label: "설정", path: "/teacher/settings", icon: <Settings size={ICON.md} /> },
+          ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/workspace/mobile/staff", icon: <Users size={ICON.md} /> }] : []),
+          { label: "근태 / 지출", path: "/workspace/mobile/my-records", icon: <Clock size={ICON.md} /> },
+          { label: "프로필", path: "/workspace/mobile/profile", icon: <User size={ICON.md} /> },
+          ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/workspace/mobile/billing", icon: <Award size={ICON.md} /> }] : []),
+          ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/workspace/mobile/settings/organization", icon: <Settings size={ICON.md} /> }] : []),
+          { label: "테마", path: "/workspace/mobile/settings/appearance", icon: <Settings size={ICON.md} /> },
+          { label: "설정", path: "/workspace/mobile/settings", icon: <Settings size={ICON.md} /> },
         ],
       },
       {
         title: "지원",
         items: [
-          { label: "사용 가이드", path: "/teacher/guide", icon: <Info size={ICON.md} /> },
+          { label: "사용 가이드", path: "/workspace/mobile/guide", icon: <Info size={ICON.md} /> },
           { label: "학원 홈페이지", path: "/landing", icon: <Globe size={ICON.md} /> },
-          { label: "도구", path: "/teacher/tools", icon: <Wrench size={ICON.md} /> },
-          { label: "PC에서 처리하는 기능", path: "/teacher/desktop-only", icon: <Monitor size={ICON.md} /> },
-          { label: "패치노트", path: "/teacher/developer", icon: <FileText size={ICON.md} /> },
-          { label: "버그 제보", path: "/teacher/developer/bug", icon: <Bug size={ICON.md} /> },
-          { label: "피드백", path: "/teacher/developer/feedback", icon: <MessageSquare size={ICON.md} /> },
+          { label: "도구", path: "/workspace/mobile/tools", icon: <Wrench size={ICON.md} /> },
+          { label: "PC에서 처리하는 기능", path: "/workspace/mobile/desktop-only", icon: <Monitor size={ICON.md} /> },
+          { label: "패치노트", path: "/workspace/mobile/developer", icon: <FileText size={ICON.md} /> },
+          { label: "버그 제보", path: "/workspace/mobile/developer/bug", icon: <Bug size={ICON.md} /> },
+          { label: "피드백", path: "/workspace/mobile/developer/feedback", icon: <MessageSquare size={ICON.md} /> },
         ],
       },
     ],
@@ -150,8 +150,8 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
 
   const handleDesktopSwitch = () => {
     onClose();
-    setPreferAdmin(true);
-    navigate("/admin");
+    setPreferFullWorkspace(true);
+    navigate("/workspace");
   };
 
   const handleLogout = () => {
@@ -166,7 +166,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
   };
 
   const isActive = (path: string) => {
-    if (path === "/teacher") return location.pathname === "/teacher";
+    if (path === "/workspace/mobile") return location.pathname === "/workspace/mobile";
     return location.pathname.startsWith(path);
   };
 
@@ -254,7 +254,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
               className={`${styles.actionButton} ${styles.primaryAction}`}
             >
               <Monitor size={ICON.md} />
-              관리자 화면
+              통합 업무 화면
             </button>
           )}
 

@@ -41,7 +41,7 @@ export default function FeesDashboardTab() {
   const [year] = useState(today.getFullYear());
   const [month] = useState(today.getMonth() + 1);
 
-  const goInvoices = () => navigate("/admin/fees/invoices");
+  const goInvoices = () => navigate("/workspace/fees/invoices");
 
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: adminFeesQueryKeys.dashboard(year, month),

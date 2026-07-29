@@ -88,10 +88,29 @@ test.describe("Production canary", () => {
     test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/dashboard" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
 
-    expect(page.url()).toMatch(/\/(admin|dev)(\/|$)/);
+    expect(page.url()).toMatch(/\/(workspace|dev)(\/|$)/);
     await expect(page.locator("nav, [class*='sidebar'], [class*='header'], main").first()).toBeVisible();
+    await expect(page.locator("text=Not Found")).not.toBeVisible();
+
+    await page.goto(`${BASE}/admin/dashboard?compat=1#legacy-full`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await expect(page).toHaveURL(
+      `${BASE}/workspace/dashboard?compat=1#legacy-full`,
+      { timeout: 15_000 },
+    );
+
+    await page.goto(`${BASE}/teacher/classes?compat=1#legacy-mobile`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await expect(page).toHaveURL(
+      `${BASE}/workspace/mobile/classes?compat=1#legacy-mobile`,
+      { timeout: 15_000 },
+    );
     await expect(page.locator("text=Not Found")).not.toBeVisible();
     guard.assertClean();
   });

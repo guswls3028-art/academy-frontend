@@ -36,7 +36,9 @@ test("known tenant teacher and student manifests use only that tenant's icons", 
   const student = await manifestRequest("tchul.com", "/student-manifest.json");
   const teacherManifest = await teacher.json() as {
     name: string;
+    id: string;
     start_url: string;
+    scope: string;
     icons: Array<{ src: string; sizes: string }>;
   };
   const studentManifest = await student.json() as {
@@ -45,8 +47,10 @@ test("known tenant teacher and student manifests use only that tenant's icons", 
     icons: Array<{ src: string; sizes: string }>;
   };
 
-  expect(teacherManifest.name).toBe("박철 과학 선생님");
-  expect(teacherManifest.start_url).toBe("/teacher");
+  expect(teacherManifest.name).toBe("박철 과학 모바일 업무");
+  expect(teacherManifest.id).toBe("/teacher");
+  expect(teacherManifest.start_url).toBe("/workspace/mobile");
+  expect(teacherManifest.scope).toBe("/workspace/mobile");
   expect(teacherManifest.icons).toEqual([
     expect.objectContaining({ src: "/tenants/tchul/pwa-192.png", sizes: "192x192" }),
     expect.objectContaining({ src: "/tenants/tchul/pwa-512.png", sizes: "512x512" }),
@@ -73,7 +77,7 @@ test("custom tenant manifest consumes uploaded branding without HakwonPlus fallb
       short_name: string;
       icons: Array<{ src: string; sizes: string }>;
     };
-    expect(manifest.name).toBe("새봄학원 선생님");
+    expect(manifest.name).toBe("새봄학원 모바일 업무");
     expect(manifest.short_name).toBe("새봄학원");
     expect(manifest.icons[0]).toEqual(expect.objectContaining({
       src: "https://cdn.example.com/tenant/new/logo.png",

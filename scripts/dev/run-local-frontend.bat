@@ -37,7 +37,7 @@ echo 프로젝트 폴더: %CD%
 echo.
 echo Vite 개발 서버 시작 중...
 echo 9999 테넌트: http://localhost:5174/login/9999
-echo 관리자 앱:   http://localhost:5174/admin
+echo 통합 업무 화면: http://localhost:5174/workspace
 echo.
 
 pnpm dev

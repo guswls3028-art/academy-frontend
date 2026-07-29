@@ -135,7 +135,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     localStorage.setItem("access", r.access);
                     localStorage.setItem("refresh", r.refresh);
                     onClose();
-                    navigate("/admin", { replace: true });
+                    navigate("/workspace", { replace: true });
                     window.location.reload();
                   } catch (err: unknown) {
                     abortImpersonation();

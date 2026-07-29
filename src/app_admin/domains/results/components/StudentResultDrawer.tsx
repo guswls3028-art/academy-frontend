@@ -654,8 +654,8 @@ function StateC_NoQuestions({ examId, examTitle, onClose }: { examId: number; ex
         className="srd-stateC__btn"
         onClick={() => {
           onClose();
-          if (lectureId && sessionId) navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${examId}`);
-          else navigate("/admin/lectures");
+          if (lectureId && sessionId) navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${examId}`);
+          else navigate("/workspace/lectures");
         }}
       >
         시험 설정으로 이동

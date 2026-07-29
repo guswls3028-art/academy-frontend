@@ -19,10 +19,10 @@ type TeacherTab = {
 };
 
 const TABS: TeacherTab[] = [
-  { to: "/teacher", label: "대시보드", icon: <Home size={ICON.lg} />, end: true },
-  { to: "/teacher/students", label: "학생", icon: <Users size={ICON.lg} /> },
-  { to: "/teacher/classes", label: "강의", icon: <BookOpen size={ICON.lg} /> },
-  { to: "/teacher/comms", label: "커뮤니티", icon: <MessageSquare size={ICON.lg} />, hasBadge: true },
+  { to: "/workspace/mobile", label: "대시보드", icon: <Home size={ICON.lg} />, end: true },
+  { to: "/workspace/mobile/students", label: "학생", icon: <Users size={ICON.lg} /> },
+  { to: "/workspace/mobile/classes", label: "강의", icon: <BookOpen size={ICON.lg} /> },
+  { to: "/workspace/mobile/comms", label: "커뮤니티", icon: <MessageSquare size={ICON.lg} />, hasBadge: true },
 ];
 
 export default function TeacherTabBar() {

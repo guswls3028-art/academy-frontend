@@ -5,7 +5,7 @@
  */
 import { ICON } from "@/shared/ui/ds/iconSize";
 
-export const ADMIN_NAV_BASE = "/admin";
+export const ADMIN_NAV_BASE = "/workspace";
 
 export function NavIcon({ d }: { d: string }) {
   return (

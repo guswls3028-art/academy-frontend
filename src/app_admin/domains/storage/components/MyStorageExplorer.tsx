@@ -491,12 +491,12 @@ export default function MyStorageExplorer() {
         );
       }
       feedback.success("매치업 자료로 등록했습니다. 우상단 작업 상자에서 진행률 확인.");
-      navigate(`/admin/storage/matchup?docId=${doc.id}`);
+      navigate(`/workspace/storage/matchup?docId=${doc.id}`);
     } catch (e) {
       const err = e as { status?: number; code?: string; documentId?: number; message?: string };
       if (err.status === 409 && err.code === "already_promoted" && err.documentId) {
         feedback.info("이미 매치업 자료로 등록되어 있습니다.");
-        navigate(`/admin/storage/matchup?docId=${err.documentId}`);
+        navigate(`/workspace/storage/matchup?docId=${err.documentId}`);
         return;
       }
       feedback.error(err.message ?? "매치업 등록에 실패했습니다.");
@@ -657,7 +657,7 @@ export default function MyStorageExplorer() {
                 type="button"
                 intent="ghost"
                 size="sm"
-                onClick={() => navigate("/admin/storage/matchup")}
+                onClick={() => navigate("/workspace/storage/matchup")}
                 className={styles.bannerAction}
               >
                 AI 매치업 페이지로
@@ -882,7 +882,7 @@ export default function MyStorageExplorer() {
                   onClick={() => {
                     const docId = fileActionTarget.matchup?.documentId;
                     setFileActionTarget(null);
-                    if (docId) navigate(`/admin/storage/matchup?docId=${docId}`);
+                    if (docId) navigate(`/workspace/storage/matchup?docId=${docId}`);
                   }}
                 >
                   <Sparkles size={18} className={styles.brandIcon} />

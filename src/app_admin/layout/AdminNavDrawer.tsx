@@ -11,7 +11,7 @@ import { ADMIN_NAV_GROUPS, NavIcon } from "./adminNavConfig";
 import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
 import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
 import { useProgram } from "@/shared/program";
-import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import useAuth from "@/auth/hooks/useAuth";
 import styles from "./AdminNavDrawer.module.css";
 
@@ -82,19 +82,19 @@ export default function AdminNavDrawer() {
         ))}
       </div>
 
-      {/* 모바일에서만 표시: 선생님 앱으로 돌아가기 */}
+      {/* 모바일에서만 표시: 모바일 업무 화면으로 돌아가기 */}
       {isMobile && (
         <div className={styles.teacherReturn}>
           <button
             onClick={() => {
               onClose();
-              setPreferAdmin(false);
-              navigate("/teacher");
+              setPreferFullWorkspace(false);
+              navigate("/workspace/mobile");
             }}
             className={styles.teacherReturnButton}
           >
             <Smartphone size={18} aria-hidden />
-            선생님 앱으로 돌아가기
+            모바일 업무 화면으로 돌아가기
           </button>
         </div>
       )}

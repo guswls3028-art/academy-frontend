@@ -84,14 +84,14 @@ export default function CardRegisterCallbackPage() {
   const result = getResult();
 
   const handleGoBack = () => {
-    navigate("/admin/settings/billing", { replace: true });
+    navigate("/workspace/settings/billing", { replace: true });
   };
 
   // 성공 시 3초 후 자동 이동
   useEffect(() => {
     if (result.status !== "success") return;
     const timer = setTimeout(() => {
-      navigate("/admin/settings/billing", { replace: true });
+      navigate("/workspace/settings/billing", { replace: true });
     }, 3000);
     return () => clearTimeout(timer);
   }, [result.status, navigate]);

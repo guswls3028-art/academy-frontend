@@ -5,6 +5,8 @@
 // 배포: index.html과 /assets/* 청크는 반드시 동일 빌드에서 함께 업로드되어야 함.
 // 청크 해시가 바뀌면 이전 빌드의 index.html이 이전 청크를 요청해 404 → HTML 반환 시 MIME 오류 발생.
 
+import { WORKSPACE_PATHS } from "../src/core/router/workspaceRoutes";
+
 interface Env {
   ASSETS: Fetcher;
 }
@@ -71,7 +73,7 @@ async function withSecurityHeaders(response: Response): Promise<Response> {
 function isExpectedStaticHtml(pathname: string, html: string): boolean {
   if (STATIC_HTML_PATHS.has(pathname)) {
     return html.includes("OMR 답안지 생성기로 이동")
-      && html.includes('data-omr-canonical-route="/admin/tools/omr"');
+      && html.includes('data-omr-canonical-route="/workspace/tools/omr"');
   }
   return false;
 }
@@ -284,6 +286,8 @@ function generateRobots(host: string): string {
     "Allow: /promo/",
     "Allow: /terms",
     "Allow: /privacy",
+    "Disallow: /workspace",
+    "Disallow: /workspace/",
     "Disallow: /admin",
     "Disallow: /admin/",
     "Disallow: /student",
@@ -368,16 +372,17 @@ async function buildAppManifest(
   const iconType = iconContentType(icon);
   const icon512Type = iconContentType(icon512);
   const isTeacher = audience === "teacher";
-  const audienceLabel = isTeacher ? "선생님" : "학생";
-  const startUrl = isTeacher ? "/teacher" : "/student";
+  const audienceLabel = isTeacher ? "모바일 업무" : "학생";
+  const startUrl = isTeacher ? WORKSPACE_PATHS.mobile : "/student";
 
   return {
     name: `${meta.title} ${audienceLabel}`,
     short_name: meta.title,
     description: isTeacher
-      ? `${meta.title} 선생님 전용 모바일 앱 - 출석, 성적, 학생 관리`
+      ? `${meta.title} 교직원용 모바일 업무 앱 - 출석, 성적, 학생 관리`
       : `${meta.title} 학생 전용 모바일 앱 - 수업, 과제, 성적 확인`,
-    id: startUrl,
+    // 기존 설치 앱과 동일한 identity를 유지하면서 시작 경로만 canonical URL로 옮긴다.
+    id: isTeacher ? WORKSPACE_PATHS.legacyMobile : startUrl,
     start_url: startUrl,
     scope: startUrl,
     display: "standalone",

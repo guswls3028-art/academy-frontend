@@ -77,7 +77,7 @@ export default function VideoDetailPage() {
       qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
       qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
       asyncStatusStore.removeTask(String(videoId));
-      navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/videos`);
+      navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/videos`);
     },
     onError: (e: unknown) => {
       const msg =
@@ -266,7 +266,7 @@ export default function VideoDetailPage() {
                   {deleteMutation.isPending ? "삭제 중…" : "삭제"}
                 </button>
                 <Link
-                  to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
+                  to={`/workspace/lectures/${lectureId}/sessions/${sessionId}`}
                   className="video-detail-back-link"
                 >
                   ← 세션으로

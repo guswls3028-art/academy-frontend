@@ -9,23 +9,23 @@ import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import "@admin/domains/community/community.css";
 
 const COMMUNITY_TABS = [
-  { key: "notice", label: "공지사항", path: "/admin/community/notice" },
-  { key: "board", label: "게시판", path: "/admin/community/board" },
-  { key: "materials", label: "자료실", path: "/admin/community/materials" },
-  { key: "qna", label: "QnA", path: "/admin/community/qna" },
-  { key: "counsel", label: "상담 신청", path: "/admin/community/counsel" },
+  { key: "notice", label: "공지사항", path: "/workspace/community/notice" },
+  { key: "board", label: "게시판", path: "/workspace/community/board" },
+  { key: "materials", label: "자료실", path: "/workspace/community/materials" },
+  { key: "qna", label: "QnA", path: "/workspace/community/qna" },
+  { key: "counsel", label: "상담 신청", path: "/workspace/community/counsel" },
 ];
 
 function SettingsButton() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isActive = location.pathname.startsWith("/admin/community/settings");
+  const isActive = location.pathname.startsWith("/workspace/community/settings");
 
   return (
     <button
       type="button"
       title="자동발송 설정"
-      onClick={() => navigate("/admin/community/settings")}
+      onClick={() => navigate("/workspace/community/settings")}
       className={`domain-header-action-btn community-settings-btn${isActive ? " community-settings-btn--active" : ""}`}
     >
       <Settings size={ICON.xs} aria-hidden />

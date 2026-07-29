@@ -88,7 +88,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     const tc = program?.tenantCode;
     if (!tc || !tenantOnly.includes(tc)) {
       if (ADMIN_ROLES.includes(role)) {
-        return <Navigate to="/admin" replace />;
+        return <Navigate to="/workspace" replace />;
       }
       return <Navigate to="/" replace />;
     }
@@ -96,7 +96,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
 
   if (!allow.includes(role)) {
     if (ADMIN_ROLES.includes(role)) {
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/workspace" replace />;
     }
 
     if (STUDENT_ROLES.includes(role)) {

@@ -107,7 +107,7 @@ export default function StaffManagePage() {
                   <button
                     type="button"
                     aria-label={`${s.name || s.username} 직원 상세`}
-                    onClick={() => navigate(`/teacher/staff/${s.id}`)}
+                    onClick={() => navigate(`/workspace/mobile/staff/${s.id}`)}
                     className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
                     style={{ padding: 0, border: "none", background: "none" }}
                   >

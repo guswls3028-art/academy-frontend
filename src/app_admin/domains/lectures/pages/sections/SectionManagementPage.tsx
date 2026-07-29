@@ -244,8 +244,8 @@ export default function SectionManagementPage() {
         title="반 편성"
         description="이 학원은 반 편성 모드를 사용하지 않습니다."
         breadcrumbs={[
-          { label: "강의", to: "/admin/lectures" },
-          { label: lecture?.title ?? lecture?.name ?? "강의", to: `/admin/lectures/${lecId}` },
+          { label: "강의", to: "/workspace/lectures" },
+          { label: lecture?.title ?? lecture?.name ?? "강의", to: `/workspace/lectures/${lecId}` },
           { label: "반 편성" },
         ]}
       >
@@ -255,7 +255,7 @@ export default function SectionManagementPage() {
           title="반 편성 모드가 꺼져 있습니다"
           description="같은 강의를 A/B 반으로 나눠 운영하고 싶다면 운영자에게 반 편성 모드 활성화를 문의하세요."
           actions={
-            <Button intent="secondary" onClick={() => navigate(`/admin/lectures/${lecId}`)}>
+            <Button intent="secondary" onClick={() => navigate(`/workspace/lectures/${lecId}`)}>
               강의로 돌아가기
             </Button>
           }
@@ -329,8 +329,8 @@ export default function SectionManagementPage() {
   };
 
   const breadcrumbs = [
-    { label: "강의", to: "/admin/lectures" },
-    { label: lecture?.title ?? lecture?.name ?? "강의", to: `/admin/lectures/${lecId}` },
+    { label: "강의", to: "/workspace/lectures" },
+    { label: lecture?.title ?? lecture?.name ?? "강의", to: `/workspace/lectures/${lecId}` },
     { label: "반 편성" },
   ];
 
@@ -398,7 +398,7 @@ export default function SectionManagementPage() {
             <Button
               intent="secondary"
               size="sm"
-              onClick={() => navigate(`/admin/lectures/${lecId}`)}
+              onClick={() => navigate(`/workspace/lectures/${lecId}`)}
               leftIcon={<ArrowLeft size={14} />}
             >
               강의로

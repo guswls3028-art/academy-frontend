@@ -45,7 +45,7 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
     await loginViaUI(adminPage, "admin");
 
     // QnA 페이지 이동
-    await adminPage.goto(`${BASE}/admin/community/qna`);
+    await adminPage.goto(`${BASE}/workspace/community/qna`);
     await adminPage.waitForLoadState("load");
 
     // 학생이 등록한 질문 찾기

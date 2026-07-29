@@ -143,7 +143,7 @@ export default function HitReportListPage() {
   const handleOpenEditor = useCallback((docId: number) => {
     // 매치업 페이지로 navigate + state로 docId 전달 → MatchupPage가 useEffect로
     // 자동 doc 선택 + HitReportEditor 오픈.
-    navigate("/admin/storage/matchup", { state: { openHitReportForDoc: docId } });
+    navigate("/workspace/storage/matchup", { state: { openHitReportForDoc: docId } });
     feedback.info("매치업 편집기로 이동합니다.");
   }, [navigate]);
 
@@ -322,7 +322,7 @@ export default function HitReportListPage() {
               매치업 페이지에서 시험지 자료를 선택 → 적중 보고서 작성 버튼을 누르세요.
             </div>
             <div style={{ marginTop: 16 }}>
-              <Button size="sm" intent="primary" onClick={() => navigate("/admin/storage/matchup")}>
+              <Button size="sm" intent="primary" onClick={() => navigate("/workspace/storage/matchup")}>
                 매치업 페이지 이동
               </Button>
             </div>

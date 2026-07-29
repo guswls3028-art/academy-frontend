@@ -98,7 +98,7 @@ export default function MessagingSettingsPage() {
               <span className={`${styles.mutedText} text-[12px]`}>공용 채널 · 별도 입력 없음</span>
               <StatusChip ok={alimtalkAvailable} label={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "발송 가능" : "확인 필요"} />
             </div>
-            <button type="button" onClick={() => navigate("/teacher/message-templates")}
+            <button type="button" onClick={() => navigate("/workspace/mobile/message-templates")}
               className={`${styles.secondaryButton} w-full text-xs font-semibold cursor-pointer mt-3`}>
               알림톡 문구 관리
             </button>

@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages SPA 모드 유지: dist/404.html 제거.
- * 404.html이 있으면 Pages가 SPA가 아닌 것으로 간주해 /admin/* 등에서 404를 반환함.
+ * 404.html이 있으면 Pages가 SPA가 아닌 것으로 간주해 /workspace/* 등에서 404를 반환함.
  */
 import { unlinkSync, existsSync } from "fs";
 import { fileURLToPath } from "url";

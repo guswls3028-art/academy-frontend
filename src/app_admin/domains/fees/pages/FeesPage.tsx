@@ -9,9 +9,9 @@ import useAuth from "@/auth/hooks/useAuth";
 import styles from "./FeesPage.module.css";
 
 const TABS: DomainTab[] = [
-  { key: "dashboard", label: "수납 현황", path: "/admin/fees", exact: true },
-  { key: "invoices", label: "청구서", path: "/admin/fees/invoices" },
-  { key: "templates", label: "비목 관리", path: "/admin/fees/templates" },
+  { key: "dashboard", label: "수납 현황", path: "/workspace/fees", exact: true },
+  { key: "invoices", label: "청구서", path: "/workspace/fees/invoices" },
+  { key: "templates", label: "비목 관리", path: "/workspace/fees/templates" },
 ];
 
 export default function FeesPage() {
@@ -32,7 +32,7 @@ export default function FeesPage() {
   }
 
   if (!enabled || !isTenantAdmin) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/workspace/dashboard" replace />;
   }
 
   return (

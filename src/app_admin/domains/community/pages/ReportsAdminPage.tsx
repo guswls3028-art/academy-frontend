@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/community/pages/ReportsAdminPage.tsx
-// 학원장 신고함 console — /admin/community/reports
+// 학원장 신고함 console — /workspace/community/reports
 //
 // CommunityReport list + 상태 변경(resolved/dismissed) + target 글/댓글 링크.
 // 사용자 spec(2026-05-11 추가 cycle #9): 부적절한 글/댓글을 학원장이 검토.
@@ -130,7 +130,7 @@ export default function ReportsAdminPage() {
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>커뮤니티 신고 관리</h1>
           <p style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>부적절한 글/댓글을 검토하고 처리·기각하세요.</p>
         </div>
-        <Link to="/admin/community/board" style={{ fontSize: 12, color: "#475569", textDecoration: "none", fontWeight: 600 }}>← 게시판 관리로</Link>
+        <Link to="/workspace/community/board" style={{ fontSize: 12, color: "#475569", textDecoration: "none", fontWeight: 600 }}>← 게시판 관리로</Link>
       </header>
 
       {/* status filter */}

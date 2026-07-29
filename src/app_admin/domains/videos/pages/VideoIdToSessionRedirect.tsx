@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/videos/pages/VideoIdToSessionRedirect.tsx
-// /admin/videos/:videoId 직접 접근 시 해당 영상이 있는 강의-차시-영상 탭으로 리다이렉트
+// /workspace/videos/:videoId 직접 접근 시 해당 영상이 있는 강의-차시-영상 탭으로 리다이렉트
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -15,7 +15,7 @@ export default function VideoIdToSessionRedirect() {
   useEffect(() => {
     const id = Number(videoId);
     if (!Number.isFinite(id)) {
-      navigate("/admin/videos", { replace: true });
+      navigate("/workspace/videos", { replace: true });
       setDone(true);
       return;
     }
@@ -23,12 +23,12 @@ export default function VideoIdToSessionRedirect() {
       .then((video) => fetchSession(video.session_id))
       .then((session) => {
         navigate(
-          `/admin/lectures/${session.lecture}/sessions/${session.id}/videos`,
+          `/workspace/lectures/${session.lecture}/sessions/${session.id}/videos`,
           { replace: true }
         );
       })
       .catch(() => {
-        navigate("/admin/videos", { replace: true });
+        navigate("/workspace/videos", { replace: true });
       })
       .finally(() => setDone(true));
   }, [videoId, navigate]);

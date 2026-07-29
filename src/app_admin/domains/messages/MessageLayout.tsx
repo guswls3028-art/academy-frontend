@@ -8,10 +8,10 @@ import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo
 import styles from "./MessageLayout.module.css";
 
 const MESSAGE_TABS: DomainTab[] = [
-  { key: "templates", label: "문구 저장", path: "/admin/message/templates" },
-  { key: "auto-send", label: "자동발송", path: "/admin/message/auto-send" },
-  { key: "log", label: "발송 내역", path: "/admin/message/log" },
-  { key: "settings", label: "설정", path: "/admin/message/settings" },
+  { key: "templates", label: "문구 저장", path: "/workspace/message/templates" },
+  { key: "auto-send", label: "자동발송", path: "/workspace/message/auto-send" },
+  { key: "log", label: "발송 내역", path: "/workspace/message/log" },
+  { key: "settings", label: "설정", path: "/workspace/message/settings" },
 ];
 
 export default function MessageLayout() {
@@ -28,7 +28,7 @@ export default function MessageLayout() {
         <div className={styles.alimtalkNotice}>
           <span>{info.messaging_disabled ? info.messaging_disabled_reason || "알림톡 발송이 운영 중지되었습니다" : "알림톡 발송 준비 상태를 확인해 주세요"}</span>
           <Link
-            to="/admin/message/settings"
+            to="/workspace/message/settings"
             className={styles.alimtalkNoticeLink}
           >
             설정 보기 →

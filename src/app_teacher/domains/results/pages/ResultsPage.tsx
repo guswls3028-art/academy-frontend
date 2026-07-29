@@ -107,7 +107,7 @@ export default function ResultsPage() {
                   첫 강의 선택
                 </EmptyActionButton>
               ) : (
-                <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+                <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
                   강의 확인
                 </EmptyActionButton>
               )}
@@ -173,7 +173,7 @@ export default function ResultsPage() {
                       title="결과가 없습니다"
                       description="성적 입력이 끝나면 학생별 점수와 성취도가 이곳에 표시됩니다."
                       actions={
-                        <EmptyActionButton onClick={() => selectedLecture != null && navigate(`/teacher/classes/${selectedLecture}`)}>
+                        <EmptyActionButton onClick={() => selectedLecture != null && navigate(`/workspace/mobile/classes/${selectedLecture}`)}>
                           강의로 이동
                         </EmptyActionButton>
                       }
@@ -197,7 +197,7 @@ export default function ResultsPage() {
                 title="이 강의에 시험이 없습니다"
                 description="차시에 시험을 추가하면 성적 조회와 통계가 연결됩니다."
                 actions={
-                  <EmptyActionButton onClick={() => navigate(`/teacher/classes/${selectedLecture}`)}>
+                  <EmptyActionButton onClick={() => navigate(`/workspace/mobile/classes/${selectedLecture}`)}>
                     차시 확인
                   </EmptyActionButton>
                 }

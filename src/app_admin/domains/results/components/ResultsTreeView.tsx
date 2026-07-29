@@ -153,7 +153,7 @@ export default function ResultsTreeView() {
                 className={styles.item}
                 onClick={() =>
                   navigate(
-                    `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/scores`
+                    `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/scores`
                   )
                 }
                 title="이 차시 성적 관리"

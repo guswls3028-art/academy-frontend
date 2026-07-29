@@ -279,7 +279,7 @@ export default function StudentListPage() {
             return (
               <button
                 key={s.id}
-                onClick={() => selectMode ? toggleSelect(s.id) : navigate(`/teacher/students/${s.id}`)}
+                onClick={() => selectMode ? toggleSelect(s.id) : navigate(`/workspace/mobile/students/${s.id}`)}
                 className="flex gap-3 rounded-xl w-full text-left cursor-pointer"
                 style={{
                   padding: "var(--tc-space-3) var(--tc-space-4)",

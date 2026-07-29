@@ -228,8 +228,8 @@ export default function Header() {
   const userMenu = {
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
-      if (key === "profile") nav("/admin/settings/profile");
-      if (key === "settings") nav("/admin/settings");
+      if (key === "profile") nav("/workspace/settings/profile");
+      if (key === "settings") nav("/workspace/settings");
       if (key === "landing") {
         // 같은 탭 — 로그인 토큰은 same-origin 자동 유지. 학원장이 자기 도메인 랜딩 즉시 확인.
         window.location.assign("/landing");
@@ -333,7 +333,7 @@ export default function Header() {
               aria-label="대시보드로 이동"
               title="대시보드로 이동"
               data-testid="app-header-go-dashboard"
-              onClick={() => nav("/admin/dashboard")}
+              onClick={() => nav("/workspace/dashboard")}
               leftIcon={<HomeIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
             />
           </div>
@@ -345,7 +345,7 @@ export default function Header() {
             style={headerBrandStyle as React.CSSProperties | undefined}
             title={`${academyName} 대시보드`}
             aria-label={`${academyName} 대시보드로 이동`}
-            onClick={() => nav("/admin/dashboard")}
+            onClick={() => nav("/workspace/dashboard")}
           >
             <span className="app-header__brandMark" aria-hidden>
               {brandLogoUrl ? (

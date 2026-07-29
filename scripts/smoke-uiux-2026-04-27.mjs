@@ -2,8 +2,8 @@
  * One-shot UIUX smoke for 강의-차시-시험/과제 changes (2026-04-27).
  *
  * Loads:
- *   - admin /admin/lectures (then drills into first lecture → first session → exams/assignments)
- *   - admin /teacher/exams (admin가 teacher 라우트 진입; 권한 충족 시)
+ *   - full workspace /workspace/lectures (then drills into first lecture → first session → exams/assignments)
+ *   - mobile workspace /workspace/mobile/exams (admin 역할도 권한 충족 시 진입)
  *   - student /student/sessions (then first session detail)
  *
  * Asserts: no page-level JS errors, and screenshots saved to test-results/.
@@ -71,12 +71,12 @@ async function runAdmin(browser) {
   const errs = watchPageErrors(page, "admin");
   await loginAndInjectToken(page, ADMIN);
 
-  console.log("→ admin /admin/lectures");
-  await page.goto(`${LOCAL}/admin/lectures`, { waitUntil: "networkidle" });
+  console.log("→ full workspace /workspace/lectures");
+  await page.goto(`${LOCAL}/workspace/lectures`, { waitUntil: "networkidle" });
   await snap(page, "01-admin-lectures");
 
   // Find a lecture id from the rendered DOM. Lectures are rendered in a table; the "차시" gear or
-  // row click navigates to /admin/lectures/{id}. We probe via API instead to avoid selector fragility.
+  // row click navigates to /workspace/lectures/{id}. We probe via API instead to avoid selector fragility.
   const lectureResp = await page.request.get(`${API}/api/v1/lectures/lectures/?page_size=5`, {
     headers: {
       Authorization: `Bearer ${await page.evaluate(() => localStorage.getItem("access"))}`,
@@ -95,7 +95,7 @@ async function runAdmin(browser) {
   } else {
     console.log(`  → lecture ${lectureId}`);
 
-    await page.goto(`${LOCAL}/admin/lectures/${lectureId}/sessions`, { waitUntil: "networkidle" });
+    await page.goto(`${LOCAL}/workspace/lectures/${lectureId}/sessions`, { waitUntil: "networkidle" });
     await page.waitForTimeout(600);
     await snap(page, "02-admin-lecture-sessions");
 
@@ -113,7 +113,7 @@ async function runAdmin(browser) {
       console.log("  (no sessions via API)");
     } else {
       console.log(`  → session ${sessionId}`);
-      const sessionPath = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+      const sessionPath = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
 
       await page.goto(`${LOCAL}${sessionPath}/exams`, { waitUntil: "networkidle" });
       await page.waitForTimeout(1200); // allow exam summary fetch
@@ -125,8 +125,8 @@ async function runAdmin(browser) {
     }
   }
 
-  console.log("→ admin /teacher/exams");
-  await page.goto(`${LOCAL}/teacher/exams`, { waitUntil: "networkidle" });
+  console.log("→ mobile workspace /workspace/mobile/exams");
+  await page.goto(`${LOCAL}/workspace/mobile/exams`, { waitUntil: "networkidle" });
   await page.waitForTimeout(500);
   await snap(page, "05-teacher-exams-tab");
 

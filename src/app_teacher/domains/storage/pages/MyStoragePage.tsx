@@ -5,7 +5,7 @@ import { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -361,7 +361,7 @@ export default function MyStoragePage() {
           OCR 기반 문제 매치업은 큰 화면이 필요해 PC에서 진행합니다.
         </div>
         <button
-          onClick={() => { setPreferAdmin(true); navigate("/admin/storage/matchup"); }}
+          onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/storage/matchup"); }}
           className="flex items-center justify-center gap-2 w-full text-sm font-semibold cursor-pointer"
           style={{
             padding: "10px",

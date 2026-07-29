@@ -176,7 +176,7 @@ export default function TeacherSettingsPage() {
       {/* ── Theme section ── 외관 페이지 (SSOT)로 라우팅. settings에 12카드 중복 노출 제거. */}
       <Section title="테마" icon={<Palette size={ICON.sm} />}>
         <button
-          onClick={() => navigate("/teacher/settings/appearance")}
+          onClick={() => navigate("/workspace/mobile/settings/appearance")}
           className="flex items-center justify-between w-full cursor-pointer"
           style={{
             padding: "10px 12px",

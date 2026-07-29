@@ -30,8 +30,8 @@ export default function DevLayout() {
   useCommandPaletteHotkey(setPaletteOpen);
   useDevPwa();
   const operationsConsoleHref = isDeveloperConsoleHost()
-    ? `${PRIMARY_APP_ORIGIN}/admin`
-    : "/admin";
+    ? `${PRIMARY_APP_ORIGIN}/workspace`
+    : "/workspace";
 
   // 백엔드 OWNER_TENANT_ID(SSOT). isPlatformAdmin 미지원 백엔드는 tenantCode로 폴백.
   if (program) {
@@ -39,7 +39,7 @@ export default function DevLayout() {
       ? program.isPlatformAdmin
       : program.tenantCode === "hakwonplus" || program.tenantCode === "9999";
     if (!allowed) {
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/workspace" replace />;
     }
   }
   const isActive = (path: string) =>

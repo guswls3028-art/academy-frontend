@@ -494,7 +494,7 @@ export default function StudentsHomePage() {
               onSortChange={handleSortChange}
               onRowClick={(id) => {
                 if (!isDeletedTab) {
-                  navigate(`/admin/students/${id}`, {
+                  navigate(`/workspace/students/${id}`, {
                     state: { backgroundLocation: location },
                   });
                 }

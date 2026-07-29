@@ -73,7 +73,7 @@ export default function MessageLogPage() {
           title="발송 내역이 없습니다"
           description="학생을 선택해 알림톡을 보내면 성공·실패 결과가 이곳에 기록됩니다."
           actions={
-            <EmptyActionButton onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
+            <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
               학생 선택 발송
             </EmptyActionButton>
           }

@@ -244,7 +244,7 @@ export default function DashboardPage() {
                 action="답변하기"
                 tone="question"
                 icon={<MessageCircleQuestion size={20} aria-hidden="true" />}
-                onClick={() => navigate("/admin/community/qna")}
+                onClick={() => navigate("/workspace/community/qna")}
               />
               <TaskCard
                 label="제출 채점 대기"
@@ -255,7 +255,7 @@ export default function DashboardPage() {
                 action="채점하기"
                 tone="submission"
                 icon={<FileCheck2 size={20} aria-hidden="true" />}
-                onClick={() => navigate("/admin/results/submissions")}
+                onClick={() => navigate("/workspace/results/submissions")}
               />
               <TaskCard
                 label="운영 중 시험"
@@ -266,7 +266,7 @@ export default function DashboardPage() {
                 action="관리하기"
                 tone="exam"
                 icon={<ClipboardCheck size={20} aria-hidden="true" />}
-                onClick={() => navigate("/admin/exams")}
+                onClick={() => navigate("/workspace/exams")}
               />
               <TaskCard
                 label="클리닉 패스카드"
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                 <Button
                   size="sm"
                   intent={alimtalkState === "ready" || alimtalkState === "loading" ? "secondary" : "primary"}
-                  onClick={() => navigate("/admin/message/settings")}
+                  onClick={() => navigate("/workspace/message/settings")}
                 >
                   메시지 설정 보기
                 </Button>

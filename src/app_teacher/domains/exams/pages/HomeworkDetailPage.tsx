@@ -124,7 +124,7 @@ export default function HomeworkDetailPage() {
           }}
           onOpenStudent={(s) => {
             if (s.student_id != null && s.student_id > 0) {
-              navigate(`/teacher/students/${s.student_id}`);
+              navigate(`/workspace/mobile/students/${s.student_id}`);
             } else {
               teacherToast.error("학생 상세 정보를 찾을 수 없습니다.");
             }

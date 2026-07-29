@@ -42,7 +42,7 @@ export default function LectureLayout() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "강의", to: "/admin/lectures" },
+      { label: "강의", to: "/workspace/lectures" },
       { label: title },
     ],
     [title]
@@ -52,7 +52,7 @@ export default function LectureLayout() {
     <Button
       intent="secondary"
       size="sm"
-      onClick={() => navigate(`/admin/lectures/${lectureIdNum}/sections`)}
+      onClick={() => navigate(`/workspace/lectures/${lectureIdNum}/sections`)}
       leftIcon={<Users size={14} />}
     >
       반 편성

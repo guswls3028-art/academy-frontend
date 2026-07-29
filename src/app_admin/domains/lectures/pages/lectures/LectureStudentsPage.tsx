@@ -327,7 +327,7 @@ export default function LectureStudentsPage() {
                     {sortedFiltered.map((row) => (
                       <tr
                         key={row.student_id}
-                        onClick={() => navigate(`/admin/students/${row.student_id}`, {
+                        onClick={() => navigate(`/workspace/students/${row.student_id}`, {
                           state: { backgroundLocation: location },
                         })}
                         tabIndex={0}

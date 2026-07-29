@@ -5,6 +5,8 @@ Allow: /promo
 Allow: /promo/
 Allow: /terms
 Allow: /privacy
+Disallow: /workspace
+Disallow: /workspace/
 Disallow: /admin
 Disallow: /admin/
 Disallow: /student

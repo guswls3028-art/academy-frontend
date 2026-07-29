@@ -713,7 +713,7 @@ export default function AutoSendSettingsPanel({
               type="button"
               intent="primary"
               size="sm"
-              onClick={() => navigate("/admin/message/auto-send")}
+              onClick={() => navigate("/workspace/message/auto-send")}
             >
               자동발송 페이지로 이동
             </Button>

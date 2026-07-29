@@ -1,3 +1,4 @@
+import { canonicalizeWorkspacePath } from "@/core/router/workspaceRoutes";
 import type { ProductRoute } from "./types";
 
 type CompiledRoute = ProductRoute & { matcher: RegExp };
@@ -106,15 +107,7 @@ function publicRoute(candidate: CompiledRoute): ProductRoute {
 }
 
 export function resolveProductRoute(pathname: string): ProductRoute | null {
-  const canonicalPathname = pathname === "/admin"
-    ? "/workspace/dashboard"
-    : pathname.startsWith("/admin/")
-      ? `/workspace/${pathname.slice("/admin/".length)}`
-      : pathname === "/teacher"
-        ? "/workspace/mobile"
-        : pathname.startsWith("/teacher/")
-          ? `/workspace/mobile/${pathname.slice("/teacher/".length)}`
-          : pathname;
+  const canonicalPathname = canonicalizeWorkspacePath(pathname) ?? pathname;
   const match = ROUTES.find((candidate) =>
     candidate.matcher.test(canonicalPathname),
   );

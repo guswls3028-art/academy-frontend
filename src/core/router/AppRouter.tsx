@@ -2,13 +2,19 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
-import MobileTeacherRedirect, { prefersAdmin } from "./MobileTeacherRedirect";
+import MobileWorkspaceRedirect, {
+  prefersFullWorkspace,
+} from "./MobileWorkspaceRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import RouteFallback from "./RouteFallback";
 import { ProductAnalyticsProvider } from "@/shared/productAnalytics";
+import {
+  canonicalizeWorkspacePath,
+  WORKSPACE_PATHS,
+} from "./workspaceRoutes";
 
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
-const TeacherRouter = lazy(() => import("@teacher/app/TeacherRouter"));
+const MobileWorkspaceRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
@@ -27,7 +33,7 @@ import {
   isPrimaryAppHost,
 } from "@/shared/constants/origins";
 
-const AdminRouter = lazy(() => import("@admin/app/AdminRouter"));
+const FullWorkspaceRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const LandingRouter = lazy(() => import("@/landing/app/LandingRouter"));
@@ -57,6 +63,20 @@ function MaintenanceGate({ enabled }: { enabled: boolean }) {
   }
 
   return <Navigate to="/maintenance" replace />;
+}
+
+function LegacyWorkspaceRedirect() {
+  const location = useLocation();
+  const pathname = canonicalizeWorkspacePath(location.pathname);
+  if (!pathname) return <Navigate to="/" replace />;
+
+  return (
+    <Navigate
+      to={{ pathname, search: location.search, hash: location.hash }}
+      state={location.state}
+      replace
+    />
+  );
 }
 
 /** 홍보 테넌트(hakwonplus, 9999)만 /promo 접근 허용. 그 외 테넌트는 / 로 리다이렉트. */
@@ -100,7 +120,7 @@ function RootRedirect() {
       isAuthenticated: true,
       isMobile,
       isStandalone,
-      prefersAdmin: prefersAdmin(),
+      prefersFullWorkspace: prefersFullWorkspace(),
     }), { replace: true });
   }, [programLoading, program, isLoading, authUnavailable, user, navigate]);
 
@@ -217,31 +237,39 @@ export default function AppRouter() {
             <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
           }
         >
-          <Route element={<MobileTeacherRedirect />}>
+          <Route element={<MobileWorkspaceRedirect />}>
             <Route
-              path="/admin/*"
+              path={`${WORKSPACE_PATHS.full}/*`}
               element={
                 <ErrorBoundary>
                   <Suspense
                     fallback={<RouteFallback />}
                   >
-                    <AdminRouter />
+                    <FullWorkspaceRouter />
                   </Suspense>
                 </ErrorBoundary>
               }
             />
           </Route>
           <Route
-            path="/teacher/*"
+            path={`${WORKSPACE_PATHS.mobile}/*`}
             element={
               <ErrorBoundary>
                 <Suspense
                   fallback={<RouteFallback />}
                 >
-                  <TeacherRouter />
+                  <MobileWorkspaceRouter />
                 </Suspense>
               </ErrorBoundary>
             }
+          />
+          <Route
+            path={`${WORKSPACE_PATHS.legacyFull}/*`}
+            element={<LegacyWorkspaceRedirect />}
+          />
+          <Route
+            path={`${WORKSPACE_PATHS.legacyMobile}/*`}
+            element={<LegacyWorkspaceRedirect />}
           />
         </Route>
       </Route>

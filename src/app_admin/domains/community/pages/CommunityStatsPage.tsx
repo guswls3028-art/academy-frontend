@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/community/pages/CommunityStatsPage.tsx
-// 학원장 커뮤니티 통계 — /admin/community/stats
+// 학원장 커뮤니티 통계 — /workspace/community/stats
 //
 // 최근 N일 게시판별 글/댓글/좋아요/신고 카운트 + top posts.
 // 사용자 spec(2026-05-11 추가 cycle #10).
@@ -164,7 +164,7 @@ export default function CommunityStatsPage() {
                       style={{ padding: "6px 12px", borderRadius: 8, background: "#fff", border: "1px solid #CBD5E1", color: "#475569", fontSize: 11.5, fontWeight: 600, textDecoration: "none" }}
                     >보기 ↗</Link>
                     <Link
-                      to={`/admin/settings/landing?prefill_hero_post=${p.id}&post_type=${p.post_type}`}
+                      to={`/workspace/settings/landing?prefill_hero_post=${p.id}&post_type=${p.post_type}`}
                       title="이 글을 학원 홈페이지 hero 캐러셀에 등록"
                       style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, textDecoration: "none" }}
                     >⭐ Hero에 등록</Link>

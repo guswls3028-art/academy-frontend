@@ -24,7 +24,7 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
   admin: {
     title: "관리자 가이드북",
     subtitle: "처음엔 기본 세팅과 오늘 운영 흐름만 확인하세요.",
-    fullGuidePath: "/admin/guide",
+    fullGuidePath: "/workspace/guide",
     fullGuideLabel: "관리자 전체 가이드",
     sections: [
       {
@@ -33,13 +33,13 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
           {
             title: "학생 1명으로 먼저 테스트",
             description: "학생 등록, 강의 배정, 학생 로그인까지 한 번만 먼저 확인합니다.",
-            path: "/admin/students",
+            path: "/workspace/students",
             actionLabel: "학생 관리",
           },
           {
             title: "강의와 차시를 기준으로 운영",
             description: "출결, 시험, 영상, 성적은 강의와 차시가 연결점입니다.",
-            path: "/admin/lectures",
+            path: "/workspace/lectures",
             actionLabel: "강의 관리",
           },
         ],
@@ -50,13 +50,13 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
           {
             title: "성적과 출력물 확인",
             description: "성적표, 클리닉 대상자, 테넌트별 출력물을 성적탭에서 처리합니다.",
-            path: "/admin/results",
+            path: "/workspace/results",
             actionLabel: "성적",
           },
           {
             title: "알림톡 결과 확인",
             description: "발송 후 성공, 실패, 대기 상태는 발송 내역에서 다시 봅니다.",
-            path: "/admin/message/log",
+            path: "/workspace/message/log",
             actionLabel: "발송 내역",
           },
         ],
@@ -66,7 +66,7 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
   teacher: {
     title: "선생님 가이드북",
     subtitle: "수업 현장에서는 오늘 수업, 학생, 알림만 빠르게 봅니다.",
-    fullGuidePath: "/teacher/guide",
+    fullGuidePath: "/workspace/mobile/guide",
     fullGuideLabel: "선생님 전체 가이드",
     sections: [
       {
@@ -75,13 +75,13 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
           {
             title: "대시보드에서 시작",
             description: "오늘 차시, 처리할 일, 알림 상태를 먼저 확인합니다.",
-            path: "/teacher",
+            path: "/workspace/mobile",
             actionLabel: "대시보드",
           },
           {
             title: "강의에서 출결과 성적 입력",
             description: "차시를 열고 출결, 제출 확인, 성적 입력으로 이어갑니다.",
-            path: "/teacher/classes",
+            path: "/workspace/mobile/classes",
             actionLabel: "강의",
           },
         ],
@@ -92,13 +92,13 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
           {
             title: "학생 검색 후 바로 처리",
             description: "학생을 찾아 상담 메모, 학부모 알림, 제출 현황을 확인합니다.",
-            path: "/teacher/students",
+            path: "/workspace/mobile/students",
             actionLabel: "학생",
           },
           {
             title: "발송 결과는 따로 확인",
             description: "보낸 알림톡은 발송 내역에서 성공/실패까지 확인합니다.",
-            path: "/teacher/message-log",
+            path: "/workspace/mobile/message-log",
             actionLabel: "발송 내역",
           },
         ],

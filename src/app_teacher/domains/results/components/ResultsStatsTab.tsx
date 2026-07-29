@@ -213,7 +213,7 @@ export default function ResultsStatsTab() {
           title="강의를 선택하세요"
           description="강의를 선택하면 시험 통계와 과제 제출 현황이 함께 표시됩니다."
           actions={
-            <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/classes")}>
+            <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/classes")}>
               강의 확인
             </EmptyActionButton>
           }
@@ -273,7 +273,7 @@ export default function ResultsStatsTab() {
                   title="아직 응시한 학생이 없습니다"
                   description="학생 점수를 입력하거나 OMR을 채점하면 통계가 생성됩니다."
                   actions={
-                    <EmptyActionButton onClick={() => navigate("/teacher/exams")}>
+                    <EmptyActionButton onClick={() => navigate("/workspace/mobile/exams")}>
                       시험 관리
                     </EmptyActionButton>
                   }
@@ -526,7 +526,7 @@ export default function ResultsStatsTab() {
             title="이 강의에 시험이 없습니다"
             description="차시에 시험을 추가하면 강의별 성적 통계가 생성됩니다."
             actions={
-              <EmptyActionButton onClick={() => navigate("/teacher/exams")}>
+              <EmptyActionButton onClick={() => navigate("/workspace/mobile/exams")}>
                 시험 관리
               </EmptyActionButton>
             }

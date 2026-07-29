@@ -80,13 +80,13 @@ function sessionTab(page: Page, label: "성적" | "시험" | "과제"): Locator 
 }
 
 async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<void> {
-  const lecturesLink = page.locator('nav a[href="/admin/lectures"], aside a[href="/admin/lectures"], [class*=sidebar] a[href="/admin/lectures"]')
+  const lecturesLink = page.locator('nav a[href="/workspace/lectures"], aside a[href="/workspace/lectures"], [class*=sidebar] a[href="/workspace/lectures"]')
     .filter({ hasText: "강의" })
     .first();
   await expect(lecturesLink, "sidebar lectures link").toBeVisible({ timeout: 10_000 });
   await lecturesLink.click();
   await waitForRenderSettled(page, { timeout: 15_000 });
-  await expect(page).toHaveURL(/\/admin\/lectures(?:\/)?$/);
+  await expect(page).toHaveURL(/\/workspace\/lectures(?:\/)?$/);
   await expect(page.getByText("Not Found", { exact: true })).toHaveCount(0);
 
   const table = page.locator('[data-guide="lectures-table"]');
@@ -96,7 +96,7 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
   await expect(lectureRow, `lecture row "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
   await lectureRow.click();
 
-  await expect(page).toHaveURL(new RegExp(`/admin/lectures/${lecture.id}(?:[/?#]|$)`), { timeout: 10_000 });
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${lecture.id}(?:[/?#]|$)`), { timeout: 10_000 });
   await waitForRenderSettled(page, { timeout: 15_000 });
   await expect(page.getByText("Not Found", { exact: true })).toHaveCount(0);
 }
@@ -106,7 +106,7 @@ async function openFirstSessionFromLecture(page: Page): Promise<void> {
   await expect(sessionBlock, "lecture detail should expose at least one session block").toBeVisible({ timeout: 15_000 });
   await sessionBlock.click();
 
-  await expect(page).toHaveURL(/\/admin\/lectures\/\d+\/sessions\/\d+\/attendance(?:[/?#]|$)/, {
+  await expect(page).toHaveURL(/\/workspace\/lectures\/\d+\/sessions\/\d+\/attendance(?:[/?#]|$)/, {
     timeout: 10_000,
   });
   await waitForRenderSettled(page, { timeout: 15_000 });
@@ -124,7 +124,7 @@ async function clickSessionTab(page: Page, label: "성적" | "시험" | "과제"
   await expect(tab, `${label} tab should be clickable`).toBeVisible({ timeout: 10_000 });
   await tab.click();
 
-  await expect(page).toHaveURL(new RegExp(`/admin/lectures/\\d+/sessions/\\d+/${path}(?:\\?.*)?$`), {
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/\\d+/sessions/\\d+/${path}(?:\\?.*)?$`), {
     timeout: 10_000,
   });
   await waitForRenderSettled(page, { timeout: 15_000 });
@@ -227,7 +227,7 @@ test.describe("admin real-use session assessment flow", () => {
 
     const targetLecture = await findActiveLectureWithSession(page);
     if (targetLecture == null) {
-      test.skip(true, "setup: no active lecture with an existing session is available under /admin/lectures");
+      test.skip(true, "setup: no active lecture with an existing session is available under /workspace/lectures");
       return;
     }
 

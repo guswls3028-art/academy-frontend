@@ -1,11 +1,11 @@
 /**
- * E2E: 선생님 앱 PWA + 모바일 자동 리다이렉트 검증
- * - 모바일 뷰포트에서 /teacher 자동 진입
+ * E2E: 모바일 업무 PWA + 모바일 자동 리다이렉트 검증
+ * - 모바일 뷰포트에서 /workspace/mobile 자동 진입
  * - PWA manifest 로딩
  * - SW 등록
  * - 5탭 렌더링
  * - 프로필 페이지 (설치 카드)
- * - 데스크톱 전환 → admin 진입
+ * - 데스크톱 전환 → 통합 업무 진입
  */
 import { test, expect } from "../fixtures/strictTest";
 
@@ -28,33 +28,34 @@ async function loginMobile(page: import("@playwright/test").Page) {
   await page.evaluate(({ access, refresh }) => {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
+    localStorage.removeItem("workspace:preferFull:tchul");
     localStorage.removeItem("teacher:preferAdmin");
     try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
   }, tokens);
 }
 
-test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
+test.describe("모바일 업무 PWA + 모바일 리다이렉트", () => {
   test.use({
     viewport: { width: 390, height: 844 }, // iPhone 14 Pro
     userAgent:
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   });
 
-  test("모바일에서 / 접근 → /teacher 리다이렉트", async ({ page }) => {
+  test("모바일에서 / 접근 → /workspace/mobile 리다이렉트", async ({ page }) => {
     await loginMobile(page);
     await page.goto(`${TCHUL}/`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForURL(/\/teacher/, { timeout: 10_000 }).catch(() => {});
+    await page.waitForURL(/\/workspace\/mobile/, { timeout: 10_000 }).catch(() => {});
 
-    // /teacher로 리다이렉트되었는지 확인
+    // canonical 모바일 업무 화면으로 리다이렉트되었는지 확인
     const url = page.url();
-    expect(url).toContain("/teacher");
+    expect(url).toContain("/workspace/mobile");
 
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-01-mobile-redirect.png", fullPage: false });
   });
 
-  test("선생님 앱 5탭 렌더링 + manifest 로딩", async ({ page }) => {
+  test("모바일 업무 5탭 렌더링 + manifest 로딩", async ({ page }) => {
     await loginMobile(page);
-    await page.goto(`${TCHUL}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${TCHUL}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
 
     // data-app="teacher" 확인
     await expect(page.locator('[data-app="teacher"]')).toBeVisible({ timeout: 10_000 });
@@ -77,7 +78,7 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
       const meta = document.querySelector('meta[name="apple-mobile-web-app-title"][data-teacher]');
       return meta?.getAttribute("content");
     });
-    expect(appleTitle).toBe("박철 과학 선생님");
+    expect(appleTitle).toBe("박철 과학 모바일 업무");
 
     const appleIcon = await page.evaluate(() => {
       const link = document.querySelector('link[rel="apple-touch-icon"][data-teacher]');
@@ -90,13 +91,13 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
 
   test("프로필 페이지 렌더링", async ({ page }) => {
     await loginMobile(page);
-    await page.goto(`${TCHUL}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${TCHUL}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
 
     // 더보기 탭 클릭 → 드로어 열기
     await expect(page.locator('[data-app="teacher"]')).toBeVisible({ timeout: 10_000 });
 
     // 내 프로필로 직접 이동 (드로어 경유 대신)
-    await page.goto(`${TCHUL}/teacher/profile`, { waitUntil: "load", timeout: 15_000 });
+    await page.goto(`${TCHUL}/workspace/mobile/profile`, { waitUntil: "load", timeout: 15_000 });
 
     // 프로필 페이지 렌더링 확인 (h1)
     await expect(page.getByRole("heading", { name: "프로필" })).toBeVisible({ timeout: 5_000 });
@@ -109,9 +110,11 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
     const manifestResp = await page.request.get(`${TCHUL}/teacher-manifest.json`);
     expect(manifestResp.status()).toBe(200);
     const manifest = await manifestResp.json();
-    expect(manifest.name).toBe("박철 과학 선생님");
+    expect(manifest.name).toBe("박철 과학 모바일 업무");
     expect(manifest.short_name).toBe("박철 과학");
-    expect(manifest.start_url).toBe("/teacher");
+    expect(manifest.id).toBe("/teacher");
+    expect(manifest.start_url).toBe("/workspace/mobile");
+    expect(manifest.scope).toBe("/workspace/mobile");
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons?.[0]?.src).toBe("/tenants/tchul/pwa-192.png");
     expect(manifest.icons?.[1]?.src).toBe("/tenants/tchul/pwa-512.png");
@@ -136,12 +139,12 @@ test.describe("선생님 앱 PWA + 모바일 리다이렉트", () => {
   });
 });
 
-test.describe("데스크톱 → admin 유지", () => {
+test.describe("데스크톱 → 통합 업무 유지", () => {
   test.use({
     viewport: { width: 1440, height: 900 },
   });
 
-  test("데스크톱에서 / 접근 → /admin 유지", async ({ page }) => {
+  test("데스크톱에서 / 접근 → /workspace 유지", async ({ page }) => {
     const resp = await page.request.post(`${API}/api/v1/token/`, {
       data: { username: USER, password: PASS, tenant_code: "tchul" },
       headers: { "Content-Type": "application/json", "X-Tenant-Code": "tchul" },
@@ -153,15 +156,16 @@ test.describe("데스크톱 → admin 유지", () => {
     await page.evaluate(({ access, refresh }) => {
       localStorage.setItem("access", access);
       localStorage.setItem("refresh", refresh);
+      localStorage.removeItem("workspace:preferFull:tchul");
       localStorage.removeItem("teacher:preferAdmin");
       try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
     }, tokens);
 
     await page.goto(`${TCHUL}/`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForURL(/\/admin/, { timeout: 10_000 }).catch(() => {});
+    await page.waitForURL(/\/workspace/, { timeout: 10_000 }).catch(() => {});
 
     const url = page.url();
-    expect(url).toContain("/admin");
+    expect(url).toContain("/workspace");
 
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-04-desktop-admin.png", fullPage: false });
   });

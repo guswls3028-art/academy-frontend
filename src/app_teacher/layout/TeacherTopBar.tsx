@@ -84,7 +84,7 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
         )}
         <button
           type="button"
-          onClick={() => navigate("/teacher")}
+          onClick={() => navigate("/workspace/mobile")}
           aria-label="선생님 홈으로 이동"
           title="선생님 홈으로 이동"
           data-testid="tc-topbar-go-dashboard"
@@ -106,7 +106,7 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
           </svg>
         </button>
         <button
-          onClick={() => navigate("/teacher")}
+          onClick={() => navigate("/workspace/mobile")}
           aria-label="홈으로"
           className="teacher-topbar__brand"
           data-tenant-header-brand={headerBrandStyle ? "" : undefined}
@@ -183,7 +183,7 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
           onNavigate={navigate}
         />
         <button
-          onClick={() => navigate("/teacher/notifications")}
+          onClick={() => navigate("/workspace/mobile/notifications")}
           aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
           style={{
             background: "none",

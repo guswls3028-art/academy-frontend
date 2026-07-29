@@ -67,7 +67,7 @@ export default function MatchupEmptyState({ onUpload }: Props) {
       <Button
         size="sm"
         intent="ghost"
-        onClick={() => navigate("/admin/storage/files")}
+        onClick={() => navigate("/workspace/storage/files")}
         data-testid="matchup-empty-storage-link"
         leftIcon={<FolderOpen size={ICON.sm} />}
         className={styles.storageLink}

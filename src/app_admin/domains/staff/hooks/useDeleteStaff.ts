@@ -10,14 +10,14 @@ import { staffQueryKeys } from "../queryKeys";
  * StaffDetailOverlay에서 이력 없는 오등록 직원의 영구 삭제에만 사용한다.
  */
 export function useDeleteStaff(opts?: {
-  /** 삭제 성공 후 이동할 경로. 기본값: /admin/staff/home */
+  /** 삭제 성공 후 이동할 경로. 기본값: /workspace/staff/home */
   navigateTo?: string;
   /** 삭제 성공 후 추가 콜백 */
   onSuccess?: () => void;
 }) {
   const qc = useQueryClient();
   const nav = useNavigate();
-  const navigateTo = opts?.navigateTo ?? "/admin/staff/home";
+  const navigateTo = opts?.navigateTo ?? "/workspace/staff/home";
 
   return useMutation({
     mutationFn: (staffId: number) => deleteStaff(staffId),

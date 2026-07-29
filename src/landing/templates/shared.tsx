@@ -628,12 +628,12 @@ function NavRoleAuthMenu({ cta: _cta, ctaLink: _ctaLink, tokens, variant = "head
   const { user, isAuthenticated } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
-  let myPath = "/admin";
+  let myPath = "/workspace";
   let roleLabel = "관리실";
   if (role === "student") { myPath = "/student"; roleLabel = "내 학생앱"; }
   else if (role === "parent") { myPath = "/student"; roleLabel = "학부모 페이지"; }
-  else if (role === "teacher") { myPath = "/admin"; roleLabel = "강사 콘솔"; }
-  else if (role === "assistant") { myPath = "/admin"; roleLabel = "조교 콘솔"; }
+  else if (role === "teacher") { myPath = "/workspace"; roleLabel = "강사 콘솔"; }
+  else if (role === "assistant") { myPath = "/workspace"; roleLabel = "조교 콘솔"; }
 
   const isFooter = variant === "footer";
 
@@ -980,7 +980,7 @@ export function HitReportCards({ items, color, rgb, theme = "light" }: { items: 
           canManage={canManage}
           manageChipBg={manageChipBg}
           manageChipColor={manageChipColor}
-          onManage={() => navigate("/admin/storage/hit-reports")}
+          onManage={() => navigate("/workspace/storage/hit-reports")}
         />
       ))}
     </div>

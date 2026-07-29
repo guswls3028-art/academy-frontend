@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
-import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { Card, BackButton, SectionTitle } from "@teacher/shared/ui/Card";
 import { Monitor, Award, FolderPlus, FileText, Settings, ChevronRight } from "@teacher/shared/ui/Icons";
 
@@ -21,25 +21,25 @@ const FEATURES: DesktopFeature[] = [
     icon: <FolderPlus size={ICON.lg} />,
     title: "매치업 (OCR)",
     desc: "문제 이미지에서 영역을 지정해 매치하는 작업은 큰 캔버스가 필요합니다.",
-    desktopPath: "/admin/storage/matchup",
+    desktopPath: "/workspace/storage/matchup",
   },
   {
     icon: <FileText size={ICON.lg} />,
     title: "랜딩 페이지 편집기",
     desc: "학원 홈페이지 디자인·섹션 배치·이미지 업로드는 데스크톱에서 진행하세요.",
-    desktopPath: "/admin/settings/landing",
+    desktopPath: "/workspace/settings/landing",
   },
   {
     icon: <Settings size={ICON.lg} />,
     title: "기능 플래그 / 고급 설정",
     desc: "베타 기능 토글·세부 정책은 PC에서 확인하세요.",
-    desktopPath: "/admin/developer/flags",
+    desktopPath: "/workspace/developer/flags",
   },
   {
     icon: <Award size={ICON.lg} />,
     title: "자료실 전체 뷰",
     desc: "여러 학생·폴더를 한 화면에서 드래그해 이동할 때는 PC가 편합니다.",
-    desktopPath: "/admin/storage",
+    desktopPath: "/workspace/storage",
   },
 ];
 
@@ -47,11 +47,11 @@ export default function DesktopOnlyPage() {
   const navigate = useNavigate();
 
   const goDesktop = (path?: string) => {
-    setPreferAdmin(true);
+    setPreferFullWorkspace(true);
     if (path) {
       navigate(path);
     } else {
-      navigate("/admin");
+      navigate("/workspace");
     }
   };
 
@@ -76,7 +76,7 @@ export default function DesktopOnlyPage() {
           onClick={() => goDesktop()}
           className={styles.primaryButton}
         >
-          <Monitor size={ICON.sm} /> 데스크톱 버전으로 이동
+          <Monitor size={ICON.sm} /> 통합 업무 화면으로 이동
         </button>
       </Card>
 
