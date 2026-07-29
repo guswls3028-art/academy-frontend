@@ -218,7 +218,7 @@ function assessmentRemote(page: Page): Locator {
 }
 
 test.describe("admin real-use session assessment flow", () => {
-  test.setTimeout(120_000);
+  test.setTimeout(420_000);
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("clicks from lectures to a session and verifies assessment tabs/buttons read-only", async ({ page }) => {

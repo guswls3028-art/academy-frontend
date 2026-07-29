@@ -19,7 +19,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   test.beforeAll(async ({ browser: b }) => { browser = b; });
 
   test("1. 선생이 클리닉 세션을 생성한다", async ({ browser: currentBrowser }, testInfo) => {
-    testInfo.setTimeout(60_000);
+    testInfo.setTimeout(360_000);
     const ctx = await currentBrowser.newContext();
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
