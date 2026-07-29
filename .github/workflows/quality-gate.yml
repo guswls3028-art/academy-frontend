@@ -299,42 +299,19 @@ jobs:
             exit 1
           fi
 
-  # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
-  deploy:
-    name: Deploy to Cloudflare Pages
+  # One-time closure migration. Remove this exact job after the PR run verifies
+  # that Git production deploys are disabled and preview deployment stays on.
+  disable-duplicate-production-deploy:
+    name: Disable duplicate Cloudflare Git production deployments
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
     needs: [quality-check, hangul-companion-check, candidate-preview]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    outputs:
-      baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
-      baseline_version: ${{ steps.production-baseline.outputs.version }}
-      production_branch: ${{ steps.production-baseline.outputs.production_branch }}
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/closure-docs-frontend-20260730'
 
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: deploy-bundle
-
-      - name: Verify Functions bundle exists
-        run: |
-          if [ ! -f functions/\[\[path\]\].ts ]; then
-            echo "::error::functions/[[path]].ts missing — CF Functions will not deploy!"
-            exit 1
-          fi
-          if [ ! -f src/core/router/workspaceRoutes.ts ]; then
-            echo "::error::workspaceRoutes.ts missing — Functions import cannot be bundled"
-            exit 1
-          fi
-          echo "✅ Functions bundle found"
-
-      # One-time closure migration. Revert this step after the exact PR run
-      # verifies that Git production deploys are disabled and previews stay on.
-      - name: Disable duplicate Cloudflare Git production deployments
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.head_ref == 'agent/closure-docs-frontend-20260730'
+      - name: Disable production auto-deploy and preserve previews
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
@@ -388,6 +365,36 @@ jobs:
             exit 1
           fi
           echo "Cloudflare Git production deployments disabled; preview setting preserved (${AFTER_PREVIEW_SETTING})."
+
+  # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [quality-check, hangul-companion-check, candidate-preview]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
+      baseline_version: ${{ steps.production-baseline.outputs.version }}
+      production_branch: ${{ steps.production-baseline.outputs.production_branch }}
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: deploy-bundle
+
+      - name: Verify Functions bundle exists
+        run: |
+          if [ ! -f functions/\[\[path\]\].ts ]; then
+            echo "::error::functions/[[path]].ts missing — CF Functions will not deploy!"
+            exit 1
+          fi
+          if [ ! -f src/core/router/workspaceRoutes.ts ]; then
+            echo "::error::workspaceRoutes.ts missing — Functions import cannot be bundled"
+            exit 1
+          fi
+          echo "✅ Functions bundle found"
 
       - name: Capture production baseline and deployment ownership
         id: production-baseline
