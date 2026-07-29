@@ -165,7 +165,7 @@ export default function ProblemSolverPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <BackButton onClick={() => navigate("/teacher/tools")} />
+        <BackButton onClick={() => navigate("/workspace/mobile/tools")} />
         <div className={styles.headerCopy}>
           <div className={styles.titleRow}>
             <h1>AI 풀이·해설</h1>
