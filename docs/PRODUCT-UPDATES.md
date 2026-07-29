@@ -31,6 +31,8 @@ Beta 또는 제공 범위를 표시한다.
 - canonical route: `/promo/updates`
 - title/description: `src/app_promo/domains/landing/promoMeta.ts`
 - sitemap: `public/sitemap.xml`
+- Cloudflare edge allowlist and dynamic sitemap:
+  `functions/[[path]].ts`
 - 허용 테넌트와 fallback은 기존 `PromoGuard` 계약을 그대로 따른다.
 
 ## 검증
@@ -46,3 +48,6 @@ pnpm build
 
 검증은 직접 URL 렌더링, desktop/mobile 메뉴와 footer CTA, 모든 내부 링크
 대상, 모바일 390px 레이아웃, 접근 가능한 제목·날짜·링크 이름을 포함한다.
+Cloudflare production gate는 upload 후 `/promo/updates`의 200 응답, title과
+canonical URL을 별도로 확인하며 실패 시 직전 production baseline으로
+rollback한다.

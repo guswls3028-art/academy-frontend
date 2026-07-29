@@ -132,6 +132,10 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     title: "요금 안내 | 8월 14만 5천원·이후 18만원 | 학원플러스",
     description: "2026년 8월 가입은 월 14만 5천원, 9월 이후 가입은 월 18만원입니다. 두 금액 모두 부가세 10% 별도이며 8월 가입 공급가는 이용 기간 동안 유지됩니다.",
   },
+  "/promo/updates": {
+    title: "업데이트 소식 | 학원플러스",
+    description: "선생님과 학생이 실제 화면에서 체감하는 학원플러스의 새 기능과 운영 개선 내용을 날짜순으로 확인하세요.",
+  },
   "/promo/faq": {
     title: "자주 묻는 질문 | 학원플러스",
     description: "요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스를 사용하기 전에 자주 묻는 질문을 확인하세요.",
@@ -159,6 +163,7 @@ const HAKWONPLUS_INDEXABLE_PROMO_ROUTES = [
   "/promo/ai-grading",
   "/promo/video-platform",
   "/promo/pricing",
+  "/promo/updates",
   "/promo/faq",
 ];
 
