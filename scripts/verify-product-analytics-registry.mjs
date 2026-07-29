@@ -91,11 +91,8 @@ if (!routeRows.some((row) => row.routeTemplate === "/workspace/mobile")) {
 if (!routeRows.some((row) => row.routeTemplate === "/workspace/dashboard")) {
   errors.push("canonical full workspace route is missing");
 }
-if (!routeSource.includes('pathname.startsWith("/admin/")')) {
-  errors.push("legacy full-workspace route normalization is missing");
-}
-if (!routeSource.includes('pathname.startsWith("/teacher/")')) {
-  errors.push("legacy mobile-workspace route normalization is missing");
+if (!routeSource.includes("canonicalizeWorkspacePath(pathname)")) {
+  errors.push("shared workspace route normalization is missing");
 }
 if (!providerSource.includes("[data-analytics-destination]")) {
   errors.push("button navigation destinations are not observed");
