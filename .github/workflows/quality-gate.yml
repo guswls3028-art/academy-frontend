@@ -299,19 +299,10 @@ jobs:
             exit 1
           fi
 
-  # One-time closure migration. Remove this exact job after the PR run verifies
-  # that Git production deploys are disabled and preview deployment stays on.
-  disable-duplicate-production-deploy:
-    name: Disable duplicate Cloudflare Git production deployments
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [quality-check, hangul-companion-check, candidate-preview]
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.head_ref == 'agent/closure-docs-frontend-20260730'
-
-    steps:
+      # One-time closure migration. Remove this exact step after the PR run
+      # verifies that Git production deploys are disabled and previews stay on.
       - name: Disable production auto-deploy and preserve previews
+        if: github.event_name == 'pull_request'
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
