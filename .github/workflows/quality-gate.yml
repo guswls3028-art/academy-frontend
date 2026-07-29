@@ -209,11 +209,18 @@ jobs:
 
           EXPECTED_VERSION=$(node -p \
             "JSON.parse(require('fs').readFileSync('dist/version.json', 'utf8')).version")
-          ACTUAL_VERSION=$(curl --silent --show-error --fail-with-body \
-            "${PREVIEW_URL}/version.json?candidate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            | jq -r '.version // empty')
+          ACTUAL_VERSION=""
+          for ATTEMPT in $(seq 1 60); do
+            ACTUAL_VERSION=$(curl --silent --show-error \
+              "${PREVIEW_URL}/version.json?candidate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ATTEMPT}" \
+              | jq -r '.version // empty' 2>/dev/null || true)
+            if [ "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}" ]; then
+              break
+            fi
+            sleep 5
+          done
           if [ "${ACTUAL_VERSION}" != "${EXPECTED_VERSION}" ]; then
-            echo "::error::Preview version mismatch: expected ${EXPECTED_VERSION}, got ${ACTUAL_VERSION}"
+            echo "::error::Preview version did not propagate: expected ${EXPECTED_VERSION}, got ${ACTUAL_VERSION}"
             exit 1
           fi
 

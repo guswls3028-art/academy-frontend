@@ -34,7 +34,8 @@ test("an isolated candidate preview gates the production deploy", () => {
     /needs: \[quality-check, hangul-companion-check, candidate-preview\]/,
   );
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
-  assert.match(workflow, /Preview version mismatch/);
+  assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);
+  assert.match(workflow, /Preview version did not propagate/);
   assert.match(workflow, /data-omr-canonical-route="\/workspace\/tools\/omr"/);
 });
 
