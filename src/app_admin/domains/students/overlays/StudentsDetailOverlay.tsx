@@ -9,6 +9,7 @@ import api from "@/shared/api/axios";
 
 import {
   getStudentDetail,
+  fetchStudentCustomFields,
   fetchStudentAccountNotifications,
   getTags,
   attachStudentTag,
@@ -124,6 +125,10 @@ export default function StudentsDetailOverlay({
     queryKey: adminStudentsQueryKeys.studentDetail(id),
     queryFn: () => getStudentDetail(id),
     enabled: !!id,
+  });
+  const { data: customFieldDefinitions = [] } = useQuery({
+    queryKey: adminStudentsQueryKeys.customFields,
+    queryFn: () => fetchStudentCustomFields(true),
   });
 
   const { data: tags } = useQuery({
@@ -347,6 +352,31 @@ export default function StudentsDetailOverlay({
                       {student.major && <InfoRow label="계열" value={student.major} />}
                     </div>
                   </div>
+                  )}
+
+                  {customFieldDefinitions.some(
+                    (definition) => {
+                      const value = student.customFields[definition.key];
+                      return value !== null && value !== undefined && value !== "";
+                    },
+                  ) && (
+                    <div className="ds-overlay-sidebar-section">
+                      <div className="ds-overlay-sidebar-section__title">맞춤 정보</div>
+                      <div className="ds-overlay-info-rows">
+                        {customFieldDefinitions.map((definition) => {
+                          const value = student.customFields[definition.key];
+                          return value === null || value === undefined || value === ""
+                            ? null
+                            : (
+                              <InfoRow
+                                key={definition.key}
+                                label={definition.label}
+                                value={String(value)}
+                              />
+                            );
+                        })}
+                      </div>
+                    </div>
                   )}
 
                   {/* 태그 */}

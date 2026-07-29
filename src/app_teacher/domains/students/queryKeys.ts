@@ -5,6 +5,7 @@ export const teacherStudentsQueryKeys = {
   studentList: (search: string, filters: object) => ["students-mobile", search, filters] as const,
   teacherStudents: ["teacher-students"] as const,
   student: (studentId: number) => ["student", studentId] as const,
+  customFields: ["students", "custom-fields"] as const,
   studentExams: (studentId: number) => ["student-exams", studentId] as const,
   accountNotifications: (studentId: number) => ["student-account-notifications", studentId] as const,
   clinic: (studentId: number) => ["student-clinic", studentId] as const,

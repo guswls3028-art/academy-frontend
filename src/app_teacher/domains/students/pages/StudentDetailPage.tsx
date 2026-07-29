@@ -13,11 +13,17 @@ import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquar
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentAccountNotifications, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
+import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
 import { teacherStudentsQueryKeys } from "../queryKeys";
-import type { ClientEnrollmentLite, ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
+import type {
+  ClientEnrollmentLite,
+  ClientStudent,
+  ClientStudentCustomFieldDefinition,
+  ClientStudentTag,
+  StudentCustomFieldValues,
+} from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -59,6 +65,10 @@ export default function StudentDetailPage() {
     queryKey: teacherStudentsQueryKeys.student(sid),
     queryFn: () => fetchStudent(sid),
     enabled: Number.isFinite(sid),
+  });
+  const { data: customFieldDefinitions = [] } = useQuery({
+    queryKey: teacherStudentsQueryKeys.customFields,
+    queryFn: fetchStudentCustomFields,
   });
 
   const {
@@ -181,6 +191,12 @@ export default function StudentDetailPage() {
         {student.schoolClass && <InfoRow label="반" value={student.schoolClass} />}
         {student.major && <InfoRow label="계열" value={student.major} />}
         {student.address && <InfoRow label="주소" value={student.address} />}
+        {customFieldDefinitions.map((definition) => {
+          const value = student.customFields[definition.key];
+          return value === null || value === undefined || value === ""
+            ? null
+            : <InfoRow key={definition.key} label={definition.label} value={String(value)} />;
+        })}
       </Card>
 
       <AccountNotificationCard items={accountNotifications ?? []} />
@@ -240,9 +256,15 @@ export default function StudentDetailPage() {
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
 
       {/* Edit Student BottomSheet */}
-      <EditStudentSheet open={editOpen} onClose={() => setEditOpen(false)} student={student} studentId={sid}
+      <EditStudentSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        student={student}
+        studentId={sid}
+        customFieldDefinitions={customFieldDefinitions}
         onDelete={() => { deleteStudent(sid).then(() => { navigate(-1); }); }}
-        onOpenPasswordReset={() => { setEditOpen(false); setPwResetOpen(true); }} />
+        onOpenPasswordReset={() => { setEditOpen(false); setPwResetOpen(true); }}
+      />
 
       {/* Tag Management BottomSheet */}
       <TagManagementSheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)} studentId={sid} currentTags={tags} />
@@ -605,8 +627,22 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
 }
 
 /* ─── Edit Student BottomSheet ─── */
-function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenPasswordReset }: {
-  open: boolean; onClose: () => void; student: ClientStudent; studentId: number; onDelete: () => void; onOpenPasswordReset: () => void;
+function EditStudentSheet({
+  open,
+  onClose,
+  student,
+  studentId,
+  customFieldDefinitions,
+  onDelete,
+  onOpenPasswordReset,
+}: {
+  open: boolean;
+  onClose: () => void;
+  student: ClientStudent;
+  studentId: number;
+  customFieldDefinitions: ClientStudentCustomFieldDefinition[];
+  onDelete: () => void;
+  onOpenPasswordReset: () => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -616,6 +652,19 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
   const [school, setSchool] = useState(student?.school ?? "");
   const schoolType = student?.schoolType ?? "HIGH";
   const [grade, setGrade] = useState(student?.grade != null ? String(student.grade) : "");
+  const [customFields, setCustomFields] = useState<StudentCustomFieldValues>(
+    () => ({ ...student.customFields }),
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setName(student.name ?? "");
+    setPhone(student.studentPhone ?? "");
+    setParentPhone(student.parentPhone ?? "");
+    setSchool(student.school ?? "");
+    setGrade(student.grade != null ? String(student.grade) : "");
+    setCustomFields({ ...student.customFields });
+  }, [open, student]);
 
   const mutation = useMutation({
     mutationFn: () => updateStudent(studentId, {
@@ -626,6 +675,12 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
       school,
       school_class: student?.schoolClass ?? "",
       grade,
+      custom_fields: Object.fromEntries(
+        customFieldDefinitions.map((definition) => [
+          definition.key,
+          customFields[definition.key] ?? null,
+        ]),
+      ),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) });
@@ -658,6 +713,46 @@ function EditStudentSheet({ open, onClose, student, studentId, onDelete, onOpenP
         <EditField label="학부모 전화" value={parentPhone} onChange={setParentPhone} type="tel" />
         <EditField label="학교" value={school} onChange={setSchool} />
         <EditField label="학년" value={grade} onChange={setGrade} />
+        {customFieldDefinitions.map((definition) => (
+          definition.fieldType === "select" ? (
+            <div key={definition.key}>
+              <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+                {definition.label}
+              </label>
+              <select
+                value={customFields[definition.key] == null ? "" : String(customFields[definition.key])}
+                onChange={(event) => setCustomFields((previous) => ({
+                  ...previous,
+                  [definition.key]: event.target.value,
+                }))}
+                className="w-full text-sm"
+                style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }}
+              >
+                <option value="">선택 안 함</option>
+                {definition.options.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <EditField
+              key={definition.key}
+              label={definition.label}
+              value={customFields[definition.key] == null ? "" : String(customFields[definition.key])}
+              onChange={(value) => setCustomFields((previous) => ({
+                ...previous,
+                [definition.key]: value,
+              }))}
+              type={
+                definition.fieldType === "number"
+                  ? "number"
+                  : definition.fieldType === "date"
+                    ? "date"
+                    : "text"
+              }
+            />
+          )
+        ))}
 
         {/* Status toggle */}
         <div className="flex items-center justify-between py-2" style={{ borderTop: "1px solid var(--tc-border-subtle)" }}>

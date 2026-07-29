@@ -8,6 +8,10 @@ import {
   downloadWorkbook,
   readFirstWorksheetRows,
 } from "@/shared/utils/excelWorkbook";
+import type {
+  ClientStudentCustomFieldDefinition,
+  StudentCustomFieldValues,
+} from "@/shared/api/contracts/students";
 
 /** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
 export const EXCEL_HEADERS = [
@@ -168,20 +172,29 @@ function parseSchoolTypeFromCell(raw: string): "ELEMENTARY" | "MIDDLE" | "HIGH" 
 /**
  * 엑셀 양식 다운로드 — 상단 안내문, 헤더, 예시 행
  */
-export async function downloadStudentExcelTemplate(mode?: "middle_high" | "elementary_middle"): Promise<void> {
+export async function downloadStudentExcelTemplate(
+  mode?: "middle_high" | "elementary_middle",
+  customFieldDefinitions: ClientStudentCustomFieldDefinition[] = [],
+): Promise<void> {
   const isElemMode = mode === "elementary_middle";
   const workbook = createWorkbook();
+  const customHeaders = customFieldDefinitions
+    .filter((definition) => definition.active)
+    .map((definition) => definition.label);
 
   // ── 헤더 & 데이터 구성 ──
-  const headers = isElemMode
+  const baseHeaders = isElemMode
     ? ["구분", "이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "메모"]
     : ["구분", "이름", "학부모전화번호", "학생전화번호", "성별", "학교", "학년", "반", "계열", "메모"];
-  const exampleRow1 = isElemMode
+  const headers = [...baseHeaders, ...customHeaders];
+  const baseExampleRow1 = isElemMode
     ? ["예시", "홍길동", "01087654321", "01012345678", "M", "한빛초등학교", "3", "2", ""]
     : ["예시", "홍길동", "01087654321", "01012345678", "M", "한국고등학교", "1", "3", "이과", ""];
-  const exampleRow2 = isElemMode
+  const baseExampleRow2 = isElemMode
     ? ["예시", "김영희", "01011112222", "", "F", "서울중학교", "2", "1", ""]
     : ["예시", "김영희", "01011112222", "", "F", "서울중학교", "2", "1", "", ""];
+  const exampleRow1 = [...baseExampleRow1, ...customHeaders.map(() => "")];
+  const exampleRow2 = [...baseExampleRow2, ...customHeaders.map(() => "")];
 
   const schoolHint = isElemMode ? "학교 입력 시 초/중 자동 판별" : "학교 입력 시 고/중 자동 판별";
   const guide = [
@@ -197,9 +210,10 @@ export async function downloadStudentExcelTemplate(mode?: "middle_high" | "eleme
   ];
 
   const data = [...guide, headers, exampleRow1, exampleRow2];
-  const widths = isElemMode
+  const baseWidths = isElemMode
     ? [8, 10, 16, 16, 6, 14, 6, 6, 16]
     : [8, 10, 16, 16, 6, 14, 6, 6, 8, 16];
+  const widths = [...baseWidths, ...customHeaders.map(() => 14)];
   const sheet = addArrayWorksheet(workbook, "학생목록", data, widths);
 
   // ── 셀 스타일 (xlsx 기본 지원 범위) ──
@@ -444,6 +458,7 @@ export interface StudentExportRow {
   omrCode: string;
   registeredAt: string | null;
   tags: { name: string }[];
+  customFields?: StudentCustomFieldValues;
 }
 
 export interface StudentInitialPasswordCredential {
@@ -473,8 +488,26 @@ export async function downloadStudentInitialPasswordCredentials(
 }
 
 /** 선택한 학생 목록을 엑셀로 다운로드 */
-export async function downloadStudentsExcel(rows: StudentExportRow[], filename = "학생목록.xlsx"): Promise<void> {
-  const headers = ["이름", "학부모 전화", "학생 전화", "학교", "학년", "반", "계열", "성별", "식별코드", "등록일", "태그"];
+export async function downloadStudentsExcel(
+  rows: StudentExportRow[],
+  filename = "학생목록.xlsx",
+  customFieldDefinitions: ClientStudentCustomFieldDefinition[] = [],
+): Promise<void> {
+  const activeCustomFields = customFieldDefinitions.filter((definition) => definition.active);
+  const headers = [
+    "이름",
+    "학부모 전화",
+    "학생 전화",
+    "학교",
+    "학년",
+    "반",
+    "계열",
+    "성별",
+    "식별코드",
+    "등록일",
+    "태그",
+    ...activeCustomFields.map((definition) => definition.label),
+  ];
   const genderLabel = (g: string | null) => (g === "M" ? "남자" : g === "F" ? "여자" : g ?? "");
   const data = [
     headers,
@@ -490,6 +523,7 @@ export async function downloadStudentsExcel(rows: StudentExportRow[], filename =
       r.omrCode ?? "",
       r.registeredAt ?? "",
       (r.tags ?? []).map((t) => t.name).join(", "),
+      ...activeCustomFields.map((definition) => r.customFields?.[definition.key] ?? ""),
     ]),
   ];
   await downloadArrayWorksheet({

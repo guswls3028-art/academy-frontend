@@ -18,6 +18,7 @@ export const adminStudentsQueryKeys = {
   studentClinic: (studentId: number) => ["student", studentId, "clinic"] as const,
   studentQuestions: (studentId: number) => ["student", studentId, "questions"] as const,
   studentAccountNotifications: (studentId: number) => ["student", studentId, "account-notifications"] as const,
+  customFields: ["students", "custom-fields"] as const,
 
   tags: ["students", "tags"] as const,
   tagsForTenant: (tenantCode: string) => ["students", "tags", tenantCode] as const,

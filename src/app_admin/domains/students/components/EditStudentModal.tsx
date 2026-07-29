@@ -2,13 +2,21 @@
 // 디자인: StudentCreateModal(1명 등록)과 동일 구조·클래스 — 쌍둥이 UX
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
-import { type ClientStudent, updateStudent } from "../api/students.api";
+import {
+  fetchStudentCustomFields,
+  type ClientStudent,
+  type StudentCustomFieldValues,
+  updateStudent,
+} from "../api/students.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
+import { adminStudentsQueryKeys } from "../queryKeys";
+import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import styles from "./EditStudentModal.module.css";
 
 interface Props {
@@ -33,6 +41,7 @@ type StudentEditForm = {
   address: string;
   memo: string;
   active: boolean;
+  customFields: StudentCustomFieldValues;
 };
 
 type ApiErrorWithStatus = {
@@ -66,6 +75,7 @@ function toEditForm(student: ClientStudent, defaultSchoolType: SchoolType): Stud
     address: student.address || "",
     memo: student.memo || "",
     active: !!student.active,
+    customFields: { ...student.customFields },
   };
 }
 
@@ -94,6 +104,12 @@ export default function EditStudentModal({
   const [busy, setBusy] = useState(false);
   /** 400 응답 시 백엔드 필드별 에러 (backend key -> message). setFields 개념으로 매핑 */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const customFieldsQuery = useQuery({
+    queryKey: adminStudentsQueryKeys.customFields,
+    queryFn: () => fetchStudentCustomFields(),
+    enabled: open,
+  });
+  const customFieldDefinitions = customFieldsQuery.data ?? [];
 
   const [form, setForm] = useState<StudentEditForm>(() =>
     toEditForm(initialValue, slm.defaultSchoolType)
@@ -163,7 +179,21 @@ export default function EditStudentModal({
     setFieldErrors({});
     try {
       const noPhone = !String(form.studentPhone || "").trim();
-      await updateStudent(initialValue.id, { ...form, noPhone });
+      const activeCustomFields = customFieldsQuery.data
+        ? Object.fromEntries(
+            customFieldsQuery.data
+              .filter((definition) => definition.active)
+              .map((definition) => [
+                definition.key,
+                form.customFields[definition.key] ?? null,
+              ]),
+          )
+        : undefined;
+      await updateStudent(initialValue.id, {
+        ...form,
+        customFields: activeCustomFields,
+        noPhone,
+      });
       onSuccess();
       onClose();
     } catch (raw: unknown) {
@@ -356,6 +386,16 @@ export default function EditStudentModal({
               disabled={busy}
             />
           </div>
+
+          <StudentCustomFieldsForm
+            definitions={customFieldDefinitions}
+            values={form.customFields}
+            onChange={(key, value) => setForm((previous) => ({
+              ...previous,
+              customFields: { ...previous.customFields, [key]: value },
+            }))}
+            disabled={busy}
+          />
 
           <div className="modal-form-row modal-form-row--1-auto">
             <span className={`modal-hint modal-hint--block ${styles.managementHint}`}>
