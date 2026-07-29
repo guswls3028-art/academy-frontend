@@ -328,7 +328,7 @@ jobs:
 
           SOURCE=$(jq -c \
             '.result.source
-              | del(.config.deployments_enabled)
+              | .config.deployments_enabled = false
               | .config.production_deployments_enabled = false' \
             <<<"${BEFORE}")
           PAYLOAD=$(jq -nc --argjson source "${SOURCE}" '{source:$source}')
@@ -344,6 +344,7 @@ jobs:
           fi
 
           AUTO_PROD="missing"
+          LEGACY_AUTO="missing"
           AFTER_PREVIEW_SETTING="missing"
           for ATTEMPT in $(seq 1 12); do
             AFTER=$(curl --silent --show-error --fail-with-body \
@@ -351,15 +352,18 @@ jobs:
             AUTO_PROD=$(jq -r \
               '.result.source.config.production_deployments_enabled // "missing"' \
               <<<"${AFTER}")
+            LEGACY_AUTO=$(jq -r \
+              '.result.source.config.deployments_enabled // "missing"' \
+              <<<"${AFTER}")
             AFTER_PREVIEW_SETTING=$(jq -r \
               '.result.source.config.preview_deployment_setting // "missing"' \
               <<<"${AFTER}")
-            if [ "${AUTO_PROD}" = "false" ]; then
+            if [ "${AUTO_PROD}" = "false" ] || [ "${LEGACY_AUTO}" = "false" ]; then
               break
             fi
             sleep 5
           done
-          if [ "${AUTO_PROD}" != "false" ]; then
+          if [ "${AUTO_PROD}" != "false" ] && [ "${LEGACY_AUTO}" != "false" ]; then
             echo "::error::Cloudflare Git production deployments remain enabled"
             exit 1
           fi
@@ -367,7 +371,7 @@ jobs:
             echo "::error::Cloudflare preview deployment setting changed unexpectedly"
             exit 1
           fi
-          echo "Cloudflare Git production deployments disabled; preview setting preserved (${AFTER_PREVIEW_SETTING})."
+          echo "Cloudflare Git automatic deployments disabled; workflow preview setting preserved (${AFTER_PREVIEW_SETTING})."
 
   # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
   deploy:
@@ -425,7 +429,10 @@ jobs:
             AUTO_PROD=$(jq -r \
               '.result.source.config.production_deployments_enabled // "missing"' \
               <<<"${RESPONSE}")
-            if [ "${AUTO_PROD}" != "false" ]; then
+            LEGACY_AUTO=$(jq -r \
+              '.result.source.config.deployments_enabled // "missing"' \
+              <<<"${RESPONSE}")
+            if [ "${AUTO_PROD}" != "false" ] && [ "${LEGACY_AUTO}" != "false" ]; then
               echo "::error::Cloudflare Git production auto-deploy must be disabled"
               exit 1
             fi

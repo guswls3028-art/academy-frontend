@@ -161,6 +161,14 @@ route-mocked Chromium 계약은 다음을 증명한다.
 배포 전에 실패해야 한다. 정식 direct deploy 후 운영 revision 전파와
 tenant·login·왕복·실사용 E2E를 통과해야 완료다.
 
+Cloudflare API가 세분화된 production 플래그 변경을 성공으로 응답한
+뒤에도 기존 값을 유지하는 계정에서는 호환 플래그
+`deployments_enabled=false`도 안전한 배포 소유권으로 인정한다. 이
+상태에서는 Cloudflare Git의 production·preview 자동 트리거가 모두
+꺼지지만, quality workflow가 모든 PR과 main 후보를 Wrangler로 격리
+preview 배포하므로 preview 검증 능력은 유지된다. 운영 승격은 계속
+GitHub Actions만 소유한다.
+
 ## 8. 현재 운영 상태
 
 2026-07-30 KST 기준 운영 `version.json`은

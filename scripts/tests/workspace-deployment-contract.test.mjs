@@ -77,6 +77,12 @@ test("production captures a rollback baseline before atomic promotion", () => {
     "post-deploy failure rollback is missing",
   );
   assert.match(workflow, /canonical_deployment\.id/);
+  assert.match(workflow, /source\.config\.production_deployments_enabled/);
+  assert.match(workflow, /source\.config\.deployments_enabled/);
+  assert.match(
+    workflow,
+    /"\$\{AUTO_PROD\}" != "false" \] && \[ "\$\{LEGACY_AUTO\}" != "false"/,
+  );
   assert.match(workflow, /--branch="\$\{\{ steps\.production-baseline\.outputs\.production_branch \}\}"/);
   assert.match(workflow, /--commit-hash="\$\{GITHUB_SHA\}"/);
   assert.match(workflow, /--commit-dirty=false/);
