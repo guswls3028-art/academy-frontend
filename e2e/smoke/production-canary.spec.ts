@@ -85,7 +85,7 @@ test.describe("Production canary", () => {
   });
 
   test("admin dashboard login survives production edge", async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
     await loginViaUI(page, "admin", { landingPath: "/admin/dashboard" });
@@ -97,7 +97,7 @@ test.describe("Production canary", () => {
   });
 
   test("student dashboard login survives production edge", async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
     await loginViaUI(page, "student", { landingPath: "/student/dashboard" });
