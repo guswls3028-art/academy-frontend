@@ -228,7 +228,7 @@ jobs:
             local URL="$1"
             local EXPECTED_TEXT="$2"
             local BODY=""
-            for ATTEMPT in $(seq 1 20); do
+            for ATTEMPT in $(seq 1 100); do
               if BODY=$(curl --silent --show-error --fail-with-body "${URL}") \
                 && grep -qF "${EXPECTED_TEXT}" <<<"${BODY}"; then
                 printf '%s' "${BODY}"
@@ -262,7 +262,7 @@ jobs:
           fi
 
           SW_HEADERS=""
-          for ATTEMPT in $(seq 1 20); do
+          for ATTEMPT in $(seq 1 100); do
             if SW_HEADERS=$(curl --silent --show-error --fail-with-body \
               --dump-header - --output /dev/null "${PREVIEW_URL}/teacher-sw.js") \
               && grep -qi '^Service-Worker-Allowed: /' <<<"${SW_HEADERS}"; then
@@ -519,6 +519,25 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Verify production revision propagation
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION=$(node -p \
+            "JSON.parse(require('fs').readFileSync('dist/version.json', 'utf8')).version")
+          ACTUAL_VERSION=""
+          for ATTEMPT in $(seq 1 60); do
+            ACTUAL_VERSION=$(curl --silent --show-error \
+              "https://hakwonplus.com/version.json?promotion=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ATTEMPT}" \
+              | jq -r '.version // empty' 2>/dev/null || true)
+            if [ "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}" ]; then
+              echo "Production revision verified at ${EXPECTED_VERSION}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Production version did not propagate: expected ${EXPECTED_VERSION}, got ${ACTUAL_VERSION}"
+          exit 1
+
       - name: Verify OG meta injection (post-deploy)
         run: |
           sleep 10
@@ -531,8 +550,18 @@ jobs:
 
       - name: Verify OMR static sheet (post-deploy)
         run: |
+          set -euo pipefail
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
-            OMR=$(curl -fsSL "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)")
+            OMR=""
+            for ATTEMPT in $(seq 1 100); do
+              OMR=$(curl --silent --show-error --fail-with-body \
+                "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)&promotion=${GITHUB_RUN_ID}-${ATTEMPT}" \
+                || true)
+              if grep -q 'data-omr-canonical-route="/workspace/tools/omr"' <<<"${OMR}"; then
+                break
+              fi
+              sleep 3
+            done
             if ! echo "$OMR" | grep -q 'data-omr-canonical-route="/workspace/tools/omr"'; then
               echo "::error::OMR compatibility route missing canonical builder target at ${PATHNAME}"
               exit 1

@@ -38,6 +38,7 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /Preview version did not propagate/);
   assert.match(workflow, /fetch_body_matching/);
   assert.match(workflow, /grep -qF "\$\{EXPECTED_TEXT\}"/);
+  assert.match(workflow, /for ATTEMPT in \$\(seq 1 100\)/);
   assert.match(workflow, /"\/teacher\?candidate=legacy-mobile-root"/);
   assert.match(workflow, /data-omr-canonical-route="\/workspace\/tools\/omr"/);
 });
@@ -68,6 +69,7 @@ test("production captures a rollback baseline before atomic promotion", () => {
   assert.match(workflow, /--branch="\$\{\{ steps\.production-baseline\.outputs\.production_branch \}\}"/);
   assert.match(workflow, /--commit-hash="\$\{GITHUB_SHA\}"/);
   assert.match(workflow, /--commit-dirty=false/);
+  assert.match(workflow, /Production version did not propagate/);
   assert.match(workflow, /deployments\/\$\{BASELINE_DEPLOYMENT_ID\}\/rollback/);
 });
 
