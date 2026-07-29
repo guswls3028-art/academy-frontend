@@ -378,6 +378,14 @@
   min-height: 20px;
 }
 
+.student-scores-drawer__status-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
 .student-scores-drawer__exam-title {
   font-size: 13px;
   font-weight: 600;
@@ -386,6 +394,68 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── 교사 수동 오답 확인 ── */
+.ssd-correction-control {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 78%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-warning, #f59e0b) 7%, var(--color-bg-surface)),
+      var(--color-bg-surface) 58%
+    );
+}
+
+.ssd-correction-control__copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ssd-correction-control__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ssd-correction-control__title-row strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ssd-correction-control__copy > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.ssd-correction-control__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.ssd-correction-control__actions .ds-button {
+  width: 100%;
+}
+
+.ssd-correction-control__actions .ds-button[aria-pressed="true"][data-correction-state="pending"] {
+  border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 55%, var(--color-border-divider));
+  color: var(--color-warning-text, #92400e);
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 14%, var(--color-bg-surface));
+}
+
+.ssd-correction-control__actions .ds-button[aria-pressed="true"][data-correction-state="completed"] {
+  border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-border-divider));
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 11%, var(--color-bg-surface));
 }
 
 .student-scores-drawer__exam-score-row {

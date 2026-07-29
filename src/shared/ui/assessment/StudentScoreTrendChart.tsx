@@ -17,9 +17,11 @@ import type { StudentExamTrendPoint } from "@/shared/api/contracts/studentGrades
 import {
   ALL_LECTURES,
   filterStudentScoreTrend,
+  studentScoreTrendMetricValue,
   summarizeStudentScoreTrend,
   type StudentScoreLectureFilter,
   type StudentScoreTrendDisplayPoint,
+  type StudentScoreTrendMetric,
 } from "@/shared/scoring/studentScoreTrend";
 import { ArrowDownRight, ArrowUpRight, Minus, Route } from "lucide-react";
 import styles from "./StudentScoreTrendChart.module.css";
@@ -41,7 +43,13 @@ type LectureOption = {
   chipLabel: string | null;
 };
 
-function formatPct(value: number | null) {
+const METRIC_OPTIONS: Array<{ value: StudentScoreTrendMetric; label: string }> = [
+  { value: "score_pct", label: "득점률" },
+  { value: "rank", label: "등수" },
+  { value: "percentile", label: "상위 %" },
+];
+
+function formatPct(value: number | null | undefined) {
   if (value == null) return "-";
   return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
 }
@@ -57,7 +65,53 @@ function formatDate(value: string | null) {
   return parsed.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
 }
 
-function ScoreTooltip({ active, payload }: TooltipContentProps<TooltipValueType, string | number>) {
+function metricDescription(metric: StudentScoreTrendMetric, audience: "staff" | "learner") {
+  if (metric === "rank") {
+    return audience === "learner"
+      ? "같은 시험 응시자 중 1차 응시 점수 기준 내 등수입니다. 1등에 가까울수록 좋습니다."
+      : "같은 시험 응시자 중 1차 응시 점수 기준 등수입니다. 1등에 가까울수록 좋습니다.";
+  }
+  if (metric === "percentile") {
+    return "1차 응시 점수 기준 상위 위치입니다. 시험별 응시 인원이 달라도 비교할 수 있고, 낮을수록 좋습니다.";
+  }
+  return audience === "learner"
+    ? "시험이 추가될 때마다 1회차부터 자동으로 이어집니다. 서로 다른 만점은 득점률로 비교합니다."
+    : "점수가 입력된 테스트를 시간순으로 쌓아 득점률로 비교합니다.";
+}
+
+function formatMetricValue(
+  metric: StudentScoreTrendMetric,
+  value: number | null,
+  cohortSize?: number | null,
+) {
+  if (value == null) return "-";
+  if (metric === "rank") {
+    const rank = Number.isInteger(value) ? value : value.toFixed(1);
+    return cohortSize != null ? `${rank}등 / ${cohortSize}명` : `${rank}등`;
+  }
+  return formatPct(value);
+}
+
+function improvementTone(metric: StudentScoreTrendMetric, delta: number | null) {
+  if (delta == null || delta === 0) return "flat";
+  const improvement = metric === "score_pct" ? delta : -delta;
+  return improvement > 0 ? "up" : "down";
+}
+
+function formatMetricDelta(metric: StudentScoreTrendMetric, delta: number | null) {
+  if (delta == null) return "다음 시험 후";
+  if (delta === 0) return "변동 없음";
+  if (metric === "score_pct") return `${delta > 0 ? "+" : ""}${delta}%p`;
+  const direction = delta < 0 ? "상승" : "하락";
+  const magnitude = Math.abs(delta);
+  return metric === "rank" ? `${magnitude}등 ${direction}` : `${magnitude}%p ${direction}`;
+}
+
+function TrendTooltip({
+  active,
+  payload,
+  metric,
+}: TooltipContentProps<TooltipValueType, string | number> & { metric: StudentScoreTrendMetric }) {
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload as StudentScoreTrendDisplayPoint | undefined;
   if (!point) return null;
@@ -65,6 +119,12 @@ function ScoreTooltip({ active, payload }: TooltipContentProps<TooltipValueType,
     <div className={styles.tooltip}>
       <div className={styles.tooltipRound}>{point.round_label}</div>
       <strong>{point.title}</strong>
+      {metric === "rank" && (
+        <span>{formatMetricValue("rank", point.rank ?? null, point.cohort_size)} · 상위 {formatPct(point.percentile)}</span>
+      )}
+      {metric === "percentile" && (
+        <span>상위 {formatPct(point.percentile)} · {formatMetricValue("rank", point.rank ?? null, point.cohort_size)}</span>
+      )}
       <span>{formatScore(point.score)} / {formatScore(point.max_score)}점 · 득점률 {formatPct(point.score_pct)}</span>
       <span>{[point.lecture_title, point.session_title, formatDate(point.session_date ?? point.recorded_at)].filter(Boolean).join(" · ")}</span>
       {(point.retake_count ?? 1) > 1 && <span>대표 결과 · 재시험 {(point.retake_count ?? 1) - 1}회</span>}
@@ -84,6 +144,7 @@ export default function StudentScoreTrendChart({
 }: Props) {
   const titleId = useId();
   const [lectureFilter, setLectureFilter] = useState<StudentScoreLectureFilter>(ALL_LECTURES);
+  const [metric, setMetric] = useState<StudentScoreTrendMetric>("score_pct");
   const lectureOptions = useMemo(() => {
     const map = new Map<number, LectureOption>();
     for (const point of points) {
@@ -104,9 +165,29 @@ export default function StudentScoreTrendChart({
     () => filterStudentScoreTrend(points, selectedLecture),
     [points, selectedLecture],
   );
-  const metrics = useMemo(() => summarizeStudentScoreTrend(displayPoints), [displayPoints]);
-  const chartWidth = Math.max(320, displayPoints.length * 72);
-  const chartUpperBound = Math.max(100, Math.ceil((metrics.best ?? 100) / 25) * 25);
+  const metrics = useMemo(() => summarizeStudentScoreTrend(displayPoints, metric), [displayPoints, metric]);
+  const metricDisplayPoints = useMemo(
+    () => displayPoints.flatMap((point) => {
+      const metricValue = studentScoreTrendMetricValue(point, metric);
+      return metricValue == null ? [] : [{ ...point, metric_value: metricValue }];
+    }),
+    [displayPoints, metric],
+  );
+  const latestMetricPoint = metricDisplayPoints[metricDisplayPoints.length - 1];
+  const hasComparativeMetrics = points.some(
+    (point) => studentScoreTrendMetricValue(point, "rank") != null
+      || studentScoreTrendMetricValue(point, "percentile") != null,
+  );
+  const chartWidth = Math.max(320, metricDisplayPoints.length * 72);
+  const chartUpperBound = metric === "score_pct"
+    ? Math.max(100, Math.ceil((metrics.best ?? 100) / 25) * 25)
+    : metric === "rank"
+      ? Math.max(2, ...metricDisplayPoints.map((point) => point.cohort_size ?? point.metric_value ?? 1))
+      : 100;
+  const chartLowerBound = metric === "rank" ? 1 : 0;
+  const resolvedDescription = metric === "score_pct" && description
+    ? description
+    : metricDescription(metric, audience);
 
   return (
     <section
@@ -124,31 +205,49 @@ export default function StudentScoreTrendChart({
               <Badge size="xs" tone="info">{badgeLabel}</Badge>
             </div>
             <p>
-              {description ?? (audience === "learner"
-                ? "시험이 추가될 때마다 1회차부터 자동으로 이어집니다. 서로 다른 만점은 득점률로 비교합니다."
-                : "점수가 입력된 테스트를 시간순으로 쌓아 득점률로 비교합니다.")}
+              {resolvedDescription}
             </p>
           </div>
         </div>
         {metrics.firstToLatest != null && (
-          <div className={styles.growth} data-tone={metrics.firstToLatest > 0 ? "up" : metrics.firstToLatest < 0 ? "down" : "flat"}>
+          <div className={styles.growth} data-tone={improvementTone(metric, metrics.firstToLatest)}>
             <span>첫 회차 대비</span>
-            <strong>{metrics.firstToLatest > 0 ? "+" : ""}{metrics.firstToLatest}%p</strong>
+            <strong>{formatMetricDelta(metric, metrics.firstToLatest)}</strong>
           </div>
         )}
       </div>
 
-      {showLectureFilters && lectureOptions.length > 1 && (
-        <div className={styles.filters} aria-label="강의별 성적 추이">
-          <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
-            전체
-          </button>
-          {lectureOptions.map((option) => (
-            <button key={option.id} type="button" aria-pressed={selectedLecture === option.id} data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
-              <LectureChip lectureName={option.title} color={option.color ?? undefined} chipLabel={option.chipLabel} size={20} />
-              <span>{option.title}</span>
-            </button>
-          ))}
+      {(hasComparativeMetrics || (showLectureFilters && lectureOptions.length > 1)) && (
+        <div className={styles.controls}>
+          {showLectureFilters && lectureOptions.length > 1 && (
+            <div className={styles.filters} aria-label="강의별 성적 추이">
+              <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
+                전체
+              </button>
+              {lectureOptions.map((option) => (
+                <button key={option.id} type="button" aria-pressed={selectedLecture === option.id} data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
+                  <LectureChip lectureName={option.title} color={option.color ?? undefined} chipLabel={option.chipLabel} size={20} />
+                  <span>{option.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {hasComparativeMetrics && (
+            <div className={styles.metricSwitch} role="group" aria-label="성적 추이 기준">
+              {METRIC_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={metric === option.value}
+                  data-active={metric === option.value}
+                  data-testid={`student-score-trend-metric-${option.value}`}
+                  onClick={() => setMetric(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -161,14 +260,28 @@ export default function StudentScoreTrendChart({
               : "첫 시험 점수가 입력되면 1회차부터 자동으로 표시됩니다."}
           </span>
         </div>
+      ) : metricDisplayPoints.length === 0 ? (
+        <div className={styles.empty}>
+          <strong>비교 가능한 석차가 아직 없습니다.</strong>
+          <span>같은 시험에 2명 이상 응시하면 등수와 상위 % 추이가 표시됩니다.</span>
+        </div>
       ) : (
         <>
           <div className={styles.metrics}>
-            <Metric label="최근" value={formatPct(metrics.latest)} />
+            <Metric
+              label="최근"
+              value={formatMetricValue(metric, metrics.latest, latestMetricPoint?.cohort_size)}
+            />
             <Metric label="누적" value={`${metrics.count}회`} />
-            <Metric label="평균" value={formatPct(metrics.average)} />
-            <Metric label="최고" value={formatPct(metrics.best)} />
-            <ChangeMetric value={metrics.change} />
+            <Metric
+              label={metric === "rank" ? "평균 등수" : metric === "percentile" ? "평균 위치" : "평균"}
+              value={formatMetricValue(metric, metrics.average)}
+            />
+            <Metric
+              label={metric === "rank" ? "최고 등수" : metric === "percentile" ? "최고 위치" : "최고"}
+              value={formatMetricValue(metric, metrics.best)}
+            />
+            <ChangeMetric metric={metric} value={metrics.change} />
           </div>
 
           <div className={styles.chartScroller}>
@@ -176,16 +289,25 @@ export default function StudentScoreTrendChart({
             {/* eslint-disable-next-line no-restricted-syntax */}
             <div className={styles.chartPaper} style={{ width: chartWidth }} data-testid="student-score-trend-chart">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={displayPoints} margin={{ top: 18, right: 24, bottom: 8, left: 2 }} accessibilityLayer>
+                <LineChart data={metricDisplayPoints} margin={{ top: 18, right: 24, bottom: 8, left: 2 }} accessibilityLayer>
                   <CartesianGrid stroke="var(--score-grid)" strokeDasharray="2 6" vertical />
                   <XAxis dataKey="round_label" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 11, fill: "var(--score-text-muted)" }} />
-                  <YAxis domain={[0, chartUpperBound]} width={34} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} tick={{ fontSize: 10, fill: "var(--score-text-muted)" }} />
+                  <YAxis
+                    domain={[chartLowerBound, chartUpperBound]}
+                    reversed={metric !== "score_pct"}
+                    allowDecimals={metric !== "rank"}
+                    width={38}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => metric === "rank" ? `${value}등` : metric === "percentile" ? `${value}%` : `${value}`}
+                    tick={{ fontSize: 10, fill: "var(--score-text-muted)" }}
+                  />
                   <ReferenceLine y={metrics.average ?? 0} stroke="var(--score-text-muted)" strokeDasharray="5 5" strokeOpacity={0.55} />
-                  <Tooltip content={ScoreTooltip} cursor={{ stroke: "var(--score-border-strong)", strokeDasharray: "3 4" }} />
+                  <Tooltip content={(props) => <TrendTooltip {...props} metric={metric} />} cursor={{ stroke: "var(--score-border-strong)", strokeDasharray: "3 4" }} />
                   <Line
                     type="monotone"
-                    dataKey="score_pct"
-                    name="득점률"
+                    dataKey="metric_value"
+                    name={METRIC_OPTIONS.find((option) => option.value === metric)?.label}
                     stroke="var(--score-line)"
                     strokeWidth={3}
                     dot={{ r: 5, fill: "var(--score-surface)", stroke: "var(--score-line)", strokeWidth: 3 }}
@@ -196,7 +318,7 @@ export default function StudentScoreTrendChart({
               </ResponsiveContainer>
             </div>
           </div>
-          {displayPoints.length === 1 && (
+          {metricDisplayPoints.length === 1 && (
             <p className={styles.onePoint}>1회차가 기록되었습니다. 다음 시험부터 변화선이 이어집니다.</p>
           )}
         </>
@@ -214,13 +336,13 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ChangeMetric({ value }: { value: number | null }) {
-  const tone = value == null || value === 0 ? "flat" : value > 0 ? "up" : "down";
+function ChangeMetric({ metric, value }: { metric: StudentScoreTrendMetric; value: number | null }) {
+  const tone = improvementTone(metric, value);
   const Icon = tone === "up" ? ArrowUpRight : tone === "down" ? ArrowDownRight : Minus;
   return (
     <div className={styles.metric} data-tone={tone}>
       <span>직전 대비</span>
-      <strong><Icon size={ICON.sm} aria-hidden />{value == null ? "다음 시험 후" : `${value > 0 ? "+" : ""}${value}%p`}</strong>
+      <strong><Icon size={ICON.sm} aria-hidden />{formatMetricDelta(metric, value)}</strong>
     </div>
   );
 }

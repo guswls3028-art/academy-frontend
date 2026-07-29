@@ -38,6 +38,10 @@ const trendA = [
     lecture_title: "Ymath 중등 심화",
     lecture_color: "#2563eb",
     lecture_chip_label: "Y",
+    rank: 3,
+    percentile: 30,
+    cohort_size: 10,
+    cohort_avg: 75,
     retake_count: 1,
     archived: false,
   },
@@ -59,6 +63,10 @@ const trendA = [
     lecture_title: "Ymath 중등 심화",
     lecture_color: "#2563eb",
     lecture_chip_label: "Y",
+    rank: 2,
+    percentile: 20,
+    cohort_size: 10,
+    cohort_avg: 78,
     retake_count: 1,
     archived: false,
   },
@@ -80,6 +88,10 @@ const trendA = [
     lecture_title: "Ymath 경시 대비",
     lecture_color: "#7c3aed",
     lecture_chip_label: "경",
+    rank: 1,
+    percentile: 10,
+    cohort_size: 10,
+    cohort_avg: 82,
     retake_count: 2,
     archived: false,
   },
@@ -117,6 +129,10 @@ function gradesFor(points: TrendPoint[]) {
         retake_count: point.retake_count,
         session_title: point.session_title,
         lecture_title: point.lecture_title,
+        rank: point.rank,
+        percentile: point.percentile,
+        cohort_size: point.cohort_size,
+        cohort_avg: point.cohort_avg,
         submitted_at: point.recorded_at,
       })),
       {
@@ -273,6 +289,13 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(3);
     await chart.locator(".recharts-line-dots circle").nth(2).hover();
     await expect(chart).toContainText("48 / 50점 · 득점률 96%");
+    await chart.getByRole("button", { name: "등수", exact: true }).click();
+    await expect(chart).toContainText("최근1등 / 10명");
+    await expect(chart).toContainText("직전 대비1등 상승");
+    await chart.getByRole("button", { name: "상위 %", exact: true }).click();
+    await expect(chart).toContainText("최근10%");
+    await expect(chart).toContainText("직전 대비10%p 상승");
+    await chart.getByRole("button", { name: "득점률", exact: true }).click();
     await expect(chart).not.toContainText("미응시 테스트");
     await expect(page.getByRole("region", { name: "성적 비교" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

@@ -12,7 +12,15 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 
-import { fetchSessionScores, type ScoreBlock, type SessionScoreRow, type SessionScoreExamEntry, type SessionScoreHomeworkEntry, type SessionScoreMeta } from "../api/sessionScores";
+import {
+  fetchSessionScores,
+  patchAssessmentCorrection,
+  type ScoreBlock,
+  type SessionScoreRow,
+  type SessionScoreExamEntry,
+  type SessionScoreHomeworkEntry,
+  type SessionScoreMeta,
+} from "../api/sessionScores";
 import { deriveAchievement, deriveFinalPass, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
@@ -27,7 +35,7 @@ import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { scoresQueryKeys } from "../api/queryKeys";
 import CloseButton from "@/shared/ui/ds/CloseButton";
-import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import { AlertTriangle, CheckCircle2, ExternalLink, Image as ScanImageIcon, PencilLine } from "lucide-react";
@@ -254,7 +262,11 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     : undefined
                 }
                 chipSize={20}
-                clinicHighlight={row.name_highlight_clinic_target === true}
+                clinicHighlight={
+                  row.name_highlight_followup_required
+                  ?? row.name_highlight_clinic_target
+                  ?? false
+                }
                 examNotSubmittedCount={row.exam_not_submitted_count}
               />
             </h2>
@@ -338,6 +350,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     enrollmentId={row.enrollment_id}
                     sessionId={sessionId}
                     isEditMode={isEditMode}
+                    hasUnsavedChanges={hasUnsavedChanges}
                     expanded={expandedExamId === exam.exam_id}
                     onToggle={() => toggleExpand(exam.exam_id)}
                     onOpenDetail={
@@ -371,6 +384,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     enrollmentId={row.enrollment_id}
                     sessionId={sessionId}
                     isEditMode={isEditMode}
+                    hasUnsavedChanges={hasUnsavedChanges}
                     expanded={expandedHwId === hw.homework_id}
                     onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
                   />
@@ -409,6 +423,7 @@ function ExamResultCard({
   enrollmentId,
   sessionId,
   isEditMode,
+  hasUnsavedChanges,
   expanded,
   onToggle,
   onOpenDetail,
@@ -418,6 +433,7 @@ function ExamResultCard({
   enrollmentId: number;
   sessionId?: number;
   isEditMode: boolean;
+  hasUnsavedChanges: boolean;
   expanded: boolean;
   onToggle: () => void;
   onOpenDetail?: () => void;
@@ -431,7 +447,10 @@ function ExamResultCard({
       <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
-          <PassBadge block={exam.block} />
+          <span className="student-scores-drawer__status-badges">
+            <CorrectionStatusBadge block={exam.block} />
+            <PassBadge block={exam.block} />
+          </span>
         </div>
         <div className="student-scores-drawer__exam-score-row">
           {exam.block.score != null ? (
@@ -460,6 +479,14 @@ function ExamResultCard({
 
       {expanded && (
         <>
+          <CorrectionStatusControl
+            block={exam.block}
+            enrollmentId={enrollmentId}
+            sourceType="exam"
+            sourceId={exam.exam_id}
+            sessionId={sessionId}
+            disabled={hasUnsavedChanges}
+          />
           <ExamScanPreview
             exam={exam}
             enrollmentId={enrollmentId}
@@ -619,6 +646,7 @@ function HomeworkResultCard({
   enrollmentId,
   sessionId,
   isEditMode,
+  hasUnsavedChanges,
   expanded,
   onToggle,
 }: {
@@ -627,6 +655,7 @@ function HomeworkResultCard({
   enrollmentId: number;
   sessionId?: number;
   isEditMode: boolean;
+  hasUnsavedChanges: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -639,7 +668,10 @@ function HomeworkResultCard({
       <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
-          <PassBadge block={hw.block} />
+          <span className="student-scores-drawer__status-badges">
+            <CorrectionStatusBadge block={hw.block} />
+            <PassBadge block={hw.block} />
+          </span>
         </div>
         <div className="student-scores-drawer__hw-score-row">
           {hw.block.score != null ? (
@@ -660,13 +692,23 @@ function HomeworkResultCard({
       </div>
 
       {expanded && (
-        <AttemptTimeline
-          enrollmentId={enrollmentId}
-          sourceType="homework"
-          sourceId={hw.homework_id}
-          sessionId={sessionId}
-          isEditMode={isEditMode}
-        />
+        <>
+          <CorrectionStatusControl
+            block={hw.block}
+            enrollmentId={enrollmentId}
+            sourceType="homework"
+            sourceId={hw.homework_id}
+            sessionId={sessionId}
+            disabled={hasUnsavedChanges}
+          />
+          <AttemptTimeline
+            enrollmentId={enrollmentId}
+            sourceType="homework"
+            sourceId={hw.homework_id}
+            sessionId={sessionId}
+            isEditMode={isEditMode}
+          />
+        </>
       )}
     </li>
   );
@@ -1120,6 +1162,126 @@ function AttemptTimeline({
 }
 
 /* ── Shared sub-components ── */
+
+function CorrectionStatusBadge({ block }: { block: ScoreBlock }) {
+  if (block.correction_status === "PENDING") {
+    return <Badge tone="warning" size="xs">오답 확인 필요</Badge>;
+  }
+  if (block.correction_status === "COMPLETED") {
+    return <Badge tone="success" size="xs">오답 완료</Badge>;
+  }
+  if (block.correction_status === "NOT_REQUIRED") {
+    return <Badge tone="muted" size="xs">오답 없음</Badge>;
+  }
+  return null;
+}
+
+function CorrectionStatusControl({
+  block,
+  enrollmentId,
+  sourceType,
+  sourceId,
+  sessionId,
+  disabled,
+}: {
+  block: ScoreBlock;
+  enrollmentId: number;
+  sourceType: "exam" | "homework";
+  sourceId: number;
+  sessionId?: number;
+  disabled: boolean;
+}) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (completed: boolean) => {
+      if (sessionId == null) {
+        throw new Error("session_id_required");
+      }
+      return patchAssessmentCorrection(sessionId, {
+        enrollment_id: enrollmentId,
+        source_type: sourceType,
+        source_id: sourceId,
+        completed,
+      });
+    },
+    onSuccess: (_data, completed) => {
+      if (sessionId != null) {
+        void qc.invalidateQueries({
+          queryKey: scoresQueryKeys.sessionScores(sessionId),
+        });
+      }
+      feedback.success(
+        completed
+          ? "오답 확인을 완료했습니다."
+          : "오답 확인이 필요한 상태로 되돌렸습니다.",
+      );
+    },
+    onError: () => {
+      feedback.error("오답 확인 상태를 저장하지 못했습니다. 다시 시도해 주세요.");
+    },
+  });
+
+  const status = block.correction_status ?? null;
+  const unavailable = status == null || status === "NOT_REQUIRED";
+  const disabledReason = disabled
+    ? "저장하지 않은 점수가 있습니다. 점수를 먼저 저장해 주세요."
+    : sessionId == null
+      ? "차시 정보를 확인할 수 없습니다."
+      : status == null
+        ? "점수가 입력된 뒤 오답 확인 상태를 설정할 수 있습니다."
+        : status === "NOT_REQUIRED"
+          ? "만점 결과는 오답 확인이 필요하지 않습니다."
+          : undefined;
+
+  return (
+    <div className="ssd-correction-control">
+      <div className="ssd-correction-control__copy">
+        <div className="ssd-correction-control__title-row">
+          <strong>오답 확인</strong>
+          <CorrectionStatusBadge block={block} />
+        </div>
+        <span>
+          {status === "COMPLETED"
+            ? "해설지 배부 전 오답 확인을 마친 상태입니다."
+            : status === "PENDING"
+              ? "확인이 끝날 때까지 학생 이름에 음영으로 표시됩니다."
+              : status === "NOT_REQUIRED"
+                ? "만점이라 확인할 오답이 없습니다."
+                : "점수를 입력하면 완료 여부를 기록할 수 있습니다."}
+        </span>
+      </div>
+      <div
+        className="ssd-correction-control__actions"
+        role="group"
+        aria-label="오답 확인 상태"
+        title={disabledReason}
+      >
+        <Button
+          size="sm"
+          intent="secondary"
+          aria-pressed={status === "PENDING"}
+          data-correction-state="pending"
+          onClick={() => mutation.mutate(false)}
+          disabled={disabled || unavailable || sessionId == null || mutation.isPending}
+          loading={mutation.isPending && mutation.variables === false}
+        >
+          미완료
+        </Button>
+        <Button
+          size="sm"
+          intent="secondary"
+          aria-pressed={status === "COMPLETED"}
+          data-correction-state="completed"
+          onClick={() => mutation.mutate(true)}
+          disabled={disabled || unavailable || sessionId == null || mutation.isPending}
+          loading={mutation.isPending && mutation.variables === true}
+        >
+          완료
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function PassBadge({ block }: { block: ScoreBlock }) {
   const labels = useTenantLabels();

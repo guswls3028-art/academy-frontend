@@ -14,6 +14,8 @@ export type ScoreBlock = {
   final_pass?: boolean | null;
   achievement?: Achievement | null;
   is_provisional?: boolean;
+  correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
+  correction_completed_at?: string | null;
   meta?: {
     status?: string | null;
     manual_review_required?: boolean;
@@ -73,7 +75,9 @@ export type SessionScoreRow = {
   progress_completed?: boolean;
   progress_status?: "completed" | "in_progress";
   name_highlight_clinic_target?: boolean;
+  name_highlight_followup_required?: boolean;
   exam_not_submitted_count?: number;
+  correction_pending_count?: number;
 };
 
 export type SessionScoreMeta = {
@@ -115,4 +119,23 @@ export type SessionScoresResponse = {
 export async function fetchSessionScores(sessionId: number) {
   const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
   return res.data as SessionScoresResponse;
+}
+
+export async function patchAssessmentCorrection(
+  sessionId: number,
+  payload: {
+    enrollment_id: number;
+    source_type: "exam" | "homework";
+    source_id: number;
+    completed: boolean;
+  },
+) {
+  const res = await api.patch(
+    `/results/admin/sessions/${sessionId}/score-correction/`,
+    payload,
+  );
+  return res.data as Pick<
+    ScoreBlock,
+    "correction_status" | "correction_completed_at"
+  >;
 }

@@ -51,6 +51,7 @@ import styles from "./ResultsPerformanceConsole.module.css";
 type ScoreBandFilter = "all" | StudentScoreBand;
 type TrendFilter = "all" | StudentTrendDirection;
 type SortKey = "attention" | "latest_desc" | "change_desc" | "name";
+type SessionTypeFilter = "all" | "REGULAR" | "SUPPLEMENT";
 
 const SOURCE_OPTIONS: Array<{ value: StudentPerformanceSource; label: string; description: string }> = [
   { value: "overall", label: "종합", description: "세 갈래 성적을 함께 봅니다" },
@@ -171,6 +172,7 @@ function reportedTrendPoints(student: StudentPerformanceRow, source: "school" | 
       session_title: item.label,
       session_order: null,
       session_regular_order: null,
+      session_type: null,
       session_date: reportedEffectiveDate(item),
       lecture_id: null,
       lecture_title: item.subject,
@@ -189,6 +191,7 @@ export default function ResultsExplorerPage() {
   const [reportedSubject, setReportedSubject] = useState("");
   const [period, setPeriod] = useState<StudentPerformancePeriod>(180);
   const [lectureId, setLectureId] = useState<number | null>(null);
+  const [sessionType, setSessionType] = useState<SessionTypeFilter>("all");
   const [grade, setGrade] = useState<number | "all">("all");
   const [scoreBand, setScoreBand] = useState<ScoreBandFilter>("all");
   const [trend, setTrend] = useState<TrendFilter>("all");
@@ -284,10 +287,19 @@ export default function ResultsExplorerPage() {
     staleTime: 30_000,
   });
   const selectedTrend = useMemo(
-    () => (gradesQuery.data?.exam_trend ?? []).filter((point) => (
-      (lectureId == null || point.lecture_id === lectureId) && isWithinPeriod(point, period)
-    )),
-    [gradesQuery.data?.exam_trend, lectureId, period],
+    () => (gradesQuery.data?.exam_trend ?? [])
+      .filter((point) => (
+        (lectureId == null || point.lecture_id === lectureId)
+        && isWithinPeriod(point, period)
+        && (
+          sessionType === "all"
+          || (sessionType === "REGULAR"
+            ? point.session_type !== "SUPPLEMENT"
+            : point.session_type === "SUPPLEMENT")
+        )
+      ))
+      .map((point, index) => ({ ...point, round_index: index + 1 })),
+    [gradesQuery.data?.exam_trend, lectureId, period, sessionType],
   );
   const selectedExams = useMemo(() => {
     const visibleExamIds = new Set(selectedTrend.map((point) => point.exam_id));
@@ -315,6 +327,7 @@ export default function ResultsExplorerPage() {
 
   function resetFilters() {
     setLectureId(null);
+    setSessionType("all");
     setGrade("all");
     setScoreBand("all");
     setTrend("all");
@@ -499,9 +512,11 @@ export default function ResultsExplorerPage() {
                   subject={reportedSubject}
                   trend={source === "academy" ? selectedTrend : selectedReportedTrend}
                   exams={selectedExams}
+                  sessionType={sessionType}
                   isLoading={source === "academy" && gradesQuery.isLoading}
                   isError={source === "academy" && gradesQuery.isError}
                   onRetry={() => { void gradesQuery.refetch(); }}
+                  onSessionTypeChange={setSessionType}
                   onOpenStudent={() => navigate(`/admin/students/${selectedStudent.student_id}`, {
                     state: { backgroundLocation: location },
                   })}
@@ -715,9 +730,11 @@ function StudentPerformanceDetail({
   subject,
   trend,
   exams,
+  sessionType,
   isLoading,
   isError,
   onRetry,
+  onSessionTypeChange,
   onOpenStudent,
   onVoid,
 }: {
@@ -726,9 +743,11 @@ function StudentPerformanceDetail({
   subject: string;
   trend: StudentExamTrendPoint[];
   exams: StudentExamGrade[];
+  sessionType: SessionTypeFilter;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onSessionTypeChange: (value: SessionTypeFilter) => void;
   onOpenStudent: () => void;
   onVoid: (row: StudentReportedScore) => void;
 }) {
@@ -761,12 +780,41 @@ function StudentPerformanceDetail({
         <EmptyState scope="panel" tone="error" title="회차별 성적을 불러올 수 없습니다" actions={<Button intent="secondary" size="sm" onClick={onRetry}>다시 시도</Button>} />
       ) : (
         <>
+          {source === "academy" && (
+            <div className={styles.sessionTypeFilter}>
+              <span>
+                <strong>누적 구분</strong>
+                <small>본수업과 보강 시험을 섞지 않고 봅니다.</small>
+              </span>
+              <div className={styles.periodGroup} role="group" aria-label="수업 유형">
+                {([
+                  { value: "all", label: "전체" },
+                  { value: "REGULAR", label: "본수업" },
+                  { value: "SUPPLEMENT", label: "보강" },
+                ] as const).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    data-active={sessionType === option.value ? "true" : "false"}
+                    aria-pressed={sessionType === option.value}
+                    onClick={() => onSessionTypeChange(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <StudentScoreTrendChart
             points={trend}
             showLectureFilters={false}
             title={source === "academy" ? "학원 시험 누적 추이" : source === "school" ? "학교 내신 누적 추이" : "모의고사 누적 추이"}
             description={source === "academy"
-              ? "학원에서 채점된 테스트를 회차순으로 비교합니다."
+              ? sessionType === "REGULAR"
+                ? "본수업에서 채점된 테스트만 회차순으로 비교합니다."
+                : sessionType === "SUPPLEMENT"
+                  ? "보강에서 채점된 테스트만 회차순으로 비교합니다."
+                  : "학원에서 채점된 테스트를 회차순으로 비교합니다."
               : "학생이 제출하고 선생님이 확인한 성적만 시험 순서대로 비교합니다."}
             badgeLabel={source === "academy" ? "자동 누적" : "확인된 성적"}
           />

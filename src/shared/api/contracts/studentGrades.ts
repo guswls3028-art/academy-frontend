@@ -18,6 +18,7 @@ export type StudentExamGrade = {
   session_title?: string | null;
   session_order?: number | null;
   session_regular_order?: number | null;
+  session_type?: "REGULAR" | "SUPPLEMENT" | null;
   session_date?: string | null;
   lecture_id?: number | null;
   lecture_title?: string | null;
@@ -58,11 +59,16 @@ export type StudentExamTrendPoint = {
   session_title: string | null;
   session_order: number | null;
   session_regular_order: number | null;
+  session_type?: "REGULAR" | "SUPPLEMENT" | null;
   session_date: string | null;
   lecture_id: number | null;
   lecture_title: string | null;
   lecture_color: string | null;
   lecture_chip_label: string | null;
+  rank?: number | null;
+  percentile?: number | null;
+  cohort_size?: number | null;
+  cohort_avg?: number | null;
   retake_count: number;
   archived: boolean;
 };

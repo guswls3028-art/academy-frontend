@@ -23,6 +23,7 @@
 .header,
 .headingGroup,
 .titleRow,
+.controls,
 .filters,
 .metrics,
 .metric strong {
@@ -104,25 +105,56 @@
 }
 
 .filters {
+  min-width: 0;
+  flex: 1;
   gap: 6px;
   padding-bottom: 2px;
   overflow-x: auto;
 }
 
-.filters button {
+.controls {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.filters button,
+.metricSwitch button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   min-height: 30px;
-  padding: 4px 10px;
   flex-shrink: 0;
   border: 1px solid var(--score-border);
-  border-radius: 999px;
   color: var(--score-text-muted);
   background: var(--score-surface);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.filters button {
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.metricSwitch {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--score-border);
+  border-radius: 9px;
+  background: var(--score-surface-soft);
+}
+
+.metricSwitch button {
+  justify-content: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border-color: transparent;
+  border-radius: 6px;
+  background: transparent;
 }
 
 .filters button[data-active="true"] {
@@ -131,7 +163,15 @@
   background: color-mix(in srgb, var(--score-line) 8%, var(--score-surface));
 }
 
-.filters button:focus-visible {
+.metricSwitch button[data-active="true"] {
+  border-color: color-mix(in srgb, var(--score-line) 18%, var(--score-border));
+  color: var(--score-line);
+  background: var(--score-surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--score-text) 8%, transparent);
+}
+
+.filters button:focus-visible,
+.metricSwitch button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--score-line) 50%, transparent);
   outline-offset: 2px;
 }
@@ -250,6 +290,15 @@
     grid-template-columns: repeat(3, minmax(76px, 1fr));
   }
 
+  .controls {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .metricSwitch {
+    margin-left: auto;
+  }
+
   .chartPaper {
     height: 224px;
   }
@@ -258,6 +307,12 @@
 @media (max-width: 420px) {
   .header {
     display: grid;
+  }
+
+  .metricSwitch {
+    width: 100%;
+    margin-left: 0;
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .growth {

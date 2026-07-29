@@ -571,8 +571,57 @@
   font-size: 11px;
 }
 
+.sessionTypeFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--gradebook-rule);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--gradebook-blue) 3%, var(--gradebook-paper));
+}
+
+.sessionTypeFilter > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sessionTypeFilter strong {
+  color: var(--gradebook-ink);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.sessionTypeFilter small {
+  color: var(--gradebook-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.sessionTypeFilter .periodGroup {
+  flex-shrink: 0;
+}
+
 .historyHeader {
   padding-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .sessionTypeFilter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sessionTypeFilter .periodGroup {
+    width: 100%;
+  }
+
+  .sessionTypeFilter .periodGroup button {
+    flex: 1;
+  }
 }
 
 .historyHeader > span {

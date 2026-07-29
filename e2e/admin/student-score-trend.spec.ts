@@ -147,6 +147,10 @@ const grades = {
       lecture_title: "Ymath 중등 심화",
       lecture_color: "#2563eb",
       lecture_chip_label: "Y",
+      rank: 3,
+      percentile: 30,
+      cohort_size: 10,
+      cohort_avg: 75,
       retake_count: 1,
       archived: true,
     },
@@ -168,6 +172,10 @@ const grades = {
       lecture_title: "Ymath 중등 심화",
       lecture_color: "#2563eb",
       lecture_chip_label: "Y",
+      rank: 2,
+      percentile: 20,
+      cohort_size: 10,
+      cohort_avg: 78,
       retake_count: 2,
       archived: false,
     },
@@ -189,6 +197,10 @@ const grades = {
       lecture_title: "Ymath 경시 대비",
       lecture_color: "#7c3aed",
       lecture_chip_label: "경",
+      rank: 1,
+      percentile: 10,
+      cohort_size: 10,
+      cohort_avg: 82,
       retake_count: 1,
       archived: false,
     },
@@ -443,6 +455,15 @@ async function assertTrend(component: ReturnType<Page["getByTestId"]>): Promise<
   await expect(component.getByText("1회차", { exact: true })).toBeVisible();
   await expect(component.getByText("2회차", { exact: true })).toBeVisible();
   await expect(component.getByText("3회차", { exact: true })).toBeVisible();
+  await component.getByRole("button", { name: "등수", exact: true }).click();
+  await expect(component).toContainText("최근1등 / 10명");
+  await expect(component).toContainText("평균 등수2등");
+  await expect(component).toContainText("직전 대비1등 상승");
+  await component.getByRole("button", { name: "상위 %", exact: true }).click();
+  await expect(component).toContainText("최근10%");
+  await expect(component).toContainText("평균 위치20%");
+  await expect(component).toContainText("직전 대비10%p 상승");
+  await component.getByRole("button", { name: "득점률", exact: true }).click();
 }
 
 test.describe("학생별 회차 누적 성적 추이", () => {
