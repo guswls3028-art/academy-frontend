@@ -9,6 +9,12 @@ import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const LECTURE_ID = 990101;
 const SESSION_ID = 990102;
+const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 페이지 경계를 확인하는 누적 종합 평가 내용을 학부모에게 충분히 설명하는 평가";
+
+type InstallApiOptions = {
+  denseReport?: boolean;
+  primaryColor?: string;
+};
 
 function isLocalBaseUrl(url: string) {
   return /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(url);
@@ -114,6 +120,23 @@ const scoreRows = [
   },
 ];
 
+function denseScoreRows() {
+  return scoreRows.map((row, rowIndex) => rowIndex === 0 ? ({
+    ...row,
+    exams: row.exams.map((exam) => ({
+      ...exam,
+      title: DENSE_EXAM_TITLE,
+      items: Array.from({ length: 16 }, (_, index) => ({
+        question_id: 6000 + index,
+        question_number: index + 1,
+        question_kind: index % 4 === 0 ? "essay" : "choice",
+        score: index % 2 === 0 ? 4 : 0,
+        max_score: 4,
+      })),
+    })),
+  }) : row);
+}
+
 function studentGrades(studentId: number) {
   const isFirst = studentId === 7001;
   const percentages = isFirst ? [70, 76, 82] : [72, 68, 64];
@@ -171,7 +194,64 @@ function studentGrades(studentId: number) {
   };
 }
 
-async function installApi(page: Page) {
+function denseStudentGrades(studentId: number) {
+  const isFirst = studentId === 7001;
+  const scores = Array.from({ length: 9 }, (_, index) => 60 + index);
+  return {
+    exams: scores.map((score, index) => ({
+      exam_id: 5000 + index,
+      enrollment_id: isFirst ? 9101 : 9102,
+      title: `${DENSE_EXAM_TITLE} ${index + 1}`,
+      total_score: score,
+      max_score: 100,
+      is_pass: score >= 70,
+      achievement: score >= 70 ? "PASS" : "FAIL",
+      final_pass: score >= 70,
+      retake_count: 0,
+      session_id: 995000 + index,
+      session_title: `${index + 1}차시 ${DENSE_EXAM_TITLE}`,
+      session_order: index + 1,
+      session_regular_order: index + 1,
+      session_date: `2026-07-${String(10 + index).padStart(2, "0")}`,
+      lecture_id: LECTURE_ID,
+      lecture_title: "중등 수학 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "수심",
+      recorded_at: `2026-07-${String(10 + index).padStart(2, "0")}T18:00:00+09:00`,
+    })),
+    homeworks: [],
+    exam_trend: scores.slice(-4).map((score, index) => ({
+      round_index: index + 1,
+      exam_id: 5005 + index,
+      enrollment_id: isFirst ? 9101 : 9102,
+      title: `${DENSE_EXAM_TITLE} ${index + 6}`,
+      score,
+      max_score: 100,
+      score_pct: score,
+      recorded_at: `2026-07-${String(15 + index).padStart(2, "0")}T18:00:00+09:00`,
+      session_id: 995005 + index,
+      session_title: `${index + 6}차시`,
+      session_order: index + 6,
+      session_regular_order: index + 6,
+      session_date: `2026-07-${String(15 + index).padStart(2, "0")}`,
+      lecture_id: LECTURE_ID,
+      lecture_title: "중등 수학 심화",
+      lecture_color: "#2563eb",
+      lecture_chip_label: "수심",
+      retake_count: 0,
+      archived: false,
+    })),
+    exam_summary: {
+      scored_count: 9,
+      average_score_pct: 64,
+      latest_score_pct: 68,
+      change_pct_points: 1,
+      best_score_pct: 68,
+    },
+  };
+}
+
+async function installApi(page: Page, options: InstallApiOptions = {}) {
   const baseUrl = getBaseUrl("admin");
   test.skip(!isLocalBaseUrl(baseUrl), "개인 성적표 route-mock 검증은 로컬 dev 서버 전용");
   const token = createLocalJwt();
@@ -180,6 +260,8 @@ async function installApi(page: Page) {
     "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
     "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
   };
+  const activeScoreRows = options.denseReport ? denseScoreRows() : scoreRows;
+  let studentGradesRequestCount = 0;
 
   await page.route("**/version.json?*", async (route) => {
     await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
@@ -210,7 +292,7 @@ async function installApi(page: Page) {
         display_name: "학원플러스 테스트",
         ui_config: {
           logo_url: "/tenants/hakwonplus/icon.png",
-          primary_color: "#2563EB",
+          primary_color: options.primaryColor ?? "#2563EB",
         },
         feature_flags: {},
         is_active: true,
@@ -243,7 +325,7 @@ async function installApi(page: Page) {
         next: null,
         previous: null,
         page_size: 500,
-        results: scoreRows.map((row, index) => ({
+        results: activeScoreRows.map((row, index) => ({
           id: 8000 + index,
           enrollment_id: row.enrollment_id,
           student_id: row.student_id,
@@ -265,11 +347,18 @@ async function installApi(page: Page) {
             pass_score: 70,
             max_score: 100,
             display_order: 1,
-            questions: [
-              { question_id: 4928, number: 1, max_score: 4, kind: "choice" },
-              { question_id: 4929, number: 2, max_score: 4, kind: "choice" },
-              { question_id: 4930, number: 3, max_score: 6, kind: "essay" },
-            ],
+            questions: options.denseReport
+              ? Array.from({ length: 16 }, (_, index) => ({
+                  question_id: 6000 + index,
+                  number: index + 1,
+                  max_score: 4,
+                  kind: index % 4 === 0 ? "essay" : "choice",
+                }))
+              : [
+                  { question_id: 4928, number: 1, max_score: 4, kind: "choice" },
+                  { question_id: 4929, number: 2, max_score: 4, kind: "choice" },
+                  { question_id: 4930, number: 3, max_score: 6, kind: "essay" },
+                ],
           }],
           homeworks: [{
             homework_id: 4101,
@@ -279,12 +368,14 @@ async function installApi(page: Page) {
             display_order: 1,
           }],
         },
-        rows: scoreRows,
+        rows: activeScoreRows,
       });
       return;
     }
     if (pathname.endsWith("/results/admin/student-grades/")) {
-      await fulfill(studentGrades(Number(url.searchParams.get("student_id"))));
+      studentGradesRequestCount += 1;
+      const studentId = Number(url.searchParams.get("student_id"));
+      await fulfill(options.denseReport ? denseStudentGrades(studentId) : studentGrades(studentId));
       return;
     }
     if (pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`)) {
@@ -305,13 +396,17 @@ async function installApi(page: Page) {
     localStorage.setItem("tenant_code", "hakwonplus");
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, token);
+
+  return {
+    getStudentGradesRequestCount: () => studentGradesRequestCount,
+  };
 }
 
 test.describe("개인 성적표", () => {
   test("학생 전환, 1·2쪽 미리보기, 실제 PDF 다운로드", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1366, height: 900 });
-    await installApi(page);
+    const apiTracker = await installApi(page);
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
@@ -388,6 +483,14 @@ test.describe("개인 성적표", () => {
       path: testInfo.outputPath("individual-score-report-preview-1100.png"),
       fullPage: false,
     });
+
+    const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
+    await dialog.getByRole("button", { name: "닫기" }).click();
+    await expect(dialog).toBeHidden();
+    await page.getByRole("button", { name: "추가 기능" }).click();
+    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+    await expect.poll(() => apiTracker.getStudentGradesRequestCount()).toBeGreaterThan(requestCountBeforeReopen);
+    await expect(page.getByRole("dialog").getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
   });
 
   test("390px 모바일에서 학생 전환과 읽기용 재배치", async ({ page }, testInfo) => {
@@ -434,6 +537,54 @@ test.describe("개인 성적표", () => {
     });
     await dialog.locator(".student-score-report-preview__scroll").evaluate((element) => {
       element.scrollTo({ top: 0 });
+    });
+  });
+
+  test("긴 한국어·16문항은 3쪽으로 분리하고 밝은 브랜드색 대비를 보장", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installApi(page, { denseReport: true, primaryColor: "#f97316" });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+
+    await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "추가 기능" }).click();
+    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "상세 3쪽" })).toBeVisible();
+    const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+    await expect(frame.locator(".student-report-page")).toHaveCount(3);
+    await expect(frame.locator(".report-topline").first()).toHaveCSS("background-color", "rgb(249, 115, 22)");
+    await expect(frame.locator(".report-topline").first()).toHaveCSS("color", "rgb(23, 32, 51)");
+    await expect(dialog.getByRole("button", { name: "상세 3쪽" })).toHaveCSS("color", "rgb(23, 32, 51)");
+
+    const pageFits = await frame.locator(".student-report-page").evaluateAll((pages) => pages.map((page) => {
+      const footer = page.querySelector<HTMLElement>(".report-footer");
+      const sections = Array.from(page.querySelectorAll<HTMLElement>(":scope > .section"));
+      const contentBottom = sections.reduce(
+        (bottom, section) => Math.max(bottom, section.getBoundingClientRect().bottom),
+        0,
+      );
+      return footer ? contentBottom <= footer.getBoundingClientRect().top + 1 : false;
+    }));
+    expect(pageFits).toEqual([true, true, true]);
+    await expect(frame.locator('[data-page="2"] .item-table')).toHaveCount(0);
+    await expect(frame.locator('[data-page="3"] .item-table tbody tr')).toHaveCount(16);
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 90_000 }),
+      dialog.getByRole("button", { name: "개인 성적표 PDF" }).click(),
+    ]);
+    const outputPath = testInfo.outputPath("student-score-report-dense.pdf");
+    await download.saveAs(outputPath);
+    const pdfBytes = await readFile(path.resolve(outputPath));
+    const pdf = await PDFDocument.load(pdfBytes);
+    expect(pdf.getPageCount()).toBe(3);
+    expect(pdfBytes.byteLength).toBeLessThan(3_000_000);
+    await page.screenshot({
+      path: testInfo.outputPath("individual-score-report-dense-preview.png"),
+      fullPage: false,
     });
   });
 });

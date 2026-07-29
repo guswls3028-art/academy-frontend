@@ -133,16 +133,9 @@
   position: relative;
   width: 556px;
   max-width: 100%;
+  height: var(--score-report-preview-height-70, 1593px);
   margin: 0 auto;
   filter: drop-shadow(0 12px 24px rgb(15 23 42 / 16%));
-}
-
-.student-score-report-preview__paper--summary {
-  height: 786px;
-}
-
-.student-score-report-preview__paper--detailed {
-  height: 1593px;
 }
 
 .student-score-report-preview__iframe {
@@ -150,17 +143,10 @@
   top: 0;
   left: 0;
   width: 794px;
+  height: var(--score-report-preview-height, 2277px);
   border: 0;
   transform: scale(0.7);
   transform-origin: top left;
-}
-
-.student-score-report-preview__iframe--summary {
-  height: 1123px;
-}
-
-.student-score-report-preview__iframe--detailed {
-  height: 2276px;
 }
 
 .student-score-report-preview__empty {
@@ -305,14 +291,7 @@
 
   .student-score-report-preview__paper {
     width: 476px;
-  }
-
-  .student-score-report-preview__paper--summary {
-    height: 674px;
-  }
-
-  .student-score-report-preview__paper--detailed {
-    height: 1365px;
+    height: var(--score-report-preview-height-60, 1367px);
   }
 
   .student-score-report-preview__iframe {

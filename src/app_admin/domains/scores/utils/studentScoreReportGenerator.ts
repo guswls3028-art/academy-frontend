@@ -761,14 +761,17 @@ function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
   return visibleRows.join("");
 }
 
-function buildHistoryRows(exams: StudentExamGrade[]): string {
-  const rows = [...exams]
+function selectHistoryRows(exams: StudentExamGrade[]): StudentExamGrade[] {
+  return [...exams]
     .sort((a, b) => {
       const left = a.recorded_at || a.submitted_at || a.session_date || "";
       const right = b.recorded_at || b.submitted_at || b.session_date || "";
       return right.localeCompare(left);
     })
     .slice(0, 9);
+}
+
+function buildHistoryRows(rows: StudentExamGrade[]): string {
   if (rows.length === 0) {
     return `<tr><td class="empty-cell" colspan="5">누적 시험 기록이 없습니다.</td></tr>`;
   }
@@ -793,7 +796,7 @@ function buildHistoryRows(exams: StudentExamGrade[]): string {
 function buildItemAnalysis(
   row: SessionScoreRow,
   meta: SessionScoreMeta,
-): { examTitle: string; rows: string; hasItems: boolean } {
+): { examTitle: string; rows: string; hasItems: boolean; itemCount: number } {
   const exam = row.exams.find((entry) => (entry.items?.length ?? 0) > 0);
   const items = exam?.items ?? [];
   if (!exam || items.length === 0) {
@@ -801,23 +804,25 @@ function buildItemAnalysis(
       examTitle: "",
       rows: "",
       hasItems: false,
+      itemCount: 0,
     };
   }
   const questionNumbers = new Map(
     (meta.exams.find((entry) => entry.exam_id === exam.exam_id)?.questions ?? [])
       .map((question) => [question.question_id, question.number]),
   );
-  const numberedItems = items.map((item) => ({
-    item,
-    questionNumber: item.question_number ?? questionNumbers.get(item.question_id) ?? null,
-  }));
+  const numberedItems = items
+    .map((item) => ({
+      item,
+      questionNumber: item.question_number ?? questionNumbers.get(item.question_id) ?? null,
+    }))
+    .sort((a, b) => (a.questionNumber ?? Number.MAX_SAFE_INTEGER) - (b.questionNumber ?? Number.MAX_SAFE_INTEGER))
+    .slice(0, 16);
   return {
     examTitle: exam.title,
     hasItems: true,
-    rows: numberedItems
-    .sort((a, b) => (a.questionNumber ?? Number.MAX_SAFE_INTEGER) - (b.questionNumber ?? Number.MAX_SAFE_INTEGER))
-    .slice(0, 16)
-    .map(({ item, questionNumber }) => {
+    itemCount: numberedItems.length,
+    rows: numberedItems.map(({ item, questionNumber }) => {
       const ratio = item.max_score > 0 ? item.score / item.max_score : 0;
       const result = ratio >= 1 ? "만점" : ratio > 0 ? "부분득점" : "0점";
       const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
@@ -831,6 +836,20 @@ function buildItemAnalysis(
       `;
     }).join(""),
   };
+}
+
+function shouldSplitDetailedPage(
+  historyRows: StudentExamGrade[],
+  itemCount: number,
+): boolean {
+  if (itemCount === 0 || historyRows.length === 0) return false;
+  const historyTextLength = historyRows.reduce(
+    (total, exam) => total + String(exam.session_title ?? "").length + String(exam.title ?? "").length,
+    0,
+  );
+  return (itemCount >= 8 && historyRows.length >= 7)
+    || (itemCount >= 12 && historyRows.length >= 4)
+    || (itemCount >= 6 && historyTextLength >= 300);
 }
 
 function buildCoachingPoints(
@@ -895,9 +914,27 @@ function buildFooter(tenantName: string, date: string, page: number, total: numb
   `;
 }
 
+function resolveDetailedLayout(params: StudentScoreReportParams) {
+  const scoped = scopeGrades(params.grades, params.meta.lecture_id);
+  const historyRows = selectHistoryRows(scoped.exams);
+  const itemAnalysis = buildItemAnalysis(params.row, params.meta);
+  const splitDetailPage = shouldSplitDetailedPage(historyRows, itemAnalysis.itemCount);
+  return {
+    scoped,
+    historyRows,
+    itemAnalysis,
+    splitDetailPage,
+    totalPages: splitDetailPage ? 3 : 2,
+  };
+}
+
+export function getStudentScoreReportPageCount(params: StudentScoreReportParams): number {
+  if ((params.mode ?? "detailed") === "summary") return 1;
+  return resolveDetailedLayout(params).totalPages;
+}
+
 export function buildStudentScoreReportHtml(params: StudentScoreReportParams): string {
   const mode = params.mode ?? "detailed";
-  const totalPages = mode === "detailed" ? 2 : 1;
   const date = resolveDate(params.date);
   const tenantName = (params.tenantName ?? "").trim();
   const theme = resolveStudentScoreReportTheme({
@@ -906,12 +943,13 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     logoUrl: params.tenantLogoUrl,
   });
   const { row, meta } = params;
-  const scoped = scopeGrades(params.grades, meta.lecture_id);
+  const detailedLayout = resolveDetailedLayout(params);
+  const { scoped, historyRows, itemAnalysis, splitDetailPage } = detailedLayout;
+  const totalPages = mode === "detailed" ? detailedLayout.totalPages : 1;
   const recentTrend = [...scoped.trend]
     .sort((a, b) => a.round_index - b.round_index)
     .slice(-4);
   const summary = summarizeStudentScoreTrend(recentTrend);
-  const itemAnalysis = buildItemAnalysis(row, meta);
   const currentExamScores = row.exams
     .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
     .filter((value): value is number => value != null);
@@ -979,6 +1017,25 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     </section>
   `;
 
+  const detailSection = `
+    <div class="section detail-grid${itemAnalysis.hasItems ? "" : " detail-grid--single"}">
+      ${itemAnalysis.hasItems ? `<div>
+        <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}최대 16문항</span></div>
+        <table class="item-table">
+          <thead><tr><th>문항</th><th>유형</th><th class="num">득점</th><th>결과</th></tr></thead>
+          <tbody>${itemAnalysis.rows}</tbody>
+        </table>
+      </div>` : ""}
+      <div>
+        <div class="section-heading"><h2>상담 체크포인트</h2><span>입력 데이터 자동 요약</span></div>
+        <div class="coaching-box">
+          <h3>다음 상담에서 확인해 보세요</h3>
+          <ul>${coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
+        </div>
+      </div>
+    </div>
+  `;
+
   const pageTwo = mode === "detailed" ? `
     <section class="student-report-page" data-page="2">
       <div class="report-topline">
@@ -989,26 +1046,22 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
         <div class="section-heading"><h2>최근 시험 기록</h2><span>최신순 최대 9건</span></div>
         <table class="history-table">
           <thead><tr><th>차시</th><th>시험</th><th class="num">점수</th><th class="num">환산</th><th>판정</th></tr></thead>
-          <tbody>${buildHistoryRows(scoped.exams)}</tbody>
+          <tbody>${buildHistoryRows(historyRows)}</tbody>
         </table>
       </div>
-      <div class="section detail-grid${itemAnalysis.hasItems ? "" : " detail-grid--single"}">
-        ${itemAnalysis.hasItems ? `<div>
-          <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}최대 16문항</span></div>
-          <table class="item-table">
-            <thead><tr><th>문항</th><th>유형</th><th class="num">득점</th><th>결과</th></tr></thead>
-            <tbody>${itemAnalysis.rows}</tbody>
-          </table>
-        </div>` : ""}
-        <div>
-          <div class="section-heading"><h2>상담 체크포인트</h2><span>입력 데이터 자동 요약</span></div>
-          <div class="coaching-box">
-            <h3>다음 상담에서 확인해 보세요</h3>
-            <ul>${coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
-          </div>
-        </div>
-      </div>
+      ${splitDetailPage ? "" : detailSection}
       ${buildFooter(tenantName, date, 2, totalPages)}
+    </section>
+  ` : "";
+
+  const pageThree = mode === "detailed" && splitDetailPage ? `
+    <section class="student-report-page" data-page="3">
+      <div class="report-topline">
+        ${buildBrandIdentity(tenantName, theme)}
+        <span>${escapeHtml(row.student_name)} · 문항 분석과 상담</span>
+      </div>
+      ${detailSection}
+      ${buildFooter(tenantName, date, 3, totalPages)}
     </section>
   ` : "";
 
@@ -1020,7 +1073,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     <title>${escapeHtml(row.student_name)} 개인 성적표</title>
     <style>${REPORT_STYLE}</style>
   </head>
-  <body>${pageOne}${pageTwo}</body>
+  <body>${pageOne}${pageTwo}${pageThree}</body>
 </html>`;
 }
 
@@ -1043,6 +1096,17 @@ async function waitForIframeDocument(doc: Document): Promise<void> {
     await (doc as Document & { fonts: FontFaceSet }).fonts.ready;
   }
   await new Promise((resolve) => window.setTimeout(resolve, 150));
+}
+
+function assertPageContentFits(page: HTMLElement): void {
+  const footer = page.querySelector<HTMLElement>(".report-footer");
+  if (!footer) return;
+  const footerTop = footer.getBoundingClientRect().top;
+  const contentBottom = Array.from(page.querySelectorAll<HTMLElement>(":scope > .section"))
+    .reduce((bottom, section) => Math.max(bottom, section.getBoundingClientRect().bottom), 0);
+  if (contentBottom > footerTop + 1) {
+    throw new Error("성적표 내용이 A4 범위를 넘어 PDF를 만들지 않았습니다. 평가명을 줄이거나 요약 1쪽을 이용해 주세요.");
+  }
 }
 
 export async function downloadStudentScoreReportPdf(params: StudentScoreReportParams): Promise<void> {
@@ -1070,6 +1134,7 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
     for (let index = 0; index < pageElements.length; index += 1) {
+      assertPageContentFits(pageElements[index]);
       const canvas = await html2canvas(pageElements[index], {
         scale: 2,
         useCORS: true,

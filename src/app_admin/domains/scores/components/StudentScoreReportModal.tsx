@@ -17,6 +17,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
+  getStudentScoreReportPageCount,
   type StudentScoreReportMode,
 } from "../utils/studentScoreReportGenerator";
 import { resolveStudentScoreReportTheme } from "../utils/studentScoreReportTheme";
@@ -81,7 +82,8 @@ export default function StudentScoreReportModal({
     queryKey: adminStudentsQueryKeys.studentGrades(studentId),
     queryFn: () => fetchAdminStudentGrades(studentId),
     enabled: open && hasStudentId,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const filteredRows = useMemo(() => {
@@ -104,12 +106,6 @@ export default function StudentScoreReportModal({
     primaryColor,
     logoUrl: tenantLogoUrl,
   }), [primaryColor, tenantCode, tenantLogoUrl]);
-  const workspaceStyle = {
-    "--score-report-brand": reportTheme.primary,
-    "--score-report-accent": reportTheme.accent,
-    "--score-report-on-brand": reportTheme.onPrimary,
-    "--score-report-mobile-height": `${mobilePreviewHeight}px`,
-  } as CSSProperties;
   const reportParams = useMemo(() => selectedRow ? ({
     row: selectedRow,
     meta,
@@ -135,6 +131,26 @@ export default function StudentScoreReportModal({
     primaryColor,
     mode,
   ]);
+  const reportPageCount = useMemo(
+    () => reportParams ? getStudentScoreReportPageCount(reportParams) : 1,
+    [reportParams],
+  );
+  const detailedPageCount = useMemo(
+    () => reportParams
+      ? getStudentScoreReportPageCount({ ...reportParams, mode: "detailed" })
+      : 2,
+    [reportParams],
+  );
+  const previewSourceHeight = (reportPageCount * 1123) + (Math.max(0, reportPageCount - 1) * 31);
+  const workspaceStyle = {
+    "--score-report-brand": reportTheme.primary,
+    "--score-report-accent": reportTheme.accent,
+    "--score-report-on-brand": reportTheme.onPrimary,
+    "--score-report-preview-height": `${previewSourceHeight}px`,
+    "--score-report-preview-height-70": `${Math.ceil(previewSourceHeight * 0.7)}px`,
+    "--score-report-preview-height-60": `${Math.ceil(previewSourceHeight * 0.6)}px`,
+    "--score-report-mobile-height": `${mobilePreviewHeight}px`,
+  } as CSSProperties;
   const reportHtml = useMemo(
     () => reportParams ? buildStudentScoreReportHtml(reportParams) : "",
     [reportParams],
@@ -231,7 +247,7 @@ export default function StudentScoreReportModal({
                     aria-pressed={mode === "detailed"}
                     onClick={() => setMode("detailed")}
                   >
-                    상세 2쪽
+                    상세 {detailedPageCount}쪽
                   </button>
                 </div>
               </div>
@@ -255,7 +271,7 @@ export default function StudentScoreReportModal({
             {selectedRow ? (
               <div className="student-score-report-preview__scroll">
                 <div
-                  className={`student-score-report-preview__paper student-score-report-preview__paper--${mode}`}
+                  className={`student-score-report-preview__paper student-score-report-preview__paper--${mode} student-score-report-preview__paper--pages-${reportPageCount}`}
                 >
                   <iframe
                     title={`${selectedRow.student_name} 개인 성적표 미리보기`}
@@ -344,7 +360,7 @@ export default function StudentScoreReportModal({
         left={(
           <span className="student-score-report-modal__footnote">
             {selectedRow
-              ? `${selectedRow.student_name} · ${mode === "detailed" ? "상세 2쪽" : "요약 1쪽"} · A4 세로`
+              ? `${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"} · A4 세로`
               : "출력할 학생 없음"}
           </span>
         )}

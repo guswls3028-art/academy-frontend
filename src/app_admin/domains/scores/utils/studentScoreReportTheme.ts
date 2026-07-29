@@ -30,6 +30,7 @@ const TENANT_PALETTES: Record<string, ReportPalette> = {
   ymath: { primary: "#0b4a82", accent: "#5bb6e0", tint: "#eaf7fc" },
   sswe: { primary: "#002357", accent: "#f18e2c", tint: "#fff2e4" },
   dnb: { primary: "#612e8d", accent: "#f3eb40", tint: "#fbfae3" },
+  movementhui: { primary: "#1a253b", accent: "#ffdb5a", tint: "#fffdf2" },
   "9999": DEFAULT_PALETTE,
 };
 
@@ -52,8 +53,18 @@ function relativeLuminance(color: string): number {
   return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
 }
 
+function contrastRatio(left: string, right: string): number {
+  const leftLuminance = relativeLuminance(left);
+  const rightLuminance = relativeLuminance(right);
+  const lighter = Math.max(leftLuminance, rightLuminance);
+  const darker = Math.min(leftLuminance, rightLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 function contrastText(background: string): string {
-  return relativeLuminance(background) > 0.52 ? "#172033" : "#ffffff";
+  const dark = "#172033";
+  const light = "#ffffff";
+  return contrastRatio(background, dark) >= contrastRatio(background, light) ? dark : light;
 }
 
 function normalizeLogoUrl(value: string | null | undefined): string {
