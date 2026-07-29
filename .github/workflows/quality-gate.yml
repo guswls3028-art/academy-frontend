@@ -336,6 +336,7 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           AUTH=(
@@ -350,14 +351,30 @@ jobs:
             exit 1
           fi
 
+          PRODUCTION_BRANCH=$(jq -r '.result.production_branch // empty' <<<"${RESPONSE}")
           SOURCE_TYPE=$(jq -r '.result.source.type // "direct-upload"' <<<"${RESPONSE}")
           if [ "${SOURCE_TYPE}" != "direct-upload" ]; then
             AUTO_PROD=$(jq -r \
               '.result.source.config.production_deployments_enabled // "missing"' \
               <<<"${RESPONSE}")
-            if [ "${AUTO_PROD}" != "false" ]; then
-              echo "::error::Cloudflare Git production auto-deploy must be disabled"
-              exit 1
+            LEGACY_AUTO=$(jq -r \
+              '.result.source.config.deployments_enabled // "missing"' \
+              <<<"${RESPONSE}")
+            if [ "${AUTO_PROD}" != "false" ] && [ "${LEGACY_AUTO}" != "false" ]; then
+              RESERVED_PRODUCTION_BRANCH="github-actions-production"
+              if [ "${PRODUCTION_BRANCH}" != "${RESERVED_PRODUCTION_BRANCH}" ]; then
+                echo "::error::Cloudflare Git production auto-deploy is not isolated"
+                exit 1
+              fi
+              BRANCH_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/branches/${RESERVED_PRODUCTION_BRANCH}")
+              if [ "${BRANCH_STATUS}" != "404" ]; then
+                echo "::error::Reserved production branch must not exist in GitHub (status ${BRANCH_STATUS})"
+                exit 1
+              fi
             fi
           fi
 
@@ -365,7 +382,6 @@ jobs:
           DEPLOYMENT_STATUS=$(jq -r \
             '.result.canonical_deployment.latest_stage.status // empty' \
             <<<"${RESPONSE}")
-          PRODUCTION_BRANCH=$(jq -r '.result.production_branch // empty' <<<"${RESPONSE}")
           if [ -z "${DEPLOYMENT_ID}" ] || [ "${DEPLOYMENT_STATUS}" != "success" ]; then
             echo "::error::No successful production deployment is available for rollback"
             exit 1

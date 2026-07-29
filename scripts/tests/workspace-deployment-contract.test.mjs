@@ -77,6 +77,10 @@ test("production captures a rollback baseline before atomic promotion", () => {
     "post-deploy failure rollback is missing",
   );
   assert.match(workflow, /canonical_deployment\.id/);
+  assert.match(workflow, /source\.config\.production_deployments_enabled/);
+  assert.match(workflow, /RESERVED_PRODUCTION_BRANCH="github-actions-production"/);
+  assert.match(workflow, /api\.github\.com\/repos\/\$\{GITHUB_REPOSITORY\}\/branches/);
+  assert.match(workflow, /Reserved production branch must not exist in GitHub/);
   assert.match(workflow, /--branch="\$\{\{ steps\.production-baseline\.outputs\.production_branch \}\}"/);
   assert.match(workflow, /--commit-hash="\$\{GITHUB_SHA\}"/);
   assert.match(workflow, /--commit-dirty=false/);
