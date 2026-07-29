@@ -55,6 +55,7 @@ import {
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
   type ProblemStudioGenerateResponse,
+  type ProblemStudioPageLayout,
   type ProblemStudioTransferJobResult,
   type ProblemStudioTransferJobStatusResponse,
   type ProblemStudioVoiceProfile,
@@ -92,8 +93,21 @@ const DEFAULT_DOCUMENT_STYLE: ProblemStudioDocumentStyle = {
   body_font: "builtin:hamchorom-batang",
   title_size_pt: 20,
   body_size_pt: 10.5,
+  body_width_ratio_percent: 100,
+  body_letter_spacing_percent: 0,
   line_spacing_percent: 155,
   question_spacing_pt: 10,
+  match_source_style: true,
+};
+const DEFAULT_PAGE_LAYOUT: ProblemStudioPageLayout = {
+  mode: "source",
+  margin_top_mm: 12,
+  margin_bottom_mm: 12,
+  margin_left_mm: 12,
+  margin_right_mm: 12,
+  column_gap_mm: 8,
+  center_line: true,
+  center_line_style: "DASH",
 };
 const EMPTY_FONT_CATALOG: ProblemStudioFontCatalog = {
   built_in_fonts: [
@@ -319,7 +333,7 @@ export default function ProblemStudioPage() {
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [sourceFileBlobs, setSourceFileBlobs] = useState<File[]>([]);
   const [templateName] = useState("매치업 기존 양식");
-  const [notePolicy, setNotePolicy] = useState("원본을 한글 검수 파일로 그대로 옮긴 초안입니다. 선생님이 파일에서 직접 수정합니다.");
+  const [notePolicy, setNotePolicy] = useState("핵심 조건을 먼저 짚고, 정답 근거와 대표 오답 이유를 수업에서 설명하듯 간결하게 작성합니다.");
   const [draft, setDraft] = useState<WorksheetDraft>(() => loadDraft());
   const [pasteText, setPasteText] = useState("");
   const [rewriteMode, setRewriteMode] = useState<RewriteMode>("same-type");
@@ -334,8 +348,10 @@ export default function ProblemStudioPage() {
   const [transferJobId, setTransferJobId] = useState<string | null>(null);
   const [companionDownloading, setCompanionDownloading] = useState(false);
   const [externalAiConfirmed, setExternalAiConfirmed] = useState(false);
+  const [learnSourceTone, setLearnSourceTone] = useState(false);
   const [fontCatalog, setFontCatalog] = useState<ProblemStudioFontCatalog>(EMPTY_FONT_CATALOG);
   const [documentStyle, setDocumentStyle] = useState<ProblemStudioDocumentStyle>(DEFAULT_DOCUMENT_STYLE);
+  const [pageLayout, setPageLayout] = useState<ProblemStudioPageLayout>(DEFAULT_PAGE_LAYOUT);
   const [styleLoading, setStyleLoading] = useState(true);
   const [styleSaving, setStyleSaving] = useState(false);
   const [fontUploading, setFontUploading] = useState(false);
@@ -431,6 +447,12 @@ export default function ProblemStudioPage() {
 
   const patchDocumentStyle = (patch: Partial<ProblemStudioDocumentStyle>) => {
     setDocumentStyle((prev) => ({ ...prev, ...patch }));
+    setTransferResult(null);
+    setTransferJobId(null);
+  };
+
+  const patchPageLayout = (patch: Partial<ProblemStudioPageLayout>) => {
+    setPageLayout((prev) => ({ ...prev, ...patch }));
     setTransferResult(null);
     setTransferJobId(null);
   };
@@ -755,7 +777,12 @@ export default function ProblemStudioPage() {
         use_ai: true,
         transfer_only: true,
         ai_transcription: true,
+        auto_explanations: true,
+        learn_source_explanation_style: learnSourceTone,
+        source_style_rights_confirmed: learnSourceTone,
         document_style: documentStyle,
+        page_layout: pageLayout,
+        voice_profile_id: selectedVoiceProfileId || undefined,
         questions: buildQuestionPayload(),
       };
       setGenerationNote("원본을 안전하게 업로드하는 중");
@@ -776,13 +803,19 @@ export default function ProblemStudioPage() {
         (result.fallback_ocr_units || 0) > 0 ? `${result.fallback_ocr_units}쪽은 AI 대신 로컬 OCR로 처리했습니다.` : "",
         result.warning_count > 0 ? `변환 경고 ${result.warning_count}건은 ZIP 안의 검수표에서 확인하세요.` : "",
         result.ocr_candidate_count > 0 ? `수식·표·도형 등 남은 검수 후보 ${result.ocr_candidate_count}건이 있습니다.` : "",
+        result.structured_item_count > 0 && (result.generated_explanation_count || 0) === 0
+          ? "자동 해설을 만들지 못해 해설 검수본에서 직접 작성해야 합니다."
+          : "",
         result.structure_limit_reached ? "구조화 한도 80개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
+        result.reconstruction_quality && result.reconstruction_quality.gate !== "benchmark_candidate"
+          ? "표·박스·그림의 자동 재배치가 완성 기준에 못 미쳐 원본충실 대조본과 함께 확인해야 합니다."
+          : "",
       ].filter(Boolean);
       setGenerationWarnings(transferWarnings);
       setGenerationNote(
-        `검수본 준비 완료 · AI ${result.ai_transcribed_units || 0}쪽 · 구조화 ${result.structured_item_count}개`,
+        `검수본 준비 완료 · AI 타이핑 ${result.ai_transcribed_units || 0}쪽 · 자동 해설 ${result.generated_explanation_count || 0}개 · ${result.detected_layout?.column_count || 1}단`,
       );
-      feedback.success("한글 검수본이 준비됐습니다. 다운로드 버튼을 눌러 저장하세요.");
+      feedback.success("원문 문제지와 선생님 문체 해설지가 준비됐습니다.");
     } catch (error) {
       feedback.error(error instanceof Error ? error.message : "AI 타이핑을 완료할 수 없습니다.");
     } finally {
@@ -861,6 +894,8 @@ export default function ProblemStudioPage() {
         note_policy: notePolicy,
         use_ai: true,
         transfer_only: false,
+        learn_source_explanation_style: learnSourceTone && sourceFileBlobs.length > 0,
+        source_style_rights_confirmed: learnSourceTone && sourceFileBlobs.length > 0,
         document_style: documentStyle,
         voice_profile_id: selectedVoiceProfileId || undefined,
         questions: buildQuestionPayload(),
@@ -986,16 +1021,16 @@ export default function ProblemStudioPage() {
     <div className={styles.page}>
       <section className={styles.builderHero} aria-labelledby="worksheet-builder-title">
         <div className={styles.builderHeroText}>
-          <Badge tone="primary" size="md">AI 시험지 타이핑</Badge>
-          <h2 id="worksheet-builder-title" className={styles.title}>사진만 올리면, 한글 검수본까지</h2>
+          <Badge tone="primary" size="md">AI 문제집 재작성</Badge>
+          <h2 id="worksheet-builder-title" className={styles.title}>스캔만 올리면, 문제지와 내 문체 해설지까지</h2>
           <p className={styles.lead}>
-            AI가 문제를 풀거나 바꾸지 않고 보이는 원문을 그대로 타이핑합니다. 결과는 편집 가능한 HWPX와 원본 대조용 문서를 함께 제공합니다.
+            문제·선지는 원문 그대로 전사하고 정답·해설만 자동 작성합니다. 편집 가능한 HWPX와 표·박스·그림·상대 배치를 픽셀 그대로 보존한 원본충실 HWPX를 함께 제공합니다.
           </p>
         </div>
         <div className={styles.processRail} aria-label="AI 시험지 타이핑 3단계">
           <span><b>1</b> 원본 업로드</span>
           <ArrowRight aria-hidden size={16} />
-          <span><b>2</b> AI 타이핑</span>
+          <span><b>2</b> 전사·해설</span>
           <ArrowRight aria-hidden size={16} />
           <span><b>3</b> 한글 검수</span>
         </div>
@@ -1082,17 +1117,46 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="generation-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="generation-title">2. AI 타이핑</h3>
-                <p>풀이·정답 추론 없이 원문을 옮깁니다. 수식·표·도형과 [판독불가] 표시는 원본과 꼭 대조하세요.</p>
+                <h3 id="generation-title">2. AI 재작성 + 자동 해설</h3>
+                <p>문제·선지는 원문 그대로 옮기고, 정답·해설만 선택한 선생님 문체로 별도 작성합니다.</p>
               </div>
             </div>
             <div className={styles.generationControls}>
-              <Field label="미주 기본 문구" wide>
+              <Field label="사용할 해설 문체">
+                <select
+                  value={selectedVoiceProfileId}
+                  onChange={(event) => setSelectedVoiceProfileId(event.target.value)}
+                >
+                  <option value="">기본 해설 문체</option>
+                  {voiceProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name} · 문체 {profile.style_sample_count} · 참고 {profile.reference_sample_count}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="해설 작성 지침" wide>
                 <textarea value={notePolicy} onChange={(e) => setNotePolicy(e.target.value)} rows={2} />
               </Field>
             </div>
+            <label className={styles.aiTransferConsent}>
+              <input
+                type="checkbox"
+                checked={learnSourceTone}
+                disabled={sourceFileBlobs.length === 0}
+                onChange={(event) => setLearnSourceTone(event.target.checked)}
+              />
+              <span>
+                업로드한 해설은 제가 직접 작성했거나 문체 적용에 사용하도록 승인받은 자료입니다.
+                이번 생성 작업에서만 임시 문체 샘플로 사용합니다.
+              </span>
+            </label>
             <p className={styles.privacyNote}>
-              텍스트 추출이 어려운 이미지 페이지만 Amazon Bedrock Nova 2 Lite 글로벌 추론으로 암호화 전송되며,
+              선택하지 않으면 업로드 자료의 문제·개념·풀이 구조만 참고하고, 출판 교재의 문체는 따라 하지 않습니다.
+              임시 문체 샘플은 프로필에 저장되거나 다른 사용자에게 공유되지 않습니다.
+            </p>
+            <p className={styles.privacyNote}>
+              텍스트 추출이 어려운 이미지 페이지와 전사된 문제·선택한 문체 샘플은 Amazon Bedrock 글로벌 추론으로 암호화 전송되며,
               전 세계 AWS 상용 리전에서 일시 처리될 수 있습니다. 임시 원본 묶음은 작업 종료 시 삭제되고,
               AWS는 Nova 입력·출력을 기본적으로 저장하거나 모델 학습에 사용하지 않습니다.
             </p>
@@ -1114,7 +1178,7 @@ export default function ProblemStudioPage() {
                 {generationWarnings.length > 0 ? (
                   <span>{generationWarnings.slice(0, 2).join(" · ")}</span>
                 ) : (
-                  <span>완료 후 편집 가능한 HWPX, 원본 보존 문서, 검수 체크리스트를 한 번에 내려받을 수 있습니다.</span>
+                  <span>완료 후 원본 규격 문제지 HWPX, 선생님 문체 해설지 HWPX, 원본 보존 문서를 한 번에 받습니다.</span>
                 )}
               </div>
             </div>
@@ -1388,6 +1452,32 @@ export default function ProblemStudioPage() {
                   onChange={(event) => patchDocumentStyle({ line_spacing_percent: Number(event.target.value) || 155 })}
                 />
               </Field>
+              <Field label="자평(%)">
+                <input
+                  type="number"
+                  min={50}
+                  max={200}
+                  step={1}
+                  value={documentStyle.body_width_ratio_percent}
+                  disabled={documentStyle.match_source_style}
+                  onChange={(event) => patchDocumentStyle({
+                    body_width_ratio_percent: Number(event.target.value) || 100,
+                  })}
+                />
+              </Field>
+              <Field label="자간(%)">
+                <input
+                  type="number"
+                  min={-50}
+                  max={50}
+                  step={1}
+                  value={documentStyle.body_letter_spacing_percent}
+                  disabled={documentStyle.match_source_style}
+                  onChange={(event) => patchDocumentStyle({
+                    body_letter_spacing_percent: Number(event.target.value),
+                  })}
+                />
+              </Field>
               <Field label="문항 간격(pt)">
                 <input
                   type="number"
@@ -1398,11 +1488,103 @@ export default function ProblemStudioPage() {
                   onChange={(event) => patchDocumentStyle({ question_spacing_pt: Number(event.target.value) || 0 })}
                 />
               </Field>
+              <Field label="원본 서식 자동 맞춤" wide>
+                <label className={styles.fontRightsCheck}>
+                  <input
+                    type="checkbox"
+                    checked={documentStyle.match_source_style}
+                    onChange={(event) => patchDocumentStyle({
+                      match_source_style: event.target.checked,
+                    })}
+                  />
+                  <span>HWPX 원본의 본문 글꼴·크기·자평·자간·줄간격·여백·2단을 자동 적용</span>
+                </label>
+              </Field>
+              <Field label="페이지·단 규격">
+                <select
+                  value={pageLayout.mode}
+                  onChange={(event) => patchPageLayout({
+                    mode: event.target.value as ProblemStudioPageLayout["mode"],
+                  })}
+                >
+                  <option value="source">원본 크기·단 자동 감지</option>
+                  <option value="korean_two_column">A4 한국식 2단·중앙선</option>
+                  <option value="single_column">원본 크기·1단</option>
+                </select>
+              </Field>
+              <Field label="왼쪽 여백(mm)">
+                <input
+                  type="number"
+                  min={6}
+                  max={35}
+                  step={0.5}
+                  value={pageLayout.margin_left_mm}
+                  onChange={(event) => patchPageLayout({ margin_left_mm: Number(event.target.value) || 12 })}
+                />
+              </Field>
+              <Field label="오른쪽 여백(mm)">
+                <input
+                  type="number"
+                  min={6}
+                  max={35}
+                  step={0.5}
+                  value={pageLayout.margin_right_mm}
+                  onChange={(event) => patchPageLayout({ margin_right_mm: Number(event.target.value) || 12 })}
+                />
+              </Field>
+              <Field label="위·아래 여백(mm)">
+                <input
+                  type="number"
+                  min={6}
+                  max={35}
+                  step={0.5}
+                  value={pageLayout.margin_top_mm}
+                  onChange={(event) => {
+                    const value = Number(event.target.value) || 12;
+                    patchPageLayout({ margin_top_mm: value, margin_bottom_mm: value });
+                  }}
+                />
+              </Field>
+              <Field label="좌우 단 사이(mm)">
+                <input
+                  type="number"
+                  min={3}
+                  max={20}
+                  step={0.5}
+                  value={pageLayout.column_gap_mm}
+                  disabled={pageLayout.mode === "single_column"}
+                  onChange={(event) => patchPageLayout({ column_gap_mm: Number(event.target.value) || 8 })}
+                />
+              </Field>
+              <Field label="2단 중앙선">
+                <label className={styles.fontRightsCheck}>
+                  <input
+                    type="checkbox"
+                    checked={pageLayout.center_line}
+                    disabled={pageLayout.mode === "single_column"}
+                    onChange={(event) => patchPageLayout({ center_line: event.target.checked })}
+                  />
+                  <span>한국식 문제지 중앙 구분선 표시</span>
+                </label>
+              </Field>
+              <Field label="중앙선 모양">
+                <select
+                  value={pageLayout.center_line_style}
+                  disabled={pageLayout.mode === "single_column" || !pageLayout.center_line}
+                  onChange={(event) => patchPageLayout({
+                    center_line_style: event.target.value as ProblemStudioPageLayout["center_line_style"],
+                  })}
+                >
+                  <option value="DASH">점선</option>
+                  <option value="SOLID">실선</option>
+                  <option value="DOT">촘촘한 점선</option>
+                </select>
+              </Field>
             </div>
             <div className={styles.typographySample}>
               <strong>산화·환원 단원 확인</strong>
               <span>H₂O와 SO₄²⁻의 관계를 설명하시오. 첨자는 HWPX에서 편집 가능한 한글 수식으로 생성됩니다.</span>
-              <small>선택한 글꼴·크기·간격은 오른쪽 출력 미리보기에 즉시 반영됩니다.</small>
+              <small>HWPX는 원본 페이지 크기와 1·2단 구성을 감지하고, 지정한 좌우 여백·단 간격·중앙선을 적용합니다.</small>
             </div>
             <div className={styles.fontUploadBox}>
               <div>
@@ -1633,16 +1815,16 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="output-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="output-title">3. 한글 검수본</h3>
-                <p>AI 타이핑이 끝나도 자동 저장하지 않습니다. 결과를 확인한 뒤 직접 내려받아 주세요.</p>
+                <h3 id="output-title">3. 문제지·해설지·원본충실 HWPX</h3>
+                <p>AI 작업이 끝나면 편집본과 원본 시각 대조본을 나란히 검수합니다.</p>
               </div>
             </div>
             <div className={styles.reviewBundle}>
               <FileCheck2 size={ICON.sm} />
               <span>
                 {transferResult
-                  ? `준비 완료 · AI ${transferResult.ai_transcribed_units || 0}쪽 · 검수 후보 ${transferResult.ocr_candidate_count}건`
-                  : "HWPX 검수본 · 원본 대조 문서 · 체크리스트 · 변환리포트 포함"}
+                  ? `준비 완료 · 전사 ${transferResult.ai_transcribed_units || 0}쪽 · 해설 ${transferResult.generated_explanation_count || 0}개 · 원본 보존 ${transferResult.reconstruction_quality?.source_page_preserved_count || 0}쪽`
+                  : "편집 문제지 · 선생님 문체 해설지 · 원본충실 레이아웃 대조본 포함"}
               </span>
             </div>
             <div className={styles.outputButtons}>
@@ -1655,7 +1837,7 @@ export default function ProblemStudioPage() {
                 leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >
-                AI 타이핑 시작
+                문제지·해설지 만들기
               </Button>
               <div className={styles.companionSetup}>
                 <Button
@@ -1682,7 +1864,7 @@ export default function ProblemStudioPage() {
                     leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
                     onClick={handlePreparedDownload}
                   >
-                    검수본 ZIP 내려받기
+                    문제지·해설지 ZIP 내려받기
                   </Button>
                   <Button
                     type="button"

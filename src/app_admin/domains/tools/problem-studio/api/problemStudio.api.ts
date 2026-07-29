@@ -80,6 +80,31 @@ export type ProblemStudioTransferJobResult = {
   transcription_engine?: string;
   ai_transcribed_units?: number;
   fallback_ocr_units?: number;
+  generated_explanation_count?: number;
+  explanation_engine?: string;
+  explanation_ai_calls?: number;
+  detected_layout?: {
+    mode: string;
+    page_width_mm: number;
+    page_height_mm: number;
+    column_count: number;
+    source_column_count: number;
+    center_line: boolean;
+    column_gap_mm: number;
+    source_dimension_name?: string;
+  };
+  reconstruction_quality?: {
+    gate: "benchmark_candidate" | "hybrid_review_required" | "source_review_required" | string;
+    source_page_count: number;
+    source_page_preserved_count: number;
+    source_page_coverage: number;
+    question_crop_count: number;
+    question_crop_coverage: number;
+    embedded_visual_question_count: number;
+    visual_fragment_coverage: number;
+    native_equations: boolean;
+    teacher_review_required: boolean;
+  };
 };
 
 export type ProblemStudioTransferJobStatusResponse = {
@@ -142,8 +167,22 @@ export type ProblemStudioDocumentStyle = {
   body_font: string;
   title_size_pt: number;
   body_size_pt: number;
+  body_width_ratio_percent: number;
+  body_letter_spacing_percent: number;
   line_spacing_percent: number;
   question_spacing_pt: number;
+  match_source_style: boolean;
+};
+
+export type ProblemStudioPageLayout = {
+  mode: "source" | "korean_two_column" | "single_column";
+  margin_top_mm: number;
+  margin_bottom_mm: number;
+  margin_left_mm: number;
+  margin_right_mm: number;
+  column_gap_mm: number;
+  center_line: boolean;
+  center_line_style: "SOLID" | "DASH" | "DOT";
 };
 
 export type ProblemStudioVoiceSample = {
@@ -190,7 +229,11 @@ export type ProblemStudioGeneratePayload = {
   use_ai: boolean;
   transfer_only?: boolean;
   ai_transcription?: boolean;
+  auto_explanations?: boolean;
+  learn_source_explanation_style?: boolean;
+  source_style_rights_confirmed?: boolean;
   document_style?: ProblemStudioDocumentStyle;
+  page_layout?: ProblemStudioPageLayout;
   voice_profile_id?: string;
   questions: Array<{
     prompt: string;
