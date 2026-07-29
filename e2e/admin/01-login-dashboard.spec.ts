@@ -8,7 +8,7 @@ test.describe("관리자 로그인 → 대시보드", () => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
     // superuser는 /dev, 일반 교직원은 /workspace로 갈 수 있음
-    expect(page.url()).toMatch(/\/(admin|dev)/);
+    expect(page.url()).toMatch(/\/(workspace|dev)/);
     // admin으로 명시적 이동
     await page.goto(`${BASE}/workspace/dashboard`);
     await page.waitForLoadState("load");
