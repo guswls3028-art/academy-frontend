@@ -14,7 +14,7 @@ import {
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
   Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar, Info,
-  RefreshCw, Bug, Globe,
+  RefreshCw, Bug, Globe, Wrench,
 } from "@teacher/shared/ui/Icons";
 import styles from "./TeacherDrawer.module.css";
 
@@ -108,7 +108,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
         items: [
           { label: "사용 가이드", path: "/teacher/guide", icon: <Info size={ICON.md} /> },
           { label: "학원 홈페이지", path: "/landing", icon: <Globe size={ICON.md} /> },
-          { label: "타이머", path: "/teacher/tools/stopwatch", icon: <Clock size={ICON.md} /> },
+          { label: "도구", path: "/teacher/tools", icon: <Wrench size={ICON.md} /> },
           { label: "PC에서 처리하는 기능", path: "/teacher/desktop-only", icon: <Monitor size={ICON.md} /> },
           { label: "패치노트", path: "/teacher/developer", icon: <FileText size={ICON.md} /> },
           { label: "버그 제보", path: "/teacher/developer/bug", icon: <Bug size={ICON.md} /> },
