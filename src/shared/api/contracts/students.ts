@@ -22,6 +22,32 @@ export interface ClientEnrollmentLite {
   enrolledAt: string | null;
 }
 
+export type StudentCustomFieldType = "text" | "number" | "date" | "select";
+export type StudentCustomFieldValue = string | number | null;
+export type StudentCustomFieldValues = Record<string, StudentCustomFieldValue>;
+
+export interface ClientStudentCustomFieldDefinition {
+  id: number;
+  key: string;
+  label: string;
+  fieldType: StudentCustomFieldType;
+  aliases: string[];
+  options: string[];
+  position: number;
+  active: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface StudentCustomFieldDefinitionInput {
+  label: string;
+  fieldType: StudentCustomFieldType;
+  aliases?: string[];
+  options?: string[];
+  position?: number;
+  active?: boolean;
+}
+
 export interface ClientStudent {
   id: number;
   name: string;
@@ -50,6 +76,8 @@ export interface ClientStudent {
   active: boolean;
   memo?: string | null;
   address?: string | null;
+  /** 테넌트별 맞춤 학생 컬럼. 키는 라벨 변경과 무관한 영구 식별자다. */
+  customFields: StudentCustomFieldValues;
 
   schoolType: "MIDDLE" | "HIGH" | "ELEMENTARY" | null;
 
@@ -107,6 +135,7 @@ export type StudentFormInput = {
   memo?: string | null;
   active?: boolean;
   noPhone?: boolean;
+  customFields?: StudentCustomFieldValues;
 };
 
 export interface BulkRestoreSkippedStudent {
@@ -166,6 +195,46 @@ function numberOrNull(value: unknown): number | null {
 
 function numberOrZero(value: unknown): number {
   return numberOrNull(value) ?? 0;
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function normalizeCustomFieldType(value: unknown): StudentCustomFieldType {
+  return value === "number" || value === "date" || value === "select"
+    ? value
+    : "text";
+}
+
+function mapCustomFieldValues(value: unknown): StudentCustomFieldValues {
+  const values = asRecord(value);
+  return Object.fromEntries(
+    Object.entries(values).filter(
+      (entry): entry is [string, StudentCustomFieldValue] =>
+        typeof entry[1] === "string"
+        || typeof entry[1] === "number"
+        || entry[1] === null,
+    ),
+  );
+}
+
+export function mapStudentCustomFieldDefinition(raw: unknown): ClientStudentCustomFieldDefinition {
+  const item = asRecord(raw);
+  return {
+    id: numberOrZero(item.id),
+    key: safeStr(item.key),
+    label: safeStr(item.label),
+    fieldType: normalizeCustomFieldType(item.field_type),
+    aliases: stringList(item.aliases),
+    options: stringList(item.options),
+    position: numberOrZero(item.position),
+    active: item.is_active === true,
+    createdAt: nullableStr(item.created_at),
+    updatedAt: nullableStr(item.updated_at),
+  };
 }
 
 function normalizeSchoolType(value: unknown, item?: RawRecord): StudentSchoolType | null {
@@ -250,6 +319,7 @@ export function mapStudent(raw: unknown): ClientStudent {
     active: item.is_managed === true,
     memo: nullableStr(item.memo),
     address: nullableStr(item.address),
+    customFields: mapCustomFieldValues(item.custom_fields),
 
     schoolType,
 
@@ -375,6 +445,57 @@ export async function fetchStudentAccountNotifications(
 }
 
 /* ===============================
+ * Tenant custom fields
+ * =============================== */
+
+export async function fetchStudentCustomFields(
+  active?: boolean,
+): Promise<ClientStudentCustomFieldDefinition[]> {
+  const res = await api.get("/students/custom-fields/", {
+    params: active === undefined ? undefined : { active: String(active) },
+  });
+  return asList(res.data).map(mapStudentCustomFieldDefinition);
+}
+
+function customFieldDefinitionPayload(
+  input: Partial<StudentCustomFieldDefinitionInput>,
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  if (input.label !== undefined) payload.label = input.label.trim();
+  if (input.fieldType !== undefined) payload.field_type = input.fieldType;
+  if (input.aliases !== undefined) payload.aliases = input.aliases;
+  if (input.options !== undefined) payload.options = input.options;
+  if (input.position !== undefined) payload.position = input.position;
+  if (input.active !== undefined) payload.is_active = input.active;
+  return payload;
+}
+
+export async function createStudentCustomField(
+  input: StudentCustomFieldDefinitionInput,
+): Promise<ClientStudentCustomFieldDefinition> {
+  const res = await api.post(
+    "/students/custom-fields/",
+    customFieldDefinitionPayload(input),
+  );
+  return mapStudentCustomFieldDefinition(res.data);
+}
+
+export async function updateStudentCustomField(
+  id: number,
+  input: Partial<StudentCustomFieldDefinitionInput>,
+): Promise<ClientStudentCustomFieldDefinition> {
+  const res = await api.patch(
+    `/students/custom-fields/${id}/`,
+    customFieldDefinitionPayload(input),
+  );
+  return mapStudentCustomFieldDefinition(res.data);
+}
+
+export async function deactivateStudentCustomField(id: number): Promise<void> {
+  await api.delete(`/students/custom-fields/${id}/`);
+}
+
+/* ===============================
  * CREATE
  * =============================== */
 
@@ -411,6 +532,7 @@ export async function createStudent(form: StudentFormInput) {
     address: form?.address?.trim() || null,
     origin_middle_school: schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
     is_managed: !!form?.active,
+    custom_fields: form?.customFields ?? {},
     send_welcome_message: true,
     no_phone: noPhone,
   };
@@ -441,6 +563,7 @@ export async function bulkCreateStudents(
     schoolClass?: string | null;
     major?: string | null;
     memo?: string | null;
+    customFields?: StudentCustomFieldValues;
   }>,
   sendWelcomeMessage = true
 ) {
@@ -459,6 +582,7 @@ export async function bulkCreateStudents(
       major: s.major || "",
       grade: s.grade ?? null,
       memo: s.memo || "",
+      custom_fields: s.customFields ?? {},
       is_managed: true,
     })),
   };
@@ -496,6 +620,10 @@ export async function updateStudent(id: number, form: StudentFormInput) {
     address: form?.address?.trim() || null,
     is_managed: !!form?.active,
   };
+
+  if (form?.customFields !== undefined) {
+    payload.custom_fields = form.customFields;
+  }
 
   if (form?.name !== undefined) {
     payload.name = safeStr(form.name).trim();

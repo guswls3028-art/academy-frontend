@@ -4,10 +4,15 @@ import api from "@/shared/api/axios";
 import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
 import {
   applyDisplayNames,
+  fetchStudentCustomFields as fetchCanonicalStudentCustomFields,
   mapStudent,
   uploadStudentBulkFromExcel,
 } from "@/shared/api/contracts/students";
-import type { ClientStudent, ClientStudentTag } from "@/shared/api/contracts/students";
+import type {
+  ClientStudent,
+  ClientStudentTag,
+  StudentCustomFieldValues,
+} from "@/shared/api/contracts/students";
 import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 import {
   fetchAdminStudentGrades,
@@ -75,6 +80,10 @@ export async function fetchStudent(studentId: number): Promise<ClientStudent> {
   return mapStudent(res.data);
 }
 
+export async function fetchStudentCustomFields() {
+  return fetchCanonicalStudentCustomFields(true);
+}
+
 /** 학생 시험·과제 성적과 전체 기간 회차별 추이 */
 export async function fetchStudentGrades(studentId: number): Promise<StudentGradesResponse> {
   return fetchAdminStudentGrades(studentId);
@@ -106,6 +115,7 @@ export async function updateStudent(studentId: number, payload: {
   school_class?: string;
   grade?: string;
   memo?: string;
+  custom_fields?: StudentCustomFieldValues;
 }) {
   const { school, school_class, school_type, ...rest } = payload;
   const normalized: Record<string, unknown> = { ...rest };
@@ -140,6 +150,7 @@ export async function exportStudentsExcel() {
   await mod.downloadStudentsExcel(
     expectedCount != null ? allData.slice(0, expectedCount) : allData,
     `students-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    await fetchStudentCustomFields(),
   );
 }
 

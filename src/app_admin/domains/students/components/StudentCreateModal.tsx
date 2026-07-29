@@ -8,7 +8,16 @@ import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
-import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents, mapStudent, type ClientStudent } from "../api/students.api";
+import {
+  createStudent,
+  uploadStudentBulkFromExcel,
+  bulkRestoreStudents,
+  bulkPermanentDeleteStudents,
+  mapStudent,
+  type ClientStudent,
+  type ClientStudentCustomFieldDefinition,
+  type StudentCustomFieldValues,
+} from "../api/students.api";
 import {
   downloadStudentExcelTemplate,
   parseStudentExcel,
@@ -18,6 +27,7 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import {
   DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
   isStudentInitialPasswordReady,
@@ -30,6 +40,7 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
   onBulkProgress?: (progress: { current: number; total: number } | null) => void;
+  customFieldDefinitions?: ClientStudentCustomFieldDefinition[];
 }
 
 type RegisterMode = "choice" | "single" | "excel";
@@ -50,9 +61,10 @@ type StudentCreateForm = {
   address: string;
   memo: string;
   active: boolean;
+  customFields: StudentCustomFieldValues;
 };
 
-type EditableStudentCreateField = Exclude<keyof StudentCreateForm, "active">;
+type EditableStudentCreateField = Exclude<keyof StudentCreateForm, "active" | "customFields">;
 
 const SCHOOL_TYPES = new Set<SchoolType>(["ELEMENTARY", "MIDDLE", "HIGH"]);
 
@@ -80,6 +92,7 @@ function createInitialForm(defaultSchoolType: SchoolType): StudentCreateForm {
     address: "",
     memo: "",
     active: true,
+    customFields: {},
   };
 }
 
@@ -126,7 +139,13 @@ const fieldLabel: Record<string, string> = {
 
 /* ── 메인 모달 ── */
 
-export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
+export default function StudentCreateModal({
+  open,
+  onClose,
+  onSuccess,
+  onBulkProgress,
+  customFieldDefinitions = [],
+}: Props) {
   const slm = useSchoolLevelMode();
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
@@ -662,6 +681,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
           </div>
 
+          <StudentCustomFieldsForm
+            definitions={customFieldDefinitions}
+            values={form.customFields}
+            onChange={(key, value) => setForm((previous) => ({
+              ...previous,
+              customFields: { ...previous.customFields, [key]: value },
+            }))}
+            disabled={busy}
+          />
+
         </div>
         ) : (
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.excelStack}`}>
@@ -691,7 +720,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             <Button
               intent="secondary"
               onClick={() => {
-                void downloadStudentExcelTemplate(slm.mode).catch(() => feedback.error("엑셀 양식 다운로드에 실패했습니다."));
+                void downloadStudentExcelTemplate(slm.mode, customFieldDefinitions)
+                  .catch(() => feedback.error("엑셀 양식 다운로드에 실패했습니다."));
               }}
               disabled={busy}
             >

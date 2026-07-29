@@ -4,7 +4,7 @@
  * - 표시 컬럼 선택(엑셀처럼) + 컬럼 너비 조절 반영
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const STORAGE_PREFIX = "academy-table-prefs-";
 
@@ -16,7 +16,13 @@ export type TableColumnDef = {
   maxWidth?: number;
 };
 
-function loadPrefs(tableId: string): { visible: string[]; widths: Record<string, number> } | null {
+type StoredTablePrefs = {
+  visible: string[];
+  widths: Record<string, number>;
+  known: string[];
+};
+
+function loadPrefs(tableId: string): StoredTablePrefs | null {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + tableId);
     if (!raw) return null;
@@ -25,6 +31,9 @@ function loadPrefs(tableId: string): { visible: string[]; widths: Record<string,
       return {
         visible: parsed.visible.filter((x: unknown) => typeof x === "string"),
         widths: parsed.widths && typeof parsed.widths === "object" ? parsed.widths : {},
+        known: Array.isArray(parsed.known)
+          ? parsed.known.filter((x: unknown) => typeof x === "string")
+          : [],
       };
     }
   } catch {
@@ -33,11 +42,16 @@ function loadPrefs(tableId: string): { visible: string[]; widths: Record<string,
   return null;
 }
 
-function savePrefs(tableId: string, visible: string[], widths: Record<string, number>) {
+function savePrefs(
+  tableId: string,
+  visible: string[],
+  widths: Record<string, number>,
+  known: string[],
+) {
   try {
     localStorage.setItem(
       STORAGE_PREFIX + tableId,
-      JSON.stringify({ visible, widths })
+      JSON.stringify({ visible, widths, known })
     );
   } catch {
     /* ignore */
@@ -69,21 +83,72 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
   const columnKeys = useMemo(() => columns.map((c) => c.key), [columns]);
 
   const [prefs, setPrefs] = useState<{
+    tableId: string;
     visible: string[];
     widths: Record<string, number>;
+    known: string[];
   }>(() => {
     const loaded = loadPrefs(tableId);
     if (loaded) {
       const visible = loaded.visible.filter((k) => columnKeys.includes(k));
       if (visible.length > 0) {
-        return { visible, widths: sanitizeWidths(loaded.widths, columns) };
+        return {
+          tableId,
+          visible,
+          widths: sanitizeWidths(loaded.widths, columns),
+          known: loaded.known.length > 0
+            ? loaded.known.filter((key) => columnKeys.includes(key))
+            : columnKeys,
+        };
       }
     }
     return {
+      tableId,
       visible: columnKeys,
       widths: {},
+      known: columnKeys,
     };
   });
+
+  useEffect(() => {
+    setPrefs((previous) => {
+      if (previous.tableId !== tableId) {
+        const loaded = loadPrefs(tableId);
+        const visible = loaded?.visible.filter((key) => columnKeys.includes(key)) ?? [];
+        const next = {
+          tableId,
+          visible: visible.length > 0 ? visible : columnKeys,
+          widths: sanitizeWidths(loaded?.widths ?? {}, columns),
+          known: loaded?.known.length
+            ? loaded.known.filter((key) => columnKeys.includes(key))
+            : columnKeys,
+        };
+        savePrefs(tableId, next.visible, next.widths, next.known);
+        return next;
+      }
+
+      const newKeys = columnKeys.filter((key) => !previous.known.includes(key));
+      const visible = [
+        ...previous.visible.filter((key) => columnKeys.includes(key)),
+        ...newKeys,
+      ];
+      const next = {
+        ...previous,
+        visible: visible.length > 0 ? visible : columnKeys,
+        widths: sanitizeWidths(previous.widths, columns),
+        known: columnKeys,
+      };
+      if (
+        next.visible.join("\u0000") === previous.visible.join("\u0000")
+        && next.known.join("\u0000") === previous.known.join("\u0000")
+        && Object.keys(next.widths).length === Object.keys(previous.widths).length
+      ) {
+        return previous;
+      }
+      savePrefs(tableId, next.visible, next.widths, next.known);
+      return next;
+    });
+  }, [tableId, columnKeys, columns]);
 
   const visibleColumns = useMemo(
     () => columns.filter((c) => prefs.visible.includes(c.key)),
@@ -105,7 +170,7 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
           ? [...prev.visible, key].filter((k) => columnKeys.includes(k))
           : prev.visible.filter((k) => k !== key);
         if (nextVisible.length === 0) return prev;
-        savePrefs(tableId, nextVisible, prev.widths);
+        savePrefs(tableId, nextVisible, prev.widths, prev.known);
         return { ...prev, visible: nextVisible };
       });
     },
@@ -121,7 +186,7 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
       const clamped = Math.min(max, Math.max(min, width));
       setPrefs((prev) => {
         const nextWidths = { ...prev.widths, [key]: clamped };
-        savePrefs(tableId, prev.visible, nextWidths);
+        savePrefs(tableId, prev.visible, nextWidths, prev.known);
         return { ...prev, widths: nextWidths };
       });
     },
@@ -129,8 +194,8 @@ export function useTableColumnPrefs(tableId: string, columns: TableColumnDef[]) 
   );
 
   const resetToDefaults = useCallback(() => {
-    setPrefs({ visible: columnKeys, widths: {} });
-    savePrefs(tableId, columnKeys, {});
+    setPrefs({ tableId, visible: columnKeys, widths: {}, known: columnKeys });
+    savePrefs(tableId, columnKeys, {}, columnKeys);
   }, [tableId, columnKeys]);
 
   return {

@@ -5,7 +5,10 @@ import { DomainTable, TABLE_COL, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
-import type { ClientStudent } from "../api/students.api";
+import type {
+  ClientStudent,
+  ClientStudentCustomFieldDefinition,
+} from "../api/students.api";
 import styles from "./StudentsTable.module.css";
 
 function escapeRegExp(s: string) {
@@ -34,7 +37,10 @@ function highlight(text: string, keyword: string) {
 
 /** 학생 테이블 컬럼 정의 (useTableColumnPrefs + TableColumnPicker + 테이블 렌더 단일 진실) */
 // eslint-disable-next-line react-refresh/only-export-components
-export function getStudentsTableColumnsDef(isDeletedTab: boolean): TableColumnDef[] {
+export function getStudentsTableColumnsDef(
+  isDeletedTab: boolean,
+  customFieldDefinitions: ClientStudentCustomFieldDefinition[] = [],
+): TableColumnDef[] {
   return [
     { key: "name", label: "이름", defaultWidth: TABLE_COL.name, minWidth: 80 },
     { key: "parentPhone", label: "학부모 전화", defaultWidth: TABLE_COL.phone, minWidth: 90 },
@@ -49,6 +55,14 @@ export function getStudentsTableColumnsDef(isDeletedTab: boolean): TableColumnDe
     },
     { key: "tags", label: "태그", defaultWidth: TABLE_COL.tag, minWidth: 60 },
     ...(isDeletedTab ? [] : [{ key: "active", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 }]),
+    ...customFieldDefinitions
+      .filter((definition) => definition.active)
+      .map((definition) => ({
+        key: `custom:${definition.key}`,
+        label: definition.label,
+        defaultWidth: TABLE_COL.medium,
+        minWidth: 70,
+      })),
   ];
 }
 
@@ -64,6 +78,7 @@ export default function StudentsTable({
   onToggleActive,
   togglingId = null,
   columnPrefs,
+  customFieldDefinitions = [],
 }: {
   data: ClientStudent[];
   search: string;
@@ -75,6 +90,7 @@ export default function StudentsTable({
   isDeletedTab?: boolean;
   onToggleActive?: (id: number, nextActive: boolean) => void;
   togglingId?: number | null;
+  customFieldDefinitions?: ClientStudentCustomFieldDefinition[];
   columnPrefs?: {
     visibleColumns: TableColumnDef[];
     columnWidths: Record<string, number>;
@@ -108,7 +124,7 @@ export default function StudentsTable({
 
   // TABLE_COL SSOT + 전역 컬럼 프리프(표시/너비) — 컬럼 목록은 getStudentsTableColumnsDef와 동일한 def 기반
   const columns = useMemo(() => {
-    const def = getStudentsTableColumnsDef(isDeletedTab);
+    const def = getStudentsTableColumnsDef(isDeletedTab, customFieldDefinitions);
     if (columnPrefs) {
       return [
         { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
@@ -123,7 +139,7 @@ export default function StudentsTable({
       { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
       ...def.map((c) => ({ key: c.key, label: c.label, w: c.defaultWidth })),
     ];
-  }, [isDeletedTab, columnPrefs]);
+  }, [isDeletedTab, columnPrefs, customFieldDefinitions]);
   const tableWidth = useMemo(
     () => columns.reduce((sum, c) => sum + c.w, 0),
     [columns]
@@ -189,6 +205,10 @@ export default function StudentsTable({
   }
 
   const getCellContent = (colKey: string, s: ClientStudent) => {
+    if (colKey.startsWith("custom:")) {
+      const value = s.customFields[colKey.slice("custom:".length)];
+      return value === null || value === undefined || value === "" ? "-" : String(value);
+    }
     switch (colKey) {
       case "name":
         return (
@@ -307,23 +327,23 @@ export default function StudentsTable({
                   />
                 ) : null}
               </th>
-            ) : c.key === "tags" ? (
+            ) : c.key === "tags" || c.key.startsWith("custom:") ? (
               columnPrefs ? (
                 <ResizableTh
-                  key="tags"
-                  columnKey="tags"
+                  key={c.key}
+                  columnKey={c.key}
                   width={c.w}
                   minWidth={60}
                   maxWidth={400}
                   onWidthChange={columnPrefs.setColumnWidth}
                   className="cursor-default"
                 >
-                  태그
+                  {c.label}
                 </ResizableTh>
               ) : (
                 // eslint-disable-next-line no-restricted-syntax
-                <th key="tags" scope="col" style={{ width: c.w }}>
-                  태그
+                <th key={c.key} scope="col" style={{ width: c.w }}>
+                  {c.label}
                 </th>
               )
             ) : (

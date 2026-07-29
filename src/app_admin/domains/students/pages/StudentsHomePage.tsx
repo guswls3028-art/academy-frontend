@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/students/pages/StudentsHomePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
@@ -11,6 +11,7 @@ import {
   bulkPermanentDeleteStudents,
   checkDeletedStudentDuplicates,
   fixDeletedStudentDuplicates,
+  fetchStudentCustomFields,
   toggleStudentActive,
   type ClientStudent,
   type StudentFilters,
@@ -18,6 +19,7 @@ import {
 import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentExcel";
 import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
+import StudentCustomFieldsModal from "../components/StudentCustomFieldsModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import TagAddModal from "../components/TagAddModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
@@ -49,6 +51,7 @@ export default function StudentsHomePage() {
   const [filters, setFilters] = useState<StudentFilters>({});
   const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
+  const [showCustomFields, setShowCustomFields] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -83,6 +86,18 @@ export default function StudentsHomePage() {
     page,
     isDeletedTab
   );
+  const customFieldsQuery = useQuery({
+    queryKey: adminStudentsQueryKeys.customFields,
+    queryFn: () => fetchStudentCustomFields(),
+  });
+  const customFieldDefinitions = useMemo(
+    () => customFieldsQuery.data ?? [],
+    [customFieldsQuery.data],
+  );
+  const activeCustomFieldDefinitions = useMemo(
+    () => customFieldDefinitions.filter((definition) => definition.active),
+    [customFieldDefinitions],
+  );
   const data = queryResult?.data ?? EMPTY_STUDENTS;
   const totalCount = queryResult?.count ?? 0;
   const pageSize = queryResult?.pageSize ?? 50;
@@ -112,8 +127,8 @@ export default function StudentsHomePage() {
   );
 
   const studentsColumnsDef = useMemo(
-    () => getStudentsTableColumnsDef(isDeletedTab),
-    [isDeletedTab]
+    () => getStudentsTableColumnsDef(isDeletedTab, activeCustomFieldDefinitions),
+    [isDeletedTab, activeCustomFieldDefinitions]
   );
   const tablePrefs = useTableColumnPrefs(
     isDeletedTab ? "students-deleted" : "students-home",
@@ -183,8 +198,13 @@ export default function StudentsHomePage() {
                   omrCode: s.omrCode ?? "",
                   registeredAt: s.registeredAt ?? null,
                   tags: (s.tags ?? []).map((t) => ({ name: t.name })),
+                  customFields: s.customFields,
                 }));
-                void downloadStudentsExcel(rows, `학생목록_${visibleSelectedStudents.length}명.xlsx`)
+                void downloadStudentsExcel(
+                  rows,
+                  `학생목록_${visibleSelectedStudents.length}명.xlsx`,
+                  activeCustomFieldDefinitions,
+                )
                   .then(() => feedback.success(`엑셀 다운로드됨 (${visibleSelectedStudents.length}명)`))
                   .catch(() => feedback.error("엑셀 다운로드에 실패했습니다."));
               }}
@@ -407,6 +427,11 @@ export default function StudentsHomePage() {
               <Button intent="secondary" onClick={() => setShowFilter(true)}>
                 고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
               </Button>
+              {!isDeletedTab && (
+                <Button intent="secondary" onClick={() => setShowCustomFields(true)}>
+                  맞춤 컬럼 관리
+                </Button>
+              )}
               <TableColumnPicker
                 allColumns={tablePrefs.allColumns}
                 visibleKeys={tablePrefs.visibleKeys}
@@ -483,6 +508,7 @@ export default function StudentsHomePage() {
                   : undefined
               }
               togglingId={togglingId ?? undefined}
+              customFieldDefinitions={activeCustomFieldDefinitions}
               columnPrefs={{
                 visibleColumns: tablePrefs.visibleColumns,
                 columnWidths: tablePrefs.columnWidths,
@@ -522,6 +548,12 @@ export default function StudentsHomePage() {
           qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
         }}
         onBulkProgress={setBulkUploadProgress}
+        customFieldDefinitions={activeCustomFieldDefinitions}
+      />
+
+      <StudentCustomFieldsModal
+        open={showCustomFields}
+        onClose={() => setShowCustomFields(false)}
       />
 
       <StudentFilterModal
