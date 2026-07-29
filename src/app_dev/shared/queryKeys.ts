@@ -7,4 +7,6 @@ export const devQueryKeys = {
   cron: ["dev", "cron"] as const,
   inbox: ["dev-platform-inbox"] as const,
   inboxItems: (filters: unknown) => ["dev-platform-inbox", filters] as const,
+  productAnalytics: (filters: unknown) =>
+    ["dev", "product-analytics", filters] as const,
 };

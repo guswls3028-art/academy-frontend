@@ -27,6 +27,7 @@
     "verify:teacher-routes": "node scripts/verify-teacher-routes.mjs",
     "verify:landing-routes": "node scripts/verify-landing-routes.mjs",
     "verify:admin-routes": "node scripts/verify-admin-routes.mjs",
+    "verify:product-analytics": "node scripts/verify-product-analytics-registry.mjs",
     "verify:tenant-availability": "node scripts/verify-tenant-availability.mjs",
     "capture:promo-student": "node scripts/capture-promo-student-app.mjs",
     "verify:routes": "pnpm verify:student-routes && pnpm verify:teacher-routes && pnpm verify:landing-routes && pnpm verify:admin-routes",

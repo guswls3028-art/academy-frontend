@@ -164,7 +164,11 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           </button>
         </div>
 
-        <nav className={styles.nav} aria-label="학생 메뉴">
+        <nav
+          className={styles.nav}
+          aria-label="학생 메뉴"
+          data-analytics-placement="student.drawer"
+        >
           {NAV.map((group) => (
             <section key={group.category} className={styles.group}>
               <div className={styles.groupLabel}>{group.category}</div>

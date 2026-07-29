@@ -7,6 +7,7 @@ import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import {
   fetchAttendance,
   updateAttendance,
@@ -31,6 +32,7 @@ export default function SwipeAttendancePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sid = Number(sessionId);
+  const runTrackedTask = useTrackedTask();
 
   const { data: result, isLoading } = useQuery({
     queryKey: teacherAttendanceQueryKeys.attendance(sid),
@@ -45,8 +47,10 @@ export default function SwipeAttendancePage() {
       id: number;
       status: string;
       confirm_secession?: boolean;
-    }) =>
-      updateAttendance(id, { status, confirm_secession }),
+    }) => runTrackedTask(
+      "attendance.update",
+      () => updateAttendance(id, { status, confirm_secession }),
+    ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
@@ -55,7 +59,10 @@ export default function SwipeAttendancePage() {
   });
 
   const bulkMut = useMutation({
-    mutationFn: () => bulkSetPresent(sid),
+    mutationFn: () => runTrackedTask(
+      "attendance.bulk-present",
+      () => bulkSetPresent(sid),
+    ),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });

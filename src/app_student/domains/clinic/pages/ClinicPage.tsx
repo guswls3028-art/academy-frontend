@@ -31,6 +31,7 @@ import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import EmptyState from "@student/layout/EmptyState";
 import { studentClinicQueryKeys } from "../queryKeys";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import styles from "./ClinicPage.module.css";
 
 function isSessionFull(session: ClinicSession): boolean {
@@ -62,6 +63,7 @@ function targetReasonLabel(target: ClinicCurrentTarget): string {
 export default function ClinicPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
@@ -111,7 +113,10 @@ export default function ClinicPage() {
   // 예약 신청 mutation
   const bookingMutation = useMutation({
     mutationFn: (data: { session: number; memo?: string }) =>
-      createClinicBookingRequest(data),
+      runTrackedTask(
+        "clinic.booking.create",
+        () => createClinicBookingRequest(data),
+      ),
     onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.session);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;
@@ -139,7 +144,11 @@ export default function ClinicPage() {
 
   // 예약 취소 mutation
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => cancelClinicBookingRequest(id),
+    mutationFn: (id: number) =>
+      runTrackedTask(
+        "clinic.booking.cancel",
+        () => cancelClinicBookingRequest(id),
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       qc.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
@@ -155,7 +164,10 @@ export default function ClinicPage() {
   // 예약 변경 mutation (atomic: 새 예약 실패 시 기존 예약 보존)
   const changeMutation = useMutation({
     mutationFn: (data: { oldId: number; newSessionId: number; memo?: string }) =>
-      changeClinicBooking(data.oldId, data.newSessionId, data.memo),
+      runTrackedTask(
+        "clinic.booking.change",
+        () => changeClinicBooking(data.oldId, data.newSessionId, data.memo),
+      ),
     onSuccess: (data, variables) => {
       const sess = sessions.find(s => s.id === variables.newSessionId);
       const bookedCount = sess ? (sess.booked_count ?? 0) + 1 : null;

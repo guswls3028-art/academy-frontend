@@ -15,6 +15,7 @@ import {
 } from "@student/domains/exams/api/exams.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import { studentExamQueryKeys } from "../queryKeys";
 import styles from "./ExamSubmitPage.module.css";
 
@@ -24,6 +25,7 @@ export default function ExamSubmitPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
   const { user } = useAuthContext();
   const isParent = user?.tenantRole === "parent";
   const tenantCode = resolveTenantCodeString();
@@ -126,7 +128,10 @@ export default function ExamSubmitPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await submitStudentExamAnswers(safeId, payload);
+      await runTrackedTask(
+        "exams.submit",
+        () => submitStudentExamAnswers(safeId, payload),
+      );
       try { localStorage.removeItem(draftKey); } catch { /* non-critical */ }
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.root });
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.gradesRoot });

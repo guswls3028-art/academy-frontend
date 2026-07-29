@@ -15,6 +15,7 @@ export type TenantDto = {
 export type TenantDetailDto = TenantDto & {
   domains: Array<{ host: string; isPrimary: boolean }>;
   hasProgram: boolean;
+  featureFlags: Record<string, boolean | string | number>;
 };
 
 export type CreateTenantDto = {
@@ -54,7 +55,9 @@ export async function createTenant(payload: CreateTenantDto): Promise<TenantDto>
 /** PATCH update tenant */
 export async function updateTenant(
   tenantId: number,
-  payload: Partial<Pick<TenantDto, "name" | "isActive">>
+  payload: Partial<Pick<TenantDto, "name" | "isActive">> & {
+    productUsageAnalyticsEnabled?: boolean;
+  },
 ): Promise<TenantDetailDto> {
   const res = await api.patch<TenantDetailDto>(`/core/tenants/${tenantId}/`, payload);
   return res.data;

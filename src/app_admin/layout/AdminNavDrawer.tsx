@@ -53,7 +53,10 @@ export default function AdminNavDrawer() {
       size={280}
       rootClassName={styles.drawer}
     >
-      <div className={styles.nav}>
+      <div
+        className={styles.nav}
+        data-analytics-placement="admin.drawer"
+      >
         {groups.map((g, gi) => (
           <div key={gi} className="sidebar-group">
             {g.title ? (

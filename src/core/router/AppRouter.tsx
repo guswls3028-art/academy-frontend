@@ -5,6 +5,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import MobileTeacherRedirect, { prefersAdmin } from "./MobileTeacherRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import RouteFallback from "./RouteFallback";
+import { ProductAnalyticsProvider } from "@/shared/productAnalytics";
 
 const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
 const TeacherRouter = lazy(() => import("@teacher/app/TeacherRouter"));
@@ -144,7 +145,8 @@ export default function AppRouter() {
   }
 
   return (
-    <Routes>
+    <ProductAnalyticsProvider>
+      <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
@@ -244,7 +246,8 @@ export default function AppRouter() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ProductAnalyticsProvider>
   );
 }

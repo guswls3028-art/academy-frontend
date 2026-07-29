@@ -7,6 +7,7 @@ import TenantDetailPage from "@dev/domains/tenants/pages/TenantDetailPage";
 import BillingPage from "@dev/domains/billing/pages/BillingPage";
 import InboxPage from "@dev/domains/inbox/pages/InboxPage";
 import AutomationPage from "@dev/domains/automation/pages/AutomationPage";
+import ProductAnalyticsPage from "@dev/domains/productAnalytics/pages/ProductAnalyticsPage";
 
 export default function DevAppRouter() {
   return (
@@ -20,6 +21,7 @@ export default function DevAppRouter() {
           <Route path="billing" element={<BillingPage />} />
           <Route path="inbox" element={<InboxPage />} />
           <Route path="automation" element={<AutomationPage />} />
+          <Route path="product-analytics" element={<ProductAnalyticsPage />} />
           {/* Legacy paths redirect to new structure */}
           <Route path="home" element={<Navigate to="/dev/dashboard" replace />} />
           <Route path="branding" element={<Navigate to="/dev/tenants" replace />} />

@@ -188,6 +188,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
         role="navigation"
         aria-label="선생님 메뉴"
         aria-hidden={!open && !persistent}
+        data-analytics-placement="teacher.drawer"
       >
         {/* Header — 사이드바 로고 영역 대응 */}
         <div className={styles.header}>
@@ -218,6 +219,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
                   <button
                     type="button"
                     key={item.path}
+                    data-analytics-destination={item.path}
                     onClick={() => handleNav(item.path)}
                     className={active ? `${styles.menuItem} ${styles.menuItemActive}` : styles.menuItem}
                   >
