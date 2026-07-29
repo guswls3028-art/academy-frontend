@@ -159,6 +159,28 @@ test("developer custom domain is canonical, non-indexable, and tenant-bound", as
   });
 });
 
+test("public product updates route is edge-allowlisted and indexable", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  try {
+    const document = await documentRequest("hakwonplus.com", "/promo/updates");
+    const html = await document.text();
+
+    expect(document.status).toBe(200);
+    expect(html).toContain("<title>업데이트 소식 | 학원플러스</title>");
+    expect(html).toContain(
+      '<link rel="canonical" href="https://hakwonplus.com/promo/updates" />',
+    );
+
+    const sitemap = await manifestRequest("hakwonplus.com", "/sitemap.xml");
+    expect(await sitemap.text()).toContain(
+      "<loc>https://hakwonplus.com/promo/updates</loc>",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("deployment gate owns the developer custom domain lifecycle", () => {
   const workflow = readFileSync(
     resolve(process.cwd(), ".github/workflows/quality-gate.yml"),
