@@ -300,8 +300,8 @@ jobs:
           fi
 
       # One-time closure migration. Remove this exact step after the PR run
-      # verifies that Git production deploys are disabled and previews stay on.
-      - name: Disable production auto-deploy and preserve previews
+      # reserves production for Actions while preserving Git previews.
+      - name: Reserve the production branch for GitHub Actions
         if: github.event_name == 'pull_request'
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
@@ -315,6 +315,7 @@ jobs:
             -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
           )
           PROJECT_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}"
+          RESERVED_PRODUCTION_BRANCH="github-actions-production"
           BEFORE=$(curl --silent --show-error --fail-with-body \
             "${AUTH[@]}" "${PROJECT_API}")
           SOURCE_TYPE=$(jq -r '.result.source.type // empty' <<<"${BEFORE}")
@@ -326,12 +327,9 @@ jobs:
             exit 1
           fi
 
-          SOURCE=$(jq -c \
-            '.result.source
-              | .config.deployments_enabled = false
-              | .config.production_deployments_enabled = false' \
-            <<<"${BEFORE}")
-          PAYLOAD=$(jq -nc --argjson source "${SOURCE}" '{source:$source}')
+          PAYLOAD=$(jq -nc \
+            --arg production_branch "${RESERVED_PRODUCTION_BRANCH}" \
+            '{production_branch:$production_branch}')
           UPDATED=$(curl --silent --show-error --fail-with-body \
             --request PATCH \
             -H "Content-Type: application/json" \
@@ -339,39 +337,35 @@ jobs:
             --data "${PAYLOAD}" \
             "${PROJECT_API}")
           if ! jq -e '.success == true' >/dev/null <<<"${UPDATED}"; then
-            echo "::error::Could not disable Cloudflare Git production deployments"
+            echo "::error::Could not reserve the Cloudflare production branch"
             exit 1
           fi
 
-          AUTO_PROD="missing"
-          LEGACY_AUTO="missing"
+          AFTER_PRODUCTION_BRANCH=""
           AFTER_PREVIEW_SETTING="missing"
           for ATTEMPT in $(seq 1 12); do
             AFTER=$(curl --silent --show-error --fail-with-body \
               "${AUTH[@]}" "${PROJECT_API}")
-            AUTO_PROD=$(jq -r \
-              '.result.source.config.production_deployments_enabled // "missing"' \
-              <<<"${AFTER}")
-            LEGACY_AUTO=$(jq -r \
-              '.result.source.config.deployments_enabled // "missing"' \
+            AFTER_PRODUCTION_BRANCH=$(jq -r \
+              '.result.production_branch // empty' \
               <<<"${AFTER}")
             AFTER_PREVIEW_SETTING=$(jq -r \
               '.result.source.config.preview_deployment_setting // "missing"' \
               <<<"${AFTER}")
-            if [ "${AUTO_PROD}" = "false" ] || [ "${LEGACY_AUTO}" = "false" ]; then
+            if [ "${AFTER_PRODUCTION_BRANCH}" = "${RESERVED_PRODUCTION_BRANCH}" ]; then
               break
             fi
             sleep 5
           done
-          if [ "${AUTO_PROD}" != "false" ] && [ "${LEGACY_AUTO}" != "false" ]; then
-            echo "::error::Cloudflare Git production deployments remain enabled"
+          if [ "${AFTER_PRODUCTION_BRANCH}" != "${RESERVED_PRODUCTION_BRANCH}" ]; then
+            echo "::error::Cloudflare production branch was not reserved for Actions"
             exit 1
           fi
           if [ "${AFTER_PREVIEW_SETTING}" != "${PREVIEW_SETTING}" ]; then
             echo "::error::Cloudflare preview deployment setting changed unexpectedly"
             exit 1
           fi
-          echo "Cloudflare Git automatic deployments disabled; workflow preview setting preserved (${AFTER_PREVIEW_SETTING})."
+          echo "Cloudflare production branch reserved for Actions; Git preview setting preserved (${AFTER_PREVIEW_SETTING})."
 
   # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
   deploy:
@@ -410,6 +404,7 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           AUTH=(
@@ -424,6 +419,7 @@ jobs:
             exit 1
           fi
 
+          PRODUCTION_BRANCH=$(jq -r '.result.production_branch // empty' <<<"${RESPONSE}")
           SOURCE_TYPE=$(jq -r '.result.source.type // "direct-upload"' <<<"${RESPONSE}")
           if [ "${SOURCE_TYPE}" != "direct-upload" ]; then
             AUTO_PROD=$(jq -r \
@@ -433,8 +429,20 @@ jobs:
               '.result.source.config.deployments_enabled // "missing"' \
               <<<"${RESPONSE}")
             if [ "${AUTO_PROD}" != "false" ] && [ "${LEGACY_AUTO}" != "false" ]; then
-              echo "::error::Cloudflare Git production auto-deploy must be disabled"
-              exit 1
+              RESERVED_PRODUCTION_BRANCH="github-actions-production"
+              if [ "${PRODUCTION_BRANCH}" != "${RESERVED_PRODUCTION_BRANCH}" ]; then
+                echo "::error::Cloudflare Git production auto-deploy is not isolated"
+                exit 1
+              fi
+              BRANCH_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/branches/${RESERVED_PRODUCTION_BRANCH}")
+              if [ "${BRANCH_STATUS}" != "404" ]; then
+                echo "::error::Reserved production branch must not exist in GitHub (status ${BRANCH_STATUS})"
+                exit 1
+              fi
             fi
           fi
 
@@ -442,7 +450,6 @@ jobs:
           DEPLOYMENT_STATUS=$(jq -r \
             '.result.canonical_deployment.latest_stage.status // empty' \
             <<<"${RESPONSE}")
-          PRODUCTION_BRANCH=$(jq -r '.result.production_branch // empty' <<<"${RESPONSE}")
           if [ -z "${DEPLOYMENT_ID}" ] || [ "${DEPLOYMENT_STATUS}" != "success" ]; then
             echo "::error::No successful production deployment is available for rollback"
             exit 1
