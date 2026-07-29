@@ -88,6 +88,25 @@ test("production captures a rollback baseline before atomic promotion", () => {
   assert.match(workflow, /deployments\/\$\{BASELINE_DEPLOYMENT_ID\}\/rollback/);
 });
 
+test("the production OMR gate accepts only the canonical same-origin redirect", () => {
+  const omrIndex = workflow.indexOf(
+    "- name: Verify OMR static sheet (post-deploy)",
+  );
+  const nextStepIndex = workflow.indexOf(
+    "- name: Verify developer console domain isolation",
+    omrIndex,
+  );
+  const omrGate = workflow.slice(omrIndex, nextStepIndex);
+
+  assert.ok(omrIndex >= 0, "production OMR gate is missing");
+  assert.ok(nextStepIndex > omrIndex, "production OMR gate boundary is missing");
+  assert.match(omrGate, /--location --max-redirs 1/);
+  assert.match(omrGate, /--proto '=https' --proto-redir '=https'/);
+  assert.match(omrGate, /%\{url_effective\}/);
+  assert.match(omrGate, /https:\/\/hakwonplus\.com\/omr-sheet\\\?\*/);
+  assert.match(omrGate, /Unexpected OMR effective URL/);
+});
+
 test("a failed authenticated roundtrip also restores the prior deployment", () => {
   assert.match(workflow, /\n  rollback-on-e2e-failure:/);
   assert.match(workflow, /needs: \[deploy, e2e-roundtrip\]/);

@@ -21,6 +21,10 @@
 - `/teacher/*`은 같은 하위 경로를 유지해 `/workspace/mobile/*`로 이동한다.
 - 리다이렉트는 query, hash, navigation state를 보존한다.
 - 새 코드와 새 문서는 호환 경로를 링크로 만들지 않는다.
+- Cloudflare는 `/omr-sheet.html`을 같은 query를 유지한 `/omr-sheet` 308로
+  정규화할 수 있다. 운영 배포 게이트는 HTTPS redirect를 최대 한 번만
+  따르고, 최종 URL이 `hakwonplus.com`의 두 OMR 호환 경로 중 하나인지
+  확인한 뒤 정적 페이지의 canonical target과 script 안전성을 검사한다.
 
 기존 설치형 모바일 앱의 identity를 유지하기 위해 teacher manifest의 `id`는
 `/teacher`로 보존한다. 실제 `start_url`과 `scope`는 `/workspace/mobile`이다.

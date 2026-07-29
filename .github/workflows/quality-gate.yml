@@ -594,10 +594,25 @@ jobs:
           fi
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
             OMR=""
+            OMR_FILE="${RUNNER_TEMP}/omr-sheet-response.html"
             for ATTEMPT in $(seq 1 100); do
-              OMR=$(curl --silent --show-error --fail-with-body \
+              EFFECTIVE_URL=$(curl --silent --show-error --fail-with-body \
+                --location --max-redirs 1 \
+                --proto '=https' --proto-redir '=https' \
+                --output "${OMR_FILE}" --write-out '%{url_effective}' \
                 "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)&promotion=${GITHUB_RUN_ID}-${ATTEMPT}" \
                 || true)
+              OMR=$(cat "${OMR_FILE}" 2>/dev/null || true)
+              case "${EFFECTIVE_URL}" in
+                https://hakwonplus.com/omr-sheet|\
+                https://hakwonplus.com/omr-sheet\?*|\
+                https://hakwonplus.com/omr-sheet.html|\
+                https://hakwonplus.com/omr-sheet.html\?*) ;;
+                *)
+                  OMR=""
+                  echo "::warning::Unexpected OMR effective URL: ${EFFECTIVE_URL:-<empty>}"
+                  ;;
+              esac
               if grep -q 'OMR 답안지 생성기로 이동' <<<"${OMR}"; then
                 break
               fi
@@ -623,6 +638,7 @@ jobs:
               exit 1
             fi
           done
+          rm -f "${OMR_FILE}"
           echo "✅ OMR compatibility routes verified"
 
       - name: Verify developer console domain isolation
