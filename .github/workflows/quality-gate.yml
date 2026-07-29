@@ -224,17 +224,19 @@ jobs:
             exit 1
           fi
 
-          fetch_body_with_retry() {
+          fetch_body_matching() {
             local URL="$1"
+            local EXPECTED_TEXT="$2"
             local BODY=""
             for ATTEMPT in $(seq 1 20); do
-              if BODY=$(curl --silent --show-error --fail-with-body "${URL}"); then
+              if BODY=$(curl --silent --show-error --fail-with-body "${URL}") \
+                && grep -qF "${EXPECTED_TEXT}" <<<"${BODY}"; then
                 printf '%s' "${BODY}"
                 return 0
               fi
               sleep 3
             done
-            echo "::error::Preview URL did not propagate: ${URL}" >&2
+            echo "::error::Preview content did not propagate: ${URL}" >&2
             return 1
           }
 
@@ -246,14 +248,12 @@ jobs:
             "/admin/dashboard?candidate=legacy-full" \
             "/teacher?candidate=legacy-mobile-root" \
             "/teacher/classes?candidate=legacy-mobile"; do
-            HTML=$(fetch_body_with_retry "${PREVIEW_URL}${PATHNAME}")
-            if ! grep -q 'id="root"' <<<"${HTML}"; then
-              echo "::error::Preview SPA shell missing at ${PATHNAME}"
-              exit 1
-            fi
+            fetch_body_matching "${PREVIEW_URL}${PATHNAME}" 'id="root"' > /dev/null
           done
 
-          MANIFEST=$(fetch_body_with_retry "${PREVIEW_URL}/teacher-manifest.json")
+          MANIFEST=$(fetch_body_matching \
+            "${PREVIEW_URL}/teacher-manifest.json" \
+            '"start_url": "/workspace/mobile"')
           if [ "$(jq -r '.id' <<<"${MANIFEST}")" != "/teacher" ] \
             || [ "$(jq -r '.start_url' <<<"${MANIFEST}")" != "/workspace/mobile" ] \
             || [ "$(jq -r '.scope' <<<"${MANIFEST}")" != "/workspace/mobile" ]; then
@@ -275,11 +275,9 @@ jobs:
             exit 1
           fi
 
-          OMR=$(fetch_body_with_retry "${PREVIEW_URL}/omr-sheet.html")
-          if ! grep -q 'data-omr-canonical-route="/workspace/tools/omr"' <<<"${OMR}"; then
-            echo "::error::Preview OMR canonical route contract failed"
-            exit 1
-          fi
+          fetch_body_matching \
+            "${PREVIEW_URL}/omr-sheet.html" \
+            'data-omr-canonical-route="/workspace/tools/omr"' > /dev/null
 
   # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
   deploy:
