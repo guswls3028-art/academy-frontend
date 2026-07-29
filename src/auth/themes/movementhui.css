@@ -98,54 +98,33 @@
 
 [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"] {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   overflow: hidden;
-  padding: 3.2rem;
-  background:
-    radial-gradient(circle at 50% 36%, rgba(255, 221, 90, 0.1), transparent 17rem),
-    linear-gradient(145deg, #1a253b 0%, #18243a 60%, #142036 100%);
+  background: var(--movement-navy);
 }
 
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"]::before,
 [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"]::after {
   content: "";
   position: absolute;
-  top: 34%;
-  left: 50%;
-  width: 32rem;
-  height: 12rem;
-  border: 1px solid rgba(255, 221, 90, 0.3);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) rotate(-24deg);
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent 78%, rgba(17, 29, 50, 0.42) 100%);
   pointer-events: none;
 }
 
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"]::after {
-  width: 17rem;
-  height: 30rem;
-  border-color: rgba(255, 255, 255, 0.12);
-  transform: translate(-50%, -50%) rotate(35deg);
-}
-
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-artwork"],
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] {
-  position: relative;
+[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-artwork"] {
+  position: absolute;
+  inset: 0;
   z-index: 1;
 }
 
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-artwork"] {
-  display: grid;
-  place-items: center;
-  flex: 1;
-}
-
 [data-app="auth"][data-tenant="movementhui"] img[class*="logo"] {
-  width: min(18rem, 72%);
+  width: 100%;
   max-width: none;
+  height: 100%;
   max-height: none;
   margin: 0;
+  object-fit: cover;
+  object-position: center;
   border-radius: 0;
   box-shadow: none;
 }
@@ -158,36 +137,6 @@
   clip-path: inset(50%);
 }
 
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] {
-  max-width: 28rem;
-}
-
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] span,
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-intro"] span {
-  margin-bottom: 0.85rem;
-  color: var(--movement-orbit);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-}
-
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] strong {
-  display: block;
-  color: var(--movement-ivory);
-  font-size: clamp(1.7rem, 3vw, 2.65rem);
-  font-weight: 850;
-  letter-spacing: -0.055em;
-  line-height: 1.15;
-  text-wrap: balance;
-}
-
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] p {
-  margin-top: 0.95rem;
-  color: #aeb8ca;
-  font-size: 0.9rem;
-  line-height: 1.7;
-}
-
 [data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-panel"] {
   position: relative;
   display: flex;
@@ -197,22 +146,6 @@
   background:
     linear-gradient(180deg, rgba(18, 31, 53, 0.97), rgba(10, 20, 36, 0.99));
   border-left: 1px solid rgba(255, 221, 90, 0.12);
-}
-
-[data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-panel"]::before {
-  content: "HUI";
-  position: absolute;
-  top: 2rem;
-  right: 2rem;
-  display: grid;
-  place-items: center;
-  width: 3.15rem;
-  height: 3.15rem;
-  color: rgba(255, 221, 90, 0.52);
-  border: 1px solid rgba(255, 221, 90, 0.28);
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
 }
 
 [data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-intro"] {
@@ -308,15 +241,6 @@
 
   [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"] {
     min-height: 23rem;
-    padding: 2rem;
-  }
-
-  [data-app="auth"][data-tenant="movementhui"] img[class*="logo"] {
-    width: 12rem;
-  }
-
-  [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] strong {
-    font-size: 1.75rem;
   }
 
   [data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-panel"] {
@@ -339,40 +263,10 @@
 
   [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"] {
     min-height: 19rem;
-    padding: 1.5rem;
-  }
-
-  [data-app="auth"][data-tenant="movementhui"] img[class*="logo"] {
-    width: 9.5rem;
-  }
-
-  [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-message"] p {
-    display: none;
   }
 
   [data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-panel"] {
     padding: 3rem 1.25rem 2rem;
   }
 
-  [data-app="auth"][data-tenant="movementhui"] [data-auth-part="login-panel"]::before {
-    top: 1rem;
-    right: 1.25rem;
-    width: 2.6rem;
-    height: 2.6rem;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  [data-app="auth"][data-tenant="movementhui"] [data-auth-part="brand-stage"]::before {
-    animation: movement-orbit-drift 12s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes movement-orbit-drift {
-  from {
-    transform: translate(-50%, -50%) rotate(-24deg) scale(0.98);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(-20deg) scale(1.03);
-  }
 }

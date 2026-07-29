@@ -102,7 +102,7 @@
   inset: 0;
   z-index: 1;
   background:
-    linear-gradient(180deg, rgba(2, 9, 19, 0.06) 48%, rgba(2, 9, 19, 0.88) 100%),
+    linear-gradient(180deg, rgba(2, 9, 19, 0.04) 62%, rgba(2, 9, 19, 0.48) 100%),
     linear-gradient(90deg, transparent 72%, rgba(6, 18, 30, 0.85) 100%);
   pointer-events: none;
 }
@@ -130,40 +130,6 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
-}
-
-[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] {
-  position: absolute;
-  right: 3rem;
-  bottom: 2.8rem;
-  left: 3rem;
-  z-index: 2;
-  max-width: 30rem;
-}
-
-[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] span,
-[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] span {
-  margin-bottom: 0.75rem;
-  color: var(--hakwonplus-cyan-soft);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-}
-
-[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] strong {
-  display: block;
-  color: #f2fbff;
-  font-size: clamp(1.65rem, 2.5vw, 2.35rem);
-  font-weight: 850;
-  letter-spacing: -0.045em;
-  line-height: 1.15;
-}
-
-[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] p {
-  margin-top: 0.85rem;
-  color: #b5cbd8;
-  font-size: 0.9rem;
-  line-height: 1.65;
 }
 
 [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {
@@ -306,17 +272,6 @@
 
   [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-stage"] {
     min-height: 21rem;
-  }
-
-  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] {
-    right: 1.5rem;
-    bottom: 1.5rem;
-    left: 1.5rem;
-  }
-
-  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] span,
-  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] p {
-    display: none;
   }
 
   [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {

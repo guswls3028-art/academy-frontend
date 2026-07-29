@@ -28,28 +28,7 @@ import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import styles from "./LoginPage.module.css";
 
-const LOGIN_SCENES: Record<string, {
-  eyebrow: string;
-  statement: string;
-  support: string;
-  accessLabel: string;
-  accessTitle: string;
-}> = {
-  hakwonplus: {
-    eyebrow: "HAKWONPLUS · LEARNING SYSTEM",
-    statement: "배움의 흐름을 한곳에서",
-    support: "학원 운영과 수업, 학생의 학습을 연결합니다.",
-    accessLabel: "LEARNING ACCESS",
-    accessTitle: "학원플러스에 로그인",
-  },
-  movementhui: {
-    eyebrow: "MOVEMENT HUI · SCIENCE LAB",
-    statement: "생각의 궤도를 바꾸는 과학 수업",
-    support: "학생 · 학부모 · 선생님을 위한 전용 학습 공간입니다.",
-    accessLabel: "LAB ACCESS",
-    accessTitle: "오늘의 학습으로",
-  },
-};
+const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui"]);
 
 /**
  * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
@@ -143,7 +122,7 @@ export default function LoginPage() {
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
-  const scene = LOGIN_SCENES[themeAttr];
+  const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -168,7 +147,7 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
-      {scene && (
+      {hasBrandedScene && (
         <div className={styles.ambient} data-auth-part="ambient" aria-hidden="true">
           <span />
           <span />
@@ -187,20 +166,12 @@ export default function LoginPage() {
               <h1 className={styles.title}>{title}</h1>
             </div>
           </div>
-          {scene && (
-            <div className={styles.brandMessage} data-auth-part="brand-message">
-              <span>{scene.eyebrow}</span>
-              <strong>{scene.statement}</strong>
-              <p>{scene.support}</p>
-            </div>
-          )}
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">
-          {scene && (
+          {hasBrandedScene && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
-              <span>{scene.accessLabel}</span>
-              <h2>{scene.accessTitle}</h2>
-              <p>등록된 아이디와 비밀번호를 입력하세요.</p>
+              <h2>로그인</h2>
+              <p>아이디와 비밀번호를 입력해주세요.</p>
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
