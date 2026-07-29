@@ -21,6 +21,7 @@ import styles from "./ProblemSolverPage.module.css";
 
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const POLL_INTERVAL_MS = 1_400;
+const POLL_RETRY_INTERVAL_MS = 4_000;
 const TERMINAL_STATUSES = new Set<ProblemSolverStatus>([
   "DONE",
   "FAILED",
@@ -94,10 +95,10 @@ export default function ProblemSolverPage() {
           return;
         }
         timerId = window.setTimeout(poll, POLL_INTERVAL_MS);
-      } catch (pollError) {
+      } catch {
         if (cancelled) return;
-        setError(errorMessage(pollError));
-        setJobStatus("FAILED");
+        setError("결과 확인 연결이 불안정합니다. 기존 작업을 자동으로 다시 확인합니다.");
+        timerId = window.setTimeout(poll, POLL_RETRY_INTERVAL_MS);
       }
     };
 
