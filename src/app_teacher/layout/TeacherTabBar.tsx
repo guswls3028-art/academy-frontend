@@ -30,7 +30,11 @@ export default function TeacherTabBar() {
   const badge = counts?.total ?? 0;
 
   return (
-    <nav aria-label="하단 메뉴" className={styles.nav}>
+    <nav
+      aria-label="하단 메뉴"
+      className={styles.nav}
+      data-analytics-placement="teacher.bottom-tab"
+    >
       <div className={styles.inner}>
         {TABS.map((t) => (
           <NavLink

@@ -153,6 +153,27 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
     }
   }
 
+  async function handleAnalyticsToggle() {
+    const enabled = tenant.featureFlags?.product_usage_analytics_enabled === true;
+    try {
+      await updateTenant.mutateAsync({
+        id: tenant.id,
+        productUsageAnalyticsEnabled: !enabled,
+      });
+      toast(enabled ? "기능 사용 수집을 중지했습니다." : "기능 사용 수집을 시작했습니다.");
+    } catch (error: unknown) {
+      const detail = (
+        error as { response?: { data?: { code?: string } } }
+      ).response?.data?.code;
+      toast(
+        detail === "analytics_hash_key_missing"
+          ? "전용 분석 키를 먼저 설정해야 합니다."
+          : "사용 분석 설정을 변경하지 못했습니다.",
+        "error",
+      );
+    }
+  }
+
   const domains: Array<{ host: string; isPrimary: boolean }> = Array.isArray(tenant.domains)
     ? tenant.domains.map((d) =>
         typeof d === "string"
@@ -209,6 +230,29 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
               aria-checked={tenant.isActive}
               disabled={updateTenant.isPending}
               onClick={handleToggle}
+            >
+              <span className={s.toggleKnob} />
+            </button>
+          </div>
+          <div className={styles.settingsRow}>
+            <div>
+              <div className={styles.settingsTitle}>기능 사용 분석</div>
+              <div className={styles.settingsDesc}>
+                {tenant.featureFlags?.product_usage_analytics_enabled === true
+                  ? "익명 방문·참여·완료 신호 수집 중"
+                  : "수집하지 않음"}
+              </div>
+            </div>
+            <button
+              type="button"
+              className={s.toggle}
+              role="switch"
+              aria-label="기능 사용 분석 수집"
+              aria-checked={
+                tenant.featureFlags?.product_usage_analytics_enabled === true
+              }
+              disabled={updateTenant.isPending}
+              onClick={handleAnalyticsToggle}
             >
               <span className={s.toggleKnob} />
             </button>

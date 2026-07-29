@@ -14,6 +14,7 @@ export default function TeacherBottomBar() {
     <nav
       aria-label="하단 메뉴"
       className={cx("teacher-tabbar", styles.root)}
+      data-analytics-placement="admin.bottom-tab"
     >
       <div className={styles.items}>
         {ADMIN_MOBILE_TABS.map((t) => {

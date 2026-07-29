@@ -73,6 +73,8 @@ export function clearTokens() {
     removeSessionItem("session_expired");
     removeSessionItem("session_return_path");
     removeSessionItem("tenantCode");
+    removeSessionItem("product_analytics_session_id");
+    window.dispatchEvent(new Event("product-analytics-session-reset"));
   } catch {
     // ignore
   }

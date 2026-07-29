@@ -33,7 +33,11 @@ export default function StudentTabBar() {
   const { data: counts, isLoading } = useNotificationCounts();
 
   return (
-    <nav aria-label="하단 메뉴" className={cx("stu-tabbar", styles.root)}>
+    <nav
+      aria-label="하단 메뉴"
+      className={cx("stu-tabbar", styles.root)}
+      data-analytics-placement="student.bottom-tab"
+    >
       <div className={styles.inner}>
         {tabs.map(({ to, label, Icon, badgeKey }) => {
           const badgeCount = !isLoading && badgeKey && counts ? counts[badgeKey] : 0;

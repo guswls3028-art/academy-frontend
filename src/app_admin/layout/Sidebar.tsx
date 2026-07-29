@@ -79,6 +79,7 @@ export default function Sidebar() {
   return (
     <aside
       className={`sidebar sidebar-shell ${styles.shell}`}
+      data-analytics-placement="admin.sidebar"
     >
       <div
         className={`sidebar-scroll ${styles.scroll}`}

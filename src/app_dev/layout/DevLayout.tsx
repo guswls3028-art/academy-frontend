@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: "/dev/tenants", label: "테넌트", icon: IconTenants },
   { to: "/dev/billing", label: "결제", icon: IconBilling },
   { to: "/dev/inbox", label: "문의함", icon: IconInbox },
+  { to: "/dev/product-analytics", label: "기능 신호", icon: IconSignals },
   { to: "/dev/automation", label: "자동화", icon: IconAutomation },
 ];
 
@@ -243,6 +244,20 @@ function IconAutomation({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="9" cy="9" r="6.5" />
       <path d="M9 4.5v4.5l3 2" />
+    </svg>
+  );
+}
+
+function IconSignals({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M2 14.5h14" />
+      <path d="M4 12V8.5" />
+      <path d="M9 12V4" />
+      <path d="M14 12V6.5" />
+      <circle cx="4" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="2.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="5" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }

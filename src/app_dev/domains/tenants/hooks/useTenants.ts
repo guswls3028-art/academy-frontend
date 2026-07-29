@@ -62,7 +62,12 @@ export function useCreateTenant() {
 export function useUpdateTenant() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...payload }: { id: number } & Partial<Pick<TenantDto, "name" | "isActive">>) =>
+    mutationFn: ({
+      id,
+      ...payload
+    }: { id: number } & Partial<Pick<TenantDto, "name" | "isActive">> & {
+      productUsageAnalyticsEnabled?: boolean;
+    }) =>
       updateTenant(id, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.list });
