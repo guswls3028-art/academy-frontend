@@ -328,6 +328,7 @@ jobs:
 
           SOURCE=$(jq -c \
             '.result.source
+              | del(.config.deployments_enabled)
               | .config.production_deployments_enabled = false' \
             <<<"${BEFORE}")
           PAYLOAD=$(jq -nc --argjson source "${SOURCE}" '{source:$source}')
