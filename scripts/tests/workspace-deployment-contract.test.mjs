@@ -36,6 +36,8 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);
   assert.match(workflow, /Preview version did not propagate/);
+  assert.match(workflow, /fetch_body_with_retry/);
+  assert.match(workflow, /"\/teacher\?candidate=legacy-mobile-root"/);
   assert.match(workflow, /data-omr-canonical-route="\/workspace\/tools\/omr"/);
 });
 

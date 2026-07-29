@@ -224,21 +224,36 @@ jobs:
             exit 1
           fi
 
+          fetch_body_with_retry() {
+            local URL="$1"
+            local BODY=""
+            for ATTEMPT in $(seq 1 20); do
+              if BODY=$(curl --silent --show-error --fail-with-body "${URL}"); then
+                printf '%s' "${BODY}"
+                return 0
+              fi
+              sleep 3
+            done
+            echo "::error::Preview URL did not propagate: ${URL}" >&2
+            return 1
+          }
+
           for PATHNAME in \
             "/" \
             "/workspace" \
             "/workspace/mobile" \
+            "/admin?candidate=legacy-full-root" \
             "/admin/dashboard?candidate=legacy-full" \
+            "/teacher?candidate=legacy-mobile-root" \
             "/teacher/classes?candidate=legacy-mobile"; do
-            HTML=$(curl --silent --show-error --fail-with-body "${PREVIEW_URL}${PATHNAME}")
+            HTML=$(fetch_body_with_retry "${PREVIEW_URL}${PATHNAME}")
             if ! grep -q 'id="root"' <<<"${HTML}"; then
               echo "::error::Preview SPA shell missing at ${PATHNAME}"
               exit 1
             fi
           done
 
-          MANIFEST=$(curl --silent --show-error --fail-with-body \
-            "${PREVIEW_URL}/teacher-manifest.json")
+          MANIFEST=$(fetch_body_with_retry "${PREVIEW_URL}/teacher-manifest.json")
           if [ "$(jq -r '.id' <<<"${MANIFEST}")" != "/teacher" ] \
             || [ "$(jq -r '.start_url' <<<"${MANIFEST}")" != "/workspace/mobile" ] \
             || [ "$(jq -r '.scope' <<<"${MANIFEST}")" != "/workspace/mobile" ]; then
@@ -246,15 +261,21 @@ jobs:
             exit 1
           fi
 
-          SW_HEADERS=$(curl --silent --show-error --fail-with-body \
-            --dump-header - --output /dev/null "${PREVIEW_URL}/teacher-sw.js")
+          SW_HEADERS=""
+          for ATTEMPT in $(seq 1 20); do
+            if SW_HEADERS=$(curl --silent --show-error --fail-with-body \
+              --dump-header - --output /dev/null "${PREVIEW_URL}/teacher-sw.js") \
+              && grep -qi '^Service-Worker-Allowed: /' <<<"${SW_HEADERS}"; then
+              break
+            fi
+            sleep 3
+          done
           if ! grep -qi '^Service-Worker-Allowed: /' <<<"${SW_HEADERS}"; then
             echo "::error::Preview teacher service worker scope header is missing"
             exit 1
           fi
 
-          OMR=$(curl --silent --show-error --fail-with-body \
-            "${PREVIEW_URL}/omr-sheet.html")
+          OMR=$(fetch_body_with_retry "${PREVIEW_URL}/omr-sheet.html")
           if ! grep -q 'data-omr-canonical-route="/workspace/tools/omr"' <<<"${OMR}"; then
             echo "::error::Preview OMR canonical route contract failed"
             exit 1
