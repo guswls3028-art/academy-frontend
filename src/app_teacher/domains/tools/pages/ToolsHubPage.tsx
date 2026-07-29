@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ICON } from "@/shared/ui/ds";
+import { Badge, ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import {
   Camera,
@@ -95,14 +95,12 @@ export default function ToolsHubPage() {
             return (
               <Link key={tool.id} to={tool.path} className={styles.toolCard}>
                 <div className={styles.cardRail}>
-                  <span
-                    className={cx(
-                      styles.statusBadge,
-                      tool.status === "beta" ? styles.betaBadge : styles.stableBadge,
-                    )}
+                  <Badge
+                    tone={tool.status === "beta" ? "warning" : "success"}
+                    size="xs"
                   >
                     {tool.status === "beta" ? "Beta" : "안정"}
-                  </span>
+                  </Badge>
                   <span className={styles.categoryLabel}>{tool.category}</span>
                 </div>
                 <div className={styles.cardBody}>

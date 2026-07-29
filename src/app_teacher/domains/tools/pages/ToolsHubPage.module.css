@@ -183,27 +183,6 @@
   background: var(--tc-surface-muted);
 }
 
-.statusBadge {
-  display: inline-flex;
-  min-height: 22px;
-  align-items: center;
-  padding: 0 9px;
-  border-radius: var(--tc-radius-full);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.betaBadge {
-  background: var(--tc-warn-bg);
-  color: var(--tc-warn);
-}
-
-.stableBadge {
-  background: var(--tc-success-bg);
-  color: var(--tc-success);
-}
-
 .categoryLabel {
   color: var(--tc-text-muted);
   font-size: 11px;

@@ -59,6 +59,8 @@ const MyStoragePage = lazy(() => import("@teacher/domains/storage/pages/MyStorag
 const StudentInventoryPage = lazy(() => import("@teacher/domains/storage/pages/StudentInventoryPage"));
 const OrganizationSettingsPage = lazy(() => import("@teacher/domains/settings/pages/OrganizationSettingsPage"));
 const AppearancePage = lazy(() => import("@teacher/domains/settings/pages/AppearancePage"));
+const ToolsHubPage = lazy(() => import("@teacher/domains/tools/pages/ToolsHubPage"));
+const ProblemSolverPage = lazy(() => import("@teacher/domains/tools/pages/ProblemSolverPage"));
 const StopwatchPage = lazy(() => import("@teacher/domains/tools/pages/StopwatchPage"));
 const PatchNotesPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.PatchNotesPage })));
 const BugReportPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.BugReportPage })));
@@ -171,7 +173,9 @@ export default function TeacherRouter() {
           <Route path="settings/organization" element={<RoleGuard allow={["owner", "admin"]}><OrganizationSettingsPage /></RoleGuard>} />
           <Route path="settings/appearance" element={<AppearancePage />} />
 
-          {/* 도구 — 스톱워치 (Phase 4) */}
+          {/* 도구 */}
+          <Route path="tools" element={<ToolsHubPage />} />
+          <Route path="tools/problem-solver" element={<ProblemSolverPage />} />
           <Route path="tools/stopwatch" element={<StopwatchPage />} />
 
           {/* To개발자 (Phase 4) */}

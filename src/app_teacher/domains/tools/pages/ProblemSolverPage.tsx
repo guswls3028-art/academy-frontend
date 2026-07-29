@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ICON } from "@/shared/ui/ds";
+import { Badge, ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { BackButton } from "@teacher/shared/ui/Card";
 import {
@@ -164,11 +164,11 @@ export default function ProblemSolverPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <BackButton onClick={() => navigate("/workspace/mobile/tools")} />
+        <BackButton onClick={() => navigate("/teacher/tools")} />
         <div className={styles.headerCopy}>
           <div className={styles.titleRow}>
             <h1>AI 풀이·해설</h1>
-            <span className={styles.betaBadge}>Beta</span>
+            <Badge tone="warning" size="xs">Beta</Badge>
           </div>
           <p>문제 사진 한 장을 강사 검수용 풀이 초안으로 바꿉니다.</p>
         </div>
@@ -278,8 +278,8 @@ export default function ProblemSolverPage() {
           <div className={styles.resultHeader}>
             <div>
               <div className={styles.resultBadges}>
-                <span className={styles.betaBadge}>Beta</span>
-                <span className={styles.reviewBadge}>강사 검수 필요</span>
+                <Badge tone="warning" size="xs">Beta</Badge>
+                <Badge tone="info" size="xs">강사 검수 필요</Badge>
               </div>
               <h2>풀이·해설 초안</h2>
               <p>AI 결과를 원문 문제와 대조한 뒤 사용해 주세요.</p>

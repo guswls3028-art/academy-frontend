@@ -38,27 +38,6 @@
   line-height: 1.45;
 }
 
-.betaBadge,
-.reviewBadge {
-  display: inline-flex;
-  min-height: 22px;
-  align-items: center;
-  padding: 0 9px;
-  border-radius: var(--tc-radius-full);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.betaBadge {
-  background: var(--tc-warn-bg);
-  color: var(--tc-warn);
-}
-
-.reviewBadge {
-  background: var(--tc-info-bg);
-  color: var(--tc-info);
-}
-
 .betaNotice,
 .progressCard,
 .errorCard {

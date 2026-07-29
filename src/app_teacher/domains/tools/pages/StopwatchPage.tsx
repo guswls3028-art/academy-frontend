@@ -89,7 +89,7 @@ export default function StopwatchPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <BackButton onClick={() => navigate("/workspace/mobile/tools")} />
+        <BackButton onClick={() => navigate("/teacher/tools")} />
         <h1 className={styles.title}>타이머</h1>
       </div>
 
