@@ -1,38 +1,350 @@
-/* hakwonplus 테넌트 색상 SSOT — 화이트톤 + 파란색 그라데이션 */
+/* 학원플러스 — 로고 속 도서관을 확장한 시네마틱 학습 포털 */
+[data-app="auth"][data-tenant="hakwonplus"] {
+  --hakwonplus-cyan: #39d9f2;
+  --hakwonplus-cyan-soft: #8becfa;
+  --hakwonplus-blue: #197fa8;
+  --hakwonplus-ink: #06121e;
+  --hakwonplus-panel: #0b2032;
+  --hakwonplus-paper: #edfaff;
+
+  --auth-accent: var(--hakwonplus-cyan);
+  --auth-bg: var(--hakwonplus-ink);
+  --auth-surface: #102b41;
+  --auth-border: rgba(139, 236, 250, 0.18);
+  --auth-border-hover: rgba(57, 217, 242, 0.52);
+  --auth-text: var(--hakwonplus-paper);
+  --auth-text-muted: #9cb2c2;
+  --auth-focus: rgba(57, 217, 242, 0.2);
+  --auth-error: #ff9999;
+  --auth-gradient: linear-gradient(105deg, #33cce7 0%, #47e5f4 56%, #72c5ff 100%);
+}
 
 [data-app="auth"][data-tenant="hakwonplus"] {
-  /* 화이트톤 */
-  --hakwonplus-bg: #f8fafc;
-  --hakwonplus-surface: #ffffff;
-  --hakwonplus-border: #e2e8f0;
-  --hakwonplus-border-hover: #cbd5e1;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(57, 217, 242, 0.18), transparent 28rem),
+    radial-gradient(circle at 86% 80%, rgba(47, 116, 158, 0.24), transparent 32rem),
+    linear-gradient(145deg, #020913 0%, #071827 52%, #05111d 100%);
+}
 
-  /* 텍스트 */
-  --hakwonplus-text: #0f172a;
-  --hakwonplus-text-muted: #64748b;
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 15%, rgba(57, 217, 242, 0.04) 15.2%, transparent 15.5%),
+    linear-gradient(72deg, transparent 78%, rgba(255, 255, 255, 0.035) 78.2%, transparent 78.5%);
+}
 
-  /* 로고 컬러 — 단색 */
-  --hakwonplus-blue: #2563eb;
-  --hakwonplus-blue-hover: #1d4ed8;
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] span {
+  position: absolute;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(139, 236, 250, 0.72);
+  box-shadow:
+    21vw 18vh 0 rgba(255, 255, 255, 0.24),
+    72vw 9vh 0 rgba(57, 217, 242, 0.4),
+    83vw 62vh 0 rgba(255, 255, 255, 0.2),
+    34vw 78vh 0 rgba(57, 217, 242, 0.28);
+}
 
-  /* 포커스 / 에러 */
-  --hakwonplus-focus: rgba(37, 99, 235, 0.2);
-  --hakwonplus-error: #dc2626;
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] span:nth-child(1) {
+  top: 9%;
+  left: 10%;
+}
 
-  /* 그라데이션 모드 — 로고 컬러패턴 (Blue to Light Blue) */
-  --hakwonplus-gradient: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #60a5fa 100%);
-  --hakwonplus-gradient-hover: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%);
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] span:nth-child(2) {
+  right: 14%;
+  bottom: 16%;
+}
 
-  /* 공통 별칭 — LoginPage 에서 사용 */
-  --auth-accent: var(--hakwonplus-blue);
-  --auth-bg: var(--hakwonplus-bg);
-  --auth-surface: var(--hakwonplus-surface);
-  --auth-border: var(--hakwonplus-border);
-  --auth-border-hover: var(--hakwonplus-border-hover);
-  --auth-text: var(--hakwonplus-text);
-  --auth-text-muted: var(--hakwonplus-text-muted);
-  --auth-focus: var(--hakwonplus-focus);
-  --auth-error: var(--hakwonplus-error);
-  --auth-gradient: var(--hakwonplus-gradient);
-  --auth-gradient-hover: var(--hakwonplus-gradient-hover);
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] span:nth-child(3) {
+  top: 50%;
+  left: 52%;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="card"] {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(30rem, 1.25fr) minmax(23rem, 0.75fr);
+  width: min(72rem, 100%);
+  max-width: none;
+  min-height: min(43rem, calc(100dvh - 7rem));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  background: var(--hakwonplus-panel);
+  border: 1px solid rgba(139, 236, 250, 0.2);
+  border-radius: 28px;
+  box-shadow:
+    0 38px 100px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(57, 217, 242, 0.06);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-stage"] {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: #06131f;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-stage"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(2, 9, 19, 0.06) 48%, rgba(2, 9, 19, 0.88) 100%),
+    linear-gradient(90deg, transparent 72%, rgba(6, 18, 30, 0.85) 100%);
+  pointer-events: none;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-artwork"] {
+  position: absolute;
+  inset: 0;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] img[class*="logo"] {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.96) contrast(1.04);
+  transform: scale(1.012);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] div[class*="typography"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] {
+  position: absolute;
+  right: 3rem;
+  bottom: 2.8rem;
+  left: 3rem;
+  z-index: 2;
+  max-width: 30rem;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] span,
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] span {
+  margin-bottom: 0.75rem;
+  color: var(--hakwonplus-cyan-soft);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] strong {
+  display: block;
+  color: #f2fbff;
+  font-size: clamp(1.65rem, 2.5vw, 2.35rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] p {
+  margin-top: 0.85rem;
+  color: #b5cbd8;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 3.4rem;
+  background:
+    radial-gradient(circle at 100% 0, rgba(57, 217, 242, 0.1), transparent 18rem),
+    linear-gradient(180deg, #0d2538 0%, #081a2a 100%);
+  border-left: 1px solid rgba(139, 236, 250, 0.12);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"]::before {
+  content: "";
+  position: absolute;
+  top: 2.2rem;
+  right: 2.2rem;
+  width: 2rem;
+  height: 2rem;
+  background: var(--hakwonplus-cyan);
+  clip-path: polygon(50% 0, 61% 36%, 100% 38%, 69% 60%, 80% 100%, 50% 75%, 20% 100%, 31% 60%, 0 38%, 39% 36%);
+  opacity: 0.42;
+  filter: drop-shadow(0 0 12px rgba(57, 217, 242, 0.65));
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] {
+  margin-bottom: 2.35rem;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] h2 {
+  color: #f4fbff;
+  font-size: 1.8rem;
+  font-weight: 850;
+  letter-spacing: -0.045em;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] p {
+  margin-top: 0.55rem;
+  color: var(--auth-text-muted);
+  font-size: 0.86rem;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] input[class*="input"] {
+  box-sizing: border-box;
+  color: #f2fbff;
+  background: rgba(16, 43, 65, 0.88);
+  border: 1px solid rgba(139, 236, 250, 0.14);
+  border-radius: 10px;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] input[class*="input"]::placeholder {
+  color: #839dad;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] input[class*="input"]:hover {
+  border-color: rgba(57, 217, 242, 0.4);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] input[class*="input"]:focus {
+  background: #12324a;
+  border-color: var(--hakwonplus-cyan);
+  box-shadow: 0 0 0 3px var(--auth-focus);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="btnPrimary"] {
+  color: #04131f;
+  background: var(--auth-gradient);
+  border: 0;
+  border-radius: 10px;
+  font-weight: 900;
+  box-shadow: 0 10px 28px rgba(57, 217, 242, 0.16);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="btnPrimary"]:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 12px 30px rgba(57, 217, 242, 0.26);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="passwordToggle"] {
+  color: #9fb6c5;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="passwordToggle"]:hover {
+  color: var(--hakwonplus-cyan);
+  background: rgba(57, 217, 242, 0.07);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="link"],
+[data-app="auth"][data-tenant="hakwonplus"] a[class*="link"] {
+  color: #b6cad6;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] button[class*="link"]:hover,
+[data-app="auth"][data-tenant="hakwonplus"] a[class*="link"]:hover {
+  color: var(--hakwonplus-cyan-soft);
+  background: rgba(57, 217, 242, 0.07);
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] footer[class*="legalFooter"],
+[data-app="auth"][data-tenant="hakwonplus"] footer[class*="legalFooter"] a {
+  color: #6f8b9d;
+}
+
+@media (max-width: 840px) {
+  [data-app="auth"][data-tenant="hakwonplus"] {
+    align-items: flex-start;
+    padding: 1.25rem 1rem 4rem;
+    overflow: auto;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="card"] {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    border-radius: 22px;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-stage"] {
+    min-height: 26rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {
+    padding: 3.2rem 2rem 2.5rem;
+    border-top: 1px solid rgba(139, 236, 250, 0.12);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="hakwonplus"] {
+    padding: 0 0 3rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="card"] {
+    width: 100%;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-stage"] {
+    min-height: 21rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] {
+    right: 1.5rem;
+    bottom: 1.5rem;
+    left: 1.5rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] span,
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="brand-message"] p {
+    display: none;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {
+    padding: 3rem 1.25rem 2rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"]::before {
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"]::before {
+    animation: hakwonplus-beacon 3.6s ease-in-out infinite;
+  }
+}
+
+@keyframes hakwonplus-beacon {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: translateY(0) scale(0.95);
+  }
+  50% {
+    opacity: 0.62;
+    transform: translateY(-3px) scale(1.03);
+  }
 }

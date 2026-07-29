@@ -28,6 +28,29 @@ import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import styles from "./LoginPage.module.css";
 
+const LOGIN_SCENES: Record<string, {
+  eyebrow: string;
+  statement: string;
+  support: string;
+  accessLabel: string;
+  accessTitle: string;
+}> = {
+  hakwonplus: {
+    eyebrow: "HAKWONPLUS · LEARNING SYSTEM",
+    statement: "배움의 흐름을 한곳에서",
+    support: "학원 운영과 수업, 학생의 학습을 연결합니다.",
+    accessLabel: "LEARNING ACCESS",
+    accessTitle: "학원플러스에 로그인",
+  },
+  movementhui: {
+    eyebrow: "MOVEMENT HUI · SCIENCE LAB",
+    statement: "생각의 궤도를 바꾸는 과학 수업",
+    support: "학생 · 학부모 · 선생님을 위한 전용 학습 공간입니다.",
+    accessLabel: "LAB ACCESS",
+    accessTitle: "오늘의 학습으로",
+  },
+};
+
 /**
  * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
  * - hostname 결정 가능 시: 백엔드가 host 기반 SSOT로 인증하므로 화면 브랜딩도 host와 맞춰야 일관성 유지
@@ -120,6 +143,7 @@ export default function LoginPage() {
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
+  const scene = LOGIN_SCENES[themeAttr];
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,83 +168,108 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
-      <div className={styles.center}>
-        {logoUrl ? (
-          <img src={logoUrl} alt={title} className={styles.logo} />
-        ) : (
-          <CommonLogoIcon height={64} className={styles.logo} />
-        )}
-        <div className={styles.typography}>
-          <h1 className={styles.title}>{title}</h1>
+      {scene && (
+        <div className={styles.ambient} data-auth-part="ambient" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-        <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-          <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
-          <input
-            id="login-username"
-            ref={usernameRef}
-            className={styles.input}
-            placeholder="아이디 또는 학부모 휴대폰 번호"
-            name="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            data-testid="login-username"
-          />
-          <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
-          <div className={styles.passwordWrap}>
-            <input
-              id="login-password"
-              className={styles.input}
-              type={showPassword ? "text" : "password"}
-              placeholder="비밀번호"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
-              onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
-              onBlur={() => setCapsOn(false)}
-              autoComplete="current-password"
-              data-testid="login-password"
-            />
-            <button
-              type="button"
-              className={styles.passwordToggle}
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
-              aria-pressed={showPassword}
-            >
-              {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
-            </button>
+      )}
+      <main className={styles.center} data-auth-part="card">
+        <section className={styles.brandStage} data-auth-part="brand-stage">
+          <div className={styles.brandArtwork} data-auth-part="brand-artwork">
+            {logoUrl ? (
+              <img src={logoUrl} alt={title} className={styles.logo} />
+            ) : (
+              <CommonLogoIcon height={64} className={styles.logo} />
+            )}
+            <div className={styles.typography}>
+              <h1 className={styles.title}>{title}</h1>
+            </div>
           </div>
-          {capsOn && (
-            <div className={styles.capsHint} role="status">
-              ⚠ Caps Lock이 켜져 있습니다.
+          {scene && (
+            <div className={styles.brandMessage} data-auth-part="brand-message">
+              <span>{scene.eyebrow}</span>
+              <strong>{scene.statement}</strong>
+              <p>{scene.support}</p>
             </div>
           )}
-          {error && <div className={styles.error} role="alert">{error}</div>}
-          <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
-            {pending ? "로그인 중..." : "로그인"}
-          </button>
-          <div className={styles.links}>
-            {hasLanding && (
-              <>
+        </section>
+        <section className={styles.loginPanel} data-auth-part="login-panel">
+          {scene && (
+            <div className={styles.loginIntro} data-auth-part="login-intro">
+              <span>{scene.accessLabel}</span>
+              <h2>{scene.accessTitle}</h2>
+              <p>등록된 아이디와 비밀번호를 입력하세요.</p>
+            </div>
+          )}
+          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+            <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
+            <input
+              id="login-username"
+              ref={usernameRef}
+              className={styles.input}
+              placeholder="아이디 또는 학부모 휴대폰 번호"
+              name="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              data-testid="login-username"
+            />
+            <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
+            <div className={styles.passwordWrap}>
+              <input
+                id="login-password"
+                className={styles.input}
+                type={showPassword ? "text" : "password"}
+                placeholder="비밀번호"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
+                onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
+                onBlur={() => setCapsOn(false)}
+                autoComplete="current-password"
+                data-testid="login-password"
+              />
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+              </button>
+            </div>
+            {capsOn && (
+              <div className={styles.capsHint} role="status">
+                ⚠ Caps Lock이 켜져 있습니다.
+              </div>
+            )}
+            {error && <div className={styles.error} role="alert">{error}</div>}
+            <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
+              {pending ? "로그인 중..." : "로그인"}
+            </button>
+            <div className={styles.links}>
+              {hasLanding && (
                 <Link to="/landing" className={styles.link}>
                   홈페이지
                 </Link>
-              </>
-            )}
-            <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
-              회원가입
-            </button>
-            <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
-              아이디 찾기
-            </button>
-            <button type="button" className={styles.link} onClick={() => openRecovery("password")}>
-              비밀번호 찾기
-            </button>
-          </div>
-        </form>
-      </div>
+              )}
+              <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
+                회원가입
+              </button>
+              <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
+                아이디 찾기
+              </button>
+              <button type="button" className={styles.link} onClick={() => openRecovery("password")}>
+                비밀번호 찾기
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
 
       <SignupModal open={showSignup} onClose={() => setShowSignup(false)} />
       <AccountRecoveryModal
