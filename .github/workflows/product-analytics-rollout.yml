@@ -71,7 +71,9 @@ jobs:
           RESULT_BODY=$(mktemp)
           trap 'rm -f "$LOGIN_BODY" "$TENANTS_BODY" "$RESULT_BODY"' EXIT
           jq -n --arg username "$PLATFORM_USER" --arg password "$PLATFORM_PASS" \
-            '{username:$username,password:$password}' > /tmp/academy-login.json
+            --arg tenant_code "$PLATFORM_TENANT" \
+            '{username:$username,password:$password,tenant_code:$tenant_code}' \
+            > /tmp/academy-login.json
           trap 'rm -f "$LOGIN_BODY" "$TENANTS_BODY" "$RESULT_BODY" /tmp/academy-login.json' EXIT
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
