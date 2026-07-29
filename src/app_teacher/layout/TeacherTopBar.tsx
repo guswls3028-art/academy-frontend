@@ -12,7 +12,12 @@
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
-import { getTenantBranding, getTenantIdFromCode, resolveTenantCode } from "@/shared/tenant";
+import {
+  getTenantBranding,
+  getTenantHeaderCssVars,
+  getTenantIdFromCode,
+  resolveTenantCode,
+} from "@/shared/tenant";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
@@ -30,13 +35,20 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
-  const tenantHeaderLogoUrl = tenantId === 1 ? (getTenantBranding(tenantId)?.headerLogoUrl ?? "") : "";
-  const logoUrl = program?.ui_config?.logo_url?.trim() || tenantHeaderLogoUrl;
+  const tenantBranding = tenantId ? getTenantBranding(tenantId) : null;
+  const tenantHeaderLogoUrl = tenantBranding?.headerLogoUrl ?? "";
+  const headerBrandStyle = getTenantHeaderCssVars(tenantBranding);
+  const programLogoUrl = program?.ui_config?.logo_url?.trim() || "";
+  const logoUrl = headerBrandStyle
+    ? (tenantHeaderLogoUrl || programLogoUrl)
+    : (programLogoUrl || tenantHeaderLogoUrl);
   const badge = counts?.total ?? 0;
 
   return (
     <div
+      className="teacher-topbar"
       style={{
+        ...headerBrandStyle,
         height: "var(--tc-header-h)",
         display: "flex",
         alignItems: "center",
@@ -96,10 +108,14 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
         <button
           onClick={() => navigate("/teacher")}
           aria-label="홈으로"
+          className="teacher-topbar__brand"
+          data-tenant-header-brand={headerBrandStyle ? "" : undefined}
           style={{
-            background: "none",
+            background: headerBrandStyle
+              ? "linear-gradient(90deg, var(--tenant-header-surface) 0, var(--tenant-header-surface) 42px, var(--tenant-header-surface-soft) 70%, transparent 100%)"
+              : "none",
             border: "none",
-            padding: "8px 4px",
+            padding: headerBrandStyle ? "5px 20px 5px 5px" : "8px 4px",
             cursor: "pointer",
             minHeight: "var(--tc-touch-min)",
             display: "inline-flex",
@@ -115,7 +131,14 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
             <img
               src={logoUrl}
               alt=""
-              style={{ height: 26, width: "auto", maxWidth: 80, objectFit: "contain", display: "block" }}
+              className="teacher-topbar__logo"
+              style={{
+                height: headerBrandStyle ? 32 : 26,
+                width: headerBrandStyle ? 32 : "auto",
+                maxWidth: headerBrandStyle ? 32 : 80,
+                objectFit: headerBrandStyle ? "cover" : "contain",
+                display: "block",
+              }}
             />
           )}
           {tenantName ? (
@@ -123,7 +146,7 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
               style={{
                 fontSize: 17,
                 fontWeight: 700,
-                color: "var(--tc-text)",
+                color: headerBrandStyle ? "var(--tenant-header-foreground)" : "var(--tc-text)",
                 letterSpacing: 0,
                 minWidth: 0,
                 overflow: "hidden",

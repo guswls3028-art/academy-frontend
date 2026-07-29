@@ -47,6 +47,46 @@
   flex-shrink: 0;
 }
 
+.stu-topbar__home-link[data-tenant-header-brand] {
+  box-sizing: border-box;
+  gap: 10px;
+  padding: 5px 20px 5px 5px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--tenant-header-surface) 0,
+      var(--tenant-header-surface) 42px,
+      var(--tenant-header-surface-soft) 70%,
+      transparent 100%
+    );
+  border-radius: 11px;
+  color: var(--tenant-header-foreground);
+  isolation: isolate;
+}
+
+.stu-topbar__home-link[data-tenant-header-brand]:hover {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--tenant-header-surface) 94%, white) 0,
+      color-mix(in srgb, var(--tenant-header-surface) 94%, white) 42px,
+      color-mix(in srgb, var(--tenant-header-surface-soft) 94%, white) 70%,
+      transparent 100%
+    );
+}
+
+.stu-topbar__home-link[data-tenant-header-brand] .stu-topbar__logo {
+  width: 32px;
+  height: 32px;
+  max-width: 32px;
+  object-fit: cover;
+}
+
+.stu-topbar__home-link[data-tenant-header-brand] > span {
+  color: var(--tenant-header-foreground);
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--tenant-header-surface) 70%, transparent);
+}
+
 .stu-topbar__profileBtn {
   display: inline-flex;
   align-items: center;

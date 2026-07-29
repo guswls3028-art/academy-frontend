@@ -17,6 +17,16 @@ export type TenantBranding = {
   logoDarkUrl?: string;
   /** 다크모드용 헤더 아이콘 URL (색반전, 투명 배경) */
   headerLogoDarkUrl?: string;
+  /**
+   * 불투명 배경이 포함된 헤더 로고를 공용 상단바에 자연스럽게 잇는 브랜드 표면.
+   * surface는 이미지 모서리 배경색과 맞추고, surfaceSoft는 헤더로 사라지는 중간색으로 쓴다.
+   */
+  headerPalette?: {
+    surface: string;
+    surfaceSoft: string;
+    foreground: string;
+    accent: string;
+  };
   /** OG/트위터 카드 설명 (없으면 기본 문구) */
   ogDescription?: string;
   /** OG/트위터 카드 이미지 URL — 카카오톡·페이스북 링크 미리보기용 (상대경로, origin은 런타임 부착) */

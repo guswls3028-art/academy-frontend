@@ -15,6 +15,12 @@ export const hakwonplus: TenantDef = {
     windowTitle: "학원플러스",
     faviconUrl: "/tenants/hakwonplus/favicon.png?v=20260727",
     headerLogoUrl: "/tenants/hakwonplus/icon.png?v=20260727",
+    headerPalette: {
+      surface: "#181b22",
+      surfaceSoft: "#123047",
+      foreground: "#f2fbff",
+      accent: "#39d9f2",
+    },
     ogDescription: "학원플러스 – 학원 관리·학생 학습 플랫폼",
     ogImageUrl: "/tenants/hakwonplus/og-image.png",
   },

@@ -32,7 +32,12 @@ import { fetchMe, displayUsername, meToStaffRole, type MeStaffRole } from "@admi
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import { resolveTenantCode, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import {
+  resolveTenantCode,
+  getTenantIdFromCode,
+  getTenantBranding,
+  getTenantHeaderCssVars,
+} from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
@@ -216,6 +221,9 @@ export default function Header() {
   const headerLogoUrl = isDarkTheme
     ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
     : (tenantBranding?.headerLogoUrl ?? null);
+  const headerBrandStyle = getTenantHeaderCssVars(tenantBranding);
+  // 배경이 포함된 브랜드 에셋은 등록된 헤더용 크롭을 우선해 정사각형 원본 노출을 피한다.
+  const brandLogoUrl = headerBrandStyle ? (headerLogoUrl ?? logoUrl) : (logoUrl ?? headerLogoUrl);
 
   const userMenu = {
     onClick: ({ key }: { key: string }) => {
@@ -333,15 +341,19 @@ export default function Header() {
           <button
             type="button"
             className="app-header__brand"
+            data-tenant-header-brand={headerBrandStyle ? "" : undefined}
+            style={headerBrandStyle as React.CSSProperties | undefined}
             title={`${academyName} 대시보드`}
             aria-label={`${academyName} 대시보드로 이동`}
             onClick={() => nav("/admin/dashboard")}
           >
             <span className="app-header__brandMark" aria-hidden>
-              {logoUrl ? (
-                <img src={logoUrl} alt="logo" />
-              ) : headerLogoUrl ? (
-                <img className="app-header__brandLogo--compact" src={headerLogoUrl} alt="logo" />
+              {brandLogoUrl ? (
+                <img
+                  className={headerBrandStyle ? "app-header__brandLogo--blended" : undefined}
+                  src={brandLogoUrl}
+                  alt="logo"
+                />
               ) : isTchul ? (
                 <TchulLogoIcon height={24} />
               ) : (

@@ -64,6 +64,28 @@ export function getTenantBranding(id: TenantId): TenantBranding {
   return idToBranding[id];
 }
 
+export type TenantHeaderCssVars = Record<
+  | "--tenant-header-surface"
+  | "--tenant-header-surface-soft"
+  | "--tenant-header-foreground"
+  | "--tenant-header-accent",
+  string
+>;
+
+/** 공용 역할별 헤더가 같은 방식으로 소비하는 테넌트 브랜드 표면 변수. */
+export function getTenantHeaderCssVars(
+  branding: TenantBranding | null | undefined,
+): TenantHeaderCssVars | undefined {
+  const palette = branding?.headerPalette;
+  if (!palette) return undefined;
+  return {
+    "--tenant-header-surface": palette.surface,
+    "--tenant-header-surface-soft": palette.surfaceSoft,
+    "--tenant-header-foreground": palette.foreground,
+    "--tenant-header-accent": palette.accent,
+  };
+}
+
 /** 로그인 리다이렉트용: tenantId → loginPath */
 export function getLoginPathForTenantId(id: TenantId): string {
   const t = TENANTS.find((x) => x.id === id);

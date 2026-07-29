@@ -14,6 +14,12 @@ export const movementhui: TenantDef = {
     windowTitle: "이동휘원소 과학연구소",
     faviconUrl: "/tenants/movementhui/favicon.png",
     headerLogoUrl: "/tenants/movementhui/icon.png",
+    headerPalette: {
+      surface: "#1a253b",
+      surfaceSoft: "#263653",
+      foreground: "#fffdf0",
+      accent: "#ffdb5a",
+    },
     ogDescription: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인",
     ogImageUrl: "/tenants/movementhui/og-image.png",
   },

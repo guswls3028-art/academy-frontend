@@ -11,7 +11,12 @@ import { Globe } from "lucide-react";
 import { getStudentTenantBranding } from "@student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import api from "@/shared/api/axios";
-import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+import {
+  getTenantCodeForApiRequest,
+  getTenantIdFromCode,
+  getTenantBranding,
+  getTenantHeaderCssVars,
+} from "@/shared/tenant";
 import { logout } from "@/auth/api/auth.api";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { useStudentTheme } from "@student/shared/context/studentTheme";
@@ -130,6 +135,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const headerLogoUrl = isDark
     ? (tenantBrandingData?.headerLogoDarkUrl ?? tenantBrandingData?.headerLogoUrl ?? null)
     : (tenantBrandingData?.headerLogoUrl ?? null);
+  const headerBrandStyle = getTenantHeaderCssVars(tenantBrandingData);
 
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   useEffect(() => {
@@ -259,12 +265,14 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       <Link
         to="/student/dashboard"
         className="stu-topbar__home-link"
+        data-tenant-header-brand={headerBrandStyle ? "" : undefined}
         title={branding.title}
         style={{
+          ...headerBrandStyle,
           display: "flex",
           alignItems: "center",
           gap: 10,
-          color: "var(--stu-text)",
+          color: headerBrandStyle ? "var(--tenant-header-foreground)" : "var(--stu-text)",
           textDecoration: "none",
           flex: "1 1 auto",
           minWidth: 0,

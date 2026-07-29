@@ -27,6 +27,27 @@
   backdrop-filter: blur(14px);
 }
 
+.header :global(.teacher-topbar__brand[data-tenant-header-brand]) {
+  box-sizing: border-box;
+  border-radius: 11px;
+  isolation: isolate;
+}
+
+.header :global(.teacher-topbar__brand[data-tenant-header-brand]:hover) {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--tenant-header-surface) 94%, white) 0,
+      color-mix(in srgb, var(--tenant-header-surface) 94%, white) 42px,
+      color-mix(in srgb, var(--tenant-header-surface-soft) 94%, white) 70%,
+      transparent 100%
+    ) !important;
+}
+
+.header :global(.teacher-topbar__brand[data-tenant-header-brand] span) {
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--tenant-header-surface) 70%, transparent);
+}
+
 .main {
   flex: 1;
   overflow-y: auto;

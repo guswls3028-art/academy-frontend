@@ -96,15 +96,15 @@ html:has([data-app="student"]) {
   text-decoration: none;
 }
 
-/* 상단 바 로고 영역 — 배경 없음(투명) 고정 */
-.stu-topbar__home-link,
-.stu-topbar__home-link:hover,
-.stu-topbar__home-link:focus {
+/* 투명 로고의 기본 상단바 영역. 불투명 브랜드 에셋은 tenant header palette가 표면을 소유한다. */
+.stu-topbar__home-link:not([data-tenant-header-brand]),
+.stu-topbar__home-link:not([data-tenant-header-brand]):hover,
+.stu-topbar__home-link:not([data-tenant-header-brand]):focus {
   background: transparent !important;
   background-color: transparent !important;
 }
-.stu-topbar__home-link::before,
-.stu-topbar__home-link::after {
+.stu-topbar__home-link:not([data-tenant-header-brand])::before,
+.stu-topbar__home-link:not([data-tenant-header-brand])::after {
   display: none !important;
   content: none !important;
 }

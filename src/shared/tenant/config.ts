@@ -6,6 +6,7 @@
 export {
   getTenantIdFromCode,
   getTenantBranding,
+  getTenantHeaderCssVars,
   getTenantDefById,
   getTenantDefByHostname,
   HOSTNAME_TO_TENANT_CODE,
@@ -13,4 +14,4 @@ export {
   getTenantIdsWithDedicatedLogin,
   TENANTS,
 } from "./tenants";
-export type { TenantId, TenantBranding, TenantDef } from "./tenants";
+export type { TenantHeaderCssVars, TenantId, TenantBranding, TenantDef } from "./tenants";
