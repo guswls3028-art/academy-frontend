@@ -34,7 +34,7 @@ const SOURCE_OPTIONS: Array<{
 }> = [
   { value: "school_exam", title: "학교 내신", description: "1·2학기 지필평가" },
   { value: "national_mock", title: "전국연합", description: "교육청 학력평가" },
-  { value: "kice_mock", title: "평가원 모의", description: "6·9월 모의평가" },
+  { value: "kice_mock", title: "평가원 모의", description: "시행연도별 공식 월" },
 ];
 
 const STATUS_COPY = {
@@ -299,9 +299,6 @@ export default function SubmitScorePage() {
                         })));
                       }
                       setSource(option.value);
-                      if (option.value === "kice_mock" && examMonth !== 6 && examMonth !== 9) {
-                        setExamMonth(6);
-                      }
                     }}
                   >
                     <strong>{option.title}</strong><span>{option.description}</span>
@@ -317,7 +314,7 @@ export default function SubmitScorePage() {
                     {(examRound === "performance" || examRound === "other") && <label><span>성적표 기재 시험명</span><input data-testid="score-exam-name" className="stu-input" value={examName} maxLength={80} onChange={(event) => setExamName(event.target.value)} placeholder="예: 수학 주제탐구 수행평가" /></label>}
                   </>
                 ) : (
-                  <label><span>시험 월</span><select data-testid="score-exam-month" className="stu-input" value={examMonth} onChange={(event) => setExamMonth(Number(event.target.value))}>{(source === "kice_mock" ? [6, 9] : Array.from({ length: 12 }, (_, index) => index + 1)).map((month) => <option key={month} value={month}>{month}월</option>)}</select></label>
+                  <label><span>시험 월</span><select data-testid="score-exam-month" className="stu-input" value={examMonth} onChange={(event) => setExamMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{month}월</option>)}</select>{source === "kice_mock" && <small className={styles.fieldHint}>공식 시행 월은 바뀔 수 있어 성적표에 적힌 월을 선택해 주세요.</small>}</label>
                 )}
                 <label><span>시험일 <em>선택</em></span><input className="stu-input" type="date" value={examDate} onChange={(event) => setExamDate(event.target.value)} /></label>
               </div>

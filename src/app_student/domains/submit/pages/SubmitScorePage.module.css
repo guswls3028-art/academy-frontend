@@ -95,6 +95,7 @@
 .fieldGrid label { display: grid; gap: 5px; min-width: 0; }
 .fieldGrid label > span { color: var(--stu-text); font-size: 11px; font-weight: 750; }
 .fieldGrid em { color: var(--stu-text-muted); font-size: 9px; font-style: normal; font-weight: 600; }
+.fieldHint { color: var(--stu-text-muted); font-size: 10px; line-height: 1.45; }
 .fieldGrid :global(.stu-input) { width: 100%; min-width: 0; }
 
 .scoreItems { display: grid; gap: 12px; }

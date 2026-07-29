@@ -152,14 +152,15 @@ test.describe("학생 성적표 자발 제출", () => {
     await page.screenshot({ path: "test-results/reported-score-submission/student-success-390.png", fullPage: true });
   });
 
-  test("평가원 모의평가는 공식 6·9월만 선택할 수 있다", async ({ page }) => {
+  test("평가원 모의평가는 성적표의 시행 월을 그대로 선택할 수 있다", async ({ page }) => {
     await installApi(page);
     await page.goto(`${BASE}/student/submit/score`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /전국연합/ }).click();
-    await page.getByTestId("score-exam-month").selectOption("3");
+    await page.getByTestId("score-exam-month").selectOption("8");
     await page.getByRole("button", { name: /평가원 모의/ }).click();
-    await expect(page.getByTestId("score-exam-month").locator("option")).toHaveText(["6월", "9월"]);
-    await expect(page.getByTestId("score-exam-month")).toHaveValue("6");
+    await expect(page.getByTestId("score-exam-month").locator("option")).toHaveCount(12);
+    await expect(page.getByTestId("score-exam-month")).toHaveValue("8");
+    await expect(page.getByText("공식 시행 월은 바뀔 수 있어")).toBeVisible();
   });
 
   test("수행평가는 성적표 기재 시험명과 시험일을 함께 보낸다", async ({ page }) => {
