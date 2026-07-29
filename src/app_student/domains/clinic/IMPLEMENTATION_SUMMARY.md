@@ -67,7 +67,7 @@
 
 4. **선생이 예약 승인/거부**
    ```
-   선생 → 클리닉 관리 페이지 접속 (/admin/clinic/bookings)
+   교직원 → 클리닉 관리 페이지 접속 (/workspace/clinic/bookings)
    → 학생의 예약 신청 목록 확인 (status="pending")
    → 승인/거부 버튼 클릭 (PATCH /clinic/participants/{id}/set_status/)
    → 상태 변경: pending → booked (승인) 또는 pending → rejected (거부)

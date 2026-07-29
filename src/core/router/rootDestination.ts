@@ -1,5 +1,6 @@
 import type { TenantRole } from "@/auth/context/AuthContext";
 import { DEV_CONSOLE_ORIGIN } from "@/shared/constants/origins";
+import { WORKSPACE_PATHS } from "./workspaceRoutes";
 
 type RootDestinationInput = {
   tenantCode: string;
@@ -7,10 +8,10 @@ type RootDestinationInput = {
   isAuthenticated: boolean;
   isMobile?: boolean;
   isStandalone?: boolean;
-  prefersAdmin?: boolean;
+  prefersFullWorkspace?: boolean;
 };
 
-const ADMIN_ROLES: TenantRole[] = ["owner", "admin", "teacher", "staff"];
+const WORKSPACE_ROLES: TenantRole[] = ["owner", "admin", "teacher", "staff"];
 
 type DeveloperConsoleDestinationInput = {
   isPrimaryApp: boolean;
@@ -38,7 +39,7 @@ export function resolveRootDestination({
   isAuthenticated,
   isMobile = false,
   isStandalone = false,
-  prefersAdmin = false,
+  prefersFullWorkspace = false,
 }: RootDestinationInput): string {
   if (!isAuthenticated) {
     return tenantCode === "hakwonplus" || tenantCode === "9999"
@@ -46,8 +47,10 @@ export function resolveRootDestination({
       : "/login";
   }
 
-  if (role && ADMIN_ROLES.includes(role)) {
-    return isMobile && !isStandalone && !prefersAdmin ? "/teacher" : "/admin";
+  if (role && WORKSPACE_ROLES.includes(role)) {
+    return isMobile && !isStandalone && !prefersFullWorkspace
+      ? WORKSPACE_PATHS.mobile
+      : WORKSPACE_PATHS.full;
   }
 
   if (role === "student" || role === "parent") {

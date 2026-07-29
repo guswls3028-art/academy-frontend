@@ -342,7 +342,7 @@ export default function VideoTreeView() {
                 순서 관리
               </Button>
             )}
-            <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
+            <Button intent="primary" size="sm" onClick={() => navigate("/workspace/lectures")}>
               강의 목록
             </Button>
           </div>

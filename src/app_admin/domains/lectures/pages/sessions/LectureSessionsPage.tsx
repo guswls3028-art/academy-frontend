@@ -241,7 +241,7 @@ export default function LectureSessionsPage() {
                   <tr
                     key={s.id}
                     className={`cursor-pointer hover:bg-[var(--color-bg-surface-hover)] ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
-                    onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)}
+                    onClick={() => navigate(`/workspace/lectures/${lectureId}/sessions/${s.id}`)}
                   >
                     <td className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -255,7 +255,7 @@ export default function LectureSessionsPage() {
                     </td>
                     <td className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
                       <Link
-                        to={`/admin/lectures/${lectureId}/sessions/${s.id}`}
+                        to={`/workspace/lectures/${lectureId}/sessions/${s.id}`}
                         className={styles.sessionLink}
                         onClick={(e) => e.stopPropagation()}
                       >

@@ -6,10 +6,10 @@ import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 
 const DEVELOPER_TABS: DomainTab[] = [
-  { key: "patchnotes", label: "패치노트", path: "/admin/developer", exact: true },
-  { key: "bug", label: "버그 제보", path: "/admin/developer/bug" },
-  { key: "feedback", label: "피드백", path: "/admin/developer/feedback" },
-  { key: "flags", label: "운영 설정", path: "/admin/developer/flags" },
+  { key: "patchnotes", label: "패치노트", path: "/workspace/developer", exact: true },
+  { key: "bug", label: "버그 제보", path: "/workspace/developer/bug" },
+  { key: "feedback", label: "피드백", path: "/workspace/developer/feedback" },
+  { key: "flags", label: "운영 설정", path: "/workspace/developer/flags" },
 ];
 
 export default function DeveloperLayout() {

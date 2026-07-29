@@ -5,9 +5,9 @@ import { Outlet } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const MATERIALS_TABS = [
-  { key: "sheets", label: "시험지", path: "/admin/materials/sheets" },
-  { key: "reports", label: "성적표", path: "/admin/materials/reports" },
-  { key: "messages", label: "메시지", path: "/admin/materials/messages" },
+  { key: "sheets", label: "시험지", path: "/workspace/materials/sheets" },
+  { key: "reports", label: "성적표", path: "/workspace/materials/reports" },
+  { key: "messages", label: "메시지", path: "/workspace/materials/messages" },
 ];
 
 export default function MaterialsLayout() {

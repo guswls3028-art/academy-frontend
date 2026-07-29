@@ -1,9 +1,9 @@
 // PATH: src/app_teacher/shared/ui/PcOnlyHint.tsx
 // PC 전용 기능 안내 — 모바일에서 미지원 도메인 진입 시 표시.
-// "데스크톱 버전 열기" 버튼으로 admin 라우트로 즉시 전환.
+// "통합 업무 화면 열기" 버튼으로 데스크톱 업무 라우트로 즉시 전환.
 import { useNavigate } from "react-router-dom";
 import { ICON } from "@/shared/ui/ds";
-import { setPreferAdmin } from "@/core/router/MobileTeacherRedirect";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { Monitor, ChevronLeft } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import styles from "./PcOnlyHint.module.css";
@@ -11,7 +11,7 @@ import styles from "./PcOnlyHint.module.css";
 interface Props {
   title: string;
   description?: string;
-  /** 데스크톱에서 열 admin 경로 (예: "/admin/fees") */
+  /** 데스크톱에서 열 통합 업무 경로 (예: "/workspace/fees") */
   desktopPath: string;
   /** 사유 (왜 모바일에서 못 하는지) */
   reason?: string;
@@ -21,7 +21,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
   const navigate = useNavigate();
 
   const openDesktop = () => {
-    setPreferAdmin(true);
+    setPreferFullWorkspace(true);
     window.location.href = desktopPath;
   };
 
@@ -64,7 +64,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
             onClick={openDesktop}
             className={styles.desktopButton}
           >
-            <Monitor size={ICON.xs} /> 데스크톱 버전 열기
+            <Monitor size={ICON.xs} /> 통합 업무 화면 열기
           </button>
         </div>
       </Card>

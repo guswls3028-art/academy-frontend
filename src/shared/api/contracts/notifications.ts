@@ -266,13 +266,13 @@ export function buildOperationalNotificationItems(
 ): OperationalNotificationItem[] {
   const items: OperationalNotificationItem[] = [];
   if (counts.videoFailed > 0) {
-    items.push({ type: "video_failed", label: "영상 인코딩 실패", count: counts.videoFailed, to: "/admin/videos" });
+    items.push({ type: "video_failed", label: "영상 인코딩 실패", count: counts.videoFailed, to: "/workspace/videos" });
   }
   if (counts.consultUnread > 0) {
-    items.push({ type: "consult", label: "새 상담 요청", count: counts.consultUnread, to: "/admin/settings/consult" });
+    items.push({ type: "consult", label: "새 상담 요청", count: counts.consultUnread, to: "/workspace/settings/consult" });
   }
   if (counts.reportsPending > 0) {
-    items.push({ type: "reports", label: "신고 대기", count: counts.reportsPending, to: "/admin/community/reports" });
+    items.push({ type: "reports", label: "신고 대기", count: counts.reportsPending, to: "/workspace/community/reports" });
   }
   if (counts.communityUnread > 0) {
     items.push({ type: "community", label: "커뮤니티 새 활동", count: counts.communityUnread, to: "/student/community" });
@@ -282,20 +282,20 @@ export function buildOperationalNotificationItems(
       type: "registration_requests",
       label: "가입 신청 학생",
       count: counts.registrationRequestsPending,
-      to: "/admin/students/requests",
+      to: "/workspace/students/requests",
     });
   }
   if (counts.clinicPending > 0) {
-    items.push({ type: "clinic", label: "클리닉 예약 신청", count: counts.clinicPending, to: "/admin/clinic/bookings" });
+    items.push({ type: "clinic", label: "클리닉 예약 신청", count: counts.clinicPending, to: "/workspace/clinic/bookings" });
   }
   if (counts.counselPending > 0) {
-    items.push({ type: "counsel", label: "답변 대기 상담", count: counts.counselPending, to: "/admin/community/counsel" });
+    items.push({ type: "counsel", label: "답변 대기 상담", count: counts.counselPending, to: "/workspace/community/counsel" });
   }
   if (counts.qnaPending > 0) {
-    items.push({ type: "qna", label: "답변 대기 질문", count: counts.qnaPending, to: "/admin/community/qna" });
+    items.push({ type: "qna", label: "답변 대기 질문", count: counts.qnaPending, to: "/workspace/community/qna" });
   }
   if (counts.recentSubmissions > 0) {
-    items.push({ type: "submissions", label: "처리 대기 제출", count: counts.recentSubmissions, to: "/admin/results/submissions" });
+    items.push({ type: "submissions", label: "처리 대기 제출", count: counts.recentSubmissions, to: "/workspace/results/submissions" });
   }
   return items;
 }

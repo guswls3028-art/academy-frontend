@@ -384,7 +384,7 @@ export default function ClinicSchedulePage() {
                                   intent="ghost"
                                   size="sm"
                                   onClick={() =>
-                                    navigate(`/admin/clinic/operations?date=${session.date}&session=${session.id}`)
+                                    navigate(`/workspace/clinic/operations?date=${session.date}&session=${session.id}`)
                                   }
                                 >
                                   진행

@@ -341,7 +341,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                   {list.map((lec) => (
                     <tr
                       key={lec.id}
-                      onClick={() => navigate(`/admin/lectures/${lec.id}`)}
+                      onClick={() => navigate(`/workspace/lectures/${lec.id}`)}
                       tabIndex={0}
                       role="button"
                       className="cursor-pointer"
@@ -419,7 +419,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           }}
           onAfterEnd={() => {
             qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
-            navigate("/admin/lectures/past");
+            navigate("/workspace/lectures/past");
           }}
           onAfterRestore={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
           onAfterDelete={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}

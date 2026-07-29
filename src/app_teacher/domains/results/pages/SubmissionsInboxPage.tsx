@@ -200,9 +200,9 @@ export default function SubmissionsInboxPage() {
       return;
     }
     if (row.target_type === "exam") {
-      navigate(`/teacher/exams/${row.target_id}`);
+      navigate(`/workspace/mobile/exams/${row.target_id}`);
     } else {
-      navigate(`/teacher/homeworks/${row.target_id}`);
+      navigate(`/workspace/mobile/homeworks/${row.target_id}`);
     }
   };
 
@@ -308,7 +308,7 @@ export default function SubmissionsInboxPage() {
           title={emptyTitle}
           description={filter === "pending" ? "학생 제출이 들어오면 자동 채점과 확인 대기 항목이 이곳에 쌓입니다." : "다른 상태의 제출을 보려면 대기 중 또는 전체 탭으로 전환하세요."}
           actions={filter === "pending" ? (
-            <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+            <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
               차시 확인
             </EmptyActionButton>
           ) : (

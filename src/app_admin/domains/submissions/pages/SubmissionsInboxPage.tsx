@@ -320,11 +320,11 @@ export default function SubmissionsInboxPage() {
     }
     if (row.target_type === "exam") {
       navigate(
-        `/admin/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}`,
       );
     } else {
       navigate(
-        `/admin/lectures/${row.lecture_id}/sessions/${row.session_id}/assignments?homeworkId=${row.target_id}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/assignments?homeworkId=${row.target_id}`,
       );
     }
   }

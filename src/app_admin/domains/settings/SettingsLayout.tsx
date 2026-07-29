@@ -15,12 +15,12 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { key: "profile", label: "프로필", icon: FiUser, path: "/admin/settings/profile" },
-  { key: "organization", label: "학원 정보", icon: FiHome, path: "/admin/settings/organization" },
-  { key: "appearance", label: "테마", icon: FiMonitor, path: "/admin/settings/appearance" },
-  { key: "landing", label: "홈페이지", icon: FiGlobe, path: "/admin/settings/landing", roles: ["owner", "admin"] },
-  { key: "consult", label: "상담 수신함", icon: FiInbox, path: "/admin/settings/consult", roles: ["owner", "admin"] },
-  { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/admin/settings/billing", roles: ["owner"] },
+  { key: "profile", label: "프로필", icon: FiUser, path: "/workspace/settings/profile" },
+  { key: "organization", label: "학원 정보", icon: FiHome, path: "/workspace/settings/organization" },
+  { key: "appearance", label: "테마", icon: FiMonitor, path: "/workspace/settings/appearance" },
+  { key: "landing", label: "홈페이지", icon: FiGlobe, path: "/workspace/settings/landing", roles: ["owner", "admin"] },
+  { key: "consult", label: "상담 수신함", icon: FiInbox, path: "/workspace/settings/consult", roles: ["owner", "admin"] },
+  { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/workspace/settings/billing", roles: ["owner"] },
 ];
 
 export default function SettingsLayout() {

@@ -459,7 +459,7 @@ function EditorDrawer({ config, onClose, onConfigPreview }: {
         {/* 안내 */}
         <p style={{ fontSize: 11, color: "#6B7280", margin: "16px 0 0", lineHeight: 1.6 }}>
           입력하면 즉시 미리보기에 반영됩니다. "저장 + 게시" 누르면 실제 학원 홈페이지에 적용됩니다.<br />
-          더 자세한 편집(섹션 ON/OFF, 강사 카드, 후기 등)은 <a href="/admin/settings/landing" style={{ color: "#D4A04C" }}>관리실 → 홈페이지 편집</a>으로.
+          더 자세한 편집(섹션 ON/OFF, 강사 카드, 후기 등)은 <a href="/workspace/settings/landing" style={{ color: "#D4A04C" }}>관리실 → 홈페이지 편집</a>으로.
         </p>
       </div>
     </div>

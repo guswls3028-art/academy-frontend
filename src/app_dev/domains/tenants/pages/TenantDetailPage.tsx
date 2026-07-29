@@ -125,7 +125,7 @@ export default function TenantDetailPage() {
 function AdminJumpButton({ tenant }: { tenant: TenantDetailDto }) {
   const host = tenant.primaryDomain;
   if (!host) return null;
-  const url = `https://${host}/admin`;
+  const url = `https://${host}/workspace`;
   return (
     <a
       href={url}
@@ -134,7 +134,7 @@ function AdminJumpButton({ tenant }: { tenant: TenantDetailDto }) {
       className={`${s.btn} ${s.btnSecondary} ${s.btnSm} ${styles.adminLink}`}
       title={`${url} 새 탭에서 열기`}
     >
-      ↗ /admin 열기
+      ↗ /workspace 열기
     </a>
   );
 }
@@ -628,7 +628,7 @@ function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: str
                                 const r = await impersonate.mutateAsync({ tenantId, userId: o.userId });
                                 localStorage.setItem("access", r.access);
                                 localStorage.setItem("refresh", r.refresh);
-                                navigate("/admin", { replace: true });
+                                navigate("/workspace", { replace: true });
                                 window.location.reload();
                               } catch (e: unknown) {
                                 abortImpersonation();

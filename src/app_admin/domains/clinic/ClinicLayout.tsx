@@ -7,12 +7,12 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const CLINIC_TABS = [
-  { key: "home", label: "오늘", path: "/admin/clinic/home" },
-  { key: "schedule", label: "예약 일정", path: "/admin/clinic/schedule" },
-  { key: "operations", label: "당일 진행", path: "/admin/clinic/operations" },
-  { key: "bookings", label: "미통과 관리", path: "/admin/clinic/bookings" },
-  { key: "settings", label: "패스카드", path: "/admin/clinic/settings" },
-  { key: "msg-settings", label: "메시지", path: "/admin/clinic/msg-settings" },
+  { key: "home", label: "오늘", path: "/workspace/clinic/home" },
+  { key: "schedule", label: "예약 일정", path: "/workspace/clinic/schedule" },
+  { key: "operations", label: "당일 진행", path: "/workspace/clinic/operations" },
+  { key: "bookings", label: "미통과 관리", path: "/workspace/clinic/bookings" },
+  { key: "settings", label: "패스카드", path: "/workspace/clinic/settings" },
+  { key: "msg-settings", label: "메시지", path: "/workspace/clinic/msg-settings" },
 ];
 
 const DESCRIPTIONS: Record<string, string> = {

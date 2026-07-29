@@ -81,7 +81,7 @@ function ExamTab() {
         title="등록된 시험이 없습니다"
         description="시험은 강의의 차시에 추가하면 목록과 성적 화면으로 연결됩니다."
         actions={
-          <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+          <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
             강의에서 추가
           </EmptyActionButton>
         }
@@ -95,7 +95,7 @@ function ExamTab() {
           <button
             key={e.id}
             type="button"
-            onClick={() => navigate(`/teacher/exams/${e.id}`)}
+            onClick={() => navigate(`/workspace/mobile/exams/${e.id}`)}
             className={styles.itemCard}
           >
             <div className={styles.examCardHeader}>
@@ -143,7 +143,7 @@ function HomeworkTab() {
         title="등록된 과제가 없습니다"
         description="과제는 강의의 차시에 추가하면 제출 현황과 미제출 안내로 이어집니다."
         actions={
-          <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+          <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
             강의에서 추가
           </EmptyActionButton>
         }
@@ -157,7 +157,7 @@ function HomeworkTab() {
           <button
             key={h.id}
             type="button"
-            onClick={() => navigate(`/teacher/homeworks/${h.id}`)}
+            onClick={() => navigate(`/workspace/mobile/homeworks/${h.id}`)}
             className={styles.itemCard}
           >
             <div className={styles.itemTitleRow}>

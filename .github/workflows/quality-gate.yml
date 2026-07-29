@@ -107,27 +107,163 @@ jobs:
               --project=chromium \
               --reporter=list
 
+      - name: Workspace routing and PWA contracts
+        run: |
+          pnpm exec playwright test \
+            e2e/root-routing-contract.spec.ts \
+            e2e/pwa-branding-contract.spec.ts \
+            --project=chromium \
+            --reporter=list
+
       # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
         run: pnpm build
 
       - name: Upload build artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
           name: deploy-bundle
           path: |
             dist/
             functions/
+            src/core/router/workspaceRoutes.ts
           retention-days: 1
 
-  # ── 2. Cloudflare 배포 (quality-check 통과 후) ──
+  # ── 2. 동일 산출물 Cloudflare preview 검증 (운영 도메인 영향 없음) ──
+  candidate-preview:
+    name: Cloudflare candidate preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality-check, hangul-companion-check]
+    if: >-
+      github.event_name == 'push'
+      || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: deploy-bundle
+
+      - name: Verify Functions bundle exists
+        run: |
+          if [ ! -f functions/\[\[path\]\].ts ]; then
+            echo "::error::functions/[[path]].ts missing — preview cannot match production"
+            exit 1
+          fi
+          if [ ! -f src/core/router/workspaceRoutes.ts ]; then
+            echo "::error::workspaceRoutes.ts missing — Functions import cannot be bundled"
+            exit 1
+          fi
+
+      - name: Deploy and verify isolated preview
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_PROJECT_NAME}" ]; then
+            echo "::error::CLOUDFLARE_PROJECT_NAME is not configured"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PREVIEW_BRANCH="route-pr-${PR_NUMBER}"
+          else
+            PREVIEW_BRANCH="production-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          fi
+
+          npx wrangler@4.93.1 pages deploy dist/ \
+            --project-name="${CLOUDFLARE_PROJECT_NAME}" \
+            --branch="${PREVIEW_BRANCH}" \
+            --commit-hash="${CANDIDATE_SHA}" \
+            --commit-dirty=false
+
+          AUTH=(
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+          )
+          DEPLOYMENTS_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments"
+          PREVIEW_URL=""
+          for ATTEMPT in $(seq 1 30); do
+            RESPONSE=$(curl --silent --show-error --fail-with-body \
+              "${AUTH[@]}" "${DEPLOYMENTS_API}?env=preview&per_page=25")
+            PREVIEW_URL=$(jq -r --arg sha "${CANDIDATE_SHA}" \
+              '.result[]
+                | select(.deployment_trigger.metadata.commit_hash == $sha)
+                | select(.latest_stage.status == "success")
+                | .url' <<<"${RESPONSE}" | head -1)
+            if [ -n "${PREVIEW_URL}" ] && [ "${PREVIEW_URL}" != "null" ]; then
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "${PREVIEW_URL}" ] || [ "${PREVIEW_URL}" = "null" ]; then
+            echo "::error::Could not resolve the successful candidate preview URL"
+            exit 1
+          fi
+          echo "Candidate preview: ${PREVIEW_URL}"
+
+          EXPECTED_VERSION=$(node -p \
+            "JSON.parse(require('fs').readFileSync('dist/version.json', 'utf8')).version")
+          ACTUAL_VERSION=$(curl --silent --show-error --fail-with-body \
+            "${PREVIEW_URL}/version.json?candidate=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            | jq -r '.version // empty')
+          if [ "${ACTUAL_VERSION}" != "${EXPECTED_VERSION}" ]; then
+            echo "::error::Preview version mismatch: expected ${EXPECTED_VERSION}, got ${ACTUAL_VERSION}"
+            exit 1
+          fi
+
+          for PATHNAME in \
+            "/" \
+            "/workspace" \
+            "/workspace/mobile" \
+            "/admin/dashboard?candidate=legacy-full" \
+            "/teacher/classes?candidate=legacy-mobile"; do
+            HTML=$(curl --silent --show-error --fail-with-body "${PREVIEW_URL}${PATHNAME}")
+            if ! grep -q 'id="root"' <<<"${HTML}"; then
+              echo "::error::Preview SPA shell missing at ${PATHNAME}"
+              exit 1
+            fi
+          done
+
+          MANIFEST=$(curl --silent --show-error --fail-with-body \
+            "${PREVIEW_URL}/teacher-manifest.json")
+          if [ "$(jq -r '.id' <<<"${MANIFEST}")" != "/teacher" ] \
+            || [ "$(jq -r '.start_url' <<<"${MANIFEST}")" != "/workspace/mobile" ] \
+            || [ "$(jq -r '.scope' <<<"${MANIFEST}")" != "/workspace/mobile" ]; then
+            echo "::error::Preview mobile workspace manifest contract failed"
+            exit 1
+          fi
+
+          SW_HEADERS=$(curl --silent --show-error --fail-with-body \
+            --dump-header - --output /dev/null "${PREVIEW_URL}/teacher-sw.js")
+          if ! grep -qi '^Service-Worker-Allowed: /' <<<"${SW_HEADERS}"; then
+            echo "::error::Preview teacher service worker scope header is missing"
+            exit 1
+          fi
+
+          OMR=$(curl --silent --show-error --fail-with-body \
+            "${PREVIEW_URL}/omr-sheet.html")
+          if ! grep -q 'data-omr-canonical-route="/workspace/tools/omr"' <<<"${OMR}"; then
+            echo "::error::Preview OMR canonical route contract failed"
+            exit 1
+          fi
+
+  # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: [quality-check, hangul-companion-check]
+    needs: [quality-check, hangul-companion-check, candidate-preview]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
+      baseline_version: ${{ steps.production-baseline.outputs.version }}
+      production_branch: ${{ steps.production-baseline.outputs.production_branch }}
 
     steps:
       - name: Download build artifact
@@ -141,7 +277,70 @@ jobs:
             echo "::error::functions/[[path]].ts missing — CF Functions will not deploy!"
             exit 1
           fi
+          if [ ! -f src/core/router/workspaceRoutes.ts ]; then
+            echo "::error::workspaceRoutes.ts missing — Functions import cannot be bundled"
+            exit 1
+          fi
           echo "✅ Functions bundle found"
+
+      - name: Capture production baseline and deployment ownership
+        id: production-baseline
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: |
+          set -euo pipefail
+          AUTH=(
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+          )
+          PROJECT_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}"
+          RESPONSE=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${PROJECT_API}")
+          if ! jq -e '.success == true' >/dev/null <<<"${RESPONSE}"; then
+            echo "::error::Could not read the Cloudflare Pages production baseline"
+            exit 1
+          fi
+
+          SOURCE_TYPE=$(jq -r '.result.source.type // "direct-upload"' <<<"${RESPONSE}")
+          if [ "${SOURCE_TYPE}" != "direct-upload" ]; then
+            AUTO_PROD=$(jq -r \
+              '.result.source.config.production_deployments_enabled // "missing"' \
+              <<<"${RESPONSE}")
+            if [ "${AUTO_PROD}" != "false" ]; then
+              echo "::error::Cloudflare Git production auto-deploy must be disabled"
+              exit 1
+            fi
+          fi
+
+          DEPLOYMENT_ID=$(jq -r '.result.canonical_deployment.id // empty' <<<"${RESPONSE}")
+          DEPLOYMENT_STATUS=$(jq -r \
+            '.result.canonical_deployment.latest_stage.status // empty' \
+            <<<"${RESPONSE}")
+          PRODUCTION_BRANCH=$(jq -r '.result.production_branch // empty' <<<"${RESPONSE}")
+          if [ -z "${DEPLOYMENT_ID}" ] || [ "${DEPLOYMENT_STATUS}" != "success" ]; then
+            echo "::error::No successful production deployment is available for rollback"
+            exit 1
+          fi
+          if [ -z "${PRODUCTION_BRANCH}" ]; then
+            echo "::error::Cloudflare Pages production branch is not configured"
+            exit 1
+          fi
+
+          BASELINE_VERSION=$(curl --silent --show-error --fail-with-body \
+            "https://hakwonplus.com/version.json?baseline=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            | jq -r '.version // empty')
+          if [ -z "${BASELINE_VERSION}" ]; then
+            echo "::error::Could not read the live production version baseline"
+            exit 1
+          fi
+
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "version=${BASELINE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "production_branch=${PRODUCTION_BRANCH}" >> "${GITHUB_OUTPUT}"
+          echo "Production baseline ${BASELINE_VERSION} (${DEPLOYMENT_ID})"
 
       - name: Ensure developer console custom domain
         env:
@@ -271,10 +470,15 @@ jobs:
           exit 1
 
       - name: Deploy to Cloudflare Pages
+        id: production-deploy
         run: |
           for attempt in 1 2 3; do
             echo "Cloudflare Pages deploy attempt ${attempt}/3"
-            if npx wrangler@4.93.1 pages deploy dist/ --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}; then
+            if npx wrangler@4.93.1 pages deploy dist/ \
+              --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }} \
+              --branch="${{ steps.production-baseline.outputs.production_branch }}" \
+              --commit-hash="${GITHUB_SHA}" \
+              --commit-dirty=false; then
               exit 0
             fi
 
@@ -303,7 +507,7 @@ jobs:
         run: |
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
             OMR=$(curl -fsSL "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)")
-            if ! echo "$OMR" | grep -q 'data-omr-canonical-route="/admin/tools/omr"'; then
+            if ! echo "$OMR" | grep -q 'data-omr-canonical-route="/workspace/tools/omr"'; then
               echo "::error::OMR compatibility route missing canonical builder target at ${PATHNAME}"
               exit 1
             fi
@@ -357,6 +561,41 @@ jobs:
             exit 1
           fi
           echo "✅ Developer console domain isolation verified"
+
+      - name: Roll back production after a failed post-deploy check
+        if: failure() && steps.production-deploy.outcome == 'success'
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          BASELINE_DEPLOYMENT_ID: ${{ steps.production-baseline.outputs.deployment_id }}
+          BASELINE_VERSION: ${{ steps.production-baseline.outputs.version }}
+        run: |
+          set -euo pipefail
+          ROLLBACK_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments/${BASELINE_DEPLOYMENT_ID}/rollback"
+          RESPONSE=$(curl --silent --show-error --fail-with-body \
+            -X POST \
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
+            "${ROLLBACK_API}")
+          if ! jq -e '.success == true' >/dev/null <<<"${RESPONSE}"; then
+            echo "::error::Cloudflare Pages rollback request failed"
+            exit 1
+          fi
+
+          for ATTEMPT in $(seq 1 60); do
+            ACTUAL_VERSION=$(curl --silent --show-error \
+              "https://hakwonplus.com/version.json?rollback=${GITHUB_RUN_ID}-${ATTEMPT}" \
+              | jq -r '.version // empty' || true)
+            if [ "${ACTUAL_VERSION}" = "${BASELINE_VERSION}" ]; then
+              echo "Production rollback verified at ${BASELINE_VERSION}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Rollback was requested but the baseline version did not propagate"
+          exit 1
 
   # ── 3. E2E 왕복 플로우 + 전체 테넌트 공개 화면 가용성 (배포 후) ──
   e2e-roundtrip:
@@ -516,3 +755,52 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  rollback-on-e2e-failure:
+    name: Roll back failed production candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [deploy, e2e-roundtrip]
+    if: >-
+      always()
+      && needs.deploy.result == 'success'
+      && needs.e2e-roundtrip.result == 'failure'
+
+    steps:
+      - name: Restore pre-deploy Cloudflare Pages version
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          BASELINE_DEPLOYMENT_ID: ${{ needs.deploy.outputs.baseline_deployment_id }}
+          BASELINE_VERSION: ${{ needs.deploy.outputs.baseline_version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASELINE_DEPLOYMENT_ID}" ] || [ -z "${BASELINE_VERSION}" ]; then
+            echo "::error::Production rollback baseline is missing"
+            exit 1
+          fi
+          ROLLBACK_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments/${BASELINE_DEPLOYMENT_ID}/rollback"
+          RESPONSE=$(curl --silent --show-error --fail-with-body \
+            -X POST \
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
+            "${ROLLBACK_API}")
+          if ! jq -e '.success == true' >/dev/null <<<"${RESPONSE}"; then
+            echo "::error::Cloudflare Pages rollback request failed"
+            exit 1
+          fi
+
+          for ATTEMPT in $(seq 1 60); do
+            ACTUAL_VERSION=$(curl --silent --show-error \
+              "https://hakwonplus.com/version.json?rollback=${GITHUB_RUN_ID}-${ATTEMPT}" \
+              | jq -r '.version // empty' || true)
+            if [ "${ACTUAL_VERSION}" = "${BASELINE_VERSION}" ]; then
+              echo "Production rollback verified at ${BASELINE_VERSION}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Rollback was requested but the baseline version did not propagate"
+          exit 1

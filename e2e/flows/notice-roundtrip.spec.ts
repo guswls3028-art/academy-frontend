@@ -26,7 +26,7 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
 
-    await gotoAndSettle(adminPage, `${BASE}/admin/community/notice`, { timeout: 45_000 });
+    await gotoAndSettle(adminPage, `${BASE}/workspace/community/notice`, { timeout: 45_000 });
 
     const resp = await apiCall(adminPage, "POST", "/community/posts/", {
       post_type: "notice", title: TITLE, content: CONTENT, node_ids: [],

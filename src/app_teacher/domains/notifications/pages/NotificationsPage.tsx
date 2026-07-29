@@ -57,7 +57,7 @@ export default function NotificationsPage() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/teacher", { replace: true });
+    else navigate("/workspace/mobile", { replace: true });
   };
 
   return (
@@ -151,7 +151,7 @@ export default function NotificationsPage() {
           title="새로운 알림이 없습니다"
           description="답변 대기, 제출 확인, 등록 요청이 생기면 이곳에서 한 번에 처리합니다."
           actions={
-            <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher")}>
+            <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile")}>
               대시보드로 이동
             </EmptyActionButton>
           }

@@ -126,7 +126,7 @@ const CounselPage = lazy(() => import("@admin/domains/counseling/pages/CounselPa
 
 function QnaReadRedirect() {
   const { id } = useParams<{ id: string }>();
-  return <Navigate to={id ? `/admin/community/qna?id=${id}` : "/admin/community/qna"} replace />;
+  return <Navigate to={id ? `/workspace/community/qna?id=${id}` : "/workspace/community/qna"} replace />;
 }
 
 export default function AdminRouter() {
@@ -134,7 +134,7 @@ export default function AdminRouter() {
   const backgroundLocation = (
     location.state as { backgroundLocation?: Location } | null
   )?.backgroundLocation;
-  const studentDetailMatch = matchPath("/admin/students/:studentId", location.pathname);
+  const studentDetailMatch = matchPath("/workspace/students/:studentId", location.pathname);
   const modalStudentId = Number(studentDetailMatch?.params.studentId);
   const studentDetailOverlay =
     backgroundLocation && Number.isInteger(modalStudentId) && modalStudentId > 0 ? (
@@ -203,7 +203,7 @@ export default function AdminRouter() {
         <Route path="storage/*" element={renderLazyRoute(StorageRoutes)} />
 
         {/* 적중 보고서는 자료저장소 3번째 탭으로 이동 — 외부 북마크 호환 redirect */}
-        <Route path="hit-reports" element={<Navigate to="/admin/storage/hit-reports" replace />} />
+        <Route path="hit-reports" element={<Navigate to="/workspace/storage/hit-reports" replace />} />
 
         {/* ================= Fees (수납 관리) — feature flag gate in FeesPage ================= */}
         <Route path="fees" element={renderLazyRoute(FeesPage)}>
@@ -233,7 +233,7 @@ export default function AdminRouter() {
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
 
         <Route path="counsel" element={renderLazyRoute(CounselPage)} />
-        <Route path="notice" element={<Navigate to="/admin/community/notice" replace />} />
+        <Route path="notice" element={<Navigate to="/workspace/community/notice" replace />} />
         <Route path="message/*" element={renderLazyRoute(MessageRoutes)} />
 
         {/* ================= Community ================= */}
@@ -241,7 +241,7 @@ export default function AdminRouter() {
           <Route index element={<Navigate to="board" replace />} />
           <Route path="board" element={renderLazyRoute(BoardAdminPage)} />
           <Route path="notice" element={renderLazyRoute(NoticeAdminPage)} />
-          <Route path="admin" element={<Navigate to="/admin/community/board" replace />} />
+          <Route path="admin" element={<Navigate to="/workspace/community/board" replace />} />
           <Route path="qna" element={renderLazyRoute(QnaInboxPage)} />
           <Route path="qna/read/:id" element={<QnaReadRedirect />} />
           <Route path="counsel" element={renderLazyRoute(CounselAdminPage)} />
@@ -253,7 +253,7 @@ export default function AdminRouter() {
 
         {/* 외부 공개 커뮤니티 (landing_public) 모더레이션 — community 도메인과 별개 트랙 */}
         <Route path="landing-public/inbox" element={renderLazyRoute(LandingPublicInboxPage)} />
-        <Route path="landing-public" element={<Navigate to="/admin/landing-public/inbox" replace />} />
+        <Route path="landing-public" element={<Navigate to="/workspace/landing-public/inbox" replace />} />
 
         {/* ================= Tools (도구) ================= */}
         <Route path="tools/*" element={renderLazyRoute(ToolsRoutes)} />
@@ -280,27 +280,27 @@ export default function AdminRouter() {
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={renderLazyRoute(ProfileSettingsPage)} />
           <Route path="organization" element={renderLazyRoute(OrganizationSettingsPage)} />
-          <Route path="messaging" element={<Navigate to="/admin/message/settings" replace />} />
+          <Route path="messaging" element={<Navigate to="/workspace/message/settings" replace />} />
           <Route path="appearance" element={renderLazyRoute(AppearancePage)} />
           <Route path="landing" element={renderLazyRoute(LandingEditorPage)} />
           <Route path="consult" element={renderLazyRoute(LandingConsultInboxPage)} />
           <Route path="billing" element={renderLazyRoute(BillingSettingsPage)} />
-          <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
+          <Route path="security" element={<Navigate to="/workspace/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}
-          <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />
-          <Route path="system" element={<Navigate to="/admin/settings/appearance" replace />} />
+          <Route path="account" element={<Navigate to="/workspace/settings/profile" replace />} />
+          <Route path="system" element={<Navigate to="/workspace/settings/appearance" replace />} />
         </Route>
 
         {/* ================= Profile (근태 · 지출 — 내 계정은 설정 탭으로) ================= */}
         <Route path="profile" element={renderLazyRoute(ProfileLayout)}>
           <Route index element={<Navigate to="attendance" replace />} />
-          <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />
+          <Route path="account" element={<Navigate to="/workspace/settings/profile" replace />} />
           <Route path="attendance" element={renderLazyRoute(ProfileAttendancePage)} />
           <Route path="expense" element={renderLazyRoute(ProfileExpensePage)} />
         </Route>
 
         {/* 매칭되지 않는 admin 하위 경로 → 대시보드로 리디렉트 */}
-        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>
     </Routes>
   );

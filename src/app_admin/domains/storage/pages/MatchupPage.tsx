@@ -1250,7 +1250,7 @@ export default function MatchupPage() {
             }}
           >
             {/* 강사/학원장 보고서 누적 진입점 — quick-access ghost link.
-                메인 진입은 상단 탭 "적중 보고서"(/admin/storage/hit-reports). 본문은 매치업 작업
+                메인 진입은 상단 탭 "적중 보고서"(/workspace/storage/hit-reports). 본문은 매치업 작업
                 중 즉시 모달로 본인/학원 보고서 모음을 훑는 보조 진입. 큰 푸른 강조 → ghost 격하
                 (D-1+D-3 audit 2026-05-08). */}
             <div style={/* eslint-disable-line no-restricted-syntax */ {
@@ -1450,7 +1450,7 @@ export default function MatchupPage() {
                   {selectedDoc && (
                     <HeaderMoreMenu
                       onPreview={() => setPreviewDocId(selectedDoc.id)}
-                      onOpenStorage={selectedDoc.inventory_file_id ? () => navigate("/admin/storage/files") : null}
+                      onOpenStorage={selectedDoc.inventory_file_id ? () => navigate("/workspace/storage/files") : null}
                       onBulkDelete={problems.length > 0 ? () => setBulkDeleteOpen(true) : null}
                     />
                   )}

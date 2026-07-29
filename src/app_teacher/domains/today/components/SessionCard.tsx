@@ -73,7 +73,7 @@ export default function SessionCard({ session }: Props) {
         type="button"
         className={styles.bodyButton}
         onClick={() =>
-          navigate(`/teacher/classes/${session.lecture}/sessions/${session.id}`)
+          navigate(`/workspace/mobile/classes/${session.lecture}/sessions/${session.id}`)
         }
       >
         <LectureChip
@@ -140,14 +140,14 @@ export default function SessionCard({ session }: Props) {
           variant="success"
           done={attendanceDone}
           ariaLabel={`${session.lecture_title || session.title} 출석 입력`}
-          onClick={() => navigate(`/teacher/attendance/${session.id}`)}
+          onClick={() => navigate(`/workspace/mobile/attendance/${session.id}`)}
         />
         <QuickBtn
           icon={<Edit3 size={ICON.xs} />}
           label="성적"
           variant="primary"
           ariaLabel={`${session.lecture_title || session.title} 성적 입력`}
-          onClick={() => navigate(`/teacher/scores/${session.id}`)}
+          onClick={() => navigate(`/workspace/mobile/scores/${session.id}`)}
         />
       </div>
     </div>

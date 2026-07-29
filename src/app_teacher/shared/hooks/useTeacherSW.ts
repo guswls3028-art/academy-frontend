@@ -1,18 +1,19 @@
 /**
- * useTeacherSW — 선생님 앱 Service Worker 등록 + 업데이트 감지
+ * useTeacherSW — 모바일 업무 앱 Service Worker 등록 + 업데이트 감지
  *
- * - /teacher 경로에서만 등록
+ * - /workspace/mobile 경로에서만 등록
  * - 새 SW 발견 시 자동 업데이트 (skipWaiting이 SW에서 처리)
- * - manifest link도 동적 주입 (/teacher 경로에서만)
+ * - manifest link도 동적 주입 (/workspace/mobile 경로에서만)
  */
 import { useEffect } from "react";
 import {
   getTenantPwaBrand,
   resolveTenantPwaBrand,
 } from "@/shared/pwa/tenantPwaMeta";
+import { WORKSPACE_PATHS } from "@/core/router/workspaceRoutes";
 
 const TEACHER_MANIFEST_HREF = "/teacher-manifest.json";
-const DEFAULT_TEACHER_APP_TITLE = "학원플러스 선생님";
+const DEFAULT_TEACHER_APP_TITLE = "학원플러스 모바일 업무";
 const DEFAULT_TEACHER_APP_ICON = "/teacher-icons/icon-192.svg";
 const TEACHER_THEME_COLOR = "#3b82f6";
 const DATA_TEACHER = "data-teacher";
@@ -43,14 +44,14 @@ export function useTeacherSW() {
     void resolveTenantPwaBrand().then((brand) => {
       if (!active) return;
       injectAppleMeta({
-        title: `${brand.title} 선생님`,
+        title: `${brand.title} 모바일 업무`,
         iconHref: brand.iconHref,
       });
     });
 
     // SW 등록
     navigator.serviceWorker
-      .register("/teacher-sw.js", { scope: "/teacher" })
+      .register("/teacher-sw.js", { scope: WORKSPACE_PATHS.mobile })
       .then((registration) => {
         // 업데이트 발견 시
         registration.addEventListener("updatefound", () => {
@@ -86,7 +87,7 @@ function getTeacherInstallMeta(): TeacherInstallMeta {
   const tenant = getTenantPwaBrand();
 
   return {
-    title: `${tenant.title} 선생님`,
+    title: `${tenant.title} 모바일 업무`,
     iconHref: tenant.iconHref,
   };
 }

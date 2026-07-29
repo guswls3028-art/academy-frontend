@@ -26,7 +26,7 @@ function StorageRouteFallback() {
 
 function StudentRedirect() {
   const { studentPs } = useParams<{ studentPs: string }>();
-  return <Navigate to={`/admin/storage/students/${studentPs}`} replace />;
+  return <Navigate to={`/workspace/storage/students/${studentPs}`} replace />;
 }
 
 export default function StorageRoutes() {
@@ -60,7 +60,7 @@ export default function StorageRoutes() {
           element={renderLazyRoute(ProposalReviewPage, <StorageRouteFallback />)}
         />
 
-        <Route path="*" element={<Navigate to="/admin/storage/matchup" replace />} />
+        <Route path="*" element={<Navigate to="/workspace/storage/matchup" replace />} />
       </Route>
     </Routes>
   );

@@ -232,7 +232,7 @@ export default function BillingPage() {
           </div>
         )}
         <p className="text-[11px] mt-2" style={{ color: "var(--tc-text-muted)" }}>
-          카드 등록/삭제는 <button onClick={() => navigate("/teacher/settings")} className="cursor-pointer underline" style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: 0, font: "inherit" }}>설정 → 결제 / 구독</button>에서 진행합니다.
+          카드 등록/삭제는 <button onClick={() => navigate("/workspace/mobile/settings")} className="cursor-pointer underline" style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: 0, font: "inherit" }}>설정 → 결제 / 구독</button>에서 진행합니다.
         </p>
       </Card>
 

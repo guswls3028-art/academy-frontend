@@ -307,7 +307,7 @@ function SectionCard({ group, lectureId, navigate }: {
               intent="ghost"
               size="sm"
               rightIcon={<ChevronRight size={12} />}
-              onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${clinicSession.id}/attendance`)}
+              onClick={() => navigate(`/workspace/lectures/${lectureId}/sessions/${clinicSession.id}/attendance`)}
             >
               클리닉 차시
             </Button>

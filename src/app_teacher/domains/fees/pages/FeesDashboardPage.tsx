@@ -46,7 +46,7 @@ export default function FeesDashboardPage() {
         </h1>
         <button
           type="button"
-          onClick={() => navigate("/teacher/fees/invoices")}
+          onClick={() => navigate("/workspace/mobile/fees/invoices")}
           className={`${styles.invoiceLink} text-[12px] font-bold cursor-pointer`}
         >
           청구서 →
@@ -144,7 +144,7 @@ export default function FeesDashboardPage() {
                 <button
                   type="button"
                   key={inv.id}
-                  onClick={() => navigate(`/teacher/fees/invoices?id=${inv.id}`)}
+                  onClick={() => navigate(`/workspace/mobile/fees/invoices?id=${inv.id}`)}
                   className={`${styles.overdueButton} flex items-center gap-3 rounded-xl w-full text-left cursor-pointer`}
                 >
                   <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ export default function FeesDashboardPage() {
               title="연체 청구서가 없습니다"
               description="지금 처리해야 할 연체 건이 없습니다. 전체 청구서는 청구서 화면에서 확인할 수 있습니다."
               actions={
-                <EmptyActionButton variant="secondary" onClick={() => navigate("/teacher/fees/invoices")}>
+                <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/fees/invoices")}>
                   청구서 보기
                 </EmptyActionButton>
               }

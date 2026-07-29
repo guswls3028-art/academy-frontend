@@ -28,21 +28,21 @@ function actionsForRole(role: string, isSuperuser: boolean): RoleAction[] {
   if (isSuperuser || role === "owner" || role === "admin") {
     return [
       {
-        key: "landing-edit", label: "홈페이지 꾸미기", to: "/admin/settings/landing",
+        key: "landing-edit", label: "홈페이지 꾸미기", to: "/workspace/settings/landing",
         title: "랜딩 페이지 편집 콘솔로 이동",
         icon: (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
         ),
       },
       {
-        key: "matchup-console", label: "매치업 보고서", to: "/admin/storage/hit-reports",
+        key: "matchup-console", label: "매치업 보고서", to: "/workspace/storage/hit-reports",
         title: "매치업 적중 보고서 콘솔로 이동",
         icon: (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,17 9,11 13,15 21,7" /><polyline points="14,7 21,7 21,14" /></svg>
         ),
       },
       {
-        key: "admin-console", label: "관리실로", to: "/admin",
+        key: "admin-console", label: "관리실로", to: "/workspace",
         title: "학원 관리실로 이동", emphasis: true,
       },
     ];
@@ -50,21 +50,21 @@ function actionsForRole(role: string, isSuperuser: boolean): RoleAction[] {
   if (role === "teacher" || role === "assistant") {
     return [
       {
-        key: "matchup-console", label: "매치업 보고서", to: "/admin/storage/hit-reports",
+        key: "matchup-console", label: "매치업 보고서", to: "/workspace/storage/hit-reports",
         title: "매치업 적중 보고서 작성/관리",
         icon: (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,17 9,11 13,15 21,7" /><polyline points="14,7 21,7 21,14" /></svg>
         ),
       },
       {
-        key: "community", label: "커뮤니티 글 작성", to: "/admin/community/board",
+        key: "community", label: "커뮤니티 글 작성", to: "/workspace/community/board",
         title: "커뮤니티 게시판 글 작성",
         icon: (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
         ),
       },
       {
-        key: "teacher-console", label: "강사 콘솔로", to: "/admin",
+        key: "teacher-console", label: "강사 콘솔로", to: "/workspace",
         title: "강사 콘솔로 이동", emphasis: true,
       },
     ];

@@ -517,7 +517,7 @@ export default function ResultsExplorerPage() {
                   isError={source === "academy" && gradesQuery.isError}
                   onRetry={() => { void gradesQuery.refetch(); }}
                   onSessionTypeChange={setSessionType}
-                  onOpenStudent={() => navigate(`/admin/students/${selectedStudent.student_id}`, {
+                  onOpenStudent={() => navigate(`/workspace/students/${selectedStudent.student_id}`, {
                     state: { backgroundLocation: location },
                   })}
                   onVoid={(row) => { setVoidTarget(row); setVoidNote(""); }}
@@ -1068,7 +1068,7 @@ function GradingOperations({
         <div className={styles.operationCounts}>
           <span><small>채점 대기</small><strong>{isLoading ? "…" : isError ? "—" : `${data?.pending_submissions ?? 0}건`}</strong></span>
           <span><small>최근 7일 완료</small><strong>{isLoading ? "…" : isError ? "—" : `${data?.done_last_7d ?? 0}건`}</strong></span>
-          <Button intent="secondary" size="sm" onClick={() => onNavigate("/admin/results/submissions")}>제출함 열기</Button>
+          <Button intent="secondary" size="sm" onClick={() => onNavigate("/workspace/results/submissions")}>제출함 열기</Button>
         </div>
       </div>
       <div className={styles.operationGrid}>
@@ -1101,10 +1101,10 @@ function OperationList({
           key={submission.id}
           onClick={() => {
             if (action === "결과 보기" && submission.target_type === "exam" && submission.lecture_id && submission.session_id) {
-              onNavigate(`/admin/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
+              onNavigate(`/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
               return;
             }
-            onNavigate("/admin/results/submissions");
+            onNavigate("/workspace/results/submissions");
           }}
         >
           <span>

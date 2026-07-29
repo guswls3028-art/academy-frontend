@@ -22,7 +22,7 @@
 
 | 구분 | 현재 사실 |
 |------|-----------|
-| 앱 라우트 | 관리자 `/admin`, 교사 모바일 `/teacher`, 학생/학부모 `/student` |
+| 앱 라우트 | 통합 업무 `/workspace`, 모바일 업무 `/workspace/mobile`, 학생/학부모 `/student` |
 | E2E 파일 | 안전 가드 기준 활성 spec 217개 (`frontend/e2e/*.spec.ts` 실파일 216개) |
 | E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 977개, `test.skip(` 118개 |
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름이 많아 실사용 완주 증거로 약함 |
@@ -141,7 +141,7 @@
 6. 보강 차시를 생성한다.
 7. 차시 바에서 정규/보강이 구분되는지 본다.
 8. 차시 상세에서 출결, 성적, 시험, 과제, 영상 탭이 유지되는지 본다.
-9. 교사 모바일 `/teacher/classes`에서 같은 강의/차시가 보이는지 확인한다.
+9. 모바일 업무 `/workspace/mobile/classes`에서 같은 강의/차시가 보이는지 확인한다.
 
 검증 포인트:
 

@@ -24,7 +24,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
 
-    await adminPage.goto(`${BASE}/admin/clinic/home`);
+    await adminPage.goto(`${BASE}/workspace/clinic/home`);
     await adminPage.waitForLoadState("load");
 
     const tomorrow = new Date();
@@ -52,7 +52,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   });
 
   test("3. 선생 클리닉 홈이 정상 로드된다", async () => {
-    await adminPage.goto(`${BASE}/admin/clinic/home`);
+    await adminPage.goto(`${BASE}/workspace/clinic/home`);
     await adminPage.waitForLoadState("load");
     await expect(adminPage.locator("text=Not Found")).not.toBeVisible();
   });

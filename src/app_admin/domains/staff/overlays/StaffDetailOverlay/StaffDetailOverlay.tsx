@@ -184,7 +184,7 @@ export default function StaffDetailOverlay() {
   // 권한 확인 완료 전 렌더 차단 — 비관리자에게 급여 데이터 노출 방지
   if (!meQ.data) return null;
   if (!meQ.data.is_payroll_manager) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/workspace/dashboard" replace />;
   }
 
   const staff = staffQ.data;

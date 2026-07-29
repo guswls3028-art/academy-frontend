@@ -14,7 +14,7 @@
 
 /teacher-sw.js
   Cache-Control: no-cache
-  Service-Worker-Allowed: /teacher
+  Service-Worker-Allowed: /
 
 /sw.js
   Cache-Control: no-cache

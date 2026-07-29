@@ -115,7 +115,7 @@ function TemplateCard({
                 key={lec.lecture_id}
                 type="button"
                 className={styles.lectureChip}
-                onClick={() => onNavigate(`/admin/lectures/${lec.lecture_id}`)}
+                onClick={() => onNavigate(`/workspace/lectures/${lec.lecture_id}`)}
                 title={`${lec.lecture_title} — 클릭하여 강의로 이동`}
               >
                 <LectureChip

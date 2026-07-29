@@ -95,7 +95,7 @@ export default function StudentsDetailOverlay({
       return;
     }
     if (location.key === "default") {
-      navigate("/admin/students/home", { replace: true });
+      navigate("/workspace/students/home", { replace: true });
       return;
     }
     navigate(-1);
@@ -921,7 +921,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
             className={styles.tabRecord}
             data-clickable={canNav ? "" : undefined}
             data-inactive={isActive ? undefined : ""}
-            onClick={canNav ? () => onNavigate(`/admin/lectures/${lectureId}`) : undefined}
+            onClick={canNav ? () => onNavigate(`/workspace/lectures/${lectureId}`) : undefined}
           >
             <LectureChip lectureName={lectureName || ""} color={lectureColor ?? undefined} chipLabel={lectureChipLabel} size={24} />
             <div className={styles.recordMain}>
@@ -965,7 +965,7 @@ function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate
             key={p.id}
             className={styles.tabRecord}
             data-clickable=""
-            onClick={() => onNavigate("/admin/clinic/operations")}
+            onClick={() => onNavigate("/workspace/clinic/operations")}
           >
             {lectureName && <LectureChip lectureName={lectureName} color={lectureColor ?? undefined} chipLabel={lectureChip} size={24} />}
             <div className={styles.recordMain}>
@@ -1005,8 +1005,8 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
         const postType = post.post_type || "qna";
         // 질문 → QnA 인박스, 그 외 → 게시판
         const navPath = postType === "qna"
-          ? `/admin/community/qna?id=${post.id}`
-          : `/admin/community/board`;
+          ? `/workspace/community/qna?id=${post.id}`
+          : `/workspace/community/board`;
         return (
           <div
             key={post.id}
@@ -1093,7 +1093,7 @@ function ScoreTab({
         const lectureId = exam.lecture_id;
         const sessionId = exam.session_id;
         const canNav = !!lectureId && !!sessionId;
-        const navPath = canNav ? `/admin/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
+        const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
         return (
           <div
             key={exam.exam_id ?? i}
@@ -1183,7 +1183,7 @@ function HomeworkTab({
         const lectureId = hw.lecture_id;
         const sessionId = hw.session_id;
         const canNav = !!lectureId && !!sessionId;
-        const navPath = canNav ? `/admin/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
+        const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
         return (
           <div
             key={`${hw.homework_id}-${hw.enrollment_id}-${i}`}

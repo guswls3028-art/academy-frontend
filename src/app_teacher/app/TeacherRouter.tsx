@@ -91,7 +91,7 @@ function TeacherFeesGuard({ children }: { children: ReactNode }) {
   const enabled = useFeesEnabled();
 
   if (isLoading) return <TeacherFallback />;
-  if (!enabled) return <Navigate to="/teacher" replace />;
+  if (!enabled) return <Navigate to="/workspace/mobile" replace />;
   return <RoleGuard allow={["owner", "admin"]}>{children}</RoleGuard>;
 }
 
@@ -184,7 +184,7 @@ export default function TeacherRouter() {
           <Route path="developer/feedback" element={<FeedbackPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/teacher" replace />} />
+        <Route path="*" element={<Navigate to="/workspace/mobile" replace />} />
       </Routes>
     </Suspense>
   );

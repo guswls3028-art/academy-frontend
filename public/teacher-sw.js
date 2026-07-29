@@ -11,10 +11,12 @@
  *   - SW 업데이트 시 skipWaiting → clients.claim 으로 즉시 활성화
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const APP_SHELL_CACHE = `teacher-app-shell-${CACHE_VERSION}`;
 const API_CACHE = `teacher-api-${CACHE_VERSION}`;
 const IMAGE_CACHE = `teacher-images-${CACHE_VERSION}`;
+const MOBILE_WORKSPACE_PATH = "/workspace/mobile";
+const LEGACY_MOBILE_WORKSPACE_PATH = "/teacher";
 
 const ALL_CACHES = [APP_SHELL_CACHE, API_CACHE, IMAGE_CACHE];
 
@@ -48,7 +50,7 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. 네비게이션 요청 (HTML) — Network First, 오프라인 시 캐시된 /teacher 반환
+  // 1. 네비게이션 요청 (HTML) — Network First, 오프라인 시 모바일 업무 홈 반환
   if (request.mode === "navigate") {
     event.respondWith(networkFirstNavigation(request));
     return;
@@ -88,11 +90,11 @@ async function networkFirstNavigation(request) {
     const response = await fetch(request);
     if (response.ok) {
       const cache = await caches.open(APP_SHELL_CACHE);
-      cache.put("/teacher", response.clone());
+      cache.put(MOBILE_WORKSPACE_PATH, response.clone());
     }
     return response;
   } catch {
-    const cached = await caches.match("/teacher");
+    const cached = await caches.match(MOBILE_WORKSPACE_PATH);
     if (cached) return cached;
     return new Response(
       '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px 20px"><h2>오프라인</h2><p>인터넷 연결을 확인해주세요.</p></body></html>',
@@ -216,7 +218,7 @@ self.addEventListener("push", (event) => {
         icon: payload.icon || "/teacher-icons/icon-192.svg",
         badge: payload.badge || payload.icon || "/teacher-icons/icon-192.svg",
         tag: payload.tag || "teacher-notification",
-        data: { url: payload.url || "/teacher" },
+        data: { url: payload.url || MOBILE_WORKSPACE_PATH },
       })
     );
   } catch {
@@ -227,12 +229,12 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const requestedUrl = new URL(
-    event.notification.data?.url || "/teacher",
+    event.notification.data?.url || MOBILE_WORKSPACE_PATH,
     self.location.origin,
   );
   const targetUrl = requestedUrl.origin === self.location.origin
     ? requestedUrl.toString()
-    : new URL("/teacher", self.location.origin).toString();
+    : new URL(MOBILE_WORKSPACE_PATH, self.location.origin).toString();
 
   event.waitUntil(
     self.clients
@@ -240,7 +242,11 @@ self.addEventListener("notificationclick", (event) => {
       .then((clients) => {
         // 이미 열린 탭이 있으면 포커스
         for (const client of clients) {
-          if (new URL(client.url).pathname.startsWith("/teacher")) {
+          const clientPath = new URL(client.url).pathname;
+          if (
+            clientPath.startsWith(MOBILE_WORKSPACE_PATH)
+            || clientPath.startsWith(LEGACY_MOBILE_WORKSPACE_PATH)
+          ) {
             client.navigate(targetUrl);
             return client.focus();
           }

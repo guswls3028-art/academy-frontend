@@ -257,7 +257,7 @@ export default function ClinicHomePage() {
                 <button
                   type="button"
                   className="clinic-home__action-bar-link"
-                  onClick={() => nav("/admin/clinic/bookings?focus=pending")}
+                  onClick={() => nav("/workspace/clinic/bookings?focus=pending")}
                 >
                   개별 관리
                 </button>
@@ -336,7 +336,7 @@ export default function ClinicHomePage() {
               <button
                 type="button"
                 className="clinic-home__empty-sessions-cta"
-                onClick={() => nav("/admin/clinic/schedule")}
+                onClick={() => nav("/workspace/clinic/schedule")}
               >
                 <CalendarPlus size={15} aria-hidden />
                 예약 일정에서 만들기
@@ -394,7 +394,7 @@ export default function ClinicHomePage() {
                       <button
                         type="button"
                         className="clinic-home__timeline-card-action"
-                        onClick={() => nav(`/admin/clinic/operations?date=${today}&session=${s.sessionId}`)}
+                        onClick={() => nav(`/workspace/clinic/operations?date=${today}&session=${s.sessionId}`)}
                       >
                         출석 확인 →
                       </button>
@@ -412,7 +412,7 @@ export default function ClinicHomePage() {
         <button
           type="button"
           className="clinic-home__unbooked-banner"
-          onClick={() => nav("/admin/clinic/schedule")}
+          onClick={() => nav("/workspace/clinic/schedule")}
         >
           <span className="clinic-home__unbooked-banner-text">
             이번 주 미예약 학생 <strong>{requiredCount}명</strong>

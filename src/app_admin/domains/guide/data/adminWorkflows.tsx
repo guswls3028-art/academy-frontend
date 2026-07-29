@@ -20,7 +20,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "강의 배정", description: "학생 상세에서 수강할 강의를 연결합니다. 강의가 있어야 출결, 시험, 영상, 성적 흐름이 이어집니다." },
       { title: "로그인 확인", description: "학생 계정으로 한 번 로그인해 홈 화면이 열리는지 확인한 뒤 전체 학생을 등록하면 안전합니다." },
     ],
-    tourPath: "/admin/students",
+    tourPath: "/workspace/students",
     tourSteps: [
       {
         selector: '[data-guide="students-add-btn"]',
@@ -55,7 +55,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "수강생 배정", description: "강의 또는 차시에 학생을 배정합니다. 학생이 배정되어야 학생앱에 수업과 자료가 보입니다." },
       { title: "오늘 수업 확인", description: "대시보드 또는 선생 모바일 화면에서 오늘 수업으로 보이는지 확인합니다." },
     ],
-    tourPath: "/admin/lectures",
+    tourPath: "/workspace/lectures",
     tourSteps: [
       {
         selector: '[data-guide="lectures-add-btn"]',
@@ -90,7 +90,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "답안 기준 등록", description: "자동 채점을 쓰려면 정답과 배점을 정확히 등록합니다. 첫 시험은 소수 학생으로 제출 흐름을 확인하세요." },
       { title: "성적 확인", description: "학생이 제출하면 성적 메뉴에서 결과와 오답을 확인하고, 필요한 경우 클리닉으로 이어갑니다." },
     ],
-    tourPath: "/admin/exams",
+    tourPath: "/workspace/exams",
     tourSteps: [
       {
         selector: '[data-guide="exams-tree"]',
@@ -119,7 +119,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "파일 업로드", description: "영상 파일을 선택하면 업로드가 시작됩니다. 업로드 후 인코딩이 끝나야 학생이 안정적으로 볼 수 있습니다." },
       { title: "학생 시청 확인", description: "완료되면 해당 차시에 배정된 학생 계정으로 영상 목록에 보이는지 확인합니다." },
     ],
-    tourPath: "/admin/videos",
+    tourPath: "/workspace/videos",
     tourSteps: [
       {
         selector: '[data-guide="videos-tree"]',
@@ -147,7 +147,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "수신 대상 확인", description: "학생 또는 학부모 번호가 올바른지 확인합니다. 처음에는 소수 대상으로 발송해 보는 편이 안전합니다." },
       { title: "발송 결과 확인", description: "발송 후 '발송 내역'에서 성공, 실패, 대기 상태를 확인합니다." },
     ],
-    tourPath: "/admin/message/log",
+    tourPath: "/workspace/message/log",
     tourSteps: [
       {
         selector: '[data-guide="messages-filter"]',
@@ -169,7 +169,7 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
       { title: "회차별 추이 확인", description: "학생을 선택하면 1회차부터 누적된 점수 그래프와 최근 시험 기록을 확인할 수 있습니다." },
       { title: "후속 조치", description: "반복 오답이나 미제출 학생은 클리닉, 알림톡, 상담 메모로 이어서 관리합니다." },
     ],
-    tourPath: "/admin/results",
+    tourPath: "/workspace/results",
     tourSteps: [
       {
         selector: '[data-guide="results-filter"]',

@@ -3,8 +3,8 @@ import { Outlet } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const LECTURES_TABS = [
-  { key: "list", label: "강의목록", path: "/admin/lectures", exact: true },
-  { key: "past", label: "지난강의", path: "/admin/lectures/past" },
+  { key: "list", label: "강의목록", path: "/workspace/lectures", exact: true },
+  { key: "past", label: "지난강의", path: "/workspace/lectures/past" },
 ];
 
 export default function LecturesLayout() {

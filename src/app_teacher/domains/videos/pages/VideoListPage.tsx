@@ -339,7 +339,7 @@ export default function VideoListPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <button
-                    onClick={() => status === "READY" && navigate(`/teacher/videos/${v.id}`)}
+                    onClick={() => status === "READY" && navigate(`/workspace/mobile/videos/${v.id}`)}
                     className="ds-text-name font-semibold text-left truncate cursor-pointer"
                     style={{
                       color: "var(--tc-text)",

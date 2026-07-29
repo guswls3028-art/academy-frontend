@@ -4,13 +4,13 @@
 import type { TeacherPendingItem } from "@teacher/shared/hooks/useTeacherPendingCounts";
 
 export const TEACHER_PENDING_ROUTES: Record<TeacherPendingItem["type"], string> = {
-  qna: "/teacher/comms?tab=qna",
-  counsel: "/teacher/comms?tab=counsel",
-  clinic: "/teacher/clinic",
-  registration_requests: "/teacher/students",
-  submissions: "/teacher/submissions",
-  video_failed: "/teacher/videos?status=failed",
-  consult: "/admin/settings/consult",  // 선생앱에서 클릭 시 PC 어드민 콘솔로 (모바일 앱 페이지는 다음 turn)
-  reports: "/admin/community/reports",  // 신고함 — admin console
+  qna: "/workspace/mobile/comms?tab=qna",
+  counsel: "/workspace/mobile/comms?tab=counsel",
+  clinic: "/workspace/mobile/clinic",
+  registration_requests: "/workspace/mobile/students",
+  submissions: "/workspace/mobile/submissions",
+  video_failed: "/workspace/mobile/videos?status=failed",
+  consult: "/workspace/settings/consult",  // 선생앱에서 클릭 시 PC 어드민 콘솔로 (모바일 앱 페이지는 다음 turn)
+  reports: "/workspace/community/reports",  // 신고함 — admin console
   community: "/student/community",  // 본인 글 새 활동 — 학생/staff 모두 student community에서 본인 알림 확인
 };

@@ -83,7 +83,7 @@ export default function LectureListPage() {
             return (
               <button
                 key={l.id}
-                onClick={() => navigate(`/teacher/classes/${l.id}`)}
+                onClick={() => navigate(`/workspace/mobile/classes/${l.id}`)}
                 className={styles.lectureButton}
                 type="button"
               >

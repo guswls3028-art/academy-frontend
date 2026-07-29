@@ -300,8 +300,8 @@ export default function HomePage() {
           staffs={rows}
           owner={owner}
           canManage={canManage}
-          onOperate={(id) => navigate(`/admin/staff/attendance?staffId=${id}`)}
-          onDetail={(id) => navigate(`/admin/staff/${id}`)}
+          onOperate={(id) => navigate(`/workspace/staff/attendance?staffId=${id}`)}
+          onDetail={(id) => navigate(`/workspace/staff/${id}`)}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           searchQuery={q}

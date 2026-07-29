@@ -39,7 +39,7 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
       feedback.info("차시 성적 화면에서 OMR을 등록할 수 있습니다.");
       return;
     }
-    navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/scores`);
+    navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/scores`);
   };
 
   return (

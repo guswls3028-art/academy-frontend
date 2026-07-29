@@ -28,8 +28,8 @@ function getMonthBounds(month: string): DateRange {
 
 /** 내 계정은 설정 탭으로 이동. 프로필은 근태·지출만 */
 const PROFILE_TABS = [
-  { key: "attendance", label: "근태", path: "/admin/profile/attendance" },
-  { key: "expense", label: "지출", path: "/admin/profile/expense" },
+  { key: "attendance", label: "근태", path: "/workspace/profile/attendance" },
+  { key: "expense", label: "지출", path: "/workspace/profile/expense" },
 ];
 
 export default function ProfileLayout() {

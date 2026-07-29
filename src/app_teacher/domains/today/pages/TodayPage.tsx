@@ -89,7 +89,7 @@ export default function TodayPage() {
         title: `답변 대기 질문 ${pendingQnaCount}건`,
         description: "학생 질문은 지연될수록 체감 품질이 바로 떨어집니다.",
         action: "Q&A 처리",
-        route: "/teacher/comms?tab=qna",
+        route: "/workspace/mobile/comms?tab=qna",
         tone: "danger" as const,
       };
     }
@@ -114,7 +114,7 @@ export default function TodayPage() {
         title: `출결 미입력 ${attendanceGap}명`,
         description: "오늘 수업 카드에서 바로 출석 입력으로 이어가세요.",
         action: "오늘 수업 보기",
-        route: "/teacher/classes",
+        route: "/workspace/mobile/classes",
         tone: "primary" as const,
       };
     }
@@ -126,7 +126,7 @@ export default function TodayPage() {
         title: nextSession.lecture_title || nextSession.title,
         description: nextSessionLabel,
         action: "수업 열기",
-        route: `/teacher/classes/${nextSession.lecture}/sessions/${nextSession.id}`,
+        route: `/workspace/mobile/classes/${nextSession.lecture}/sessions/${nextSession.id}`,
         tone: "primary" as const,
       };
     }
@@ -137,7 +137,7 @@ export default function TodayPage() {
       title: "오늘 바로 처리할 일이 없습니다",
       description: "강의 일정이나 학생 메시지를 확인하며 다음 업무를 준비하세요.",
       action: "강의 확인",
-      route: "/teacher/classes",
+      route: "/workspace/mobile/classes",
       tone: "success" as const,
     };
   }, [attendanceGap, nextSession, nextSessionLabel, pendingItems, pendingQnaCount]);
@@ -178,14 +178,14 @@ export default function TodayPage() {
           value={pendingTotal}
           sub={pendingTotal > 0 ? "건" : "없음"}
           color={pendingTotal > 0 ? "var(--tc-danger)" : "var(--tc-success)"}
-          onClick={() => navigate("/teacher/notifications")}
+          onClick={() => navigate("/workspace/mobile/notifications")}
         />
         <KpiCard
           label="오늘 수업"
           value={sessionCount}
           sub={sessionCount > 0 ? "건" : "없음"}
           color={sessionCount > 0 ? "var(--tc-text)" : "var(--tc-text-muted)"}
-          onClick={() => navigate("/teacher/classes")}
+          onClick={() => navigate("/workspace/mobile/classes")}
         />
         <KpiCard
           label="출결 입력"
@@ -198,7 +198,7 @@ export default function TodayPage() {
           value={nextSession ? nextSessionLabel : "—"}
           sub={nextSession?.lecture_title || nextSession?.title || "일정 없음"}
           color={nextSession ? "var(--tc-primary)" : "var(--tc-text-muted)"}
-          onClick={() => navigate(nextSession ? `/teacher/classes/${nextSession.lecture}/sessions/${nextSession.id}` : "/teacher/classes")}
+          onClick={() => navigate(nextSession ? `/workspace/mobile/classes/${nextSession.lecture}/sessions/${nextSession.id}` : "/workspace/mobile/classes")}
         />
       </div>
 
@@ -211,21 +211,21 @@ export default function TodayPage() {
               label="답변 대기"
               detail={pendingQnaCount > 0 ? `${pendingQnaCount}건` : "QnA"}
               tone={pendingQnaCount > 0 ? "danger" : "primary"}
-              onClick={() => navigate("/teacher/comms?tab=qna")}
+              onClick={() => navigate("/workspace/mobile/comms?tab=qna")}
             />
             <QuickAction
               icon={<Send size={ICON.md} />}
               label="알림톡"
               detail="학생 선택"
               tone="primary"
-              onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}
+              onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}
             />
             <QuickAction
               icon={<Clock size={ICON.md} />}
               label="예약 발송"
               detail="시간 설정"
               tone="neutral"
-              onClick={() => navigate("/teacher/students", { state: { startSelectMode: true, preferredMessageTiming: "scheduled" } })}
+              onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "scheduled" } })}
             />
           </div>
 
@@ -238,7 +238,7 @@ export default function TodayPage() {
                   <Badge tone="success" pill size="xs">비어있음</Badge>
                 )}
                 <button
-                  onClick={() => navigate("/teacher/notifications")}
+                  onClick={() => navigate("/workspace/mobile/notifications")}
                   aria-label="알림 전체 보기"
                   className="text-[12px] cursor-pointer"
                   style={notificationLinkStyle}
@@ -304,7 +304,7 @@ export default function TodayPage() {
               title="오늘 수업이 없습니다"
               description="강의 일정이 비어 있으면 출결·성적 업무도 생성되지 않습니다."
               actions={
-                <button type="button" onClick={() => navigate("/teacher/classes")} className={styles.emptyActionButton}>
+                <button type="button" onClick={() => navigate("/workspace/mobile/classes")} className={styles.emptyActionButton}>
                   강의 일정 확인
                 </button>
               }

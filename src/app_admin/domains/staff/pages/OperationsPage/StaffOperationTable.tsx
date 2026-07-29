@@ -67,7 +67,7 @@ export default function StaffOperationTable({
     const now = new Date();
     if (!next.has("year")) next.set("year", String(year ?? now.getFullYear()));
     if (!next.has("month")) next.set("month", String(month ?? now.getMonth() + 1));
-    navigate(`/admin/staff/${basePath}?${next.toString()}`);
+    navigate(`/workspace/staff/${basePath}?${next.toString()}`);
   };
 
   return (

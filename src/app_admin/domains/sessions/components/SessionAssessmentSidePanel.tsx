@@ -381,7 +381,7 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+  const base = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
   const skipAutoSelect = shouldSkipAssessmentAutoSelect(location.state);
   const resolvedActiveKind: AssessmentKind =
     activeKind ?? (location.pathname.includes("/assignments") ? "homework" : "exam");
@@ -420,7 +420,7 @@ export default function SessionAssessmentSidePanel({
   useEffect(() => {
     if (!sessionId || !lectureId) return;
     const path = location.pathname;
-    const basePath = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+    const basePath = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
     if (path.startsWith(`${basePath}/exams`)) {
       if (examsLoading) return;
       const examIds = exams

@@ -136,7 +136,7 @@ export default function ExamExplorerPage() {
           onSelect={(id) => handleBreadcrumbSelect(id)}
         />
         <div className={panelStyles.actions}>
-          <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
+          <Button intent="primary" size="sm" onClick={() => navigate("/workspace/lectures")}>
             강의 목록
           </Button>
         </div>
@@ -235,7 +235,7 @@ export default function ExamExplorerPage() {
                       size="sm"
                       onClick={() =>
                         navigate(
-                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                          `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                         )
                       }
                     >
@@ -255,7 +255,7 @@ export default function ExamExplorerPage() {
                     size="sm"
                     onClick={() =>
                       navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                        `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                       )
                     }
                   >
@@ -274,14 +274,14 @@ export default function ExamExplorerPage() {
                       onClick={() =>
                         selectedSession &&
                         navigate(
-                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
+                          `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
                         )
                       }
                       onKeyDown={(event) => {
                         if (!selectedSession || (event.key !== "Enter" && event.key !== " ")) return;
                         event.preventDefault();
                         navigate(
-                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
+                          `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams${buildAssessmentSearch("exam", e.id)}`
                         );
                       }}
                     >
@@ -315,14 +315,14 @@ export default function ExamExplorerPage() {
                     tabIndex={0}
                     onClick={() =>
                       navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                        `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                       )
                     }
                     onKeyDown={(event) => {
                       if (event.key !== "Enter" && event.key !== " ") return;
                       event.preventDefault();
                       navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                        `/workspace/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
                       );
                     }}
                   >

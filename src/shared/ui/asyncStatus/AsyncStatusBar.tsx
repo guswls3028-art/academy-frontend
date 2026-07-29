@@ -224,27 +224,27 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         .then((video) => fetchSession(video.session_id))
         .then((session) => {
           navigate(
-            `/admin/lectures/${session.lecture}/sessions/${session.id}/videos`
+            `/workspace/lectures/${session.lecture}/sessions/${session.id}/videos`
           );
         })
         .catch(() => {
           feedback.error("영상 정보를 불러올 수 없습니다.");
-          navigate("/admin/videos");
+          navigate("/workspace/videos");
         })
         .finally(() => setNavigating(false));
       return;
     }
     workbox?.setWorkboxOpen(false);
     if (jobType === "excel_parsing") {
-      navigate("/admin/students/home");
+      navigate("/workspace/students/home");
       return;
     }
     if (jobType === "messaging") {
-      navigate("/admin/message");
+      navigate("/workspace/message");
       return;
     }
     if (jobType === "ppt_generation") {
-      navigate("/admin/tools/ppt");
+      navigate("/workspace/tools/ppt");
       return;
     }
     // 매치업 작업은 매치업 페이지로 (선택 doc id state 전달 — 화면이 자동 선택).
@@ -256,10 +256,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       || jobType === "matchup_public_cleanup"
     ) {
       const docId = task.meta?.sourceId ? Number(task.meta.sourceId) : null;
-      navigate("/admin/storage/matchup", docId ? { state: { selectDocId: docId } } : undefined);
+      navigate("/workspace/storage/matchup", docId ? { state: { selectDocId: docId } } : undefined);
       return;
     }
-    navigate("/admin/dashboard");
+    navigate("/workspace/dashboard");
   };
 
   const handleDelete = async (e: React.MouseEvent) => {

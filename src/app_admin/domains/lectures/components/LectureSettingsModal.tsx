@@ -133,7 +133,7 @@ export default function LectureSettingsModal({
                       if (onEdit) {
                         onEdit(lecture.id);
                       } else {
-                        window.location.assign(`/admin/lectures/${lecture.id}`);
+                        window.location.assign(`/workspace/lectures/${lecture.id}`);
                       }
                     }}
                     ariaPressed={false}

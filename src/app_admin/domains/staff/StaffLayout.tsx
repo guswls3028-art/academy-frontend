@@ -10,27 +10,27 @@ import { staffQueryKeys } from "./queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";
 
 const STAFF_MAIN_TABS = [
-  { key: "home", label: "홈", path: "/admin/staff/home" },
+  { key: "home", label: "홈", path: "/workspace/staff/home" },
   {
     key: "payroll",
     label: "급여",
-    path: "/admin/staff/attendance",
+    path: "/workspace/staff/attendance",
     activePaths: [
-      "/admin/staff/attendance",
-      "/admin/staff/expenses",
-      "/admin/staff/month-lock",
-      "/admin/staff/payroll-snapshot",
-      "/admin/staff/reports",
+      "/workspace/staff/attendance",
+      "/workspace/staff/expenses",
+      "/workspace/staff/month-lock",
+      "/workspace/staff/payroll-snapshot",
+      "/workspace/staff/reports",
     ],
   },
-  { key: "settings", label: "설정", path: "/admin/staff/settings" },
+  { key: "settings", label: "설정", path: "/workspace/staff/settings" },
 ];
 
 const PAYROLL_ROUTES = ["attendance", "expenses", "month-lock", "payroll-snapshot", "reports"];
 
 function isPayrollRoute(pathname: string) {
   return PAYROLL_ROUTES.some(
-    (p) => pathname === `/admin/staff/${p}` || pathname.startsWith(`/admin/staff/${p}/`)
+    (p) => pathname === `/workspace/staff/${p}` || pathname.startsWith(`/workspace/staff/${p}/`)
   );
 }
 
@@ -62,7 +62,7 @@ export default function StaffLayout() {
     );
   }
   if (!staffMe.is_payroll_manager) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/workspace/dashboard" replace />;
   }
 
   return (

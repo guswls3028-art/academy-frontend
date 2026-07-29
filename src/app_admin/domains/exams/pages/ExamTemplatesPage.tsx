@@ -1,6 +1,6 @@
 /**
  * ExamTemplatesPage
- * 라우트: /admin/exams/templates
+ * 라우트: /workspace/exams/templates
  * 템플릿 목록 + 적용 중인 강의 연결 관리
  */
 

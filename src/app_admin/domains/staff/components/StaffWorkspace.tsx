@@ -14,9 +14,9 @@ function getThisMonth() {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
-/** Derive basePath from pathname for staff list navigation (e.g. /admin/staff/attendance -> attendance) */
+/** Derive basePath from pathname for staff list navigation (e.g. /workspace/staff/attendance -> attendance) */
 function getBasePath(pathname: string): "attendance" | "expenses" | "month-lock" | "payroll-snapshot" | "reports" {
-  const segment = pathname.replace(/^\/admin\/staff\/?/, "").split("/")[0] || "";
+  const segment = pathname.replace(/^\/workspace\/staff\/?/, "").split("/")[0] || "";
   if (segment === "expenses") return "expenses";
   if (segment === "month-lock") return "month-lock";
   if (segment === "payroll-snapshot") return "payroll-snapshot";

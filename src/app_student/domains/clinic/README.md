@@ -36,8 +36,8 @@
 
 - 학생 예약: `/student/clinic`
 - 클리닉 인증 패스: `/student/clinic-idcard`
-- 관리자 예약 일정: `/admin/clinic/schedule`
-- 관리자 승인·미통과 관리: `/admin/clinic/bookings`
-- 관리자 당일 운영: `/admin/clinic/operations`
+- 통합 업무 예약 일정: `/workspace/clinic/schedule`
+- 통합 업무 승인·미통과 관리: `/workspace/clinic/bookings`
+- 통합 업무 당일 운영: `/workspace/clinic/operations`
 
 학생 이름은 공통 `StudentNameWithLectureChip` 규칙을 따릅니다.

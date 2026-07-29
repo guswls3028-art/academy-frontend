@@ -6,6 +6,10 @@ import {
   resolveDeveloperConsoleDestination,
   resolveRootDestination,
 } from "../src/core/router/rootDestination";
+import {
+  canonicalizeWorkspacePath,
+  WORKSPACE_PATHS,
+} from "../src/core/router/workspaceRoutes";
 
 test("RootRedirect delegates automatic navigation without a developer-console bypass", () => {
   const source = readFileSync(
@@ -57,30 +61,42 @@ test("primary app root keeps every automatic destination out of the developer co
   expect(destinations).toEqual([
     "/promo",
     "/login",
-    "/admin",
-    "/admin",
-    "/admin",
-    "/admin",
+    "/workspace",
+    "/workspace",
+    "/workspace",
+    "/workspace",
     "/student",
     "/student",
   ]);
   expect(destinations.every((destination) => !destination.startsWith("/dev"))).toBe(true);
 });
 
-test("mobile admin-role routing preserves standalone and explicit admin preferences", () => {
-  const destination = (isStandalone: boolean, prefersAdmin: boolean) =>
+test("mobile workspace routing preserves standalone and explicit full-workspace preferences", () => {
+  const destination = (isStandalone: boolean, prefersFullWorkspace: boolean) =>
     resolveRootDestination({
       tenantCode: "hakwonplus",
       role: "owner",
       isAuthenticated: true,
       isMobile: true,
       isStandalone,
-      prefersAdmin,
+      prefersFullWorkspace,
     });
 
-  expect(destination(false, false)).toBe("/teacher");
-  expect(destination(true, false)).toBe("/admin");
-  expect(destination(false, true)).toBe("/admin");
+  expect(destination(false, false)).toBe("/workspace/mobile");
+  expect(destination(true, false)).toBe("/workspace");
+  expect(destination(false, true)).toBe("/workspace");
+});
+
+test("legacy workspace URLs canonicalize without losing their subpaths", () => {
+  expect(canonicalizeWorkspacePath("/admin")).toBe(WORKSPACE_PATHS.full);
+  expect(canonicalizeWorkspacePath("/admin/results/submissions")).toBe(
+    "/workspace/results/submissions",
+  );
+  expect(canonicalizeWorkspacePath("/teacher")).toBe(WORKSPACE_PATHS.mobile);
+  expect(canonicalizeWorkspacePath("/teacher/classes/12")).toBe(
+    "/workspace/mobile/classes/12",
+  );
+  expect(canonicalizeWorkspacePath("/administrator")).toBeNull();
 });
 
 test("only explicit developer paths cross from the primary app to the developer origin", () => {

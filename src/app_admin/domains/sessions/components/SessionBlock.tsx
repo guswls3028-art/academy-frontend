@@ -214,10 +214,10 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const showCreate = createForSection !== null;
 
   const getSessionTargetPath = useCallback((nextSessionId: number) => {
-    const match = location.pathname.match(/\/admin\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);
+    const match = location.pathname.match(/\/workspace\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);
     const tab = currentSessionId != null ? match?.[1] : null;
     const targetTab = tab ?? "attendance";
-    return `/admin/lectures/${lectureId}/sessions/${nextSessionId}/${targetTab}`;
+    return `/workspace/lectures/${lectureId}/sessions/${nextSessionId}/${targetTab}`;
   }, [currentSessionId, lectureId, location.pathname]);
 
   // section_mode 분기: 반별 row 데이터
@@ -260,7 +260,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
             <span className={styles.loadingText}>불러오는 중…</span>
           ) : !hasAnySections ? (
             <EmptySectionNotice
-              onGoToSections={() => navigate(`/admin/lectures/${lectureId}/sections`)}
+              onGoToSections={() => navigate(`/workspace/lectures/${lectureId}/sections`)}
             />
           ) : (
             <>
@@ -334,7 +334,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               return (
                 <div key={s.id} className="relative group">
                   <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
-                  <SessionGearMenu session={s} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
+                  <SessionGearMenu session={s} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
                 </div>
               );
             })}
@@ -426,7 +426,7 @@ function SessionRow({
         return (
           <div key={s.id} className="relative group">
             <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
-            <SessionGearMenu session={s} sections={sections} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/admin/lectures/${lectureId}`); }} />
+            <SessionGearMenu session={s} sections={sections} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
           </div>
         );
       })}

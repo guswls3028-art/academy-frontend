@@ -78,7 +78,7 @@ export default function ExamTemplatesPage() {
             title="템플릿이 없습니다"
             description="시험·과제 템플릿은 강의의 차시에서 만들고 이 화면에서 적용 현황을 확인합니다."
             actions={
-              <EmptyActionButton onClick={() => navigate("/teacher/classes")}>
+              <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
                 강의에서 만들기
               </EmptyActionButton>
             }
@@ -109,7 +109,7 @@ function TemplateCard({ template, kind }: { template: TeacherTemplateWithUsage; 
           {usages.slice(0, 6).map((usage, index) => (
             <button
               key={usage.id ?? index}
-              onClick={() => usage.lecture_id && navigate(`/teacher/classes/${usage.lecture_id}`)}
+              onClick={() => usage.lecture_id && navigate(`/workspace/mobile/classes/${usage.lecture_id}`)}
               className={styles.usageButton}
               type="button"
             >

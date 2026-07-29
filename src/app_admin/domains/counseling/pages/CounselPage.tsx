@@ -3,5 +3,5 @@
 import { Navigate } from "react-router-dom";
 
 export default function CounselPage() {
-  return <Navigate to="/admin/community/counsel" replace />;
+  return <Navigate to="/workspace/community/counsel" replace />;
 }
