@@ -16,6 +16,10 @@ import {
 } from "@/shared/scoring/studentScoreTrend";
 import { downloadBlob } from "@/shared/utils/safeDownload";
 import { getScoreBlockOmrReviewStatus } from "./sessionScoreRowVerdict";
+import {
+  resolveStudentScoreReportTheme,
+  type StudentScoreReportTheme,
+} from "./studentScoreReportTheme";
 
 export type StudentScoreReportMode = "summary" | "detailed";
 
@@ -28,6 +32,9 @@ export type StudentScoreReportParams = {
   attendanceStatus?: string | null;
   date?: string;
   tenantName?: string;
+  tenantCode?: string;
+  tenantLogoUrl?: string;
+  primaryColor?: string;
   mode?: StudentScoreReportMode;
 };
 
@@ -49,7 +56,7 @@ const REPORT_STYLE = `
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: #dfe5ec;
+    background: #d9e1ec;
     color: #172033;
     font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
     -webkit-print-color-adjust: exact;
@@ -60,7 +67,7 @@ const REPORT_STYLE = `
     width: 210mm;
     height: 297mm;
     margin: 0 auto 8mm;
-    padding: 13mm 14mm 12mm;
+    padding: 0 14mm 12mm;
     overflow: hidden;
     background: #fff;
     page-break-after: always;
@@ -70,9 +77,12 @@ const REPORT_STYLE = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 4mm;
-    border-bottom: 0.4mm solid #1d4ed8;
-    color: #516078;
+    min-height: 14mm;
+    margin: 0 -14mm;
+    padding: 3.5mm 14mm;
+    border-bottom: 1.1mm solid var(--report-accent);
+    background: var(--report-primary);
+    color: var(--report-on-primary);
     font-size: 9px;
     letter-spacing: 0.03em;
   }
@@ -81,33 +91,68 @@ const REPORT_STYLE = `
     align-items: center;
     gap: 2.5mm;
     font-weight: 800;
-    color: #1d4ed8;
+    color: var(--report-on-primary);
+    min-width: 0;
   }
-  .report-brand-mark {
-    width: 7mm;
-    height: 7mm;
-    border-radius: 1.8mm;
-    background: #1d4ed8;
-    color: #fff;
+  .report-brand-symbol {
+    position: relative;
     display: inline-flex;
+    min-width: 8mm;
+    height: 8mm;
+    max-width: 28mm;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    padding: 0.8mm 1.2mm;
+    border-radius: 1.8mm;
+    background: #fff;
+  }
+  .report-brand-logo {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: auto;
+    max-width: 25mm;
+    height: 6.2mm;
+    margin: auto;
+    background: #fff;
+    object-fit: contain;
+  }
+  .report-brand-mark {
+    display: inline-flex;
+    width: 6.2mm;
+    height: 6.2mm;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1.2mm;
+    background: var(--report-accent);
+    color: var(--report-on-accent);
     font-size: 9px;
     letter-spacing: -0.04em;
+  }
+  .report-brand-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .report-title-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     gap: 8mm;
-    padding: 6mm 0 5mm;
+    padding: 7mm 0 5mm;
   }
   .report-eyebrow {
+    display: inline-flex;
     margin-bottom: 1.5mm;
-    color: #1d4ed8;
+    padding: 1mm 2.4mm;
+    border-left: 1.1mm solid var(--report-accent);
+    background: var(--report-tint);
+    color: var(--report-primary);
     font-size: 9px;
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
   }
   h1 {
     margin: 0;
@@ -115,16 +160,20 @@ const REPORT_STYLE = `
     font-size: 25px;
     line-height: 1.1;
     letter-spacing: -0.045em;
+    overflow-wrap: anywhere;
   }
   .report-student-meta {
     margin-top: 2.5mm;
     color: #667085;
     font-size: 10px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
   }
   .report-session-stamp {
     min-width: 47mm;
     padding: 3mm 4mm;
-    border: 0.3mm solid #cbd5e1;
+    border: 0.3mm solid var(--report-primary);
+    border-top: 1.1mm solid var(--report-accent);
     border-radius: 2mm;
     text-align: right;
     color: #334155;
@@ -141,28 +190,39 @@ const REPORT_STYLE = `
     grid-template-columns: 34mm repeat(4, 1fr);
     min-height: 22mm;
     margin-bottom: 6mm;
-    border-top: 0.35mm solid #172033;
-    border-bottom: 0.35mm solid #172033;
+    overflow: hidden;
+    border: 0.35mm solid var(--report-primary);
+    border-radius: 2mm;
   }
   .flow-label {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding-right: 4mm;
+    padding: 0 4mm;
+    background: var(--report-primary);
+    color: var(--report-on-primary);
   }
   .flow-label strong { font-size: 11px; }
-  .flow-label span { margin-top: 1mm; color: #7b8798; font-size: 8px; }
+  .flow-label span { margin-top: 1mm; color: var(--report-on-primary); font-size: 8px; opacity: 0.74; }
   .flow-metric {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 0 4mm;
+    display: grid;
+    grid-template-rows: 8mm 1fr;
     border-left: 0.25mm solid #d9e0e8;
   }
-  .flow-metric span { color: #718096; font-size: 8px; }
+  .flow-metric span {
+    display: flex;
+    align-items: center;
+    padding: 0 3mm;
+    border-bottom: 0.25mm solid var(--report-accent);
+    background: var(--report-tint);
+    color: #5f6470;
+    font-size: 8px;
+  }
   .flow-metric strong {
-    margin-top: 1mm;
+    display: flex;
+    align-items: center;
+    padding: 0 3mm;
     color: #172033;
     font-size: 17px;
     letter-spacing: -0.03em;
@@ -178,19 +238,43 @@ const REPORT_STYLE = `
     margin-bottom: 2.5mm;
   }
   .section-heading h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 2mm;
     margin: 0;
     color: #172033;
     font-size: 12px;
     letter-spacing: -0.02em;
   }
+  .section-heading h2::before {
+    width: 2.8mm;
+    height: 2.8mm;
+    flex: 0 0 auto;
+    background: var(--report-primary);
+    content: "";
+  }
   .section-heading span { color: #7b8798; font-size: 8px; }
   .current-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 47mm;
-    border-top: 0.45mm solid #172033;
-    border-bottom: 0.25mm solid #cbd5e1;
+    overflow: hidden;
+    border: 0.35mm solid var(--report-primary);
+    border-radius: 2mm;
   }
   .assessment-list { min-width: 0; }
+  .assessment-table-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 23mm 24mm;
+    min-height: 8mm;
+    align-items: center;
+    border-bottom: 0.3mm solid var(--report-accent);
+    background: var(--report-tint);
+    color: #283044;
+    font-size: 8px;
+    font-weight: 800;
+  }
+  .assessment-table-head span { padding: 0 3mm; }
+  .assessment-table-head span:not(:first-child) { text-align: right; }
   .assessment-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 23mm 24mm;
@@ -202,14 +286,23 @@ const REPORT_STYLE = `
   .assessment-row:last-child { border-bottom: 0; }
   .assessment-title { padding: 0 3mm; min-width: 0; }
   .assessment-title strong {
-    display: block;
+    display: -webkit-box;
     overflow: hidden;
     color: #1f2937;
     font-size: 10px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
-  .assessment-title span { color: #8a96a8; font-size: 8px; }
+  .assessment-title span {
+    display: block;
+    margin-top: 0.5mm;
+    color: #77859a;
+    font-size: 8px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
   .assessment-score {
     color: #172033;
     font-size: 12px;
@@ -238,6 +331,17 @@ const REPORT_STYLE = `
     border-left: 0.25mm solid #cbd5e1;
     background: #f7f9fc;
   }
+  .session-summary-title {
+    display: flex;
+    min-height: 8mm;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 0.3mm solid var(--report-accent);
+    background: var(--report-tint);
+    color: #283044;
+    font-size: 8px;
+    font-weight: 800;
+  }
   .session-fact {
     display: flex;
     align-items: center;
@@ -253,8 +357,9 @@ const REPORT_STYLE = `
   .trend-panel {
     min-height: 67mm;
     padding: 4mm 4mm 2mm;
-    border: 0.25mm solid #d9e0e8;
-    background: #fbfcfe;
+    border: 0.35mm solid var(--report-primary);
+    border-radius: 2mm;
+    background: #fff;
   }
   .trend-empty {
     display: flex;
@@ -280,9 +385,9 @@ const REPORT_STYLE = `
   }
   .history-table th, .item-table th {
     padding: 2.2mm 2mm;
-    border-bottom: 0.3mm solid #94a3b8;
-    background: #f3f6fa;
-    color: #516078;
+    border-bottom: 0.3mm solid var(--report-accent);
+    background: var(--report-tint);
+    color: #283044;
     font-weight: 800;
     text-align: left;
   }
@@ -305,15 +410,17 @@ const REPORT_STYLE = `
     grid-template-columns: 1.15fr 0.85fr;
     gap: 6mm;
   }
+  .detail-grid--single { grid-template-columns: minmax(0, 1fr); }
   .coaching-box {
     margin-top: 5mm;
     padding: 4mm 5mm;
-    border-left: 1.2mm solid #1d4ed8;
-    background: #f3f6fb;
+    border: 0.3mm solid var(--report-accent);
+    border-left: 1.2mm solid var(--report-accent);
+    background: var(--report-tint);
   }
   .coaching-box h3 {
     margin: 0 0 2mm;
-    color: #1d4ed8;
+    color: var(--report-primary);
     font-size: 10px;
   }
   .coaching-box ul {
@@ -336,6 +443,159 @@ const REPORT_STYLE = `
     border-top: 0.25mm solid #cbd5e1;
     color: #7b8798;
     font-size: 7.5px;
+  }
+  @media screen and (max-width: 600px) {
+    body { background: #e9eef4; }
+    .student-report-page {
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      margin: 0 0 10px;
+      padding: 0 18px 24px;
+      overflow: visible;
+    }
+    .report-topline {
+      min-height: 56px;
+      margin: 0 -18px;
+      padding: 10px 18px;
+      gap: 12px;
+      font-size: 10px;
+    }
+    .report-brand { max-width: 72%; }
+    .report-brand-symbol { min-width: 34px; height: 34px; max-width: 112px; padding: 4px 6px; }
+    .report-brand-logo { max-width: 100px; height: 26px; }
+    .report-brand-mark { width: 26px; height: 26px; }
+    .report-title-row {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 14px;
+      padding: 24px 0 18px;
+    }
+    .report-eyebrow { align-self: flex-start; margin-bottom: 7px; padding: 5px 9px; font-size: 10px; }
+    h1 { font-size: clamp(27px, 9vw, 36px); }
+    .report-student-meta { margin-top: 8px; font-size: 12px; }
+    .report-session-stamp {
+      display: flex;
+      width: 100%;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .report-session-stamp strong { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+    .report-session-stamp span { flex: 0 0 auto; font-size: 10px; }
+    .flow-band {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      min-height: 0;
+      margin-bottom: 24px;
+      border-radius: 9px;
+    }
+    .flow-label {
+      grid-column: 1 / -1;
+      min-height: 58px;
+      padding: 12px 14px;
+    }
+    .flow-label strong { font-size: 13px; }
+    .flow-label span { font-size: 10px; }
+    .flow-metric {
+      min-height: 70px;
+      grid-template-rows: 30px 1fr;
+      border-top: 1px solid #d9e0e8;
+    }
+    .flow-metric:nth-child(even) { border-left: 0; }
+    .flow-metric span { padding: 0 12px; font-size: 10px; }
+    .flow-metric strong { padding: 0 12px; font-size: 19px; }
+    .section { margin-top: 24px; }
+    .section-heading {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .section-heading h2 { gap: 8px; font-size: 15px; }
+    .section-heading h2::before { width: 10px; height: 10px; }
+    .section-heading span { padding-left: 18px; font-size: 10px; line-height: 1.4; }
+    .current-grid {
+      grid-template-columns: minmax(0, 1fr);
+      border-radius: 9px;
+    }
+    .assessment-table-head,
+    .assessment-row {
+      grid-template-columns: minmax(0, 1fr) 64px 70px;
+    }
+    .assessment-table-head { min-height: 34px; font-size: 10px; }
+    .assessment-table-head span { padding: 0 10px; }
+    .assessment-row { min-height: 58px; font-size: 10px; }
+    .assessment-title { padding: 9px 10px; }
+    .assessment-title strong { font-size: 12px; }
+    .assessment-title span { font-size: 9px; }
+    .assessment-score { padding-right: 4px; font-size: 13px; }
+    .status { min-width: 0; margin-right: 8px; padding: 5px 6px; font-size: 9px; }
+    .session-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid #cbd5e1;
+      border-left: 0;
+    }
+    .session-summary-title { grid-column: 1 / -1; min-height: 34px; font-size: 10px; }
+    .session-fact {
+      min-height: 38px;
+      padding: 0 10px;
+      font-size: 10px;
+    }
+    .session-fact:nth-child(even) { border-right: 1px solid #e2e8f0; }
+    .session-fact strong { font-size: 11px; }
+    .trend-panel { min-height: 0; padding: 14px 10px 8px; border-radius: 9px; }
+    .trend-chart { height: auto; }
+    .trend-note { margin-top: 4px; font-size: 9px; }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .history-table, .item-table { border-top: 0; font-size: 11px; }
+    .history-table thead, .item-table thead { display: none; }
+    .history-table tbody, .item-table tbody { display: grid; gap: 9px; }
+    .history-table tr, .item-table tr {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+      overflow: hidden;
+      border: 1px solid #dce3eb;
+      border-top: 3px solid var(--report-accent);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .history-table td, .item-table td {
+      display: flex;
+      min-width: 0;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border-bottom: 1px solid #eef2f6;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .history-table td::before, .item-table td::before {
+      flex: 0 0 auto;
+      color: #7b8798;
+      font-size: 9px;
+      font-weight: 700;
+      content: attr(data-label);
+    }
+    .history-table td:nth-last-child(-n + 2),
+    .item-table td:nth-last-child(-n + 2) { border-bottom: 0; }
+    .empty-cell { grid-column: 1 / -1; justify-content: center !important; }
+    .empty-cell::before { display: none; }
+    .coaching-box { margin-top: 0; padding: 15px 16px; }
+    .coaching-box h3 { margin-bottom: 8px; font-size: 12px; }
+    .coaching-box ul { padding-left: 18px; font-size: 11px; line-height: 1.7; }
+    .report-footer {
+      position: static;
+      gap: 12px;
+      margin-top: 30px;
+      padding-top: 12px;
+      font-size: 9px;
+    }
   }
   @media print {
     body { background: #fff; }
@@ -408,10 +668,10 @@ function scopeGrades(grades: StudentGradesResponse | null | undefined, lectureId
   };
 }
 
-function buildTrendSvg(points: StudentExamTrendPoint[]): string {
+function buildTrendSvg(points: StudentExamTrendPoint[], theme: StudentScoreReportTheme): string {
   const ordered = [...points]
     .sort((a, b) => a.round_index - b.round_index)
-    .slice(-8);
+    .slice(-4);
   if (ordered.length === 0) {
     return `<div class="trend-empty">누적 시험 점수가 쌓이면 변화 추이가 표시됩니다.</div>`;
   }
@@ -435,8 +695,8 @@ function buildTrendSvg(points: StudentExamTrendPoint[]): string {
     const label = point.session_title || `${point.round_index}회`;
     const shortLabel = label.length > 8 ? `${label.slice(0, 8)}…` : label;
     return `
-      <circle cx="${x(index)}" cy="${y(point.score_pct)}" r="4" fill="#fff" stroke="#1d4ed8" stroke-width="3" />
-      <text x="${x(index)}" y="${Math.max(10, y(point.score_pct) - 9)}" text-anchor="middle" fill="#1d4ed8" font-size="9" font-weight="700">${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}</text>
+      <circle cx="${x(index)}" cy="${y(point.score_pct)}" r="4" fill="${theme.accent}" stroke="${theme.primary}" stroke-width="3" />
+      <text x="${x(index)}" y="${Math.max(10, y(point.score_pct) - 9)}" text-anchor="middle" fill="${theme.primary}" font-size="9" font-weight="700">${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}</text>
       <text x="${x(index)}" y="${height - 9}" text-anchor="middle" fill="#68758a" font-size="8">${escapeHtml(shortLabel)}</text>
     `;
   }).join("");
@@ -444,7 +704,7 @@ function buildTrendSvg(points: StudentExamTrendPoint[]): string {
   return `
     <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="최근 시험 점수 변화">
       ${guides}
-      <path d="${path}" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="${path}" fill="none" stroke="${theme.primary}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       ${pointsMarkup}
     </svg>
     <div class="trend-note">최근 ${ordered.length}회 · 100점 환산 기준</div>
@@ -457,9 +717,15 @@ function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
     const score = entry?.block.score;
     const maxScore = entry?.block.max_score ?? exam.max_score;
     const result = resultLabel(entry?.block);
+    const scoreParts = [
+      "시험",
+      `통과 ${formatNumber(exam.pass_score)}점`,
+      entry?.block.objective_score != null ? `객관 ${formatNumber(entry.block.objective_score)}점` : null,
+      entry?.block.subjective_score != null ? `주관 ${formatNumber(entry.block.subjective_score)}점` : null,
+    ].filter(Boolean).join(" · ");
     return `
       <div class="assessment-row">
-        <div class="assessment-title"><strong>${escapeHtml(exam.title)}</strong><span>시험 · 통과 ${formatNumber(exam.pass_score)}점</span></div>
+        <div class="assessment-title"><strong>${escapeHtml(exam.title)}</strong><span>${scoreParts}</span></div>
         <div class="assessment-score">${formatNumber(score, score != null && !Number.isInteger(score) ? 1 : 0)} <small>/ ${formatNumber(maxScore)}</small></div>
         <span class="status ${result.className}">${result.text}</span>
       </div>
@@ -514,27 +780,29 @@ function buildHistoryRows(exams: StudentExamGrade[]): string {
     const resultClass = passed ? "history-result--pass" : missing ? "" : "history-result--warn";
     return `
       <tr>
-        <td>${escapeHtml(exam.session_title || "-")}</td>
-        <td><strong>${escapeHtml(exam.title)}</strong></td>
-        <td class="num">${formatNumber(exam.total_score)} / ${formatNumber(exam.max_score)}</td>
-        <td class="num">${formatPercent(pct)}</td>
-        <td class="history-result ${resultClass}">${result}</td>
+        <td data-label="차시">${escapeHtml(exam.session_title || "-")}</td>
+        <td data-label="시험"><strong>${escapeHtml(exam.title)}</strong></td>
+        <td class="num" data-label="점수">${formatNumber(exam.total_score)} / ${formatNumber(exam.max_score)}</td>
+        <td class="num" data-label="환산">${formatPercent(pct)}</td>
+        <td class="history-result ${resultClass}" data-label="판정">${result}</td>
       </tr>
     `;
   }).join("");
 }
 
-function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: string } {
+function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: string; hasItems: boolean } {
   const exam = row.exams.find((entry) => (entry.items?.length ?? 0) > 0);
   const items = exam?.items ?? [];
   if (!exam || items.length === 0) {
     return {
       examTitle: "",
-      rows: `<tr><td class="empty-cell" colspan="4">문항별 채점 데이터가 없습니다.</td></tr>`,
+      rows: "",
+      hasItems: false,
     };
   }
   return {
     examTitle: exam.title,
+    hasItems: true,
     rows: items
     .slice()
     .sort((a, b) => (a.question_number ?? a.question_id) - (b.question_number ?? b.question_id))
@@ -545,10 +813,10 @@ function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: str
       const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
       return `
         <tr>
-          <td>${item.question_number ?? item.question_id}번</td>
-          <td>${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
-          <td class="num"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
-          <td class="history-result ${resultClass}">${result}</td>
+          <td data-label="문항">${item.question_number ?? item.question_id}번</td>
+          <td data-label="유형">${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
+          <td class="num" data-label="득점"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
+          <td class="history-result ${resultClass}" data-label="결과">${result}</td>
         </tr>
       `;
     }).join(""),
@@ -587,6 +855,27 @@ function buildCoachingPoints(
   return points.slice(0, 4);
 }
 
+function buildBrandIdentity(tenantName: string, theme: StudentScoreReportTheme): string {
+  const displayName = tenantName || "ACADEMY";
+  const mark = Array.from(displayName.trim())[0]?.toLocaleUpperCase("ko-KR") || "A";
+  const logo = theme.logoUrl
+    ? `<img class="report-brand-logo" src="${escapeHtml(theme.logoUrl)}" alt="" crossorigin="anonymous" onerror="this.remove()" />`
+    : "";
+  const identity = `<span class="report-brand-symbol"><span class="report-brand-mark">${escapeHtml(mark)}</span>${logo}</span>`;
+
+  return `<div class="report-brand">${identity}<span class="report-brand-name">${escapeHtml(displayName)}</span></div>`;
+}
+
+function buildThemeStyle(theme: StudentScoreReportTheme): string {
+  return [
+    `--report-primary:${theme.primary}`,
+    `--report-accent:${theme.accent}`,
+    `--report-tint:${theme.tint}`,
+    `--report-on-primary:${theme.onPrimary}`,
+    `--report-on-accent:${theme.onAccent}`,
+  ].join(";");
+}
+
 function buildFooter(tenantName: string, date: string, page: number, total: number): string {
   return `
     <footer class="report-footer">
@@ -601,9 +890,17 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   const totalPages = mode === "detailed" ? 2 : 1;
   const date = resolveDate(params.date);
   const tenantName = (params.tenantName ?? "").trim();
+  const theme = resolveStudentScoreReportTheme({
+    tenantCode: params.tenantCode,
+    primaryColor: params.primaryColor,
+    logoUrl: params.tenantLogoUrl,
+  });
   const { row, meta } = params;
   const scoped = scopeGrades(params.grades, meta.lecture_id);
-  const summary = summarizeStudentScoreTrend(scoped.trend);
+  const recentTrend = [...scoped.trend]
+    .sort((a, b) => a.round_index - b.round_index)
+    .slice(-4);
+  const summary = summarizeStudentScoreTrend(recentTrend);
   const itemAnalysis = buildItemAnalysis(row);
   const currentExamScores = row.exams
     .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
@@ -622,17 +919,17 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   const changeText = summary.change == null
     ? "-"
     : `${summary.change > 0 ? "+" : ""}${formatNumber(summary.change, 1)}%p`;
-  const coachingPoints = buildCoachingPoints(row, scoped.trend, summary);
+  const coachingPoints = buildCoachingPoints(row, recentTrend, summary);
 
   const pageOne = `
     <section class="student-report-page" data-page="1">
       <div class="report-topline">
-        <div class="report-brand"><span class="report-brand-mark">A</span>${escapeHtml(tenantName || "ACADEMY")}</div>
-        <span>INDIVIDUAL LEARNING REPORT</span>
+        ${buildBrandIdentity(tenantName, theme)}
+        <span>학생 개인 성적표</span>
       </div>
       <div class="report-title-row">
         <div>
-          <div class="report-eyebrow">개인 학습 성적표</div>
+          <div class="report-eyebrow">학습 성적표</div>
           <h1>${escapeHtml(row.student_name)}</h1>
           <div class="report-student-meta">${escapeHtml(params.lectureTitle)}</div>
         </div>
@@ -642,7 +939,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
         </div>
       </div>
       <div class="flow-band">
-        <div class="flow-label"><strong>학습 흐름</strong><span>같은 강의 시험 기준</span></div>
+        <div class="flow-label"><strong>최근 4회</strong><span>같은 강의 시험 기준</span></div>
         <div class="flow-metric"><span>최근</span><strong>${formatPercent(summary.latest)}</strong></div>
         <div class="flow-metric"><span>평균</span><strong>${formatPercent(summary.average)}</strong></div>
         <div class="flow-metric"><span>최고</span><strong>${formatPercent(summary.best)}</strong></div>
@@ -651,8 +948,12 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
       <div class="section">
         <div class="section-heading"><h2>현재 차시 결과</h2><span>입력된 원점수와 최종 판정</span></div>
         <div class="current-grid">
-          <div class="assessment-list">${buildCurrentAssessments(row, meta)}</div>
+          <div class="assessment-list">
+            <div class="assessment-table-head"><span>현재 평가</span><span>점수</span><span>판정</span></div>
+            ${buildCurrentAssessments(row, meta)}
+          </div>
           <aside class="session-summary">
+            <div class="session-summary-title">현재 차시 요약</div>
             <div class="session-fact"><span>시험 평균</span><strong>${formatPercent(currentExamAverage)}</strong></div>
             <div class="session-fact"><span>과제 평균</span><strong>${formatPercent(currentHomeworkAverage)}</strong></div>
             <div class="session-fact"><span>출결</span><strong>${ATTENDANCE_LABEL[params.attendanceStatus ?? ""] ?? "-"}</strong></div>
@@ -661,8 +962,8 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
         </div>
       </div>
       <div class="section">
-        <div class="section-heading"><h2>누적 시험 변화</h2><span>최근 8회, 강의별 데이터</span></div>
-        <div class="trend-panel">${buildTrendSvg(scoped.trend)}</div>
+        <div class="section-heading"><h2>최근 4회 학습 흐름</h2><span>같은 강의의 확정 성적</span></div>
+        <div class="trend-panel">${buildTrendSvg(recentTrend, theme)}</div>
       </div>
       ${buildFooter(tenantName, date, 1, totalPages)}
     </section>
@@ -671,8 +972,8 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   const pageTwo = mode === "detailed" ? `
     <section class="student-report-page" data-page="2">
       <div class="report-topline">
-        <div class="report-brand"><span class="report-brand-mark">A</span>${escapeHtml(tenantName || "ACADEMY")}</div>
-        <span>${escapeHtml(row.student_name)} · 상세 분석</span>
+        ${buildBrandIdentity(tenantName, theme)}
+        <span>${escapeHtml(row.student_name)} · 상세 학습 기록</span>
       </div>
       <div class="section" style="margin-top:7mm">
         <div class="section-heading"><h2>최근 시험 기록</h2><span>최신순 최대 9건</span></div>
@@ -681,14 +982,14 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
           <tbody>${buildHistoryRows(scoped.exams)}</tbody>
         </table>
       </div>
-      <div class="section detail-grid">
-        <div>
+      <div class="section detail-grid${itemAnalysis.hasItems ? "" : " detail-grid--single"}">
+        ${itemAnalysis.hasItems ? `<div>
           <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}최대 16문항</span></div>
           <table class="item-table">
             <thead><tr><th>문항</th><th>유형</th><th class="num">득점</th><th>결과</th></tr></thead>
             <tbody>${itemAnalysis.rows}</tbody>
           </table>
-        </div>
+        </div>` : ""}
         <div>
           <div class="section-heading"><h2>상담 체크포인트</h2><span>입력 데이터 자동 요약</span></div>
           <div class="coaching-box">
@@ -702,7 +1003,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   ` : "";
 
   return `<!doctype html>
-<html lang="ko">
+<html lang="ko" style="${buildThemeStyle(theme)}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -768,7 +1069,7 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
         windowHeight: doc.documentElement.scrollHeight,
       });
       if (index > 0) pdf.addPage();
-      const imageData = canvas.toDataURL("image/png");
+      const imageData = canvas.toDataURL("image/jpeg", 0.94);
       const ratio = canvas.width / canvas.height;
       let drawWidth = pdfWidth;
       let drawHeight = pdfWidth / ratio;
@@ -776,7 +1077,7 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
         drawHeight = pdfHeight;
         drawWidth = pdfHeight * ratio;
       }
-      pdf.addImage(imageData, "PNG", (pdfWidth - drawWidth) / 2, 0, drawWidth, drawHeight);
+      pdf.addImage(imageData, "JPEG", (pdfWidth - drawWidth) / 2, 0, drawWidth, drawHeight, undefined, "FAST");
     }
 
     const reportDate = resolveDate(params.date).replace(/[.\s/]/g, "");

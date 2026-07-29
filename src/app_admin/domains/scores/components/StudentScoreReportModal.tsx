@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Download, FileUser, Search } from "lucide-react";
 
@@ -9,6 +9,7 @@ import type {
 import { fetchAdminStudentGrades } from "@/shared/api/contracts/studentGrades";
 import { adminStudentsQueryKeys } from "@admin/domains/students/queryKeys";
 import { useProgram } from "@/shared/program";
+import { getTenantBranding, getTenantIdFromCode } from "@/shared/tenant";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -18,6 +19,7 @@ import {
   downloadStudentScoreReportPdf,
   type StudentScoreReportMode,
 } from "../utils/studentScoreReportGenerator";
+import { resolveStudentScoreReportTheme } from "../utils/studentScoreReportTheme";
 import "./StudentScoreReportModal.css";
 
 type Props = {
@@ -54,6 +56,8 @@ export default function StudentScoreReportModal({
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<StudentScoreReportMode>("detailed");
   const [downloading, setDownloading] = useState(false);
+  const [mobilePreviewHeight, setMobilePreviewHeight] = useState(600);
+  const previewResizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +66,10 @@ export default function StudentScoreReportModal({
     setSearch("");
     setMode("detailed");
   }, [open, reportRows, initialEnrollmentId]);
+
+  useEffect(() => () => {
+    previewResizeObserverRef.current?.disconnect();
+  }, []);
 
   const selectedRow = useMemo(
     () => reportRows.find((row) => row.enrollment_id === selectedEnrollmentId) ?? reportRows[0] ?? null,
@@ -86,6 +94,22 @@ export default function StudentScoreReportModal({
     ? reportRows.findIndex((row) => row.enrollment_id === selectedRow.enrollment_id)
     : -1;
   const tenantName = program?.display_name?.trim() || "Academy";
+  const tenantCode = program?.tenantCode?.trim() || "";
+  const tenantId = getTenantIdFromCode(tenantCode);
+  const staticBranding = tenantId ? getTenantBranding(tenantId) : null;
+  const tenantLogoUrl = program?.ui_config?.logo_url?.trim() || staticBranding?.logoUrl?.trim() || "";
+  const primaryColor = program?.ui_config?.primary_color?.trim() || "";
+  const reportTheme = useMemo(() => resolveStudentScoreReportTheme({
+    tenantCode,
+    primaryColor,
+    logoUrl: tenantLogoUrl,
+  }), [primaryColor, tenantCode, tenantLogoUrl]);
+  const workspaceStyle = {
+    "--score-report-brand": reportTheme.primary,
+    "--score-report-accent": reportTheme.accent,
+    "--score-report-on-brand": reportTheme.onPrimary,
+    "--score-report-mobile-height": `${mobilePreviewHeight}px`,
+  } as CSSProperties;
   const reportParams = useMemo(() => selectedRow ? ({
     row: selectedRow,
     meta,
@@ -94,6 +118,9 @@ export default function StudentScoreReportModal({
     lectureTitle,
     attendanceStatus: attendanceMap?.[selectedRow.enrollment_id] ?? null,
     tenantName,
+    tenantCode,
+    tenantLogoUrl,
+    primaryColor,
     mode,
   }) : null, [
     selectedRow,
@@ -103,6 +130,9 @@ export default function StudentScoreReportModal({
     lectureTitle,
     attendanceMap,
     tenantName,
+    tenantCode,
+    tenantLogoUrl,
+    primaryColor,
     mode,
   ]);
   const reportHtml = useMemo(
@@ -114,6 +144,26 @@ export default function StudentScoreReportModal({
     if (selectedIndex < 0) return;
     const next = reportRows[selectedIndex + direction];
     if (next) setSelectedEnrollmentId(next.enrollment_id);
+  };
+
+  const handlePreviewLoad = (iframe: HTMLIFrameElement) => {
+    previewResizeObserverRef.current?.disconnect();
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    const updateHeight = () => {
+      const pages = Array.from(doc.querySelectorAll<HTMLElement>(".student-report-page"));
+      const height = pages.reduce((total, page) => {
+        const marginBottom = Number.parseFloat(iframe.contentWindow?.getComputedStyle(page).marginBottom || "0");
+        return total + page.getBoundingClientRect().height + marginBottom;
+      }, 0);
+      if (height > 0) setMobilePreviewHeight(Math.ceil(height));
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(doc.body);
+    previewResizeObserverRef.current = observer;
   };
 
   const handleDownload = async () => {
@@ -150,35 +200,55 @@ export default function StudentScoreReportModal({
         noIcon
       />
       <ModalBody>
-        <div className="student-score-report-workspace">
+        <div className="student-score-report-workspace" style={workspaceStyle}>
           <main className="student-score-report-preview">
             <div className="student-score-report-preview__toolbar">
-              <div className="student-score-report-mode" aria-label="성적표 분량">
-                <button
-                  type="button"
-                  className={mode === "summary" ? "is-active" : ""}
-                  aria-pressed={mode === "summary"}
-                  onClick={() => setMode("summary")}
-                >
-                  요약 1쪽
-                </button>
-                <button
-                  type="button"
-                  className={mode === "detailed" ? "is-active" : ""}
-                  aria-pressed={mode === "detailed"}
-                  onClick={() => setMode("detailed")}
-                >
-                  상세 2쪽
-                </button>
+              <div className="student-score-report-preview__controls">
+                <label className="student-score-report-mobile-student">
+                  <span>학생</span>
+                  <select
+                    value={selectedRow?.enrollment_id ?? ""}
+                    onChange={(event) => setSelectedEnrollmentId(Number(event.target.value))}
+                    aria-label="성적표 학생 선택"
+                  >
+                    {reportRows.map((row) => (
+                      <option key={row.enrollment_id} value={row.enrollment_id}>{row.student_name}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="student-score-report-mode" aria-label="성적표 분량">
+                  <button
+                    type="button"
+                    className={mode === "summary" ? "is-active" : ""}
+                    aria-pressed={mode === "summary"}
+                    onClick={() => setMode("summary")}
+                  >
+                    요약 1쪽
+                  </button>
+                  <button
+                    type="button"
+                    className={mode === "detailed" ? "is-active" : ""}
+                    aria-pressed={mode === "detailed"}
+                    onClick={() => setMode("detailed")}
+                  >
+                    상세 2쪽
+                  </button>
+                </div>
               </div>
-              <div className="student-score-report-data-state" role="status" aria-live="polite">
-                {gradesQuery.isFetching
-                  ? "누적 성적 불러오는 중…"
-                  : gradesQuery.isError
-                    ? "누적 성적을 불러오지 못해 현재 차시만 표시합니다."
-                    : !hasStudentId
-                      ? "누적 성적 연결 정보가 없어 현재 차시만 표시합니다."
-                      : "현재 저장된 성적 기준"}
+              <div className="student-score-report-preview__status">
+                <span className="student-score-report-brand-state">
+                  <i aria-hidden />
+                  {tenantName} 디자인
+                </span>
+                <div className="student-score-report-data-state" role="status" aria-live="polite">
+                  {gradesQuery.isFetching
+                    ? "누적 성적 불러오는 중…"
+                    : gradesQuery.isError
+                      ? "누적 성적을 불러오지 못해 현재 차시만 표시합니다."
+                      : !hasStudentId
+                        ? "누적 성적 연결 정보가 없어 현재 차시만 표시합니다."
+                        : "현재 저장된 성적 기준"}
+                </div>
               </div>
             </div>
 
@@ -191,6 +261,7 @@ export default function StudentScoreReportModal({
                     title={`${selectedRow.student_name} 개인 성적표 미리보기`}
                     srcDoc={reportHtml}
                     className={`student-score-report-preview__iframe student-score-report-preview__iframe--${mode}`}
+                    onLoad={(event) => handlePreviewLoad(event.currentTarget)}
                   />
                 </div>
               </div>

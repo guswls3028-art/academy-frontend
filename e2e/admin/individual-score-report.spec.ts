@@ -208,7 +208,10 @@ async function installApi(page: Page) {
         tenantCode: "hakwonplus",
         isPlatformAdmin: true,
         display_name: "학원플러스 테스트",
-        ui_config: {},
+        ui_config: {
+          logo_url: "/tenants/hakwonplus/icon.png",
+          primary_color: "#2563EB",
+        },
         feature_flags: {},
         is_active: true,
       });
@@ -307,6 +310,7 @@ async function installApi(page: Page) {
 test.describe("개인 성적표", () => {
   test("학생 전환, 1·2쪽 미리보기, 실제 PDF 다운로드", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
@@ -321,8 +325,16 @@ test.describe("개인 성적표", () => {
     await expect(firstFrame.locator(".student-report-page")).toHaveCount(2);
     await expect(firstFrame.locator("h1")).toHaveText("김서윤");
     await expect(firstFrame.locator("body")).toContainText("중등 수학 심화");
+    await expect(firstFrame.getByText("최근 4회 학습 흐름", { exact: true })).toBeVisible();
+    await expect(firstFrame.locator(".report-topline").first()).toHaveCSS("background-color", "rgb(37, 99, 235)");
+    await expect(firstFrame.locator(".report-brand-logo").first()).toHaveAttribute("src", "/tenants/hakwonplus/icon.png");
+    await expect(firstFrame.locator(".assessment-table-head")).toContainText("현재 평가");
+    await expect(firstFrame.locator(".assessment-table-head")).toHaveCSS("background-color", "rgb(234, 242, 255)");
+    await expect(firstFrame.locator(".assessment-title").first()).toContainText("객관 62점");
+    await expect(firstFrame.locator(".assessment-title strong").first()).toHaveCSS("white-space", "normal");
     await expect(firstFrame.locator("body")).not.toContainText("9101");
     await expect(firstFrame.locator(".report-footer")).toContainText(["1 / 2", "2 / 2"]);
+    await expect(dialog.getByText("학원플러스 테스트 디자인", { exact: true })).toBeVisible();
 
     const secondGradesResponse = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -341,6 +353,9 @@ test.describe("개인 성적표", () => {
     await expect(secondFrame.locator(".report-footer")).toContainText("1 / 1");
     await dialog.getByRole("button", { name: "상세 2쪽" }).click();
     await expect(secondFrame.locator(".student-report-page")).toHaveCount(2);
+    await secondFrame.locator('[data-page="1"]').screenshot({
+      path: testInfo.outputPath("individual-score-report-page-1.png"),
+    });
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-preview.png"),
       fullPage: false,
@@ -360,5 +375,63 @@ test.describe("개인 성적표", () => {
     expect(pdfBytes.subarray(0, 5).toString("utf8")).toBe("%PDF-");
     const pdf = await PDFDocument.load(pdfBytes);
     expect(pdf.getPageCount()).toBe(2);
+    expect(pdfBytes.byteLength).toBeLessThan(2_000_000);
+
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await expect(dialog.locator(".student-score-report-students")).toBeVisible();
+    expect(await dialog.locator(".student-score-report-preview__scroll").evaluate((element) =>
+      element.scrollWidth <= element.clientWidth + 1
+    )).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath("individual-score-report-preview-1100.png"),
+      fullPage: false,
+    });
+  });
+
+  test("390px 모바일에서 학생 전환과 읽기용 재배치", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+
+    await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "추가 기능" }).click();
+    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+
+    const dialog = page.getByRole("dialog");
+    const mobileStudentSelect = dialog.getByRole("combobox", { name: "성적표 학생 선택" });
+    await expect(mobileStudentSelect).toBeVisible();
+    await expect(dialog.locator(".student-score-report-students")).toBeHidden();
+
+    const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+    await expect(frame.locator(".student-report-page")).toHaveCount(2);
+    await expect(frame.locator(".current-grid")).toHaveCSS("grid-template-columns", /^\d+(?:\.\d+)?px$/);
+    await expect(frame.locator(".history-table thead")).toBeHidden();
+    expect(await frame.locator("html").evaluate((element) =>
+      element.scrollWidth <= element.clientWidth + 1
+    )).toBe(true);
+    expect(await frame.locator(".student-report-page").first().evaluate((element) =>
+      element.scrollWidth <= element.clientWidth + 1
+    )).toBe(true);
+
+    await mobileStudentSelect.selectOption("9102");
+    const secondFrame = page.frameLocator('iframe[title="박도윤 개인 성적표 미리보기"]');
+    await expect(secondFrame.locator("h1")).toHaveText("박도윤");
+    await expect(secondFrame.locator(".flow-metric").first()).toContainText("64%");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("individual-score-report-preview-390.png"),
+      fullPage: false,
+    });
+    await secondFrame.locator('[data-page="1"]').screenshot({
+      path: testInfo.outputPath("individual-score-report-mobile-page-1.png"),
+    });
+    await secondFrame.locator('[data-page="2"]').screenshot({
+      path: testInfo.outputPath("individual-score-report-mobile-page-2.png"),
+    });
+    await dialog.locator(".student-score-report-preview__scroll").evaluate((element) => {
+      element.scrollTo({ top: 0 });
+    });
   });
 });
