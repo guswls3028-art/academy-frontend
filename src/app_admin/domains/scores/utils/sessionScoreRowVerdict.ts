@@ -4,6 +4,7 @@
  *
  * 정책:
  * - 판정/미달은 "성취" 기준. 보강합격(remediated/final_pass=true)은 미달이 아니다.
+ * - 과제에 교사 검사 상태가 있으면 점수 합불보다 완료/미완료를 우선한다.
  * - `block.achievement`/`block.final_pass`가 내려오면 이를 우선 신뢰.
  * - 미응시/점수 null은 여전히 미달(= 성적 입력 미완료)으로 처리해 운영자가 놓치지 않도록.
  */
@@ -35,6 +36,16 @@ function blockIsFailed(block: ScoreBlock): boolean {
   return false;
 }
 
+function homeworkBlockIsFailed(block: ScoreBlock): boolean {
+  if (block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED") {
+    return false;
+  }
+  if (block.correction_status === "PENDING") {
+    return true;
+  }
+  return blockIsFailed(block);
+}
+
 /** 미달로 볼 항목 제목 (시험/과제). 드로어 failedItems와 동일 조건. */
 export function getSessionRowFailedItemTitles(row: SessionScoreRow): string[] {
   if (isSessionRowProgressCompleted(row)) return [];
@@ -46,7 +57,7 @@ export function getSessionRowFailedItemTitles(row: SessionScoreRow): string[] {
     }
   }
   for (const hw of row.homeworks ?? []) {
-    if (blockIsFailed(hw.block)) {
+    if (homeworkBlockIsFailed(hw.block)) {
       items.push(hw.title);
     }
   }

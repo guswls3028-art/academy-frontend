@@ -402,12 +402,15 @@
   gap: 10px;
   padding: 11px 12px;
   border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 78%, transparent);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-warning, #f59e0b) 7%, var(--color-bg-surface)),
-      var(--color-bg-surface) 58%
-    );
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
+}
+
+.ssd-correction-control[data-status="pending"] {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 7%, var(--color-bg-surface));
+}
+
+.ssd-correction-control[data-status="completed"] {
+  background: color-mix(in srgb, var(--color-success) 5%, var(--color-bg-surface));
 }
 
 .ssd-correction-control__copy {
@@ -456,6 +459,70 @@
   border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-border-divider));
   color: var(--color-success);
   background: color-mix(in srgb, var(--color-success) 11%, var(--color-bg-surface));
+}
+
+.ssd-correction-control__note {
+  display: grid;
+  gap: 6px;
+}
+
+.ssd-correction-control__note label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.ssd-correction-control__note label span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.ssd-correction-control__note textarea {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+  padding: 8px 9px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ssd-correction-control__note textarea:focus-visible {
+  outline: none;
+  border: 1px solid var(--color-brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+}
+
+.ssd-correction-control__note textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.ssd-correction-control__note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ssd-correction-control__note-footer > span,
+.ssd-correction-control__note-hint {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ssd-correction-control__note-footer .ds-button {
+  min-width: 74px;
 }
 
 .student-scores-drawer__exam-score-row {

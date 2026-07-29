@@ -8,7 +8,7 @@
  * - 성적 발송 (메시지 모달 연계)
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 
@@ -137,7 +137,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         totalMax += hw.block.max_score ?? 0;
         count++;
       }
-      if (hw.block.passed === true) hwPassed++;
+      const homeworkComplete = hw.block.correction_status === "COMPLETED"
+        || hw.block.correction_status === "NOT_REQUIRED"
+        || (hw.block.correction_status == null && hw.block.passed === true);
+      if (homeworkComplete) hwPassed++;
     }
     const examPassRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
     const hwPassRate = hwTotal > 0 ? Math.round((hwPassed / hwTotal) * 100) : null;
@@ -313,10 +316,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                 )}
                 {stats.hwPassRate != null && (
                   <div className="student-scores-drawer__summary-row">
-                    <span className="student-scores-drawer__summary-label">과제</span>
+                    <span className="student-scores-drawer__summary-label">과제 확인</span>
                     <span className="student-scores-drawer__summary-value">
                       <span style={{ color: stats.hwPassRate === 100 ? "var(--color-success)" : stats.hwPassRate < 50 ? "var(--color-error)" : "var(--color-text-primary)" }}>
-                        {stats.hwPassed}/{stats.hwTotal} 이수
+                        {stats.hwPassed}/{stats.hwTotal} 완료
                       </span>
                       <span className="student-scores-drawer__max-score"> ({stats.hwPassRate}%)</span>
                     </span>
@@ -448,7 +451,7 @@ function ExamResultCard({
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
           <span className="student-scores-drawer__status-badges">
-            <CorrectionStatusBadge block={exam.block} />
+            <CorrectionStatusBadge block={exam.block} sourceType="exam" />
             <PassBadge block={exam.block} />
           </span>
         </div>
@@ -669,8 +672,8 @@ function HomeworkResultCard({
         <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
           <span className="student-scores-drawer__status-badges">
-            <CorrectionStatusBadge block={hw.block} />
-            <PassBadge block={hw.block} />
+            <CorrectionStatusBadge block={hw.block} sourceType="homework" />
+            {hw.block.score != null && <PassBadge block={hw.block} />}
           </span>
         </div>
         <div className="student-scores-drawer__hw-score-row">
@@ -681,7 +684,9 @@ function HomeworkResultCard({
               {percent != null && <PercentBadge value={percent} passed={hw.block.passed} />}
             </span>
           ) : (
-            <span className="student-scores-drawer__no-score">미제출</span>
+            <span className="student-scores-drawer__no-score">
+              {hw.block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "점수 미입력"}
+            </span>
           )}
           <span className={`student-scores-drawer__expand-icon ${expanded ? "is-expanded" : ""}`} aria-hidden>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1163,15 +1168,33 @@ function AttemptTimeline({
 
 /* ── Shared sub-components ── */
 
-function CorrectionStatusBadge({ block }: { block: ScoreBlock }) {
+function CorrectionStatusBadge({
+  block,
+  sourceType,
+}: {
+  block: ScoreBlock;
+  sourceType: "exam" | "homework";
+}) {
   if (block.correction_status === "PENDING") {
-    return <Badge tone="warning" size="xs">오답 확인 필요</Badge>;
+    return (
+      <Badge tone="warning" size="xs">
+        {sourceType === "homework" ? "검사 미완료" : "오답 확인 필요"}
+      </Badge>
+    );
   }
   if (block.correction_status === "COMPLETED") {
-    return <Badge tone="success" size="xs">오답 완료</Badge>;
+    return (
+      <Badge tone="success" size="xs">
+        {sourceType === "homework" ? "검사 완료" : "오답 완료"}
+      </Badge>
+    );
   }
   if (block.correction_status === "NOT_REQUIRED") {
-    return <Badge tone="muted" size="xs">오답 없음</Badge>;
+    return (
+      <Badge tone="muted" size="xs">
+        {sourceType === "homework" ? "자동 완료" : "오답 없음"}
+      </Badge>
+    );
   }
   return null;
 }
@@ -1192,8 +1215,26 @@ function CorrectionStatusControl({
   disabled: boolean;
 }) {
   const qc = useQueryClient();
+  const [note, setNote] = useState(block.correction_note ?? "");
+  const persistedNote = block.correction_note ?? "";
+  const status = block.correction_status ?? null;
+  const isHomework = sourceType === "homework";
+  const title = isHomework ? "과제 검사" : "오답 확인";
+  const noteId = `assessment-note-${sourceType}-${sourceId}`;
+
+  useEffect(() => {
+    setNote(persistedNote);
+  }, [persistedNote, sourceId, sourceType]);
+
   const mutation = useMutation({
-    mutationFn: (completed: boolean) => {
+    mutationFn: ({
+      completed,
+      nextNote,
+    }: {
+      completed: boolean;
+      nextNote: string;
+      action: "status" | "note";
+    }) => {
       if (sessionId == null) {
         throw new Error("session_id_required");
       }
@@ -1202,58 +1243,73 @@ function CorrectionStatusControl({
         source_type: sourceType,
         source_id: sourceId,
         completed,
+        note: nextNote,
       });
     },
-    onSuccess: (_data, completed) => {
+    onSuccess: (data, variables) => {
+      setNote(data.correction_note ?? variables.nextNote);
       if (sessionId != null) {
         void qc.invalidateQueries({
           queryKey: scoresQueryKeys.sessionScores(sessionId),
         });
       }
-      feedback.success(
-        completed
-          ? "오답 확인을 완료했습니다."
-          : "오답 확인이 필요한 상태로 되돌렸습니다.",
-      );
+      feedback.success(variables.action === "note"
+        ? "비고를 저장했습니다."
+        : variables.completed
+          ? `${title}를 완료했습니다.`
+          : `${title}를 미완료로 표시했습니다.`);
     },
     onError: () => {
-      feedback.error("오답 확인 상태를 저장하지 못했습니다. 다시 시도해 주세요.");
+      feedback.error(`${title} 상태를 저장하지 못했습니다. 다시 시도해 주세요.`);
     },
   });
 
-  const status = block.correction_status ?? null;
-  const unavailable = status == null || status === "NOT_REQUIRED";
+  const unavailable = !isHomework && (status == null || status === "NOT_REQUIRED");
+  const hasManualStatus = status === "PENDING" || status === "COMPLETED";
+  const noteDirty = note !== persistedNote;
+  const commonDisabled = disabled || sessionId == null || mutation.isPending;
   const disabledReason = disabled
     ? "저장하지 않은 점수가 있습니다. 점수를 먼저 저장해 주세요."
     : sessionId == null
       ? "차시 정보를 확인할 수 없습니다."
-      : status == null
+      : !isHomework && status == null
         ? "점수가 입력된 뒤 오답 확인 상태를 설정할 수 있습니다."
-        : status === "NOT_REQUIRED"
+        : !isHomework && status === "NOT_REQUIRED"
           ? "만점 결과는 오답 확인이 필요하지 않습니다."
           : undefined;
+  const description = isHomework
+    ? status === "COMPLETED"
+      ? "현장 검사를 마친 상태입니다. 점수·제출 여부와 별도로 유지됩니다."
+      : status === "PENDING"
+        ? "남은 범위를 비고에 적어 두면 다음 검사 때 바로 이어볼 수 있습니다."
+        : status === "NOT_REQUIRED"
+          ? "점수상 완료된 과제도 현장 검사 결과를 직접 바꿀 수 있습니다."
+          : "사이트 제출 여부와 무관하게 현장 검사 결과를 직접 기록할 수 있습니다."
+    : status === "COMPLETED"
+      ? "해설지 배부 전 오답 확인을 마친 상태입니다."
+      : status === "PENDING"
+        ? "확인이 끝날 때까지 학생 이름에 음영으로 표시됩니다."
+        : status === "NOT_REQUIRED"
+          ? "만점이라 확인할 오답이 없습니다."
+          : "점수를 입력하면 완료 여부를 기록할 수 있습니다.";
 
   return (
-    <div className="ssd-correction-control">
+    <div
+      className="ssd-correction-control"
+      data-source-type={sourceType}
+      data-status={status?.toLowerCase() ?? "unset"}
+    >
       <div className="ssd-correction-control__copy">
         <div className="ssd-correction-control__title-row">
-          <strong>오답 확인</strong>
-          <CorrectionStatusBadge block={block} />
+          <strong>{title}</strong>
+          <CorrectionStatusBadge block={block} sourceType={sourceType} />
         </div>
-        <span>
-          {status === "COMPLETED"
-            ? "해설지 배부 전 오답 확인을 마친 상태입니다."
-            : status === "PENDING"
-              ? "확인이 끝날 때까지 학생 이름에 음영으로 표시됩니다."
-              : status === "NOT_REQUIRED"
-                ? "만점이라 확인할 오답이 없습니다."
-                : "점수를 입력하면 완료 여부를 기록할 수 있습니다."}
-        </span>
+        <span>{description}</span>
       </div>
       <div
         className="ssd-correction-control__actions"
         role="group"
-        aria-label="오답 확인 상태"
+        aria-label={`${title} 상태`}
         title={disabledReason}
       >
         <Button
@@ -1261,9 +1317,17 @@ function CorrectionStatusControl({
           intent="secondary"
           aria-pressed={status === "PENDING"}
           data-correction-state="pending"
-          onClick={() => mutation.mutate(false)}
-          disabled={disabled || unavailable || sessionId == null || mutation.isPending}
-          loading={mutation.isPending && mutation.variables === false}
+          onClick={() => mutation.mutate({
+            completed: false,
+            nextNote: note,
+            action: "status",
+          })}
+          disabled={commonDisabled || unavailable}
+          loading={
+            mutation.isPending
+            && mutation.variables?.action === "status"
+            && mutation.variables.completed === false
+          }
         >
           미완료
         </Button>
@@ -1272,12 +1336,62 @@ function CorrectionStatusControl({
           intent="secondary"
           aria-pressed={status === "COMPLETED"}
           data-correction-state="completed"
-          onClick={() => mutation.mutate(true)}
-          disabled={disabled || unavailable || sessionId == null || mutation.isPending}
-          loading={mutation.isPending && mutation.variables === true}
+          onClick={() => mutation.mutate({
+            completed: true,
+            nextNote: note,
+            action: "status",
+          })}
+          disabled={commonDisabled || unavailable}
+          loading={
+            mutation.isPending
+            && mutation.variables?.action === "status"
+            && mutation.variables.completed === true
+          }
         >
           완료
         </Button>
+      </div>
+      <div className="ssd-correction-control__note">
+        <label htmlFor={noteId}>
+          비고 <span>선택 · 500자 이내</span>
+        </label>
+        <textarea
+          id={noteId}
+          aria-label={`${title} 비고`}
+          value={note}
+          rows={2}
+          maxLength={500}
+          placeholder="미완료 범위나 확인 내용을 간단히 적어주세요."
+          onChange={(event) => setNote(event.target.value)}
+          disabled={commonDisabled || unavailable}
+        />
+        <div className="ssd-correction-control__note-footer">
+          <span aria-live="polite">
+            {note.length}/500
+          </span>
+          <Button
+            size="sm"
+            intent="secondary"
+            onClick={() => {
+              if (status === "PENDING" || status === "COMPLETED") {
+                mutation.mutate({
+                  completed: status === "COMPLETED",
+                  nextNote: note,
+                  action: "note",
+                });
+              }
+            }}
+            disabled={commonDisabled || unavailable || !hasManualStatus || !noteDirty}
+            loading={mutation.isPending && mutation.variables?.action === "note"}
+          >
+            비고 저장
+          </Button>
+        </div>
+        {isHomework && !hasManualStatus && (
+          <span className="ssd-correction-control__note-hint">
+            완료 또는 미완료를 선택하면 비고도 함께 저장됩니다.
+          </span>
+        )}
       </div>
     </div>
   );
