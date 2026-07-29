@@ -30,6 +30,12 @@
 인증 초기화 시 메모리 queue와 sessionStorage의 익명 session ID를
 폐기한다.
 
+테넌트별 운영 전환은 플랫폼 테넌트 상세 화면 또는
+`.github/workflows/product-analytics-rollout.yml`만 사용한다. 수동
+workflow는 exact tenant code와 `ENABLE <code>`/`DISABLE <code>` 확인
+문구를 요구하고, GitHub secret의 플랫폼 계정으로 정식 tenant API를
+호출한 뒤 응답 flag를 readback한다. 토큰과 비밀번호는 출력하지 않는다.
+
 현재 registry는 22개 안정 feature ID와 69개 인증 route template을
 검증한다. 실행 SSOT는 다음 두 파일이다.
 
