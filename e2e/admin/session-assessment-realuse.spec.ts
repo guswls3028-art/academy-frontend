@@ -162,7 +162,8 @@ async function openCreateAssessmentModal(page: Page, trigger: Locator, kind: "�
   await expect(dialog).toContainText(kind);
   await expect(dialog).toContainText("어떻게 만들까요?");
 
-  const fromScratch = dialog.locator("button.session-block").filter({ hasText: "처음부터 만들기" }).first();
+  const directCreateLabel = kind === "시험" ? "빠르게 여러 개 만들기" : "처음부터 만들기";
+  const fromScratch = dialog.getByRole("button", { name: new RegExp(directCreateLabel) }).first();
   await expect(fromScratch, `${kind} from-scratch option`).toBeVisible({ timeout: 5_000 });
   await fromScratch.click();
 
