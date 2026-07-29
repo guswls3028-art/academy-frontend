@@ -5,6 +5,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
+import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 
 export type Role =
@@ -19,7 +20,13 @@ const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
-  const { user, isLoading, authUnavailable, refreshMe } = useAuth();
+  const {
+    user,
+    isLoading,
+    authUnavailable,
+    refreshMe,
+    markFirstLoginGuideCompleted,
+  } = useAuth();
   const { program, isLoading: programLoading, error: programError, refetch: refetchProgram } = useProgram();
   const [retrying, setRetrying] = useState(false);
 
@@ -108,6 +115,21 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
 
   if (user.must_change_password) {
     return <ForcePasswordChangeModal onSuccess={() => refreshMe()} />;
+  }
+
+  if (user.first_login_guide_required) {
+    return (
+      <>
+        <Outlet />
+        <FirstLoginGuideModal
+          username={user.username}
+          role={role}
+          tenantCode={program.tenantCode}
+          primaryColor={program.ui_config.primary_color}
+          onCompleted={markFirstLoginGuideCompleted}
+        />
+      </>
+    );
   }
 
   return <Outlet />;
