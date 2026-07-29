@@ -13,6 +13,8 @@ export const adminResultsQueryKeys = {
   adminExamSummary: (examId: number | null | undefined) => ["admin-exam-summary", examId] as const,
   examQuestionStats: (examId: number | null | undefined) => ["exam-question-stats", examId] as const,
   examQuestions: (examId: number | null | undefined) => ["exam-questions", examId] as const,
+  manualGradeSheet: (examId: number) =>
+    ["manual-grade-sheet", examId] as const,
   myExamResult: (examId: number) => ["my-exam-result", examId] as const,
 
   examAttempts: (examId: number, enrollmentId: number) => ["exam-attempts", examId, enrollmentId] as const,

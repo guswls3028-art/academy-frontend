@@ -94,7 +94,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           <div>
             <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
             <p className={styles.description}>
-              틀린 문항은 X로 표시하고, 전 문항이 비면 응시 여부를 확인합니다.
+              정답 O, 오답 X, 맞았지만 다시 볼 문항은 숫자 0으로 표시합니다.
             </p>
           </div>
         </div>
@@ -114,6 +114,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       <div className={styles.guide}>
         <span><strong>정답</strong> 빈칸 또는 O</span>
         <span><strong>오답</strong> X</span>
+        <span><strong>정답 · 복습</strong> 숫자 0</span>
         <span><strong>전 문항 공란</strong> 응시 여부에서 응시 또는 결시 선택</span>
         <span>기존 엑셀도 이름·연락처·문항 번호 열이 있으면 확인할 수 있어요.</span>
       </div>
@@ -153,6 +154,9 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                 {!hasErrors && preview.overwrite_count > 0 && !isApplied && (
                   <span>기존 결과가 있는 {preview.overwrite_count}명은 새 내용으로 갱신됩니다.</span>
                 )}
+                {preview.worksheet_names.length > 0 && (
+                  <span>읽은 시트: {preview.worksheet_names.join(", ")}</span>
+                )}
               </div>
             </div>
             {!hasErrors && !isApplied && (
@@ -183,7 +187,8 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           {preview.errors.length > 0 && (
             <ul className={styles.errorList}>
               {preview.errors.slice(0, 8).map((issue, index) => (
-                <li key={`${issue.row ?? "file"}-${issue.field}-${index}`}>
+                <li key={`${issue.sheet ?? "file"}-${issue.row ?? "file"}-${issue.field}-${index}`}>
+                  {issue.sheet ? `${issue.sheet} · ` : ""}
                   {issue.row ? `${issue.row}행 · ` : ""}{issue.message}
                 </li>
               ))}
@@ -201,6 +206,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                     <th>학생</th>
                     <th>정답</th>
                     <th>오답 문항</th>
+                    <th>복습 지정</th>
                     <th>점수</th>
                     <th>반영 방식</th>
                   </tr>
@@ -224,6 +230,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                       </td>
                       <td>{row.is_not_submitted ? "—" : `${row.correct_count}개`}</td>
                       <td>{row.is_not_submitted ? "미응시" : formatWrongQuestions(row.wrong_questions)}</td>
+                      <td>{row.is_not_submitted ? "—" : formatWrongQuestions(row.review_questions)}</td>
                       <td>
                         <strong>
                           {row.is_not_submitted

@@ -15,5 +15,7 @@ export function useAdminExam(examId?: number) {
     queryKey: adminExamsQueryKeys.adminExam(safeId),
     queryFn: () => fetchAdminExam(safeId),
     enabled: Number.isFinite(safeId) && safeId > 0,
+    refetchInterval: (query) =>
+      query.state.data?.segmentation_status === "processing" ? 3_000 : false,
   });
 }

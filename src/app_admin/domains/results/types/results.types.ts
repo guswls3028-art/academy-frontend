@@ -227,6 +227,7 @@ export type WrongNoteItem = {
   correct_answer: string;
 
   is_correct: boolean;
+  include_in_wrong_note: boolean;
   score: number;
   max_score: number;
 

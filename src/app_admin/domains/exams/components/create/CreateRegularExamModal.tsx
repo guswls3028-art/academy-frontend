@@ -28,7 +28,9 @@ type Props = {
   onCreated: (examId: number) => void;
 };
 
-type Stage = "choose" | "new" | "import" | "copy";
+type Stage = "choose" | "guided" | "new" | "import" | "copy";
+type GradingMode = "choice" | "written" | "mixed";
+type ManualGradingMethod = "correctness" | "score";
 
 type BulkRow = {
   id: number;
@@ -54,6 +56,14 @@ export default function CreateRegularExamModal({
 
   // bulk rows (new stage)
   const [rows, setRows] = useState<BulkRow[]>(() => [makeRow()]);
+  const [guidedTitle, setGuidedTitle] = useState("");
+  const [guidedMaxScore, setGuidedMaxScore] = useState("100");
+  const [guidedPassScore, setGuidedPassScore] = useState("0");
+  const [gradingMode, setGradingMode] = useState<GradingMode>("written");
+  const [manualGradingMethod, setManualGradingMethod] =
+    useState<ManualGradingMethod>("correctness");
+  const [choiceQuestionCount, setChoiceQuestionCount] = useState("");
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
 
   // import stage — multi-select
   const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
@@ -70,6 +80,13 @@ export default function CreateRegularExamModal({
     setError(null);
     setSubmitting(false);
     setRows([makeRow()]);
+    setGuidedTitle("");
+    setGuidedMaxScore("100");
+    setGuidedPassScore("0");
+    setGradingMode("written");
+    setManualGradingMethod("correctness");
+    setChoiceQuestionCount("");
+    setSourceFile(null);
     setTemplates([]);
     setTemplatesLoading(false);
     setSelectedTemplateIds(new Set());
@@ -144,6 +161,103 @@ export default function CreateRegularExamModal({
       [next[idx], next[swap]] = [next[swap], next[idx]];
       return next;
     });
+
+  const handleGuidedSubmit = async () => {
+    if (!sessionId) {
+      setError("세션 정보가 없습니다.");
+      return;
+    }
+    const title = guidedTitle.trim();
+    const maxScore = Number(guidedMaxScore);
+    const passScore = Number(guidedPassScore);
+    const mixedChoiceCount = Number(choiceQuestionCount);
+    if (!title) {
+      setError("시험명을 입력하세요.");
+      return;
+    }
+    if (!sourceFile) {
+      setError("학생에게 배부하는 시험지 원본 파일을 선택하세요.");
+      return;
+    }
+    if (!Number.isFinite(maxScore) || maxScore <= 0) {
+      setError("만점은 0보다 큰 숫자로 입력하세요.");
+      return;
+    }
+    if (!Number.isFinite(passScore) || passScore < 0 || passScore > maxScore) {
+      setError("커트라인은 0점 이상, 만점 이하로 입력하세요.");
+      return;
+    }
+    if (
+      gradingMode === "mixed" &&
+      (!Number.isInteger(mixedChoiceCount) || mixedChoiceCount < 1)
+    ) {
+      setError("혼합형 시험의 앞쪽 선택형 문항 수를 입력하세요.");
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+    let createdExamId = 0;
+    try {
+      const response = await api.post("/exams/", {
+        title,
+        description: "",
+        exam_type: "regular",
+        session_id: sessionId,
+        max_score: maxScore,
+        pass_score: passScore,
+        answer_visibility: "hidden",
+        grading_mode: gradingMode,
+        manual_grading_method: manualGradingMethod,
+        choice_question_count:
+          gradingMode === "mixed" ? mixedChoiceCount : 0,
+      });
+      createdExamId = Number(response.data?.id);
+      if (!createdExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
+
+      const enrollResult = await autoEnroll(createdExamId);
+      const form = new FormData();
+      form.append("file", sourceFile);
+      form.append("exam_id", String(createdExamId));
+      const uploadResponse = await api.post("/exams/pdf-extract/", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120_000,
+      });
+
+      onCreated(createdExamId);
+      if (uploadResponse.data?.status === "conversion_required") {
+        feedback.warning(
+          "시험과 원본을 저장했습니다. 자동 문항 분리를 위해 한컴에서 PDF로 저장한 파일을 추가로 올려 주세요.",
+        );
+      } else {
+        const enrollmentMessage = enrollResult.error
+          ? " · 응시 대상은 시험 상세에서 확인해 주세요."
+          : ` · 수강생 ${enrollResult.enrolled}명 등록`;
+        feedback.success(
+          `시험을 만들고 문항 자동 분리를 시작했습니다${enrollmentMessage}`,
+        );
+      }
+      onClose();
+    } catch (caught: unknown) {
+      const detail = (
+        caught as {
+          response?: { data?: { detail?: string } };
+          message?: string;
+        }
+      )?.response?.data?.detail;
+      if (createdExamId) {
+        onCreated(createdExamId);
+        feedback.warning(
+          `시험은 만들었지만 원본 처리에 실패했습니다. 시험 설정에서 다시 올려 주세요.${detail ? ` (${detail})` : ""}`,
+        );
+        onClose();
+      } else {
+        setError(detail || "시험을 만들지 못했습니다.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // ── Bulk submit (new stage) ──
   const handleBulkSubmit = async () => {
@@ -385,6 +499,7 @@ export default function CreateRegularExamModal({
 
   const stageLabels: Record<Stage, string> = {
     choose: "시험 만들기",
+    guided: "시험지로 만들기",
     new: "처음부터 만들기",
     import: "이전 시험 가져오기",
     copy: "다른 차시에서 복사",
@@ -418,7 +533,9 @@ export default function CreateRegularExamModal({
       type="action"
       width={stage === "copy" ? MODAL_WIDTH.wide : stage === "choose" ? MODAL_WIDTH.form : MODAL_WIDTH.default}
       onEnterConfirm={
-        stage === "new" && bulkHasAnyTitle && !submitting
+        stage === "guided" && guidedTitle.trim() && sourceFile && !submitting
+          ? handleGuidedSubmit
+          : stage === "new" && bulkHasAnyTitle && !submitting
           ? handleBulkSubmit
           : stage === "import" && !importDisabled
           ? handleImportSubmit
@@ -431,6 +548,8 @@ export default function CreateRegularExamModal({
         description={
           stage === "choose"
             ? "이 차시에 시험을 추가합니다. 수강생은 자동으로 등록돼요."
+            : stage === "guided"
+            ? "원본 시험지와 채점 방식을 함께 등록합니다."
             : stage === "new"
             ? "한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
@@ -469,15 +588,28 @@ export default function CreateRegularExamModal({
           {stage === "choose" && (
             <div className="modal-form-group">
               <div className="modal-section-label mb-3">어떻게 만들까요?</div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <SessionBlockView
                   variant="n1"
                   compact={false}
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="처음부터 만들기"
-                  desc="제목, 만점, 커트라인"
+                  title="시험지로 만들기"
+                  desc="원본 자동 분리 · 채점 방식 설정"
+                  onClick={() => {
+                    setError(null);
+                    setStage("guided");
+                  }}
+                />
+                <SessionBlockView
+                  variant="n1"
+                  compact={false}
+                  selected={false}
+                  showCheck
+                  className="session-block--card-sm"
+                  title="빠르게 여러 개 만들기"
+                  desc="제목·만점·커트라인만 입력"
                   onClick={() => {
                     setError(null);
                     setRows([makeRow()]);
@@ -512,6 +644,140 @@ export default function CreateRegularExamModal({
                     setStage("copy");
                   }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* ── Stage: guided (source + grading workflow) ── */}
+          {stage === "guided" && (
+            <div className="modal-form-group space-y-4">
+              <label className="grid gap-1.5 text-sm font-semibold">
+                시험명
+                <input
+                  className="ds-input"
+                  value={guidedTitle}
+                  onChange={(event) => setGuidedTitle(event.target.value)}
+                  placeholder="예: 고1 Hyper 대수 Remake Test 4"
+                  autoFocus
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-1.5 text-sm font-semibold">
+                  만점
+                  <input
+                    type="number"
+                    min={1}
+                    className="ds-input"
+                    value={guidedMaxScore}
+                    onChange={(event) => setGuidedMaxScore(event.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-semibold">
+                  커트라인
+                  <input
+                    type="number"
+                    min={0}
+                    className="ds-input"
+                    value={guidedPassScore}
+                    onChange={(event) => setGuidedPassScore(event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <fieldset className="grid gap-2">
+                <legend className="text-sm font-semibold">시험 구성</legend>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ["choice", "선택형", "OMR 자동 채점"],
+                    ["written", "답변형", "조교 직접 입력"],
+                    ["mixed", "혼합형", "OMR + 직접 입력"],
+                  ] as const).map(([value, label, description]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={gradingMode === value}
+                      className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                        gradingMode === value
+                          ? "border-[var(--color-brand-primary)] bg-[var(--state-selected-bg)]"
+                          : "border-[var(--color-border-divider)] hover:bg-[var(--color-bg-surface-soft)]"
+                      }`}
+                      onClick={() => setGradingMode(value)}
+                    >
+                      <strong className="block text-sm">{label}</strong>
+                      <span className="mt-1 block text-xs text-[var(--color-text-muted)]">
+                        {description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              {gradingMode !== "choice" && (
+                <fieldset className="grid gap-2">
+                  <legend className="text-sm font-semibold">답변형 채점 방식</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ["correctness", "정오 입력", "O / X / 0으로 빠르게 입력"],
+                      ["score", "점수 입력", "문항별 부분점수 입력"],
+                    ] as const).map(([value, label, description]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={manualGradingMethod === value}
+                        className={`rounded-lg border px-3 py-2.5 text-left ${
+                          manualGradingMethod === value
+                            ? "border-[var(--color-brand-primary)] bg-[var(--state-selected-bg)]"
+                            : "border-[var(--color-border-divider)]"
+                        }`}
+                        onClick={() => setManualGradingMethod(value)}
+                      >
+                        <strong className="block text-sm">{label}</strong>
+                        <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                          {description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              {gradingMode === "mixed" && (
+                <label className="grid gap-1.5 text-sm font-semibold">
+                  앞쪽 선택형 문항 수
+                  <input
+                    type="number"
+                    min={1}
+                    className="ds-input"
+                    value={choiceQuestionCount}
+                    onChange={(event) => setChoiceQuestionCount(event.target.value)}
+                    placeholder="예: 15"
+                  />
+                  <span className="text-xs font-normal text-[var(--color-text-muted)]">
+                    이 번호까지 OMR로 채점하고, 다음 문항부터 직접 입력합니다.
+                  </span>
+                </label>
+              )}
+
+              <label className="grid gap-1.5 text-sm font-semibold">
+                시험지 원본
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.hwp,.hwpx"
+                  className="ds-input"
+                  onChange={(event) => setSourceFile(event.target.files?.[0] ?? null)}
+                />
+                <span className="text-xs font-normal text-[var(--color-text-muted)]">
+                  PDF 권장 · 문항 번호가 보이는 원본 · 50MB 이하
+                </span>
+              </label>
+
+              <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                <strong className="text-[var(--color-text-primary)]">자동 분리 안내</strong>
+                <br />
+                표지·일정표는 제외하고 문항 번호 순서대로 이미지를 자릅니다. HWP/HWPX는
+                원본을 보관하지만 수식과 쪽 배치를 보존하려면 한컴에서 PDF로 저장한 파일을
+                추가로 올려야 합니다.
               </div>
             </div>
           )}
@@ -741,6 +1007,16 @@ export default function CreateRegularExamModal({
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
               취소
             </Button>
+            {stage === "guided" && (
+              <Button
+                intent="primary"
+                size="xl"
+                onClick={handleGuidedSubmit}
+                disabled={submitting || !guidedTitle.trim() || !sourceFile}
+              >
+                {submitting ? "시험지 처리 중…" : "시험 만들고 문항 분리"}
+              </Button>
+            )}
             {stage === "new" && (() => {
               const n = rows.filter((r) => r.title.trim()).length;
               return (
