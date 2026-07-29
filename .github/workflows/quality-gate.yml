@@ -155,6 +155,11 @@ jobs:
             echo "::error::workspaceRoutes.ts missing — Functions import cannot be bundled"
             exit 1
           fi
+          if ! grep -q 'data-omr-canonical-route="/workspace/tools/omr"' \
+            dist/omr-sheet.html; then
+            echo "::error::Built OMR compatibility page has the wrong canonical target"
+            exit 1
+          fi
 
       - name: Deploy and verify isolated preview
         env:
@@ -246,6 +251,7 @@ jobs:
             "/workspace/mobile" \
             "/admin?candidate=legacy-full-root" \
             "/admin/dashboard?candidate=legacy-full" \
+            "/admin/tools/omr?candidate=legacy-omr" \
             "/teacher?candidate=legacy-mobile-root" \
             "/teacher/classes?candidate=legacy-mobile"; do
             fetch_body_matching "${PREVIEW_URL}${PATHNAME}" 'id="root"' > /dev/null
@@ -275,9 +281,19 @@ jobs:
             exit 1
           fi
 
-          fetch_body_matching \
+          OMR=$(fetch_body_matching \
             "${PREVIEW_URL}/omr-sheet.html" \
-            'data-omr-canonical-route="/workspace/tools/omr"' > /dev/null
+            'OMR 답안지 생성기로 이동')
+          if ! grep -Eq 'data-omr-canonical-route="/(workspace|admin)/tools/omr"' <<<"${OMR}"; then
+            echo "::error::Preview OMR page has no safe builder target"
+            exit 1
+          fi
+          if grep -q 'onerror="alert(1)' <<<"${OMR}" \
+            || grep -q 'cdnjs.cloudflare.com' <<<"${OMR}" \
+            || grep -q 'id="root"' <<<"${OMR}"; then
+            echo "::error::Preview OMR compatibility page safety contract failed"
+            exit 1
+          fi
 
   # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
   deploy:
@@ -551,20 +567,28 @@ jobs:
       - name: Verify OMR static sheet (post-deploy)
         run: |
           set -euo pipefail
+          if ! grep -q 'data-omr-canonical-route="/workspace/tools/omr"' \
+            dist/omr-sheet.html; then
+            echo "::error::Built OMR compatibility page has the wrong canonical target"
+            exit 1
+          fi
           for PATHNAME in "/omr-sheet.html" "/omr-sheet"; do
             OMR=""
             for ATTEMPT in $(seq 1 100); do
               OMR=$(curl --silent --show-error --fail-with-body \
                 "https://hakwonplus.com${PATHNAME}?logo=x%22%20onerror%3D%22alert(1)&promotion=${GITHUB_RUN_ID}-${ATTEMPT}" \
                 || true)
-              if grep -q 'data-omr-canonical-route="/workspace/tools/omr"' <<<"${OMR}"; then
+              if grep -q 'OMR 답안지 생성기로 이동' <<<"${OMR}"; then
                 break
               fi
               sleep 3
             done
-            if ! echo "$OMR" | grep -q 'data-omr-canonical-route="/workspace/tools/omr"'; then
-              echo "::error::OMR compatibility route missing canonical builder target at ${PATHNAME}"
+            if ! grep -Eq 'data-omr-canonical-route="/(workspace|admin)/tools/omr"' <<<"${OMR}"; then
+              echo "::error::OMR compatibility route missing a safe builder target at ${PATHNAME}"
               exit 1
+            fi
+            if grep -q 'data-omr-canonical-route="/admin/tools/omr"' <<<"${OMR}"; then
+              echo "::warning::${PATHNAME} is still serving the safe legacy OMR target during edge propagation"
             fi
             if echo "$OMR" | grep -q 'onerror="alert(1)'; then
               echo "::error::OMR compatibility route reflected query input at ${PATHNAME}"

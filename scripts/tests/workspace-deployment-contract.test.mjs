@@ -40,6 +40,8 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /grep -qF "\$\{EXPECTED_TEXT\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 100\)/);
   assert.match(workflow, /"\/teacher\?candidate=legacy-mobile-root"/);
+  assert.match(workflow, /"\/admin\/tools\/omr\?candidate=legacy-omr"/);
+  assert.match(workflow, /Built OMR compatibility page has the wrong canonical target/);
   assert.match(workflow, /data-omr-canonical-route="\/workspace\/tools\/omr"/);
 });
 
