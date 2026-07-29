@@ -14,7 +14,7 @@
 
 현재 AI 풀이·해설은 강사 앱 전용 Beta다. 학생 앱에는 노출하지 않는다.
 백엔드 권한·API·작업자·데이터 보존 계약은
-[강사 AI 문제 풀이 백엔드 문서](../../backend/docs/domain/teacher-problem-solver.md)가
+[강사 AI 문제 풀이 백엔드 문서](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/teacher-problem-solver.md)가
 소유한다.
 
 ### 배포 호환 경계
