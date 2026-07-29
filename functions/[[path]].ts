@@ -219,6 +219,8 @@ const TENANT_SEO: Record<string, TenantSeo> = {
   "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
   "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
   "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "movementhui.com":    { domain: "movementhui.com",    loginPath: "/login/movementhui" },
+  "www.movementhui.com": { domain: "movementhui.com",   loginPath: "/login/movementhui" },
 };
 
 /** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
@@ -311,6 +313,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
+  "movementhui.com":    { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
+  "www.movementhui.com": { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
@@ -326,6 +330,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
+  "movementhui.com":    { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
+  "www.movementhui.com": { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
 };
 
 function iconContentType(icon: string): string {

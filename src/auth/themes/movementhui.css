@@ -1,0 +1,125 @@
+/* 이동휘원소 과학연구소 — 로고 실측 딥 네이비 + 원자 궤도 옐로 */
+[data-app="auth"][data-tenant="movementhui"] {
+  --movement-orbit: #ffdb5a;
+  --movement-orbit-deep: #e7bd2f;
+  --movement-navy: #1a253b;
+  --movement-navy-deep: #111a2c;
+  --movement-navy-soft: #263653;
+  --movement-paper: #fffdf2;
+
+  --auth-accent: var(--movement-navy);
+  --auth-bg: #f4f6fa;
+  --auth-surface: #ffffff;
+  --auth-border: rgba(26, 37, 59, 0.16);
+  --auth-border-hover: rgba(26, 37, 59, 0.28);
+  --auth-text: #172033;
+  --auth-text-muted: #68738a;
+  --auth-focus: rgba(255, 219, 90, 0.32);
+  --auth-error: #c73737;
+  --auth-gradient: linear-gradient(135deg, #1a253b 0%, #263653 72%, #394868 100%);
+  --auth-gradient-hover: linear-gradient(135deg, #111a2c 0%, #1a253b 72%, #263653 100%);
+}
+
+/* 원자 궤도처럼 겹치는 타원형 광륜. 입력 영역은 차분하게 유지한다. */
+[data-app="auth"][data-tenant="movementhui"] div[class*="root"] {
+  background:
+    radial-gradient(ellipse 34% 62% at 50% 37%, transparent 67%, rgba(255, 219, 90, 0.14) 68%, transparent 70%),
+    radial-gradient(ellipse 62% 34% at 50% 37%, transparent 67%, rgba(26, 37, 59, 0.10) 68%, transparent 70%),
+    linear-gradient(155deg, #f8f9fc 0%, #eef2f8 55%, #fff9dc 150%);
+}
+
+[data-app="auth"][data-tenant="movementhui"] div[class*="center"] {
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(26, 37, 59, 0.10);
+  border-radius: 18px;
+  padding: 2.5rem 2rem;
+  box-shadow:
+    0 1px 2px rgba(17, 26, 44, 0.04),
+    0 18px 48px rgba(26, 37, 59, 0.11);
+  backdrop-filter: blur(14px);
+}
+
+[data-app="auth"][data-tenant="movementhui"] img[class*="logo"] {
+  width: 10rem;
+  max-width: 58%;
+  max-height: 10rem;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(26, 37, 59, 0.16);
+}
+
+[data-app="auth"][data-tenant="movementhui"] h1[class*="title"] {
+  color: var(--movement-navy);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+[data-app="auth"][data-tenant="movementhui"] input[class*="input"] {
+  box-sizing: border-box;
+  background: #f9fafc;
+  border: 1px solid rgba(26, 37, 59, 0.16);
+  color: var(--movement-navy-deep);
+  border-radius: 11px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+[data-app="auth"][data-tenant="movementhui"] input[class*="input"]:hover {
+  border-color: rgba(26, 37, 59, 0.32);
+}
+
+[data-app="auth"][data-tenant="movementhui"] input[class*="input"]:focus {
+  background: #fff;
+  border-color: var(--movement-orbit-deep);
+  box-shadow: 0 0 0 3px var(--auth-focus);
+}
+
+[data-app="auth"][data-tenant="movementhui"] button[class*="btnPrimary"] {
+  background: var(--auth-gradient);
+  color: var(--movement-paper);
+  border: 1px solid rgba(255, 219, 90, 0.38);
+  border-radius: 11px;
+  font-weight: 800;
+  box-shadow: 0 5px 18px rgba(26, 37, 59, 0.22);
+  transition: filter 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+[data-app="auth"][data-tenant="movementhui"] button[class*="btnPrimary"]:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow:
+    0 7px 22px rgba(26, 37, 59, 0.25),
+    0 0 0 2px rgba(255, 219, 90, 0.18);
+}
+
+[data-app="auth"][data-tenant="movementhui"] div[class*="form"] {
+  border-top-color: rgba(26, 37, 59, 0.12);
+}
+
+[data-app="auth"][data-tenant="movementhui"] button[class*="link"],
+[data-app="auth"][data-tenant="movementhui"] a[class*="link"] {
+  color: var(--movement-navy);
+}
+
+[data-app="auth"][data-tenant="movementhui"] button[class*="link"]:hover,
+[data-app="auth"][data-tenant="movementhui"] a[class*="link"]:hover {
+  color: #a27a00;
+}
+
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="movementhui"] div[class*="center"] {
+    padding: 2rem 1.25rem;
+    border-radius: 16px;
+  }
+
+  [data-app="auth"][data-tenant="movementhui"] img[class*="logo"] {
+    width: 8rem;
+    max-height: 8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-app="auth"][data-tenant="movementhui"] input[class*="input"],
+  [data-app="auth"][data-tenant="movementhui"] button[class*="btnPrimary"] {
+    transition: none;
+  }
+}

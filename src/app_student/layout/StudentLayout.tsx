@@ -38,6 +38,8 @@ const YMATH_THEME_TENANTS = ["ymath"];
 const SSWE_THEME_TENANTS = ["sswe"];
 /** 9번(DnB) 전용 테마 — 보라+노랑 */
 const DNB_THEME_TENANTS = ["dnb"];
+/** 10번(이동휘원소) 전용 테마 — 딥 네이비+오비트 옐로 */
+const MOVEMENTHUI_THEME_TENANTS = ["movementhui"];
 /** limglish 전용 테마 */
 const LIMGLISH_THEME_TENANTS = ["limglish"];
 /** 1번(hakwonplus) 전용 테마 */
@@ -69,6 +71,7 @@ function StudentLayoutInner() {
   const useYmathTheme = tenantCode != null && YMATH_THEME_TENANTS.includes(String(tenantCode));
   const useSsweTheme = tenantCode != null && SSWE_THEME_TENANTS.includes(String(tenantCode));
   const useDnbTheme = tenantCode != null && DNB_THEME_TENANTS.includes(String(tenantCode));
+  const useMovementhuiTheme = tenantCode != null && MOVEMENTHUI_THEME_TENANTS.includes(String(tenantCode));
   const useLimglishTheme = tenantCode != null && LIMGLISH_THEME_TENANTS.includes(String(tenantCode));
   const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
@@ -130,11 +133,11 @@ function StudentLayoutInner() {
       className="student-layout"
       data-app="student"
       data-student-tenant={tenantCode || undefined}
-      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useLimglishTheme ? "limglish" : useHakwonplusTheme ? "hakwonplus" : useCommonTheme ? "common" : undefined}
+      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useMovementhuiTheme ? "movementhui" : useLimglishTheme ? "limglish" : useHakwonplusTheme ? "hakwonplus" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
       data-student-dark={isDark ? "true" : undefined}
     >
-      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useLimglishTheme || useHakwonplusTheme || useCommonTheme) && (
+      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useMovementhuiTheme || useLimglishTheme || useHakwonplusTheme || useCommonTheme) && (
         <svg aria-hidden width={0} height={0} className="student-layout__defs">
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -161,6 +164,11 @@ function StudentLayoutInner() {
               <stop offset="0%" stopColor="#612e8d" />
               <stop offset="50%" stopColor="#7b3faa" />
               <stop offset="100%" stopColor="#c9a82e" />
+            </linearGradient>
+            <linearGradient id="stu-gradient-movementhui" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1a253b" />
+              <stop offset="68%" stopColor="#263653" />
+              <stop offset="100%" stopColor="#e7bd2f" />
             </linearGradient>
             <linearGradient id="stu-gradient-hakwonplus" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#1e3a8a" />

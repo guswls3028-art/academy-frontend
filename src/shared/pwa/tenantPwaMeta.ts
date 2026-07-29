@@ -18,6 +18,8 @@ const TENANT_APP_ICON_BY_HOST: Record<string, string> = {
   "www.sswe.co.kr": "/tenants/sswe/apple-touch-icon.png",
   "dnbacademy.co.kr": "/tenants/dnb/apple-touch-icon.png",
   "www.dnbacademy.co.kr": "/tenants/dnb/apple-touch-icon.png",
+  "movementhui.com": "/tenants/movementhui/apple-touch-icon.png",
+  "www.movementhui.com": "/tenants/movementhui/apple-touch-icon.png",
 };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();

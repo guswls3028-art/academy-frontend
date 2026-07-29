@@ -1,0 +1,151 @@
+/* 이동휘원소 학생앱 — 딥 네이비 #1A253B + 오비트 옐로 #FFDB5A */
+[data-student-theme="movementhui"] {
+  --stu-bg: #f4f6fa;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #edf1f7;
+  --stu-surface-0: #f4f6fa;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #edf1f7;
+  --stu-border: rgba(26, 37, 59, 0.10);
+  --stu-border-hover: rgba(26, 37, 59, 0.22);
+
+  --stu-bg-pattern:
+    radial-gradient(circle at 1px 1px, rgba(26, 37, 59, 0.022) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(255, 219, 90, 0.012));
+  --stu-bg-pattern-size: 24px 24px, 100% 100%;
+
+  --stu-text: #172033;
+  --stu-text-muted: #657086;
+  --stu-text-subtle: #929bad;
+
+  --stu-primary: #1a253b;
+  --stu-primary-hover: #111a2c;
+  --stu-primary-contrast: #fffdf2;
+  --stu-glow-primary: 0 0 20px rgba(26, 37, 59, 0.22);
+  --stu-gradient: linear-gradient(135deg, #1a253b 0%, #263653 68%, #e7bd2f 100%);
+  --stu-focus: rgba(255, 219, 90, 0.42);
+
+  --stu-success: #21845b;
+  --stu-success-bg: rgba(33, 132, 91, 0.10);
+  --stu-success-border: rgba(33, 132, 91, 0.28);
+  --stu-success-text: #176a48;
+  --stu-warn: #e7bd2f;
+  --stu-warn-bg: rgba(255, 219, 90, 0.16);
+  --stu-warn-border: rgba(231, 189, 47, 0.42);
+  --stu-warn-text: #7d5e00;
+  --stu-danger: #c73737;
+  --stu-danger-hover: #a92929;
+  --stu-danger-bg: rgba(199, 55, 55, 0.10);
+  --stu-danger-border: rgba(199, 55, 55, 0.28);
+  --stu-danger-text: #b12f2f;
+
+  --stu-header-bg: rgba(244, 246, 250, 0.94);
+  --stu-tabbar-bg: rgba(244, 246, 250, 0.96);
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+}
+
+[data-app="student"][data-student-dark="true"][data-student-theme="movementhui"] {
+  --stu-primary: #ffdb5a;
+  --stu-primary-hover: #f2cd43;
+  --stu-primary-contrast: #111a2c;
+  --stu-gradient: linear-gradient(135deg, #ffdb5a 0%, #e7bd2f 42%, #7585a4 100%);
+}
+
+[data-student-theme="movementhui"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+[data-student-theme="movementhui"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: #1a253b;
+  font-weight: 800;
+  position: relative;
+}
+
+[data-student-theme="movementhui"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 3px;
+  border-radius: 999px;
+  background: #ffdb5a;
+  box-shadow: 0 0 0 1px rgba(26, 37, 59, 0.22);
+}
+
+[data-student-theme="movementhui"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 3px 10px rgba(26, 37, 59, 0.20);
+}
+
+[data-student-theme="movementhui"] .stu-btn--primary:hover {
+  filter: brightness(1.07);
+  background: var(--stu-gradient);
+  box-shadow: 0 5px 18px rgba(26, 37, 59, 0.26);
+}
+
+[data-student-theme="movementhui"] .stu-icon,
+[data-student-theme="movementhui"] .stu-icon path,
+[data-student-theme="movementhui"] .stu-icon circle,
+[data-student-theme="movementhui"] .stu-icon polygon,
+[data-student-theme="movementhui"] .stu-icon rect {
+  stroke: url(#stu-gradient-movementhui);
+}
+
+[data-student-theme="movementhui"] .stu-icon path[fill="currentColor"],
+[data-student-theme="movementhui"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="movementhui"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-movementhui);
+}
+
+[data-app="student"][data-student-theme="movementhui"] {
+  background-image:
+    radial-gradient(ellipse 80% 42% at 50% -12%, rgba(255, 219, 90, 0.12) 0%, transparent 62%),
+    linear-gradient(145deg, rgba(26, 37, 59, 0.038) 0%, rgba(38, 54, 83, 0.018) 58%, rgba(255, 219, 90, 0.018) 100%),
+    var(--stu-bg-pattern) !important;
+  background-size: 100% 100%, 100% 100%, var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+[data-app="student"][data-student-theme="movementhui"] header,
+[data-app="student"][data-student-theme="movementhui"] .stu-tabbar {
+  background-image: linear-gradient(120deg, rgba(26, 37, 59, 0.055), rgba(255, 219, 90, 0.025)) !important;
+  background-size: 100% 100%;
+}
+
+[data-app="student"][data-student-theme="movementhui"] .stu-panel,
+[data-app="student"][data-student-theme="movementhui"] .stu-section,
+[data-app="student"][data-student-theme="movementhui"] .stu-card {
+  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.035), rgba(255, 219, 90, 0.012));
+  background-color: var(--stu-surface-1);
+}
+
+[data-app="student"][data-student-theme="movementhui"] .stu-action-tile {
+  background-color: var(--stu-surface-1) !important;
+  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.12), rgba(38, 54, 83, 0.07) 62%, rgba(255, 219, 90, 0.07)) !important;
+}
+
+[data-app="student"][data-student-theme="movementhui"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.14), rgba(255, 219, 90, 0.09)) !important;
+}
+
+[data-student-theme="movementhui"] [data-page="qna"] .stu-emptystate__icon {
+  background: linear-gradient(145deg, rgba(26, 37, 59, 0.10), rgba(255, 219, 90, 0.10)) !important;
+  border-color: rgba(26, 37, 59, 0.16) !important;
+}
+
+[data-student-theme="movementhui"] [data-page="qna"] .stu-emptystate__icon-svg {
+  stroke: #1a253b;
+}
+
+[data-student-theme="movementhui"] [data-page="qna"] .stu-section--nested > div:first-child {
+  color: #1a253b;
+  letter-spacing: -0.02em;
+}

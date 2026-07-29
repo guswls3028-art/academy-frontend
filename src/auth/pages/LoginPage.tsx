@@ -25,6 +25,7 @@ import "@/auth/themes/hakwonplus.css";
 import "@/auth/themes/ymath.css";
 import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
+import "@/auth/themes/movementhui.css";
 import styles from "./LoginPage.module.css";
 
 /**
