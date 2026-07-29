@@ -21,8 +21,8 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # 활성 spec은 계속 증가하므로 정적 개수 대신 Playwright discovery를 SSOT로 사용한다.
-    # workers:1, fullyParallel:false, retries:1 기준 최대 120분.
+    # PR은 빠른 안전 게이트만 실행한다. 운영 E2E tenant를 공유하는 전체 suite는
+    # 병렬화하지 않고 workflow_dispatch에서만 명시적으로 실행한다.
     timeout-minutes: 120
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
@@ -87,7 +87,12 @@ jobs:
           E2E_ALLOW_REAL_ALIMTALK=0
           EOF
 
-      - name: Run E2E tests
+      - name: Run PR E2E gate
+        if: github.event_name == 'pull_request'
+        run: pnpm test:e2e:gate -- --reporter=github,html
+
+      - name: Run full E2E suite
+        if: github.event_name == 'workflow_dispatch'
         run: npx playwright test --reporter=github,html
 
       - name: Upload report
