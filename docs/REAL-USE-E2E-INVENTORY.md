@@ -46,7 +46,7 @@
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts` | 빈 성적표 자동 입력, 기존 점수 안전 잠금→수정→저장 후 재잠금, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, OMR CTA·더보기, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수 저장 계약은 route mock으로 운영 데이터 미접촉 |
 | 개인 성적표 | `e2e/admin/individual-score-report.spec.ts` | 성적 탭 더보기 진입, 학생 전환, 같은 강의 누적 추이, 요약 1쪽/상세 2쪽 미리보기, 실제 2쪽 PDF 다운로드를 local route mock으로 검증 | 교사 피드백 저장·서버 보관·전체 학생 일괄 생성은 현재 범위 아님 |
 | 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 학원시험·학교내신·모의고사 출처 전환, 기간·학생·강의·학년·득점·변화 필터, 학생 선택, 성적표 원본 검수·반영, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
-| 학생 성적표 자발 제출 | `e2e/student/reported-score-submission.spec.ts` | 학교 내신 시험 시기·과목·점수·원본 multipart 계약, 내신 등급 입력 전 5/9등급제 선택, 확인 대기 상태, 평가원 6·9월 선택 제한, 390px overflow 확인 | local route-mock 계약 검증 |
+| 학생 성적표 자발 제출 | `e2e/student/reported-score-submission.spec.ts` | 학교 내신 시험 시기·과목·점수·원본 multipart 계약, 내신 등급 입력 전 5/9등급제 선택, 확인 대기 상태, 평가원 성적표의 실제 시행 월(1~12월) 보존, 390px overflow 확인 | local route-mock 계약 검증 |
 | 공지 왕복 | `e2e/flows/notice-roundtrip.spec.ts` | 관리자 작성->학생 확인 roundtrip | 시각/초심자 판정은 부족 |
 | QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |

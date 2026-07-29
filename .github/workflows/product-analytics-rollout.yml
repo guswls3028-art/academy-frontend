@@ -1,0 +1,114 @@
+name: Product Analytics Tenant Rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_code:
+        description: "Exact tenant code to change"
+        required: true
+        type: string
+      enabled:
+        description: "Enable collection; false immediately stops new collection"
+        required: true
+        type: boolean
+        default: false
+      confirm:
+        description: "Type ENABLE <tenant_code> or DISABLE <tenant_code>"
+        required: true
+        type: string
+
+concurrency:
+  group: product-analytics-rollout
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update-one-tenant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require production main ref and exact confirmation
+        env:
+          TENANT_CODE: ${{ inputs.tenant_code }}
+          ENABLED: ${{ inputs.enabled }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Product analytics rollout can only run from refs/heads/main"
+            exit 1
+          fi
+          if [[ ! "$TENANT_CODE" =~ ^[a-z0-9][a-z0-9-]{1,62}$ ]]; then
+            echo "::error::Invalid tenant code"
+            exit 1
+          fi
+          EXPECTED="DISABLE $TENANT_CODE"
+          if [ "$ENABLED" = "true" ]; then EXPECTED="ENABLE $TENANT_CODE"; fi
+          if [ "$CONFIRM" != "$EXPECTED" ]; then
+            echo "::error::Confirmation mismatch; expected the documented exact phrase"
+            exit 1
+          fi
+
+      - name: Update through the platform tenant API and read back
+        env:
+          TENANT_CODE: ${{ inputs.tenant_code }}
+          ENABLED: ${{ inputs.enabled }}
+          PLATFORM_USER: ${{ secrets.E2E_ADMIN_USER }}
+          PLATFORM_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          API_BASE: https://api.hakwonplus.com/api/v1
+          PLATFORM_TENANT: hakwonplus
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "$PLATFORM_USER" ] || [ -z "$PLATFORM_PASS" ]; then
+            echo "::error::Platform rollout credentials are not configured"
+            exit 1
+          fi
+          LOGIN_BODY=$(mktemp)
+          TENANTS_BODY=$(mktemp)
+          RESULT_BODY=$(mktemp)
+          trap 'rm -f "$LOGIN_BODY" "$TENANTS_BODY" "$RESULT_BODY"' EXIT
+          jq -n --arg username "$PLATFORM_USER" --arg password "$PLATFORM_PASS" \
+            --arg tenant_code "$PLATFORM_TENANT" \
+            '{username:$username,password:$password,tenant_code:$tenant_code}' \
+            > /tmp/academy-login.json
+          trap 'rm -f "$LOGIN_BODY" "$TENANTS_BODY" "$RESULT_BODY" /tmp/academy-login.json' EXIT
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -H "X-Tenant-Code: $PLATFORM_TENANT" \
+            --data-binary @/tmp/academy-login.json \
+            "$API_BASE/token/" > "$LOGIN_BODY"
+          ACCESS_TOKEN=$(jq -r '.access // empty' "$LOGIN_BODY")
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "::error::Platform login returned no access token"
+            exit 1
+          fi
+          echo "::add-mask::$ACCESS_TOKEN"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "X-Tenant-Code: $PLATFORM_TENANT" \
+            "$API_BASE/core/tenants/" > "$TENANTS_BODY"
+          MATCH_COUNT=$(jq --arg code "$TENANT_CODE" '[.[] | select(.code == $code)] | length' "$TENANTS_BODY")
+          if [ "$MATCH_COUNT" != "1" ]; then
+            echo "::error::Expected exactly one matching tenant"
+            exit 1
+          fi
+          TENANT_ID=$(jq -r --arg code "$TENANT_CODE" '.[] | select(.code == $code) | .id' "$TENANTS_BODY")
+          jq -n --argjson enabled "$ENABLED" \
+            '{productUsageAnalyticsEnabled:$enabled}' > /tmp/academy-rollout.json
+          trap 'rm -f "$LOGIN_BODY" "$TENANTS_BODY" "$RESULT_BODY" /tmp/academy-login.json /tmp/academy-rollout.json' EXIT
+          curl --fail --silent --show-error \
+            -X PATCH \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "X-Tenant-Code: $PLATFORM_TENANT" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/academy-rollout.json \
+            "$API_BASE/core/tenants/$TENANT_ID/" > "$RESULT_BODY"
+          ACTUAL=$(jq -r '.featureFlags.product_usage_analytics_enabled // false' "$RESULT_BODY")
+          if [ "$ACTUAL" != "$ENABLED" ]; then
+            echo "::error::Product analytics flag readback mismatch"
+            exit 1
+          fi
+          echo "PRODUCT_ANALYTICS_ROLLOUT_PASS tenant=$TENANT_CODE enabled=$ACTUAL"
