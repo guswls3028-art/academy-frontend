@@ -329,6 +329,66 @@ jobs:
           fi
           echo "✅ Functions bundle found"
 
+      # One-time closure migration. Revert this step after the exact PR run
+      # verifies that Git production deploys are disabled and previews stay on.
+      - name: Disable duplicate Cloudflare Git production deployments
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.head_ref == 'agent/closure-docs-frontend-20260730'
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        run: |
+          set -euo pipefail
+          AUTH=(
+            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
+            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+          )
+          PROJECT_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}"
+          BEFORE=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${PROJECT_API}")
+          SOURCE_TYPE=$(jq -r '.result.source.type // empty' <<<"${BEFORE}")
+          PREVIEW_SETTING=$(jq -r \
+            '.result.source.config.preview_deployment_setting // "missing"' \
+            <<<"${BEFORE}")
+          if [ -z "${SOURCE_TYPE}" ]; then
+            echo "::error::Cloudflare Pages source type is missing"
+            exit 1
+          fi
+
+          PAYLOAD=$(jq -nc --arg source_type "${SOURCE_TYPE}" \
+            '{source:{type:$source_type,config:{production_deployments_enabled:false}}}')
+          UPDATED=$(curl --silent --show-error --fail-with-body \
+            --request PATCH \
+            -H "Content-Type: application/json" \
+            "${AUTH[@]}" \
+            --data "${PAYLOAD}" \
+            "${PROJECT_API}")
+          if ! jq -e '.success == true' >/dev/null <<<"${UPDATED}"; then
+            echo "::error::Could not disable Cloudflare Git production deployments"
+            exit 1
+          fi
+
+          AFTER=$(curl --silent --show-error --fail-with-body \
+            "${AUTH[@]}" "${PROJECT_API}")
+          AUTO_PROD=$(jq -r \
+            '.result.source.config.production_deployments_enabled // "missing"' \
+            <<<"${AFTER}")
+          AFTER_PREVIEW_SETTING=$(jq -r \
+            '.result.source.config.preview_deployment_setting // "missing"' \
+            <<<"${AFTER}")
+          if [ "${AUTO_PROD}" != "false" ]; then
+            echo "::error::Cloudflare Git production deployments remain enabled"
+            exit 1
+          fi
+          if [ "${AFTER_PREVIEW_SETTING}" != "${PREVIEW_SETTING}" ]; then
+            echo "::error::Cloudflare preview deployment setting changed unexpectedly"
+            exit 1
+          fi
+          echo "Cloudflare Git production deployments disabled; preview setting preserved (${AFTER_PREVIEW_SETTING})."
+
       - name: Capture production baseline and deployment ownership
         id: production-baseline
         env:
