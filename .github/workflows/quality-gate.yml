@@ -326,8 +326,11 @@ jobs:
             exit 1
           fi
 
-          PAYLOAD=$(jq -nc --arg source_type "${SOURCE_TYPE}" \
-            '{source:{type:$source_type,config:{production_deployments_enabled:false}}}')
+          SOURCE=$(jq -c \
+            '.result.source
+              | .config.production_deployments_enabled = false' \
+            <<<"${BEFORE}")
+          PAYLOAD=$(jq -nc --argjson source "${SOURCE}" '{source:$source}')
           UPDATED=$(curl --silent --show-error --fail-with-body \
             --request PATCH \
             -H "Content-Type: application/json" \
@@ -339,14 +342,22 @@ jobs:
             exit 1
           fi
 
-          AFTER=$(curl --silent --show-error --fail-with-body \
-            "${AUTH[@]}" "${PROJECT_API}")
-          AUTO_PROD=$(jq -r \
-            '.result.source.config.production_deployments_enabled // "missing"' \
-            <<<"${AFTER}")
-          AFTER_PREVIEW_SETTING=$(jq -r \
-            '.result.source.config.preview_deployment_setting // "missing"' \
-            <<<"${AFTER}")
+          AUTO_PROD="missing"
+          AFTER_PREVIEW_SETTING="missing"
+          for ATTEMPT in $(seq 1 12); do
+            AFTER=$(curl --silent --show-error --fail-with-body \
+              "${AUTH[@]}" "${PROJECT_API}")
+            AUTO_PROD=$(jq -r \
+              '.result.source.config.production_deployments_enabled // "missing"' \
+              <<<"${AFTER}")
+            AFTER_PREVIEW_SETTING=$(jq -r \
+              '.result.source.config.preview_deployment_setting // "missing"' \
+              <<<"${AFTER}")
+            if [ "${AUTO_PROD}" = "false" ]; then
+              break
+            fi
+            sleep 5
+          done
           if [ "${AUTO_PROD}" != "false" ]; then
             echo "::error::Cloudflare Git production deployments remain enabled"
             exit 1
