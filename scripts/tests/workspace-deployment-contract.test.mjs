@@ -36,7 +36,16 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);
   assert.match(workflow, /Preview version did not propagate/);
+  assert.match(workflow, /CANDIDATE_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(
+    workflow,
+    /Candidate artifact version does not match the checked-out revision/,
+  );
   assert.match(workflow, /fetch_body_matching/);
+  assert.match(
+    workflow,
+    /curl --silent --show-error --fail-with-body --location "\$\{URL\}"/,
+  );
   assert.match(workflow, /grep -qF "\$\{EXPECTED_TEXT\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 100\)/);
   assert.match(workflow, /"\/teacher\?candidate=legacy-mobile-root"/);

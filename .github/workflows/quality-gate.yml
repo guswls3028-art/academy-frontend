@@ -167,7 +167,7 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
-          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CANDIDATE_SHA: ${{ github.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
@@ -214,6 +214,10 @@ jobs:
 
           EXPECTED_VERSION=$(node -p \
             "JSON.parse(require('fs').readFileSync('dist/version.json', 'utf8')).version")
+          if [ "${EXPECTED_VERSION}" != "${CANDIDATE_SHA}" ]; then
+            echo "::error::Candidate artifact version does not match the checked-out revision"
+            exit 1
+          fi
           ACTUAL_VERSION=""
           for ATTEMPT in $(seq 1 60); do
             ACTUAL_VERSION=$(curl --silent --show-error \
@@ -234,7 +238,7 @@ jobs:
             local EXPECTED_TEXT="$2"
             local BODY=""
             for ATTEMPT in $(seq 1 100); do
-              if BODY=$(curl --silent --show-error --fail-with-body "${URL}") \
+              if BODY=$(curl --silent --show-error --fail-with-body --location "${URL}") \
                 && grep -qF "${EXPECTED_TEXT}" <<<"${BODY}"; then
                 printf '%s' "${BODY}"
                 return 0
