@@ -76,6 +76,7 @@ docs/*
 !docs/REAL-USE-E2E-INVENTORY.md
 !docs/PRODUCT-USAGE-ANALYTICS.md
 !docs/TEACHER-TOOLS.md
+!docs/FIRST-LOGIN-GUIDE.md
 prompts/
 specs/
 temp/

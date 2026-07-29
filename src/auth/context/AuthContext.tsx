@@ -45,6 +45,8 @@ export interface User {
   linkedStudents?: { id: number; name: string }[] | null;
   /** 초기 비밀번호 변경 강제 여부 */
   must_change_password?: boolean;
+  /** 생애 첫 계정 안내를 아직 확인하지 않았는지 여부 */
+  first_login_guide_required?: boolean;
 }
 
 type AuthState = {
@@ -52,6 +54,7 @@ type AuthState = {
   isLoading: boolean;
   authUnavailable: boolean;
   refreshMe: () => Promise<void>;
+  markFirstLoginGuideCompleted: () => void;
   clearAuth: () => void;
 };
 
@@ -126,6 +129,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   }, [clearAuth]);
+
+  const markFirstLoginGuideCompleted = useCallback(() => {
+    setUser((current) => (
+      current
+        ? { ...current, first_login_guide_required: false }
+        : current
+    ));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -214,9 +225,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       authUnavailable,
       refreshMe,
+      markFirstLoginGuideCompleted,
       clearAuth,
     }),
-    [user, isLoading, authUnavailable, refreshMe, clearAuth]
+    [
+      user,
+      isLoading,
+      authUnavailable,
+      refreshMe,
+      markFirstLoginGuideCompleted,
+      clearAuth,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

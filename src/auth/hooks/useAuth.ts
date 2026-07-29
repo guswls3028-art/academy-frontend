@@ -2,7 +2,14 @@
 import { useAuthContext } from "@/auth/context/AuthContext";
 
 export default function useAuth() {
-  const { user, isLoading, authUnavailable, refreshMe, clearAuth } = useAuthContext();
+  const {
+    user,
+    isLoading,
+    authUnavailable,
+    refreshMe,
+    markFirstLoginGuideCompleted,
+    clearAuth,
+  } = useAuthContext();
 
   return {
     user,
@@ -10,6 +17,7 @@ export default function useAuth() {
     isLoading,
     authUnavailable,
     refreshMe,
+    markFirstLoginGuideCompleted,
     clearAuth,
   };
 }

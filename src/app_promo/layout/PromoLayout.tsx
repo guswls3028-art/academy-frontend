@@ -12,6 +12,7 @@ import {
   PanelLeftOpen,
   PhoneCall,
   PlayCircle,
+  Radio,
   ShieldCheck,
   Sparkles,
   X,
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { label: "홈", path: "/promo", icon: Home, note: "처음 보는 분을 위한 안내" },
   { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "운영·영상·알림톡·홈페이지" },
+  { label: "업데이트", path: "/promo/updates", icon: Radio, note: "새 기능과 운영 개선" },
   { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
@@ -352,6 +354,7 @@ function Footer() {
 
         <nav aria-label="상담">
           <h2>상담</h2>
+          <Link to="/promo/updates">업데이트 소식</Link>
           <Link to="/promo/pricing">요금제</Link>
           <Link to="/promo/demo">데모 요청</Link>
           <Link to="/promo/contact">문의하기</Link>

@@ -11,6 +11,7 @@ const MatchupPptPage = lazy(() => import("../domains/landing/pages/MatchupPptPag
 const AiGradingPage = lazy(() => import("../domains/landing/pages/AiGradingPage"));
 const VideoPlatformPage = lazy(() => import("../domains/landing/pages/VideoPlatformPage"));
 const PricingPage = lazy(() => import("../domains/landing/pages/PricingPage"));
+const UpdatesPage = lazy(() => import("../domains/landing/pages/UpdatesPage"));
 const FaqPage = lazy(() => import("../domains/landing/pages/FaqPage"));
 const ContactPage = lazy(() => import("../domains/landing/pages/ContactPage"));
 const DemoPage = lazy(() => import("../domains/landing/pages/DemoPage"));
@@ -47,6 +48,7 @@ export default function PromoRouter() {
         <Route path="ai-grading" element={renderPromoPage(AiGradingPage)} />
         <Route path="video-platform" element={renderPromoPage(VideoPlatformPage)} />
         <Route path="pricing" element={renderPromoPage(PricingPage)} />
+        <Route path="updates" element={renderPromoPage(UpdatesPage)} />
         <Route path="faq" element={renderPromoPage(FaqPage)} />
         <Route path="contact" element={renderPromoPage(ContactPage)} />
         <Route path="demo" element={renderPromoPage(DemoPage)} />
