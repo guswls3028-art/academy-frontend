@@ -53,6 +53,7 @@ test("맞춤 컬럼을 추가·숨김·복원해도 학생 값과 개인 컬럼 
   ];
   let nextId = 2;
   const definitionRequests: Array<Record<string, unknown>> = [];
+  const customFieldTenantHeaders: string[] = [];
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -64,6 +65,10 @@ test("맞춤 컬럼을 추가·숨김·복원해도 학생 값과 개인 컬럼 
         contentType: "application/json",
         body: JSON.stringify(body),
       });
+
+    if (path.startsWith("/students/custom-fields/")) {
+      customFieldTenantHeaders.push(request.headers()["x-tenant-code"] ?? "");
+    }
 
     if (path === "/students/" && request.method() === "GET") {
       return json({
@@ -174,4 +179,6 @@ test("맞춤 컬럼을 추가·숨김·복원해도 학생 값과 개인 컬럼 
   await dialog.getByRole("button", { name: "닫기" }).click();
   await expect(page.getByRole("columnheader", { name: "취미" })).toBeVisible();
   await expect(page.getByText("수영", { exact: true })).toBeVisible();
+  expect(customFieldTenantHeaders.length).toBeGreaterThan(0);
+  expect(new Set(customFieldTenantHeaders)).toEqual(new Set(["hakwonplus"]));
 });

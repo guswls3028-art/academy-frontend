@@ -27,7 +27,7 @@ e2e/
 
 ```sh
 pnpm test:e2e          # 활성 spec 전체 (개수는 `pnpm exec playwright test --list`가 SSOT)
-pnpm test:e2e:gate     # PR 게이트 (핵심 왕복·tenant 격리·학생 맞춤 컬럼)
+pnpm test:e2e:gate     # PR 게이트 (핵심 왕복·tenant header·학생 맞춤 컬럼)
 pnpm test:e2e:headed   # headed 모드
 pnpm test:e2e:ui       # UI 모드 (대화형)
 pnpm test:e2e:local    # _local/ 만
@@ -36,7 +36,9 @@ pnpm test:e2e:local    # _local/ 만
 PR의 `e2e.yml`은 `test:e2e:gate`만 실행한다. 전체 suite는 운영 E2E tenant의
 상태를 공유하므로 shard 병렬화하지 않으며, 명시적 `workflow_dispatch`에서만
 단일 worker로 실행한다. 새 핵심 사용자 흐름은 해당 focused spec을 PR 게이트에
-추가한다.
+추가한다. 여러 실제 tenant 자격증명이 필요한 격리 spec은 필요한 secret이 있는
+수동 전체 suite에서 실행하고, PR에서는 기능 focused spec의 tenant header와
+백엔드 tenant 격리 계약을 필수 증거로 사용한다.
 
 ### 전 메뉴/버튼 사람형 클릭 감사
 

@@ -89,7 +89,7 @@ jobs:
 
       - name: Run PR E2E gate
         if: github.event_name == 'pull_request'
-        run: pnpm test:e2e:gate -- --reporter=github,html
+        run: pnpm test:e2e:gate --reporter=github,html
 
       - name: Run full E2E suite
         if: github.event_name == 'workflow_dispatch'
