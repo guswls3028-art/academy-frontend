@@ -194,6 +194,7 @@ export type SessionScoreSummary = {
 // ---------- 5) Question stats ----------
 export type QuestionStat = {
   question_id: number;
+  question_number: number;
   attempts: number;
   correct: number;
   accuracy: number;
@@ -203,6 +204,7 @@ export type QuestionStat = {
 
 export type TopWrongQuestion = {
   question_id: number;
+  question_number: number;
   wrong_count: number;
 };
 

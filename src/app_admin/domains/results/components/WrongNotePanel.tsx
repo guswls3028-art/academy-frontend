@@ -70,6 +70,12 @@ function sessionLabel(item: WrongNoteItem): string {
   return item.session_title || "주차 미지정";
 }
 
+function questionLabel(item: WrongNoteItem): string {
+  return item.question_number != null
+    ? `${item.question_number}번`
+    : "문항 번호 미확인";
+}
+
 export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const [scope, setScope] = useState<Scope>("exam");
   const [pdfJob, setPdfJob] = useState<WrongNotePDFCreateResponse | null>(null);
@@ -401,7 +407,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
                       {item.question_image_url ? (
                         <img
                           src={item.question_image_url}
-                          alt={`${item.question_number ?? item.question_id}번 문제`}
+                          alt={`${questionLabel(item)} 문제`}
                           loading="lazy"
                         />
                       ) : (
@@ -409,7 +415,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
                       )}
                     </div>
                     <div className="wrong-note__question-copy">
-                      <strong>{item.question_number ?? item.question_id}번</strong>
+                      <strong>{questionLabel(item)}</strong>
                       <dl>
                         <div>
                           <dt>학생 답</dt>

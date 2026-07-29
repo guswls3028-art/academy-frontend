@@ -20,6 +20,7 @@ import { type ResultAttemptMeta } from "../../types/results.types";
  */
 type Fact = {
   question_id: number;
+  question_number?: number | null;
   answer: string;
   is_correct: boolean;
   score: number;
@@ -144,6 +145,7 @@ export default function AttemptViewerPanel({
         <AttemptQuestionList
           facts={facts.map((f) => ({
             question_id: f.question_id,
+            question_number: f.question_number,
             is_correct: f.is_correct,
             meta: f.meta,
           }))}

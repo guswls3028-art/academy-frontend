@@ -10,6 +10,7 @@ import { type ResultAttemptMeta } from "../../types/results.types";
 
 type Fact = {
   question_id: number;
+  question_number?: number | null;
   is_correct: boolean;
   meta?: ResultAttemptMeta;
 };
@@ -43,7 +44,7 @@ export default function AttemptQuestionList({
             `}
             onClick={() => onSelect(f.question_id)}
           >
-            Q{f.question_id}{" "}
+            {f.question_number != null ? `${f.question_number}번` : "번호 미확인"}{" "}
             {f.is_correct ? "✅" : "❌"}
             {invalidReason && (
               <span className="ml-1 text-xs text-red-600">

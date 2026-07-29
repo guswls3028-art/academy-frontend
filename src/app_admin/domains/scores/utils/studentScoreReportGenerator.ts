@@ -790,7 +790,10 @@ function buildHistoryRows(exams: StudentExamGrade[]): string {
   }).join("");
 }
 
-function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: string; hasItems: boolean } {
+function buildItemAnalysis(
+  row: SessionScoreRow,
+  meta: SessionScoreMeta,
+): { examTitle: string; rows: string; hasItems: boolean } {
   const exam = row.exams.find((entry) => (entry.items?.length ?? 0) > 0);
   const items = exam?.items ?? [];
   if (!exam || items.length === 0) {
@@ -800,20 +803,27 @@ function buildItemAnalysis(row: SessionScoreRow): { examTitle: string; rows: str
       hasItems: false,
     };
   }
+  const questionNumbers = new Map(
+    (meta.exams.find((entry) => entry.exam_id === exam.exam_id)?.questions ?? [])
+      .map((question) => [question.question_id, question.number]),
+  );
+  const numberedItems = items.map((item) => ({
+    item,
+    questionNumber: item.question_number ?? questionNumbers.get(item.question_id) ?? null,
+  }));
   return {
     examTitle: exam.title,
     hasItems: true,
-    rows: items
-    .slice()
-    .sort((a, b) => (a.question_number ?? a.question_id) - (b.question_number ?? b.question_id))
+    rows: numberedItems
+    .sort((a, b) => (a.questionNumber ?? Number.MAX_SAFE_INTEGER) - (b.questionNumber ?? Number.MAX_SAFE_INTEGER))
     .slice(0, 16)
-    .map((item) => {
+    .map(({ item, questionNumber }) => {
       const ratio = item.max_score > 0 ? item.score / item.max_score : 0;
       const result = ratio >= 1 ? "만점" : ratio > 0 ? "부분득점" : "0점";
       const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
       return `
         <tr>
-          <td data-label="문항">${item.question_number ?? item.question_id}번</td>
+          <td data-label="문항">${questionNumber != null ? `${questionNumber}번` : "번호 미확인"}</td>
           <td data-label="유형">${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
           <td class="num" data-label="득점"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
           <td class="history-result ${resultClass}" data-label="결과">${result}</td>
@@ -901,7 +911,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     .sort((a, b) => a.round_index - b.round_index)
     .slice(-4);
   const summary = summarizeStudentScoreTrend(recentTrend);
-  const itemAnalysis = buildItemAnalysis(row);
+  const itemAnalysis = buildItemAnalysis(row, meta);
   const currentExamScores = row.exams
     .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
     .filter((value): value is number => value != null);

@@ -1003,7 +1003,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     data-group-parity={parity}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
-                      ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
+                      ? (questions.find((q) => q.question_id === c.questionId)?.number != null
+                          ? `${questions.find((q) => q.question_id === c.questionId)?.number}번`
+                          : "번호 미확인")
                       : "합불"}
                   </ResizableTh>
                 ))}

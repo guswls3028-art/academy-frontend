@@ -119,7 +119,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
     [histogram]
   );
   const sortedQuestionStats = useMemo(
-    () => [...questionStats].sort((a, b) => a.question_id - b.question_id),
+    () => [...questionStats].sort((a, b) => a.question_number - b.question_number),
     [questionStats]
   );
   const passScore = exam?.pass_score ?? 0;
@@ -240,7 +240,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               <tbody>
                 {sortedQuestionStats.map((q) => (
                   <tr key={q.question_id} className="border-b border-[var(--border-divider)]">
-                    <td className="px-3 py-2 font-medium">{q.question_id}번</td>
+                    <td className="px-3 py-2 font-medium">{q.question_number}번</td>
                     <td className="px-3 py-2 text-right">
                       <span className={getAccuracyClassName(q.accuracy)}>
                         {(q.accuracy * 100).toFixed(1)}%

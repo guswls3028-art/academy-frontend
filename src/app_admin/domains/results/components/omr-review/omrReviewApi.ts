@@ -61,7 +61,7 @@ export type OmrAnswerMeta = {
 
 export type OmrReviewDetailAnswer = {
   question_id: number;
-  question_no: number;
+  question_no: number | null;
   answer: string;
   omr: OmrAnswerMeta | null;
 };

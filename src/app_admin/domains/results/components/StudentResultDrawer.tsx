@@ -205,9 +205,6 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     for (const q of questionSource) {
       map.set(q.id, q.number);
     }
-    if (map.size === 0) {
-      mergedItems.forEach((it, idx) => map.set(it.question_id, idx + 1));
-    }
     return map;
   }, [questionSource, mergedItems]);
 
@@ -578,12 +575,12 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
             <div className="srd-read__choice-grid">
               {choiceItems.map((it) => {
                 const correct = isItemCorrect(it);
-                const num = qNumMap.get(it.question_id) ?? it.question_id;
+                const num = qNumMap.get(it.question_id);
                 const ca = correctAnswers[String(it.question_id)] ?? "";
                 const showCorrectAnswer = it.answer && !correct && ca;
                 return (
                   <div key={it.question_id} className={`srd-read__choice-cell ${it.answer ? (correct ? "srd-read__choice-cell--correct" : "srd-read__choice-cell--wrong") : "srd-read__choice-cell--empty"}`}>
-                    <span className="srd-read__choice-num">{num}</span>
+                    <span className="srd-read__choice-num" title={num == null ? "문항 번호 미확인" : undefined}>{num ?? "—"}</span>
                     <span className="srd-read__choice-ans">{it.answer || "—"}</span>
                     {showCorrectAnswer && <span className="srd-read__choice-correct">{ca}</span>}
                   </div>
@@ -599,10 +596,10 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
             <h3 className="srd-read__panel-title">서술형 <span className="srd-read__badge">{essayItems.length}</span></h3>
             <div className="srd-read__essay-list">
               {essayItems.map((it) => {
-                const num = qNumMap.get(it.question_id) ?? it.question_id;
+                const num = qNumMap.get(it.question_id);
                 return (
                   <div key={it.question_id} className="srd-read__essay-row">
-                    <span className="srd-read__essay-num">{num}</span>
+                    <span className="srd-read__essay-num" title={num == null ? "문항 번호 미확인" : undefined}>{num ?? "—"}</span>
                     <span className="srd-read__essay-ans">{it.answer || "—"}</span>
                     <span className={`srd-read__essay-score ${it.score > 0 ? "srd-read__essay-score--has" : ""}`}>
                       {it.score}/{it.max_score}

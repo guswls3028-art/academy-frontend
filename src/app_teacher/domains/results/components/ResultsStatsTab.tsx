@@ -60,6 +60,7 @@ type HomeworkScore = {
 
 type QuestionStat = {
   question_id: number;
+  question_number: number;
   accuracy?: number | null;
 };
 
@@ -137,8 +138,8 @@ export default function ResultsStatsTab() {
   })();
 
   // Question accuracy chart data
-  const qChartData = questionRows.map((q, i) => ({
-    name: `${i + 1}번`,
+  const qChartData = questionRows.map((q) => ({
+    name: `${q.question_number}번`,
     정답률: Math.round((q.accuracy ?? 0) * 100),
     questionId: q.question_id,
   }));

@@ -1000,11 +1000,11 @@ function EditPane({
           {detail.answers.length === 0 ? (
             <div className="orw-loading">문항이 없습니다.</div>
           ) : (
-            detail.answers.map((a, idx) => (
+            detail.answers.map((a) => (
               <AnswerRow
                 key={a.question_id}
                 answer={a}
-                label={questionLabel(a.question_no, a.question_id, idx)}
+                label={questionLabel(a.question_no)}
                 current={answers[a.question_id] ?? ""}
                 focused={focusedQid === a.question_id}
                 onFocusRow={() => setFocusedQid(a.question_id)}
@@ -1101,10 +1101,9 @@ function reasonLabel(r: string): string {
   return REASON_LABEL[k] || r;
 }
 
-function questionLabel(no: number | null | undefined, id: number, idx: number): string {
+function questionLabel(no: number | null | undefined): string {
   if (typeof no === "number" && no > 0 && no < 1000) return `${no}번`;
-  // 백엔드가 question_no를 안 주거나 question_id를 그대로 준 경우 → 순서 기반
-  return `${idx + 1}번`;
+  return "번호 미확인";
 }
 
 function isChoiceAnswer(a: OmrReviewDetailAnswer, current: string): boolean {

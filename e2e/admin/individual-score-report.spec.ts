@@ -50,9 +50,9 @@ const scoreRows = [
         meta: null,
       },
       items: [
-        { question_id: 1, question_number: 1, question_kind: "choice", score: 4, max_score: 4 },
-        { question_id: 2, question_number: 2, question_kind: "choice", score: 0, max_score: 4 },
-        { question_id: 3, question_number: 3, question_kind: "essay", score: 3, max_score: 6 },
+        { question_id: 4928, question_kind: "choice", score: 4, max_score: 4 },
+        { question_id: 4929, question_number: 2, question_kind: "choice", score: 0, max_score: 4 },
+        { question_id: 4930, question_number: 3, question_kind: "essay", score: 3, max_score: 6 },
       ],
       attempt_count: 1,
       attempts: [],
@@ -100,8 +100,8 @@ const scoreRows = [
         meta: null,
       },
       items: [
-        { question_id: 1, question_number: 1, question_kind: "choice", score: 4, max_score: 4 },
-        { question_id: 2, question_number: 2, question_kind: "choice", score: 0, max_score: 4 },
+        { question_id: 4928, question_number: 1, question_kind: "choice", score: 4, max_score: 4 },
+        { question_id: 4929, question_number: 2, question_kind: "choice", score: 0, max_score: 4 },
       ],
       attempt_count: 2,
       attempts: [],
@@ -266,9 +266,9 @@ async function installApi(page: Page) {
             max_score: 100,
             display_order: 1,
             questions: [
-              { question_id: 1, number: 1, max_score: 4, kind: "choice" },
-              { question_id: 2, number: 2, max_score: 4, kind: "choice" },
-              { question_id: 3, number: 3, max_score: 6, kind: "essay" },
+              { question_id: 4928, number: 1, max_score: 4, kind: "choice" },
+              { question_id: 4929, number: 2, max_score: 4, kind: "choice" },
+              { question_id: 4930, number: 3, max_score: 6, kind: "essay" },
             ],
           }],
           homeworks: [{
@@ -333,6 +333,8 @@ test.describe("개인 성적표", () => {
     await expect(firstFrame.locator(".assessment-title").first()).toContainText("객관 62점");
     await expect(firstFrame.locator(".assessment-title strong").first()).toHaveCSS("white-space", "normal");
     await expect(firstFrame.locator("body")).not.toContainText("9101");
+    await expect(firstFrame.locator(".item-table")).toContainText("1번");
+    await expect(firstFrame.locator("body")).not.toContainText("4928");
     await expect(firstFrame.locator(".report-footer")).toContainText(["1 / 2", "2 / 2"]);
     await expect(dialog.getByText("학원플러스 테스트 디자인", { exact: true })).toBeVisible();
 

@@ -123,6 +123,7 @@ export async function fetchQuestionStats(examId: number) {
   const res = await api.get(`/results/admin/exams/${examId}/questions/`);
   return res.data as Array<{
     question_id: number;
+    question_number: number;
     attempts: number;
     correct: number;
     accuracy: number;
@@ -136,6 +137,7 @@ export async function fetchTopWrongQuestions(examId: number, n = 5) {
   const res = await api.get(`/results/admin/exams/${examId}/questions/top-wrong/`, { params: { n } });
   return res.data as Array<{
     question_id: number;
+    question_number: number;
     wrong_count: number;
   }>;
 }

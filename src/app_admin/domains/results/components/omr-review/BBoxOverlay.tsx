@@ -123,7 +123,7 @@ export default function BBoxOverlay({
                 fontSize={Math.max(12, Math.min(rect.h * 0.25, 18))}
                 fontWeight={700}
               >
-                {answer.question_no ?? answer.question_id}
+                {answer.question_no ?? "?"}
               </text>
             )}
           </g>
