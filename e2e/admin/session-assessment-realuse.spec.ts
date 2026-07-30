@@ -174,15 +174,15 @@ async function openCreateAssessmentModal(page: Page, trigger: Locator, kind: "�
 }
 
 async function exerciseScoresMoreMenu(page: Page): Promise<void> {
-  const moreButton = page.getByRole("button", { name: "추가 기능" }).first();
+  const moreButton = page.getByRole("button", { name: "성적 도구" }).first();
   await expect(moreButton, "scores more menu button").toBeVisible({ timeout: 10_000 });
   await moreButton.click();
 
   const menu = page.locator(".scores-more-menu").first();
   await expect(menu).toBeVisible({ timeout: 5_000 });
-  await expect(menu.getByRole("button", { name: /성적표 출력/ })).toBeVisible();
-  await expect(menu.getByRole("button", { name: /클리닉 대상 보기/ })).toBeVisible();
-  await expect(menu.getByRole("button", { name: /수강생 일괄배정/ })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: /성적표 출력/ })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: /클리닉 대상/ })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: /수강생 일괄배정/ })).toBeVisible();
 
   await moreButton.click();
   await expect(menu).toBeHidden({ timeout: 5_000 });

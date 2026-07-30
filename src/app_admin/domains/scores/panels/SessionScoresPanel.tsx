@@ -65,6 +65,7 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
+  onOpenExamGrading?: (examId: number, examTitle: string) => void;
 };
 
 export type SessionScoresPanelHandle = {
@@ -110,6 +111,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   selectedEnrollmentIds = [],
   onSelectionChange,
   onPendingChange,
+  onOpenExamGrading,
 }, ref) {
   const confirm = useConfirm();
   /**
@@ -512,6 +514,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
           onReorderColumnSwap={handleReorderSwap}
+          onOpenExamGrading={onOpenExamGrading}
         />
       </div>
 

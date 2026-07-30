@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardList, FileText, HeartPulse, LockKeyhole, MoreVertical, Pencil, Plus, Printer, Trophy, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, Trophy, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -74,6 +74,7 @@ const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/componen
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/components/StudentScoreReportModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
 const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/components/AnonymousBillboardPreviewModal"));
+const ManualExamGradingGrid = lazy(() => import("@admin/domains/results/components/ManualExamGradingGrid"));
 
 export default function SessionScoresEntryPage({
   onOpenCreateExam,
@@ -118,6 +119,8 @@ export default function SessionScoresEntryPage({
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [gradingExam, setGradingExam] = useState<{ examId: number; title: string } | null>(null);
+  const [manualGradingDirty, setManualGradingDirty] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
   const recoveryDialogRef = useRef<HTMLDivElement>(null);
@@ -176,6 +179,19 @@ export default function SessionScoresEntryPage({
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
     void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(numericSessionId) });
     void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.homeworks(numericSessionId) });
+  };
+  const closeManualGrading = async () => {
+    if (manualGradingDirty) {
+      const shouldClose = await confirm({
+        title: "채점표를 닫을까요?",
+        message: "아직 성적을 확정하지 않은 변경사항이 있습니다. 닫으면 이 화면에서 입력한 내용이 사라집니다.",
+        confirmText: "저장하지 않고 닫기",
+        danger: false,
+      });
+      if (!shouldClose) return;
+    }
+    setManualGradingDirty(false);
+    setGradingExam(null);
   };
   const openCreateExam = () => onOpenCreateExam?.();
   const openCreateHomework = () => onOpenCreateHomework?.();
@@ -855,86 +871,115 @@ export default function SessionScoresEntryPage({
         {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
       </Button>
 
-      {/* ── 구분선 ── */}
-      <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />
-
-      {/* ── 그룹 3: 추가 ── */}
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={openCreateExam}
-      >
-        + 시험
-      </Button>
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={openCreateHomework}
-      >
-        + 과제
-      </Button>
-
-      {/* 더보기 메뉴 */}
+      {/* 구성·출력·클리닉을 한곳에 모아 상단의 선택 부담을 줄인다. */}
       <div ref={moreMenuRef} className="relative">
         <Button
           type="button"
-          intent="ghost"
+          intent="secondary"
           size="sm"
-          iconOnly
-          leftIcon={<MoreVertical size={ICON_FOR_BUTTON.sm} />}
+          leftIcon={<LayoutGrid size={ICON_FOR_BUTTON.sm} />}
           onClick={() => setShowMoreMenu((v) => !v)}
-          aria-label="추가 기능"
-          title="추가 기능"
-        />
+          aria-label="성적 도구"
+          aria-expanded={showMoreMenu}
+          title="시험·과제 추가, 성적표 출력, 클리닉 관리"
+        >
+          성적 도구
+          <ChevronDown
+            size={ICON_FOR_BUTTON.sm}
+            className="scores-tools-trigger__chevron"
+            data-open={showMoreMenu ? "true" : "false"}
+            aria-hidden
+          />
+        </Button>
         {showMoreMenu && (
-          <div className="scores-more-menu">
-            <button type="button" className="scores-more-menu__item" onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }} disabled={enrollingAll || !hasExamsOrHomeworks}>
-              <Users size={ICON_FOR_BUTTON.sm} />
-              {enrollingAll ? "배정 중..." : "수강생 일괄배정"}
-            </button>
-            <div className="scores-more-menu__divider" />
-            <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
-              if (!await saveScoresNow()) return;
-              await refetch();
-              setShowPrintPreview(true);
-              setShowMoreMenu(false);
-            }}>
-              <Printer size={ICON_FOR_BUTTON.sm} />
-              성적표 출력
-            </button>
-            <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
-              if (!await saveScoresNow()) return;
-              await refetch();
-              setShowStudentReport(true);
-              setShowMoreMenu(false);
-            }}>
-              <UserRound size={ICON_FOR_BUTTON.sm} />
-              개인 성적표
-            </button>
-            {isAnonymousBillboardMode ? (
-              <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
-                if (!await saveScoresNow()) return;
-                await refetch();
-                setShowBillboardPreview(true);
-                setShowMoreMenu(false);
-              }}>
-                <Trophy size={ICON_FOR_BUTTON.sm} />
-                익명 순위표 출력
-              </button>
-            ) : (
-              <button type="button" className="scores-more-menu__item" disabled={recoveryBlocked} onClick={async () => {
-                if (!await saveScoresNow()) return;
-                await refetch();
-                setShowClinicPreview(true);
-                setShowMoreMenu(false);
-              }}>
-                <HeartPulse size={ICON_FOR_BUTTON.sm} />
-                클리닉 대상 보기
-              </button>
-            )}
-            {/* 2026-05-13 학원장 결정: 시험·과제 일괄 종료 메뉴 폐기. status UI SSOT 통합. */}
+          <div className="scores-more-menu scores-tools-menu" role="menu" aria-label="성적 도구">
+            <div className="scores-tools-menu__header">
+              <strong>성적 도구</strong>
+              <span>평가 준비부터 출력·클리닉까지</span>
+            </div>
+            <div className="scores-tools-menu__section">
+              <span className="scores-tools-menu__label">평가 구성</span>
+              <div className="scores-tools-menu__grid">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="scores-tool-card"
+                  onClick={() => {
+                    openCreateExam();
+                    setShowMoreMenu(false);
+                  }}
+                >
+                  <span className="scores-tool-card__icon"><Plus size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>시험 추가</strong><small>새 시험 만들기</small></span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="scores-tool-card"
+                  onClick={() => {
+                    openCreateHomework();
+                    setShowMoreMenu(false);
+                  }}
+                >
+                  <span className="scores-tool-card__icon"><ClipboardList size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>과제 추가</strong><small>새 과제 만들기</small></span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="scores-tool-card"
+                  onClick={() => { void handleEnrollAll(); setShowMoreMenu(false); }}
+                  disabled={enrollingAll || !hasExamsOrHomeworks}
+                >
+                  <span className="scores-tool-card__icon"><Users size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>{enrollingAll ? "배정 중…" : "수강생 일괄배정"}</strong><small>누락 대상 보강</small></span>
+                </button>
+              </div>
+            </div>
+            <div className="scores-tools-menu__section">
+              <span className="scores-tools-menu__label">출력 · 후속관리</span>
+              <div className="scores-tools-menu__grid">
+                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
+                  if (!await saveScoresNow()) return;
+                  await refetch();
+                  setShowPrintPreview(true);
+                  setShowMoreMenu(false);
+                }}>
+                  <span className="scores-tool-card__icon" data-tone="print"><Printer size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>성적표 출력</strong><small>교사용 전체 현황</small></span>
+                </button>
+                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
+                  if (!await saveScoresNow()) return;
+                  await refetch();
+                  setShowStudentReport(true);
+                  setShowMoreMenu(false);
+                }}>
+                  <span className="scores-tool-card__icon" data-tone="student"><UserRound size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>개인 성적표</strong><small>여러 학생 PDF</small></span>
+                </button>
+                {isAnonymousBillboardMode ? (
+                  <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
+                    if (!await saveScoresNow()) return;
+                    await refetch();
+                    setShowBillboardPreview(true);
+                    setShowMoreMenu(false);
+                  }}>
+                    <span className="scores-tool-card__icon" data-tone="clinic"><Trophy size={ICON_FOR_BUTTON.sm} /></span>
+                    <span><strong>익명 순위표</strong><small>게시용 출력</small></span>
+                  </button>
+                ) : (
+                  <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
+                    if (!await saveScoresNow()) return;
+                    await refetch();
+                    setShowClinicPreview(true);
+                    setShowMoreMenu(false);
+                  }}>
+                    <span className="scores-tool-card__icon" data-tone="clinic"><HeartPulse size={ICON_FOR_BUTTON.sm} /></span>
+                    <span><strong>클리닉 대상</strong><small>대상자 확인·출력</small></span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1171,7 +1216,7 @@ export default function SessionScoresEntryPage({
               응시·제출 대상으로 등록된 수강생이 없습니다
             </div>
             <div className="scores-roster-warning__copy">
-              차시 수강생 등록 상태를 확인한 뒤 더보기의 수강생 일괄배정으로 보강하세요.
+              차시 수강생 등록 상태를 확인한 뒤 성적 도구의 수강생 일괄배정으로 보강하세요.
             </div>
           </div>
         </div>
@@ -1195,6 +1240,22 @@ export default function SessionScoresEntryPage({
           viewFilter={viewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
+          onOpenExamGrading={(examId, title) => { void (async () => {
+            if (recoveryBlocked) {
+              feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
+              return;
+            }
+            if (isEditMode) {
+              if (!await saveScoresNow()) return;
+              setIsSaving(true);
+              const released = await draft.releaseEditLease();
+              setIsSaving(false);
+              if (!released) return;
+              setIsEditMode(false);
+            }
+            setManualGradingDirty(false);
+            setGradingExam({ examId, title });
+          })(); }}
         />
       )}
 
@@ -1290,6 +1351,60 @@ export default function SessionScoresEntryPage({
         />
       </AdminModal>
 
+      {/* 시험명에서 바로 여는 학생별 문항 채점표 */}
+      {gradingExam && (
+        <AdminModal
+          open
+          onClose={() => { void closeManualGrading(); }}
+          type="inspect"
+          width="min(1480px, calc(100vw - 32px))"
+          className="scores-manual-grading-modal"
+          noMinimize
+        >
+          <ModalHeader
+            type="inspect"
+            title={(
+              <span className="scores-manual-grading-modal__title">
+                <ClipboardCheck size={20} aria-hidden />
+                {gradingExam.title} 문항별 채점
+              </span>
+            )}
+            description="학생별 정오·부분점수를 입력합니다. 오답은 오답노트에 자동 포함되고, 맞은 문항도 복습 대상으로 표시할 수 있습니다."
+            noIcon
+          />
+          <ModalBody>
+            <div className="scores-manual-grading-modal__body">
+              <Suspense
+                fallback={<EmptyState scope="panel" tone="loading" title="문항별 채점표를 여는 중…" />}
+              >
+                <ManualExamGradingGrid
+                  key={gradingExam.examId}
+                  examId={gradingExam.examId}
+                  showUnavailableState
+                  onDirtyChange={setManualGradingDirty}
+                  onApplied={() => {
+                    setManualGradingDirty(false);
+                    invalidateScores();
+                  }}
+                />
+              </Suspense>
+            </div>
+          </ModalBody>
+          <ModalFooter
+            left={(
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {manualGradingDirty ? "확정하지 않은 변경사항이 있습니다." : "현재 저장된 성적 기준"}
+              </span>
+            )}
+            right={(
+              <Button intent="secondary" size="sm" onClick={() => { void closeManualGrading(); }}>
+                닫기
+              </Button>
+            )}
+          />
+        </AdminModal>
+      )}
+
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (
         <Suspense fallback={null}>
@@ -1317,6 +1432,7 @@ export default function SessionScoresEntryPage({
             lectureTitle={lectureTitle}
             attendanceMap={attendanceMapForPdf}
             initialEnrollmentId={selectedEnrollmentIds.length === 1 ? selectedEnrollmentIds[0] : null}
+            initialEnrollmentIds={selectedEnrollmentIds}
           />
         </Suspense>
       )}

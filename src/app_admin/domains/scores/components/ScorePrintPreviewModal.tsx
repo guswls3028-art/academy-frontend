@@ -1,11 +1,22 @@
 // PATH: src/app_admin/domains/scores/components/ScorePrintPreviewModal.tsx
-// 성적표 미리보기 + PDF 다운로드 모달 — 흑백 A4 가로
+// 성적표 미리보기 + PDF 다운로드 모달 — 테넌트 브랜드 A4 가로
 
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Download, FileText } from "lucide-react";
-import { buildScorePdfHtml, downloadScorePdf, type ScorePdfParams } from "../utils/scorePdfGenerator";
+import {
+  buildScorePdfHtml,
+  downloadScorePdf,
+  getScorePdfPageCount,
+  type ScorePdfParams,
+} from "../utils/scorePdfGenerator";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { resolveTenantCodeString, getTenantIdFromCode, getTenantDefById } from "@/shared/tenant";
+import { useProgram } from "@/shared/program";
+import {
+  getTenantBranding,
+  resolveTenantCodeString,
+  getTenantIdFromCode,
+  getTenantDefById,
+} from "@/shared/tenant";
 import "./PrintPreviewModal.css";
 
 type Props = ScorePdfParams & {
@@ -24,6 +35,7 @@ export default function ScorePrintPreviewModal({
   attendanceMap,
   tenantName,
 }: Props) {
+  const { program } = useProgram();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -40,18 +52,35 @@ export default function ScorePrintPreviewModal({
     [rows, meta, sessionTitle, lectureTitle, date, attendanceMap, tenantName]
   );
 
-  // 테넌트명 자동 주입 — 인쇄물 식별 (호출처에서 전달받지 않은 경우)
+  // 인쇄물은 현재 프로그램 설정을 우선하고, 정적 테넌트 설정을 안전한 폴백으로 사용한다.
   const resolvedParams = useMemo<ScorePdfParams>(() => {
-    if (params.tenantName != null && params.tenantName.trim() !== "") return params;
     try {
-      const code = resolveTenantCodeString();
+      const code = program?.tenantCode?.trim() || resolveTenantCodeString();
       const tid = code ? getTenantIdFromCode(code) : null;
       const def = tid ? getTenantDefById(tid) : null;
-      return { ...params, tenantName: def?.name };
+      const branding = tid ? getTenantBranding(tid) : null;
+      return {
+        ...params,
+        tenantName:
+          params.tenantName?.trim()
+          || program?.display_name?.trim()
+          || def?.name,
+        tenantCode: code,
+        tenantLogoUrl:
+          program?.ui_config?.logo_url?.trim()
+          || branding?.logoUrl?.trim()
+          || branding?.headerLogoUrl?.trim(),
+        primaryColor: program?.ui_config?.primary_color?.trim(),
+      };
     } catch {
       return params;
     }
-  }, [params]);
+  }, [params, program]);
+  const pageCount = getScorePdfPageCount(resolvedParams);
+  const previewHeight = `${(pageCount * 210) + (Math.max(0, pageCount - 1) * 8)}mm`;
+  const previewStyle = {
+    "--score-report-preview-height": previewHeight,
+  } as CSSProperties;
 
   useEffect(() => {
     if (!open || !iframeRef.current) return;
@@ -96,7 +125,7 @@ export default function ScorePrintPreviewModal({
               성적표 미리보기
             </h2>
             <span className="text-xs text-[var(--color-text-muted)]">
-              {params.rows.length}명 · 흑백 A4 가로
+              {params.rows.length}명 · A4 가로 {pageCount}쪽
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -121,7 +150,10 @@ export default function ScorePrintPreviewModal({
 
         {/* Preview area */}
         <div className="flex-1 overflow-auto bg-[#e5e7eb] p-4">
-          <div className="print-preview-modal__paper print-preview-modal__paper--landscape mx-auto bg-white shadow-lg">
+          <div
+            className="print-preview-modal__paper print-preview-modal__paper--landscape mx-auto bg-white shadow-lg"
+            style={previewStyle}
+          >
             <iframe
               ref={iframeRef}
               title="성적표 미리보기"

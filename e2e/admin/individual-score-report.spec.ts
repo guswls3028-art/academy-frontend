@@ -14,6 +14,7 @@ const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 
 type InstallApiOptions = {
   denseReport?: boolean;
   primaryColor?: string;
+  scoreRowCount?: number;
 };
 
 function isLocalBaseUrl(url: string) {
@@ -135,6 +136,28 @@ function denseScoreRows() {
       })),
     })),
   }) : row);
+}
+
+function expandedScoreRows(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const source = scoreRows[index % scoreRows.length];
+    return {
+      ...source,
+      enrollment_id: 9200 + index,
+      student_id: 7200 + index,
+      student_name: `테스트학생 ${String(index + 1).padStart(2, "0")}`,
+      exams: source.exams.map((exam) => ({
+        ...exam,
+        block: { ...exam.block },
+        items: exam.items?.map((item) => ({ ...item })),
+        attempts: [...(exam.attempts ?? [])],
+      })),
+      homeworks: source.homeworks.map((homework) => ({
+        ...homework,
+        block: { ...homework.block },
+      })),
+    };
+  });
 }
 
 function studentGrades(studentId: number) {
@@ -260,7 +283,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
     "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
   };
-  const activeScoreRows = options.denseReport ? denseScoreRows() : scoreRows;
+  const activeScoreRows = options.scoreRowCount
+    ? expandedScoreRows(options.scoreRowCount)
+    : options.denseReport
+      ? denseScoreRows()
+      : scoreRows;
   let studentGradesRequestCount = 0;
 
   await page.route("**/version.json?*", async (route) => {
@@ -403,16 +430,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
-  test("학생 전환, 1·2쪽 미리보기, 실제 PDF 다운로드", async ({ page }, testInfo) => {
-    test.setTimeout(120_000);
+  test("학생 전환, 1·2쪽 미리보기, 단일·다중 PDF 다운로드", async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
     await page.setViewportSize({ width: 1366, height: 900 });
     const apiTracker = await installApi(page);
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
-    await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "추가 기능" }).click();
-    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("개인 성적표", { exact: true })).toBeVisible();
@@ -474,6 +501,19 @@ test.describe("개인 성적표", () => {
     expect(pdf.getPageCount()).toBe(2);
     expect(pdfBytes.byteLength).toBeLessThan(2_000_000);
 
+    await dialog.getByRole("checkbox", { name: "김서윤 성적표 출력 선택" }).check();
+    const [batchDownload] = await Promise.all([
+      page.waitForEvent("download", { timeout: 120_000 }),
+      dialog.getByRole("button", { name: "2명 성적표 PDF" }).click(),
+    ]);
+    expect(batchDownload.suggestedFilename()).toContain("2명");
+    const batchOutputPath = testInfo.outputPath("student-score-report-2-students.pdf");
+    await batchDownload.saveAs(batchOutputPath);
+    const batchPdfBytes = await readFile(path.resolve(batchOutputPath));
+    const batchPdf = await PDFDocument.load(batchPdfBytes);
+    expect(batchPdf.getPageCount()).toBe(4);
+    expect(batchPdfBytes.byteLength).toBeLessThan(4_000_000);
+
     await page.setViewportSize({ width: 1100, height: 800 });
     await expect(dialog.locator(".student-score-report-students")).toBeVisible();
     expect(await dialog.locator(".student-score-report-preview__scroll").evaluate((element) =>
@@ -487,8 +527,8 @@ test.describe("개인 성적표", () => {
     const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
     await dialog.getByRole("button", { name: "닫기" }).click();
     await expect(dialog).toBeHidden();
-    await page.getByRole("button", { name: "추가 기능" }).click();
-    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     await expect.poll(() => apiTracker.getStudentGradesRequestCount()).toBeGreaterThan(requestCountBeforeReopen);
     await expect(page.getByRole("dialog").getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
   });
@@ -500,9 +540,9 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
-    await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "추가 기능" }).click();
-    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
     const dialog = page.getByRole("dialog");
     const mobileStudentSelect = dialog.getByRole("combobox", { name: "성적표 학생 선택" });
@@ -547,9 +587,9 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
-    await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "추가 기능" }).click();
-    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("button", { name: "상세 3쪽" })).toBeVisible();
@@ -586,5 +626,57 @@ test.describe("개인 성적표", () => {
       path: testInfo.outputPath("individual-score-report-dense-preview.png"),
       fullPage: false,
     });
+  });
+});
+
+test.describe("교사용 전체 성적표", () => {
+  test("브랜드 로고와 긴 학생 목록을 A4 가로 여러 쪽에 맞춰 다운로드", async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installApi(page, { primaryColor: "#0f766e", scoreRowCount: 25 });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load" },
+    );
+
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
+
+    const dialog = page.getByRole("dialog", { name: "성적표 미리보기" });
+    await expect(dialog.getByText("25명 · A4 가로 3쪽", { exact: true })).toBeVisible();
+    const frame = page.frameLocator('iframe[title="성적표 미리보기"]');
+    await expect(frame.locator(".score-report-page")).toHaveCount(3);
+    await expect(frame.locator(".report-brand-logo").first()).toHaveAttribute(
+      "src",
+      "/tenants/hakwonplus/icon.png",
+    );
+    await expect(frame.locator(".report-topline").first()).toHaveCSS(
+      "background-color",
+      "rgb(15, 118, 110)",
+    );
+    await expect(frame.locator("tbody tr:not(.summary-row)")).toHaveCount(25);
+    const pageFits = await frame.locator(".score-report-page").evaluateAll((pages) =>
+      pages.map((reportPage) =>
+        reportPage.scrollHeight <= reportPage.clientHeight + 2
+        && reportPage.scrollWidth <= reportPage.clientWidth + 2
+      ),
+    );
+    expect(pageFits).toEqual([true, true, true]);
+    await frame.locator(".score-report-page").first().screenshot({
+      path: testInfo.outputPath("teacher-score-report-page-1.png"),
+    });
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 120_000 }),
+      dialog.getByRole("button", { name: "PDF 다운로드" }).click(),
+    ]);
+    const outputPath = testInfo.outputPath("teacher-score-report.pdf");
+    await download.saveAs(outputPath);
+    const pdfBytes = await readFile(path.resolve(outputPath));
+    const pdf = await PDFDocument.load(pdfBytes);
+    expect(pdf.getPageCount()).toBe(3);
+    expect(pdfBytes.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+    expect(pdfBytes.byteLength).toBeLessThan(2_000_000);
   });
 });

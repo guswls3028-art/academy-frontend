@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Download, FileUser, Search } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Download, FileUser, ListChecks, Search } from "lucide-react";
 
 import type {
   SessionScoreMeta,
@@ -17,7 +17,9 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
+  downloadStudentScoreReportsPdf,
   getStudentScoreReportPageCount,
+  type StudentScoreReportParams,
   type StudentScoreReportMode,
 } from "../utils/studentScoreReportGenerator";
 import { resolveStudentScoreReportTheme } from "../utils/studentScoreReportTheme";
@@ -32,6 +34,7 @@ type Props = {
   lectureTitle: string;
   attendanceMap?: Record<number, string>;
   initialEnrollmentId?: number | null;
+  initialEnrollmentIds?: number[];
 };
 
 const REPORTABLE_ROWS = (rows: SessionScoreRow[]) =>
@@ -50,23 +53,43 @@ export default function StudentScoreReportModal({
   lectureTitle,
   attendanceMap,
   initialEnrollmentId,
+  initialEnrollmentIds,
 }: Props) {
   const { program } = useProgram();
+  const queryClient = useQueryClient();
   const reportRows = useMemo(() => REPORTABLE_ROWS(rows), [rows]);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
+  const [selectedReportEnrollmentIds, setSelectedReportEnrollmentIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<StudentScoreReportMode>("detailed");
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [mobilePreviewHeight, setMobilePreviewHeight] = useState(600);
   const previewResizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    const initialRow = reportRows.find((row) => row.enrollment_id === initialEnrollmentId) ?? reportRows[0];
+    const requestedIds = new Set(
+      (initialEnrollmentIds?.length ?? 0) > 0
+        ? initialEnrollmentIds
+        : initialEnrollmentId != null
+          ? [initialEnrollmentId]
+          : [],
+    );
+    const initialRows = reportRows.filter((row) => requestedIds.has(row.enrollment_id));
+    const initialRow = initialRows[0] ?? reportRows[0];
     setSelectedEnrollmentId(initialRow?.enrollment_id ?? null);
+    setSelectedReportEnrollmentIds(
+      initialRows.length > 0
+        ? initialRows.map((row) => row.enrollment_id)
+        : initialRow
+          ? [initialRow.enrollment_id]
+          : [],
+    );
     setSearch("");
     setMode("detailed");
-  }, [open, reportRows, initialEnrollmentId]);
+    setDownloadProgress(null);
+  }, [open, reportRows, initialEnrollmentId, initialEnrollmentIds]);
 
   useEffect(() => () => {
     previewResizeObserverRef.current?.disconnect();
@@ -91,6 +114,14 @@ export default function StudentScoreReportModal({
     if (!query) return reportRows;
     return reportRows.filter((row) => normalizeSearch(row.student_name).includes(query));
   }, [reportRows, search]);
+  const selectedReportSet = useMemo(
+    () => new Set(selectedReportEnrollmentIds),
+    [selectedReportEnrollmentIds],
+  );
+  const selectedReportRows = useMemo(
+    () => reportRows.filter((row) => selectedReportSet.has(row.enrollment_id)),
+    [reportRows, selectedReportSet],
+  );
 
   const selectedIndex = selectedRow
     ? reportRows.findIndex((row) => row.enrollment_id === selectedRow.enrollment_id)
@@ -156,10 +187,33 @@ export default function StudentScoreReportModal({
     [reportParams],
   );
 
+  const previewStudent = (enrollmentId: number) => {
+    setSelectedEnrollmentId(enrollmentId);
+    setSelectedReportEnrollmentIds((current) =>
+      current.length <= 1 ? [enrollmentId] : current,
+    );
+  };
+
   const handleMove = (direction: -1 | 1) => {
     if (selectedIndex < 0) return;
     const next = reportRows[selectedIndex + direction];
-    if (next) setSelectedEnrollmentId(next.enrollment_id);
+    if (next) previewStudent(next.enrollment_id);
+  };
+
+  const toggleReportSelection = (enrollmentId: number) => {
+    setSelectedReportEnrollmentIds((current) =>
+      current.includes(enrollmentId)
+        ? current.filter((id) => id !== enrollmentId)
+        : [...current, enrollmentId],
+    );
+  };
+
+  const selectAllReports = () => {
+    setSelectedReportEnrollmentIds(reportRows.map((row) => row.enrollment_id));
+  };
+
+  const clearReportSelection = () => {
+    setSelectedReportEnrollmentIds([]);
   };
 
   const handlePreviewLoad = (iframe: HTMLIFrameElement) => {
@@ -183,15 +237,51 @@ export default function StudentScoreReportModal({
   };
 
   const handleDownload = async () => {
-    if (!reportParams) return;
+    if (selectedReportRows.length === 0) {
+      feedback.info("PDF로 만들 학생을 한 명 이상 선택해 주세요.");
+      return;
+    }
     setDownloading(true);
+    setDownloadProgress({ current: 0, total: selectedReportRows.length });
     try {
-      await downloadStudentScoreReportPdf(reportParams);
-      feedback.success(`${reportParams.row.student_name} 학생의 개인 성적표를 다운로드했습니다.`);
+      const paramsList: StudentScoreReportParams[] = [];
+      for (let index = 0; index < selectedReportRows.length; index += 1) {
+        const row = selectedReportRows[index];
+        setDownloadProgress({ current: index + 1, total: selectedReportRows.length });
+        const rowStudentId = Number(row.student_id);
+        const grades = Number.isFinite(rowStudentId) && rowStudentId > 0
+          ? await queryClient.fetchQuery({
+              queryKey: adminStudentsQueryKeys.studentGrades(rowStudentId),
+              queryFn: () => fetchAdminStudentGrades(rowStudentId),
+              staleTime: 0,
+            })
+          : null;
+        paramsList.push({
+          row,
+          meta,
+          grades,
+          sessionTitle,
+          lectureTitle,
+          attendanceStatus: attendanceMap?.[row.enrollment_id] ?? null,
+          tenantName,
+          tenantCode,
+          tenantLogoUrl,
+          primaryColor,
+          mode,
+        });
+      }
+      if (paramsList.length === 1) {
+        await downloadStudentScoreReportPdf(paramsList[0]);
+        feedback.success(`${paramsList[0].row.student_name} 학생의 개인 성적표를 다운로드했습니다.`);
+      } else {
+        await downloadStudentScoreReportsPdf(paramsList);
+        feedback.success(`${paramsList.length}명의 개인 성적표를 한 PDF로 다운로드했습니다.`);
+      }
     } catch (error: unknown) {
       feedback.error(error instanceof Error ? error.message : "개인 성적표 PDF 생성에 실패했습니다.");
     } finally {
       setDownloading(false);
+      setDownloadProgress(null);
     }
   };
 
@@ -212,7 +302,7 @@ export default function StudentScoreReportModal({
             개인 성적표
           </span>
         )}
-        description="학생을 바꾸면 현재 차시와 같은 강의의 누적 시험 기록을 즉시 다시 구성합니다."
+        description="미리볼 학생을 바꾸고, 필요한 학생을 여러 명 선택해 한 PDF로 만들 수 있습니다."
         noIcon
       />
       <ModalBody>
@@ -224,7 +314,7 @@ export default function StudentScoreReportModal({
                   <span>학생</span>
                   <select
                     value={selectedRow?.enrollment_id ?? ""}
-                    onChange={(event) => setSelectedEnrollmentId(Number(event.target.value))}
+                    onChange={(event) => previewStudent(Number(event.target.value))}
                     aria-label="성적표 학생 선택"
                   >
                     {reportRows.map((row) => (
@@ -268,6 +358,29 @@ export default function StudentScoreReportModal({
               </div>
             </div>
 
+            <details className="student-score-report-mobile-selection">
+              <summary>
+                <span><ListChecks size={15} aria-hidden /> 출력 학생</span>
+                <strong>{selectedReportRows.length}명 선택</strong>
+              </summary>
+              <div className="student-score-report-mobile-selection__actions">
+                <button type="button" onClick={selectAllReports}>전체 선택</button>
+                <button type="button" onClick={clearReportSelection}>선택 해제</button>
+              </div>
+              <div className="student-score-report-mobile-selection__list">
+                {reportRows.map((row) => (
+                  <label key={row.enrollment_id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedReportSet.has(row.enrollment_id)}
+                      onChange={() => toggleReportSelection(row.enrollment_id)}
+                    />
+                    <span>{row.student_name}</span>
+                  </label>
+                ))}
+              </div>
+            </details>
+
             {selectedRow ? (
               <div className="student-score-report-preview__scroll">
                 <div
@@ -291,8 +404,8 @@ export default function StudentScoreReportModal({
           <aside className="student-score-report-students" aria-label="학생 선택">
             <div className="student-score-report-students__header">
               <div>
-                <strong>학생 선택</strong>
-                <span>{reportRows.length}명</span>
+                <strong>출력 학생 선택</strong>
+                <span>{selectedReportRows.length}/{reportRows.length}명</span>
               </div>
               <div className="student-score-report-students__nav">
                 <button
@@ -323,30 +436,47 @@ export default function StudentScoreReportModal({
                 aria-label="성적표 학생 검색"
               />
             </label>
+            <div className="student-score-report-students__selection-actions">
+              <button type="button" onClick={selectAllReports}>전체 선택</button>
+              <button type="button" onClick={clearReportSelection}>선택 해제</button>
+            </div>
             <div className="student-score-report-students__list">
               {filteredRows.map((row) => {
-                const selected = row.enrollment_id === selectedRow?.enrollment_id;
+                const previewSelected = row.enrollment_id === selectedRow?.enrollment_id;
+                const reportSelected = selectedReportSet.has(row.enrollment_id);
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={row.enrollment_id}
-                    className={selected ? "is-selected" : ""}
-                    aria-pressed={selected}
-                    onClick={() => setSelectedEnrollmentId(row.enrollment_id)}
+                    className={`student-score-report-students__row ${previewSelected ? "is-previewed" : ""}`}
                   >
-                    <StudentNameWithLectureChip
-                      name={row.student_name}
-                      profilePhotoUrl={row.profile_photo_url}
-                      avatarSize={28}
-                      lectures={[{
-                        lectureName: row.lecture_title || lectureTitle,
-                        color: row.lecture_color,
-                        chipLabel: row.lecture_chip_label,
-                      }]}
-                      maxLectureChips={1}
-                      density="compact"
-                    />
-                  </button>
+                    <label className="student-score-report-students__check">
+                      <input
+                        type="checkbox"
+                        checked={reportSelected}
+                        aria-label={`${row.student_name} 성적표 출력 선택`}
+                        onChange={() => toggleReportSelection(row.enrollment_id)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={previewSelected ? "is-selected" : ""}
+                      aria-pressed={previewSelected}
+                      onClick={() => previewStudent(row.enrollment_id)}
+                    >
+                      <StudentNameWithLectureChip
+                        name={row.student_name}
+                        profilePhotoUrl={row.profile_photo_url}
+                        avatarSize={28}
+                        lectures={[{
+                          lectureName: row.lecture_title || lectureTitle,
+                          color: row.lecture_color,
+                          chipLabel: row.lecture_chip_label,
+                        }]}
+                        maxLectureChips={1}
+                        density="compact"
+                      />
+                    </button>
+                  </div>
                 );
               })}
               {filteredRows.length === 0 && (
@@ -360,7 +490,7 @@ export default function StudentScoreReportModal({
         left={(
           <span className="student-score-report-modal__footnote">
             {selectedRow
-              ? `${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"} · A4 세로`
+              ? `${selectedReportRows.length}명 선택 · 미리보기 ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
               : "출력할 학생 없음"}
           </span>
         )}
@@ -373,10 +503,16 @@ export default function StudentScoreReportModal({
               intent="primary"
               size="sm"
               leftIcon={<Download size={ICON_FOR_BUTTON.sm} aria-hidden />}
-              disabled={!reportParams || downloading || gradesQuery.isFetching}
+              disabled={selectedReportRows.length === 0 || downloading}
               onClick={() => { void handleDownload(); }}
             >
-              {downloading ? "PDF 생성 중…" : "개인 성적표 PDF"}
+              {downloading
+                ? downloadProgress
+                  ? `${downloadProgress.current}/${downloadProgress.total}명 준비 중…`
+                  : "PDF 생성 중…"
+                : selectedReportRows.length > 1
+                  ? `${selectedReportRows.length}명 성적표 PDF`
+                  : "개인 성적표 PDF"}
             </Button>
           </>
         )}

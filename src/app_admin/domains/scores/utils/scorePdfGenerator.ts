@@ -1,121 +1,268 @@
 // PATH: src/app_admin/domains/scores/utils/scorePdfGenerator.ts
-// 성적 테이블 PDF — 흑백 최적화, A4 가로, 인쇄용
+// 교사용 차시 성적표 — A4 가로, 테넌트 브랜딩, 안전한 다중 페이지 출력
 
 import type {
-  SessionScoreRow,
   SessionScoreMeta,
+  SessionScoreRow,
 } from "../api/sessionScores";
-import { loadPdfModules } from "@/shared/utils/pdfModules";
 import { getSessionScoresTableVerdict } from "./sessionScoreRowVerdict";
+import { resolveStudentScoreReportTheme } from "./studentScoreReportTheme";
 
-// ── 공통 스타일 (흑백 최적화) ──
+const ROWS_PER_PAGE = 12;
 
-const BW_STYLE = `
-  @page { size: A4 landscape; margin: 8mm 10mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+const SCORE_REPORT_STYLE = `
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
   body {
-    font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
-    color: #111; background: #fff;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    background: #dce3ec;
+    color: #182234;
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .page {
-    width: 100%; margin: 0 auto;
-    display: flex; flex-direction: column;
-    padding: 16px 20px;
+  .score-report-page {
+    position: relative;
+    display: flex;
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+    flex-direction: column;
+    margin: 0 auto 8mm;
+    overflow: hidden;
+    background: #fff;
+    break-after: page;
   }
-
-  /* ── 헤더 ── */
-  .header {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    margin-bottom: 10px; padding-bottom: 8px;
-    border-bottom: 3px double #111;
+  .score-report-page:last-child { margin-bottom: 0; break-after: auto; }
+  .report-topline {
+    display: flex;
+    min-height: 18mm;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3mm 11mm;
+    border-bottom: 1.2mm solid var(--score-report-accent);
+    background: var(--score-report-primary);
+    color: var(--score-report-on-primary);
   }
-  .header h1 {
-    font-size: 18px; font-weight: 900; letter-spacing: -0.5px;
+  .report-brand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 3mm;
   }
-  .header .sub {
-    font-size: 10px; color: #444; margin-top: 2px;
+  .report-brand-symbol {
+    position: relative;
+    display: inline-flex;
+    width: 12mm;
+    height: 10mm;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 2mm;
+    background: #fff;
+    color: var(--score-report-primary);
+    font-size: 15px;
+    font-weight: 900;
   }
-  .header .date-box {
-    text-align: right; font-size: 10px; color: #444;
-    border: 1px solid #999; border-radius: 4px;
-    padding: 4px 10px; background: #f8f8f8;
+  .report-brand-logo {
+    position: absolute;
+    inset: 1.1mm;
+    display: block;
+    width: calc(100% - 2.2mm);
+    height: calc(100% - 2.2mm);
+    object-fit: contain;
   }
-
-  /* ── 테이블 ── */
+  .report-brand-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.6mm;
+  }
+  .report-brand-copy strong {
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .report-brand-copy span {
+    color: var(--score-report-on-primary);
+    font-size: 8px;
+    font-weight: 700;
+    opacity: 0.76;
+  }
+  .report-date {
+    display: grid;
+    justify-items: end;
+    gap: 0.8mm;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .report-date strong { font-size: 10px; font-weight: 900; }
+  .report-content {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: 6mm 10mm 5mm;
+  }
+  .report-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8mm;
+    margin-bottom: 4mm;
+  }
+  .report-heading h1 {
+    margin: 0;
+    color: #182234;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+  .report-heading p {
+    margin: 1.2mm 0 0;
+    color: #667287;
+    font-size: 8.5px;
+    font-weight: 700;
+  }
+  .report-heading__session {
+    max-width: 78mm;
+    color: #415069;
+    font-size: 9px;
+    font-weight: 800;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .summary-band {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 4mm;
+    overflow: hidden;
+    border: 0.3mm solid #ccd5e1;
+    border-radius: 2.2mm;
+    background: #f7f9fc;
+  }
+  .summary-metric {
+    display: grid;
+    min-height: 15mm;
+    align-content: center;
+    gap: 1mm;
+    padding: 2.2mm 4mm;
+    border-right: 0.3mm solid #d9e0e9;
+  }
+  .summary-metric:last-child { border-right: 0; }
+  .summary-metric span {
+    color: #69768a;
+    font-size: 7.5px;
+    font-weight: 750;
+  }
+  .summary-metric strong {
+    color: #202d43;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .summary-metric.is-clinic strong { color: #a35408; }
+  .score-table-wrap {
+    min-height: 0;
+    overflow: hidden;
+    border: 0.35mm solid #344157;
+    border-radius: 1.5mm;
+  }
   table {
-    width: 100%; border-collapse: collapse;
-    font-size: 10px; line-height: 1.4;
-    border: 2px solid #111;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8.4px;
+    line-height: 1.25;
   }
   th, td {
-    border: 1px solid #555; padding: 5px 6px;
-    text-align: center; vertical-align: middle;
+    height: 8.2mm;
+    padding: 1.2mm 1.5mm;
+    border-right: 0.25mm solid #c6cfdb;
+    border-bottom: 0.25mm solid #c6cfdb;
+    text-align: center;
+    vertical-align: middle;
   }
-
-  /* 그룹 헤더 (시험 / 과제) */
-  th.group-header {
-    background: #222; color: #fff; font-weight: 800;
-    font-size: 10px; letter-spacing: 1px;
-    border-bottom: 2px solid #111;
-    padding: 6px 8px;
-  }
-  /* 서브 헤더 (개별 시험명/과제명) */
+  tr > :last-child { border-right: 0; }
+  tbody tr:last-child td { border-bottom: 0; }
   th {
-    background: #eee; font-weight: 700;
-    font-size: 9px; white-space: nowrap;
+    background: #eef2f7;
+    color: #2a374d;
+    font-size: 7.7px;
+    font-weight: 850;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
-
-  /* 짝수 행 얼룩무늬 */
-  tbody tr:nth-child(even) td { background: #f7f7f7; }
-  tbody tr:hover td { background: #eef; }
-
+  th.group-header {
+    height: 7.6mm;
+    border-color: var(--score-report-primary);
+    background: var(--score-report-primary);
+    color: var(--score-report-on-primary);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+  }
+  th small {
+    display: block;
+    margin-top: 0.6mm;
+    color: #718096;
+    font-size: 6.5px;
+    font-weight: 700;
+  }
+  tbody tr:nth-child(even) td { background: #f8fafc; }
   td.name {
-    text-align: left; font-weight: 700;
-    white-space: nowrap; font-size: 11px;
-    min-width: 60px; padding-left: 8px;
-    border-right: 2px solid #555;
+    padding-left: 2.5mm;
+    color: #172033;
+    font-size: 9px;
+    font-weight: 850;
+    text-align: left;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
-  td.num { font-variant-numeric: tabular-nums; }
-  td.pass { font-weight: 700; font-size: 11px; }
-  td.pass-y { }
-  td.pass-n { font-weight: 900; }
-  td.no-score { color: #aaa; font-style: italic; }
-  td.attendance { font-size: 9px; }
-
-  /* 판정 열 */
-  td.verdict-pass { font-weight: 800; }
-  td.verdict-fail { font-weight: 900; background: #ddd !important; }
-  td.verdict-clinic { font-weight: 900; background: #e8e8e8 !important; }
-
-  /* 요약 행 */
+  td.num { font-variant-numeric: tabular-nums; font-weight: 700; }
+  td.no-score { color: #9aa5b5; }
+  td.verdict-pass { color: #15613e; font-weight: 900; }
+  td.verdict-fail { background: #fff1f0 !important; color: #a32622; font-weight: 900; }
+  td.verdict-clinic { background: #fff6e8 !important; color: #9b5207; font-weight: 900; }
   .summary-row td {
-    background: #222 !important; color: #fff;
-    font-weight: 700; font-size: 10px;
-    border-color: #111; padding: 6px;
+    height: 8mm;
+    border-color: #3a4659;
+    background: #2b374b !important;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 850;
   }
-
-  /* ── 푸터 ── */
-  .footer {
-    margin-top: 8px; padding-top: 6px;
-    border-top: 3px double #111;
-    display: flex; justify-content: space-between;
-    font-size: 9px; color: #555;
+  .density-compact table { font-size: 7.6px; }
+  .density-compact th { font-size: 7px; }
+  .density-dense table { font-size: 6.8px; }
+  .density-dense th { font-size: 6.3px; }
+  .report-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6mm;
+    margin-top: auto;
+    padding-top: 3mm;
+    border-top: 0.3mm solid #cbd4e0;
+    color: #657187;
+    font-size: 7.4px;
+    font-weight: 700;
   }
-  .footer .legend {
-    display: flex; gap: 12px;
+  .report-footer__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4mm;
   }
-  .footer .legend span {
-    display: inline-flex; align-items: center; gap: 3px;
+  .report-footer__page {
+    flex: 0 0 auto;
+    color: #354157;
+    font-weight: 850;
   }
-
   @media print {
     body { background: #fff; }
-    .page { padding: 0; width: 100%; min-height: auto; }
-    tbody tr:hover td { background: inherit; }
-  }
-  @media screen {
-    .page { max-width: 1122px; }
+    .score-report-page { margin: 0; }
   }
 `;
 
@@ -132,8 +279,6 @@ const ATTENDANCE_LABEL: Record<string, string> = {
   SECESSION: "퇴원",
 };
 
-// ── 빌드 ──
-
 export type ScorePdfParams = {
   rows: SessionScoreRow[];
   meta: SessionScoreMeta;
@@ -141,13 +286,17 @@ export type ScorePdfParams = {
   lectureTitle: string;
   date?: string;
   attendanceMap?: Record<number, string>;
-  /** 테넌트(학원) 이름 — 인쇄물 식별용. 헤더 좌상단에 표기됨. */
   tenantName?: string;
+  tenantCode?: string;
+  tenantLogoUrl?: string;
+  primaryColor?: string;
 };
 
-function resolveDate(date?: string) {
+function resolveDate(date?: string): string {
   return date || new Date().toLocaleDateString("ko-KR", {
-    year: "numeric", month: "2-digit", day: "2-digit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).replace(/\. /g, ". ");
 }
 
@@ -157,12 +306,12 @@ function fmtScore(score: number | null | undefined): string {
 }
 
 function passText(passed: boolean | null | undefined): string {
-  if (passed == null) return "";
+  if (passed == null) return "-";
   return passed ? "O" : "X";
 }
 
-function escapeHtml(s: string): string {
-  return String(s ?? "")
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -170,206 +319,325 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function buildScorePdfHtml(params: ScorePdfParams): string {
-  const { rows, meta, sessionTitle, lectureTitle, date, attendanceMap, tenantName } = params;
-
-  const exams = meta.exams ?? [];
-  const homeworks = meta.homeworks ?? [];
-  const hasAttendance = attendanceMap && Object.keys(attendanceMap).length > 0;
-
-  // Group headers
-  let groupRow = "";
-  groupRow += `<th class="group-header" rowspan="2" style="width:30px">No</th>`;
-  groupRow += `<th class="group-header" rowspan="2" style="min-width:60px">이름</th>`;
-  if (hasAttendance) groupRow += `<th class="group-header" rowspan="2" style="width:36px">출결</th>`;
-  if (exams.length > 0) groupRow += `<th class="group-header" colspan="${exams.length * 2}">시험</th>`;
-  if (homeworks.length > 0) groupRow += `<th class="group-header" colspan="${homeworks.length}">과제</th>`;
-  groupRow += `<th class="group-header" rowspan="2" style="width:36px">판정</th>`;
-
-  // Sub headers (exam title + pass, homework title)
-  let subRow = "";
-  for (const exam of exams) {
-    const title = exam.title.length > 6 ? exam.title.slice(0, 6) + "…" : exam.title;
-    subRow += `<th>${title}<br><span style="font-weight:400;font-size:8px">(${exam.max_score}점)</span></th>`;
-    subRow += `<th style="width:24px">P/F</th>`;
-  }
-  for (const hw of homeworks) {
-    const title = hw.title.length > 6 ? hw.title.slice(0, 6) + "…" : hw.title;
-    subRow += `<th>${title}<br><span style="font-weight:400;font-size:8px">(${hw.max_score}점)</span></th>`;
-  }
-
-  // Body rows
-  const bodyRows = rows.map((row, i) => {
-    const cells: string[] = [];
-    cells.push(`<td class="num">${i + 1}</td>`);
-    cells.push(`<td class="name">${row.student_name}</td>`);
-
-    if (hasAttendance) {
-      const status = attendanceMap?.[row.enrollment_id] ?? "";
-      cells.push(`<td class="attendance">${ATTENDANCE_LABEL[status] ?? "-"}</td>`);
-    }
-
-    // Exams
-    for (const examMeta of exams) {
-      const entry = row.exams?.find((e) => e.exam_id === examMeta.exam_id);
-      if (entry && entry.block.score != null) {
-        cells.push(`<td class="num">${fmtScore(entry.block.score)}</td>`);
-        const passClass = entry.block.passed === false ? "pass pass-n" : "pass pass-y";
-        cells.push(`<td class="${passClass}">${passText(entry.block.passed)}</td>`);
-      } else {
-        cells.push(`<td class="no-score">-</td>`);
-        cells.push(`<td class="no-score">-</td>`);
-      }
-    }
-
-    // Homeworks
-    for (const hwMeta of homeworks) {
-      const entry = row.homeworks?.find((h) => h.homework_id === hwMeta.homework_id);
-      if (entry && entry.block.score != null) {
-        cells.push(`<td class="num">${fmtScore(entry.block.score)}</td>`);
-      } else {
-        cells.push(`<td class="no-score">-</td>`);
-      }
-    }
-
-    // 판정 — 화면 ScoresTable·드로어와 동일 규칙(sessionScoreRowVerdict)
-    const vk = getSessionScoresTableVerdict(row);
-    let verdict = "-";
-    let verdictClass = "";
-    if (vk === "clinic_target") {
-      verdict = "클리닉";
-      verdictClass = "verdict-clinic";
-    } else if (vk === "fail") {
-      verdict = "미달";
-      verdictClass = "verdict-fail";
-    } else if (vk === "pass") {
-      verdict = "통과";
-      verdictClass = "verdict-pass";
-    }
-    cells.push(`<td class="${verdictClass}">${verdict}</td>`);
-
-    return `<tr>${cells.join("")}</tr>`;
-  }).join("\n");
-
-  // Summary row
-  const summaryStats: string[] = [];
-  summaryStats.push(`<td class="num" colspan="2" style="text-align:right">합계 ${rows.length}명</td>`);
-  if (hasAttendance) summaryStats.push(`<td></td>`);
-  for (const examMeta of exams) {
-    const scores = rows.map((r) => r.exams?.find((e) => e.exam_id === examMeta.exam_id)?.block.score).filter((s): s is number => s != null);
-    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-    summaryStats.push(`<td class="num">${avg != null ? avg.toFixed(1) : "-"}</td>`);
-    const passCount = rows.filter((r) => r.exams?.find((e) => e.exam_id === examMeta.exam_id)?.block.passed === true).length;
-    summaryStats.push(`<td class="num">${passCount}/${scores.length}</td>`);
-  }
-  for (const hwMeta of homeworks) {
-    const scores = rows.map((r) => r.homeworks?.find((h) => h.homework_id === hwMeta.homework_id)?.block.score).filter((s): s is number => s != null);
-    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-    summaryStats.push(`<td class="num">${avg != null ? avg.toFixed(1) : "-"}</td>`);
-  }
-  const totalPassed = rows.filter((r) => getSessionScoresTableVerdict(r) === "pass").length;
-  summaryStats.push(`<td class="num">${totalPassed}/${rows.length}</td>`);
-
-  const safeTenantName = (tenantName ?? "").trim();
-  const tenantHeader = safeTenantName
-    ? `<div style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:#222;margin-bottom:2px">${escapeHtml(safeTenantName)}</div>`
-    : "";
-
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>성적표 — ${escapeHtml(safeTenantName ? `${safeTenantName} ` : "")}${escapeHtml(lectureTitle)} ${escapeHtml(sessionTitle)}</title>
-<style>${BW_STYLE}</style></head><body>
-<div class="page">
-  <div class="header">
-    <div>
-      ${tenantHeader}
-      <h1>${escapeHtml(lectureTitle)} — ${escapeHtml(sessionTitle)}</h1>
-      <div class="sub">수강생 ${rows.length}명 · 시험 ${exams.length}건 · 과제 ${homeworks.length}건</div>
-    </div>
-    <div class="date-box">${resolveDate(date)}</div>
-  </div>
-  <table>
-    <thead>
-      <tr>${groupRow}</tr>
-      <tr>${subRow}</tr>
-    </thead>
-    <tbody>
-      ${bodyRows}
-      <tr class="summary-row">${summaryStats.join("")}</tr>
-    </tbody>
-  </table>
-  <div class="footer">
-    <div class="legend">
-      <span><b>O</b> 통과</span>
-      <span><b>X</b> 미달</span>
-      <span>평균 = 응시자 기준</span>
-      <span>통과 ${totalPassed}/${rows.length}명</span>
-    </div>
-    <span>${resolveDate(date)} 출력</span>
-  </div>
-</div></body></html>`;
+function safeFilenamePart(value: string): string {
+  return value
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 60);
 }
 
-// ── Export ──
+function chunkRows(rows: SessionScoreRow[]): SessionScoreRow[][] {
+  if (rows.length === 0) return [[]];
+  const chunks: SessionScoreRow[][] = [];
+  for (let index = 0; index < rows.length; index += ROWS_PER_PAGE) {
+    chunks.push(rows.slice(index, index + ROWS_PER_PAGE));
+  }
+  return chunks;
+}
 
-/**
- * 성적표 PDF 다운로드
- * HTML → hidden iframe 렌더 → html2canvas 캡처 → jsPDF A4 landscape 저장
- * 라이브러리는 CDN dynamic import (npm 설치 불필요)
- */
-export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
-  const html = buildScorePdfHtml(params);
+export function getScorePdfPageCount(params: Pick<ScorePdfParams, "rows">): number {
+  return chunkRows(params.rows).length;
+}
 
-  // 1) hidden iframe에 HTML 렌더
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:0;top:0;width:1122px;height:793px;opacity:0;pointer-events:none;z-index:-1";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-  if (!doc) { document.body.removeChild(iframe); throw new Error("iframe 생성 실패"); }
-  doc.open();
-  doc.write(html);
-  doc.close();
+function buildBrandIdentity(params: ScorePdfParams): string {
+  const theme = resolveStudentScoreReportTheme({
+    tenantCode: params.tenantCode,
+    primaryColor: params.primaryColor,
+    logoUrl: params.tenantLogoUrl,
+  });
+  const tenantName = params.tenantName?.trim() || "Academy";
+  const mark = Array.from(tenantName)[0]?.toLocaleUpperCase("ko-KR") || "A";
+  const logo = theme.logoUrl
+    ? `<img class="report-brand-logo" src="${escapeHtml(theme.logoUrl)}" alt="" crossorigin="anonymous" onerror="this.remove()" />`
+    : "";
+  return `
+    <div class="report-brand">
+      <span class="report-brand-symbol"><span>${escapeHtml(mark)}</span>${logo}</span>
+      <span class="report-brand-copy">
+        <strong>${escapeHtml(tenantName)}</strong>
+        <span>ACADEMIC SCORE RECORD</span>
+      </span>
+    </div>
+  `;
+}
 
-  // 2) 렌더 완료 대기
+function buildTableHeader(params: ScorePdfParams, hasAttendance: boolean): string {
+  const exams = params.meta.exams ?? [];
+  const homeworks = params.meta.homeworks ?? [];
+  const groupCells = [
+    '<th class="group-header" rowspan="2" style="width:9mm">No</th>',
+    '<th class="group-header" rowspan="2" style="width:24mm">이름</th>',
+    hasAttendance ? '<th class="group-header" rowspan="2" style="width:13mm">출결</th>' : "",
+    exams.length > 0 ? `<th class="group-header" colspan="${exams.length * 2}">시험</th>` : "",
+    homeworks.length > 0 ? `<th class="group-header" colspan="${homeworks.length}">과제</th>` : "",
+    '<th class="group-header" rowspan="2" style="width:15mm">판정</th>',
+  ].join("");
+  const detailCells = [
+    ...exams.flatMap((exam) => [
+      `<th>${escapeHtml(exam.title)}<small>${fmtScore(exam.max_score)}점</small></th>`,
+      '<th style="width:9mm">P/F</th>',
+    ]),
+    ...homeworks.map(
+      (homework) =>
+        `<th>${escapeHtml(homework.title)}<small>${fmtScore(homework.max_score)}점</small></th>`,
+    ),
+  ].join("");
+  return `<thead><tr>${groupCells}</tr><tr>${detailCells}</tr></thead>`;
+}
+
+function buildBodyRows(
+  rows: SessionScoreRow[],
+  params: ScorePdfParams,
+  indexOffset: number,
+  hasAttendance: boolean,
+): string {
+  const exams = params.meta.exams ?? [];
+  const homeworks = params.meta.homeworks ?? [];
+  return rows.map((row, index) => {
+    const cells = [
+      `<td class="num">${indexOffset + index + 1}</td>`,
+      `<td class="name">${escapeHtml(row.student_name)}</td>`,
+    ];
+    if (hasAttendance) {
+      const status = params.attendanceMap?.[row.enrollment_id] ?? "";
+      cells.push(`<td>${escapeHtml(ATTENDANCE_LABEL[status] ?? "-")}</td>`);
+    }
+    for (const exam of exams) {
+      const entry = row.exams?.find((item) => item.exam_id === exam.exam_id);
+      cells.push(
+        entry?.block.score != null
+          ? `<td class="num">${fmtScore(entry.block.score)}</td>`
+          : '<td class="no-score">-</td>',
+      );
+      cells.push(
+        entry?.block.score != null
+          ? `<td class="num">${passText(entry.block.passed)}</td>`
+          : '<td class="no-score">-</td>',
+      );
+    }
+    for (const homework of homeworks) {
+      const entry = row.homeworks?.find((item) => item.homework_id === homework.homework_id);
+      cells.push(
+        entry?.block.score != null
+          ? `<td class="num">${fmtScore(entry.block.score)}</td>`
+          : '<td class="no-score">-</td>',
+      );
+    }
+    const verdict = getSessionScoresTableVerdict(row);
+    const verdictMeta = verdict === "clinic_target"
+      ? ["클리닉", "verdict-clinic"]
+      : verdict === "fail"
+        ? ["미달", "verdict-fail"]
+        : verdict === "pass"
+          ? ["통과", "verdict-pass"]
+          : ["-", ""];
+    cells.push(`<td class="${verdictMeta[1]}">${verdictMeta[0]}</td>`);
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+}
+
+function buildSummaryRow(params: ScorePdfParams, hasAttendance: boolean): string {
+  const { rows, meta } = params;
+  const cells = [`<td colspan="2" style="text-align:right">전체 ${rows.length}명</td>`];
+  if (hasAttendance) cells.push("<td></td>");
+  for (const exam of meta.exams ?? []) {
+    const scores = rows
+      .map((row) => row.exams?.find((item) => item.exam_id === exam.exam_id)?.block.score)
+      .filter((score): score is number => score != null);
+    const average = scores.length > 0
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+      : null;
+    const passed = rows.filter(
+      (row) => row.exams?.find((item) => item.exam_id === exam.exam_id)?.block.passed === true,
+    ).length;
+    cells.push(`<td class="num">${average == null ? "-" : average.toFixed(1)}</td>`);
+    cells.push(`<td class="num">${passed}/${scores.length}</td>`);
+  }
+  for (const homework of meta.homeworks ?? []) {
+    const scores = rows
+      .map((row) => row.homeworks?.find((item) => item.homework_id === homework.homework_id)?.block.score)
+      .filter((score): score is number => score != null);
+    const average = scores.length > 0
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+      : null;
+    cells.push(`<td class="num">${average == null ? "-" : average.toFixed(1)}</td>`);
+  }
+  const passed = rows.filter((row) => getSessionScoresTableVerdict(row) === "pass").length;
+  cells.push(`<td class="num">${passed}/${rows.length}</td>`);
+  return `<tr class="summary-row">${cells.join("")}</tr>`;
+}
+
+function buildSummaryBand(params: ScorePdfParams): string {
+  const passed = params.rows.filter((row) => getSessionScoresTableVerdict(row) === "pass").length;
+  const clinic = params.rows.filter((row) => getSessionScoresTableVerdict(row) === "clinic_target").length;
+  const evaluationCount = (params.meta.exams?.length ?? 0) + (params.meta.homeworks?.length ?? 0);
+  const passRate = params.rows.length > 0 ? Math.round((passed / params.rows.length) * 100) : 0;
+  return `
+    <div class="summary-band">
+      <div class="summary-metric"><span>수강생</span><strong>${params.rows.length}명</strong></div>
+      <div class="summary-metric"><span>평가 항목</span><strong>${evaluationCount}건</strong></div>
+      <div class="summary-metric"><span>최종 통과</span><strong>${passed}명 · ${passRate}%</strong></div>
+      <div class="summary-metric is-clinic"><span>클리닉 대상</span><strong>${clinic}명</strong></div>
+    </div>
+  `;
+}
+
+export function buildScorePdfHtml(params: ScorePdfParams): string {
+  const theme = resolveStudentScoreReportTheme({
+    tenantCode: params.tenantCode,
+    primaryColor: params.primaryColor,
+    logoUrl: params.tenantLogoUrl,
+  });
+  const pages = chunkRows(params.rows);
+  const hasAttendance = Boolean(
+    params.attendanceMap && Object.keys(params.attendanceMap).length > 0,
+  );
+  const columnCount = 3
+    + ((params.meta.exams?.length ?? 0) * 2)
+    + (params.meta.homeworks?.length ?? 0)
+    + (hasAttendance ? 1 : 0);
+  const density = columnCount > 12 ? "density-dense" : columnCount > 9 ? "density-compact" : "";
+  const date = resolveDate(params.date);
+  const tableHeader = buildTableHeader(params, hasAttendance);
+  const pageMarkup = pages.map((pageRows, pageIndex) => {
+    const isLastPage = pageIndex === pages.length - 1;
+    return `
+      <section class="score-report-page ${density}" data-score-report-page="${pageIndex + 1}">
+        <header class="report-topline">
+          ${buildBrandIdentity(params)}
+          <span class="report-date"><span>출력일</span><strong>${escapeHtml(date)}</strong></span>
+        </header>
+        <main class="report-content">
+          <div class="report-heading">
+            <div>
+              <h1>차시 성적 현황</h1>
+              <p>점수·통과 여부·클리닉 판정을 한 장에서 확인합니다.</p>
+            </div>
+            <div class="report-heading__session">${escapeHtml(params.lectureTitle)} · ${escapeHtml(params.sessionTitle)}</div>
+          </div>
+          ${pageIndex === 0 ? buildSummaryBand(params) : ""}
+          <div class="score-table-wrap">
+            <table>
+              ${tableHeader}
+              <tbody>
+                ${buildBodyRows(pageRows, params, pageIndex * ROWS_PER_PAGE, hasAttendance)}
+                ${isLastPage ? buildSummaryRow(params, hasAttendance) : ""}
+              </tbody>
+            </table>
+          </div>
+          <footer class="report-footer">
+            <span class="report-footer__legend">
+              <span><b>O</b> 통과</span>
+              <span><b>X</b> 미달</span>
+              <span>평균은 점수가 입력된 학생 기준</span>
+            </span>
+            <span class="report-footer__page">${pageIndex + 1} / ${pages.length}쪽</span>
+          </footer>
+        </main>
+      </section>
+    `;
+  }).join("");
+
+  return `<!doctype html>
+<html lang="ko" style="--score-report-primary:${theme.primary};--score-report-accent:${theme.accent};--score-report-on-primary:${theme.onPrimary}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(params.lectureTitle)} ${escapeHtml(params.sessionTitle)} 성적표</title>
+    <style>${SCORE_REPORT_STYLE}</style>
+  </head>
+  <body data-score-report-page-count="${pages.length}">${pageMarkup}</body>
+</html>`;
+}
+
+async function waitForReportDocument(doc: Document): Promise<void> {
   await new Promise<void>((resolve) => {
     const check = () => {
       if (doc.readyState === "complete") resolve();
-      else setTimeout(check, 50);
+      else window.setTimeout(check, 50);
     };
     check();
   });
-  // 약간의 렌더 안정 대기
-  await new Promise((r) => setTimeout(r, 300));
-
-  // 3) CDN에서 html2canvas, jsPDF 로드
-  const { html2canvas, jsPDF } = await loadPdfModules();
-
-  // 4) 캡처
-  const pageEl = doc.querySelector(".page") as HTMLElement ?? doc.body;
-  const canvas = await html2canvas(pageEl, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-  });
-
-  // 5) PDF 생성 (A4 가로)
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfH = pdf.internal.pageSize.getHeight();
-  const imgData = canvas.toDataURL("image/png");
-  const imgRatio = canvas.width / canvas.height;
-  let drawW = pdfW;
-  let drawH = pdfW / imgRatio;
-  if (drawH > pdfH) {
-    drawH = pdfH;
-    drawW = pdfH * imgRatio;
+  if ("fonts" in doc) {
+    await (doc as Document & { fonts: FontFaceSet }).fonts.ready;
   }
-  pdf.addImage(imgData, "PNG", 0, 0, drawW, drawH);
+  await new Promise((resolve) => window.setTimeout(resolve, 180));
+}
 
-  // 6) 다운로드
-  const tenantPrefix = (params.tenantName ?? "").trim() ? `${(params.tenantName ?? "").trim()}_` : "";
-  const filename = `성적표_${tenantPrefix}${params.lectureTitle}_${params.sessionTitle}_${resolveDate(params.date).replace(/[.\s/]/g, "")}.pdf`;
-  pdf.save(filename);
+export async function downloadScorePdf(params: ScorePdfParams): Promise<void> {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:1123px;height:2400px;border:0;pointer-events:none;z-index:-1";
+  document.body.appendChild(iframe);
+  try {
+    const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+    if (!doc) throw new Error("성적표 미리보기 문서를 만들지 못했습니다.");
+    doc.open();
+    doc.write(buildScorePdfHtml(params));
+    doc.close();
+    await waitForReportDocument(doc);
 
-  // 정리
-  document.body.removeChild(iframe);
+    const pages = Array.from(doc.querySelectorAll<HTMLElement>(".score-report-page"));
+    if (pages.length === 0) throw new Error("PDF로 변환할 성적표 페이지가 없습니다.");
+    const overflowed = pages.some(
+      (page) => page.scrollHeight > page.clientHeight + 2 || page.scrollWidth > page.clientWidth + 2,
+    );
+    if (overflowed) {
+      throw new Error("성적표 내용이 A4 범위를 넘어 PDF를 만들지 않았습니다.");
+    }
+
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+      const page = pages[pageIndex];
+      // Stacked A4 nodes can make html2canvas inherit a later page's document
+      // offset and crop its header. Capture each page at document origin.
+      pages.forEach((candidate, candidateIndex) => {
+        candidate.style.display = candidateIndex === pageIndex ? "flex" : "none";
+      });
+      page.style.margin = "0";
+      const canvas = await html2canvas(page, {
+        scale: 2.25,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: page.clientWidth,
+        windowHeight: page.clientHeight,
+      });
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error("PDF 렌더링 결과가 비어 있습니다.");
+      }
+      if (pageIndex > 0) pdf.addPage();
+      const imageData = canvas.toDataURL("image/png");
+      pdf.addImage({
+        imageData,
+        format: "PNG",
+        x: 0,
+        y: 0,
+        width: pdfWidth,
+        height: pdfHeight,
+        compression: "FAST",
+      });
+    }
+
+    const filename = [
+      "성적표",
+      params.tenantName,
+      params.lectureTitle,
+      params.sessionTitle,
+      resolveDate(params.date).replace(/[.\s/]/g, ""),
+    ].filter(Boolean).map((part) => safeFilenamePart(String(part))).join("_");
+    pdf.save(`${filename}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
 }

@@ -42,9 +42,9 @@
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
 | OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
-| 문항별 직접 채점 | `e2e/admin/manual-exam-grading.mock.spec.ts` | 답변형 시험에서 O/0 키 입력, 미리보기와 확정 POST 분리, 확정 후 서버 재조회 상태를 1100px 관리자 화면에서 검증 | 로컬 route-mock. 저장·tenant/role·혼합형 OMR 보존은 백엔드 `apps/support/results/tests/test_manual_exam_grading.py`가 검증 |
-| 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts` | 빈 성적표 자동 입력, 기존 점수 안전 잠금→수정→저장 후 재잠금, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, OMR CTA·더보기, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수 저장 계약은 route mock으로 운영 데이터 미접촉 |
-| 개인 성적표 | `e2e/admin/individual-score-report.spec.ts` | 성적 탭 더보기 진입, 학생 전환, 같은 강의 누적 추이, 요약 1쪽/상세 2쪽 미리보기, 실제 2쪽 PDF 다운로드를 local route mock으로 검증 | 교사 피드백 저장·서버 보관·전체 학생 일괄 생성은 현재 범위 아님 |
+| 문항별 직접 채점 | `e2e/admin/manual-exam-grading.mock.spec.ts` | 성적표 시험명에서 채점표 진입, O/X/0과 사용자 지정 키의 입력 후 자동 이동, 기기 저장, 미리보기와 확정 POST 분리, 확정 후 서버 재조회 상태를 1100px 관리자 화면에서 검증 | 로컬 route-mock. 저장·tenant/role·혼합형 OMR 보존은 백엔드 `apps/support/results/tests/test_manual_exam_grading.py`가 검증 |
+| 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts` | 빈 성적표 자동 입력, 기존 점수 안전 잠금→수정→저장 후 재잠금, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, OMR CTA·성적 도구 그룹, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수 저장 계약은 route mock으로 운영 데이터 미접촉 |
+| 개인 성적표 | `e2e/admin/individual-score-report.spec.ts` | 성적 도구 진입, 학생 전환·다중 선택, 같은 강의 누적 추이, 요약 1쪽/상세 2~3쪽 미리보기, 단일·2명 통합 PDF의 실제 페이지 수를 local route mock으로 검증 | 교사 피드백 저장·서버 보관은 현재 범위 아님 |
 | 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 학원시험·학교내신·모의고사 출처 전환, 기간·학생·강의·학년·득점·변화 필터, 학생 선택, 성적표 원본 검수·반영, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 1366/1100/390px 렌더 확인 | local route-mock 계약 검증 |
 | 학생 성적표 자발 제출 | `e2e/student/reported-score-submission.spec.ts` | 학교 내신 시험 시기·과목·점수·원본 multipart 계약, 내신 등급 입력 전 5/9등급제 선택, 확인 대기 상태, 평가원 성적표의 실제 시행 월(1~12월) 보존, 390px overflow 확인 | local route-mock 계약 검증 |
 | 공지 왕복 | `e2e/flows/notice-roundtrip.spec.ts` | 관리자 작성->학생 확인 roundtrip | 시각/초심자 판정은 부족 |

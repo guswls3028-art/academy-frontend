@@ -276,7 +276,7 @@ async function openScoreClinicPreviewWithLocalStubs(page: Page) {
   }, token);
 
   await page.goto(`${baseUrl}/workspace/lectures/990001/sessions/990002/scores`, { waitUntil: "load" });
-  await expect(page.locator("button[title='추가 기능']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
@@ -562,8 +562,8 @@ test.describe("클리닉 대상자 생성기 PDF 다운로드", () => {
   test("성적탭 클리닉 미리보기는 완료 상태와 보강합격 학생을 제외한다", async ({ page }) => {
     await openScoreClinicPreviewWithLocalStubs(page);
 
-    await page.locator("button[title='추가 기능']").click();
-    await page.locator("button").filter({ hasText: "클리닉 대상 보기" }).first().click();
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.locator("button").filter({ hasText: "클리닉 대상" }).first().click();
 
     const frame = page.frameLocator('iframe[title="클리닉 대상자 미리보기"]');
     await expect(frame.locator(".columns")).toContainText("김미달", { timeout: 10_000 });

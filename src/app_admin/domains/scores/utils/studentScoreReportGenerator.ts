@@ -1110,6 +1110,62 @@ function assertPageContentFits(page: HTMLElement): void {
 }
 
 export async function downloadStudentScoreReportPdf(params: StudentScoreReportParams): Promise<void> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  await appendStudentScoreReportPages(pdf, params, html2canvas, false);
+
+  const reportDate = resolveDate(params.date).replace(/[.\s/]/g, "");
+  const filename = [
+    "개인성적표",
+    params.tenantName,
+    params.lectureTitle,
+    params.row.student_name,
+    reportDate,
+  ].filter(Boolean).map((part) => safeFilenamePart(String(part))).join("_");
+  downloadBlob(pdf.output("blob"), `${filename}.pdf`);
+}
+
+export async function downloadStudentScoreReportsPdf(
+  paramsList: StudentScoreReportParams[],
+): Promise<void> {
+  if (paramsList.length === 0) {
+    throw new Error("PDF로 만들 학생을 한 명 이상 선택해 주세요.");
+  }
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  for (let index = 0; index < paramsList.length; index += 1) {
+    await appendStudentScoreReportPages(
+      pdf,
+      paramsList[index],
+      html2canvas,
+      index > 0,
+    );
+  }
+
+  const first = paramsList[0];
+  const reportDate = resolveDate(first.date).replace(/[.\s/]/g, "");
+  const filename = [
+    "개인성적표",
+    first.tenantName,
+    first.lectureTitle,
+    `${paramsList.length}명`,
+    reportDate,
+  ].filter(Boolean).map((part) => safeFilenamePart(String(part))).join("_");
+  downloadBlob(pdf.output("blob"), `${filename}.pdf`);
+}
+
+async function appendStudentScoreReportPages(
+  pdf: InstanceType<(typeof import("jspdf"))["jsPDF"]>,
+  params: StudentScoreReportParams,
+  html2canvas: (typeof import("html2canvas"))["default"],
+  addPageBefore: boolean,
+): Promise<void> {
   const html = buildStudentScoreReportHtml(params);
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:2400px;opacity:0;pointer-events:none;z-index:-1";
@@ -1125,11 +1181,6 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
 
     const pageElements = Array.from(doc.querySelectorAll<HTMLElement>(".student-report-page"));
     if (pageElements.length === 0) throw new Error("PDF로 변환할 성적표 페이지가 없습니다.");
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import("html2canvas"),
-      import("jspdf"),
-    ]);
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
@@ -1143,7 +1194,8 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
         windowWidth: doc.documentElement.scrollWidth,
         windowHeight: doc.documentElement.scrollHeight,
       });
-      if (index > 0) pdf.addPage();
+      if (addPageBefore || index > 0) pdf.addPage();
+      addPageBefore = false;
       const imageData = canvas.toDataURL("image/jpeg", 0.94);
       const ratio = canvas.width / canvas.height;
       let drawWidth = pdfWidth;
@@ -1154,16 +1206,6 @@ export async function downloadStudentScoreReportPdf(params: StudentScoreReportPa
       }
       pdf.addImage(imageData, "JPEG", (pdfWidth - drawWidth) / 2, 0, drawWidth, drawHeight, undefined, "FAST");
     }
-
-    const reportDate = resolveDate(params.date).replace(/[.\s/]/g, "");
-    const filename = [
-      "개인성적표",
-      params.tenantName,
-      params.lectureTitle,
-      params.row.student_name,
-      reportDate,
-    ].filter(Boolean).map((part) => safeFilenamePart(String(part))).join("_");
-    downloadBlob(pdf.output("blob"), `${filename}.pdf`);
   } finally {
     document.body.removeChild(iframe);
   }
