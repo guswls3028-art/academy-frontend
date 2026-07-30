@@ -368,11 +368,11 @@ export default function ManualExamGradingGrid({
   }, [applyHistoryEntry, syncHistoryState]);
 
   const focusCell = useCallback((
-    current: HTMLButtonElement,
+    current: HTMLElement,
     direction: "next" | "previous" | "up" | "down",
   ) => {
     const cells = Array.from(
-      tableWrapRef.current?.querySelectorAll<HTMLButtonElement>(
+      tableWrapRef.current?.querySelectorAll<HTMLElement>(
         "[data-manual-grade-cell]:not(:disabled)",
       ) ?? [],
     );
@@ -420,7 +420,7 @@ export default function ManualExamGradingGrid({
       return;
     }
     const frame = window.requestAnimationFrame(() => {
-      const firstCell = tableWrapRef.current?.querySelector<HTMLButtonElement>(
+      const firstCell = tableWrapRef.current?.querySelector<HTMLElement>(
         "[data-manual-grade-cell]:not(:disabled)",
       );
       if (!firstCell) return;
@@ -759,7 +759,7 @@ export default function ManualExamGradingGrid({
     );
     if (focusRowIndex >= 0 && focusColumnIndex >= 0) {
       window.requestAnimationFrame(() => {
-        const target = tableWrapRef.current?.querySelector<HTMLButtonElement>(
+        const target = tableWrapRef.current?.querySelector<HTMLElement>(
           `[data-manual-grade-cell][data-row-index="${focusRowIndex}"][data-column-index="${focusColumnIndex}"]`,
         );
         target?.focus();
@@ -941,11 +941,20 @@ export default function ManualExamGradingGrid({
           </div>
         </div>
       ) : (
-        <div className={styles.legend}>
-          <span>각 문항 배점 안에서 점수를 입력합니다.</span>
-          <span className={styles.legendReview}>
-            <b>복습</b> 만점을 받아도 오답노트에 포함
-          </span>
+        <div className={styles.commandBar} aria-label="점수표 입력 도움말">
+          <div className={styles.legend}>
+            <span>각 문항 배점 안에서 점수를 입력합니다.</span>
+            <span className={styles.legendReview}>
+              <b>복습</b> 만점을 받아도 오답노트에 포함
+            </span>
+          </div>
+          <div className={styles.keyboardHints}>
+            <span><kbd>Tab</kbd> 다음 칸</span>
+            <span><kbd>Enter</kbd> 아래 칸</span>
+            <span><kbd>방향키</kbd> 셀 이동</span>
+            <span><kbd>Ctrl Z</kbd> 실행 취소</span>
+            <span><kbd>Ctrl S</kbd> 확인·확정</span>
+          </div>
         </div>
       )}
 
@@ -1165,6 +1174,11 @@ export default function ManualExamGradingGrid({
                           maxScore={maxScore}
                           review={cell.include_in_wrong_note}
                           disabled={row.is_not_submitted || busy}
+                          studentName={row.student_name}
+                          questionNumber={question.number}
+                          rowIndex={rowIndex}
+                          columnIndex={columnIndex}
+                          onMoveFocus={focusCell}
                           onScoreChange={(score) =>
                             updateCell(
                               row.enrollment_id,
@@ -1310,7 +1324,7 @@ function CorrectnessCell({
   columnIndex: number;
   shortcuts: ManualGradingShortcutSettings;
   onMoveFocus: (
-    element: HTMLButtonElement,
+    element: HTMLElement,
     direction: "next" | "previous" | "up" | "down",
   ) => void;
   onShowShortcuts: () => void;
@@ -1425,6 +1439,11 @@ function ScoreCell({
   maxScore,
   review,
   disabled,
+  studentName,
+  questionNumber,
+  rowIndex,
+  columnIndex,
+  onMoveFocus,
   onScoreChange,
   onReviewChange,
 }: {
@@ -1432,6 +1451,14 @@ function ScoreCell({
   maxScore: number;
   review: boolean;
   disabled: boolean;
+  studentName: string;
+  questionNumber: number;
+  rowIndex: number;
+  columnIndex: number;
+  onMoveFocus: (
+    element: HTMLElement,
+    direction: "next" | "previous" | "up" | "down",
+  ) => void;
   onScoreChange: (value: number | null) => void;
   onReviewChange: (value: boolean) => void;
 }) {
@@ -1444,10 +1471,36 @@ function ScoreCell({
         step="0.1"
         value={value ?? ""}
         disabled={disabled}
-        aria-label={`${formatScore(maxScore)}점 만점 점수`}
+        aria-label={`${studentName} ${questionNumber}번 ${formatScore(maxScore)}점 만점 점수`}
+        data-manual-grade-cell
+        data-row-index={rowIndex}
+        data-column-index={columnIndex}
+        onFocus={(event) => event.currentTarget.select()}
         onChange={(event) => {
           const raw = event.target.value;
           onScoreChange(raw === "" ? null : Number(raw));
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onMoveFocus(event.currentTarget, event.shiftKey ? "up" : "down");
+          } else if (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey)) {
+            event.preventDefault();
+            onMoveFocus(event.currentTarget, "next");
+          } else if (event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey)) {
+            event.preventDefault();
+            onMoveFocus(event.currentTarget, "previous");
+          } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            onMoveFocus(event.currentTarget, "down");
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            onMoveFocus(event.currentTarget, "up");
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
         }}
       />
       <button
