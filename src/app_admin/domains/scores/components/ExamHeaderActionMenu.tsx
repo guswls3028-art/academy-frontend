@@ -105,7 +105,7 @@ export default function ExamHeaderActionMenu({
             ? manualGradingMethod === "correctness"
               ? "학생별 O/X/0을 입력하고 성적 확정"
               : "학생별 문항 점수를 입력하고 성적 확정"
-            : "직접 채점 문항이 있는 시험에서 사용"
+            : "시험 설정에서 정오표 직접입력으로 변경"
         }
         icon={<ClipboardCheck size={ICON_FOR_BUTTON.md} />}
         accent
@@ -126,7 +126,7 @@ export default function ExamHeaderActionMenu({
       <div className={styles.menuDivider} />
       <MenuAction
         title="시험 설정"
-        description="시험명 · 만점 · 커트라인 관리"
+        description="채점 방식 · 시험명 · 만점 · 커트라인 관리"
         icon={<Settings2 size={ICON_FOR_BUTTON.md} />}
         onClick={() => {
           setMenuOpen(false);
@@ -176,6 +176,8 @@ export default function ExamHeaderActionMenu({
       <ExamHeaderQuickEdit
         examId={examId}
         examTitle={examTitle}
+        initialGradingMode={gradingMode}
+        initialManualGradingMethod={manualGradingMethod}
         initialMaxScore={initialMaxScore}
         initialPassScore={initialPassScore}
         sessionId={sessionId}

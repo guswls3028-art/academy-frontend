@@ -20,9 +20,20 @@ import ShowcasePublishModal from "./ShowcasePublishModal";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 
+type GradingMode = "choice" | "written" | "mixed";
+type ManualGradingMethod = "correctness" | "score";
+type GradingWorkflow =
+  | "omr"
+  | "manual_correctness"
+  | "manual_score"
+  | "mixed_correctness"
+  | "mixed_score";
+
 type Props = {
   examId: number;
   examTitle: string;
+  initialGradingMode: GradingMode;
+  initialManualGradingMethod: ManualGradingMethod;
   initialMaxScore: number | null;
   initialPassScore: number | null;
   sessionId: number;
@@ -31,9 +42,68 @@ type Props = {
   onOpenChange?: (open: boolean) => void;
 };
 
+const BASE_WORKFLOW_OPTIONS: {
+  value: GradingWorkflow;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "omr",
+    label: "OMR 자동채점",
+    description: "스캔 답안을 인식해 자동 채점하고 OMR 검토에서 보정합니다.",
+  },
+  {
+    value: "manual_correctness",
+    label: "정오표 직접입력 (O/X/0)",
+    description: "조교가 채점한 정오를 학생별 표에 입력해 점수와 오답노트를 확정합니다.",
+  },
+  {
+    value: "manual_score",
+    label: "문항별 점수 직접입력",
+    description: "서술형·부분점수를 문항별 숫자로 입력합니다.",
+  },
+];
+
+function workflowFrom(
+  gradingMode: GradingMode,
+  manualGradingMethod: ManualGradingMethod,
+): GradingWorkflow {
+  if (gradingMode === "choice") return "omr";
+  if (gradingMode === "mixed") {
+    return manualGradingMethod === "correctness"
+      ? "mixed_correctness"
+      : "mixed_score";
+  }
+  return manualGradingMethod === "correctness"
+    ? "manual_correctness"
+    : "manual_score";
+}
+
+function workflowPayload(workflow: GradingWorkflow): {
+  grading_mode: GradingMode;
+  manual_grading_method: ManualGradingMethod;
+} {
+  if (workflow === "omr") {
+    return { grading_mode: "choice", manual_grading_method: "score" };
+  }
+  if (workflow === "manual_correctness") {
+    return { grading_mode: "written", manual_grading_method: "correctness" };
+  }
+  if (workflow === "manual_score") {
+    return { grading_mode: "written", manual_grading_method: "score" };
+  }
+  return {
+    grading_mode: "mixed",
+    manual_grading_method:
+      workflow === "mixed_correctness" ? "correctness" : "score",
+  };
+}
+
 export default function ExamHeaderQuickEdit({
   examId,
   examTitle,
+  initialGradingMode,
+  initialManualGradingMethod,
   initialMaxScore,
   initialPassScore,
   sessionId,
@@ -47,6 +117,9 @@ export default function ExamHeaderQuickEdit({
   const [title, setTitle] = useState<string>(examTitle);
   const [maxScore, setMaxScore] = useState<number | "">(initialMaxScore ?? 100);
   const [passScore, setPassScore] = useState<number | "">(initialPassScore ?? 0);
+  const [gradingWorkflow, setGradingWorkflow] = useState<GradingWorkflow>(
+    workflowFrom(initialGradingMode, initialManualGradingMethod),
+  );
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = (nextOpen: boolean) => {
     if (controlledOpen === undefined) setUncontrolledOpen(nextOpen);
@@ -59,7 +132,38 @@ export default function ExamHeaderQuickEdit({
     setTitle(examTitle);
     setMaxScore(initialMaxScore ?? 100);
     setPassScore(initialPassScore ?? 0);
-  }, [open, examTitle, initialMaxScore, initialPassScore]);
+    setGradingWorkflow(
+      workflowFrom(initialGradingMode, initialManualGradingMethod),
+    );
+  }, [
+    open,
+    examTitle,
+    initialGradingMode,
+    initialManualGradingMethod,
+    initialMaxScore,
+    initialPassScore,
+  ]);
+
+  const initialWorkflow = workflowFrom(
+    initialGradingMode,
+    initialManualGradingMethod,
+  );
+  const gradingWorkflowOptions =
+    initialGradingMode === "mixed"
+      ? [
+          ...BASE_WORKFLOW_OPTIONS,
+          {
+            value: "mixed_correctness" as const,
+            label: "OMR + 정오표 혼합",
+            description: "OMR 문항은 잠그고 직접 채점 문항만 O/X/0으로 입력합니다.",
+          },
+          {
+            value: "mixed_score" as const,
+            label: "OMR + 문항별 점수 혼합",
+            description: "OMR 문항은 잠그고 직접 채점 문항만 점수로 입력합니다.",
+          },
+        ]
+      : BASE_WORKFLOW_OPTIONS;
 
   const saveMut = useMutation({
     mutationFn: () => {
@@ -67,7 +171,12 @@ export default function ExamHeaderQuickEdit({
       const ps = typeof passScore === "number" ? passScore : 0;
       const t = (title ?? "").trim() || examTitle;
       if (ps > ms) throw new Error(`커트라인(${ps})이 만점(${ms})보다 클 수 없습니다.`);
-      return updateAdminExam(examId, { title: t, max_score: ms, pass_score: ps });
+      return updateAdminExam(examId, {
+        title: t,
+        max_score: ms,
+        pass_score: ps,
+        ...workflowPayload(gradingWorkflow),
+      });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
@@ -164,6 +273,54 @@ export default function ExamHeaderQuickEdit({
                 </span>
               </label>
             </div>
+
+            <fieldset className="border-0 p-0">
+              <legend className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">
+                채점 방식
+              </legend>
+              <div className="flex flex-col gap-2">
+                {gradingWorkflowOptions.map((option) => {
+                  const selected = gradingWorkflow === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                        selected
+                          ? "border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/10"
+                          : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`exam-${examId}-grading-workflow`}
+                        value={option.value}
+                        checked={selected}
+                        onChange={() => setGradingWorkflow(option.value)}
+                        disabled={saveMut.isPending}
+                        className="mt-1"
+                      />
+                      <span className="min-w-0">
+                        <strong className="block text-sm text-[var(--color-text-primary)]">
+                          {option.label}
+                        </strong>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-[var(--color-text-muted)]">
+                          {option.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {gradingWorkflow !== initialWorkflow && (
+                <p
+                  className="mt-2 rounded-md border border-[var(--color-status-warning)]/40 bg-[var(--color-status-warning)]/10 px-3 py-2 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+                  role="status"
+                >
+                  기존 문항과 입력된 성적은 삭제되지 않습니다. 저장 후 선택한
+                  채점 화면이 열리며, 새로 확정한 결과가 성적에 반영됩니다.
+                </p>
+              )}
+            </fieldset>
 
             {/* 홈페이지 게시 (Phase #13) — 별도 액션 */}
             <div className="mt-2 pt-3 border-t border-[var(--color-border-divider)]">

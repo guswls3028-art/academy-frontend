@@ -74,11 +74,13 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let hasQuestions = options.hasQuestions ?? true;
   let manualSheetGetCount = 0;
   const postedRows: unknown[] = [];
-  const gradingMode = options.gradingMode ?? "written";
-  const manualGradingMethod = options.manualGradingMethod ?? "correctness";
+  const examPatches: unknown[] = [];
+  let gradingMode = options.gradingMode ?? "written";
+  let manualGradingMethod =
+    options.manualGradingMethod ?? "correctness";
   const editable = options.editable ?? true;
   const initialStates = options.initialStates ?? [null, null];
-  const questionEditable = [
+  const questionEditable = () => [
     editable && gradingMode === "written",
     editable && gradingMode !== "choice",
   ] as const;
@@ -98,15 +100,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     include_in_wrong_note: boolean;
   }> => ({
     [String(QUESTION_IDS[0])]: {
-      editable: questionEditable[0],
-      entry_method: questionEditable[0] ? manualGradingMethod : "omr",
+      editable: questionEditable()[0],
+      entry_method: questionEditable()[0] ? manualGradingMethod : "omr",
       state: applied ? "correct" : initialStates[0],
       score: applied ? 40 : manualGradingMethod === "score" ? 10 : initialStates[0] === "correct" ? 40 : 0,
       include_in_wrong_note: false,
     },
     [String(QUESTION_IDS[1])]: {
-      editable: questionEditable[1],
-      entry_method: questionEditable[1] ? manualGradingMethod : "omr",
+      editable: questionEditable()[1],
+      entry_method: questionEditable()[1] ? manualGradingMethod : "omr",
       state: applied ? "review" : initialStates[1],
       score: applied ? 60 : manualGradingMethod === "score" ? 20 : initialStates[1] === "correct" ? 60 : 0,
       include_in_wrong_note: applied,
@@ -232,6 +234,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/exams/${EXAM_ID}/`) {
+      if (method === "PATCH") {
+        const body = request.postDataJSON() as {
+          grading_mode?: "choice" | "written" | "mixed";
+          manual_grading_method?: "correctness" | "score";
+        };
+        examPatches.push(body);
+        gradingMode = body.grading_mode ?? gradingMode;
+        manualGradingMethod =
+          body.manual_grading_method ?? manualGradingMethod;
+      }
       await json({
         id: EXAM_ID,
         title: "7월 진단평가",
@@ -290,7 +302,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           exam_title: "7월 진단평가",
           grading_mode: gradingMode,
           manual_grading_method: manualGradingMethod,
-          has_manual_questions: hasQuestions && questionEditable.some(Boolean),
+          has_manual_questions:
+            hasQuestions && questionEditable().some(Boolean),
           exam_max_score: 100,
           question_score_total: hasQuestions ? 100 : 0,
           score_adjustment_total: 0,
@@ -301,8 +314,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
               kind: gradingMode === "written" ? "essay" : "choice",
               answer_type: gradingMode === "written" ? "written" : "choice",
               max_score: 40,
-              editable: questionEditable[0],
-              entry_method: questionEditable[0] ? manualGradingMethod : "omr",
+              editable: questionEditable()[0],
+              entry_method: questionEditable()[0]
+                ? manualGradingMethod
+                : "omr",
             },
             {
               question_id: QUESTION_IDS[1],
@@ -313,8 +328,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                   ? "numeric_short_answer"
                   : "written",
               max_score: 60,
-              editable: questionEditable[1],
-              entry_method: questionEditable[1] ? manualGradingMethod : "omr",
+              editable: questionEditable()[1],
+              entry_method: questionEditable()[1]
+                ? manualGradingMethod
+                : "omr",
             },
           ] : [],
           rows: [{
@@ -441,6 +458,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     get manualSheetGetCount() {
       return manualSheetGetCount;
     },
+    examPatches,
     postedRows,
   };
 }
@@ -590,8 +608,73 @@ test.describe("문항별 직접 채점", () => {
     await expect(settingsDialog.getByRole("textbox", { name: "시험명" })).toHaveValue("7월 진단평가");
     await expect(settingsDialog.getByRole("spinbutton", { name: /^만점/ })).toHaveValue("100");
     await expect(settingsDialog.getByRole("spinbutton", { name: /^커트라인/ })).toHaveValue("60");
+    await expect(
+      settingsDialog.getByRole("radio", {
+        name: /정오표 직접입력 \(O\/X\/0\)/,
+      }),
+    ).toBeChecked();
     await settingsDialog.getByRole("button", { name: "취소", exact: true }).click();
     await expect(settingsDialog).toHaveCount(0);
+  });
+
+  test("시험 설정에서 OMR 시험을 정오표 직접입력으로 전환한다", async ({ page }) => {
+    const apiState = await installApi(page, {
+      gradingMode: "choice",
+      manualGradingMethod: "score",
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const examTrigger = page.getByRole("button", {
+      name: "7월 진단평가 작업 선택",
+    });
+    await examTrigger.click();
+    const actionMenu = page.getByRole("menu", {
+      name: "7월 진단평가 작업 선택",
+    });
+    await expect(
+      actionMenu.getByRole("menuitem", { name: /^정오표 작성/ }),
+    ).toBeDisabled();
+    await actionMenu.getByRole("menuitem", { name: /^시험 설정/ }).click();
+
+    const settingsDialog = page.getByRole("dialog").filter({
+      hasText: "시험 설정",
+    });
+    await settingsDialog.getByRole("radio", {
+      name: /정오표 직접입력 \(O\/X\/0\)/,
+    }).check();
+    await expect(settingsDialog.getByRole("status")).toContainText(
+      "기존 문항과 입력된 성적은 삭제되지 않습니다.",
+    );
+    await settingsDialog.getByRole("button", {
+      name: "저장",
+      exact: true,
+    }).click();
+    await expect(settingsDialog).toHaveCount(0);
+    await expect.poll(() => apiState.examPatches).toEqual([
+      expect.objectContaining({
+        grading_mode: "written",
+        manual_grading_method: "correctness",
+      }),
+    ]);
+
+    await examTrigger.click();
+    const refreshedMenu = page.getByRole("menu", {
+      name: "7월 진단평가 작업 선택",
+    });
+    const manualAction = refreshedMenu.getByRole("menuitem", {
+      name: /^정오표 작성/,
+    });
+    await expect(manualAction).toBeEnabled();
+    await manualAction.click();
+    await expect(
+      page.getByRole("dialog").filter({
+        hasText: "7월 진단평가 정오 직접입력",
+      }),
+    ).toBeVisible();
   });
 
   test("혼합형은 OMR 문항을 잠그고 별도 결과 보정으로 이동한다", async ({ page }) => {
