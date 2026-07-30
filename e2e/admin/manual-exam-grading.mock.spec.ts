@@ -24,6 +24,23 @@ function fakeJwt(): string {
 
 type GradeState = "correct" | "incorrect" | "review" | null;
 
+async function chooseExamHeaderAction(
+  page: Page,
+  action: "정오표 작성" | "OMR 검토" | "시험 설정",
+) {
+  const trigger = page.getByRole("button", {
+    name: "7월 진단평가 작업 선택",
+  });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  const menu = page.getByRole("menu", {
+    name: "7월 진단평가 작업 선택",
+  });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
+}
+
 function contrastRatio(foreground: string, background: string): number {
   const channels = (value: string): number[] => {
     const match = value.match(/rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
@@ -538,9 +555,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("button", {
-      name: "7월 진단평가 OMR 검토 열기",
-    }).click();
+    await chooseExamHeaderAction(page, "OMR 검토");
 
     const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
     await expect(omrDialog).toBeVisible();
@@ -559,6 +574,26 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
   });
 
+  test("시험명 메뉴에서 시험 설정을 열고 현재 값을 확인한다", async ({ page }) => {
+    await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "시험 설정");
+
+    const settingsDialog = page.getByRole("dialog").filter({
+      hasText: "시험 설정",
+    });
+    await expect(settingsDialog).toBeVisible();
+    await expect(settingsDialog.getByRole("textbox", { name: "시험명" })).toHaveValue("7월 진단평가");
+    await expect(settingsDialog.getByRole("spinbutton", { name: /^만점/ })).toHaveValue("100");
+    await expect(settingsDialog.getByRole("spinbutton", { name: /^커트라인/ })).toHaveValue("60");
+    await settingsDialog.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(settingsDialog).toHaveCount(0);
+  });
+
   test("혼합형은 OMR 문항을 잠그고 별도 결과 보정으로 이동한다", async ({ page }) => {
     const apiState = await installApi(page, {
       gradingMode: "mixed",
@@ -569,9 +604,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("button", {
-      name: "7월 진단평가 문항별 직접 채점 열기",
-    }).click();
+    await chooseExamHeaderAction(page, "정오표 작성");
 
     const dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 혼합 채점",
@@ -612,9 +645,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("button", {
-      name: "7월 진단평가 문항별 직접 채점 열기",
-    }).click();
+    await chooseExamHeaderAction(page, "정오표 작성");
 
     const dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 정오 직접입력",
@@ -636,9 +667,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("button", {
-      name: "7월 진단평가 문항별 직접 채점 열기",
-    }).click();
+    await chooseExamHeaderAction(page, "정오표 작성");
 
     const dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 문항별 점수 입력",
@@ -813,11 +842,7 @@ test.describe("문항별 직접 채점", () => {
     }
     await page.setViewportSize({ width: 1920, height: 1080 });
 
-    const gradingEntry = page.getByRole("button", {
-      name: "7월 진단평가 문항별 직접 채점 열기",
-    });
-    await expect(gradingEntry).toBeVisible();
-    await gradingEntry.click();
+    await chooseExamHeaderAction(page, "정오표 작성");
 
     const dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 정오 직접입력",
