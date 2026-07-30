@@ -34,6 +34,16 @@ async function openScores(
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
 }
 
+async function ensureScoreEditing(page: Page): Promise<void> {
+  const cells = page.locator(".ds-scores-cell-editable");
+  if (await cells.first().isVisible().catch(() => false)) return;
+
+  const editButton = page.getByRole("button", { name: "수정", exact: true });
+  await expect(editButton).toBeVisible();
+  await editButton.click();
+  await expect(cells.first()).toBeVisible();
+}
+
 const scorePatches: Array<Record<string, unknown>> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
@@ -285,11 +295,11 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-1100.png"), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
-    if (await editButton.isVisible().catch(() => false)) await editButton.click();
+    await ensureScoreEditing(page);
     await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-390.png"), fullPage: true });
     await page.setViewportSize({ width: 1366, height: 900 });
-    if (await editButton.isVisible().catch(() => false)) await editButton.click();
+    await ensureScoreEditing(page);
 
     await expect(cells.nth(0)).toHaveAttribute("role", "textbox");
     await expect(cells.nth(0)).toHaveAttribute("aria-label", /자동저장학생1.*주간 확인/);

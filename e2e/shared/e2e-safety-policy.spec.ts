@@ -57,6 +57,24 @@ test.describe("E2E production safety policy", () => {
       productionMultiNoticeFlowSkipReason("https://api.hakwonplus.com"),
     ).not.toBeNull();
     expect(
+      productionMultiNoticeFlowSkipReason(
+        "https://api.hakwonplus.com",
+        {
+          explicitlyAllowed: true,
+          configuredPhone: PRODUCTION_CONTROLLED_PHONE,
+        },
+      ),
+    ).toBeNull();
+    expect(
+      productionMultiNoticeFlowSkipReason(
+        "https://api.hakwonplus.com",
+        {
+          explicitlyAllowed: true,
+          configuredPhone: "01099998888",
+        },
+      ),
+    ).not.toBeNull();
+    expect(
       nonPrimaryTenantWriteSkipReason("dnb", "https://api.hakwonplus.com"),
     ).not.toBeNull();
     expect(

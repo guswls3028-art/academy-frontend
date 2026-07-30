@@ -16,6 +16,8 @@ const PW_TEST_NAME = `[E2E-${TS}]비번테스트`;
 const ORIGINAL_PW = "test1234";
 const TEMP_PW = "e2eChanged9876";
 const PARENT_PHONE = "01031217466";
+const ALLOW_PRODUCTION_NOTIFICATIONS =
+  process.env.E2E_ALLOW_PASSWORD_RESET_REAL_NOTIFICATIONS === "1";
 let createdStudentId: number | null = null;
 
 async function ensurePasswordTestAccount(page: Page): Promise<void> {
@@ -53,7 +55,10 @@ async function cleanupPasswordTestAccount(page: Page): Promise<void> {
 }
 
 test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
-  const productionBlock = productionMultiNoticeFlowSkipReason(API_BASE);
+  const productionBlock = productionMultiNoticeFlowSkipReason(API_BASE, {
+    explicitlyAllowed: ALLOW_PRODUCTION_NOTIFICATIONS,
+    configuredPhone: PARENT_PHONE,
+  });
   test.skip(Boolean(productionBlock), productionBlock ?? "");
 
   let browser: Browser;
