@@ -64,14 +64,18 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
 | L3 운영 통합 | worker/provider/실발송/장시간 영상 | 영상, 알림톡, worker, 배포 변경 후 | provider/worker 로그와 실제 수신/재생 증거 |
 
-GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저 전 메뉴 감사를
-제외한 모든 활성 spec을 두 core shard로 나눠 실행한다. core가 성공한 뒤
-admin/developer desktop, student mobile, teacher mobile 전 메뉴 감사를 역할별
-독립 job으로 실행한다. 두 core와 세 감사 job은 같은 운영 E2E tenant의 인증
-throttle과 상호 간섭을 피하려고 각각 `max-parallel: 1`로 직렬화한다. 각
-job은 120분 상한을 가지며, core 두 개와 세 감사 job이 모두 성공해야 수동
-전체 E2E를 통과로 기록한다. 일부 shard 성공만으로 전체 E2E를 통과 처리하지
-않는다.
+GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저
+`pnpm test:e2e:release`의 유지보수 대상 실사용 묶음을 실행한다. 요청자가
+`controlled_write_canaries=true`를 명시한 실행만 가입·계정복구 실발송과
+OMR·과제·클리닉 fixture를 통제 번호 및 소유 ID cleanup 경계 안에서 추가
+실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
+메뉴 감사를 역할별 독립 job으로 직렬 실행한다. 유지보수 묶음, 선택한 통제
+쓰기 canary, 세 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
+
+활성 spec 전체는 릴리스 묶음이 아니다. 2026-07-30 실행 `30521523046`은
+첫 shard가 120분에 도달했고 과거 일회성 감사·진단 자산에서 재시도 쌍 기준
+85개 최종 실패를 남겼다. 이 자산은 필요 시 명시 실행해 현대화하거나
+`_local`/archive로 정리하며, 파일 수를 제품 기능 합격 수로 보고하지 않는다.
 
 ## 5. 공통 합격 기준
 

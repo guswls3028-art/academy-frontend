@@ -238,8 +238,9 @@ test.describe("admin real-use session assessment flow", () => {
 
     const targetLecture = await findActiveLectureWithSession(page);
     if (targetLecture == null) {
-      test.skip(true, "setup: no active lecture with an existing session is available under /workspace/lectures");
-      return;
+      throw new Error(
+        "release E2E tenant has no active lecture with a session; this required assessment flow cannot be counted as passed",
+      );
     }
 
     await openLectureFromList(page, targetLecture);

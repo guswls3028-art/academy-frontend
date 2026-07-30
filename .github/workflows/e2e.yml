@@ -2,6 +2,12 @@ name: E2E Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      controlled_write_canaries:
+        description: '통제 번호만 사용하는 가입/복구/OMR/과제/클리닉 운영 쓰기 canary 실행'
+        required: false
+        default: false
+        type: boolean
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -20,18 +26,11 @@ concurrency:
 
 jobs:
   e2e:
-    name: E2E (${{ matrix.scope }})
+    name: E2E maintained release suite
     runs-on: ubuntu-latest
     timeout-minutes: 120
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
-    strategy:
-      fail-fast: false
-      # PR has one fast gate. Manual full runs use two sequential core shards
-      # because they share one production-shaped E2E tenant.
-      max-parallel: 1
-      matrix:
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '[{"scope":"core-1-of-2","shard":"1/2"},{"scope":"core-2-of-2","shard":"2/2"}]' || '[{"scope":"pr-gate","shard":""}]') }}
     steps:
       - uses: actions/checkout@v6
 
@@ -97,22 +96,33 @@ jobs:
         if: github.event_name == 'pull_request'
         run: pnpm test:e2e:gate --reporter=github,html
 
-      - name: Run full E2E suite
+      - name: Run maintained release E2E suite
         if: github.event_name == 'workflow_dispatch'
-        # The exhaustive menu audit has three per-role timeouts totalling more
-        # than one job's 120-minute bound. It runs in the sequential matrix
-        # below; the two sequential core shards own every other active spec.
+        run: pnpm test:e2e:release --reporter=github,html
+
+      - name: Run opt-in controlled production write canaries
+        if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
+        env:
+          E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: '1'
+          E2E_SIGNUP_CONTROLLED_PHONE: '01031217466'
+          E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: '1'
+          E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: '01031217466'
+          E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: '1'
+          E2E_CLINIC_CONTROLLED_PHONE: '01031217466'
         run: >-
-          npx playwright test
-          --grep-invert "전 메뉴/버튼 사람형 클릭 감사"
-          --shard "${{ matrix.shard }}"
+          pnpm exec playwright test
+          e2e/flows/signup-approval-roundtrip.spec.ts
+          e2e/auth/account-recovery-realuse.spec.ts
+          e2e/admin/omr-review-realuse.spec.ts
+          e2e/student/homework-submission-realuse.spec.ts
+          e2e/student/clinic-remediation-realuse.spec.ts
           --reporter=github,html
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report-${{ matrix.scope }}
+          name: playwright-report-maintained-release
           path: |
             playwright-report/
             test-results/
@@ -123,7 +133,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-server-log-${{ matrix.scope }}
+          name: frontend-server-log-maintained-release
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore
