@@ -20,12 +20,18 @@ concurrency:
 
 jobs:
   e2e:
+    name: E2E (${{ matrix.scope }})
     runs-on: ubuntu-latest
-    # PR은 빠른 안전 게이트만 실행한다. 운영 E2E tenant를 공유하는 전체 suite는
-    # 병렬화하지 않고 workflow_dispatch에서만 명시적으로 실행한다.
     timeout-minutes: 120
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      # PR has one fast gate. Manual full runs use two sequential core shards
+      # because they share one production-shaped E2E tenant.
+      max-parallel: 1
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '[{"scope":"core-1-of-2","shard":"1/2"},{"scope":"core-2-of-2","shard":"2/2"}]' || '[{"scope":"pr-gate","shard":""}]') }}
     steps:
       - uses: actions/checkout@v6
 
@@ -94,15 +100,19 @@ jobs:
       - name: Run full E2E suite
         if: github.event_name == 'workflow_dispatch'
         # The exhaustive menu audit has three per-role timeouts totalling more
-        # than this job's 120-minute bound. It runs in the sequential matrix
-        # below; this job owns every other active spec.
-        run: npx playwright test --grep-invert "전 메뉴/버튼 사람형 클릭 감사" --reporter=github,html
+        # than one job's 120-minute bound. It runs in the sequential matrix
+        # below; the two sequential core shards own every other active spec.
+        run: >-
+          npx playwright test
+          --grep-invert "전 메뉴/버튼 사람형 클릭 감사"
+          --shard "${{ matrix.shard }}"
+          --reporter=github,html
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.scope }}
           path: |
             playwright-report/
             test-results/
@@ -113,7 +123,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-server-log
+          name: frontend-server-log-${{ matrix.scope }}
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore
