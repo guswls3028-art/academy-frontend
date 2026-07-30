@@ -43,19 +43,19 @@ test.describe("admin landings KPI inbox", () => {
     await expect(kpiGrid.getByText("운영 강의", { exact: true })).toBeVisible();
     await expect(kpiGrid.getByText("운영 중 시험", { exact: true })).toBeVisible();
 
-    // 토글 버튼 → 트리 모드
-    const toggle = page.getByRole("button", { name: "강의별 탐색" });
-    await expect(toggle).toBeVisible();
-    await expect(toggle).toContainText("강의별 탐색");
-    await toggle.click();
+    // 탐색 탭 → 트리 모드
+    const treeTab = page.getByRole("tab", { name: "강의별 탐색" });
+    await expect(treeTab).toBeVisible();
+    await expect(treeTab).toContainText("강의별 탐색");
+    await treeTab.click();
 
     // 트리 모드: 좌측 트리(강의·차시) 노출
     await page.waitForURL(/\/workspace\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "성적 콘솔" })).toBeVisible();
 
-    // 다시 토글 → KPI 복귀
-    await page.getByRole("button", { name: "오늘의 작업" }).click();
+    // 콘솔 탭으로 복귀
+    await page.getByRole("tab", { name: "성적 콘솔" }).click();
     await page.waitForURL(/\/workspace\/results$/, { timeout: 10_000 });
     await expect(page.getByTestId("results-kpi-grid")).toBeVisible();
 
@@ -69,8 +69,8 @@ test.describe("admin landings KPI inbox", () => {
     await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-    // KPI → tree 토글
-    await page.getByRole("button", { name: "강의별 탐색" }).click();
+    // KPI → 트리 탭
+    await page.getByRole("tab", { name: "강의별 탐색" }).click();
     await page.waitForURL(/\/workspace\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
 
@@ -78,7 +78,7 @@ test.describe("admin landings KPI inbox", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "성적 콘솔" })).toBeVisible();
   });
 
   test("results landing — KPI shows fallback on API error", async ({ page }) => {
@@ -128,18 +128,18 @@ test.describe("admin landings KPI inbox", () => {
     await expect(kpiGrid.getByText("처리 중", { exact: true })).toBeVisible();
     await expect(kpiGrid.getByText("다시 시도 필요", { exact: true })).toBeVisible();
 
-    // 토글 → 트리 모드
-    const toggle = page.getByRole("button", { name: "폴더별 탐색" });
-    await expect(toggle).toBeVisible();
-    await expect(toggle).toContainText("폴더별 탐색");
-    await toggle.click();
+    // 탐색 탭 → 트리 모드
+    const treeTab = page.getByRole("tab", { name: "폴더별 탐색" });
+    await expect(treeTab).toBeVisible();
+    await expect(treeTab).toContainText("폴더별 탐색");
+    await treeTab.click();
 
     // 트리 모드: 좌측 폴더 노출
     await expect(page.getByText("폴더", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "오늘의 작업" })).toBeVisible();
 
-    // 다시 토글 → KPI
-    await page.getByRole("button", { name: "오늘의 작업" }).click();
+    // 오늘의 작업 탭으로 복귀
+    await page.getByRole("tab", { name: "오늘의 작업" }).click();
     await expect(page.getByTestId("videos-kpi-grid")).toBeVisible();
   });
 });

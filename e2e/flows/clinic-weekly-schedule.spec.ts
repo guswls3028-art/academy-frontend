@@ -99,7 +99,7 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
     await expect(page.getByRole("heading", { name: "예약 일정", exact: true })).toBeVisible();
     await expect(page.getByRole("gridcell")).toHaveCount(7);
     await expect(page.getByRole("article").filter({ hasText: TITLE })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "예약 일정", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "예약 일정", exact: true })).toBeVisible();
 
     const sessionCard = page.getByRole("article").filter({ hasText: TITLE });
     await sessionCard.getByRole("button", { name: `${TITLE} 설정 복사` }).click();
