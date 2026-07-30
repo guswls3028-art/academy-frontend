@@ -677,6 +677,50 @@ test.describe("문항별 직접 채점", () => {
     ).toBeVisible();
   });
 
+  test("짧은 모바일 화면에서도 모든 채점 설정과 저장 버튼에 접근한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 600 });
+    await installApi(page, {
+      gradingMode: "choice",
+      manualGradingMethod: "score",
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "시험 설정");
+
+    const settingsDialog = page.getByRole("dialog").filter({
+      hasText: "시험 설정",
+    });
+    const modalBodyScroller = settingsDialog.locator(
+      ".modal-body > .overflow-y-auto",
+    );
+    await expect(modalBodyScroller).toHaveCSS("overflow-y", "auto");
+    await expect(
+      settingsDialog.getByRole("radio", {
+        name: /문항별 점수 직접입력/,
+      }),
+    ).toBeVisible();
+
+    const publishButton = settingsDialog.getByRole("button", {
+      name: /학원 홈페이지에 성적 통계 게시/,
+    });
+    await publishButton.scrollIntoViewIfNeeded();
+    await expect(publishButton).toBeVisible();
+    const saveButton = settingsDialog.getByRole("button", {
+      name: "저장",
+      exact: true,
+    });
+    await expect(saveButton).toBeVisible();
+    for (const target of [publishButton, saveButton]) {
+      const box = await target.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(600);
+    }
+  });
+
   test("혼합형은 OMR 문항을 잠그고 별도 결과 보정으로 이동한다", async ({ page }) => {
     const apiState = await installApi(page, {
       gradingMode: "mixed",

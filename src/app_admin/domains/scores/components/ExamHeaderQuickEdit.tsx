@@ -213,7 +213,7 @@ export default function ExamHeaderQuickEdit({
       >
         <ModalHeader type="action" title="시험 설정" subtitle={examTitle} />
         <ModalBody>
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
             {/* 시험명 */}
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
