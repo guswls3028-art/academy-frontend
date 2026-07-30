@@ -38,43 +38,61 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
     // 첫 번째 강의 클릭
     const lectureLink = T.locator("a[href*='/workspace/lectures/']").first();
-    const hasLecture = await lectureLink.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasLecture = await lectureLink
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
     if (hasLecture) {
       await lectureLink.click();
       await T.waitForLoadState("load");
-      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+        () => {},
+      );
 
       // 세션(차시) 목록으로 이동
       const sessionsLink = T.locator("a[href*='/sessions']").first();
-      const hasSessions = await sessionsLink.isVisible({ timeout: 5000 }).catch(() => false);
+      const hasSessions = await sessionsLink
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
       if (hasSessions) {
         await sessionsLink.click();
         await T.waitForLoadState("load");
-        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+          () => {},
+        );
       }
 
       // 첫 번째 세션 클릭
       const sessionLink = T.locator("a[href*='/sessions/']").first();
-      const hasSession = await sessionLink.isVisible({ timeout: 5000 }).catch(() => false);
+      const hasSession = await sessionLink
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
       if (hasSession) {
         await sessionLink.click();
         await T.waitForLoadState("load");
-        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+        await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+          () => {},
+        );
 
         // 성적 탭 클릭
         const scoresTab = T.locator("a[href*='/scores'], button, [role='tab']")
           .filter({ hasText: /성적|점수|Scores/ })
           .first();
-        const hasScoresTab = await scoresTab.isVisible({ timeout: 5000 }).catch(() => false);
+        const hasScoresTab = await scoresTab
+          .isVisible({ timeout: 5000 })
+          .catch(() => false);
         if (hasScoresTab) {
           await scoresTab.click();
-          await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+          await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+            () => {},
+          );
         }
       }
     }
 
-    await T.screenshot({ path: "test-results/hw-scores/02-admin-session-scores.png" });
+    await T.screenshot({
+      path: "test-results/hw-scores/02-admin-session-scores.png",
+    });
     // 페이지가 에러 없이 렌더링 되었는지 확인
     await expect(T.locator("text=Not Found")).not.toBeVisible();
     await expect(T.locator("text=500")).not.toBeVisible();
@@ -82,16 +100,24 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("03 Admin: 과제 관리 확인 (세션 컨텍스트)", async () => {
     // 현재 세션 상세에서 과제 탭 확인
-    const assignmentsTab = T.locator("a[href*='/assignments'], button, [role='tab']")
+    const assignmentsTab = T.locator(
+      "a[href*='/assignments'], button, [role='tab']",
+    )
       .filter({ hasText: /과제|숙제|Homework|Assignment/ })
       .first();
-    const hasTab = await assignmentsTab.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasTab = await assignmentsTab
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (hasTab) {
       await assignmentsTab.click();
-      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+      await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+        () => {},
+      );
     }
 
-    await T.screenshot({ path: "test-results/hw-scores/03-admin-homework.png" });
+    await T.screenshot({
+      path: "test-results/hw-scores/03-admin-homework.png",
+    });
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
@@ -108,17 +134,27 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("05 Student: 성적 허브 (GradesPage) 렌더링", async () => {
     await S.goto(`${BASE}/student/grades`, { waitUntil: "load" });
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await S.screenshot({ path: "test-results/hw-scores/05-student-grades-hub.png" });
+    await S.screenshot({
+      path: "test-results/hw-scores/05-student-grades-hub.png",
+    });
 
     // GradesPage의 current title 확인
-    await expect(S.getByRole("heading", { name: "성적 보드" })).toBeVisible({ timeout: 10000 });
+    await expect(S.getByRole("heading", { name: "성적 보드" })).toBeVisible({
+      timeout: 10000,
+    });
     await expect(S.locator(".stu-skel").first()).toBeHidden({ timeout: 10000 });
 
     // 시험/과제 전환 탭은 성적 허브의 핵심 계약이다.
-    await expect(S.getByRole("button", { name: "시험 성적" })).toBeVisible({ timeout: 10000 });
-    await expect(S.getByRole("button", { name: "과제 현황" })).toBeVisible({ timeout: 10000 });
+    await expect(S.getByRole("button", { name: "시험 성적" })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(S.getByRole("button", { name: "과제 현황" })).toBeVisible({
+      timeout: 10000,
+    });
 
-    const hasExamContent = await S.getByRole("heading", { name: /시험 결과가 아직 없습니다|시험 결과/ })
+    const hasExamContent = await S.getByRole("heading", {
+      name: /시험 결과가 아직 없습니다|시험 결과/,
+    })
       .isVisible({ timeout: 5000 })
       .catch(() => false);
     expect(hasExamContent).toBeTruthy();
@@ -127,20 +163,34 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("06 Student: 과제 현황 확인", async () => {
     // 과제 현황 탭이 있으면 클릭, 없으면 이미 섹션 구조
     const homeworkTab = S.getByRole("button", { name: "과제 현황" });
-    const hasTab = await homeworkTab.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasTab) {
-      await homeworkTab.click();
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    }
-    await S.screenshot({ path: "test-results/hw-scores/06-student-homework-tab.png" });
-
-    // 과제 관련 콘텐츠가 보이는지 (목록, 빈 상태, 섹션 헤더 중 하나)
-    const hasHomeworkList = await S.locator("text=과제 목록").isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyHomework = await S.getByRole("heading", { name: /과제 결과가 아직 없습니다|과제 성적이 아직 없습니다|기입된 과제 성적이 없습니다/ })
+    const hasTab = await homeworkTab
       .isVisible({ timeout: 3000 })
       .catch(() => false);
-    const hasHomeworkSection = await S.locator("text=과제 이력").isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasHomeworkList || hasEmptyHomework || hasHomeworkSection).toBeTruthy();
+    if (hasTab) {
+      await homeworkTab.click();
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+        () => {},
+      );
+    }
+    await S.screenshot({
+      path: "test-results/hw-scores/06-student-homework-tab.png",
+    });
+
+    // 과제 관련 콘텐츠가 보이는지 (목록, 빈 상태, 섹션 헤더 중 하나)
+    const hasHomeworkList = await S.locator("text=과제 목록")
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const hasEmptyHomework = await S.getByRole("heading", {
+      name: /과제 결과가 아직 없습니다|과제 성적이 아직 없습니다|기입된 과제 성적이 없습니다/,
+    })
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    const hasHomeworkSection = await S.locator("text=과제 이력")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    expect(
+      hasHomeworkList || hasEmptyHomework || hasHomeworkSection,
+    ).toBeTruthy();
   });
 
   test("07 Student: 시험 결과 상세 (ExamResultPage) 확인", async () => {
@@ -149,30 +199,50 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 시험 결과 링크가 있으면 클릭
-    const examLink = S.locator("a[href*='/student/exams/'][href*='/result']").first();
-    const hasExamLink = await examLink.isVisible({ timeout: 5000 }).catch(() => false);
+    const examLink = S.locator(
+      "a[href*='/student/exams/'][href*='/result']",
+    ).first();
+    const hasExamLink = await examLink
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
     if (hasExamLink) {
       await examLink.click();
       await S.waitForLoadState("load");
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-      await S.screenshot({ path: "test-results/hw-scores/07-student-exam-result.png" });
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+        () => {},
+      );
+      await S.screenshot({
+        path: "test-results/hw-scores/07-student-exam-result.png",
+      });
 
       // ExamResultPage 에서 점수 게이지, 합격/불합격 표시 확인
-      const hasScore = await S.locator("text=/\\d+\\s*\\/\\s*\\d+/").isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPassBadge = await S.locator("text=/합격|불합격/").isVisible({ timeout: 5000 }).catch(() => false);
+      const hasScore = await S.locator("text=/\\d+\\s*\\/\\s*\\d+/")
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
+      const hasPassBadge = await S.locator("text=/합격|불합격/")
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
       // 점수 또는 결과 배지 중 하나는 보여야 함
       expect(hasScore || hasPassBadge).toBeTruthy();
     } else {
       // 시험 결과가 없으면 redirect 경로 테스트 (유효하지 않은 ID)
       await S.goto(`${BASE}/student/grades/exams/99999`, { waitUntil: "load" });
       // redirect로 /student/exams/99999/result 로 이동
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(
+        () => {},
+      );
       // 시험 결과 타이틀 또는 에러 상태
-      const hasTitle = await S.locator("text=시험 결과").isVisible({ timeout: 10000 }).catch(() => false);
+      const hasTitle = await S.locator("text=시험 결과")
+        .isVisible({ timeout: 10000 })
+        .catch(() => false);
       const errorLocator = S.locator("text=불러오지 못했습니다");
-      await errorLocator.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
-      await S.screenshot({ path: "test-results/hw-scores/07-student-exam-result-empty.png" });
+      await errorLocator
+        .waitFor({ state: "visible", timeout: 15000 })
+        .catch(() => {});
+      await S.screenshot({
+        path: "test-results/hw-scores/07-student-exam-result-empty.png",
+      });
       const hasError = await errorLocator.isVisible();
       expect(hasTitle || hasError).toBeTruthy();
     }
@@ -181,20 +251,31 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("08 Student: 성적표 제출 (SubmitScorePage) UI 확인", async () => {
     await S.goto(`${BASE}/student/submit/score`, { waitUntil: "load" });
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await S.screenshot({ path: "test-results/hw-scores/08-student-submit-score.png" });
+    await S.screenshot({
+      path: "test-results/hw-scores/08-student-submit-score.png",
+    });
 
     // 성적표 제출 타이틀
-    await expect(S.locator("text=성적표 제출")).toBeVisible({ timeout: 10000 });
+    await expect(
+      S.getByRole("heading", { name: "성적표 제출", exact: true }),
+    ).toBeVisible({ timeout: 10000 });
 
     // 파일 선택 버튼 존재 (학부모 계정이 아닌 경우)
-    const hasFileBtn = await S.locator("button").filter({ hasText: /성적표 선택/ }).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasParentMsg = await S.locator("text=학부모 계정").isVisible({ timeout: 3000 }).catch(() => false);
+    const hasFileBtn = await S.locator("button")
+      .filter({ hasText: /성적표 선택/ })
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const hasParentMsg = await S.locator("text=학부모 계정")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
     // 파일 선택 버튼이 보이거나, 학부모 메시지가 보이거나
     expect(hasFileBtn || hasParentMsg).toBeTruthy();
 
     // 제출하기 버튼 존재 확인 (disabled 상태일 수 있음)
     if (hasFileBtn) {
-      const submitBtn = S.locator("button").filter({ hasText: /성적표 보내기/ });
+      const submitBtn = S.locator("button").filter({
+        hasText: /성적표 보내기/,
+      });
       await expect(submitBtn).toBeVisible({ timeout: 5000 });
       // 파일이 없으므로 disabled 상태여야 함
       await expect(submitBtn).toBeDisabled();
@@ -204,14 +285,20 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("09 Student: 과제 제출 (SubmitAssignmentPage) UI 확인", async () => {
     await S.goto(`${BASE}/student/submit/assignment`, { waitUntil: "load" });
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await S.screenshot({ path: "test-results/hw-scores/09-student-submit-assignment.png" });
+    await S.screenshot({
+      path: "test-results/hw-scores/09-student-submit-assignment.png",
+    });
 
     // 과제 제출 타이틀
     await expect(S.locator("text=과제 제출")).toBeVisible({ timeout: 10000 });
 
     // 제출 대상 선택 스텝
-    const hasStep1 = await S.locator("text=제출 대상 선택").isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyMsg = await S.locator("text=제출할 미완료 과제").isVisible({ timeout: 5000 }).catch(() => false);
+    const hasStep1 = await S.locator("text=제출 대상 선택")
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const hasEmptyMsg = await S.locator("text=제출할 미완료 과제")
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     // 스텝1이 보이거나 빈 상태 메시지가 보이거나
     expect(hasStep1 || hasEmptyMsg).toBeTruthy();
   });
@@ -219,22 +306,40 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
   test("10 Student: 인벤토리 (MyInventoryPage) 렌더링", async () => {
     await S.goto(`${BASE}/student/inventory`, { waitUntil: "load" });
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await S.screenshot({ path: "test-results/hw-scores/10-student-inventory.png" });
+    await S.screenshot({
+      path: "test-results/hw-scores/10-student-inventory.png",
+    });
 
     // MyInventoryPage의 current title 확인
-    await expect(S.getByRole("heading", { name: "학습 자료함" })).toBeVisible({ timeout: 10000 });
+    await expect(S.getByRole("heading", { name: "학습 자료함" })).toBeVisible({
+      timeout: 10000,
+    });
 
     // 파일이 있으면 파일 목록, 없으면 빈 상태
-    const hasFiles = await S.locator("text=/다운로드|미리보기/").isVisible({ timeout: 3000 }).catch(() => false);
-    const hasEmpty = await S.locator("text=파일이 없습니다").isVisible({ timeout: 3000 }).catch(() => false);
-    const hasUploadBtn = await S.locator("button").filter({ hasText: /파일 업로드/ }).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasFiles = await S.locator("text=/다운로드|미리보기/")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    const hasEmpty = await S.locator("text=파일이 없습니다")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    const hasUploadBtn = await S.locator("button")
+      .filter({ hasText: /파일 업로드/ })
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
     // 파일 목록이 보이거나, 빈 상태가 보이거나, 업로드 버튼이 있거나
     expect(hasFiles || hasEmpty || hasUploadBtn).toBeTruthy();
 
     // 새 폴더 버튼 (학생 계정이면 표시)
-    const hasNewFolderBtn = await S.locator("button").filter({ hasText: /새 폴더/ }).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasNewFolderBtn = await S.locator("button")
+      .filter({ hasText: /새 폴더/ })
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
     // 학부모가 아닌 학생 계정이면 새 폴더 버튼 존재
-    if (!await S.locator("text=학부모 계정").isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (
+      !(await S.locator("text=학부모 계정")
+        .isVisible({ timeout: 1000 })
+        .catch(() => false))
+    ) {
       expect(hasNewFolderBtn).toBeTruthy();
     }
   });
@@ -258,7 +363,11 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     if (lectures.length > 0) {
       const lectureId = lectures[0].id;
       // 세션 목록 조회
-      const sessionsResp = await apiCall(T, "GET", `/lectures/${lectureId}/sessions/`);
+      const sessionsResp = await apiCall(
+        T,
+        "GET",
+        `/lectures/${lectureId}/sessions/`,
+      );
 
       const sessions = Array.isArray(sessionsResp.body?.results)
         ? sessionsResp.body.results
@@ -269,7 +378,11 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       if (sessions.length > 0) {
         const sessionId = sessions[0].id;
         // 세션 성적 API 호출
-        const scoresResp = await apiCall(T, "GET", `/results/admin/sessions/${sessionId}/scores/`);
+        const scoresResp = await apiCall(
+          T,
+          "GET",
+          `/results/admin/sessions/${sessionId}/scores/`,
+        );
         expect(scoresResp.status).toBe(200);
 
         // 응답 구조 검증: meta + rows

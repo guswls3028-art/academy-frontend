@@ -107,12 +107,14 @@ jobs:
           E2E_SIGNUP_CONTROLLED_PHONE: "01031217466"
           E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: "1"
           E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_PASSWORD_RESET_REAL_NOTIFICATIONS: "1"
           E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: "1"
           E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
         run: >-
           pnpm exec playwright test
           e2e/flows/signup-approval-roundtrip.spec.ts
           e2e/auth/account-recovery-realuse.spec.ts
+          e2e/flows/password-reset-roundtrip.spec.ts
           e2e/admin/omr-review-realuse.spec.ts
           e2e/student/homework-submission-realuse.spec.ts
           e2e/student/clinic-remediation-realuse.spec.ts
