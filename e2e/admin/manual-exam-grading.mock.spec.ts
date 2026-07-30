@@ -433,6 +433,75 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
 
+    const editAction = page.locator(".scores-edit-action");
+    const toolsTrigger = page.getByRole("button", { name: "성적 도구", exact: true });
+    await expect(editAction).toBeVisible();
+    await expect(toolsTrigger).toBeVisible();
+    await expect(editAction).toHaveCSS("min-height", "38px");
+    await expect(toolsTrigger).toHaveCSS("border-top-width", "1px");
+
+    const toolbarVisual = await toolsTrigger.evaluate((button) => {
+      const label = button.querySelector<HTMLElement>(".ds-button__label");
+      const chevronSlot = button.querySelector<HTMLElement>(".ds-button__right");
+      if (label == null || chevronSlot == null) {
+        return null;
+      }
+      const buttonStyle = getComputedStyle(button);
+      const labelRect = label.getBoundingClientRect();
+      const chevronRect = chevronSlot.getBoundingClientRect();
+      return {
+        boxShadow: buttonStyle.boxShadow,
+        backgroundImage: buttonStyle.backgroundImage,
+        centerDelta: Math.abs(
+          (labelRect.top + labelRect.height / 2) -
+          (chevronRect.top + chevronRect.height / 2),
+        ),
+        chevronWidth: chevronRect.width,
+        chevronHeight: chevronRect.height,
+      };
+    });
+    expect(toolbarVisual).not.toBeNull();
+    expect(toolbarVisual?.boxShadow).not.toBe("none");
+    expect(toolbarVisual?.backgroundImage).not.toBe("none");
+    expect(toolbarVisual?.centerDelta).toBeLessThanOrEqual(1);
+    expect(toolbarVisual?.chevronWidth).toBe(24);
+    expect(toolbarVisual?.chevronHeight).toBe(24);
+
+    await toolsTrigger.click();
+    await expect(page.getByRole("menu", { name: "성적 도구" })).toBeVisible();
+    await expect(toolsTrigger).toHaveAttribute("aria-expanded", "true");
+    await toolsTrigger.click();
+    await expect(page.getByRole("menu", { name: "성적 도구" })).toBeHidden();
+
+    for (const viewport of [
+      { width: 1100, height: 900 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect(toolsTrigger).toBeVisible();
+      const responsiveLayout = await toolsTrigger.evaluate((button) => {
+        const label = button.querySelector<HTMLElement>(".ds-button__label");
+        const chevronSlot = button.querySelector<HTMLElement>(".ds-button__right");
+        const toolbar = button.closest<HTMLElement>(".domain-list-toolbar");
+        if (label == null || chevronSlot == null || toolbar == null) {
+          return null;
+        }
+        const labelRect = label.getBoundingClientRect();
+        const chevronRect = chevronSlot.getBoundingClientRect();
+        return {
+          centerDelta: Math.abs(
+            (labelRect.top + labelRect.height / 2) -
+            (chevronRect.top + chevronRect.height / 2),
+          ),
+          toolbarOverflow: toolbar.scrollWidth - toolbar.clientWidth,
+        };
+      });
+      expect(responsiveLayout).not.toBeNull();
+      expect(responsiveLayout?.centerDelta).toBeLessThanOrEqual(1);
+      expect(responsiveLayout?.toolbarOverflow).toBeLessThanOrEqual(1);
+    }
+    await page.setViewportSize({ width: 1920, height: 1080 });
+
     const gradingEntry = page.getByRole("button", {
       name: "7월 진단평가 문항별 채점표 열기",
     });
